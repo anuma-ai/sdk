@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "generate": "openapi-ts"
   },
   "repository": {
     "type": "git",
@@ -20,5 +20,9 @@
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
     "@reverbia/portal": "^1.0.0"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.87.2",
+    "typescript": "^5.9.3"
   }
 }
