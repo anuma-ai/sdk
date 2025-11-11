@@ -1,0 +1,24 @@
+{
+  "name": "ai-sdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeta-chain/ai-sdk.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zeta-chain/ai-sdk/issues"
+  },
+  "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
+  "dependencies": {
+    "@reverbia/portal": "^1.0.0"
+  }
+}
