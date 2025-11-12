@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "generate": "openapi-ts"
+    "generate": "openapi-ts",
+    "docs": "typedoc src/client/index.ts"
   },
   "repository": {
     "type": "git",
