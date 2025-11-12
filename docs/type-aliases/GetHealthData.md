@@ -2,17 +2,13 @@
 title: GetHealthData
 ---
 
-[**ai-sdk**](../README.md)
-
-***
-
-[ai-sdk](../README.md) / GetHealthData
+[ai-sdk](../globals.md) / GetHealthData
 
 # Type Alias: GetHealthData
 
 > **GetHealthData** = `object`
 
-Defined in: [types.gen.ts:116](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L116)
+Defined in: [types.gen.ts:116](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L116)
 
 ## Properties
 
@@ -20,7 +16,7 @@ Defined in: [types.gen.ts:116](https://github.com/zeta-chain/ai-sdk/blob/5c8e243
 
 > `optional` **body**: `never`
 
-Defined in: [types.gen.ts:117](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L117)
+Defined in: [types.gen.ts:117](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L117)
 
 ***
 
@@ -28,7 +24,7 @@ Defined in: [types.gen.ts:117](https://github.com/zeta-chain/ai-sdk/blob/5c8e243
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:118](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L118)
+Defined in: [types.gen.ts:118](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L118)
 
 ***
 
@@ -36,7 +32,7 @@ Defined in: [types.gen.ts:118](https://github.com/zeta-chain/ai-sdk/blob/5c8e243
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:119](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L119)
+Defined in: [types.gen.ts:119](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L119)
 
 ***
 
@@ -44,4 +40,4 @@ Defined in: [types.gen.ts:119](https://github.com/zeta-chain/ai-sdk/blob/5c8e243
 
 > **url**: `"/health"`
 
-Defined in: [types.gen.ts:120](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L120)
+Defined in: [types.gen.ts:120](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L120)

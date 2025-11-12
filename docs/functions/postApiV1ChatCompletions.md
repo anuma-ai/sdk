@@ -2,17 +2,13 @@
 title: postApiV1ChatCompletions
 ---
 
-[**ai-sdk**](../README.md)
-
-***
-
-[ai-sdk](../README.md) / postApiV1ChatCompletions
+[ai-sdk](../globals.md) / postApiV1ChatCompletions
 
 # Function: postApiV1ChatCompletions()
 
 > **postApiV1ChatCompletions**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1ChatCompletionsResponses`](../type-aliases/PostApiV1ChatCompletionsResponses.md), [`PostApiV1ChatCompletionsErrors`](../type-aliases/PostApiV1ChatCompletionsErrors.md), `ThrowOnError`\>
 
-Defined in: [sdk.gen.ts:26](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/sdk.gen.ts#L26)
+Defined in: [sdk.gen.ts:26](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/sdk.gen.ts#L26)
 
 Create chat completion
 

@@ -2,17 +2,13 @@
 title: GithubComZetaChainAiPortalPkgLlmapiChoice
 ---
 
-[**ai-sdk**](../README.md)
-
-***
-
-[ai-sdk](../README.md) / GithubComZetaChainAiPortalPkgLlmapiChoice
+[ai-sdk](../globals.md) / GithubComZetaChainAiPortalPkgLlmapiChoice
 
 # Type Alias: GithubComZetaChainAiPortalPkgLlmapiChoice
 
 > **GithubComZetaChainAiPortalPkgLlmapiChoice** = `object`
 
-Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L37)
+Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L37)
 
 ## Properties
 
@@ -20,7 +16,7 @@ Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/5c8e243a
 
 > `optional` **finish\_reason**: `string`
 
-Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L41)
+Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L41)
 
 FinishReason indicates why the completion stopped
 
@@ -30,7 +26,7 @@ FinishReason indicates why the completion stopped
 
 > `optional` **index**: `number`
 
-Defined in: [types.gen.ts:45](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L45)
+Defined in: [types.gen.ts:45](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L45)
 
 Index is the choice index
 
@@ -40,4 +36,4 @@ Index is the choice index
 
 > `optional` **message**: [`GithubComZetaChainAiPortalPkgLlmapiMessage`](GithubComZetaChainAiPortalPkgLlmapiMessage.md)
 
-Defined in: [types.gen.ts:46](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L46)
+Defined in: [types.gen.ts:46](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L46)

@@ -1,7 +1,3 @@
----
-title: ai-sdk
----
-
 # AI SDK
 
 A TypeScript SDK for interacting with ZetaChain's AI Portal API. This SDK

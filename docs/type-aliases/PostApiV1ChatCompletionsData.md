@@ -2,17 +2,13 @@
 title: PostApiV1ChatCompletionsData
 ---
 
-[**ai-sdk**](../README.md)
-
-***
-
-[ai-sdk](../README.md) / PostApiV1ChatCompletionsData
+[ai-sdk](../globals.md) / PostApiV1ChatCompletionsData
 
 # Type Alias: PostApiV1ChatCompletionsData
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L84)
+Defined in: [types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L84)
 
 ## Properties
 
@@ -20,7 +16,7 @@ Defined in: [types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/5c8e243a
 
 > **body**: [`GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest`](GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest.md)
 
-Defined in: [types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L88)
+Defined in: [types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L88)
 
 Chat completion request
 
@@ -30,7 +26,7 @@ Chat completion request
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L89)
+Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L89)
 
 ***
 
@@ -38,7 +34,7 @@ Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/5c8e243a
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L90)
+Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L90)
 
 ***
 
@@ -46,4 +42,4 @@ Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/5c8e243a
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/5c8e243af9a466a50f7d4fa3d6a0b9627b185419/src/client/types.gen.ts#L91)
+Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L91)
