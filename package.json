@@ -19,6 +19,7 @@
   "scripts": {
     "generate": "openapi-ts",
     "build": "rimraf dist && tsc --outDir dist/esm --module esnext && tsc --outDir dist/cjs --module commonjs && tsc --declarationDir dist/types --emitDeclarationOnly",
+    "prepublishOnly": "yarn build",
     "docs": "typedoc src/client/index.ts"
   },
   "repository": {
