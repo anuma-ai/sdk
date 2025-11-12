@@ -1,5 +1,5 @@
 ---
-title: ai-sdk
+title: "@reverbia/sdk"
 ---
 
 # AI SDK

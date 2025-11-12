@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@reverbia/portal": "^1.0.0"
+    "@reverbia/portal": "1.0.0-next.20251112"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",

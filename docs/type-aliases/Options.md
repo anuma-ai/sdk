@@ -2,13 +2,13 @@
 title: Options
 ---
 
-[ai-sdk](../globals.md) / Options
+[@reverbia/sdk](../globals.md) / Options
 
 # Type Alias: Options\<TData, ThrowOnError\>
 
 > **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & `object`
 
-Defined in: [sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/sdk.gen.ts#L7)
+Defined in: [sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/sdk.gen.ts#L7)
 
 ## Type Declaration
 

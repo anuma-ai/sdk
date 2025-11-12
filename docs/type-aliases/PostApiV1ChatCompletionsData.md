@@ -2,21 +2,21 @@
 title: PostApiV1ChatCompletionsData
 ---
 
-[ai-sdk](../globals.md) / PostApiV1ChatCompletionsData
+[@reverbia/sdk](../globals.md) / PostApiV1ChatCompletionsData
 
 # Type Alias: PostApiV1ChatCompletionsData
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L84)
+Defined in: [types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L84)
 
 ## Properties
 
 ### body
 
-> **body**: [`GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest`](GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest.md)
+> **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L88)
+Defined in: [types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L88)
 
 Chat completion request
 
@@ -26,7 +26,7 @@ Chat completion request
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L89)
+Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L89)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:89](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L90)
+Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L90)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/types.gen.ts#L91)
+Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L91)

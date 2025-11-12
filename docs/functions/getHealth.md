@@ -2,13 +2,13 @@
 title: getHealth
 ---
 
-[ai-sdk](../globals.md) / getHealth
+[@reverbia/sdk](../globals.md) / getHealth
 
 # Function: getHealth()
 
 > **getHealth**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`\>
 
-Defined in: [sdk.gen.ts:42](https://github.com/zeta-chain/ai-sdk/blob/517fa2c8c808c04c57e2e08718097afe0d70494a/src/client/sdk.gen.ts#L42)
+Defined in: [sdk.gen.ts:42](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/sdk.gen.ts#L42)
 
 Health check
 

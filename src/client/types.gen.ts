@@ -4,69 +4,7 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest = {
-    /**
-     * Messages is the conversation history
-     */
-    messages?: Array<GithubComZetaChainAiPortalPkgLlmapiMessage>;
-    /**
-     * Model is the model identifier
-     */
-    model?: string;
-    /**
-     * Stream indicates if response should be streamed
-     */
-    stream?: boolean;
-};
-
-export type GithubComZetaChainAiPortalPkgLlmapiChatCompletionResponse = {
-    /**
-     * Choices contains the completion choices
-     */
-    choices?: Array<GithubComZetaChainAiPortalPkgLlmapiChoice>;
-    /**
-     * ID is the completion ID
-     */
-    id?: string;
-    /**
-     * Model is the model used
-     */
-    model?: string;
-};
-
-export type GithubComZetaChainAiPortalPkgLlmapiChoice = {
-    /**
-     * FinishReason indicates why the completion stopped
-     */
-    finish_reason?: string;
-    /**
-     * Index is the choice index
-     */
-    index?: number;
-    message?: GithubComZetaChainAiPortalPkgLlmapiMessage;
-};
-
-/**
- * Message is the generated message
- */
-export type GithubComZetaChainAiPortalPkgLlmapiMessage = {
-    /**
-     * Content is the message content
-     */
-    content?: string;
-    role?: GithubComZetaChainAiPortalPkgLlmapiRole;
-};
-
-/**
- * Role is the message role (system, user, assistant)
- */
-export type GithubComZetaChainAiPortalPkgLlmapiRole = string;
-
-export type GithubComZetaChainAiPortalPkgResponseErrorResponse = {
-    error?: string;
-};
-
-export type InternalApiHandlersHealthResponse = {
+export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
      */
@@ -81,11 +19,73 @@ export type InternalApiHandlersHealthResponse = {
     version?: string;
 };
 
+export type LlmapiChatCompletionRequest = {
+    /**
+     * Messages is the conversation history
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
+     * Model is the model identifier
+     */
+    model?: string;
+    /**
+     * Stream indicates if response should be streamed
+     */
+    stream?: boolean;
+};
+
+export type LlmapiChatCompletionResponse = {
+    /**
+     * Choices contains the completion choices
+     */
+    choices?: Array<LlmapiChoice>;
+    /**
+     * ID is the completion ID
+     */
+    id?: string;
+    /**
+     * Model is the model used
+     */
+    model?: string;
+};
+
+export type LlmapiChoice = {
+    /**
+     * FinishReason indicates why the completion stopped
+     */
+    finish_reason?: string;
+    /**
+     * Index is the choice index
+     */
+    index?: number;
+    message?: LlmapiMessage;
+};
+
+/**
+ * Message is the generated message
+ */
+export type LlmapiMessage = {
+    /**
+     * Content is the message content
+     */
+    content?: string;
+    role?: LlmapiRole;
+};
+
+/**
+ * Role is the message role (system, user, assistant)
+ */
+export type LlmapiRole = string;
+
+export type ResponseErrorResponse = {
+    error?: string;
+};
+
 export type PostApiV1ChatCompletionsData = {
     /**
      * Chat completion request
      */
-    body: GithubComZetaChainAiPortalPkgLlmapiChatCompletionRequest;
+    body: LlmapiChatCompletionRequest;
     path?: never;
     query?: never;
     url: '/api/v1/chat/completions';
@@ -95,11 +95,11 @@ export type PostApiV1ChatCompletionsErrors = {
     /**
      * Bad Request
      */
-    400: GithubComZetaChainAiPortalPkgResponseErrorResponse;
+    400: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
-    500: GithubComZetaChainAiPortalPkgResponseErrorResponse;
+    500: ResponseErrorResponse;
 };
 
 export type PostApiV1ChatCompletionsError = PostApiV1ChatCompletionsErrors[keyof PostApiV1ChatCompletionsErrors];
@@ -108,7 +108,7 @@ export type PostApiV1ChatCompletionsResponses = {
     /**
      * OK
      */
-    200: GithubComZetaChainAiPortalPkgLlmapiChatCompletionResponse;
+    200: LlmapiChatCompletionResponse;
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
@@ -124,7 +124,7 @@ export type GetHealthErrors = {
     /**
      * Internal Server Error
      */
-    500: GithubComZetaChainAiPortalPkgResponseErrorResponse;
+    500: ResponseErrorResponse;
 };
 
 export type GetHealthError = GetHealthErrors[keyof GetHealthErrors];
@@ -133,7 +133,7 @@ export type GetHealthResponses = {
     /**
      * OK
      */
-    200: InternalApiHandlersHealthResponse;
+    200: HandlersHealthResponse;
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
