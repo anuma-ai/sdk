@@ -61,6 +61,97 @@ export type LlmapiChoice = {
     message?: LlmapiMessage;
 };
 
+export type LlmapiEmbeddingData = {
+    /**
+     * Embedding vector
+     */
+    embedding?: Array<number>;
+    /**
+     * Index of the embedding
+     */
+    index?: number;
+    /**
+     * Object type identifier
+     */
+    object?: string;
+};
+
+/**
+ * ExtraFields contains additional metadata
+ */
+export type LlmapiEmbeddingExtraFields = {
+    /**
+     * ChunkIndex is the chunk index (0 for single requests)
+     */
+    chunk_index?: number;
+    /**
+     * Latency is the request latency in milliseconds
+     */
+    latency?: number;
+    /**
+     * ModelRequested is the model that was requested
+     */
+    model_requested?: string;
+    /**
+     * Provider is the LLM provider used (e.g., "openai", "anthropic")
+     */
+    provider?: string;
+    /**
+     * RequestType is always "embedding"
+     */
+    request_type?: string;
+};
+
+export type LlmapiEmbeddingRequest = {
+    /**
+     * Dimensions is the number of dimensions the resulting output embeddings should have (optional)
+     */
+    dimensions?: number;
+    /**
+     * EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
+     */
+    encoding_format?: string;
+    /**
+     * Input text or tokens to embed (can be string, []string, []int, or [][]int)
+     */
+    input?: unknown;
+    /**
+     * Model identifier in 'provider/model' format
+     */
+    model?: string;
+};
+
+export type LlmapiEmbeddingResponse = {
+    /**
+     * Data contains the embeddings
+     */
+    data?: Array<LlmapiEmbeddingData>;
+    extra_fields?: LlmapiEmbeddingExtraFields;
+    /**
+     * Model is the model used
+     */
+    model?: string;
+    /**
+     * Object is always "list"
+     */
+    object?: string;
+    usage?: LlmapiEmbeddingUsage;
+};
+
+/**
+ * Usage contains token usage information
+ */
+export type LlmapiEmbeddingUsage = {
+    /**
+     * PromptTokens is the number of tokens in the prompt
+     */
+    prompt_tokens?: number;
+    /**
+     * TotalTokens is the total number of tokens used
+     */
+    total_tokens?: number;
+};
+
 /**
  * Message is the generated message
  */
@@ -112,6 +203,38 @@ export type PostApiV1ChatCompletionsResponses = {
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
+
+export type PostApiV1EmbeddingsData = {
+    /**
+     * Embedding request
+     */
+    body: LlmapiEmbeddingRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/embeddings';
+};
+
+export type PostApiV1EmbeddingsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1EmbeddingsError = PostApiV1EmbeddingsErrors[keyof PostApiV1EmbeddingsErrors];
+
+export type PostApiV1EmbeddingsResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiEmbeddingResponse;
+};
+
+export type PostApiV1EmbeddingsResponse = PostApiV1EmbeddingsResponses[keyof PostApiV1EmbeddingsResponses];
 
 export type GetHealthData = {
     body?: never;

@@ -220,10 +220,10 @@
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
 
-"@reverbia/portal@1.0.0-next.20251112":
-  version "1.0.0-next.20251112"
-  resolved "https://registry.npmjs.org/@reverbia/portal/-/portal-1.0.0-next.20251112.tgz#3e9bacb3d77ac6eaaeb78710a52e49f158121661"
-  integrity sha512-tet6SRzhl9ZbLmylZNA9KZ2Gbkk4EU/8G+7dyJJAXH6p4W2DgBx2CqfoWqFVdky6UqrPMvqZJKsiHC5sPHeuPg==
+"@reverbia/portal@^1.0.0-next.20251113192414":
+  version "1.0.0-next.20251113192414"
+  resolved "https://registry.yarnpkg.com/@reverbia/portal/-/portal-1.0.0-next.20251113192414.tgz#26e56444889d2cb98f71d5578db1b11bb9991593"
+  integrity sha512-2FAuKxJ9pT4FbWW50UKuOrZH+JovZ8PAeWgKAWIrZE6VQ44oNcYeZq1OmzeYV+cv5sQRKWc0o+n5YXHsD1jrWQ==
 
 "@rollup/rollup-android-arm-eabi@4.53.2":
   version "4.53.2"
