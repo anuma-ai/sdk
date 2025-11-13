@@ -11,6 +11,12 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs",
       "default": "./dist/index.cjs"
+    },
+    "./tanstack/react-query": {
+      "types": "./dist/@tanstack/react-query.gen.d.ts",
+      "import": "./dist/@tanstack/react-query.gen.mjs",
+      "require": "./dist/@tanstack/react-query.gen.cjs",
+      "default": "./dist/@tanstack/react-query.gen.cjs"
     }
   },
   "files": [
@@ -35,7 +41,8 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@reverbia/portal": "1.0.0-next.20251112"
+    "@reverbia/portal": "1.0.0-next.20251112",
+    "@tanstack/react-query": "^5.90.8"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",

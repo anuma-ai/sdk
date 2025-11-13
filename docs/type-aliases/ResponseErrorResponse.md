@@ -8,7 +8,7 @@ title: ResponseErrorResponse
 
 > **ResponseErrorResponse** = `object`
 
-Defined in: [types.gen.ts:80](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L80)
+Defined in: [types.gen.ts:80](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L80)
 
 ## Properties
 
@@ -16,4 +16,4 @@ Defined in: [types.gen.ts:80](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee3
 
 > `optional` **error**: `string`
 
-Defined in: [types.gen.ts:81](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L81)
+Defined in: [types.gen.ts:81](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L81)

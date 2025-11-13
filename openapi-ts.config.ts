@@ -4,5 +4,5 @@ import SPEC from "@reverbia/portal/swagger.json";
 export default defineConfig({
   input: SPEC,
   output: "src/client",
-  plugins: ["@hey-api/client-next"],
+  plugins: ["@hey-api/client-next", "@tanstack/react-query"],
 });
