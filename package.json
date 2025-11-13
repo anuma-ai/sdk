@@ -17,10 +17,11 @@
     "dist"
   ],
   "scripts": {
-    "generate": "openapi-ts",
+    "spec": "openapi-ts",
     "build": "rimraf dist && tsc --outDir dist/esm --module esnext && tsc --outDir dist/cjs --module commonjs && tsc --declarationDir dist/types --emitDeclarationOnly",
     "prepublishOnly": "yarn build",
-    "docs": "typedoc src/client/index.ts"
+    "docs": "typedoc src/client/index.ts",
+    "generate": "yarn spec && yarn docs"
   },
   "repository": {
     "type": "git",
