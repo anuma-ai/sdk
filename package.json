@@ -30,7 +30,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/zeta-chain/ai-sdk/issues"
   },
