@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses } from './types.gen';
+import type { GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -26,6 +26,22 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatCompletionsData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1ChatCompletionsResponses, PostApiV1ChatCompletionsErrors, ThrowOnError>({
         url: '/api/v1/chat/completions',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Create embeddings
+ *
+ * Generates embeddings using the configured gateway.
+ */
+export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(options: Options<PostApiV1EmbeddingsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1EmbeddingsResponses, PostApiV1EmbeddingsErrors, ThrowOnError>({
+        url: '/api/v1/embeddings',
         ...options,
         headers: {
             'Content-Type': 'application/json',

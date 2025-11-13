@@ -8,4 +8,4 @@ title: PostApiV1ChatCompletionsResponse
 
 > **PostApiV1ChatCompletionsResponse** = [`PostApiV1ChatCompletionsResponses`](PostApiV1ChatCompletionsResponses.md)\[keyof [`PostApiV1ChatCompletionsResponses`](PostApiV1ChatCompletionsResponses.md)\]
 
-Defined in: [types.gen.ts:114](https://github.com/zeta-chain/ai-sdk/blob/7b3c0ee35ca9a53718ad47bed65de7f375915d06/src/client/types.gen.ts#L114)
+Defined in: [types.gen.ts:205](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L205)
