@@ -8,7 +8,7 @@ title: LlmapiEmbeddingUsage
 
 > **LlmapiEmbeddingUsage** = `object`
 
-Defined in: [types.gen.ts:144](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L144)
+Defined in: [types.gen.ts:186](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L186)
 
 Usage contains token usage information
 
@@ -18,7 +18,7 @@ Usage contains token usage information
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [types.gen.ts:148](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L148)
+Defined in: [types.gen.ts:190](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L190)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -28,6 +28,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [types.gen.ts:152](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L152)
+Defined in: [types.gen.ts:194](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L194)
 
 TotalTokens is the total number of tokens used

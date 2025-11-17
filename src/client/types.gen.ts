@@ -19,6 +19,28 @@ export type HandlersHealthResponse = {
     version?: string;
 };
 
+/**
+ * ExtraFields contains additional metadata
+ */
+export type LlmapiChatCompletionExtraFields = {
+    /**
+     * Latency is the request latency in milliseconds
+     */
+    latency?: number;
+    /**
+     * ModelRequested is the model that was requested
+     */
+    model_requested?: string;
+    /**
+     * Provider is the LLM provider used (e.g., "openai", "anthropic")
+     */
+    provider?: string;
+    /**
+     * RequestType is always "chat_completion"
+     */
+    request_type?: string;
+};
+
 export type LlmapiChatCompletionRequest = {
     /**
      * Messages is the conversation history
@@ -39,6 +61,7 @@ export type LlmapiChatCompletionResponse = {
      * Choices contains the completion choices
      */
     choices?: Array<LlmapiChoice>;
+    extra_fields?: LlmapiChatCompletionExtraFields;
     /**
      * ID is the completion ID
      */
@@ -47,6 +70,25 @@ export type LlmapiChatCompletionResponse = {
      * Model is the model used
      */
     model?: string;
+    usage?: LlmapiChatCompletionUsage;
+};
+
+/**
+ * Usage contains token usage information
+ */
+export type LlmapiChatCompletionUsage = {
+    /**
+     * CompletionTokens is the number of tokens in the completion
+     */
+    completion_tokens?: number;
+    /**
+     * PromptTokens is the number of tokens in the prompt
+     */
+    prompt_tokens?: number;
+    /**
+     * TotalTokens is the total number of tokens used
+     */
+    total_tokens?: number;
 };
 
 export type LlmapiChoice = {

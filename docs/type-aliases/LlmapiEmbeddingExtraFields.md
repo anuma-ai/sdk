@@ -8,7 +8,7 @@ title: LlmapiEmbeddingExtraFields
 
 > **LlmapiEmbeddingExtraFields** = `object`
 
-Defined in: [types.gen.ts:82](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L82)
+Defined in: [types.gen.ts:124](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L124)
 
 ExtraFields contains additional metadata
 
@@ -18,7 +18,7 @@ ExtraFields contains additional metadata
 
 > `optional` **chunk\_index**: `number`
 
-Defined in: [types.gen.ts:86](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L86)
+Defined in: [types.gen.ts:128](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L128)
 
 ChunkIndex is the chunk index (0 for single requests)
 
@@ -28,7 +28,7 @@ ChunkIndex is the chunk index (0 for single requests)
 
 > `optional` **latency**: `number`
 
-Defined in: [types.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L90)
+Defined in: [types.gen.ts:132](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L132)
 
 Latency is the request latency in milliseconds
 
@@ -38,7 +38,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [types.gen.ts:94](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L94)
+Defined in: [types.gen.ts:136](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L136)
 
 ModelRequested is the model that was requested
 
@@ -48,7 +48,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [types.gen.ts:98](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L98)
+Defined in: [types.gen.ts:140](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L140)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -58,6 +58,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [types.gen.ts:102](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L102)
+Defined in: [types.gen.ts:144](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L144)
 
 RequestType is always "embedding"
