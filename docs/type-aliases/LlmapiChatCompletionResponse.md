@@ -8,7 +8,7 @@ title: LlmapiChatCompletionResponse
 
 > **LlmapiChatCompletionResponse** = `object`
 
-Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L37)
+Defined in: [types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L59)
 
 ## Properties
 
@@ -16,9 +16,17 @@ Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/94f4c309
 
 > `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)[]
 
-Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L41)
+Defined in: [types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L63)
 
 Choices contains the completion choices
+
+***
+
+### extra\_fields?
+
+> `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
+
+Defined in: [types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L64)
 
 ***
 
@@ -26,7 +34,7 @@ Choices contains the completion choices
 
 > `optional` **id**: `string`
 
-Defined in: [types.gen.ts:45](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L45)
+Defined in: [types.gen.ts:68](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L68)
 
 ID is the completion ID
 
@@ -36,6 +44,14 @@ ID is the completion ID
 
 > `optional` **model**: `string`
 
-Defined in: [types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L49)
+Defined in: [types.gen.ts:72](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L72)
 
 Model is the model used
+
+***
+
+### usage?
+
+> `optional` **usage**: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md)
+
+Defined in: [types.gen.ts:73](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L73)

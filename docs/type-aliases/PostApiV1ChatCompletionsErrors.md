@@ -8,7 +8,7 @@ title: PostApiV1ChatCompletionsErrors
 
 > **PostApiV1ChatCompletionsErrors** = `object`
 
-Defined in: [types.gen.ts:185](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L185)
+Defined in: [types.gen.ts:227](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L227)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:185](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [types.gen.ts:189](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L189)
+Defined in: [types.gen.ts:231](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L231)
 
 Bad Request
 
@@ -26,6 +26,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [types.gen.ts:193](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L193)
+Defined in: [types.gen.ts:235](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L235)
 
 Internal Server Error

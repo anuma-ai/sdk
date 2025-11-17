@@ -8,7 +8,7 @@ title: PostApiV1EmbeddingsData
 
 > **PostApiV1EmbeddingsData** = `object`
 
-Defined in: [types.gen.ts:207](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L207)
+Defined in: [types.gen.ts:249](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L249)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:207](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > **body**: [`LlmapiEmbeddingRequest`](LlmapiEmbeddingRequest.md)
 
-Defined in: [types.gen.ts:211](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L211)
+Defined in: [types.gen.ts:253](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L253)
 
 Embedding request
 
@@ -26,7 +26,7 @@ Embedding request
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:212](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L212)
+Defined in: [types.gen.ts:254](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L254)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:212](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:213](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L213)
+Defined in: [types.gen.ts:255](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L255)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:213](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > **url**: `"/api/v1/embeddings"`
 
-Defined in: [types.gen.ts:214](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L214)
+Defined in: [types.gen.ts:256](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L256)

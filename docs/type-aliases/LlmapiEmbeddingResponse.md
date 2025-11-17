@@ -8,7 +8,7 @@ title: LlmapiEmbeddingResponse
 
 > **LlmapiEmbeddingResponse** = `object`
 
-Defined in: [types.gen.ts:124](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L124)
+Defined in: [types.gen.ts:166](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L166)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:124](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)[]
 
-Defined in: [types.gen.ts:128](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L128)
+Defined in: [types.gen.ts:170](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L170)
 
 Data contains the embeddings
 
@@ -26,7 +26,7 @@ Data contains the embeddings
 
 > `optional` **extra\_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
 
-Defined in: [types.gen.ts:129](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L129)
+Defined in: [types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L171)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:129](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **model**: `string`
 
-Defined in: [types.gen.ts:133](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L133)
+Defined in: [types.gen.ts:175](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L175)
 
 Model is the model used
 
@@ -44,7 +44,7 @@ Model is the model used
 
 > `optional` **object**: `string`
 
-Defined in: [types.gen.ts:137](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L137)
+Defined in: [types.gen.ts:179](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L179)
 
 Object is always "list"
 
@@ -54,4 +54,4 @@ Object is always "list"
 
 > `optional` **usage**: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md)
 
-Defined in: [types.gen.ts:138](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L138)
+Defined in: [types.gen.ts:180](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L180)

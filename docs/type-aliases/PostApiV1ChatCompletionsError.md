@@ -8,4 +8,4 @@ title: PostApiV1ChatCompletionsError
 
 > **PostApiV1ChatCompletionsError** = [`PostApiV1ChatCompletionsErrors`](PostApiV1ChatCompletionsErrors.md)\[keyof [`PostApiV1ChatCompletionsErrors`](PostApiV1ChatCompletionsErrors.md)\]
 
-Defined in: [types.gen.ts:196](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L196)
+Defined in: [types.gen.ts:238](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L238)

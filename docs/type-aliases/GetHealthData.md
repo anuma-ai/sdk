@@ -8,7 +8,7 @@ title: GetHealthData
 
 > **GetHealthData** = `object`
 
-Defined in: [types.gen.ts:239](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L239)
+Defined in: [types.gen.ts:281](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L281)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:239](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **body**: `never`
 
-Defined in: [types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L240)
+Defined in: [types.gen.ts:282](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L282)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:241](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L241)
+Defined in: [types.gen.ts:283](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L283)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [types.gen.ts:241](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:242](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L242)
+Defined in: [types.gen.ts:284](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L284)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [types.gen.ts:242](https://github.com/zeta-chain/ai-sdk/blob/94f4c30
 
 > **url**: `"/health"`
 
-Defined in: [types.gen.ts:243](https://github.com/zeta-chain/ai-sdk/blob/94f4c3095834e789fd72ba4bab1edb37d9ed2757/src/client/types.gen.ts#L243)
+Defined in: [types.gen.ts:285](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L285)
