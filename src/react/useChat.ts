@@ -26,6 +26,44 @@ type UseChatResult = {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
 };
 
+/**
+ * A React hook for managing chat completions with authentication.
+ *
+ * This hook provides a convenient way to send chat messages to the LLM API
+ * with automatic token management and loading state handling.
+ *
+ * @param options - Optional configuration object
+ * @param options.getToken - An async function that returns an authentication token.
+ *   This token will be used as a Bearer token in the Authorization header.
+ *   If not provided, `sendMessage` will return an error.
+ *
+ * @returns An object containing:
+ *   - `isLoading`: A boolean indicating whether a request is currently in progress
+ *   - `sendMessage`: An async function to send chat messages
+ *
+ * @example
+ * ```tsx
+ * const { isLoading, sendMessage } = useChat({
+ *   getToken: async () => {
+ *     // Get your auth token from your auth provider
+ *     return await getAuthToken();
+ *   }
+ * });
+ *
+ * const handleSend = async () => {
+ *   const result = await sendMessage({
+ *     messages: [{ role: 'user', content: 'Hello!' }],
+ *     model: 'gpt-4o-mini'
+ *   });
+ *
+ *   if (result.error) {
+ *     console.error(result.error);
+ *   } else {
+ *     console.log(result.data);
+ *   }
+ * };
+ * ```
+ */
 export function useChat(options?: UseChatOptions): UseChatResult {
   const { getToken } = options || {};
   const [isLoading, setIsLoading] = useState(false);
