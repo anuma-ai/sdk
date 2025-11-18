@@ -13,43 +13,52 @@ type SendMessageArgs = {
   model: string;
 };
 
+type SendMessageResult =
+  | { data: LlmapiChatCompletionResponse; error: null }
+  | { data: null; error: string };
+
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
 };
 
 type UseChatResult = {
-  error: string | null;
   isLoading: boolean;
-  sendMessage: (args: SendMessageArgs) => Promise<LlmapiChatCompletionResponse>;
+  sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
 };
 
 export function useChat(options?: UseChatOptions): UseChatResult {
   const { getToken } = options || {};
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const sendMessage = useCallback(
-    async ({ messages, model }: SendMessageArgs) => {
+    async ({
+      messages,
+      model,
+    }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
-        throw new Error("messages are required to call sendMessage.");
+        const error = "messages are required to call sendMessage.";
+        return { data: null, error };
       }
 
       if (!model) {
-        throw new Error("model is required to call sendMessage.");
+        const error = "model is required to call sendMessage.";
+        return { data: null, error };
       }
 
       if (!getToken) {
-        throw new Error("Token getter function is required.");
+        const error = "Token getter function is required.";
+        return { data: null, error };
       }
 
       setIsLoading(true);
-      setError(null);
 
       try {
         const token = await getToken();
 
         if (!token) {
-          throw new Error("No access token available.");
+          const error = "No access token available.";
+          setIsLoading(false);
+          return { data: null, error };
         }
 
         const completion = await postApiV1ChatCompletions({
@@ -57,33 +66,32 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             messages,
             model,
           },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          // headers: {
+          //   Authorization: `Bearer ${token}`,
+          // },
         });
 
         if (!completion.data) {
-          const message =
+          const error =
             completion.error?.error ??
             "API did not return a completion response.";
-          throw new Error(message);
+          setIsLoading(false);
+          return { data: null, error };
         }
 
-        return completion.data;
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to send message.";
-        setError(message);
-        throw err instanceof Error ? err : new Error(message);
-      } finally {
         setIsLoading(false);
+        return { data: completion.data, error: null };
+      } catch (err) {
+        const error =
+          err instanceof Error ? err.message : "Failed to send message.";
+        setIsLoading(false);
+        return { data: null, error };
       }
     },
     [getToken]
   );
 
   return {
-    error,
     isLoading,
     sendMessage,
   };
