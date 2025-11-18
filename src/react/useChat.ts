@@ -13,43 +13,90 @@ type SendMessageArgs = {
   model: string;
 };
 
+type SendMessageResult =
+  | { data: LlmapiChatCompletionResponse; error: null }
+  | { data: null; error: string };
+
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
 };
 
 type UseChatResult = {
-  error: string | null;
   isLoading: boolean;
-  sendMessage: (args: SendMessageArgs) => Promise<LlmapiChatCompletionResponse>;
+  sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
 };
 
+/**
+ * A React hook for managing chat completions with authentication.
+ *
+ * This hook provides a convenient way to send chat messages to the LLM API
+ * with automatic token management and loading state handling.
+ *
+ * @param options - Optional configuration object
+ * @param options.getToken - An async function that returns an authentication token.
+ *   This token will be used as a Bearer token in the Authorization header.
+ *   If not provided, `sendMessage` will return an error.
+ *
+ * @returns An object containing:
+ *   - `isLoading`: A boolean indicating whether a request is currently in progress
+ *   - `sendMessage`: An async function to send chat messages
+ *
+ * @example
+ * ```tsx
+ * const { isLoading, sendMessage } = useChat({
+ *   getToken: async () => {
+ *     // Get your auth token from your auth provider
+ *     return await getAuthToken();
+ *   }
+ * });
+ *
+ * const handleSend = async () => {
+ *   const result = await sendMessage({
+ *     messages: [{ role: 'user', content: 'Hello!' }],
+ *     model: 'gpt-4o-mini'
+ *   });
+ *
+ *   if (result.error) {
+ *     console.error(result.error);
+ *   } else {
+ *     console.log(result.data);
+ *   }
+ * };
+ * ```
+ */
 export function useChat(options?: UseChatOptions): UseChatResult {
   const { getToken } = options || {};
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const sendMessage = useCallback(
-    async ({ messages, model }: SendMessageArgs) => {
+    async ({
+      messages,
+      model,
+    }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
-        throw new Error("messages are required to call sendMessage.");
+        const error = "messages are required to call sendMessage.";
+        return { data: null, error };
       }
 
       if (!model) {
-        throw new Error("model is required to call sendMessage.");
+        const error = "model is required to call sendMessage.";
+        return { data: null, error };
       }
 
       if (!getToken) {
-        throw new Error("Token getter function is required.");
+        const error = "Token getter function is required.";
+        return { data: null, error };
       }
 
       setIsLoading(true);
-      setError(null);
 
       try {
         const token = await getToken();
 
         if (!token) {
-          throw new Error("No access token available.");
+          const error = "No access token available.";
+          setIsLoading(false);
+          return { data: null, error };
         }
 
         const completion = await postApiV1ChatCompletions({
@@ -63,27 +110,26 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         });
 
         if (!completion.data) {
-          const message =
+          const error =
             completion.error?.error ??
             "API did not return a completion response.";
-          throw new Error(message);
+          setIsLoading(false);
+          return { data: null, error };
         }
 
-        return completion.data;
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to send message.";
-        setError(message);
-        throw err instanceof Error ? err : new Error(message);
-      } finally {
         setIsLoading(false);
+        return { data: completion.data, error: null };
+      } catch (err) {
+        const error =
+          err instanceof Error ? err.message : "Failed to send message.";
+        setIsLoading(false);
+        return { data: null, error };
       }
     },
     [getToken]
   );
 
   return {
-    error,
     isLoading,
     sendMessage,
   };
