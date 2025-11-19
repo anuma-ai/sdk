@@ -8,4 +8,4 @@ title: GetHealthResponse
 
 > **GetHealthResponse** = [`GetHealthResponses`](GetHealthResponses.md)\[keyof [`GetHealthResponses`](GetHealthResponses.md)\]
 
-Defined in: [types.gen.ts:304](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L304)
+Defined in: [types.gen.ts:474](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L474)

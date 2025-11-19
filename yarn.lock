@@ -250,10 +250,10 @@
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
 
-"@reverbia/portal@^1.0.0-next.20251113192414":
-  version "1.0.0-next.20251113192414"
-  resolved "https://registry.yarnpkg.com/@reverbia/portal/-/portal-1.0.0-next.20251113192414.tgz#26e56444889d2cb98f71d5578db1b11bb9991593"
-  integrity sha512-2FAuKxJ9pT4FbWW50UKuOrZH+JovZ8PAeWgKAWIrZE6VQ44oNcYeZq1OmzeYV+cv5sQRKWc0o+n5YXHsD1jrWQ==
+"@reverbia/portal@^1.0.0-next.20251118022211":
+  version "1.0.0-next.20251118022211"
+  resolved "https://registry.npmjs.org/@reverbia/portal/-/portal-1.0.0-next.20251118022211.tgz#86b67fd234e150aa40d4b4ef64a4d02a248f877a"
+  integrity sha512-QnBBkzmxRfieiBpGt5riJDE11gqxBO+JN3gbvUSYkOIixljSr7dvFZyLRDn5xlEsEXl/BqcCpB/TXGPok5yAmg==
 
 "@rollup/rollup-android-arm-eabi@4.53.2":
   version "4.53.2"
@@ -446,7 +446,7 @@ acorn@^8.15.0:
 
 ai@5.0.93:
   version "5.0.93"
-  resolved "https://registry.npmjs.org/ai/-/ai-5.0.93.tgz#040fff47ce6603b36ed9b8b7ca228c2400d94be3"
+  resolved "https://registry.yarnpkg.com/ai/-/ai-5.0.93.tgz#040fff47ce6603b36ed9b8b7ca228c2400d94be3"
   integrity sha512-9eGcu+1PJgPg4pRNV4L7tLjRR3wdJC9CXQoNMvtqvYNOLZHFCzjHtVIOr2SIkoJJeu2+sOy3hyiSuTmy2MA40g==
   dependencies:
     "@ai-sdk/gateway" "2.0.9"
@@ -812,9 +812,9 @@ joycon@^3.1.1:
   integrity sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==
 
 js-yaml@^4.1.0:
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/js-yaml/-/js-yaml-4.1.0.tgz#c1fb65f8f5017901cdd2c951864ba18458a10602"
-  integrity sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA==
+  version "4.1.1"
+  resolved "https://registry.yarnpkg.com/js-yaml/-/js-yaml-4.1.1.tgz#854c292467705b699476e1a2decc0c8a3458806b"
+  integrity sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==
   dependencies:
     argparse "^2.0.1"
 
