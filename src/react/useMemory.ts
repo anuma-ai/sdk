@@ -27,7 +27,7 @@ export type UseMemoryOptions = {
 };
 
 export type UseMemoryResult = {
-  extractFromMessage: (
+  extractMemoriesFromMessage: (
     message: string
   ) => Promise<MemoryExtractionResult | null>;
 };
@@ -46,7 +46,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
 
   const extractionInProgressRef = useRef(false);
 
-  const extractFromMessage = useCallback(
+  const extractMemoriesFromMessage = useCallback(
     async (message: string): Promise<MemoryExtractionResult | null> => {
       if (!enableMemory || !getToken || extractionInProgressRef.current) {
         return null;
@@ -161,6 +161,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   );
 
   return {
-    extractFromMessage,
+    extractMemoriesFromMessage,
   };
 }
