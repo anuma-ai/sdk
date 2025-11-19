@@ -8,7 +8,7 @@ title: LlmapiChatCompletionExtraFields
 
 > **LlmapiChatCompletionExtraFields** = `object`
 
-Defined in: [types.gen.ts:25](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L25)
+Defined in: [types.gen.ts:25](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L25)
 
 ExtraFields contains additional metadata
 
@@ -18,7 +18,7 @@ ExtraFields contains additional metadata
 
 > `optional` **latency**: `number`
 
-Defined in: [types.gen.ts:29](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L29)
+Defined in: [types.gen.ts:29](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L29)
 
 Latency is the request latency in milliseconds
 
@@ -28,7 +28,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [types.gen.ts:33](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L33)
+Defined in: [types.gen.ts:33](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L33)
 
 ModelRequested is the model that was requested
 
@@ -38,7 +38,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L37)
+Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L37)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -48,6 +48,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L41)
+Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L41)
 
 RequestType is always "chat_completion"

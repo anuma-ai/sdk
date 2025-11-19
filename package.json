@@ -41,7 +41,7 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@reverbia/portal": "^1.0.0-next.20251113192414",
+    "@reverbia/portal": "^1.0.0-next.20251118022211",
     "ai": "5.0.93"
   },
   "devDependencies": {

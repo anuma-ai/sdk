@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses } from './types.gen';
+import type { GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -47,6 +47,18 @@ export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(option
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * List available models
+ *
+ * Returns a list of all available models from the configured gateway with optional filters.
+ */
+export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ModelsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({
+        url: '/api/v1/models',
+        ...options
     });
 };
 
