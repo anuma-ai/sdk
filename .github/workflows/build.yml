@@ -22,7 +22,7 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install Dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Build
-        run: yarn build
+        run: pnpm build
