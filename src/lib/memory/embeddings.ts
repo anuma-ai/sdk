@@ -122,6 +122,7 @@ export const generateEmbeddingsForMemories = async (
 
 /**
  * Update memory items in the database with their embeddings
+ * Only updates memories that still match the uniqueKey (to avoid stale embeddings)
  */
 export const updateMemoriesWithEmbeddings = async (
   embeddings: Map<string, number[]>,
@@ -134,12 +135,21 @@ export const updateMemoriesWithEmbeddings = async (
         .equals(uniqueKey)
         .first();
 
+      // Only update if memory still exists with the same uniqueKey
+      // This prevents storing embeddings for memories that were updated/deleted
       if (existing?.id) {
         await memoryDb.memories.update(existing.id, {
           embedding,
           embeddingModel,
           updatedAt: Date.now(),
+          // Preserve other fields that might have been updated
+          createdAt: existing.createdAt,
         });
+      } else {
+        console.warn(
+          `[Embeddings] Memory with uniqueKey ${uniqueKey} not found. ` +
+            `It may have been updated or deleted before embedding was generated.`
+        );
       }
     }
   );

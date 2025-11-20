@@ -94,16 +94,27 @@ export const preprocessMemories = (
   // Step 1: Filter out broken entries
   const validItems = items.filter((item) => {
     // Check for missing namespace, key, or value
+    // Ensure they are strings before calling .trim()
     if (
-      !item.namespace ||
-      !item.key ||
-      !item.value ||
-      item.namespace.trim() === "" ||
-      item.key.trim() === "" ||
-      item.value.trim() === ""
+      item.namespace == null ||
+      item.key == null ||
+      item.value == null
     ) {
       console.warn(
-        "Dropping memory item with missing namespace, key, or value:",
+        "Dropping memory item with null/undefined namespace, key, or value:",
+        item
+      );
+      return false;
+    }
+
+    // Convert to strings and check if they're non-empty after trimming
+    const namespace = String(item.namespace).trim();
+    const key = String(item.key).trim();
+    const value = String(item.value).trim();
+
+    if (namespace === "" || key === "" || value === "") {
+      console.warn(
+        "Dropping memory item with empty namespace, key, or value after trimming:",
         item
       );
       return false;

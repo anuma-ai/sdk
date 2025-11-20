@@ -63,6 +63,8 @@ export const saveMemory = async (memory: MemoryItem): Promise<void> => {
 
   if (existing) {
     // Update existing memory (same namespace:key:value combination)
+    // Preserve embedding fields if they exist and memory value hasn't changed
+    const shouldPreserveEmbedding = existing.value === memory.value;
     await memoryDb.memories.update(existing.id!, {
       ...memory,
       compositeKey,
@@ -70,6 +72,14 @@ export const saveMemory = async (memory: MemoryItem): Promise<void> => {
       updatedAt: now,
       // Preserve createdAt
       createdAt: existing.createdAt,
+      // Preserve embedding fields if value hasn't changed (embedding is still valid)
+      // If value changed, embedding will be cleared and should be regenerated
+      ...(shouldPreserveEmbedding && existing.embedding
+        ? {
+            embedding: existing.embedding,
+            embeddingModel: existing.embeddingModel,
+          }
+        : {}),
     });
   } else {
     // Insert new memory (allows multiple entries with same namespace:key)
