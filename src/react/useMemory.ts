@@ -27,9 +27,10 @@ export type UseMemoryOptions = {
 };
 
 export type UseMemoryResult = {
-  extractMemoriesFromMessage: (
-    message: string
-  ) => Promise<MemoryExtractionResult | null>;
+  extractMemoriesFromMessage: (options: {
+    messages: Array<{ role: string; content: string }>;
+    model: string;
+  }) => Promise<MemoryExtractionResult | null>;
 };
 
 /**
@@ -47,7 +48,12 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const extractionInProgressRef = useRef(false);
 
   const extractMemoriesFromMessage = useCallback(
-    async (message: string): Promise<MemoryExtractionResult | null> => {
+    async (options: {
+      messages: Array<{ role: string; content: string }>;
+      model: string;
+    }): Promise<MemoryExtractionResult | null> => {
+      const { messages, model } = options;
+
       if (!enableMemory || !getToken || extractionInProgressRef.current) {
         return null;
       }
@@ -68,12 +74,9 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
                 role: "system",
                 content: FACT_EXTRACTION_PROMPT,
               },
-              {
-                role: "user",
-                content: message,
-              },
+              ...messages,
             ],
-            model: memoryModel,
+            model: model || memoryModel,
           },
           // headers: {
           //   Authorization: `Bearer ${token}`,
