@@ -13,10 +13,6 @@ export type UseMemoryOptions = {
    */
   memoryModel?: string;
   /**
-   * Whether to enable memory extraction (default: true)
-   */
-  enableMemory?: boolean;
-  /**
    * Callback when facts are extracted
    */
   onFactsExtracted?: (facts: MemoryExtractionResult) => void;
@@ -38,12 +34,7 @@ export type UseMemoryResult = {
  * Can be composed with other hooks like useChat, useFiles, etc.
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
-  const {
-    memoryModel = "openai/gpt-4o",
-    enableMemory = true,
-    onFactsExtracted,
-    getToken,
-  } = options;
+  const { memoryModel = "openai/gpt-4o", onFactsExtracted, getToken } = options;
 
   const extractionInProgressRef = useRef(false);
 
@@ -54,7 +45,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     }): Promise<MemoryExtractionResult | null> => {
       const { messages, model } = options;
 
-      if (!enableMemory || !getToken || extractionInProgressRef.current) {
+      if (!getToken || extractionInProgressRef.current) {
         return null;
       }
 
@@ -160,7 +151,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         extractionInProgressRef.current = false;
       }
     },
-    [enableMemory, memoryModel, getToken, onFactsExtracted]
+    [memoryModel, getToken, onFactsExtracted]
   );
 
   return {
