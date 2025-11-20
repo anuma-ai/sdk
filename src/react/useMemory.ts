@@ -105,6 +105,9 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             ],
             model: model || memoryModel,
           },
+          // headers: {
+          //   Authorization: `Bearer ${token}`,
+          // },
         });
 
         if (!completion.data) {
