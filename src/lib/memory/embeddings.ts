@@ -18,62 +18,14 @@ export interface GenerateEmbeddingOptions {
 }
 
 /**
- * Generate text representation of a memory item for embedding
- * This creates a searchable text string from the memory's key fields
- * Format optimized for semantic search - uses natural language patterns
+ * Internal helper function to generate embeddings for any text input
+ * This is the shared implementation used by both memory and query embedding functions
  */
-export const memoryToText = (memory: MemoryItem): string => {
-  // Create natural language representations for better semantic matching
-  // This helps queries like "what is my favorite food" match memories about food preferences
-
-  const parts: string[] = [];
-
-  // Add natural language patterns based on type
-  if (memory.type === "preference") {
-    // For preferences, create questions/statements that users might ask
-    if (memory.namespace === "food") {
-      parts.push(`favorite food is ${memory.value}`);
-      parts.push(`likes ${memory.value}`);
-      parts.push(`prefers ${memory.value}`);
-    } else {
-      parts.push(`${memory.key} is ${memory.value}`);
-      parts.push(`prefers ${memory.value}`);
-    }
-  } else if (memory.type === "identity") {
-    // For identity, create natural statements
-    if (memory.key === "name") {
-      parts.push(`name is ${memory.value}`);
-      parts.push(`called ${memory.value}`);
-    } else {
-      parts.push(`${memory.key} is ${memory.value}`);
-    }
-  } else {
-    // Generic format for other types
-    parts.push(`${memory.key} is ${memory.value}`);
-  }
-
-  // Always include the raw evidence as it contains natural language
-  if (memory.rawEvidence) {
-    parts.push(memory.rawEvidence);
-  }
-
-  // Include key fields for context
-  parts.push(memory.type, memory.namespace, memory.key, memory.value);
-
-  // Remove duplicates and join
-  return [...new Set(parts.filter(Boolean))].join(" ");
-};
-
-/**
- * Generate embeddings for a single memory item
- */
-export const generateEmbeddingForMemory = async (
-  memory: MemoryItem,
+const generateEmbeddingForText = async (
+  text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
   const { model = "openai/text-embedding-3-small", getToken } = options;
-
-  const text = memoryToText(memory);
 
   try {
     const token = getToken ? await getToken() : null;
@@ -109,9 +61,30 @@ export const generateEmbeddingForMemory = async (
 
     return embedding;
   } catch (error) {
-    console.error("Failed to generate embedding for memory:", error);
+    console.error("Failed to generate embedding:", error);
     throw error;
   }
+};
+
+/**
+ * Generate embeddings for a single memory item
+ * Uses rawEvidence (contains natural language) combined with structured fields for context
+ */
+export const generateEmbeddingForMemory = async (
+  memory: MemoryItem,
+  options: GenerateEmbeddingOptions = {}
+): Promise<number[]> => {
+  // Combine rawEvidence (natural language) with structured fields for better semantic matching
+  const text = [
+    memory.rawEvidence,
+    memory.type,
+    memory.namespace,
+    memory.key,
+    memory.value,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return generateEmbeddingForText(text, options);
 };
 
 /**
@@ -252,43 +225,5 @@ export const generateQueryEmbedding = async (
   query: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const { model = "openai/text-embedding-3-small", getToken } = options;
-
-  try {
-    const token = getToken ? await getToken() : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await postApiV1Embeddings({
-      body: {
-        input: query,
-        model,
-      },
-      // headers,
-    });
-
-    if (
-      !response.data ||
-      !response.data.data ||
-      response.data.data.length === 0
-    ) {
-      throw new Error(
-        `Failed to generate query embedding: ${
-          response.error?.error ?? "No data returned"
-        }`
-      );
-    }
-
-    const embedding = response.data.data[0]?.embedding;
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error("Invalid embedding format returned from API");
-    }
-
-    return embedding;
-  } catch (error) {
-    console.error("Failed to generate query embedding:", error);
-    throw error;
-  }
+  return generateEmbeddingForText(query, options);
 };
