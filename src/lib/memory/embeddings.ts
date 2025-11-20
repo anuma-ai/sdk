@@ -138,11 +138,13 @@ export const updateMemoriesWithEmbeddings = async (
       // Only update if memory still exists with the same uniqueKey
       // This prevents storing embeddings for memories that were updated/deleted
       if (existing?.id) {
+        // Partial update: only update embedding-related fields
+        // Dexie's update() preserves all other fields automatically
         await memoryDb.memories.update(existing.id, {
           embedding,
           embeddingModel,
           updatedAt: Date.now(),
-          // Preserve other fields that might have been updated
+          // Explicitly preserve createdAt (though Dexie would preserve it anyway)
           createdAt: existing.createdAt,
         });
       } else {

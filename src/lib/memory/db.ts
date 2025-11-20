@@ -63,24 +63,42 @@ export const saveMemory = async (memory: MemoryItem): Promise<void> => {
 
   if (existing) {
     // Update existing memory (same namespace:key:value combination)
-    // Preserve embedding fields if they exist and memory value hasn't changed
-    const shouldPreserveEmbedding = existing.value === memory.value;
-    await memoryDb.memories.update(existing.id!, {
+    // Preserve embedding fields only if ALL fields used in embedding generation haven't changed
+    // Embeddings are generated from: rawEvidence, type, namespace, key, value
+    // If any of these change, the embedding becomes stale and should be regenerated
+    // Note: We don't check embedding model here since it's not available in saveMemory.
+    // If the embedding model changes globally, use generateEmbeddingsForAllMemories() to regenerate.
+    const shouldPreserveEmbedding =
+      existing.value === memory.value &&
+      existing.rawEvidence === memory.rawEvidence &&
+      existing.type === memory.type &&
+      existing.namespace === memory.namespace &&
+      existing.key === memory.key &&
+      existing.embedding !== undefined &&
+      existing.embedding.length > 0;
+
+    const updateData: Partial<StoredMemoryItem> = {
       ...memory,
       compositeKey,
       uniqueKey,
       updatedAt: now,
       // Preserve createdAt
       createdAt: existing.createdAt,
-      // Preserve embedding fields if value hasn't changed (embedding is still valid)
-      // If value changed, embedding will be cleared and should be regenerated
-      ...(shouldPreserveEmbedding && existing.embedding
-        ? {
-            embedding: existing.embedding,
-            embeddingModel: existing.embeddingModel,
-          }
-        : {}),
-    });
+    };
+
+    // Preserve embedding fields only if all embedding-related fields are unchanged
+    // If any field changed, embedding will be cleared and should be regenerated
+    if (shouldPreserveEmbedding) {
+      updateData.embedding = existing.embedding;
+      updateData.embeddingModel = existing.embeddingModel;
+    } else {
+      // Clear stale embeddings by setting to empty array (will be filtered out in search)
+      // Using empty array instead of undefined to ensure field is cleared
+      updateData.embedding = [];
+      updateData.embeddingModel = undefined;
+    }
+
+    await memoryDb.memories.update(existing.id!, updateData);
   } else {
     // Insert new memory (allows multiple entries with same namespace:key)
     await memoryDb.memories.add({
