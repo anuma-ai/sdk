@@ -16,15 +16,17 @@ export interface MemoryExtractionResult {
   items: MemoryItem[];
 }
 
-export const FACT_EXTRACTION_PROMPT = `You extract durable user memories from chat messages.
+export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extract durable user memories from chat messages.
+
+CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON.
 
 Only extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, and constraints.
 
 Do not extract sensitive attributes, temporary things, or single-use instructions.
 
-Return a JSON object with a "items" array.
+If there are no memories to extract, return: {"items": []}
 
-Example:
+Response format (JSON only, no other text):
 
 {
   "items": [

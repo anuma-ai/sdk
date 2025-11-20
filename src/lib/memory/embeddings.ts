@@ -4,7 +4,7 @@
 
 import { postApiV1Embeddings } from "../../client";
 import type { MemoryItem } from "./service";
-import { memoryDb, type StoredMemoryItem } from "./db";
+import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
 
 export interface GenerateEmbeddingOptions {
   /**
@@ -20,19 +20,48 @@ export interface GenerateEmbeddingOptions {
 /**
  * Generate text representation of a memory item for embedding
  * This creates a searchable text string from the memory's key fields
+ * Format optimized for semantic search - uses natural language patterns
  */
 export const memoryToText = (memory: MemoryItem): string => {
-  // Combine key information into a searchable text
-  // This format helps with semantic search by including context
-  const parts = [
-    memory.type,
-    memory.namespace,
-    memory.key,
-    memory.value,
-    memory.rawEvidence,
-  ].filter(Boolean);
+  // Create natural language representations for better semantic matching
+  // This helps queries like "what is my favorite food" match memories about food preferences
 
-  return parts.join(" ");
+  const parts: string[] = [];
+
+  // Add natural language patterns based on type
+  if (memory.type === "preference") {
+    // For preferences, create questions/statements that users might ask
+    if (memory.namespace === "food") {
+      parts.push(`favorite food is ${memory.value}`);
+      parts.push(`likes ${memory.value}`);
+      parts.push(`prefers ${memory.value}`);
+    } else {
+      parts.push(`${memory.key} is ${memory.value}`);
+      parts.push(`prefers ${memory.value}`);
+    }
+  } else if (memory.type === "identity") {
+    // For identity, create natural statements
+    if (memory.key === "name") {
+      parts.push(`name is ${memory.value}`);
+      parts.push(`called ${memory.value}`);
+    } else {
+      parts.push(`${memory.key} is ${memory.value}`);
+    }
+  } else {
+    // Generic format for other types
+    parts.push(`${memory.key} is ${memory.value}`);
+  }
+
+  // Always include the raw evidence as it contains natural language
+  if (memory.rawEvidence) {
+    parts.push(memory.rawEvidence);
+  }
+
+  // Include key fields for context
+  parts.push(memory.type, memory.namespace, memory.key, memory.value);
+
+  // Remove duplicates and join
+  return [...new Set(parts.filter(Boolean))].join(" ");
 };
 
 /**
@@ -165,6 +194,54 @@ export const generateAndStoreEmbeddings = async (
   await updateMemoriesWithEmbeddings(embeddings, model);
 
   console.log(`Generated and stored ${embeddings.size} embeddings`);
+};
+
+/**
+ * Generate embeddings for all memories in the database that don't have embeddings yet
+ * Useful for retroactively adding embeddings to memories saved before embedding support
+ *
+ * @example
+ * ```ts
+ * import { generateEmbeddingsForAllMemories } from '@your-sdk/lib/memory/embeddings';
+ *
+ * // Generate embeddings for all memories without them
+ * await generateEmbeddingsForAllMemories({
+ *   model: "openai/text-embedding-3-small",
+ *   getToken: async () => await getAuthToken()
+ * });
+ * ```
+ */
+export const generateEmbeddingsForAllMemories = async (
+  options: GenerateEmbeddingOptions = {}
+): Promise<void> => {
+  const allMemories = await getAllMemories();
+
+  // Find memories without embeddings
+  const memoriesWithoutEmbeddings = allMemories.filter(
+    (m) => !m.embedding || m.embedding.length === 0
+  );
+
+  if (memoriesWithoutEmbeddings.length === 0) {
+    console.log("All memories already have embeddings");
+    return;
+  }
+
+  console.log(
+    `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`
+  );
+
+  // Convert StoredMemoryItem back to MemoryItem format
+  const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map((m) => ({
+    type: m.type,
+    namespace: m.namespace,
+    key: m.key,
+    value: m.value,
+    rawEvidence: m.rawEvidence,
+    confidence: m.confidence,
+    pii: m.pii,
+  }));
+
+  await generateAndStoreEmbeddings(memoryItems, options);
 };
 
 /**

@@ -197,20 +197,38 @@ export const cosineSimilarity = (a: number[], b: number[]): number => {
  * Search for similar memories using vector similarity
  * @param queryEmbedding The embedding vector to search for
  * @param limit Maximum number of results to return
- * @param minSimilarity Minimum similarity threshold (0-1)
+ * @param minSimilarity Minimum similarity threshold (0-1, default: 0.6)
+ *   Note: Embedding similarity scores are typically lower than expected.
+ *   A score of 0.6-0.7 is usually a good match, 0.5-0.6 is moderate.
  * @returns Array of memories sorted by similarity (highest first)
  */
 export const searchSimilarMemories = async (
   queryEmbedding: number[],
   limit: number = 10,
-  minSimilarity: number = 0.7
+  minSimilarity: number = 0.6
 ): Promise<Array<StoredMemoryItem & { similarity: number }>> => {
   const allMemories = await getAllMemories();
   const memoriesWithEmbeddings = allMemories.filter(
     (m) => m.embedding && m.embedding.length > 0
   );
 
-  const results = memoriesWithEmbeddings
+  // Debug logging
+  console.log(
+    `[Memory Search] Total memories: ${allMemories.length}, ` +
+      `memories with embeddings: ${memoriesWithEmbeddings.length}`
+  );
+
+  if (memoriesWithEmbeddings.length === 0) {
+    console.warn(
+      "[Memory Search] No memories with embeddings found. " +
+        "Memories may need embeddings generated. " +
+        "Use generateAndStoreEmbeddings() to generate embeddings for existing memories."
+    );
+    return [];
+  }
+
+  // Calculate similarities for all memories
+  const allResults = memoriesWithEmbeddings
     .map((memory) => {
       const similarity = cosineSimilarity(queryEmbedding, memory.embedding!);
       return {
@@ -218,9 +236,37 @@ export const searchSimilarMemories = async (
         similarity,
       };
     })
+    .sort((a, b) => b.similarity - a.similarity);
+
+  // Log all similarity scores for debugging
+  console.log(
+    `[Memory Search] All similarity scores:`,
+    allResults.map((r) => ({
+      key: `${r.namespace}:${r.key}`,
+      value: r.value,
+      similarity: r.similarity.toFixed(4),
+    }))
+  );
+
+  // Filter by threshold
+  const results = allResults
     .filter((result) => result.similarity >= minSimilarity)
-    .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
+
+  if (results.length === 0 && allResults.length > 0) {
+    const topSimilarity = allResults[0].similarity;
+    const suggestedThreshold = Math.max(0.3, topSimilarity - 0.1);
+    console.warn(
+      `[Memory Search] No memories above threshold ${minSimilarity}. ` +
+        `Highest similarity was ${topSimilarity.toFixed(4)}. ` +
+        `Consider lowering the threshold to ${suggestedThreshold.toFixed(2)}`
+    );
+  } else {
+    console.log(
+      `[Memory Search] Found ${results.length} memories above similarity threshold ${minSimilarity}. ` +
+        `Top similarity: ${results[0]?.similarity.toFixed(4) || "N/A"}`
+    );
+  }
 
   return results;
 };
