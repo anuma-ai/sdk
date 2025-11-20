@@ -6,12 +6,26 @@ import type { MemoryExtractionResult } from "../lib/memory/service";
 import { preprocessMemories } from "../lib/memory/service";
 import { saveMemories } from "../lib/memory/db";
 import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
+import {
+  generateAndStoreEmbeddings,
+  generateQueryEmbedding,
+} from "../lib/memory/embeddings";
+import { searchSimilarMemories } from "../lib/memory/db";
 
 export type UseMemoryOptions = {
   /**
    * The model to use for fact extraction (default: "openai/gpt-4o")
    */
   memoryModel?: string;
+  /**
+   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
+   * Set to null/undefined to disable embedding generation
+   */
+  embeddingModel?: string | null;
+  /**
+   * Whether to automatically generate embeddings for extracted memories (default: true)
+   */
+  generateEmbeddings?: boolean;
   /**
    * Callback when facts are extracted
    */
@@ -27,6 +41,20 @@ export type UseMemoryResult = {
     messages: Array<{ role: string; content: string }>;
     model: string;
   }) => Promise<MemoryExtractionResult | null>;
+  /**
+   * Search for similar memories using semantic search
+   * @param query The text query to search for
+   * @param limit Maximum number of results (default: 10)
+   * @param minSimilarity Minimum similarity threshold 0-1 (default: 0.7)
+   * @returns Array of memories with similarity scores, sorted by relevance
+   */
+  searchMemories: (
+    query: string,
+    limit?: number,
+    minSimilarity?: number
+  ) => Promise<
+    Array<import("../lib/memory/db").StoredMemoryItem & { similarity: number }>
+  >;
 };
 
 /**
@@ -34,7 +62,13 @@ export type UseMemoryResult = {
  * Can be composed with other hooks like useChat, useFiles, etc.
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
-  const { memoryModel = "openai/gpt-4o", onFactsExtracted, getToken } = options;
+  const {
+    memoryModel = "openai/gpt-4o",
+    embeddingModel = "openai/text-embedding-3-small",
+    generateEmbeddings = true,
+    onFactsExtracted,
+    getToken,
+  } = options;
 
   const extractionInProgressRef = useRef(false);
 
@@ -134,6 +168,22 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           try {
             await saveMemories(result.items);
             console.log(`Saved ${result.items.length} memories to IndexedDB`);
+
+            // Generate and store embeddings if enabled
+            if (generateEmbeddings && embeddingModel) {
+              try {
+                await generateAndStoreEmbeddings(result.items, {
+                  model: embeddingModel,
+                  getToken: getToken || undefined,
+                });
+                console.log(
+                  `Generated embeddings for ${result.items.length} memories`
+                );
+              } catch (error) {
+                console.error("Failed to generate embeddings:", error);
+                // Don't fail the whole operation if embeddings fail
+              }
+            }
           } catch (error) {
             console.error("Failed to save memories to IndexedDB:", error);
           }
@@ -151,10 +201,49 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         extractionInProgressRef.current = false;
       }
     },
-    [memoryModel, getToken, onFactsExtracted]
+    [
+      memoryModel,
+      embeddingModel,
+      generateEmbeddings,
+      getToken,
+      onFactsExtracted,
+    ]
+  );
+
+  const searchMemories = useCallback(
+    async (query: string, limit: number = 10, minSimilarity: number = 0.7) => {
+      if (!getToken || !embeddingModel) {
+        console.warn(
+          "Cannot search memories: getToken or embeddingModel not provided"
+        );
+        return [];
+      }
+
+      try {
+        // Generate embedding for the query
+        const queryEmbedding = await generateQueryEmbedding(query, {
+          model: embeddingModel,
+          getToken,
+        });
+
+        // Search for similar memories
+        const results = await searchSimilarMemories(
+          queryEmbedding,
+          limit,
+          minSimilarity
+        );
+
+        return results;
+      } catch (error) {
+        console.error("Failed to search memories:", error);
+        return [];
+      }
+    },
+    [embeddingModel, getToken]
   );
 
   return {
     extractMemoriesFromMessage,
+    searchMemories,
   };
 }

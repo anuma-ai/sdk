@@ -12,6 +12,10 @@ export interface StoredMemoryItem extends MemoryItem {
   compositeKey: string; // Format: `${namespace}:${key}`
   // Unique key for exact duplicates: namespace + key + value
   uniqueKey: string; // Format: `${namespace}:${key}:${value}`
+  // Embedding vector for semantic search (optional, generated on demand)
+  embedding?: number[];
+  // Model used to generate the embedding
+  embeddingModel?: string;
 }
 
 /**
@@ -26,6 +30,12 @@ class MemoryDatabase extends Dexie {
     // Version 2: Supports multiple values per namespace:key combination
     // uniqueKey ensures exact duplicates (namespace:key:value) are updated, not duplicated
     this.version(2).stores({
+      memories:
+        "++id, uniqueKey, compositeKey, namespace, key, type, createdAt, updatedAt",
+    });
+
+    // Version 3: Adds embedding support for semantic search
+    this.version(3).stores({
       memories:
         "++id, uniqueKey, compositeKey, namespace, key, type, createdAt, updatedAt",
     });
@@ -155,4 +165,62 @@ export const deleteMemory = async (
  */
 export const clearAllMemories = async (): Promise<void> => {
   await memoryDb.memories.clear();
+};
+
+/**
+ * Calculate cosine similarity between two vectors
+ */
+export const cosineSimilarity = (a: number[], b: number[]): number => {
+  if (a.length !== b.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return dotProduct / denominator;
+};
+
+/**
+ * Search for similar memories using vector similarity
+ * @param queryEmbedding The embedding vector to search for
+ * @param limit Maximum number of results to return
+ * @param minSimilarity Minimum similarity threshold (0-1)
+ * @returns Array of memories sorted by similarity (highest first)
+ */
+export const searchSimilarMemories = async (
+  queryEmbedding: number[],
+  limit: number = 10,
+  minSimilarity: number = 0.7
+): Promise<Array<StoredMemoryItem & { similarity: number }>> => {
+  const allMemories = await getAllMemories();
+  const memoriesWithEmbeddings = allMemories.filter(
+    (m) => m.embedding && m.embedding.length > 0
+  );
+
+  const results = memoriesWithEmbeddings
+    .map((memory) => {
+      const similarity = cosineSimilarity(queryEmbedding, memory.embedding!);
+      return {
+        ...memory,
+        similarity,
+      };
+    })
+    .filter((result) => result.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+
+  return results;
 };
