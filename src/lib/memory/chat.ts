@@ -1,7 +1,3 @@
-/**
- * Utilities for integrating memories with chat conversations
- */
-
 import type { StoredMemoryItem } from "./db";
 
 /**
@@ -20,7 +16,6 @@ export const formatMemoriesForChat = (
 
   const sections: string[] = [];
 
-  // Group by namespace for better organization
   const byNamespace = new Map<string, typeof memories>();
   for (const memory of memories) {
     if (!byNamespace.has(memory.namespace)) {
@@ -47,7 +42,6 @@ export const formatMemoriesForChat = (
           items.push(`  Evidence: "${memory.rawEvidence}"`);
         }
       } else {
-        // Compact format: just key-value pairs
         items.push(`${memory.key}: ${memory.value}`);
       }
     }
@@ -87,7 +81,6 @@ export const createMemoryContextSystemMessage = (
 
 /**
  * Extract conversation context from messages for memory search
- * Combines recent user messages to create a search query
  * @param messages Array of chat messages
  * @param maxMessages Maximum number of recent messages to include (default: 3)
  * @returns Combined text query for memory search
@@ -96,7 +89,6 @@ export const extractConversationContext = (
   messages: Array<{ role: string; content: string }>,
   maxMessages: number = 3
 ): string => {
-  // Get recent user messages
   const userMessages = messages
     .filter((msg) => msg.role === "user")
     .slice(-maxMessages)

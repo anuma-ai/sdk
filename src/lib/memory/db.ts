@@ -5,16 +5,12 @@ import type { MemoryItem } from "./service";
  * Extended MemoryItem with database fields
  */
 export interface StoredMemoryItem extends MemoryItem {
-  id?: number; // Auto-increment primary key
-  createdAt: number; // Timestamp when memory was created
-  updatedAt: number; // Timestamp when memory was last updated
-  // Composite key for querying: namespace + key (allows multiple values)
-  compositeKey: string; // Format: `${namespace}:${key}`
-  // Unique key for exact duplicates: namespace + key + value
-  uniqueKey: string; // Format: `${namespace}:${key}:${value}`
-  // Embedding vector for semantic search (optional, generated on demand)
+  id?: number;
+  createdAt: number;
+  updatedAt: number;
+  compositeKey: string;
+  uniqueKey: string;
   embedding?: number[];
-  // Model used to generate the embedding
   embeddingModel?: string;
 }
 
@@ -27,14 +23,11 @@ class MemoryDatabase extends Dexie {
   constructor() {
     super("MemoryDatabase");
 
-    // Version 2: Supports multiple values per namespace:key combination
-    // uniqueKey ensures exact duplicates (namespace:key:value) are updated, not duplicated
     this.version(2).stores({
       memories:
         "++id, uniqueKey, compositeKey, namespace, key, type, createdAt, updatedAt",
     });
 
-    // Version 3: Adds embedding support for semantic search
     this.version(3).stores({
       memories:
         "++id, uniqueKey, compositeKey, namespace, key, type, createdAt, updatedAt",
@@ -42,7 +35,6 @@ class MemoryDatabase extends Dexie {
   }
 }
 
-// Create and export a singleton instance
 export const memoryDb = new MemoryDatabase();
 
 /**
@@ -55,19 +47,12 @@ export const saveMemory = async (memory: MemoryItem): Promise<void> => {
   const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
   const now = Date.now();
 
-  // Check if exact duplicate exists (same namespace:key:value)
   const existing = await memoryDb.memories
     .where("uniqueKey")
     .equals(uniqueKey)
     .first();
 
   if (existing) {
-    // Update existing memory (same namespace:key:value combination)
-    // Preserve embedding fields only if ALL fields used in embedding generation haven't changed
-    // Embeddings are generated from: rawEvidence, type, namespace, key, value
-    // If any of these change, the embedding becomes stale and should be regenerated
-    // Note: We don't check embedding model here since it's not available in saveMemory.
-    // If the embedding model changes globally, use generateEmbeddingsForAllMemories() to regenerate.
     const shouldPreserveEmbedding =
       existing.value === memory.value &&
       existing.rawEvidence === memory.rawEvidence &&
@@ -82,25 +67,19 @@ export const saveMemory = async (memory: MemoryItem): Promise<void> => {
       compositeKey,
       uniqueKey,
       updatedAt: now,
-      // Preserve createdAt
       createdAt: existing.createdAt,
     };
 
-    // Preserve embedding fields only if all embedding-related fields are unchanged
-    // If any field changed, embedding will be cleared and should be regenerated
     if (shouldPreserveEmbedding) {
       updateData.embedding = existing.embedding;
       updateData.embeddingModel = existing.embeddingModel;
     } else {
-      // Clear stale embeddings by setting to empty array (will be filtered out in search)
-      // Using empty array instead of undefined to ensure field is cleared
       updateData.embedding = [];
       updateData.embeddingModel = undefined;
     }
 
     await memoryDb.memories.update(existing.id!, updateData);
   } else {
-    // Insert new memory (allows multiple entries with same namespace:key)
     await memoryDb.memories.add({
       ...memory,
       compositeKey,
@@ -136,7 +115,6 @@ export const getMemoriesByNamespace = async (
 
 /**
  * Get all memories by namespace and key
- * Returns all entries with the same namespace:key (e.g., all food likes)
  */
 export const getMemories = async (
   namespace: string,
@@ -240,7 +218,6 @@ export const searchSimilarMemories = async (
     (m) => m.embedding && m.embedding.length > 0
   );
 
-  // Debug logging
   console.log(
     `[Memory Search] Total memories: ${allMemories.length}, ` +
       `memories with embeddings: ${memoriesWithEmbeddings.length}`
@@ -255,7 +232,6 @@ export const searchSimilarMemories = async (
     return [];
   }
 
-  // Calculate similarities for all memories
   const allResults = memoriesWithEmbeddings
     .map((memory) => {
       const similarity = cosineSimilarity(queryEmbedding, memory.embedding!);
@@ -266,7 +242,6 @@ export const searchSimilarMemories = async (
     })
     .sort((a, b) => b.similarity - a.similarity);
 
-  // Log all similarity scores for debugging
   console.log(
     `[Memory Search] All similarity scores:`,
     allResults.map((r) => ({
@@ -276,7 +251,6 @@ export const searchSimilarMemories = async (
     }))
   );
 
-  // Filter by threshold
   const results = allResults
     .filter((result) => result.similarity >= minSimilarity)
     .slice(0, limit);

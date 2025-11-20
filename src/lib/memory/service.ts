@@ -1,7 +1,3 @@
-/**
- * Memory Service - Extracts durable user memories from chat messages
- */
-
 export interface MemoryItem {
   type: "identity" | "preference" | "project" | "skill" | "constraint";
   namespace: string;
@@ -91,15 +87,8 @@ export const preprocessMemories = (
     return [];
   }
 
-  // Step 1: Filter out broken entries
   const validItems = items.filter((item) => {
-    // Check for missing namespace, key, or value
-    // Ensure they are strings before calling .trim()
-    if (
-      item.namespace == null ||
-      item.key == null ||
-      item.value == null
-    ) {
+    if (item.namespace == null || item.key == null || item.value == null) {
       console.warn(
         "Dropping memory item with null/undefined namespace, key, or value:",
         item
@@ -107,7 +96,6 @@ export const preprocessMemories = (
       return false;
     }
 
-    // Convert to strings and check if they're non-empty after trimming
     const namespace = String(item.namespace).trim();
     const key = String(item.key).trim();
     const value = String(item.value).trim();
@@ -120,7 +108,6 @@ export const preprocessMemories = (
       return false;
     }
 
-    // Check confidence threshold
     if (
       typeof item.confidence !== "number" ||
       item.confidence < minConfidence
@@ -135,8 +122,6 @@ export const preprocessMemories = (
     return true;
   });
 
-  // Step 2: Deduplicate entries with same namespace + key + value
-  // Keep the entry with the highest confidence
   const deduplicatedMap = new Map<string, MemoryItem>();
 
   for (const item of validItems) {
@@ -165,7 +150,6 @@ export const extractFacts = async (
   const { api, model, message, conversationHistory = [], getToken } = options;
 
   try {
-    // Build the prompt with conversation context
     const conversationContext = conversationHistory
       .map((msg) => `${msg.role}: ${msg.content}`)
       .join("\n");
@@ -180,12 +164,10 @@ ${message}
 
 Extract facts from the user message above. Return only valid JSON.`;
 
-    // Prepare headers
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
 
-    // Add authorization token if provided
     if (getToken) {
       const token = await getToken();
       if (token) {
@@ -193,7 +175,6 @@ Extract facts from the user message above. Return only valid JSON.`;
       }
     }
 
-    // Call the API
     const response = await fetch(api, {
       method: "POST",
       headers,
@@ -205,7 +186,6 @@ Extract facts from the user message above. Return only valid JSON.`;
             content: fullPrompt,
           },
         ],
-        // Request non-streaming response for JSON parsing
         stream: false,
       }),
     });
@@ -215,7 +195,6 @@ Extract facts from the user message above. Return only valid JSON.`;
       return null;
     }
 
-    // Check if response is streaming
     const contentType = response.headers.get("content-type") || "";
     const isStreaming =
       contentType.includes("text/event-stream") ||
@@ -224,7 +203,6 @@ Extract facts from the user message above. Return only valid JSON.`;
     let content = "";
 
     if (isStreaming) {
-      // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -239,7 +217,6 @@ Extract facts from the user message above. Return only valid JSON.`;
         content += decoder.decode(value, { stream: true });
       }
     } else {
-      // Handle JSON response
       const data = await response.json();
       content =
         data.choices?.[0]?.message?.content?.trim() ||
@@ -253,20 +230,15 @@ Extract facts from the user message above. Return only valid JSON.`;
       return null;
     }
 
-    // Try to parse JSON from the response
-    // Sometimes the response might be wrapped in markdown code blocks
     let jsonContent = content;
 
-    // Remove any streaming prefixes if present
     jsonContent = jsonContent.replace(/^data:\s*/gm, "").trim();
 
-    // Extract JSON from markdown code blocks if present
     const jsonMatch = jsonContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
     if (jsonMatch) {
       jsonContent = jsonMatch[1];
     }
 
-    // Try to find JSON object in the content
     const jsonObjectMatch = jsonContent.match(/\{[\s\S]*\}/);
     if (jsonObjectMatch) {
       jsonContent = jsonObjectMatch[0];
@@ -275,7 +247,6 @@ Extract facts from the user message above. Return only valid JSON.`;
     try {
       const result: MemoryExtractionResult = JSON.parse(jsonContent);
 
-      // Preprocess memories: filter broken entries and deduplicate
       if (result.items && Array.isArray(result.items)) {
         const originalCount = result.items.length;
         result.items = preprocessMemories(result.items);
@@ -290,7 +261,6 @@ Extract facts from the user message above. Return only valid JSON.`;
         }
       }
 
-      // Console log the result as requested
       console.log("Extracted memories:", JSON.stringify(result, null, 2));
 
       return result;

@@ -105,9 +105,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             ],
             model: model || memoryModel,
           },
-          // headers: {
-          //   Authorization: `Bearer ${token}`,
-          // },
         });
 
         if (!completion.data) {
@@ -118,7 +115,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           return null;
         }
 
-        // Extract the content from the response
         const content =
           completion.data.choices?.[0]?.message?.content?.trim() || "";
 
@@ -127,16 +123,11 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           return null;
         }
 
-        // Parse JSON from the response with improved extraction
         let jsonContent = content;
 
-        // Remove any streaming prefixes if present
         jsonContent = jsonContent.replace(/^data:\s*/gm, "").trim();
 
-        // Check if content starts with JSON (most common case)
         if (jsonContent.startsWith("{")) {
-          // Content is already JSON, try to extract just the JSON object
-          // Find the first { and matching }
           let braceCount = 0;
           let jsonStart = -1;
           let jsonEnd = -1;
@@ -158,33 +149,26 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             jsonContent = jsonContent.substring(jsonStart, jsonEnd);
           }
         } else {
-          // Content doesn't start with JSON, try to extract it
-          // First try markdown code blocks
           const jsonMatch = jsonContent.match(
             /```(?:json)?\s*(\{[\s\S]*?\})\s*```/
           );
           if (jsonMatch && jsonMatch[1]) {
             jsonContent = jsonMatch[1].trim();
           } else {
-            // Try to find JSON object anywhere in the content
-            // Use a more precise regex that finds balanced braces
             const jsonObjectMatch = jsonContent.match(/\{[\s\S]*\}/);
             if (jsonObjectMatch && jsonObjectMatch[0]) {
               jsonContent = jsonObjectMatch[0];
             } else {
-              // If no JSON found, log the content and return empty result
               console.warn(
                 "Memory extraction returned non-JSON response. The model may not have found any memories to extract, or it returned natural language instead of JSON.",
                 "\nFirst 200 chars of response:",
                 content.substring(0, 200)
               );
-              // Return empty result instead of throwing error
               return { items: [] };
             }
           }
         }
 
-        // Final validation: ensure jsonContent looks like JSON before parsing
         const trimmedJson = jsonContent.trim();
         if (!trimmedJson.startsWith("{") || !trimmedJson.includes("items")) {
           console.warn(
@@ -196,18 +180,15 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           return { items: [] };
         }
 
-        // Validate and parse JSON
         let result: MemoryExtractionResult;
         try {
           result = JSON.parse(jsonContent);
 
-          // Validate structure
           if (!result || typeof result !== "object") {
             throw new Error("Invalid JSON structure: not an object");
           }
 
           if (!Array.isArray(result.items)) {
-            // If items is missing or not an array, return empty result
             console.warn(
               "Memory extraction result missing 'items' array. Result:",
               result
@@ -215,7 +196,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             return { items: [] };
           }
         } catch (parseError) {
-          // If JSON parsing fails, log error and return empty result
           console.error(
             "Failed to parse memory extraction JSON:",
             parseError instanceof Error ? parseError.message : parseError
@@ -241,13 +221,11 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
 
         console.log("Extracted memories:", JSON.stringify(result, null, 2));
 
-        // Save memories to IndexedDB
         if (result.items && result.items.length > 0) {
           try {
             await saveMemories(result.items);
             console.log(`Saved ${result.items.length} memories to IndexedDB`);
 
-            // Generate and store embeddings if enabled
             if (generateEmbeddings && embeddingModel) {
               try {
                 await generateAndStoreEmbeddings(result.items, {
@@ -259,7 +237,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
                 );
               } catch (error) {
                 console.error("Failed to generate embeddings:", error);
-                // Don't fail the whole operation if embeddings fail
               }
             }
           } catch (error) {
@@ -300,7 +277,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       try {
         console.log(`[Memory Search] Searching for: "${query}"`);
 
-        // Generate embedding for the query
         const queryEmbedding = await generateQueryEmbedding(query, {
           model: embeddingModel,
           getToken,
@@ -310,7 +286,6 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           `[Memory Search] Generated query embedding (${queryEmbedding.length} dimensions)`
         );
 
-        // Search for similar memories
         const results = await searchSimilarMemories(
           queryEmbedding,
           limit,

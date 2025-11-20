@@ -1,7 +1,3 @@
-/**
- * Embedding utilities for memory items
- */
-
 import { postApiV1Embeddings } from "../../client";
 import type { MemoryItem } from "./service";
 import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
@@ -17,10 +13,6 @@ export interface GenerateEmbeddingOptions {
   getToken?: () => Promise<string | null>;
 }
 
-/**
- * Internal helper function to generate embeddings for any text input
- * This is the shared implementation used by both memory and query embedding functions
- */
 const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
@@ -68,13 +60,11 @@ const generateEmbeddingForText = async (
 
 /**
  * Generate embeddings for a single memory item
- * Uses rawEvidence (contains natural language) combined with structured fields for context
  */
 export const generateEmbeddingForMemory = async (
   memory: MemoryItem,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  // Combine rawEvidence (natural language) with structured fields for better semantic matching
   const text = [
     memory.rawEvidence,
     memory.type,
@@ -89,7 +79,6 @@ export const generateEmbeddingForMemory = async (
 
 /**
  * Generate embeddings for multiple memory items
- * Processes them in batches to avoid overwhelming the API
  */
 export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
@@ -98,8 +87,6 @@ export const generateEmbeddingsForMemories = async (
   const { model = "openai/text-embedding-3-small", getToken } = options;
   const embeddings = new Map<string, number[]>();
 
-  // Process memories one at a time to avoid rate limits
-  // In production, you might want to batch these
   for (const memory of memories) {
     const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
     try {
@@ -113,7 +100,6 @@ export const generateEmbeddingsForMemories = async (
         `Failed to generate embedding for memory ${uniqueKey}:`,
         error
       );
-      // Continue with other memories even if one fails
     }
   }
 
@@ -122,7 +108,6 @@ export const generateEmbeddingsForMemories = async (
 
 /**
  * Update memory items in the database with their embeddings
- * Only updates memories that still match the uniqueKey (to avoid stale embeddings)
  */
 export const updateMemoriesWithEmbeddings = async (
   embeddings: Map<string, number[]>,
@@ -135,16 +120,11 @@ export const updateMemoriesWithEmbeddings = async (
         .equals(uniqueKey)
         .first();
 
-      // Only update if memory still exists with the same uniqueKey
-      // This prevents storing embeddings for memories that were updated/deleted
       if (existing?.id) {
-        // Partial update: only update embedding-related fields
-        // Dexie's update() preserves all other fields automatically
         await memoryDb.memories.update(existing.id, {
           embedding,
           embeddingModel,
           updatedAt: Date.now(),
-          // Explicitly preserve createdAt (though Dexie would preserve it anyway)
           createdAt: existing.createdAt,
         });
       } else {
@@ -161,7 +141,6 @@ export const updateMemoriesWithEmbeddings = async (
 
 /**
  * Generate and store embeddings for memory items
- * This is the main function to call when you want to add embeddings to memories
  */
 export const generateAndStoreEmbeddings = async (
   memories: MemoryItem[],
@@ -201,7 +180,6 @@ export const generateEmbeddingsForAllMemories = async (
 ): Promise<void> => {
   const allMemories = await getAllMemories();
 
-  // Find memories without embeddings
   const memoriesWithoutEmbeddings = allMemories.filter(
     (m) => !m.embedding || m.embedding.length === 0
   );
@@ -215,7 +193,6 @@ export const generateEmbeddingsForAllMemories = async (
     `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`
   );
 
-  // Convert StoredMemoryItem back to MemoryItem format
   const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map((m) => ({
     type: m.type,
     namespace: m.namespace,
@@ -230,8 +207,7 @@ export const generateEmbeddingsForAllMemories = async (
 };
 
 /**
- * Generate embedding for a query string (e.g., user's current message)
- * This can be used to search for similar memories
+ * Generate embedding for a query string
  */
 export const generateQueryEmbedding = async (
   query: string,
