@@ -2,10 +2,10 @@
 
 import { useCallback, useRef } from "react";
 import { postApiV1ChatCompletions } from "../client";
-import type { MemoryExtractionResult } from "../lib/memory-service";
-import { preprocessMemories } from "../lib/memory-service";
-import { saveMemories } from "../lib/memory-db";
-import { FACT_EXTRACTION_PROMPT } from "../lib/memory-service";
+import type { MemoryExtractionResult } from "../lib/memory/service";
+import { preprocessMemories } from "../lib/memory/service";
+import { saveMemories } from "../lib/memory/db";
+import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
 
 export type UseMemoryOptions = {
   /**

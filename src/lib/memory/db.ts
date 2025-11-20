@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { MemoryItem } from "./memory-service";
+import type { MemoryItem } from "./service";
 
 /**
  * Extended MemoryItem with database fields
