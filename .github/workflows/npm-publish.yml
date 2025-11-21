@@ -19,13 +19,13 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install Dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Generate API Client
-        run: yarn generate
+        run: pnpm run generate
 
       - name: Build
-        run: yarn build
+        run: pnpm run build
 
       - name: Publish next version
         run: |
