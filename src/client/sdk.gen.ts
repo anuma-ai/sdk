@@ -21,7 +21,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Create chat completion
  *
- * Generates a chat completion using the configured gateway.
+ * Generates a chat completion using the configured gateway. Supports streaming when stream=true.
  */
 export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ChatCompletionsData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1ChatCompletionsResponses, PostApiV1ChatCompletionsErrors, ThrowOnError>({

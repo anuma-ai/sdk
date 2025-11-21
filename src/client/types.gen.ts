@@ -369,7 +369,7 @@ export type PostApiV1ChatCompletionsResponses = {
     /**
      * OK
      */
-    200: LlmapiChatCompletionResponse;
+    200: LlmapiChatCompletionResponse | string;
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
