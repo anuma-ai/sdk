@@ -104,9 +104,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             messages,
             model,
           },
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          // headers: {
+          //   Authorization: `Bearer ${token}`,
+          // },
         });
 
         if (!completion.data) {

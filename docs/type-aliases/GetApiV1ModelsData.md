@@ -8,7 +8,7 @@ title: GetApiV1ModelsData
 
 > **GetApiV1ModelsData** = `object`
 
-Defined in: [types.gen.ts:409](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L409)
+Defined in: [types.gen.ts:409](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L409)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:409](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba
 
 > `optional` **body**: `never`
 
-Defined in: [types.gen.ts:410](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L410)
+Defined in: [types.gen.ts:410](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L410)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [types.gen.ts:410](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:411](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L411)
+Defined in: [types.gen.ts:411](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L411)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [types.gen.ts:411](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba
 
 > `optional` **query**: `object`
 
-Defined in: [types.gen.ts:412](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L412)
+Defined in: [types.gen.ts:412](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L412)
 
 #### page\_size?
 
@@ -58,4 +58,4 @@ Filter by provider (e.g., openai, anthropic)
 
 > **url**: `"/api/v1/models"`
 
-Defined in: [types.gen.ts:426](https://github.com/zeta-chain/ai-sdk/blob/f68d4ba82f7f7d4589d705a3990998e47785d2f4/src/client/types.gen.ts#L426)
+Defined in: [types.gen.ts:426](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L426)
