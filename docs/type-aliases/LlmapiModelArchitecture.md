@@ -8,7 +8,7 @@ title: LlmapiModelArchitecture
 
 > **LlmapiModelArchitecture** = `object`
 
-Defined in: [types.gen.ts:272](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L272)
+Defined in: [types.gen.ts:272](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L272)
 
 Architecture describes the model's technical capabilities
 
@@ -18,7 +18,7 @@ Architecture describes the model's technical capabilities
 
 > `optional` **instruct\_type**: `string`
 
-Defined in: [types.gen.ts:273](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L273)
+Defined in: [types.gen.ts:273](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L273)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [types.gen.ts:273](https://github.com/zeta-chain/ai-sdk/blob/0cd445c
 
 > `optional` **modality**: `string`
 
-Defined in: [types.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L274)
+Defined in: [types.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L274)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/0cd445c
 
 > `optional` **prompt\_formatting**: `string`
 
-Defined in: [types.gen.ts:275](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L275)
+Defined in: [types.gen.ts:275](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L275)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:275](https://github.com/zeta-chain/ai-sdk/blob/0cd445c
 
 > `optional` **tokenizer**: `string`
 
-Defined in: [types.gen.ts:276](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L276)
+Defined in: [types.gen.ts:276](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L276)

@@ -33,9 +33,9 @@
   "scripts": {
     "spec": "openapi-ts",
     "build": "tsup",
-    "prepublishOnly": "yarn build",
+    "prepublishOnly": "pnpm build",
     "docs": "typedoc src/client/index.ts",
-    "generate": "yarn spec && yarn docs"
+    "generate": "pnpm run spec && pnpm run docs"
   },
   "repository": {
     "type": "git",

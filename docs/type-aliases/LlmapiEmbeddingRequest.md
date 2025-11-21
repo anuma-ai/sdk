@@ -8,7 +8,7 @@ title: LlmapiEmbeddingRequest
 
 > **LlmapiEmbeddingRequest** = `object`
 
-Defined in: [types.gen.ts:147](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L147)
+Defined in: [types.gen.ts:147](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L147)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:147](https://github.com/zeta-chain/ai-sdk/blob/0cd445c
 
 > `optional` **dimensions**: `number`
 
-Defined in: [types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L151)
+Defined in: [types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L151)
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
@@ -26,7 +26,7 @@ Dimensions is the number of dimensions the resulting output embeddings should ha
 
 > `optional` **encoding\_format**: `string`
 
-Defined in: [types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L155)
+Defined in: [types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L155)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
@@ -36,7 +36,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 > `optional` **input**: `unknown`
 
-Defined in: [types.gen.ts:159](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L159)
+Defined in: [types.gen.ts:159](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L159)
 
 Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
@@ -46,6 +46,6 @@ Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
 > `optional` **model**: `string`
 
-Defined in: [types.gen.ts:163](https://github.com/zeta-chain/ai-sdk/blob/0cd445c1866e4dd9bc9f0cdef80865dce1529476/src/client/types.gen.ts#L163)
+Defined in: [types.gen.ts:163](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L163)
 
 Model identifier in 'provider/model' format
