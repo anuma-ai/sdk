@@ -105,15 +105,22 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             ],
             model: model || memoryModel,
           },
-          // headers: {
-          //   Authorization: `Bearer ${token}`,
-          // },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (!completion.data) {
           console.error(
             "Memory extraction failed:",
             completion.error?.error ?? "API did not return a response"
+          );
+          return null;
+        }
+
+        if (typeof completion.data === "string") {
+          console.error(
+            "Memory extraction failed: API returned a string response instead of a completion object"
           );
           return null;
         }

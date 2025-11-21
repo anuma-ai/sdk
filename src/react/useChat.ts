@@ -117,6 +117,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return { data: null, error };
         }
 
+        if (typeof completion.data === "string") {
+          const error =
+            "API returned a string response instead of a completion object.";
+          setIsLoading(false);
+          return { data: null, error };
+        }
+
         setIsLoading(false);
         return { data: completion.data, error: null };
       } catch (err) {
