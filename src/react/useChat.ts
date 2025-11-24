@@ -37,6 +37,20 @@ type UseChatResult = {
   stop: () => void;
 };
 
+type StreamingChunk = {
+  id?: string;
+  model?: string;
+  choices?: Array<{
+    delta?: {
+      content?: string;
+      role?: string;
+    };
+    finish_reason?: string;
+    index?: number;
+  }>;
+  usage?: LlmapiChatCompletionResponse["usage"];
+};
+
 /**
  * A React hook for managing chat completions with authentication.
  *
@@ -173,7 +187,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Handle chunk data
           if (chunk && typeof chunk === "object") {
-            const chunkData = chunk as any;
+            const chunkData = chunk as StreamingChunk;
 
             // Extract completion ID and model from first chunk
             if (chunkData.id && !completionId) {
