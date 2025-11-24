@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
+    "@privy-io/react-auth": "^3.7.0",
     "@types/react": "^19.2.6",
     "tsup": "^8.5.1",
     "typedoc": "^0.28.14",
