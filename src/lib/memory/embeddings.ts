@@ -31,7 +31,7 @@ const generateEmbeddingForText = async (
         input: text,
         model,
       },
-      // headers,
+      headers,
     });
 
     if (
