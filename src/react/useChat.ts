@@ -19,6 +19,7 @@ type SendMessageResult =
 
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
+  baseUrl?: string;
 };
 
 type UseChatResult = {
@@ -36,6 +37,7 @@ type UseChatResult = {
  * @param options.getToken - An async function that returns an authentication token.
  *   This token will be used as a Bearer token in the Authorization header.
  *   If not provided, `sendMessage` will return an error.
+ * @param options.baseUrl - Optional base URL for the API requests.
  *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
@@ -65,7 +67,7 @@ type UseChatResult = {
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
-  const { getToken } = options || {};
+  const { getToken, baseUrl } = options || {};
   const [isLoading, setIsLoading] = useState(false);
 
   const sendMessage = useCallback(
@@ -100,6 +102,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
 
         const completion = await postApiV1ChatCompletions({
+          baseUrl,
           body: {
             messages,
             model,
@@ -133,7 +136,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         return { data: null, error };
       }
     },
-    [getToken]
+    [getToken, baseUrl]
   );
 
   return {

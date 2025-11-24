@@ -11,13 +11,21 @@ export interface GenerateEmbeddingOptions {
    * Custom function to get auth token for API calls
    */
   getToken?: () => Promise<string | null>;
+  /**
+   * Optional base URL for the API requests.
+   */
+  baseUrl?: string;
 }
 
 const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const { model = "openai/text-embedding-3-small", getToken } = options;
+  const {
+    model = "openai/text-embedding-3-small",
+    getToken,
+    baseUrl,
+  } = options;
 
   try {
     const token = getToken ? await getToken() : null;
@@ -27,6 +35,7 @@ const generateEmbeddingForText = async (
     }
 
     const response = await postApiV1Embeddings({
+      baseUrl,
       body: {
         input: text,
         model,
@@ -84,7 +93,11 @@ export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<Map<string, number[]>> => {
-  const { model = "openai/text-embedding-3-small", getToken } = options;
+  const {
+    model = "openai/text-embedding-3-small",
+    getToken,
+    baseUrl,
+  } = options;
   const embeddings = new Map<string, number[]>();
 
   for (const memory of memories) {
@@ -93,6 +106,7 @@ export const generateEmbeddingsForMemories = async (
       const embedding = await generateEmbeddingForMemory(memory, {
         model,
         getToken,
+        baseUrl,
       });
       embeddings.set(uniqueKey, embedding);
     } catch (error) {
