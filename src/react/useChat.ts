@@ -17,6 +17,18 @@ type SendMessageResult =
 
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
+  /**
+   * Callback function to be called when a new data chunk is received.
+   */
+  onData?: (chunk: string) => void;
+  /**
+   * Callback function to be called when the chat completion finishes successfully.
+   */
+  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  /**
+   * Callback function to be called when an error is encountered.
+   */
+  onError?: (error: Error) => void;
 };
 
 type UseChatResult = {
@@ -36,6 +48,9 @@ type UseChatResult = {
  * @param options.getToken - An async function that returns an authentication token.
  *   This token will be used as a Bearer token in the Authorization header.
  *   If not provided, `sendMessage` will return an error.
+ * @param options.onData - Callback function to be called when a new data chunk is received.
+ * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
+ * @param options.onError - Callback function to be called when an error is encountered.
  *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
@@ -48,6 +63,12 @@ type UseChatResult = {
  *   getToken: async () => {
  *     // Get your auth token from your auth provider
  *     return await getAuthToken();
+ *   },
+ *   onFinish: (response) => {
+ *     console.log("Chat finished:", response);
+ *   },
+ *   onError: (error) => {
+ *     console.error("Chat error:", error);
  *   }
  * });
  *
@@ -57,11 +78,7 @@ type UseChatResult = {
  *     model: 'gpt-4o-mini'
  *   });
  *
- *   if (result.error) {
- *     console.error(result.error);
- *   } else {
- *     console.log(result.data);
- *   }
+ *   // result.data is also available here
  * };
  *
  * // To stop generation:
@@ -69,7 +86,7 @@ type UseChatResult = {
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
-  const { getToken } = options || {};
+  const { getToken, onData: globalOnData, onFinish, onError } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -87,18 +104,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onData,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
-        const error = "messages are required to call sendMessage.";
-        return { data: null, error };
+        const errorMsg = "messages are required to call sendMessage.";
+        if (onError) onError(new Error(errorMsg));
+        return { data: null, error: errorMsg };
       }
 
       if (!model) {
-        const error = "model is required to call sendMessage.";
-        return { data: null, error };
+        const errorMsg = "model is required to call sendMessage.";
+        if (onError) onError(new Error(errorMsg));
+        return { data: null, error: errorMsg };
       }
 
       if (!getToken) {
-        const error = "Token getter function is required.";
-        return { data: null, error };
+        const errorMsg = "Token getter function is required.";
+        if (onError) onError(new Error(errorMsg));
+        return { data: null, error: errorMsg };
       }
 
       // Abort any pending request
@@ -115,9 +135,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         const token = await getToken();
 
         if (!token) {
-          const error = "No access token available.";
+          const errorMsg = "No access token available.";
           setIsLoading(false);
-          return { data: null, error };
+          if (onError) onError(new Error(errorMsg));
+          return { data: null, error: errorMsg };
         }
 
         // Use SSE client for streaming
@@ -180,6 +201,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 if (onData) {
                   onData(content);
                 }
+                if (globalOnData) {
+                  globalOnData(content);
+                }
               }
               if (choice.finish_reason) {
                 finishReason = choice.finish_reason;
@@ -206,25 +230,37 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         };
 
         setIsLoading(false);
+        if (onFinish) {
+          onFinish(completion);
+        }
         return { data: completion, error: null };
       } catch (err) {
         // Handle AbortError specifically
         if (err instanceof Error && err.name === "AbortError") {
           setIsLoading(false);
-          return { data: null, error: "Request aborted" };
+          const errorMsg = "Request aborted";
+          // Abort errors are generally not considered "errors" in the same way, but let's return it.
+          // We might not want to trigger onError for aborts, or maybe we do.
+          // Vercel usually doesn't trigger onError for manual stops.
+          return { data: null, error: errorMsg };
         }
 
-        const error =
+        const errorMsg =
           err instanceof Error ? err.message : "Failed to send message.";
+        const errorObj = err instanceof Error ? err : new Error(errorMsg);
+
         setIsLoading(false);
-        return { data: null, error };
+        if (onError) {
+          onError(errorObj);
+        }
+        return { data: null, error: errorMsg };
       } finally {
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
       }
     },
-    [getToken]
+    [getToken, globalOnData, onFinish, onError]
   );
 
   return {
