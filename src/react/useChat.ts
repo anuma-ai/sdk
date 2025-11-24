@@ -2,15 +2,13 @@
 
 import { useCallback, useState } from "react";
 
-import {
-  postApiV1ChatCompletions,
-  type LlmapiChatCompletionResponse,
-  type LlmapiMessage,
-} from "../client";
+import { client } from "../client/client.gen";
+import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 
 type SendMessageArgs = {
   messages: LlmapiMessage[];
   model: string;
+  onChunk?: (chunk: string) => void;
 };
 
 type SendMessageResult =
@@ -31,6 +29,7 @@ type UseChatResult = {
  *
  * This hook provides a convenient way to send chat messages to the LLM API
  * with automatic token management and loading state handling.
+ * Streaming is enabled by default for better user experience.
  *
  * @param options - Optional configuration object
  * @param options.getToken - An async function that returns an authentication token.
@@ -72,6 +71,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     async ({
       messages,
       model,
+      onChunk,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
         const error = "messages are required to call sendMessage.";
@@ -99,33 +99,92 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return { data: null, error };
         }
 
-        const completion = await postApiV1ChatCompletions({
+        // Use SSE client for streaming
+        const sseResult = await client.sse.post({
+          url: "/api/v1/chat/completions",
           body: {
             messages,
             model,
+            stream: true,
           },
-          // headers: {
-          //   Authorization: `Bearer ${token}`,
-          // },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        if (!completion.data) {
-          const error =
-            completion.error?.error ??
-            "API did not return a completion response.";
-          setIsLoading(false);
-          return { data: null, error };
+        let accumulatedContent = "";
+        let completionId = "";
+        let completionModel = "";
+        let usage: LlmapiChatCompletionResponse["usage"] | undefined;
+        let finishReason: string | undefined;
+
+        for await (const chunk of sseResult.stream) {
+          // Skip [DONE] marker (can come as string or in various formats)
+          if (
+            typeof chunk === "string" &&
+            (chunk.trim() === "[DONE]" || chunk.includes("[DONE]"))
+          ) {
+            continue;
+          }
+
+          // Handle chunk data
+          if (chunk && typeof chunk === "object") {
+            const chunkData = chunk as any;
+
+            // Extract completion ID and model from first chunk
+            if (chunkData.id && !completionId) {
+              completionId = chunkData.id;
+            }
+            if (chunkData.model && !completionModel) {
+              completionModel = chunkData.model;
+            }
+
+            // Extract usage from final chunk
+            if (chunkData.usage) {
+              usage = chunkData.usage;
+            }
+
+            // Extract content delta
+            if (
+              chunkData.choices &&
+              Array.isArray(chunkData.choices) &&
+              chunkData.choices.length > 0
+            ) {
+              const choice = chunkData.choices[0];
+              if (choice.delta?.content) {
+                const content = choice.delta.content;
+                accumulatedContent += content;
+                if (onChunk) {
+                  onChunk(content);
+                }
+              }
+              if (choice.finish_reason) {
+                finishReason = choice.finish_reason;
+              }
+            }
+          }
         }
 
-        if (typeof completion.data === "string") {
-          const error =
-            "API returned a string response instead of a completion object.";
-          setIsLoading(false);
-          return { data: null, error };
-        }
+        // Build the final response
+        const completion: LlmapiChatCompletionResponse = {
+          id: completionId,
+          model: completionModel,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: accumulatedContent,
+              },
+              finish_reason: finishReason,
+            },
+          ],
+          usage,
+        };
 
         setIsLoading(false);
-        return { data: completion.data, error: null };
+        return { data: completion, error: null };
       } catch (err) {
         const error =
           err instanceof Error ? err.message : "Failed to send message.";
