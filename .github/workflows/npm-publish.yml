@@ -18,14 +18,17 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install Dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Generate API Client
-        run: yarn generate
+        run: pnpm run generate
 
       - name: Build
-        run: yarn build
+        run: pnpm run build
 
       - name: Publish next version
         run: |

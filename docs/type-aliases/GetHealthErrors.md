@@ -8,7 +8,7 @@ title: GetHealthErrors
 
 > **GetHealthErrors** = `object`
 
-Defined in: [types.gen.ts:288](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L288)
+Defined in: [types.gen.ts:458](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L458)
 
 ## Properties
 
@@ -16,6 +16,6 @@ Defined in: [types.gen.ts:288](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [types.gen.ts:292](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L292)
+Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L462)
 
 Internal Server Error

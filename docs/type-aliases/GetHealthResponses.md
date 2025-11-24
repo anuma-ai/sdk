@@ -8,7 +8,7 @@ title: GetHealthResponses
 
 > **GetHealthResponses** = `object`
 
-Defined in: [types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L297)
+Defined in: [types.gen.ts:467](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L467)
 
 ## Properties
 
@@ -16,6 +16,6 @@ Defined in: [types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e
 
 > **200**: [`HandlersHealthResponse`](HandlersHealthResponse.md)
 
-Defined in: [types.gen.ts:301](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L301)
+Defined in: [types.gen.ts:471](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L471)
 
 OK

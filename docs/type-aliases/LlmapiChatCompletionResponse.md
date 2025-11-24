@@ -8,7 +8,7 @@ title: LlmapiChatCompletionResponse
 
 > **LlmapiChatCompletionResponse** = `object`
 
-Defined in: [types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L59)
+Defined in: [types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L59)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1
 
 > `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)[]
 
-Defined in: [types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L63)
+Defined in: [types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L63)
 
 Choices contains the completion choices
 
@@ -26,7 +26,7 @@ Choices contains the completion choices
 
 > `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
-Defined in: [types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L64)
+Defined in: [types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L64)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1
 
 > `optional` **id**: `string`
 
-Defined in: [types.gen.ts:68](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L68)
+Defined in: [types.gen.ts:68](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L68)
 
 ID is the completion ID
 
@@ -44,7 +44,7 @@ ID is the completion ID
 
 > `optional` **model**: `string`
 
-Defined in: [types.gen.ts:72](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L72)
+Defined in: [types.gen.ts:72](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L72)
 
 Model is the model used
 
@@ -54,4 +54,4 @@ Model is the model used
 
 > `optional` **usage**: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md)
 
-Defined in: [types.gen.ts:73](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L73)
+Defined in: [types.gen.ts:73](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L73)

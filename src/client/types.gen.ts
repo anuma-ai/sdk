@@ -205,6 +205,134 @@ export type LlmapiMessage = {
     role?: LlmapiRole;
 };
 
+export type LlmapiModel = {
+    architecture?: LlmapiModelArchitecture;
+    /**
+     * CanonicalSlug is the canonical slug for the model
+     */
+    canonical_slug?: string;
+    /**
+     * ContextLength is the maximum context length in tokens
+     */
+    context_length?: number;
+    /**
+     * Created is the Unix timestamp of when the model was created
+     */
+    created?: number;
+    /**
+     * DefaultParameters contains default parameter values
+     */
+    default_parameters?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Description describes the model and its capabilities
+     */
+    description?: string;
+    /**
+     * HuggingFaceID is the Hugging Face model identifier
+     */
+    hugging_face_id?: string;
+    /**
+     * ID is the model identifier (e.g., "openai/gpt-4")
+     */
+    id?: string;
+    /**
+     * MaxInputTokens is the maximum input tokens
+     */
+    max_input_tokens?: number;
+    /**
+     * MaxOutputTokens is the maximum output tokens
+     */
+    max_output_tokens?: number;
+    /**
+     * Name is the human-readable model name (optional)
+     */
+    name?: string;
+    /**
+     * OwnedBy is the organization that owns the model
+     */
+    owned_by?: string;
+    per_request_limits?: LlmapiModelPerRequestLimits;
+    pricing?: LlmapiModelPricing;
+    /**
+     * SupportedMethods is a list of supported API methods
+     */
+    supported_methods?: Array<string>;
+    /**
+     * SupportedParameters is a list of supported parameter names
+     */
+    supported_parameters?: Array<string>;
+    top_provider?: LlmapiModelTopProvider;
+};
+
+/**
+ * Architecture describes the model's technical capabilities
+ */
+export type LlmapiModelArchitecture = {
+    instruct_type?: string;
+    modality?: string;
+    prompt_formatting?: string;
+    tokenizer?: string;
+};
+
+/**
+ * PerRequestLimits contains rate limiting information
+ */
+export type LlmapiModelPerRequestLimits = {
+    completion_tokens?: number;
+    prompt_tokens?: number;
+};
+
+/**
+ * Pricing contains the pricing structure for using this model
+ */
+export type LlmapiModelPricing = {
+    completion?: string;
+    image?: string;
+    prompt?: string;
+    request?: string;
+};
+
+/**
+ * TopProvider contains configuration details for the primary provider
+ */
+export type LlmapiModelTopProvider = {
+    context_length?: number;
+    is_moderated?: boolean;
+    max_completion_tokens?: number;
+};
+
+/**
+ * ExtraFields contains additional metadata
+ */
+export type LlmapiModelsListExtraFields = {
+    /**
+     * ChunkIndex is the chunk index (0 for single requests)
+     */
+    chunk_index?: number;
+    /**
+     * Latency is the request latency in milliseconds
+     */
+    latency?: number;
+    /**
+     * RequestType is always "list_models"
+     */
+    request_type?: string;
+};
+
+export type LlmapiModelsListResponse = {
+    /**
+     * Data contains the list of available models
+     */
+    data?: Array<LlmapiModel>;
+    extra_fields?: LlmapiModelsListExtraFields;
+    /**
+     * NextPageToken is the token to retrieve the next page of results (omitted if no more pages)
+     */
+    next_page_token?: string;
+};
+
 /**
  * Role is the message role (system, user, assistant)
  */
@@ -241,7 +369,7 @@ export type PostApiV1ChatCompletionsResponses = {
     /**
      * OK
      */
-    200: LlmapiChatCompletionResponse;
+    200: LlmapiChatCompletionResponse | string;
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
@@ -277,6 +405,48 @@ export type PostApiV1EmbeddingsResponses = {
 };
 
 export type PostApiV1EmbeddingsResponse = PostApiV1EmbeddingsResponses[keyof PostApiV1EmbeddingsResponses];
+
+export type GetApiV1ModelsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter by provider (e.g., openai, anthropic)
+         */
+        provider?: string;
+        /**
+         * Number of models to return per page
+         */
+        page_size?: number;
+        /**
+         * Token to get next page of results
+         */
+        page_token?: string;
+    };
+    url: '/api/v1/models';
+};
+
+export type GetApiV1ModelsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ModelsError = GetApiV1ModelsErrors[keyof GetApiV1ModelsErrors];
+
+export type GetApiV1ModelsResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiModelsListResponse;
+};
+
+export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
 export type GetHealthData = {
     body?: never;

@@ -8,14 +8,14 @@ title: PostApiV1ChatCompletionsResponses
 
 > **PostApiV1ChatCompletionsResponses** = `object`
 
-Defined in: [types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L240)
+Defined in: [types.gen.ts:368](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L368)
 
 ## Properties
 
 ### 200
 
-> **200**: [`LlmapiChatCompletionResponse`](LlmapiChatCompletionResponse.md)
+> **200**: [`LlmapiChatCompletionResponse`](LlmapiChatCompletionResponse.md) \| `string`
 
-Defined in: [types.gen.ts:244](https://github.com/zeta-chain/ai-sdk/blob/ba1b29e1c2d01560fc03075f32fa322673512075/src/client/types.gen.ts#L244)
+Defined in: [types.gen.ts:372](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L372)
 
 OK
