@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
@@ -109,6 +109,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+  }, []);
+
+  // Cleanup on unmount, aborting any active streaming request and clearing the abort controller reference
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, []);
 
   const sendMessage = useCallback(
