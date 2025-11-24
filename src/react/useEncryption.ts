@@ -8,6 +8,40 @@ const SIGN_MESSAGE =
 const SIGNATURE_STORAGE_KEY = "privy_encryption_key";
 
 /**
+ * Safely gets an item from localStorage, handling SSR environments
+ * @param key - The storage key
+ * @returns The stored value or null if not available or in SSR
+ */
+function getStorageItem(key: string): string | null {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely sets an item in localStorage, handling SSR environments
+ * @param key - The storage key
+ * @param value - The value to store
+ * @returns true if successful, false otherwise
+ */
+function setStorageItem(key: string, value: string): boolean {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return false;
+  }
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Converts a hex string to Uint8Array bytes
  */
 function hexToBytes(hex: string): Uint8Array {
@@ -50,7 +84,7 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
  * Gets the encryption key from localStorage and imports it as a CryptoKey
  */
 async function getEncryptionKey(): Promise<CryptoKey> {
-  const keyHex = localStorage.getItem(SIGNATURE_STORAGE_KEY);
+  const keyHex = getStorageItem(SIGNATURE_STORAGE_KEY);
   if (!keyHex) {
     throw new Error("Encryption key not found. Please sign in first.");
   }
@@ -178,7 +212,7 @@ export function useEncryption(authenticated: boolean) {
     }
 
     // Always check localStorage first - if key exists, don't request again
-    const existingKey = localStorage.getItem(SIGNATURE_STORAGE_KEY);
+    const existingKey = getStorageItem(SIGNATURE_STORAGE_KEY);
     if (existingKey) {
       if (!hasCheckedStorage.current) {
         hasCheckedStorage.current = true;
@@ -202,7 +236,10 @@ export function useEncryption(authenticated: boolean) {
           const encryptionKey = await deriveKeyFromSignature(signature);
 
           // Store the derived key (not the raw signature) in localStorage
-          localStorage.setItem(SIGNATURE_STORAGE_KEY, encryptionKey);
+          const stored = setStorageItem(SIGNATURE_STORAGE_KEY, encryptionKey);
+          if (!stored) {
+            throw new Error("Failed to store encryption key in localStorage");
+          }
         } catch (error) {
           hasRequestedSignature.current = false; // Reset on error so user can retry
         }
