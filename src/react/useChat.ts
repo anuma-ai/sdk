@@ -8,6 +8,12 @@ import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 type SendMessageArgs = {
   messages: LlmapiMessage[];
   model: string;
+  /**
+   * Per-request callback for data chunks. Called in addition to the global
+   * `onData` callback if provided in `useChat` options.
+   * 
+   * @param chunk - The content delta from the current chunk
+   */
   onData?: (chunk: string) => void;
 };
 
@@ -26,7 +32,14 @@ type UseChatOptions = {
    */
   onFinish?: (response: LlmapiChatCompletionResponse) => void;
   /**
-   * Callback function to be called when an error is encountered.
+   * Callback function to be called when an unexpected error is encountered.
+   * 
+   * **Note:** This callback is NOT called for aborted requests (via `stop()` or
+   * component unmount). Aborts are intentional actions and are not considered
+   * errors. To detect aborts, check the `error` field in the `sendMessage` result:
+   * `result.error === "Request aborted"`.
+   * 
+   * @param error - The error that occurred (never an AbortError)
    */
   onError?: (error: Error) => void;
 };
@@ -34,6 +47,13 @@ type UseChatOptions = {
 type UseChatResult = {
   isLoading: boolean;
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  /**
+   * Aborts the current streaming request if one is in progress.
+   * 
+   * When a request is aborted, `sendMessage` will return with
+   * `{ data: null, error: "Request aborted" }`. The `onError` callback
+   * will NOT be called, as aborts are intentional actions, not errors.
+   */
   stop: () => void;
 };
 
@@ -64,7 +84,8 @@ type StreamingChunk = {
  *   If not provided, `sendMessage` will return an error.
  * @param options.onData - Callback function to be called when a new data chunk is received.
  * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
- * @param options.onError - Callback function to be called when an error is encountered.
+ * @param options.onError - Callback function to be called when an unexpected error
+ *   is encountered. Note: This is NOT called for aborted requests (see `stop()`).
  *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
@@ -82,6 +103,7 @@ type StreamingChunk = {
  *     console.log("Chat finished:", response);
  *   },
  *   onError: (error) => {
+ *     // This is only called for unexpected errors, not aborts
  *     console.error("Chat error:", error);
  *   }
  * });
@@ -92,7 +114,15 @@ type StreamingChunk = {
  *     model: 'gpt-4o-mini'
  *   });
  *
- *   // result.data is also available here
+ *   if (result.error) {
+ *     if (result.error === "Request aborted") {
+ *       console.log("Request was aborted");
+ *     } else {
+ *       console.error("Error:", result.error);
+ *     }
+ *   } else {
+ *     console.log("Success:", result.data);
+ *   }
  * };
  *
  * // To stop generation:
@@ -259,14 +289,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
         return { data: completion, error: null };
       } catch (err) {
-        // Handle AbortError specifically
+        // Handle AbortError specifically - aborts are intentional user actions,
+        // not errors, so we don't trigger onError callback (consistent with
+        // Vercel AI SDK and React Query patterns)
         if (err instanceof Error && err.name === "AbortError") {
           setIsLoading(false);
-          const errorMsg = "Request aborted";
-          // Abort errors are generally not considered "errors" in the same way, but let's return it.
-          // We might not want to trigger onError for aborts, or maybe we do.
-          // Vercel usually doesn't trigger onError for manual stops.
-          return { data: null, error: errorMsg };
+          return { data: null, error: "Request aborted" };
         }
 
         const errorMsg =
