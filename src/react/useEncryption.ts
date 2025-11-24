@@ -182,7 +182,6 @@ export function useEncryption(authenticated: boolean) {
     if (existingKey) {
       if (!hasCheckedStorage.current) {
         hasCheckedStorage.current = true;
-        console.log("Encryption key already exists in localStorage");
       }
       return;
     }
@@ -198,16 +197,13 @@ export function useEncryption(authenticated: boolean) {
               address: wallets[0].address,
             }
           );
-          console.log("Signature received:", signature);
 
           // Derive encryption key from signature
           const encryptionKey = await deriveKeyFromSignature(signature);
-          console.log("Derived encryption key:", encryptionKey);
 
           // Store the derived key (not the raw signature) in localStorage
           localStorage.setItem(SIGNATURE_STORAGE_KEY, encryptionKey);
         } catch (error) {
-          console.error("Error signing message:", error);
           hasRequestedSignature.current = false; // Reset on error so user can retry
         }
       }
