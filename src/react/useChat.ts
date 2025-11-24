@@ -8,7 +8,7 @@ import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 type SendMessageArgs = {
   messages: LlmapiMessage[];
   model: string;
-  onChunk?: (chunk: string) => void;
+  onData?: (chunk: string) => void;
 };
 
 type SendMessageResult =
@@ -71,7 +71,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     async ({
       messages,
       model,
-      onChunk,
+      onData,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
         const error = "messages are required to call sendMessage.";
@@ -155,8 +155,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               if (choice.delta?.content) {
                 const content = choice.delta.content;
                 accumulatedContent += content;
-                if (onChunk) {
-                  onChunk(content);
+                if (onData) {
+                  onData(content);
                 }
               }
               if (choice.finish_reason) {
