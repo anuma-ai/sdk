@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
@@ -22,6 +22,7 @@ type UseChatOptions = {
 type UseChatResult = {
   isLoading: boolean;
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
+  stop: () => void;
 };
 
 /**
@@ -39,10 +40,11 @@ type UseChatResult = {
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
  *   - `sendMessage`: An async function to send chat messages
+ *   - `stop`: A function to abort the current request
  *
  * @example
  * ```tsx
- * const { isLoading, sendMessage } = useChat({
+ * const { isLoading, sendMessage, stop } = useChat({
  *   getToken: async () => {
  *     // Get your auth token from your auth provider
  *     return await getAuthToken();
@@ -61,11 +63,22 @@ type UseChatResult = {
  *     console.log(result.data);
  *   }
  * };
+ *
+ * // To stop generation:
+ * // stop();
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
   const { getToken } = options || {};
   const [isLoading, setIsLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   const sendMessage = useCallback(
     async ({
@@ -87,6 +100,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         const error = "Token getter function is required.";
         return { data: null, error };
       }
+
+      // Abort any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
 
       setIsLoading(true);
 
@@ -111,6 +132,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          signal: abortController.signal,
         });
 
         let accumulatedContent = "";
@@ -186,10 +208,20 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         setIsLoading(false);
         return { data: completion, error: null };
       } catch (err) {
+        // Handle AbortError specifically
+        if (err instanceof Error && err.name === "AbortError") {
+          setIsLoading(false);
+          return { data: null, error: "Request aborted" };
+        }
+
         const error =
           err instanceof Error ? err.message : "Failed to send message.";
         setIsLoading(false);
         return { data: null, error };
+      } finally {
+        if (abortControllerRef.current === abortController) {
+          abortControllerRef.current = null;
+        }
       }
     },
     [getToken]
@@ -198,5 +230,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   return {
     isLoading,
     sendMessage,
+    stop,
   };
 }
