@@ -14,9 +14,6 @@ importers:
       '@reverbia/portal':
         specifier: 1.0.0-next.20251120153026
         version: 1.0.0-next.20251120153026
-      '@reverbia/sdk':
-        specifier: 1.0.0-next.20251120124145
-        version: 1.0.0-next.20251120124145(react@19.2.0)(zod@4.1.12)
       ai:
         specifier: 5.0.93
         version: 5.0.93(zod@4.1.12)
@@ -860,11 +857,6 @@ packages:
 
   '@reverbia/portal@1.0.0-next.20251120153026':
     resolution: {integrity: sha512-8UcKgJgJDEtMT9zLzr/76/8MpGOm7ZPfgD1CJJRADgZsBLOLdcwQH7KXcmmN+MEAfWesoYGDu1uO3t6x/MDliw==}
-
-  '@reverbia/sdk@1.0.0-next.20251120124145':
-    resolution: {integrity: sha512-jMRTf1sty9ckJ3bKibgCp2O3KcDk4VVzuVuOxCqJXfmPy38gBldehHdLZjL5OO1YK9/TSWnt6GpL41/sUKAzIw==}
-    peerDependencies:
-      react: ^18.0.0 || ^19.0.0
 
   '@rollup/rollup-android-arm-eabi@4.53.3':
     resolution: {integrity: sha512-mRSi+4cBjrRLoaal2PnqH82Wqyb+d3HsPUN/W+WslCXsZsyHa9ZeQQX/pQsZaVIWDkPcpV6jJ+3KLbTbgnwv8w==}
@@ -5220,14 +5212,6 @@ snapshots:
       - zod
 
   '@reverbia/portal@1.0.0-next.20251120153026': {}
-
-  '@reverbia/sdk@1.0.0-next.20251120124145(react@19.2.0)(zod@4.1.12)':
-    dependencies:
-      '@reverbia/portal': 1.0.0-next.20251120153026
-      ai: 5.0.93(zod@4.1.12)
-      react: 19.2.0
-    transitivePeerDependencies:
-      - zod
 
   '@rollup/rollup-android-arm-eabi@4.53.3':
     optional: true

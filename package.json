@@ -51,7 +51,6 @@
   "dependencies": {
     "@huggingface/transformers": "^3.8.0",
     "@reverbia/portal": "1.0.0-next.20251120153026",
-    "@reverbia/sdk": "1.0.0-next.20251120124145",
     "ai": "5.0.93"
   },
   "devDependencies": {
