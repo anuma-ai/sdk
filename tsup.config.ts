@@ -17,7 +17,7 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react"],
+    external: ["react", "@privy-io/react-auth"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
