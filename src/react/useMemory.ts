@@ -16,7 +16,7 @@ export type UseMemoryOptions = {
   /**
    * The model to use for fact extraction (default: "openai/gpt-4o")
    */
-  memoryModel?: string;
+  completionsModel?: string;
   /**
    * The model to use for generating embeddings
    * For local: default is "Xenova/all-MiniLM-L6-v2"
@@ -73,7 +73,7 @@ export type UseMemoryResult = {
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const {
-    memoryModel = "openai/gpt-4o",
+    completionsModel = "openai/gpt-4o",
     embeddingModel: userEmbeddingModel,
     embeddingProvider = "local",
     generateEmbeddings = true,
@@ -120,7 +120,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
               },
               ...messages,
             ],
-            model: model || memoryModel,
+            model: model || completionsModel,
           },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -285,7 +285,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       }
     },
     [
-      memoryModel,
+      completionsModel,
       embeddingModel,
       embeddingProvider,
       generateEmbeddings,
