@@ -19,7 +19,7 @@ export type UseMemoryOptions = {
   completionsModel?: string;
   /**
    * The model to use for generating embeddings
-   * For local: default is "Xenova/all-MiniLM-L6-v2"
+   * For local: default is "Snowflake/snowflake-arctic-embed-xs"
    * For api: default is "openai/text-embedding-3-small"
    * Set to null to disable embedding generation
    */
@@ -85,7 +85,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const embeddingModel =
     userEmbeddingModel === undefined
       ? embeddingProvider === "local"
-        ? "Xenova/all-MiniLM-L6-v2"
+        ? "Snowflake/snowflake-arctic-embed-xs"
         : "openai/text-embedding-3-small"
       : userEmbeddingModel;
 

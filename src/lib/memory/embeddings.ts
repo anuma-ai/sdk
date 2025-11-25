@@ -9,7 +9,7 @@ let embeddingPipeline: any = null;
 export interface GenerateEmbeddingOptions {
   /**
    * The model to use for generating embeddings
-   * For local: default is "Xenova/all-MiniLM-L6-v2"
+   * For local: default is "Snowflake/snowflake-arctic-embed-xs"
    * For api: default is provided by the backend
    */
   model?: string;
@@ -71,7 +71,7 @@ export const generateEmbeddingForText = async (
   // Default to a transformers.js compatible model if not provided or if it's the old default
   let { model } = options;
   if (!model || model === "openai/text-embedding-3-small") {
-    model = "Xenova/all-MiniLM-L6-v2";
+    model = "Snowflake/snowflake-arctic-embed-xs";
   }
 
   try {
@@ -80,7 +80,7 @@ export const generateEmbeddingForText = async (
     }
 
     const output = await embeddingPipeline(text, {
-      pooling: "mean",
+      pooling: "cls",
       normalize: true,
     });
 
@@ -185,14 +185,14 @@ export const generateAndStoreEmbeddings = async (
 
   if (!model) {
     if (provider === "local") {
-      model = "Xenova/all-MiniLM-L6-v2";
+      model = "Snowflake/snowflake-arctic-embed-xs";
     } else {
       model = "openai/text-embedding-3-small"; // Default for API
     }
   }
 
   if (provider === "local" && model === "openai/text-embedding-3-small") {
-    model = "Xenova/all-MiniLM-L6-v2";
+    model = "Snowflake/snowflake-arctic-embed-xs";
   }
 
   if (memories.length === 0) {
@@ -220,7 +220,7 @@ export const generateAndStoreEmbeddings = async (
  *
  * // Generate embeddings for all memories without them
  * await generateEmbeddingsForAllMemories({
- *   model: "Xenova/all-MiniLM-L6-v2"
+ *   model: "Snowflake/snowflake-arctic-embed-xs"
  * });
  * ```
  */
