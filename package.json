@@ -25,6 +25,12 @@
       "import": "./dist/vercel/index.mjs",
       "require": "./dist/vercel/index.cjs",
       "default": "./dist/vercel/index.cjs"
+    },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "import": "./dist/next/index.mjs",
+      "require": "./dist/next/index.cjs",
+      "default": "./dist/next/index.cjs"
     }
   },
   "files": [

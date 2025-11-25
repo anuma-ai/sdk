@@ -1,4 +1,3 @@
-import { pipeline } from "@huggingface/transformers";
 import { postApiV1Embeddings } from "../../client";
 import type { MemoryItem } from "./service";
 import { memoryDb, getAllMemories } from "./db";
@@ -80,6 +79,7 @@ export const generateEmbeddingForText = async (
 
   try {
     if (!embeddingPipeline) {
+      const { pipeline } = await import("@huggingface/transformers");
       embeddingPipeline = await pipeline("feature-extraction", model);
     }
 

@@ -33,12 +33,24 @@ export default defineConfig([
         },
       },
     ],
+    noExternal: ["@huggingface/transformers", "onnxruntime-node", "sharp"],
   },
   {
     entry: ["src/vercel/index.ts"],
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/vercel",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
+    entry: ["src/next/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/next",
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
