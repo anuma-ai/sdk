@@ -8,7 +8,7 @@ import { saveMemories } from "../lib/memory/db";
 import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
 import {
   generateAndStoreEmbeddings,
-  generateQueryEmbedding,
+  generateEmbeddingForText,
 } from "../lib/memory/embeddings";
 import { searchSimilarMemories } from "../lib/memory/db";
 
@@ -304,7 +304,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       try {
         console.log(`[Memory Search] Searching for: "${query}"`);
 
-        const queryEmbedding = await generateQueryEmbedding(query, {
+        const queryEmbedding = await generateEmbeddingForText(query, {
           model: embeddingModel,
           provider: embeddingProvider,
           getToken,

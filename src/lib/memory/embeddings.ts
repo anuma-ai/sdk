@@ -24,7 +24,7 @@ export interface GenerateEmbeddingOptions {
   getToken?: () => Promise<string | null>;
 }
 
-const generateEmbeddingForText = async (
+export const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
@@ -253,14 +253,4 @@ export const generateEmbeddingsForAllMemories = async (
   }));
 
   await generateAndStoreEmbeddings(memoryItems, options);
-};
-
-/**
- * Generate embedding for a query string
- */
-export const generateQueryEmbedding = async (
-  query: string,
-  options: GenerateEmbeddingOptions = {}
-): Promise<number[]> => {
-  return generateEmbeddingForText(query, options);
 };
