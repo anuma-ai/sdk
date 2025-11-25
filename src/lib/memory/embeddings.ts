@@ -2,6 +2,10 @@ import { pipeline } from "@huggingface/transformers";
 import { postApiV1Embeddings } from "../../client";
 import type { MemoryItem } from "./service";
 import { memoryDb, getAllMemories } from "./db";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_LOCAL_EMBEDDING_MODEL,
+} from "./constants";
 
 // Cache the pipeline instance
 let embeddingPipeline: any = null;
@@ -70,8 +74,8 @@ export const generateEmbeddingForText = async (
 
   // Default to a transformers.js compatible model if not provided or if it's the old default
   let { model } = options;
-  if (!model || model === "openai/text-embedding-3-small") {
-    model = "Snowflake/snowflake-arctic-embed-xs";
+  if (!model || model === DEFAULT_API_EMBEDDING_MODEL) {
+    model = DEFAULT_LOCAL_EMBEDDING_MODEL;
   }
 
   try {
@@ -185,14 +189,14 @@ export const generateAndStoreEmbeddings = async (
 
   if (!model) {
     if (provider === "local") {
-      model = "Snowflake/snowflake-arctic-embed-xs";
+      model = DEFAULT_LOCAL_EMBEDDING_MODEL;
     } else {
-      model = "openai/text-embedding-3-small"; // Default for API
+      model = DEFAULT_API_EMBEDDING_MODEL; // Default for API
     }
   }
 
-  if (provider === "local" && model === "openai/text-embedding-3-small") {
-    model = "Snowflake/snowflake-arctic-embed-xs";
+  if (provider === "local" && model === DEFAULT_API_EMBEDDING_MODEL) {
+    model = DEFAULT_LOCAL_EMBEDDING_MODEL;
   }
 
   if (memories.length === 0) {

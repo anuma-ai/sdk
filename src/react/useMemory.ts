@@ -11,6 +11,11 @@ import {
   generateEmbeddingForText,
 } from "../lib/memory/embeddings";
 import { searchSimilarMemories } from "../lib/memory/db";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_COMPLETION_MODEL,
+  DEFAULT_LOCAL_EMBEDDING_MODEL,
+} from "../lib/memory/constants";
 
 export type UseMemoryOptions = {
   /**
@@ -73,7 +78,7 @@ export type UseMemoryResult = {
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const {
-    completionsModel = "openai/gpt-4o",
+    completionsModel = DEFAULT_COMPLETION_MODEL,
     embeddingModel: userEmbeddingModel,
     embeddingProvider = "local",
     generateEmbeddings = true,
@@ -85,8 +90,8 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const embeddingModel =
     userEmbeddingModel === undefined
       ? embeddingProvider === "local"
-        ? "Snowflake/snowflake-arctic-embed-xs"
-        : "openai/text-embedding-3-small"
+        ? DEFAULT_LOCAL_EMBEDDING_MODEL
+        : DEFAULT_API_EMBEDDING_MODEL
       : userEmbeddingModel;
 
   const extractionInProgressRef = useRef(false);
