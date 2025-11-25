@@ -18,10 +18,18 @@ export type UseMemoryOptions = {
    */
   memoryModel?: string;
   /**
-   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
-   * Set to null/undefined to disable embedding generation
+   * The model to use for generating embeddings
+   * For local: default is "Xenova/all-MiniLM-L6-v2"
+   * For api: default is "openai/text-embedding-3-small"
+   * Set to null to disable embedding generation
    */
   embeddingModel?: string | null;
+  /**
+   * The provider to use for generating embeddings (default: "local")
+   * "local": Uses a local HuggingFace model (in-browser)
+   * "api": Uses the backend API
+   */
+  embeddingProvider?: "local" | "api";
   /**
    * Whether to automatically generate embeddings for extracted memories (default: true)
    */
@@ -66,11 +74,20 @@ export type UseMemoryResult = {
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const {
     memoryModel = "openai/gpt-4o",
-    embeddingModel = "openai/text-embedding-3-small",
+    embeddingModel: userEmbeddingModel,
+    embeddingProvider = "local",
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,
   } = options;
+
+  // Resolve default model if undefined, preserve null if set explicitly to disable
+  const embeddingModel =
+    userEmbeddingModel === undefined
+      ? embeddingProvider === "local"
+        ? "Xenova/all-MiniLM-L6-v2"
+        : "openai/text-embedding-3-small"
+      : userEmbeddingModel;
 
   const extractionInProgressRef = useRef(false);
 
@@ -240,6 +257,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
               try {
                 await generateAndStoreEmbeddings(result.items, {
                   model: embeddingModel,
+                  provider: embeddingProvider,
                   getToken: getToken || undefined,
                 });
                 console.log(
@@ -269,6 +287,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     [
       memoryModel,
       embeddingModel,
+      embeddingProvider,
       generateEmbeddings,
       getToken,
       onFactsExtracted,
@@ -277,10 +296,8 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
 
   const searchMemories = useCallback(
     async (query: string, limit: number = 10, minSimilarity: number = 0.6) => {
-      if (!getToken || !embeddingModel) {
-        console.warn(
-          "Cannot search memories: getToken or embeddingModel not provided"
-        );
+      if (!embeddingModel) {
+        console.warn("Cannot search memories: embeddingModel not provided");
         return [];
       }
 
@@ -289,6 +306,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
 
         const queryEmbedding = await generateQueryEmbedding(query, {
           model: embeddingModel,
+          provider: embeddingProvider,
           getToken,
         });
 
@@ -322,7 +340,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         return [];
       }
     },
-    [embeddingModel, getToken]
+    [embeddingModel, embeddingProvider, getToken]
   );
 
   return {

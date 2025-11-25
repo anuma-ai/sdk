@@ -1,14 +1,25 @@
+import { pipeline } from "@huggingface/transformers";
 import { postApiV1Embeddings } from "../../client";
 import type { MemoryItem } from "./service";
-import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
+import { memoryDb, getAllMemories } from "./db";
+
+// Cache the pipeline instance
+let embeddingPipeline: any = null;
 
 export interface GenerateEmbeddingOptions {
   /**
-   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
+   * The model to use for generating embeddings
+   * For local: default is "Xenova/all-MiniLM-L6-v2"
+   * For api: default is provided by the backend
    */
   model?: string;
   /**
+   * The provider to use for generating embeddings (default: "local")
+   */
+  provider?: "local" | "api";
+  /**
    * Custom function to get auth token for API calls
+   * Required if provider is "api"
    */
   getToken?: () => Promise<string | null>;
 }
@@ -17,41 +28,68 @@ const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const { model = "openai/text-embedding-3-small", getToken } = options;
+  const { provider = "local" } = options;
 
-  try {
-    const token = getToken ? await getToken() : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+  if (provider === "api") {
+    const { getToken, model } = options;
+    if (!getToken) {
+      throw new Error("getToken is required for API embeddings");
+    }
+
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No access token available for API embeddings");
     }
 
     const response = await postApiV1Embeddings({
       body: {
         input: text,
-        model,
+        model: model,
       },
-      headers,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
-    if (
-      !response.data ||
-      !response.data.data ||
-      response.data.data.length === 0
-    ) {
+    if (response.error) {
       throw new Error(
-        `Failed to generate embedding: ${
-          response.error?.error ?? "No data returned"
-        }`
+        typeof response.error === "object" &&
+        response.error &&
+        "error" in response.error
+          ? (response.error as any).error
+          : "API embedding failed"
       );
     }
 
-    const embedding = response.data.data[0]?.embedding;
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error("Invalid embedding format returned from API");
+    if (!response.data?.data?.[0]?.embedding) {
+      throw new Error("No embedding returned from API");
     }
 
-    return embedding;
+    return response.data.data[0].embedding;
+  }
+
+  // Default to a transformers.js compatible model if not provided or if it's the old default
+  let { model } = options;
+  if (!model || model === "openai/text-embedding-3-small") {
+    model = "Xenova/all-MiniLM-L6-v2";
+  }
+
+  try {
+    if (!embeddingPipeline) {
+      embeddingPipeline = await pipeline("feature-extraction", model);
+    }
+
+    const output = await embeddingPipeline(text, {
+      pooling: "mean",
+      normalize: true,
+    });
+
+    // output is a Tensor, access data property
+    if (output?.data) {
+      return Array.from(output.data);
+    }
+
+    throw new Error("Invalid embedding output from transformers.js");
   } catch (error) {
     console.error("Failed to generate embedding:", error);
     throw error;
@@ -84,16 +122,12 @@ export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<Map<string, number[]>> => {
-  const { model = "openai/text-embedding-3-small", getToken } = options;
   const embeddings = new Map<string, number[]>();
 
   for (const memory of memories) {
     const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
     try {
-      const embedding = await generateEmbeddingForMemory(memory, {
-        model,
-        getToken,
-      });
+      const embedding = await generateEmbeddingForMemory(memory, options);
       embeddings.set(uniqueKey, embedding);
     } catch (error) {
       console.error(
@@ -146,7 +180,20 @@ export const generateAndStoreEmbeddings = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
-  const { model = "openai/text-embedding-3-small" } = options;
+  let { model } = options;
+  const { provider = "local" } = options;
+
+  if (!model) {
+    if (provider === "local") {
+      model = "Xenova/all-MiniLM-L6-v2";
+    } else {
+      model = "openai/text-embedding-3-small"; // Default for API
+    }
+  }
+
+  if (provider === "local" && model === "openai/text-embedding-3-small") {
+    model = "Xenova/all-MiniLM-L6-v2";
+  }
 
   if (memories.length === 0) {
     return;
@@ -154,7 +201,10 @@ export const generateAndStoreEmbeddings = async (
 
   console.log(`Generating embeddings for ${memories.length} memories...`);
 
-  const embeddings = await generateEmbeddingsForMemories(memories, options);
+  const embeddings = await generateEmbeddingsForMemories(memories, {
+    ...options,
+    model,
+  });
   await updateMemoriesWithEmbeddings(embeddings, model);
 
   console.log(`Generated and stored ${embeddings.size} embeddings`);
@@ -170,8 +220,7 @@ export const generateAndStoreEmbeddings = async (
  *
  * // Generate embeddings for all memories without them
  * await generateEmbeddingsForAllMemories({
- *   model: "openai/text-embedding-3-small",
- *   getToken: async () => await getAuthToken()
+ *   model: "Xenova/all-MiniLM-L6-v2"
  * });
  * ```
  */
