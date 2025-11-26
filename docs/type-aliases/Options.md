@@ -8,7 +8,7 @@ title: Options
 
 > **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & `object`
 
-Defined in: [sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/sdk.gen.ts#L7)
+Defined in: [sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/sdk.gen.ts#L7)
 
 ## Type Declaration
 

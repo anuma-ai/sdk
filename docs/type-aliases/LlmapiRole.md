@@ -8,6 +8,6 @@ title: LlmapiRole
 
 > **LlmapiRole** = `string`
 
-Defined in: [types.gen.ts:339](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L339)
+Defined in: [types.gen.ts:347](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L347)
 
 Role is the message role (system, user, assistant)
