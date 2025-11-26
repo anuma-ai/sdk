@@ -82,6 +82,10 @@ export type LlmapiChatCompletionUsage = {
      */
     completion_tokens?: number;
     /**
+     * CostMicroUSD is the cost of this completion in micro-dollars (USD × 1,000,000)
+     */
+    cost_micro_usd?: number;
+    /**
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
@@ -184,6 +188,10 @@ export type LlmapiEmbeddingResponse = {
  * Usage contains token usage information
  */
 export type LlmapiEmbeddingUsage = {
+    /**
+     * CostMicroUSD is the inference cost for this embedding request
+     */
+    cost_micro_usd?: number;
     /**
      * PromptTokens is the number of tokens in the prompt
      */
