@@ -11,7 +11,7 @@ type SendMessageArgs = {
   /**
    * Per-request callback for data chunks. Called in addition to the global
    * `onData` callback if provided in `useChat` options.
-   * 
+   *
    * @param chunk - The content delta from the current chunk
    */
   onData?: (chunk: string) => void;
@@ -23,6 +23,7 @@ type SendMessageResult =
 
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
+  baseUrl?: string;
   /**
    * Callback function to be called when a new data chunk is received.
    */
@@ -33,12 +34,12 @@ type UseChatOptions = {
   onFinish?: (response: LlmapiChatCompletionResponse) => void;
   /**
    * Callback function to be called when an unexpected error is encountered.
-   * 
+   *
    * **Note:** This callback is NOT called for aborted requests (via `stop()` or
    * component unmount). Aborts are intentional actions and are not considered
    * errors. To detect aborts, check the `error` field in the `sendMessage` result:
    * `result.error === "Request aborted"`.
-   * 
+   *
    * @param error - The error that occurred (never an AbortError)
    */
   onError?: (error: Error) => void;
@@ -49,7 +50,7 @@ type UseChatResult = {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
   /**
    * Aborts the current streaming request if one is in progress.
-   * 
+   *
    * When a request is aborted, `sendMessage` will return with
    * `{ data: null, error: "Request aborted" }`. The `onError` callback
    * will NOT be called, as aborts are intentional actions, not errors.
@@ -82,6 +83,7 @@ type StreamingChunk = {
  * @param options.getToken - An async function that returns an authentication token.
  *   This token will be used as a Bearer token in the Authorization header.
  *   If not provided, `sendMessage` will return an error.
+ * @param options.baseUrl - Optional base URL for the API requests.
  * @param options.onData - Callback function to be called when a new data chunk is received.
  * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
  * @param options.onError - Callback function to be called when an unexpected error
@@ -130,7 +132,13 @@ type StreamingChunk = {
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
-  const { getToken, onData: globalOnData, onFinish, onError } = options || {};
+  const {
+    getToken,
+    baseUrl,
+    onData: globalOnData,
+    onFinish,
+    onError,
+  } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -312,7 +320,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, globalOnData, onFinish, onError]
+    [getToken, baseUrl, globalOnData, onFinish, onError]
   );
 
   return {

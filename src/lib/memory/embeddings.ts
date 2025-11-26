@@ -25,6 +25,10 @@ export interface GenerateEmbeddingOptions {
    * Required if provider is "api"
    */
   getToken?: () => Promise<string | null>;
+  /**
+   * Optional base URL for the API requests.
+   */
+  baseUrl?: string;
 }
 
 export const generateEmbeddingForText = async (
@@ -45,6 +49,7 @@ export const generateEmbeddingForText = async (
     }
 
     const response = await postApiV1Embeddings({
+      baseUrl,
       body: {
         input: text,
         model: model,

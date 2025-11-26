@@ -47,6 +47,10 @@ export type UseMemoryOptions = {
    * Custom function to get auth token for API calls
    */
   getToken?: () => Promise<string | null>;
+  /**
+   * Optional base URL for the API requests.
+   */
+  baseUrl?: string;
 };
 
 export type UseMemoryResult = {
@@ -84,6 +88,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,
+    baseUrl,
   } = options;
 
   // Resolve default model if undefined, preserve null if set explicitly to disable
@@ -117,6 +122,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         }
 
         const completion = await postApiV1ChatCompletions({
+          baseUrl,
           body: {
             messages: [
               {
@@ -264,6 +270,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
                   model: embeddingModel,
                   provider: embeddingProvider,
                   getToken: getToken || undefined,
+                  baseUrl,
                 });
                 console.log(
                   `Generated embeddings for ${result.items.length} memories`
@@ -296,6 +303,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       generateEmbeddings,
       getToken,
       onFactsExtracted,
+      baseUrl,
     ]
   );
 
@@ -313,6 +321,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           model: embeddingModel,
           provider: embeddingProvider,
           getToken,
+          baseUrl,
         });
 
         console.log(
@@ -345,7 +354,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         return [];
       }
     },
-    [embeddingModel, embeddingProvider, getToken]
+    [embeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
   return {
