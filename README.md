@@ -36,6 +36,9 @@ const { identityToken } = useIdentityToken();
 
 ## Usage
 
+For an example of how to use this functionality check out [the example
+repo](https://github.com/zeta-chain/ai-examples).
+
 ### useChat
 
 The `useChat` hook provides a convenient way to send chat messages to the LLM
