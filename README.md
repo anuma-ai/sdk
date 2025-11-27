@@ -1,6 +1,8 @@
 # @reverbia/sdk
 
-A TypeScript SDK for interacting with the Portal API.
+A TypeScript SDK that empowers developers to build AI-powered applications. It
+enables you to send prompts to LLMs with streaming support, manage long-term
+memories, and encrypt sensitive data—all without needing your own LLM API key.
 
 ## Installation
 
@@ -12,6 +14,15 @@ pnpm install @reverbia/sdk@next
 > under the `next` tag (released on every merge to the `main` branch). Check out
 > npm to see the latest version.
 
+## Configuration
+
+To use the SDK, you'll need to configure your Privy provider and API URL.
+
+```env
+PRIVY_APP_ID=cmhwlx82v000xle0cde4rjy5y
+API_URL=https://ai-portal-dev.zetachain.com
+```
+
 ## Authentication
 
 The SDK currently only supports authentication via [Privy](https://privy.io) and
@@ -20,7 +31,6 @@ expects a Privy identity token.
 ```typescript
 import { useIdentityToken } from "@privy-io/react-auth";
 
-// Inside your component
 const { identityToken } = useIdentityToken();
 ```
 
@@ -64,7 +74,18 @@ const handleSend = async () => {
 ### useMemory
 
 The `useMemory` hook allows you to extract facts/memories from messages and
-search through stored memories using semantic search.
+search through stored memories (in IndexedDB) using semantic search.
+
+How it works:
+
+1. **Fact Extraction:** When prompts are sent to the LLM, they are analyzed for
+   relevant facts. If found, these facts are extracted and converted into vector
+   embeddings.
+2. **Storage:** Extracted memories and their embeddings are stored locally in
+   IndexedDB.
+3. **Retrieval:** New prompts are converted into embedding vectors and compared
+   against stored memories. Relevant memories are then retrieved and used as
+   context for the LLM interaction.
 
 ```typescript
 import { useMemory } from "@reverbia/sdk/react";
