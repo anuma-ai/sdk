@@ -245,6 +245,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       // Tool selection and execution
       let toolExecutionResult: ToolExecutionResult | undefined;
+      let messagesWithToolContext = messages;
 
       if (runTools && tools && tools.length > 0) {
         // Get the last user message for tool selection
@@ -286,6 +287,30 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 if (onToolExecution) {
                   onToolExecution(toolExecutionResult);
                 }
+
+                // Include tool result as context in the messages sent to the LLM
+                if (
+                  toolExecutionResult.success &&
+                  toolExecutionResult.result !== undefined
+                ) {
+                  const toolResultContext: LlmapiMessage = {
+                    role: "system",
+                    content: `Tool "${
+                      toolExecutionResult.toolName
+                    }" was executed with the following result:\n${JSON.stringify(
+                      toolExecutionResult.result,
+                      null,
+                      2
+                    )}\n\nUse this information to respond to the user's request.`,
+                  };
+                  messagesWithToolContext = [...messages, toolResultContext];
+                } else if (toolExecutionResult.error) {
+                  const toolErrorContext: LlmapiMessage = {
+                    role: "system",
+                    content: `Tool "${toolExecutionResult.toolName}" was executed but encountered an error: ${toolExecutionResult.error}\n\nPlease inform the user about this issue and try to help them alternatively.`,
+                  };
+                  messagesWithToolContext = [...messages, toolErrorContext];
+                }
               }
             }
           } catch (err) {
@@ -305,7 +330,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Convert messages to format expected by transformers.js if needed
           // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
-          const formattedMessages = messages.map((m) => ({
+          const formattedMessages = messagesWithToolContext.map((m) => ({
             role: m.role || "user",
             content: m.content || "",
           }));
@@ -388,7 +413,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           const sseResult = await client.sse.post({
             url: "/api/v1/chat/completions",
             body: {
-              messages,
+              messages: messagesWithToolContext,
               model,
               stream: true,
             },
