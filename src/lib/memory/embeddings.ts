@@ -1,4 +1,5 @@
 import { postApiV1Embeddings } from "../../client";
+import { BASE_URL } from "../../clientConfig";
 import type { MemoryItem } from "./service";
 import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
 
@@ -24,7 +25,7 @@ const generateEmbeddingForText = async (
   const {
     model = "openai/text-embedding-3-small",
     getToken,
-    baseUrl,
+    baseUrl = BASE_URL,
   } = options;
 
   try {
@@ -96,7 +97,7 @@ export const generateEmbeddingsForMemories = async (
   const {
     model = "openai/text-embedding-3-small",
     getToken,
-    baseUrl,
+    baseUrl = BASE_URL,
   } = options;
   const embeddings = new Map<string, number[]>();
 
