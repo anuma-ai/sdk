@@ -1,45 +1,154 @@
-# AI SDK
+# @reverbia/sdk
 
-A TypeScript SDK for interacting with ZetaChain's AI Portal API. This SDK
-provides a type-safe, developer-friendly interface for building applications
-that leverage AI chat completion capabilities.
+A TypeScript SDK for interacting with the Portal API.
 
-## Overview
+## Installation
 
-The AI SDK is an auto-generated TypeScript client library that wraps the
-ZetaChain AI Portal REST API. It enables seamless integration of AI-powered chat
-completion features into your applications with full TypeScript type safety and
-modern async/await patterns.
+```bash
+pnpm install @reverbia/sdk@next
+```
 
-## Features
+> **Note:** Currently, the SDK is pre-release so all new versions are released
+> under the `next` tag (released on every merge to the `main` branch). Check out
+> npm to see the latest version.
 
-- **Type-Safe API Client**: Fully typed interfaces generated from the OpenAPI
-  specification, ensuring compile-time safety and excellent IDE autocomplete
-  support
-- **Chat Completions**: Generate AI-powered chat responses using configurable
-  models and conversation history
-- **Streaming Support**: Built-in support for streaming responses for real-time
-  AI interactions
-- **Health Monitoring**: Check service health and status to ensure reliable API
-  connectivity
-- **Flexible Configuration**: Customizable client instances with support for
-  custom base URLs, authentication, and request/response interceptors
-- **Error Handling**: Configurable error handling with support for throwing
-  errors or returning error objects
-- **Server-Sent Events**: Native support for SSE (Server-Sent Events) for
-  real-time streaming capabilities
+## Authentication
 
-## Architecture
+The SDK currently only supports authentication via [Privy](https://privy.io) and
+expects a Privy identity token.
 
-The SDK is automatically generated from the OpenAPI specification using
-`@hey-api/openapi-ts`, ensuring it stays in sync with the latest API changes.
-The generated client provides a clean, promise-based API that follows modern
-JavaScript/TypeScript best practices.
+```typescript
+import { useIdentityToken } from "@privy-io/react-auth";
 
-## Use Cases
+// Inside your component
+const { identityToken } = useIdentityToken();
+```
 
-- Building AI-powered chatbots and conversational interfaces
-- Integrating AI capabilities into web and mobile applications
-- Creating applications that require natural language processing
-- Developing tools that leverage large language models through ZetaChain's
-  gateway
+## Usage
+
+### useChat
+
+The `useChat` hook provides a convenient way to send chat messages to the LLM
+API with automatic token management and loading state handling.
+
+```typescript
+import { useChat } from "@reverbia/sdk/react";
+```
+
+```typescript
+const { sendMessage, isLoading, stop } = useChat({
+  getToken: async () => identityToken || null,
+  onFinish: (response) => {
+    console.log("Chat finished:", response);
+  },
+  onError: (error) => {
+    console.error("Chat error:", error);
+  },
+});
+
+// Send a message
+const handleSend = async () => {
+  const result = await sendMessage({
+    messages: [{ role: "user", content: "Hello!" }],
+    model: "gpt-4o-mini",
+  });
+
+  if (result.error) {
+    console.error("Error:", result.error);
+  } else {
+    console.log("Response:", result.data);
+  }
+};
+```
+
+### useMemory
+
+The `useMemory` hook allows you to extract facts/memories from messages and
+search through stored memories using semantic search.
+
+```typescript
+import { useMemory } from "@reverbia/sdk/react";
+```
+
+```typescript
+const { extractMemoriesFromMessage, searchMemories } = useMemory({
+  getToken: async () => identityToken || null,
+  embeddingModel: "openai/text-embedding-3-small",
+});
+
+// Example: Extract memories from a conversation
+const handleExtract = async () => {
+  await extractMemoriesFromMessage({
+    messages: [
+      { role: "user", content: "My favorite color is blue" },
+      {
+        role: "assistant",
+        content: "I will remember that your favorite color is blue.",
+      },
+    ],
+    model: "gpt-4o",
+  });
+};
+
+// Example: Search for relevant memories
+const handleSearch = async () => {
+  const memories = await searchMemories("What is my favorite color?");
+  console.log(memories);
+};
+```
+
+### useEncryption
+
+The `useEncryption` hook and utilities help you encrypt and decrypt local data
+using a key derived from a wallet signature (requires `@privy-io/react-auth`).
+
+```typescript
+import { usePrivy } from "@privy-io/react-auth";
+import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+```
+
+```typescript
+const { authenticated } = usePrivy();
+
+// Initialize encryption (requests signature if key not present)
+// Pass true when user is authenticated with wallet
+useEncryption(authenticated);
+
+// Encrypt data
+const saveSecret = async (text: string) => {
+  const encrypted = await encryptData(text);
+  localStorage.setItem("secret", encrypted);
+};
+
+// Decrypt data
+const loadSecret = async () => {
+  const encrypted = localStorage.getItem("secret");
+  if (encrypted) {
+    const decrypted = await decryptData(encrypted);
+    console.log(decrypted);
+  }
+};
+```
+
+### Direct API Access
+
+You can also make requests to SDK functions directly without using the React
+hooks.
+
+```typescript
+import { postApiV1ChatCompletions } from "@reverbia/sdk";
+
+const response = await postApiV1ChatCompletions({
+  body: {
+    messages: [{ role: "user", content: "Tell me a joke" }],
+    model: "gpt-4o-mini",
+  },
+  headers: {
+    Authorization: `Bearer ${token}`, // Manually provide the token
+  },
+});
+
+if (response.data) {
+  console.log(response.data.choices[0].message.content);
+}
+```
