@@ -2,7 +2,7 @@
 
 A TypeScript SDK that empowers developers to build AI-powered applications. It
 enables you to send prompts to LLMs with streaming support, manage long-term
-memories, and encrypt sensitive data—all without needing your own LLM API key.
+memories, and encrypt sensitive data, all without needing your own LLM API key.
 
 ## Installation
 
@@ -57,9 +57,11 @@ const { sendMessage, isLoading, stop } = useChat({
   onError: (error) => {
     console.error("Chat error:", error);
   },
+  onData: (chunk) => {
+    console.log("Received chunk:", chunk);
+  },
 });
 
-// Send a message
 const handleSend = async () => {
   const result = await sendMessage({
     messages: [{ role: "user", content: "Hello!" }],
@@ -100,7 +102,6 @@ const { extractMemoriesFromMessage, searchMemories } = useMemory({
   embeddingModel: "openai/text-embedding-3-small",
 });
 
-// Example: Extract memories from a conversation
 const handleExtract = async () => {
   await extractMemoriesFromMessage({
     messages: [
@@ -114,7 +115,6 @@ const handleExtract = async () => {
   });
 };
 
-// Example: Search for relevant memories
 const handleSearch = async () => {
   const memories = await searchMemories("What is my favorite color?");
   console.log(memories);
@@ -168,7 +168,7 @@ const response = await postApiV1ChatCompletions({
     model: "gpt-4o-mini",
   },
   headers: {
-    Authorization: `Bearer ${token}`, // Manually provide the token
+    Authorization: `Bearer ${identityToken}`,
   },
 });
 
@@ -176,3 +176,11 @@ if (response.data) {
   console.log(response.data.choices[0].message.content);
 }
 ```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a pull request.
+
+## License
+
+[MIT](LICENSE)
