@@ -10,6 +10,7 @@ import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import {
   selectTool,
   executeTool,
+  preloadToolSelectorModel,
   DEFAULT_TOOL_SELECTOR_MODEL,
 } from "../lib/tools/selector";
 
@@ -219,6 +220,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       }
     };
   }, []);
+
+  // Preload tool selector model when tools are configured
+  // The preload function handles deduplication at module level
+  useEffect(() => {
+    if (tools && tools.length > 0) {
+      preloadToolSelectorModel({ model: toolSelectorModel });
+    }
+  }, [tools, toolSelectorModel]);
 
   const sendMessage = useCallback(
     async ({
