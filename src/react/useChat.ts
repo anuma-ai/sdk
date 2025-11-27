@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
+import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 
 type SendMessageArgs = {
@@ -134,7 +135,7 @@ type StreamingChunk = {
 export function useChat(options?: UseChatOptions): UseChatResult {
   const {
     getToken,
-    baseUrl,
+    baseUrl = BASE_URL,
     onData: globalOnData,
     onFinish,
     onError,
@@ -205,6 +206,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Use SSE client for streaming
         const sseResult = await client.sse.post({
+          baseUrl,
           url: "/api/v1/chat/completions",
           body: {
             messages,
