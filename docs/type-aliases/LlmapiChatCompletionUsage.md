@@ -8,7 +8,7 @@ title: LlmapiChatCompletionUsage
 
 > **LlmapiChatCompletionUsage** = `object`
 
-Defined in: [types.gen.ts:79](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L79)
+Defined in: [types.gen.ts:79](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L79)
 
 Usage contains token usage information
 
@@ -18,9 +18,19 @@ Usage contains token usage information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [types.gen.ts:83](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L83)
+Defined in: [types.gen.ts:83](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L83)
 
 CompletionTokens is the number of tokens in the completion
+
+***
+
+### cost\_micro\_usd?
+
+> `optional` **cost\_micro\_usd**: `number`
+
+Defined in: [types.gen.ts:87](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L87)
+
+CostMicroUSD is the cost of this completion in micro-dollars (USD × 1,000,000)
 
 ***
 
@@ -28,7 +38,7 @@ CompletionTokens is the number of tokens in the completion
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [types.gen.ts:87](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L87)
+Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L91)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -38,6 +48,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/ac675361cfe7c80a1e73563592820de1adedc825/src/client/types.gen.ts#L91)
+Defined in: [types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L95)
 
 TotalTokens is the total number of tokens used
