@@ -51,7 +51,8 @@
   "dependencies": {
     "@reverbia/portal": "1.0.0-next.20251126175613",
     "@reverbia/sdk": "1.0.0-next.20251120124145",
-    "ai": "5.0.93"
+    "ai": "5.0.93",
+    "viem": "^2.0.0"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",

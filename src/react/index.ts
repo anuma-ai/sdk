@@ -12,3 +12,15 @@ export {
   createMemoryContextSystemMessage,
   extractConversationContext,
 } from "../lib/memory/chat";
+
+export { useBalance } from "./useBalance";
+export type { UseBalanceOptions, UseBalanceReturn } from "./useBalance";
+
+export { useDeposit } from "./useDeposit";
+export type {
+  UseDepositOptions,
+  UseDepositReturn,
+  DepositStep,
+  DepositWallet,
+  EthereumProvider,
+} from "./useDeposit";
