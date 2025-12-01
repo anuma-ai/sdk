@@ -160,6 +160,10 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
       hasFetchedRef.current = true;
       fetchModels();
     }
+    // Reset flag when autoFetch becomes false to allow re-fetching when it becomes true again
+    if (!autoFetch) {
+      hasFetchedRef.current = false;
+    }
   }, [autoFetch, fetchModels]);
 
   return {
