@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@reverbia/ai-escrow-contracts':
+        specifier: 1.0.0
+        version: 1.0.0
       '@reverbia/portal':
         specifier: 1.0.0-next.20251126175613
         version: 1.0.0-next.20251126175613
@@ -676,6 +679,9 @@ packages:
 
   '@reown/appkit@1.8.9':
     resolution: {integrity: sha512-e3N2DAzf3Xv3jnoD8IsUo0/Yfwuhk7npwJBe1+9rDJIRwgPsyYcCLD4gKPDFC5IUIfOLqK7YtGOh9oPEUnIWpw==}
+
+  '@reverbia/ai-escrow-contracts@1.0.0':
+    resolution: {integrity: sha512-6fHk2HE103Vym3rGQarRqHdaqlFZ6KQjUxwJdQndX3AMRR8c6P1fq7HN2fKOqaGGIp9IKEjtvO+Y6UNy1QwPJg==}
 
   '@reverbia/portal@1.0.0-next.20251126175613':
     resolution: {integrity: sha512-J1pmni4+sjpQCtAq4WoFdAmti/057w5nQAPI6IYsxTHihDc5FOTwfwfAmP6U5AAqy1HJgA1XQk85vfbMRYzZBA==}
@@ -4790,6 +4796,8 @@ snapshots:
       - uploadthing
       - utf-8-validate
       - zod
+
+  '@reverbia/ai-escrow-contracts@1.0.0': {}
 
   '@reverbia/portal@1.0.0-next.20251126175613': {}
 

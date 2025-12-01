@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Address, type PublicClient } from 'viem';
 
-import { ESCROW_ABI, MICRO_USD_TO_USD, MIN_REQUIRED_BALANCE_MICRO_USD } from '../lib/escrow';
+import EscrowAbiJson from '@reverbia/ai-escrow-contracts/abi/Escrow.sol/Escrow.json';
+import { MICRO_USD_TO_USD, MIN_REQUIRED_BALANCE_MICRO_USD } from '../lib/escrow';
 
 /**
  * Configuration for balance hook
@@ -109,7 +110,7 @@ export function useBalance(options: UseBalanceOptions): UseBalanceReturn {
     try {
       const balance = await publicClient.readContract({
         address: contractAddress,
-        abi: ESCROW_ABI,
+        abi: EscrowAbiJson.abi,
         functionName: 'balanceOf',
         args: [walletAddress],
       });

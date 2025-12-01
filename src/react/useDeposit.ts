@@ -12,7 +12,7 @@ import {
   type WalletClient,
 } from 'viem';
 
-import { ESCROW_ABI } from '../lib/escrow';
+import EscrowAbiJson from '@reverbia/ai-escrow-contracts/abi/Escrow.sol/Escrow.json';
 
 /**
  * Ethereum provider interface for wallet-agnostic transactions
@@ -294,7 +294,7 @@ async function executeDeposit(
 
   const depositHash = await walletClient.writeContract({
     address: escrowAddress,
-    abi: ESCROW_ABI,
+    abi: EscrowAbiJson.abi,
     functionName: 'deposit',
     args: [walletAddress, amountUnits],
     account: walletAddress,

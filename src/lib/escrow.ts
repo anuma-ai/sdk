@@ -1,31 +1,11 @@
 /**
- * Escrow contract ABI and constants
+ * Escrow contract constants
  * Contract: escrow-contracts/src/Escrow.sol
+ * 
+ * Note: For Escrow ABI, import directly from @reverbia/ai-escrow-contracts:
+ * import EscrowAbiJson from '@reverbia/ai-escrow-contracts/abi/Escrow.sol/Escrow.json';
+ * const ESCROW_ABI = EscrowAbiJson.abi;
  */
-
-/**
- * Minimal ABI for reading balance from escrow contract
- * Function: balanceOf(address) - public mapping
- */
-export const ESCROW_ABI = [
-  {
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 'to', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    name: 'deposit',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const;
 
 /**
  * Minimum required balance: $1.00 USD = 1,000,000 micro-USD
