@@ -5,13 +5,14 @@ import {
   type Address,
   createWalletClient,
   custom,
+  erc20Abi,
   formatUnits,
   parseUnits,
   type PublicClient,
   type WalletClient,
 } from 'viem';
 
-import { ERC20_ABI, ESCROW_ABI } from '../lib/escrow';
+import { ESCROW_ABI } from '../lib/escrow';
 
 /**
  * Ethereum provider interface for wallet-agnostic transactions
@@ -179,7 +180,7 @@ async function checkTokenBalance(
   try {
     const balance = await publicClient.readContract({
       address: tokenAddress,
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'balanceOf',
       args: [walletAddress],
     });
@@ -208,7 +209,7 @@ async function checkTokenAllowance(
   try {
     const allowance = await publicClient.readContract({
       address: tokenAddress,
-      abi: ERC20_ABI,
+      abi: erc20Abi,
       functionName: 'allowance',
       args: [walletAddress, escrowAddress],
     });
@@ -264,7 +265,7 @@ async function approveToken(
 
   const approveHash = await walletClient.writeContract({
     address: tokenAddress,
-    abi: ERC20_ABI,
+    abi: erc20Abi,
     functionName: 'approve',
     args: [escrowAddress, amountUnits],
     account: walletAddress,
