@@ -2,6 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "./useChat";
 import { client } from "../client/client.gen";
+import type { LlmapiChatCompletionResponse } from "../client";
+import type { ServerSentEventsResult } from "../client/core/serverSentEvents.gen";
+
+type SendMessageResult =
+  | { data: LlmapiChatCompletionResponse; error: null }
+  | { data: null; error: string };
 
 vi.mock("../client/client.gen", () => ({
   client: {
@@ -29,10 +35,11 @@ describe("useChat", () => {
       };
     })();
 
-    // @ts-ignore
-    client.sse.post.mockResolvedValue({
+    const mockSseResult: ServerSentEventsResult<unknown> = {
       stream: mockStream,
-    });
+    };
+
+    vi.mocked(client.sse.post).mockResolvedValue(mockSseResult);
 
     const { result } = renderHook(() =>
       useChat({
@@ -40,7 +47,7 @@ describe("useChat", () => {
       })
     );
 
-    let response: any;
+    let response: SendMessageResult | undefined;
 
     await act(async () => {
       response = await result.current.sendMessage({
@@ -59,7 +66,15 @@ describe("useChat", () => {
       })
     );
 
-    expect(response.data?.choices[0].message.content).toBe("Hello world");
+    expect(response).toBeDefined();
+    expect(response?.error).toBeNull();
+    expect(response?.data).toBeDefined();
+    
+    // Type guard: after the assertions above, we know this is the success case
+    if (response && response.error === null && response.data) {
+      const content = response.data.choices?.[0]?.message?.content;
+      expect(content).toBe("Hello world");
+    }
     expect(result.current.isLoading).toBe(false);
   });
 });
