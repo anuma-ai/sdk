@@ -183,7 +183,7 @@ Extract facts from the user message above. Return only valid JSON.`;
         messages: [
           {
             role: "user",
-            content: fullPrompt,
+            content: [{ type: "text", text: fullPrompt }],
           },
         ],
         stream: false,
@@ -218,11 +218,21 @@ Extract facts from the user message above. Return only valid JSON.`;
       }
     } else {
       const data = await response.json();
-      content =
-        data.choices?.[0]?.message?.content?.trim() ||
-        data.data?.choices?.[0]?.message?.content?.trim() ||
-        data.content?.trim() ||
-        "";
+      const messageContent =
+        data.choices?.[0]?.message?.content ||
+        data.data?.choices?.[0]?.message?.content ||
+        data.content;
+
+      if (Array.isArray(messageContent)) {
+        content = messageContent
+          .map((p: any) => p.text || "")
+          .join("")
+          .trim();
+      } else if (typeof messageContent === "string") {
+        content = messageContent.trim();
+      } else {
+        content = "";
+      }
     }
 
     if (!content) {

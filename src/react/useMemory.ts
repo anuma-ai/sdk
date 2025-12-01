@@ -106,9 +106,12 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             messages: [
               {
                 role: "system",
-                content: FACT_EXTRACTION_PROMPT,
+                content: [{ type: "text", text: FACT_EXTRACTION_PROMPT }],
               },
-              ...messages,
+              ...messages.map((m) => ({
+                role: m.role,
+                content: [{ type: "text", text: m.content }],
+              })),
             ],
             model: model || memoryModel,
           },
@@ -132,8 +135,17 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           return null;
         }
 
-        const content =
-          completion.data.choices?.[0]?.message?.content?.trim() || "";
+        const messageContent = completion.data.choices?.[0]?.message?.content;
+        let content = "";
+
+        if (Array.isArray(messageContent)) {
+          content = messageContent
+            .map((p) => p.text || "")
+            .join("")
+            .trim();
+        } else if (typeof messageContent === "string") {
+          content = (messageContent as string).trim();
+        }
 
         if (!content) {
           console.error("No content in memory extraction response");

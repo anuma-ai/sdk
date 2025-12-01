@@ -34,7 +34,7 @@ export function mapMessagesToCompletionPayload(
 
       const llmMessage: LlmapiMessage = {
         role: message.role,
-        content,
+        content: [{ type: "text", text: content }],
       };
 
       return llmMessage;

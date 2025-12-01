@@ -292,7 +292,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               index: 0,
               message: {
                 role: "assistant",
-                content: accumulatedContent,
+                content: [{ type: "text", text: accumulatedContent }],
               },
               finish_reason: finishReason,
             },
