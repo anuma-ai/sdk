@@ -110,11 +110,7 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
         });
 
         if (response.error) {
-          const err = response.error as unknown;
-          const errorMsg =
-            typeof err === "object" && err !== null
-              ? JSON.stringify(err)
-              : String(err);
+          const errorMsg = response.error.error ?? "Failed to fetch models";
           throw new Error(errorMsg);
         }
 
