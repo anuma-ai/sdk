@@ -26,8 +26,6 @@ export interface UseBalanceOptions {
 export interface UseBalanceReturn {
   /** Balance in micro-USD (6 decimals) */
   balanceMicroUSD: bigint | null;
-  /** Formatted balance as USD string (e.g., "$1.50") */
-  balanceUSD: string;
   /** Whether balance is sufficient (>= $1.00) */
   isSufficient: boolean;
   /** Loading state */
@@ -36,23 +34,6 @@ export interface UseBalanceReturn {
   error: Error | null;
   /** Manually refetch balance */
   refetch: () => Promise<void>;
-}
-
-/**
- * Formats micro-USD balance to USD string
- * @param balanceMicroUSD Balance in micro-USD (6 decimals)
- * @returns Formatted USD string (e.g., "$1.50")
- */
-function formatBalance(balanceMicroUSD: bigint | null): string {
-  if (balanceMicroUSD === null) {
-    return '$0.00';
-  }
-
-  // Convert micro-USD to USD (divide by 1,000,000)
-  const usdValue = Number(balanceMicroUSD) / Number(MICRO_USD_TO_USD);
-
-  // Format to 2 decimal places
-  return `$${usdValue.toFixed(2)}`;
 }
 
 /**
@@ -78,7 +59,7 @@ function formatBalance(balanceMicroUSD: bigint | null): string {
  *   chainId: 7000,
  * });
  *
- * const { balanceUSD, isSufficient, isLoading } = useBalance({
+ * const { balanceMicroUSD, isSufficient, isLoading } = useBalance({
  *   walletAddress,
  *   contractAddress: '0x...',
  *   publicClient,
@@ -161,13 +142,11 @@ export function useBalance(options: UseBalanceOptions): UseBalanceReturn {
   }, [walletAddress, fetchBalance, refreshInterval]);
 
   // Calculate derived values
-  const balanceUSD = formatBalance(balanceMicroUSD);
   const isSufficient =
     balanceMicroUSD !== null && balanceMicroUSD >= MIN_REQUIRED_BALANCE_MICRO_USD;
 
   return {
     balanceMicroUSD,
-    balanceUSD,
     isSufficient,
     isLoading,
     error,
