@@ -209,8 +209,34 @@ export type LlmapiMessage = {
     /**
      * Content is the message content
      */
-    content?: string;
+    content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
+};
+
+/**
+ * ImageURL is used when Type=image_url
+ */
+export type LlmapiMessageContentImage = {
+    /**
+     * Detail is the OpenAI detail hint (auto|low|high)
+     */
+    detail?: string;
+    /**
+     * URL is the image URL or data URI
+     */
+    url?: string;
+};
+
+export type LlmapiMessageContentPart = {
+    image_url?: LlmapiMessageContentImage;
+    /**
+     * Text holds the text content when Type=text
+     */
+    text?: string;
+    /**
+     * Type is the block type (`text` or `image_url`)
+     */
+    type?: string;
 };
 
 export type LlmapiModel = {
@@ -346,6 +372,85 @@ export type LlmapiModelsListResponse = {
  */
 export type LlmapiRole = string;
 
+/**
+ * ExtraFields contains additional metadata.
+ */
+export type LlmapiSearchExtraFields = {
+    /**
+     * RequestType is always "search".
+     */
+    request_type?: string;
+    /**
+     * SearchProvider is the search provider used (e.g., "perplexity", "google-pse").
+     */
+    search_provider?: string;
+};
+
+export type LlmapiSearchRequest = {
+    /**
+     * Country code filter (e.g., "US", "GB", "DE").
+     */
+    country?: string;
+    /**
+     * Maximum number of results to return (1-20). Default: 10.
+     */
+    max_results?: number;
+    /**
+     * Maximum tokens per page to process. Default: 1024.
+     */
+    max_tokens_per_page?: number;
+    /**
+     * Search query. Can be a single string or array of strings.
+     */
+    query?: Array<string>;
+    /**
+     * List of domains to filter results (max 20 domains).
+     */
+    search_domain_filter?: Array<string>;
+    /**
+     * The search provider to use.
+     */
+    search_tool_name?: string;
+};
+
+export type LlmapiSearchResponse = {
+    extra_fields?: LlmapiSearchExtraFields;
+    /**
+     * List of search results.
+     */
+    results?: Array<LlmapiSearchResult>;
+    usage?: LlmapiSearchUsage;
+};
+
+export type LlmapiSearchResult = {
+    /**
+     * Optional publication or last updated date.
+     */
+    date?: string;
+    /**
+     * Text snippet from the result.
+     */
+    snippet?: string;
+    /**
+     * Title of the search result.
+     */
+    title?: string;
+    /**
+     * URL of the search result.
+     */
+    url?: string;
+};
+
+/**
+ * Usage contains usage information.
+ */
+export type LlmapiSearchUsage = {
+    /**
+     * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
+     */
+    cost_micro_usd?: number;
+};
+
 export type ResponseErrorResponse = {
     error?: string;
 };
@@ -455,6 +560,38 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
+
+export type PostApiV1SearchData = {
+    /**
+     * Search request
+     */
+    body: LlmapiSearchRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/search';
+};
+
+export type PostApiV1SearchErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SearchError = PostApiV1SearchErrors[keyof PostApiV1SearchErrors];
+
+export type PostApiV1SearchResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiSearchResponse;
+};
+
+export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
 
 export type GetHealthData = {
     body?: never;

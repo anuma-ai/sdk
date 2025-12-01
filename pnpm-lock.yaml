@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@reverbia/portal':
-        specifier: 1.0.0-next.20251126175613
-        version: 1.0.0-next.20251126175613
+        specifier: 1.0.0-next.20251201141659
+        version: 1.0.0-next.20251201141659
       '@reverbia/sdk':
         specifier: 1.0.0-next.20251120124145
         version: 1.0.0-next.20251120124145(react@19.2.0)(zod@4.1.12)
@@ -674,8 +674,8 @@ packages:
   '@reown/appkit@1.8.9':
     resolution: {integrity: sha512-e3N2DAzf3Xv3jnoD8IsUo0/Yfwuhk7npwJBe1+9rDJIRwgPsyYcCLD4gKPDFC5IUIfOLqK7YtGOh9oPEUnIWpw==}
 
-  '@reverbia/portal@1.0.0-next.20251126175613':
-    resolution: {integrity: sha512-J1pmni4+sjpQCtAq4WoFdAmti/057w5nQAPI6IYsxTHihDc5FOTwfwfAmP6U5AAqy1HJgA1XQk85vfbMRYzZBA==}
+  '@reverbia/portal@1.0.0-next.20251201141659':
+    resolution: {integrity: sha512-Z0gBAQoL6pIrj7WjXQNd/vJ0MYlbcaK1d0oHI3D/IsQ4QWoU90Se+ENxKQ7yHy9DITOZnqfumE12DR7DJA324g==}
 
   '@reverbia/sdk@1.0.0-next.20251120124145':
     resolution: {integrity: sha512-jMRTf1sty9ckJ3bKibgCp2O3KcDk4VVzuVuOxCqJXfmPy38gBldehHdLZjL5OO1YK9/TSWnt6GpL41/sUKAzIw==}
@@ -4788,11 +4788,11 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@reverbia/portal@1.0.0-next.20251126175613': {}
+  '@reverbia/portal@1.0.0-next.20251201141659': {}
 
   '@reverbia/sdk@1.0.0-next.20251120124145(react@19.2.0)(zod@4.1.12)':
     dependencies:
-      '@reverbia/portal': 1.0.0-next.20251126175613
+      '@reverbia/portal': 1.0.0-next.20251201141659
       ai: 5.0.93(zod@4.1.12)
       react: 19.2.0
     transitivePeerDependencies:

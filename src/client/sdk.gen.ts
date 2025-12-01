@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses } from './types.gen';
+import type { GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -59,6 +59,22 @@ export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: O
     return (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({
         url: '/api/v1/models',
         ...options
+    });
+};
+
+/**
+ * Create search
+ *
+ * Returns a list of ranked search results
+ */
+export const postApiV1Search = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SearchData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SearchResponses, PostApiV1SearchErrors, ThrowOnError>({
+        url: '/api/v1/search',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
     });
 };
 
