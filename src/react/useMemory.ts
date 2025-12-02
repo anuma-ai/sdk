@@ -157,12 +157,17 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           return null;
         }
 
-        const contentArray = completion.data.choices?.[0]?.message?.content;
-        const content =
-          contentArray
-            ?.map((p) => p.text || "")
+        const messageContent = completion.data.choices?.[0]?.message?.content;
+        let content = "";
+
+        if (Array.isArray(messageContent)) {
+          content = messageContent
+            .map((p) => p.text || "")
             .join("")
-            .trim() || "";
+            .trim();
+        } else if (typeof messageContent === "string") {
+          content = (messageContent as string).trim();
+        }
 
         if (!content) {
           console.error("No content in memory extraction response");
