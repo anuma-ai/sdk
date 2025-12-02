@@ -54,6 +54,15 @@ export const withReverbia = (nextConfig: any = {}) => {
         "node:path": false,
       };
 
+      // Replace the SDK's bundled node-specific transformers file with the installed package
+      // which supports browser environments correctly.
+      config.plugins.push(
+        new options.webpack.NormalModuleReplacementPlugin(
+          /transformers\.node-BSHUG7OY\.mjs/,
+          "@huggingface/transformers"
+        )
+      );
+
       // Apply user's custom webpack config if provided
       if (typeof nextConfig.webpack === "function") {
         return nextConfig.webpack(config, options);
