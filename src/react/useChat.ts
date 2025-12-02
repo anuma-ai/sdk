@@ -7,6 +7,13 @@ import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 import { generateLocalChatCompletion } from "../lib/chat/generation";
 import { DEFAULT_LOCAL_CHAT_MODEL } from "../lib/chat/constants";
+import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
+import {
+  selectTool,
+  executeTool,
+  preloadToolSelectorModel,
+  DEFAULT_TOOL_SELECTOR_MODEL,
+} from "../lib/tools/selector";
 
 type SendMessageArgs = {
   messages: LlmapiMessage[];
@@ -18,11 +25,20 @@ type SendMessageArgs = {
    * @param chunk - The content delta from the current chunk
    */
   onData?: (chunk: string) => void;
+  /**
+   * Whether to run tool selection for this message.
+   * Defaults to true if tools are configured.
+   */
+  runTools?: boolean;
 };
 
 type SendMessageResult =
-  | { data: LlmapiChatCompletionResponse; error: null }
-  | { data: null; error: string };
+  | {
+      data: LlmapiChatCompletionResponse;
+      error: null;
+      toolExecution?: ToolExecutionResult;
+    }
+  | { data: null; error: string; toolExecution?: ToolExecutionResult };
 
 type UseChatOptions = {
   getToken?: () => Promise<string | null>;
@@ -57,10 +73,26 @@ type UseChatOptions = {
    * Default is "ibm-granite/Granite-4.0-Nano-WebGPU"
    */
   localModel?: string;
+  /**
+   * Client-side tools that can be executed in the browser.
+   * When provided, the hook will use a local model to determine
+   * if any tool should be called based on the user's message.
+   */
+  tools?: ClientTool[];
+  /**
+   * The model to use for tool selection.
+   * Default is "onnx-community/granite-4.0-350m-ONNX-web"
+   */
+  toolSelectorModel?: string;
+  /**
+   * Callback function to be called when a tool is executed.
+   */
+  onToolExecution?: (result: ToolExecutionResult) => void;
 };
 
 type UseChatResult = {
   isLoading: boolean;
+  isSelectingTool: boolean;
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
   /**
    * Aborts the current streaming request if one is in progress.
@@ -104,47 +136,56 @@ type StreamingChunk = {
  *   is encountered. Note: This is NOT called for aborted requests (see `stop()`).
  * @param options.chatProvider - The provider to use for chat completions (default: "api").
  * @param options.localModel - The model to use for local chat completions.
+ * @param options.tools - Client-side tools that can be executed in the browser.
+ * @param options.toolSelectorModel - The model to use for tool selection.
+ * @param options.onToolExecution - Callback function to be called when a tool is executed.
  *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
+ *   - `isSelectingTool`: A boolean indicating whether tool selection is in progress
  *   - `sendMessage`: An async function to send chat messages
  *   - `stop`: A function to abort the current request
  *
  * @example
  * ```tsx
+ * // Basic usage with API
  * const { isLoading, sendMessage, stop } = useChat({
- *   getToken: async () => {
- *     // Get your auth token from your auth provider
- *     return await getAuthToken();
- *   },
- *   onFinish: (response) => {
- *     console.log("Chat finished:", response);
- *   },
- *   onError: (error) => {
- *     // This is only called for unexpected errors, not aborts
- *     console.error("Chat error:", error);
+ *   getToken: async () => await getAuthToken(),
+ *   onFinish: (response) => console.log("Chat finished:", response),
+ *   onError: (error) => console.error("Chat error:", error)
+ * });
+ *
+ * // With client-side tools
+ * const { isLoading, isSelectingTool, sendMessage } = useChat({
+ *   getToken: async () => await getAuthToken(),
+ *   tools: [
+ *     {
+ *       name: "get_weather",
+ *       description: "Get the current weather for a location",
+ *       parameters: [
+ *         { name: "location", type: "string", description: "City name", required: true }
+ *       ],
+ *       execute: async ({ location }) => {
+ *         // Your weather API call here
+ *         return { temperature: 72, condition: "sunny" };
+ *       }
+ *     }
+ *   ],
+ *   onToolExecution: (result) => {
+ *     console.log("Tool executed:", result.toolName, result.result);
  *   }
  * });
  *
  * const handleSend = async () => {
  *   const result = await sendMessage({
- *     messages: [{ role: 'user', content: 'Hello!' }],
+ *     messages: [{ role: 'user', content: 'What is the weather in Paris?' }],
  *     model: 'gpt-4o-mini'
  *   });
  *
- *   if (result.error) {
- *     if (result.error === "Request aborted") {
- *       console.log("Request was aborted");
- *     } else {
- *       console.error("Error:", result.error);
- *     }
- *   } else {
- *     console.log("Success:", result.data);
+ *   if (result.toolExecution) {
+ *     console.log("Tool was called:", result.toolExecution);
  *   }
  * };
- *
- * // To stop generation:
- * // stop();
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
@@ -156,8 +197,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     chatProvider = "api",
     localModel = DEFAULT_LOCAL_CHAT_MODEL,
+    tools,
+    toolSelectorModel = DEFAULT_TOOL_SELECTOR_MODEL,
+    onToolExecution,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
+  const [isSelectingTool, setIsSelectingTool] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const stop = useCallback(() => {
@@ -177,11 +222,20 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     };
   }, []);
 
+  // Preload tool selector model when tools are configured
+  // The preload function handles deduplication at module level
+  useEffect(() => {
+    if (tools && tools.length > 0) {
+      preloadToolSelectorModel({ model: toolSelectorModel });
+    }
+  }, [tools, toolSelectorModel]);
+
   const sendMessage = useCallback(
     async ({
       messages,
       model,
       onData,
+      runTools = true,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       if (!messages?.length) {
         const errorMsg = "messages are required to call sendMessage.";
@@ -199,6 +253,85 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       setIsLoading(true);
 
+      // Tool selection and execution
+      let toolExecutionResult: ToolExecutionResult | undefined;
+      let messagesWithToolContext = messages;
+
+      if (runTools && tools && tools.length > 0) {
+        // Get the last user message for tool selection
+        const lastUserMessage = [...messages]
+          .reverse()
+          .find((m) => m.role === "user");
+
+        if (lastUserMessage?.content) {
+          setIsSelectingTool(true);
+
+          try {
+            const selectionResult = await selectTool(
+              lastUserMessage.content,
+              tools,
+              {
+                model: toolSelectorModel,
+                signal: abortController.signal,
+              }
+            );
+
+            if (selectionResult.toolSelected && selectionResult.toolName) {
+              const selectedTool = tools.find(
+                (t) => t.name === selectionResult.toolName
+              );
+
+              if (selectedTool) {
+                const execResult = await executeTool(
+                  selectedTool,
+                  selectionResult.parameters || {}
+                );
+
+                toolExecutionResult = {
+                  toolName: selectionResult.toolName,
+                  success: execResult.success,
+                  result: execResult.result,
+                  error: execResult.error,
+                };
+
+                if (onToolExecution) {
+                  onToolExecution(toolExecutionResult);
+                }
+
+                // Include tool result as context in the messages sent to the LLM
+                if (
+                  toolExecutionResult.success &&
+                  toolExecutionResult.result !== undefined
+                ) {
+                  const toolResultContext: LlmapiMessage = {
+                    role: "system",
+                    content: `Tool "${
+                      toolExecutionResult.toolName
+                    }" was executed with the following result:\n${JSON.stringify(
+                      toolExecutionResult.result,
+                      null,
+                      2
+                    )}\n\nUse this information to respond to the user's request.`,
+                  };
+                  messagesWithToolContext = [...messages, toolResultContext];
+                } else if (toolExecutionResult.error) {
+                  const toolErrorContext: LlmapiMessage = {
+                    role: "system",
+                    content: `Tool "${toolExecutionResult.toolName}" was executed but encountered an error: ${toolExecutionResult.error}\n\nPlease inform the user about this issue and try to help them alternatively.`,
+                  };
+                  messagesWithToolContext = [...messages, toolErrorContext];
+                }
+              }
+            }
+          } catch (err) {
+            // Tool selection errors are non-fatal, continue with chat
+            console.warn("Tool selection error:", err);
+          } finally {
+            setIsSelectingTool(false);
+          }
+        }
+      }
+
       try {
         if (chatProvider === "local") {
           let accumulatedContent = "";
@@ -207,7 +340,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Convert messages to format expected by transformers.js if needed
           // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
-          const formattedMessages = messages.map((m) => ({
+          const formattedMessages = messagesWithToolContext.map((m) => ({
             role: m.role || "user",
             content: m.content || "",
           }));
@@ -246,19 +379,31 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (onFinish) {
             onFinish(completion);
           }
-          return { data: completion, error: null };
+          return {
+            data: completion,
+            error: null,
+            toolExecution: toolExecutionResult,
+          };
         } else {
-          // API Provider (default) - Use SSE client for streaming
+          // API Provider
           if (!model) {
             const errorMsg = "model is required to call sendMessage.";
             if (onError) onError(new Error(errorMsg));
-            return { data: null, error: errorMsg };
+            return {
+              data: null,
+              error: errorMsg,
+              toolExecution: toolExecutionResult,
+            };
           }
 
           if (!getToken) {
             const errorMsg = "Token getter function is required.";
             if (onError) onError(new Error(errorMsg));
-            return { data: null, error: errorMsg };
+            return {
+              data: null,
+              error: errorMsg,
+              toolExecution: toolExecutionResult,
+            };
           }
 
           const token = await getToken();
@@ -267,7 +412,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             const errorMsg = "No access token available.";
             setIsLoading(false);
             if (onError) onError(new Error(errorMsg));
-            return { data: null, error: errorMsg };
+            return {
+              data: null,
+              error: errorMsg,
+              toolExecution: toolExecutionResult,
+            };
           }
 
           // Use SSE client for streaming
@@ -275,7 +424,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             baseUrl,
             url: "/api/v1/chat/completions",
             body: {
-              messages,
+              messages: messagesWithToolContext,
               model,
               stream: true,
             },
@@ -374,7 +523,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (onFinish) {
             onFinish(completion);
           }
-          return { data: completion, error: null };
+          return {
+            data: completion,
+            error: null,
+            toolExecution: toolExecutionResult,
+          };
         }
       } catch (err) {
         // Handle AbortError specifically - aborts are intentional user actions,
@@ -382,7 +535,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Vercel AI SDK and React Query patterns)
         if (err instanceof Error && err.name === "AbortError") {
           setIsLoading(false);
-          return { data: null, error: "Request aborted" };
+          return {
+            data: null,
+            error: "Request aborted",
+            toolExecution: toolExecutionResult,
+          };
         }
 
         const errorMsg =
@@ -393,7 +550,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         if (onError) {
           onError(errorObj);
         }
-        return { data: null, error: errorMsg };
+        return {
+          data: null,
+          error: errorMsg,
+          toolExecution: toolExecutionResult,
+        };
       } finally {
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
@@ -408,11 +569,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       chatProvider,
       localModel,
+      tools,
+      toolSelectorModel,
+      onToolExecution,
     ]
   );
 
   return {
     isLoading,
+    isSelectingTool,
     sendMessage,
     stop,
   };

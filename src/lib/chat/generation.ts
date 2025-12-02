@@ -1,7 +1,5 @@
 import { DEFAULT_LOCAL_CHAT_MODEL } from "./constants";
-
-let chatPipeline: any = null;
-let currentModel: string | null = null;
+import { getTextGenerationPipeline } from "./pipeline";
 
 export interface GenerateLocalChatCompletionOptions {
   model?: string;
@@ -25,16 +23,14 @@ export async function generateLocalChatCompletion(
     signal,
   } = options;
 
-  const { pipeline, TextStreamer } = await import("@huggingface/transformers");
+  const { TextStreamer } = await import("@huggingface/transformers");
 
-  if (!chatPipeline || currentModel !== model) {
-    // Use WebGPU if available, fall back to WASM
-    // ONNX models from onnx-community work with default settings
-    chatPipeline = await pipeline("text-generation", model, {
-      dtype: "fp16",
-    });
-    currentModel = model;
-  }
+  // Use shared pipeline to avoid loading same model twice
+  const chatPipeline = await getTextGenerationPipeline({
+    model,
+    device: "wasm",
+    dtype: "q4",
+  });
 
   // Custom streamer that triggers the onToken callback
   class CallbackStreamer extends TextStreamer {
@@ -67,14 +63,6 @@ export async function generateLocalChatCompletion(
     streamer,
     return_full_text: false,
   });
-
-  // Return the generated text
-  // For chat inputs, the output structure depends on the pipeline version,
-  // but typically with return_full_text: false and chat input, it returns the generated response.
-  // Let's assume it returns [{ generated_text: "..." }] or similar.
-
-  // If streaming, the content is already delivered via onToken.
-  // But we should return the final result too.
 
   return output;
 }
