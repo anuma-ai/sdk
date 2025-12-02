@@ -5,10 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
+import { generateLocalChatCompletion } from "../lib/chat/generation";
+import { DEFAULT_LOCAL_CHAT_MODEL } from "../lib/chat/constants";
 
 type SendMessageArgs = {
   messages: LlmapiMessage[];
-  model: string;
+  model?: string;
   /**
    * Per-request callback for data chunks. Called in addition to the global
    * `onData` callback if provided in `useChat` options.
@@ -44,6 +46,17 @@ type UseChatOptions = {
    * @param error - The error that occurred (never an AbortError)
    */
   onError?: (error: Error) => void;
+  /**
+   * The provider to use for chat completions (default: "api")
+   * "local": Uses a local HuggingFace model (in-browser)
+   * "api": Uses the backend API
+   */
+  chatProvider?: "api" | "local";
+  /**
+   * The model to use for local chat completions
+   * Default is "ibm-granite/Granite-4.0-Nano-WebGPU"
+   */
+  localModel?: string;
 };
 
 type UseChatResult = {
@@ -89,6 +102,8 @@ type StreamingChunk = {
  * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
  * @param options.onError - Callback function to be called when an unexpected error
  *   is encountered. Note: This is NOT called for aborted requests (see `stop()`).
+ * @param options.chatProvider - The provider to use for chat completions (default: "api").
+ * @param options.localModel - The model to use for local chat completions.
  *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
@@ -139,6 +154,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onData: globalOnData,
     onFinish,
     onError,
+    chatProvider = "api",
+    localModel = DEFAULT_LOCAL_CHAT_MODEL,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -172,18 +189,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         return { data: null, error: errorMsg };
       }
 
-      if (!model) {
-        const errorMsg = "model is required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
-      }
-
-      if (!getToken) {
-        const errorMsg = "Token getter function is required.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
-      }
-
       // Abort any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -195,118 +200,182 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       setIsLoading(true);
 
       try {
-        const token = await getToken();
+        if (chatProvider === "local") {
+          let accumulatedContent = "";
+          // For local provider, always use localModel (ignore the model param which is for API)
+          const usedModel = localModel;
 
-        if (!token) {
-          const errorMsg = "No access token available.";
-          setIsLoading(false);
-          if (onError) onError(new Error(errorMsg));
-          return { data: null, error: errorMsg };
-        }
+          // Convert messages to format expected by transformers.js if needed
+          // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
+          const formattedMessages = messages.map((m) => ({
+            role: m.role || "user",
+            content: m.content || "",
+          }));
 
-        // Use SSE client for streaming
-        const sseResult = await client.sse.post({
-          baseUrl,
-          url: "/api/v1/chat/completions",
-          body: {
-            messages,
-            model,
-            stream: true,
-          },
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          signal: abortController.signal,
-        });
-
-        let accumulatedContent = "";
-        let completionId = "";
-        let completionModel = "";
-        // Accumulate usage data from all chunks (merge instead of overwrite)
-        // This fixes the issue where token counts come in one chunk and cost in another
-        let accumulatedUsage: Partial<LlmapiChatCompletionResponse["usage"]> = {};
-        let finishReason: string | undefined;
-
-        for await (const chunk of sseResult.stream) {
-          // Skip [DONE] marker (can come as string or in various formats)
-          if (
-            typeof chunk === "string" &&
-            (chunk.trim() === "[DONE]" || chunk.includes("[DONE]"))
-          ) {
-            continue;
-          }
-
-          // Handle chunk data
-          if (chunk && typeof chunk === "object") {
-            const chunkData = chunk as StreamingChunk;
-
-            // Extract completion ID and model from first chunk
-            if (chunkData.id && !completionId) {
-              completionId = chunkData.id;
-            }
-            if (chunkData.model && !completionModel) {
-              completionModel = chunkData.model;
-            }
-
-            // Accumulate usage data - merge instead of replace
-            // This ensures we capture both token counts (from first usage chunk)
-            // and cost_micro_usd (from final usage chunk)
-            if (chunkData.usage) {
-              accumulatedUsage = {
-                ...accumulatedUsage,
-                ...chunkData.usage,
-              };
-            }
-
-            // Extract content delta
-            if (
-              chunkData.choices &&
-              Array.isArray(chunkData.choices) &&
-              chunkData.choices.length > 0
-            ) {
-              const choice = chunkData.choices[0];
-              if (choice.delta?.content) {
-                const content = choice.delta.content;
-                accumulatedContent += content;
-                if (onData) {
-                  onData(content);
-                }
-                if (globalOnData) {
-                  globalOnData(content);
-                }
-              }
-              if (choice.finish_reason) {
-                finishReason = choice.finish_reason;
-              }
-            }
-          }
-        }
-
-        // Build the final response
-        const completion: LlmapiChatCompletionResponse = {
-          id: completionId,
-          model: completionModel,
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: "assistant",
-                content: accumulatedContent,
-              },
-              finish_reason: finishReason,
+          await generateLocalChatCompletion(formattedMessages, {
+            model: usedModel,
+            signal: abortController.signal,
+            onToken: (token) => {
+              accumulatedContent += token;
+              if (onData) onData(token);
+              if (globalOnData) globalOnData(token);
             },
-          ],
-          usage: Object.keys(accumulatedUsage).length > 0 
-            ? accumulatedUsage as LlmapiChatCompletionResponse["usage"]
-            : undefined,
-        };
+          });
 
-        setIsLoading(false);
-        if (onFinish) {
-          onFinish(completion);
+          const completion: LlmapiChatCompletionResponse = {
+            id: `local-${Date.now()}`,
+            model: usedModel,
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: accumulatedContent,
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 0, // Not easily available from simple pipeline usage
+              completion_tokens: 0,
+              total_tokens: 0,
+            },
+          };
+
+          setIsLoading(false);
+          if (onFinish) {
+            onFinish(completion);
+          }
+          return { data: completion, error: null };
+        } else {
+          // API Provider (default) - Use SSE client for streaming
+          if (!model) {
+            const errorMsg = "model is required to call sendMessage.";
+            if (onError) onError(new Error(errorMsg));
+            return { data: null, error: errorMsg };
+          }
+
+          if (!getToken) {
+            const errorMsg = "Token getter function is required.";
+            if (onError) onError(new Error(errorMsg));
+            return { data: null, error: errorMsg };
+          }
+
+          const token = await getToken();
+
+          if (!token) {
+            const errorMsg = "No access token available.";
+            setIsLoading(false);
+            if (onError) onError(new Error(errorMsg));
+            return { data: null, error: errorMsg };
+          }
+
+          // Use SSE client for streaming
+          const sseResult = await client.sse.post({
+            baseUrl,
+            url: "/api/v1/chat/completions",
+            body: {
+              messages,
+              model,
+              stream: true,
+            },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            signal: abortController.signal,
+          });
+
+          let accumulatedContent = "";
+          let completionId = "";
+          let completionModel = "";
+          // Accumulate usage data from all chunks (merge instead of overwrite)
+          // This fixes the issue where token counts come in one chunk and cost in another
+          let accumulatedUsage: Partial<LlmapiChatCompletionResponse["usage"]> =
+            {};
+          let finishReason: string | undefined;
+
+          for await (const chunk of sseResult.stream) {
+            // Skip [DONE] marker (can come as string or in various formats)
+            if (
+              typeof chunk === "string" &&
+              (chunk.trim() === "[DONE]" || chunk.includes("[DONE]"))
+            ) {
+              continue;
+            }
+
+            // Handle chunk data
+            if (chunk && typeof chunk === "object") {
+              const chunkData = chunk as StreamingChunk;
+
+              // Extract completion ID and model from first chunk
+              if (chunkData.id && !completionId) {
+                completionId = chunkData.id;
+              }
+              if (chunkData.model && !completionModel) {
+                completionModel = chunkData.model;
+              }
+
+              // Accumulate usage data - merge instead of replace
+              // This ensures we capture both token counts (from first usage chunk)
+              // and cost_micro_usd (from final usage chunk)
+              if (chunkData.usage) {
+                accumulatedUsage = {
+                  ...accumulatedUsage,
+                  ...chunkData.usage,
+                };
+              }
+
+              // Extract content delta
+              if (
+                chunkData.choices &&
+                Array.isArray(chunkData.choices) &&
+                chunkData.choices.length > 0
+              ) {
+                const choice = chunkData.choices[0];
+                if (choice.delta?.content) {
+                  const content = choice.delta.content;
+                  accumulatedContent += content;
+                  if (onData) {
+                    onData(content);
+                  }
+                  if (globalOnData) {
+                    globalOnData(content);
+                  }
+                }
+                if (choice.finish_reason) {
+                  finishReason = choice.finish_reason;
+                }
+              }
+            }
+          }
+
+          // Build the final response
+          const completion: LlmapiChatCompletionResponse = {
+            id: completionId,
+            model: completionModel,
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: accumulatedContent,
+                },
+                finish_reason: finishReason,
+              },
+            ],
+            usage:
+              Object.keys(accumulatedUsage).length > 0
+                ? (accumulatedUsage as LlmapiChatCompletionResponse["usage"])
+                : undefined,
+          };
+
+          setIsLoading(false);
+          if (onFinish) {
+            onFinish(completion);
+          }
+          return { data: completion, error: null };
         }
-        return { data: completion, error: null };
       } catch (err) {
         // Handle AbortError specifically - aborts are intentional user actions,
         // not errors, so we don't trigger onError callback (consistent with
@@ -331,7 +400,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [
+      getToken,
+      baseUrl,
+      globalOnData,
+      onFinish,
+      onError,
+      chatProvider,
+      localModel,
+    ]
   );
 
   return {
