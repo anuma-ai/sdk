@@ -8,6 +8,7 @@ export {
 
 export { useMemory } from "./useMemory";
 export { useModels } from "./useModels";
+export { useImageGeneration } from "./useImageGeneration";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,
