@@ -8,7 +8,7 @@ title: GetHealthData
 
 > **GetHealthData** = `object`
 
-Defined in: [types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L459)
+Defined in: [types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L459)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > `optional` **body**: `never`
 
-Defined in: [types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L460)
+Defined in: [types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L460)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L461)
+Defined in: [types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L461)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L462)
+Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L462)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **url**: `"/health"`
 
-Defined in: [types.gen.ts:463](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L463)
+Defined in: [types.gen.ts:463](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L463)

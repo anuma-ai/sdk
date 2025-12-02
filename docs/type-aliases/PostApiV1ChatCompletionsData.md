@@ -8,7 +8,7 @@ title: PostApiV1ChatCompletionsData
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [types.gen.ts:353](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L353)
+Defined in: [types.gen.ts:353](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L353)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:353](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [types.gen.ts:357](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L357)
+Defined in: [types.gen.ts:357](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L357)
 
 Chat completion request
 
@@ -26,7 +26,7 @@ Chat completion request
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:358](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L358)
+Defined in: [types.gen.ts:358](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L358)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:358](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L359)
+Defined in: [types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L359)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [types.gen.ts:360](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L360)
+Defined in: [types.gen.ts:360](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L360)

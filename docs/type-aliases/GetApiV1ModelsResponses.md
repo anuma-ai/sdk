@@ -8,7 +8,7 @@ title: GetApiV1ModelsResponses
 
 > **GetApiV1ModelsResponses** = `object`
 
-Defined in: [types.gen.ts:450](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L450)
+Defined in: [types.gen.ts:450](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L450)
 
 ## Properties
 
@@ -16,6 +16,6 @@ Defined in: [types.gen.ts:450](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **200**: [`LlmapiModelsListResponse`](LlmapiModelsListResponse.md)
 
-Defined in: [types.gen.ts:454](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L454)
+Defined in: [types.gen.ts:454](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L454)
 
 OK

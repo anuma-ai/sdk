@@ -8,7 +8,7 @@ title: ClientOptions
 
 > **ClientOptions** = `object`
 
-Defined in: [types.gen.ts:3](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L3)
+Defined in: [types.gen.ts:3](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L3)
 
 ## Properties
 
@@ -16,4 +16,4 @@ Defined in: [types.gen.ts:3](https://github.com/zeta-chain/ai-sdk/blob/05780f567
 
 > **baseUrl**: `` `${string}://${string}` `` \| `string` & `object`
 
-Defined in: [types.gen.ts:4](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L4)
+Defined in: [types.gen.ts:4](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L4)
