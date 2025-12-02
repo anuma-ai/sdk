@@ -9,20 +9,33 @@ import { saveMemories } from "../lib/memory/db";
 import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
 import {
   generateAndStoreEmbeddings,
-  generateQueryEmbedding,
+  generateEmbeddingForText,
 } from "../lib/memory/embeddings";
 import { searchSimilarMemories } from "../lib/memory/db";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_COMPLETION_MODEL,
+  DEFAULT_LOCAL_EMBEDDING_MODEL,
+} from "../lib/memory/constants";
 
 export type UseMemoryOptions = {
   /**
    * The model to use for fact extraction (default: "openai/gpt-4o")
    */
-  memoryModel?: string;
+  completionsModel?: string;
   /**
-   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
-   * Set to null/undefined to disable embedding generation
+   * The model to use for generating embeddings
+   * For local: default is "Snowflake/snowflake-arctic-embed-xs"
+   * For api: default is "openai/text-embedding-3-small"
+   * Set to null to disable embedding generation
    */
   embeddingModel?: string | null;
+  /**
+   * The provider to use for generating embeddings (default: "local")
+   * "local": Uses a local HuggingFace model (in-browser)
+   * "api": Uses the backend API
+   */
+  embeddingProvider?: "local" | "api";
   /**
    * Whether to automatically generate embeddings for extracted memories (default: true)
    */
@@ -70,13 +83,22 @@ export type UseMemoryResult = {
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const {
-    memoryModel = "openai/gpt-4o",
-    embeddingModel = "openai/text-embedding-3-small",
+    completionsModel = DEFAULT_COMPLETION_MODEL,
+    embeddingModel: userEmbeddingModel,
+    embeddingProvider = "local",
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,
     baseUrl = BASE_URL,
   } = options;
+
+  // Resolve default model if undefined, preserve null if set explicitly to disable
+  const embeddingModel =
+    userEmbeddingModel === undefined
+      ? embeddingProvider === "local"
+        ? DEFAULT_LOCAL_EMBEDDING_MODEL
+        : DEFAULT_API_EMBEDDING_MODEL
+      : userEmbeddingModel;
 
   const extractionInProgressRef = useRef(false);
 
@@ -110,7 +132,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
               },
               ...messages,
             ],
-            model: model || memoryModel,
+            model: model || completionsModel,
           },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -247,6 +269,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
               try {
                 await generateAndStoreEmbeddings(result.items, {
                   model: embeddingModel,
+                  provider: embeddingProvider,
                   getToken: getToken || undefined,
                   baseUrl,
                 });
@@ -275,8 +298,9 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       }
     },
     [
-      memoryModel,
+      completionsModel,
       embeddingModel,
+      embeddingProvider,
       generateEmbeddings,
       getToken,
       onFactsExtracted,
@@ -286,18 +310,17 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
 
   const searchMemories = useCallback(
     async (query: string, limit: number = 10, minSimilarity: number = 0.6) => {
-      if (!getToken || !embeddingModel) {
-        console.warn(
-          "Cannot search memories: getToken or embeddingModel not provided"
-        );
+      if (!embeddingModel) {
+        console.warn("Cannot search memories: embeddingModel not provided");
         return [];
       }
 
       try {
         console.log(`[Memory Search] Searching for: "${query}"`);
 
-        const queryEmbedding = await generateQueryEmbedding(query, {
+        const queryEmbedding = await generateEmbeddingForText(query, {
           model: embeddingModel,
+          provider: embeddingProvider,
           getToken,
           baseUrl,
         });
@@ -332,7 +355,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         return [];
       }
     },
-    [embeddingModel, getToken, baseUrl]
+    [embeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
   return {

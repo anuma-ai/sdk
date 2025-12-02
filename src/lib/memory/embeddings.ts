@@ -1,15 +1,29 @@
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import type { MemoryItem } from "./service";
-import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
+import { memoryDb, getAllMemories } from "./db";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_LOCAL_EMBEDDING_MODEL,
+} from "./constants";
+
+// Cache the pipeline instance
+let embeddingPipeline: any = null;
 
 export interface GenerateEmbeddingOptions {
   /**
-   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
+   * The model to use for generating embeddings
+   * For local: default is "Snowflake/snowflake-arctic-embed-xs"
+   * For api: default is provided by the backend
    */
   model?: string;
   /**
+   * The provider to use for generating embeddings (default: "local")
+   */
+  provider?: "local" | "api";
+  /**
    * Custom function to get auth token for API calls
+   * Required if provider is "api"
    */
   getToken?: () => Promise<string | null>;
   /**
@@ -18,50 +32,74 @@ export interface GenerateEmbeddingOptions {
   baseUrl?: string;
 }
 
-const generateEmbeddingForText = async (
+export const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const {
-    model = "openai/text-embedding-3-small",
-    getToken,
-    baseUrl = BASE_URL,
-  } = options;
+  const { baseUrl = BASE_URL, provider = "local" } = options;
 
-  try {
-    const token = getToken ? await getToken() : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
+  if (provider === "api") {
+    const { getToken, model } = options;
+    if (!getToken) {
+      throw new Error("getToken is required for API embeddings");
+    }
+
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No access token available for API embeddings");
     }
 
     const response = await postApiV1Embeddings({
       baseUrl,
       body: {
         input: text,
-        model,
+        model: model,
       },
-      headers,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
-    if (
-      !response.data ||
-      !response.data.data ||
-      response.data.data.length === 0
-    ) {
+    if (response.error) {
       throw new Error(
-        `Failed to generate embedding: ${
-          response.error?.error ?? "No data returned"
-        }`
+        typeof response.error === "object" &&
+        response.error &&
+        "error" in response.error
+          ? (response.error as any).error
+          : "API embedding failed"
       );
     }
 
-    const embedding = response.data.data[0]?.embedding;
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error("Invalid embedding format returned from API");
+    if (!response.data?.data?.[0]?.embedding) {
+      throw new Error("No embedding returned from API");
     }
 
-    return embedding;
+    return response.data.data[0].embedding;
+  }
+
+  // Default to a transformers.js compatible model if not provided or if it's the old default
+  let { model } = options;
+  if (!model || model === DEFAULT_API_EMBEDDING_MODEL) {
+    model = DEFAULT_LOCAL_EMBEDDING_MODEL;
+  }
+
+  try {
+    if (!embeddingPipeline) {
+      const { pipeline } = await import("@huggingface/transformers");
+      embeddingPipeline = await pipeline("feature-extraction", model);
+    }
+
+    const output = await embeddingPipeline(text, {
+      pooling: "cls",
+      normalize: true,
+    });
+
+    // output is a Tensor, access data property
+    if (output?.data) {
+      return Array.from(output.data);
+    }
+
+    throw new Error("Invalid embedding output from transformers.js");
   } catch (error) {
     console.error("Failed to generate embedding:", error);
     throw error;
@@ -94,21 +132,12 @@ export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<Map<string, number[]>> => {
-  const {
-    model = "openai/text-embedding-3-small",
-    getToken,
-    baseUrl = BASE_URL,
-  } = options;
   const embeddings = new Map<string, number[]>();
 
   for (const memory of memories) {
     const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
     try {
-      const embedding = await generateEmbeddingForMemory(memory, {
-        model,
-        getToken,
-        baseUrl,
-      });
+      const embedding = await generateEmbeddingForMemory(memory, options);
       embeddings.set(uniqueKey, embedding);
     } catch (error) {
       console.error(
@@ -161,7 +190,20 @@ export const generateAndStoreEmbeddings = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
-  const { model = "openai/text-embedding-3-small" } = options;
+  let { model } = options;
+  const { provider = "local" } = options;
+
+  if (!model) {
+    if (provider === "local") {
+      model = DEFAULT_LOCAL_EMBEDDING_MODEL;
+    } else {
+      model = DEFAULT_API_EMBEDDING_MODEL; // Default for API
+    }
+  }
+
+  if (provider === "local" && model === DEFAULT_API_EMBEDDING_MODEL) {
+    model = DEFAULT_LOCAL_EMBEDDING_MODEL;
+  }
 
   if (memories.length === 0) {
     return;
@@ -169,7 +211,10 @@ export const generateAndStoreEmbeddings = async (
 
   console.log(`Generating embeddings for ${memories.length} memories...`);
 
-  const embeddings = await generateEmbeddingsForMemories(memories, options);
+  const embeddings = await generateEmbeddingsForMemories(memories, {
+    ...options,
+    model,
+  });
   await updateMemoriesWithEmbeddings(embeddings, model);
 
   console.log(`Generated and stored ${embeddings.size} embeddings`);
@@ -185,8 +230,7 @@ export const generateAndStoreEmbeddings = async (
  *
  * // Generate embeddings for all memories without them
  * await generateEmbeddingsForAllMemories({
- *   model: "openai/text-embedding-3-small",
- *   getToken: async () => await getAuthToken()
+ *   model: "Snowflake/snowflake-arctic-embed-xs"
  * });
  * ```
  */
@@ -219,14 +263,4 @@ export const generateEmbeddingsForAllMemories = async (
   }));
 
   await generateAndStoreEmbeddings(memoryItems, options);
-};
-
-/**
- * Generate embedding for a query string
- */
-export const generateQueryEmbedding = async (
-  query: string,
-  options: GenerateEmbeddingOptions = {}
-): Promise<number[]> => {
-  return generateEmbeddingForText(query, options);
 };
