@@ -8,7 +8,7 @@ title: PostApiV1EmbeddingsData
 
 > **PostApiV1EmbeddingsData** = `object`
 
-Defined in: [types.gen.ts:385](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L385)
+Defined in: [types.gen.ts:385](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L385)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:385](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **body**: [`LlmapiEmbeddingRequest`](LlmapiEmbeddingRequest.md)
 
-Defined in: [types.gen.ts:389](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L389)
+Defined in: [types.gen.ts:389](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L389)
 
 Embedding request
 
@@ -26,7 +26,7 @@ Embedding request
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:390](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L390)
+Defined in: [types.gen.ts:390](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L390)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:390](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:391](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L391)
+Defined in: [types.gen.ts:391](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L391)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:391](https://github.com/zeta-chain/ai-sdk/blob/05780f5
 
 > **url**: `"/api/v1/embeddings"`
 
-Defined in: [types.gen.ts:392](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/types.gen.ts#L392)
+Defined in: [types.gen.ts:392](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L392)

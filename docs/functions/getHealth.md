@@ -8,7 +8,7 @@ title: getHealth
 
 > **getHealth**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`\>
 
-Defined in: [sdk.gen.ts:70](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/sdk.gen.ts#L70)
+Defined in: [sdk.gen.ts:70](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/sdk.gen.ts#L70)
 
 Health check
 

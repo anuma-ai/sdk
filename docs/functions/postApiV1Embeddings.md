@@ -8,7 +8,7 @@ title: postApiV1Embeddings
 
 > **postApiV1Embeddings**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1EmbeddingsResponses`](../type-aliases/PostApiV1EmbeddingsResponses.md), [`PostApiV1EmbeddingsErrors`](../type-aliases/PostApiV1EmbeddingsErrors.md), `ThrowOnError`\>
 
-Defined in: [sdk.gen.ts:42](https://github.com/zeta-chain/ai-sdk/blob/05780f567dfab50e6a5aa7aba268da647ad1a083/src/client/sdk.gen.ts#L42)
+Defined in: [sdk.gen.ts:42](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/sdk.gen.ts#L42)
 
 Create embeddings
 

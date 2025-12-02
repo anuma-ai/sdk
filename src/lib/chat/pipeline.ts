@@ -3,6 +3,8 @@
  * Prevents loading the same model multiple times which causes ONNX runtime crashes.
  */
 
+import type { DataType } from "@huggingface/transformers";
+
 let sharedPipeline: any = null;
 let currentModel: string | null = null;
 let currentDevice: string | null = null;
@@ -10,7 +12,7 @@ let currentDevice: string | null = null;
 export interface PipelineOptions {
   model: string;
   device?: "webgpu" | "wasm" | "cpu";
-  dtype?: string;
+  dtype?: DataType;
 }
 
 /**
