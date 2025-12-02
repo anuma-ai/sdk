@@ -1,4 +1,5 @@
 import { postApiV1Embeddings } from "../../client";
+import { BASE_URL } from "../../clientConfig";
 import type { MemoryItem } from "./service";
 import { memoryDb, getAllMemories } from "./db";
 import {
@@ -35,7 +36,7 @@ export const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const { provider = "local" } = options;
+  const { baseUrl = BASE_URL, provider = "local" } = options;
 
   if (provider === "api") {
     const { getToken, model } = options;

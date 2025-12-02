@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { postApiV1ChatCompletions } from "../client";
+import { BASE_URL } from "../clientConfig";
 import type { MemoryExtractionResult } from "../lib/memory/service";
 import { preprocessMemories } from "../lib/memory/service";
 import { saveMemories } from "../lib/memory/db";
@@ -88,7 +89,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,
-    baseUrl,
+    baseUrl = BASE_URL,
   } = options;
 
   // Resolve default model if undefined, preserve null if set explicitly to disable

@@ -33,6 +33,7 @@ export default defineConfig([
         },
       },
     ],
+    noExternal: ["@huggingface/transformers", "onnxruntime-node", "sharp"],
   },
   {
     entry: ["src/vercel/index.ts"],

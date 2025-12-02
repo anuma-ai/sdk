@@ -7,6 +7,7 @@ export {
 } from "./useEncryption";
 
 export { useMemory } from "./useMemory";
+export { useModels } from "./useModels";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,

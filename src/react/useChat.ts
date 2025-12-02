@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
+import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 import { generateLocalChatCompletion } from "../lib/chat/generation";
 import { DEFAULT_LOCAL_CHAT_MODEL } from "../lib/chat/constants";
@@ -190,7 +191,7 @@ type StreamingChunk = {
 export function useChat(options?: UseChatOptions): UseChatResult {
   const {
     getToken,
-    baseUrl,
+    baseUrl = BASE_URL,
     onData: globalOnData,
     onFinish,
     onError,
@@ -420,6 +421,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Use SSE client for streaming
           const sseResult = await client.sse.post({
+            baseUrl,
             url: "/api/v1/chat/completions",
             body: {
               messages: messagesWithToolContext,
@@ -436,7 +438,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           let accumulatedContent = "";
           let completionId = "";
           let completionModel = "";
-          let usage: LlmapiChatCompletionResponse["usage"] | undefined;
+          // Accumulate usage data from all chunks (merge instead of overwrite)
+          // This fixes the issue where token counts come in one chunk and cost in another
+          let accumulatedUsage: Partial<LlmapiChatCompletionResponse["usage"]> =
+            {};
           let finishReason: string | undefined;
 
           for await (const chunk of sseResult.stream) {
@@ -460,9 +465,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 completionModel = chunkData.model;
               }
 
-              // Extract usage from final chunk
+              // Accumulate usage data - merge instead of replace
+              // This ensures we capture both token counts (from first usage chunk)
+              // and cost_micro_usd (from final usage chunk)
               if (chunkData.usage) {
-                usage = chunkData.usage;
+                accumulatedUsage = {
+                  ...accumulatedUsage,
+                  ...chunkData.usage,
+                };
               }
 
               // Extract content delta
@@ -503,7 +513,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 finish_reason: finishReason,
               },
             ],
-            usage,
+            usage:
+              Object.keys(accumulatedUsage).length > 0
+                ? (accumulatedUsage as LlmapiChatCompletionResponse["usage"])
+                : undefined,
           };
 
           setIsLoading(false);
