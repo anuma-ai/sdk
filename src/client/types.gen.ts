@@ -203,14 +203,135 @@ export type LlmapiEmbeddingUsage = {
 };
 
 /**
+ * ExtraFields contains additional metadata such as provider/model information.
+ */
+export type LlmapiImageGenerationExtraFields = {
+    /**
+     * ModelRequested is the model identifier that the client asked for.
+     */
+    model_requested?: string;
+    /**
+     * Provider is the gateway that serviced this request.
+     */
+    provider?: string;
+    /**
+     * RequestType is always "image_generation".
+     */
+    request_type?: string;
+};
+
+export type LlmapiImageGenerationImage = {
+    /**
+     * B64JSON is the base64 payload for models that can only return binary.
+     */
+    b64_json?: string;
+    /**
+     * URL is the signed URL to download the image.
+     */
+    url?: string;
+};
+
+export type LlmapiImageGenerationRequest = {
+    /**
+     * Model is the model identifier to use for generation (e.g., "gpt-image-1").
+     */
+    model?: string;
+    /**
+     * Prompt is the text description of the desired image.
+     */
+    prompt?: string;
+    /**
+     * Quality targets a quality preset (e.g., "auto", "high").
+     */
+    quality?: string;
+    /**
+     * ResponseFormat controls how the generated image is returned (e.g., "url" or "b64_json").
+     */
+    response_format?: string;
+    /**
+     * Size controls the dimensions of the generated image (e.g., "1024x1024").
+     */
+    size?: string;
+};
+
+export type LlmapiImageGenerationResponse = {
+    /**
+     * Created is the Unix timestamp when the image was generated.
+     */
+    created?: number;
+    extra_fields?: LlmapiImageGenerationExtraFields;
+    /**
+     * Images contains the generated images.
+     */
+    images?: Array<LlmapiImageGenerationImage>;
+    /**
+     * Model is the model identifier that generated the image.
+     */
+    model?: string;
+    /**
+     * Provider is the gateway that produced the image.
+     */
+    provider?: string;
+    usage?: LlmapiImageGenerationUsage;
+};
+
+/**
+ * Usage documents token usage (when available).
+ */
+export type LlmapiImageGenerationUsage = {
+    /**
+     * CostMicroUSD is the inference cost for this image generation request
+     */
+    cost_micro_usd?: number;
+    /**
+     * InputTokens is the number of tokens sent in the prompt.
+     */
+    input_tokens?: number;
+    /**
+     * OutputTokens is the number of tokens returned by the model.
+     */
+    output_tokens?: number;
+    /**
+     * TotalTokens is the total number of tokens consumed.
+     */
+    total_tokens?: number;
+};
+
+/**
  * Message is the generated message
  */
 export type LlmapiMessage = {
     /**
      * Content is the message content
      */
-    content?: string;
+    content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
+};
+
+/**
+ * ImageURL is used when Type=image_url
+ */
+export type LlmapiMessageContentImage = {
+    /**
+     * Detail is the OpenAI detail hint (auto|low|high)
+     */
+    detail?: string;
+    /**
+     * URL is the image URL or data URI
+     */
+    url?: string;
+};
+
+export type LlmapiMessageContentPart = {
+    image_url?: LlmapiMessageContentImage;
+    /**
+     * Text holds the text content when Type=text
+     */
+    text?: string;
+    /**
+     * Type is the block type (`text` or `image_url`)
+     */
+    type?: string;
 };
 
 export type LlmapiModel = {
@@ -346,6 +467,85 @@ export type LlmapiModelsListResponse = {
  */
 export type LlmapiRole = string;
 
+/**
+ * ExtraFields contains additional metadata.
+ */
+export type LlmapiSearchExtraFields = {
+    /**
+     * RequestType is always "search".
+     */
+    request_type?: string;
+    /**
+     * SearchProvider is the search provider used (e.g., "perplexity", "google-pse").
+     */
+    search_provider?: string;
+};
+
+export type LlmapiSearchRequest = {
+    /**
+     * Country code filter (e.g., "US", "GB", "DE").
+     */
+    country?: string;
+    /**
+     * Maximum number of results to return (1-20). Default: 10.
+     */
+    max_results?: number;
+    /**
+     * Maximum tokens per page to process. Default: 1024.
+     */
+    max_tokens_per_page?: number;
+    /**
+     * Search query. Can be a single string or array of strings.
+     */
+    query?: Array<string>;
+    /**
+     * List of domains to filter results (max 20 domains).
+     */
+    search_domain_filter?: Array<string>;
+    /**
+     * The search provider to use.
+     */
+    search_tool_name?: string;
+};
+
+export type LlmapiSearchResponse = {
+    extra_fields?: LlmapiSearchExtraFields;
+    /**
+     * List of search results.
+     */
+    results?: Array<LlmapiSearchResult>;
+    usage?: LlmapiSearchUsage;
+};
+
+export type LlmapiSearchResult = {
+    /**
+     * Optional publication or last updated date.
+     */
+    date?: string;
+    /**
+     * Text snippet from the result.
+     */
+    snippet?: string;
+    /**
+     * Title of the search result.
+     */
+    title?: string;
+    /**
+     * URL of the search result.
+     */
+    url?: string;
+};
+
+/**
+ * Usage contains usage information.
+ */
+export type LlmapiSearchUsage = {
+    /**
+     * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
+     */
+    cost_micro_usd?: number;
+};
+
 export type ResponseErrorResponse = {
     error?: string;
 };
@@ -414,6 +614,42 @@ export type PostApiV1EmbeddingsResponses = {
 
 export type PostApiV1EmbeddingsResponse = PostApiV1EmbeddingsResponses[keyof PostApiV1EmbeddingsResponses];
 
+export type PostApiV1ImagesGenerationsData = {
+    /**
+     * Image generation request
+     */
+    body: LlmapiImageGenerationRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/images/generations';
+};
+
+export type PostApiV1ImagesGenerationsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+    /**
+     * Not Implemented
+     */
+    501: ResponseErrorResponse;
+};
+
+export type PostApiV1ImagesGenerationsError = PostApiV1ImagesGenerationsErrors[keyof PostApiV1ImagesGenerationsErrors];
+
+export type PostApiV1ImagesGenerationsResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiImageGenerationResponse;
+};
+
+export type PostApiV1ImagesGenerationsResponse = PostApiV1ImagesGenerationsResponses[keyof PostApiV1ImagesGenerationsResponses];
+
 export type GetApiV1ModelsData = {
     body?: never;
     path?: never;
@@ -455,6 +691,38 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
+
+export type PostApiV1SearchData = {
+    /**
+     * Search request
+     */
+    body: LlmapiSearchRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/search';
+};
+
+export type PostApiV1SearchErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SearchError = PostApiV1SearchErrors[keyof PostApiV1SearchErrors];
+
+export type PostApiV1SearchResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiSearchResponse;
+};
+
+export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
 
 export type GetHealthData = {
     body?: never;
