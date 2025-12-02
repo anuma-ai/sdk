@@ -266,15 +266,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         if (lastUserMessage?.content) {
           setIsSelectingTool(true);
 
+          // Extract text content from the message parts
+          const contentString =
+            lastUserMessage.content?.map((part) => part.text || "").join("") ||
+            "";
+
           try {
-            const selectionResult = await selectTool(
-              lastUserMessage.content,
-              tools,
-              {
-                model: toolSelectorModel,
-                signal: abortController.signal,
-              }
-            );
+            const selectionResult = await selectTool(contentString, tools, {
+              model: toolSelectorModel,
+              signal: abortController.signal,
+            });
 
             if (selectionResult.toolSelected && selectionResult.toolName) {
               const selectedTool = tools.find(
@@ -305,19 +306,29 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 ) {
                   const toolResultContext: LlmapiMessage = {
                     role: "system",
-                    content: `Tool "${
-                      toolExecutionResult.toolName
-                    }" was executed with the following result:\n${JSON.stringify(
-                      toolExecutionResult.result,
-                      null,
-                      2
-                    )}\n\nUse this information to respond to the user's request.`,
+                    content: [
+                      {
+                        type: "text",
+                        text: `Tool "${
+                          toolExecutionResult.toolName
+                        }" was executed with the following result:\n${JSON.stringify(
+                          toolExecutionResult.result,
+                          null,
+                          2
+                        )}\n\nUse this information to respond to the user's request.`,
+                      },
+                    ],
                   };
                   messagesWithToolContext = [...messages, toolResultContext];
                 } else if (toolExecutionResult.error) {
                   const toolErrorContext: LlmapiMessage = {
                     role: "system",
-                    content: `Tool "${toolExecutionResult.toolName}" was executed but encountered an error: ${toolExecutionResult.error}\n\nPlease inform the user about this issue and try to help them alternatively.`,
+                    content: [
+                      {
+                        type: "text",
+                        text: `Tool "${toolExecutionResult.toolName}" was executed but encountered an error: ${toolExecutionResult.error}\n\nPlease inform the user about this issue and try to help them alternatively.`,
+                      },
+                    ],
                   };
                   messagesWithToolContext = [...messages, toolErrorContext];
                 }
@@ -342,7 +353,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
           const formattedMessages = messagesWithToolContext.map((m) => ({
             role: m.role || "user",
-            content: m.content || "",
+            content: m.content?.map((p) => p.text || "").join("") || "",
           }));
 
           await generateLocalChatCompletion(formattedMessages, {
@@ -363,7 +374,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 index: 0,
                 message: {
                   role: "assistant",
-                  content: accumulatedContent,
+                  content: [{ type: "text", text: accumulatedContent }],
                 },
                 finish_reason: "stop",
               },
@@ -508,7 +519,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 index: 0,
                 message: {
                   role: "assistant",
-                  content: accumulatedContent,
+                  content: [{ type: "text", text: accumulatedContent }],
                 },
                 finish_reason: finishReason,
               },

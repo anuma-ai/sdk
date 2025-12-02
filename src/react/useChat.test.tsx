@@ -51,7 +51,7 @@ describe("useChat", () => {
 
     await act(async () => {
       response = await result.current.sendMessage({
-        messages: [{ role: "user", content: "Hi" }],
+        messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
         model: "gpt-3.5-turbo",
       });
     });
@@ -59,7 +59,7 @@ describe("useChat", () => {
     expect(client.sse.post).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          messages: [{ role: "user", content: "Hi" }],
+          messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
           model: "gpt-3.5-turbo",
           stream: true,
         }),
@@ -69,11 +69,11 @@ describe("useChat", () => {
     expect(response).toBeDefined();
     expect(response?.error).toBeNull();
     expect(response?.data).toBeDefined();
-    
+
     // Type guard: after the assertions above, we know this is the success case
     if (response && response.error === null && response.data) {
       const content = response.data.choices?.[0]?.message?.content;
-      expect(content).toBe("Hello world");
+      expect(content).toEqual([{ type: "text", text: "Hello world" }]);
     }
     expect(result.current.isLoading).toBe(false);
   });
