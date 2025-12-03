@@ -8,7 +8,7 @@ title: LlmapiModelPricing
 
 > **LlmapiModelPricing** = `object`
 
-Defined in: [types.gen.ts:298](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L298)
+Defined in: [types.gen.ts:419](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L419)
 
 Pricing contains the pricing structure for using this model
 
@@ -18,7 +18,7 @@ Pricing contains the pricing structure for using this model
 
 > `optional` **completion**: `string`
 
-Defined in: [types.gen.ts:299](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L299)
+Defined in: [types.gen.ts:420](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L420)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [types.gen.ts:299](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **image**: `string`
 
-Defined in: [types.gen.ts:300](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L300)
+Defined in: [types.gen.ts:421](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L421)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [types.gen.ts:300](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **prompt**: `string`
 
-Defined in: [types.gen.ts:301](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L301)
+Defined in: [types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L422)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [types.gen.ts:301](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **request**: `string`
 
-Defined in: [types.gen.ts:302](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L302)
+Defined in: [types.gen.ts:423](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L423)

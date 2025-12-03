@@ -8,7 +8,7 @@ title: PostApiV1EmbeddingsErrors
 
 > **PostApiV1EmbeddingsErrors** = `object`
 
-Defined in: [types.gen.ts:395](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L395)
+Defined in: [types.gen.ts:595](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L595)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:395](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [types.gen.ts:399](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L399)
+Defined in: [types.gen.ts:599](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L599)
 
 Bad Request
 
@@ -26,6 +26,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [types.gen.ts:403](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L403)
+Defined in: [types.gen.ts:603](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L603)
 
 Internal Server Error

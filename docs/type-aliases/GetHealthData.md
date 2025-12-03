@@ -8,7 +8,7 @@ title: GetHealthData
 
 > **GetHealthData** = `object`
 
-Defined in: [types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L459)
+Defined in: [types.gen.ts:727](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L727)
 
 ## Properties
 
@@ -16,7 +16,7 @@ Defined in: [types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **body**: `never`
 
-Defined in: [types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L460)
+Defined in: [types.gen.ts:728](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L728)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **path**: `never`
 
-Defined in: [types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L461)
+Defined in: [types.gen.ts:729](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L729)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > `optional` **query**: `never`
 
-Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L462)
+Defined in: [types.gen.ts:730](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L730)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > **url**: `"/health"`
 
-Defined in: [types.gen.ts:463](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L463)
+Defined in: [types.gen.ts:731](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L731)
