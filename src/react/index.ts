@@ -7,6 +7,7 @@ export {
 } from "./useEncryption";
 
 export { useMemory } from "./useMemory";
+export { usePdf } from "./usePdf";
 export { useModels } from "./useModels";
 export { useImageGeneration } from "./useImageGeneration";
 export {
