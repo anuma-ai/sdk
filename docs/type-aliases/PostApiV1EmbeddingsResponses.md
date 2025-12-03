@@ -8,7 +8,7 @@ title: PostApiV1EmbeddingsResponses
 
 > **PostApiV1EmbeddingsResponses** = `object`
 
-Defined in: [types.gen.ts:408](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L408)
+Defined in: [types.gen.ts:608](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L608)
 
 ## Properties
 
@@ -16,6 +16,6 @@ Defined in: [types.gen.ts:408](https://github.com/zeta-chain/ai-sdk/blob/5213c99
 
 > **200**: [`LlmapiEmbeddingResponse`](LlmapiEmbeddingResponse.md)
 
-Defined in: [types.gen.ts:412](https://github.com/zeta-chain/ai-sdk/blob/5213c99afc802a0b2f67e118eea280a5c0810a9a/src/client/types.gen.ts#L412)
+Defined in: [types.gen.ts:612](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L612)
 
 OK
