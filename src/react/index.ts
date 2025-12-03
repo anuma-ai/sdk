@@ -8,6 +8,7 @@ export {
 
 export { useMemory } from "./useMemory";
 export { usePdf } from "./usePdf";
+export type { PdfFile } from "./usePdf";
 export { useModels } from "./useModels";
 export { useImageGeneration } from "./useImageGeneration";
 export {

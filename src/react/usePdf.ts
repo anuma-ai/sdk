@@ -1,16 +1,21 @@
 import { useCallback, useState } from "react";
-import type { FileUIPart } from "ai";
 
 import { extractTextFromPdf } from "../lib/pdf";
 
 const PDF_MIME_TYPE = "application/pdf";
+
+export interface PdfFile {
+  url: string;
+  mediaType?: string;
+  filename?: string;
+}
 
 export function usePdf() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const extractPdfContext = useCallback(
-    async (files: FileUIPart[]): Promise<string | null> => {
+    async (files: PdfFile[]): Promise<string | null> => {
       setIsProcessing(true);
       setError(null);
 
@@ -27,10 +32,6 @@ export function usePdf() {
 
         const contexts = await Promise.all(
           pdfFiles.map(async (file) => {
-            if (!file.url) {
-              return null;
-            }
-
             try {
               const text = await extractTextFromPdf(file.url);
 
