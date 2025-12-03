@@ -1,30 +1,9 @@
-// Load pdfjs from CDN to avoid webpack bundling issues
-let pdfjsLib: any = null;
+import * as pdfjs from "pdfjs-dist";
 
-async function loadPdfJs(): Promise<any> {
-  if (pdfjsLib) return pdfjsLib;
-
-  // Load the library from CDN
-  const script = document.createElement("script");
-  script.src = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js";
-
-  await new Promise<void>((resolve, reject) => {
-    script.onload = () => resolve();
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-
-  // @ts-ignore
-  pdfjsLib = window.pdfjsLib;
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-
-  return pdfjsLib;
-}
+// Configure worker - using CDN to avoid bundler-specific worker configuration
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
-  const pdfjs = await loadPdfJs();
-
   try {
     const loadingTask = pdfjs.getDocument(pdfDataUrl);
     const pdf = await loadingTask.promise;
@@ -53,8 +32,6 @@ export async function convertPdfToImages(
   pdfDataUrl: string
 ): Promise<string[]> {
   const images: string[] = [];
-
-  const pdfjs = await loadPdfJs();
 
   try {
     const loadingTask = pdfjs.getDocument(pdfDataUrl);

@@ -58,7 +58,8 @@
   "dependencies": {
     "@huggingface/transformers": "^3.8.0",
     "@reverbia/portal": "1.0.0-next.20251201184846",
-    "ai": "5.0.93"
+    "ai": "5.0.93",
+    "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
