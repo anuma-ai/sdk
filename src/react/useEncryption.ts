@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useSignMessage, useWallets } from "@privy-io/react-auth";
-
 const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
-const SIGNATURE_STORAGE_KEY = "privy_encryption_key";
+const BASE_SIGNATURE_STORAGE_KEY = "privy_encryption_key";
 
+/**
+ * Gets the storage key for a specific wallet address
+ * @param address - The wallet address
+ * @returns The storage key
+ */
+function getStorageKey(address: string): string {
+  return `${BASE_SIGNATURE_STORAGE_KEY}_${address}`;
+}
 /**
  * Safely gets an item from localStorage, handling SSR environments
  * @param key - The storage key
@@ -83,8 +88,9 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
 /**
  * Gets the encryption key from localStorage and imports it as a CryptoKey
  */
-async function getEncryptionKey(): Promise<CryptoKey> {
-  const keyHex = getStorageItem(SIGNATURE_STORAGE_KEY);
+async function getEncryptionKey(address: string): Promise<CryptoKey> {
+  const storageKey = getStorageKey(address);
+  const keyHex = getStorageItem(storageKey);
   if (!keyHex) {
     throw new Error("Encryption key not found. Please sign in first.");
   }
@@ -107,9 +113,10 @@ async function getEncryptionKey(): Promise<CryptoKey> {
  * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
  */
 export async function encryptData(
-  plaintext: string | Uint8Array
+  plaintext: string | Uint8Array,
+  address: string
 ): Promise<string> {
-  const key = await getEncryptionKey();
+  const key = await getEncryptionKey(address);
 
   // Convert plaintext to Uint8Array if it's a string
   const plaintextBytes =
@@ -145,8 +152,11 @@ export async function encryptData(
  * @param encryptedHex - Encrypted data as hex string (IV + ciphertext + auth tag)
  * @returns Decrypted data as string
  */
-export async function decryptData(encryptedHex: string): Promise<string> {
-  const key = await getEncryptionKey();
+export async function decryptData(
+  encryptedHex: string,
+  address: string
+): Promise<string> {
+  const key = await getEncryptionKey(address);
 
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
@@ -175,9 +185,10 @@ export async function decryptData(encryptedHex: string): Promise<string> {
  * @returns Decrypted data as Uint8Array
  */
 export async function decryptDataBytes(
-  encryptedHex: string
+  encryptedHex: string,
+  address: string
 ): Promise<Uint8Array> {
-  const key = await getEncryptionKey();
+  const key = await getEncryptionKey(address);
 
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
@@ -199,65 +210,60 @@ export async function decryptDataBytes(
   return new Uint8Array(decryptedData);
 }
 
-export function useEncryption(authenticated: boolean) {
-  const { signMessage } = useSignMessage();
-  const { wallets } = useWallets();
-  const hasRequestedSignature = useRef(false);
-  const hasCheckedStorage = useRef(false);
-
-  useEffect(() => {
-    // Early return if not authenticated or no wallets
-    if (!authenticated || wallets.length === 0) {
-      return;
-    }
-
-    // Always check localStorage first - if key exists, don't request again
-    const existingKey = getStorageItem(SIGNATURE_STORAGE_KEY);
-    if (existingKey) {
-      if (!hasCheckedStorage.current) {
-        hasCheckedStorage.current = true;
-      }
-      return;
-    }
-
-    // Request signature if we haven't already requested in this session
-    const requestSignature = async () => {
-      if (!hasRequestedSignature.current) {
-        hasRequestedSignature.current = true;
-        try {
-          const { signature } = await signMessage(
-            { message: SIGN_MESSAGE },
-            {
-              address: wallets[0].address,
-            }
-          );
-
-          // Derive encryption key from signature
-          const encryptionKey = await deriveKeyFromSignature(signature);
-
-          // Store the derived key (not the raw signature) in localStorage
-          const stored = setStorageItem(SIGNATURE_STORAGE_KEY, encryptionKey);
-          if (!stored) {
-            throw new Error("Failed to store encryption key in localStorage");
-          }
-        } catch (error) {
-          hasRequestedSignature.current = false; // Reset on error so user can retry
-        }
-      }
-    };
-
-    requestSignature();
-  }, [
-    authenticated,
-    wallets.length > 0 ? wallets[0]?.address : null,
-    signMessage,
-  ]);
-
-  // Reset the refs when user logs out
-  useEffect(() => {
-    if (!authenticated) {
-      hasRequestedSignature.current = false;
-      hasCheckedStorage.current = false;
-    }
-  }, [authenticated]);
+/**
+ * Checks if an encryption key exists for the given wallet address
+ */
+export function hasEncryptionKey(address: string): boolean {
+  const storageKey = getStorageKey(address);
+  return getStorageItem(storageKey) !== null;
 }
+
+/**
+ * Type for the signMessage function that client must provide
+ */
+export type SignMessageFn = (message: string) => Promise<string>;
+
+/**
+ * Requests the user to sign a message to generate an encryption key.
+ * If a key already exists for the given wallet, resolves immediately.
+ * @param walletAddress - The wallet address to generate the key for
+ * @param signMessage - Function to sign a message (returns signature hex string)
+ * @returns Promise that resolves when the key is available
+ */
+export async function requestEncryptionKey(
+  walletAddress: string,
+  signMessage: SignMessageFn
+): Promise<void> {
+  const storageKey = getStorageKey(walletAddress);
+
+  // Check if key already exists
+  const existingKey = getStorageItem(storageKey);
+  if (existingKey) {
+    return; // Key already exists, no need to sign again
+  }
+
+  // Request signature from user
+  const signature = await signMessage(SIGN_MESSAGE);
+
+  // Derive encryption key from signature
+  const encryptionKey = await deriveKeyFromSignature(signature);
+
+  // Store the derived key in localStorage
+  const stored = setStorageItem(storageKey, encryptionKey);
+  if (!stored) {
+    throw new Error("Failed to store encryption key in localStorage");
+  }
+}
+
+/**
+ * Hook that provides on-demand encryption key management.
+ * @param signMessage - Function to sign a message (from Privy's useSignMessage)
+ * @returns Functions to request encryption keys
+ */
+export function useEncryption(signMessage: SignMessageFn) {
+  return {
+    requestEncryptionKey: (walletAddress: string) =>
+      requestEncryptionKey(walletAddress, signMessage),
+  };
+}
+
