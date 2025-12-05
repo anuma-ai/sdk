@@ -15,9 +15,24 @@
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
+      "react-native": "./dist/react/index.mjs",
       "import": "./dist/react/index.mjs",
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
+    },
+    "./expo": {
+      "types": "./dist/expo/index.d.ts",
+      "react-native": "./dist/expo/index.mjs",
+      "import": "./dist/expo/index.mjs",
+      "require": "./dist/expo/index.cjs",
+      "default": "./dist/expo/index.cjs"
+    },
+    "./polyfills": {
+      "types": "./dist/polyfills/index.d.ts",
+      "react-native": "./dist/polyfills/index.mjs",
+      "import": "./dist/polyfills/index.mjs",
+      "require": "./dist/polyfills/index.cjs",
+      "default": "./dist/polyfills/index.cjs"
     },
     "./vercel": {
       "types": "./dist/vercel/index.d.ts",
@@ -80,7 +95,22 @@
     "@privy-io/react-auth": "^3.7.0",
     "dexie": "^4.2.1",
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-native": ">=0.70.0"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "@privy-io/react-auth": {
+      "optional": true
+    },
+    "dexie": {
+      "optional": true
+    }
   },
   "pnpm": {
     "overrides": {

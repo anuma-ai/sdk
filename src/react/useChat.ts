@@ -2,18 +2,49 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Import polyfills for React Native compatibility (TextDecoderStream, etc.)
+import "../lib/polyfills";
+
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
-import { generateLocalChatCompletion } from "../lib/chat/generation";
-import { DEFAULT_LOCAL_CHAT_MODEL } from "../lib/chat/constants";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
-import {
-  selectTool,
-  executeTool,
-  preloadToolSelectorModel,
-  DEFAULT_TOOL_SELECTOR_MODEL,
-} from "../lib/tools/selector";
+
+// Detect React Native environment
+const isReactNative =
+  typeof navigator !== "undefined" && navigator.product === "ReactNative";
+
+// Web-only features container (not available in React Native)
+// These use dynamic imports to avoid bundling issues in React Native
+type WebFeatures = {
+  generateLocalChatCompletion: typeof import("../lib/chat/generation").generateLocalChatCompletion;
+  DEFAULT_LOCAL_CHAT_MODEL: string;
+  selectTool: typeof import("../lib/tools/selector").selectTool;
+  executeTool: typeof import("../lib/tools/selector").executeTool;
+  preloadToolSelectorModel: typeof import("../lib/tools/selector").preloadToolSelectorModel;
+  DEFAULT_TOOL_SELECTOR_MODEL: string;
+};
+
+let webFeatures: WebFeatures | null = null;
+
+// Only load web-specific features when not in React Native
+const webFeaturesPromise: Promise<WebFeatures | null> = isReactNative
+  ? Promise.resolve(null)
+  : Promise.all([
+      import("../lib/chat/generation"),
+      import("../lib/chat/constants"),
+      import("../lib/tools/selector"),
+    ]).then(([generation, constants, selector]) => {
+      webFeatures = {
+        generateLocalChatCompletion: generation.generateLocalChatCompletion,
+        DEFAULT_LOCAL_CHAT_MODEL: constants.DEFAULT_LOCAL_CHAT_MODEL,
+        selectTool: selector.selectTool,
+        executeTool: selector.executeTool,
+        preloadToolSelectorModel: selector.preloadToolSelectorModel,
+        DEFAULT_TOOL_SELECTOR_MODEL: selector.DEFAULT_TOOL_SELECTOR_MODEL,
+      };
+      return webFeatures;
+    });
 
 type SendMessageArgs = {
   messages: LlmapiMessage[];
@@ -196,13 +227,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     chatProvider = "api",
-    localModel = DEFAULT_LOCAL_CHAT_MODEL,
+    localModel,
     tools,
-    toolSelectorModel = DEFAULT_TOOL_SELECTOR_MODEL,
+    toolSelectorModel,
     onToolExecution,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingTool, setIsSelectingTool] = useState(false);
+  const [webFeaturesLoaded, setWebFeaturesLoaded] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const stop = useCallback(() => {
@@ -222,13 +254,28 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     };
   }, []);
 
-  // Preload tool selector model when tools are configured
+  // Load web features (local chat, tools) if not in React Native
+  useEffect(() => {
+    webFeaturesPromise?.then((loaded) => {
+      if (loaded) setWebFeaturesLoaded(true);
+    });
+  }, []);
+
+  // Preload tool selector model when tools are configured (web only)
   // The preload function handles deduplication at module level
   useEffect(() => {
-    if (tools && tools.length > 0) {
-      preloadToolSelectorModel({ model: toolSelectorModel });
+    if (
+      !isReactNative &&
+      webFeaturesLoaded &&
+      webFeatures &&
+      tools &&
+      tools.length > 0
+    ) {
+      webFeatures.preloadToolSelectorModel({
+        model: toolSelectorModel || webFeatures.DEFAULT_TOOL_SELECTOR_MODEL,
+      });
     }
-  }, [tools, toolSelectorModel]);
+  }, [tools, toolSelectorModel, webFeaturesLoaded]);
 
   const sendMessage = useCallback(
     async ({
@@ -253,11 +300,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       setIsLoading(true);
 
-      // Tool selection and execution
+      // Tool selection and execution (web only - requires @huggingface/transformers)
       let toolExecutionResult: ToolExecutionResult | undefined;
       let messagesWithToolContext = messages;
 
-      if (runTools && tools && tools.length > 0) {
+      // Only run tool selection if:
+      // 1. Not in React Native
+      // 2. Web features are loaded
+      // 3. Tools are configured
+      // 4. runTools is enabled
+      const canRunTools =
+        !isReactNative &&
+        webFeaturesLoaded &&
+        webFeatures !== null &&
+        runTools &&
+        tools &&
+        tools.length > 0;
+
+      if (canRunTools && webFeatures) {
         // Get the last user message for tool selection
         const lastUserMessage = [...messages]
           .reverse()
@@ -272,10 +332,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             "";
 
           try {
-            const selectionResult = await selectTool(contentString, tools, {
-              model: toolSelectorModel,
-              signal: abortController.signal,
-            });
+            const selectionResult = await webFeatures.selectTool(
+              contentString,
+              tools,
+              {
+                model:
+                  toolSelectorModel || webFeatures.DEFAULT_TOOL_SELECTOR_MODEL,
+                signal: abortController.signal,
+              }
+            );
 
             if (selectionResult.toolSelected && selectionResult.toolName) {
               const selectedTool = tools.find(
@@ -283,7 +348,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               );
 
               if (selectedTool) {
-                const execResult = await executeTool(
+                const execResult = await webFeatures.executeTool(
                   selectedTool,
                   selectionResult.parameters || {}
                 );
@@ -345,9 +410,22 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       try {
         if (chatProvider === "local") {
+          // Local chat provider is not available in React Native
+          if (isReactNative || !webFeaturesLoaded || !webFeatures) {
+            const errorMsg =
+              'Local chat provider is not available in React Native. Use chatProvider: "api" instead.';
+            setIsLoading(false);
+            if (onError) onError(new Error(errorMsg));
+            return {
+              data: null,
+              error: errorMsg,
+              toolExecution: toolExecutionResult,
+            };
+          }
+
           let accumulatedContent = "";
           // For local provider, always use localModel (ignore the model param which is for API)
-          const usedModel = localModel;
+          const usedModel = localModel || webFeatures.DEFAULT_LOCAL_CHAT_MODEL;
 
           // Convert messages to format expected by transformers.js if needed
           // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
@@ -356,7 +434,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             content: m.content?.map((p) => p.text || "").join("") || "",
           }));
 
-          await generateLocalChatCompletion(formattedMessages, {
+          await webFeatures.generateLocalChatCompletion(formattedMessages, {
             model: usedModel,
             signal: abortController.signal,
             onToken: (token) => {
@@ -583,6 +661,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       tools,
       toolSelectorModel,
       onToolExecution,
+      webFeaturesLoaded,
     ]
   );
 
