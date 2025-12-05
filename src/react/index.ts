@@ -1,10 +1,13 @@
 export { useChat } from "./useChat";
 export {
   useEncryption,
+  requestEncryptionKey,
+  hasEncryptionKey,
   encryptData,
   decryptData,
   decryptDataBytes,
 } from "./useEncryption";
+export type { SignMessageFn } from "./useEncryption";
 
 export { useMemory } from "./useMemory";
 export { usePdf } from "./usePdf";
