@@ -37,35 +37,74 @@ Best tool:`;
 }
 
 /**
- * Extract parameters heuristically from user message based on tool schema.
- * Since tiny models can't reliably extract params, we do it ourselves.
+ * Build a prompt to extract a parameter value from user message.
  */
-function extractParams(
+function buildParamExtractionPrompt(
   userMessage: string,
-  tool: ClientTool
-): Record<string, unknown> {
+  paramName: string,
+  paramDescription?: string
+): string {
+  const desc = paramDescription ? ` (${paramDescription})` : "";
+  return `Extract the value for "${paramName}"${desc} from the user message. Reply with ONLY the extracted value, nothing else.
+
+User message: "${userMessage}"
+
+Value for ${paramName}:`;
+}
+
+/**
+ * Extract parameters from user message using the model.
+ */
+async function extractParams(
+  userMessage: string,
+  tool: ClientTool,
+  options: { model: string; device: "webgpu" | "wasm" | "cpu" }
+): Promise<Record<string, unknown>> {
   const params: Record<string, unknown> = {};
 
-  if (!tool.parameters) return params;
+  if (!tool.parameters || tool.parameters.length === 0) return params;
 
-  for (const param of tool.parameters) {
-    // Simple heuristics based on common param types
-    if (param.name === "expression" || param.name === "query") {
-      // For math/search, the whole message is likely the expression
-      params[param.name] = userMessage;
-    } else if (param.name === "location" || param.name === "city") {
-      // For location-based tools, try to extract a location
-      // Simple heuristic: use the whole message if it's short, or look for capitalized words
-      const words = userMessage.split(/\s+/);
-      const capitalizedWords = words.filter(
-        (w) => w.length > 1 && w[0] === w[0].toUpperCase()
+  const { model, device } = options;
+
+  try {
+    const pipeline = await getTextGenerationPipeline({
+      model,
+      device,
+      dtype: "q4",
+    });
+
+    // Extract each parameter using the model
+    for (const param of tool.parameters) {
+      const prompt = buildParamExtractionPrompt(
+        userMessage,
+        param.name,
+        param.description
       );
-      params[param.name] =
-        capitalizedWords.length > 0 ? capitalizedWords.join(" ") : userMessage;
-    } else if (param.name === "text" || param.name === "input") {
-      params[param.name] = userMessage;
-    } else {
-      // Default: pass the user message
+
+      const output = await pipeline(prompt, {
+        max_new_tokens: 32, // Allow reasonable length for parameter values
+        temperature: 0,
+        do_sample: false,
+        return_full_text: false,
+      });
+
+      const generatedText =
+        output?.[0]?.generated_text || output?.generated_text || "";
+
+      // Clean up the extracted value
+      const extractedValue = generatedText.trim().split("\n")[0].trim();
+
+      console.log(
+        `[Tool Selector] Extracted param "${param.name}":`,
+        extractedValue
+      );
+
+      params[param.name] = extractedValue || userMessage;
+    }
+  } catch (error) {
+    console.error("[Tool Selector] Error extracting params:", error);
+    // Fallback: use user message for all params
+    for (const param of tool.parameters) {
       params[param.name] = userMessage;
     }
   }
@@ -77,11 +116,12 @@ function extractParams(
  * Parse the model's response to extract tool name.
  * Expects just the tool name, no JSON.
  */
-function parseToolSelectionResponse(
+async function parseToolSelectionResponse(
   response: string,
   tools: ClientTool[],
-  userMessage: string
-): ToolSelectionResult {
+  userMessage: string,
+  options: { model: string; device: "webgpu" | "wasm" | "cpu" }
+): Promise<ToolSelectionResult> {
   console.log("[Tool Selector] Raw response:", response);
 
   // Clean up the response - just get the first word/token
@@ -112,7 +152,7 @@ function parseToolSelectionResponse(
 
     if (fuzzyTool) {
       console.log(`[Tool Selector] Fuzzy matched tool: ${fuzzyTool.name}`);
-      const params = extractParams(userMessage, fuzzyTool);
+      const params = await extractParams(userMessage, fuzzyTool, options);
       return {
         toolSelected: true,
         toolName: fuzzyTool.name,
@@ -125,8 +165,8 @@ function parseToolSelectionResponse(
     return { toolSelected: false };
   }
 
-  // Extract parameters heuristically
-  const params = extractParams(userMessage, selectedTool);
+  // Extract parameters using the model
+  const params = await extractParams(userMessage, selectedTool, options);
 
   console.log(`[Tool Selector] Selected tool: ${selectedTool.name}`, params);
   return {
@@ -185,7 +225,10 @@ export async function selectTool(
     const generatedText =
       output?.[0]?.generated_text || output?.generated_text || "";
 
-    return parseToolSelectionResponse(generatedText, tools, userMessage);
+    return await parseToolSelectionResponse(generatedText, tools, userMessage, {
+      model,
+      device,
+    });
   } catch (error) {
     console.error("[Tool Selector] Error:", error);
     return { toolSelected: false };
