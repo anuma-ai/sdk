@@ -12,6 +12,8 @@ export type { SignMessageFn } from "./useEncryption";
 export { useMemory } from "./useMemory";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
+export { useOCR } from "./useOCR";
+export type { OCRFile } from "./useOCR";
 export { useModels } from "./useModels";
 export { useSearch } from "./useSearch";
 export { useImageGeneration } from "./useImageGeneration";
