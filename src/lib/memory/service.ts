@@ -16,9 +16,11 @@ export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extra
 
 CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON.
 
-Only extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, and constraints.
+Only store clear, factual statements that might be relevant for future context or reference. Extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, locations, favorites, and constraints.
 
 Do not extract sensitive attributes, temporary things, or single-use instructions.
+
+You must also extract stable personal preferences, including food likes/dislikes, hobbies, favorite items, favorite genres, or other enduring tastes. 
 
 If there are no memories to extract, return: {"items": []}
 
@@ -45,6 +47,24 @@ Response format (JSON only, no other text):
       "pii": false
     },
     {
+      "type": "identity",
+      "namespace": "location",
+      "key": "city",
+      "value": "San Francisco",
+      "rawEvidence": "I live in San Francisco",
+      "confidence": 0.99,
+      "pii": false
+    },
+    {
+      "type": "preference",
+      "namespace": "location",
+      "key": "country",
+      "value": "Japan",
+      "rawEvidence": "I like to travel to the Japan",
+      "confidence": 0.94,
+      "pii": false
+    },
+    {
       "type": "preference",
       "namespace": "answer_style",
       "key": "verbosity",
@@ -60,6 +80,15 @@ Response format (JSON only, no other text):
       "value": "America/Los_Angeles",
       "rawEvidence": "I'm in PST",
       "confidence": 0.9,
+      "pii": false
+    },
+    {
+      "type": "preference",
+      "namespace": "food",
+      "key": "likes_ice_cream",
+      "value": "ice cream",
+      "rawEvidence": "I like ice cream",
+      "confidence": 0.95,
       "pii": false
     }
   ]
