@@ -52,7 +52,7 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react", "@privy-io/react-auth"],
+    external: ["react", "@privy-io/react-auth", "@huggingface/transformers"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
@@ -68,7 +68,6 @@ export default defineConfig([
         },
       },
     ],
-    noExternal: ["@huggingface/transformers", "onnxruntime-node", "sharp"],
   },
   {
     entry: ["src/vercel/index.ts"],

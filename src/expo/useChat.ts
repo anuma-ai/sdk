@@ -3,81 +3,72 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BASE_URL } from "../clientConfig";
-import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionUsage,
-  LlmapiMessage,
-} from "../client";
+import {
+  type BaseSendMessageArgs,
+  type BaseSendMessageResult,
+  type BaseUseChatOptions,
+  type BaseUseChatResult,
+  type StreamAccumulator,
+  type StreamingChunk,
+  createStreamAccumulator,
+  validateMessages,
+  validateModel,
+  validateTokenGetter,
+  validateToken,
+  buildCompletionResponse,
+  createErrorResult,
+  handleError,
+  parseSSEDataLine,
+} from "../lib/chat/useChat";
 
-type SendMessageArgs = {
-  messages: LlmapiMessage[];
-  model?: string;
-  /**
-   * Per-request callback for data chunks. Called in addition to the global
-   * `onData` callback if provided in `useChat` options.
-   *
-   * @param chunk - The content delta from the current chunk
-   */
-  onData?: (chunk: string) => void;
-};
+type SendMessageArgs = BaseSendMessageArgs;
 
-type SendMessageResult =
-  | {
-      data: LlmapiChatCompletionResponse;
-      error: null;
-    }
-  | { data: null; error: string };
+type SendMessageResult = BaseSendMessageResult;
 
-type UseChatOptions = {
-  getToken?: () => Promise<string | null>;
-  baseUrl?: string;
-  /**
-   * Callback function to be called when a new data chunk is received.
-   */
-  onData?: (chunk: string) => void;
-  /**
-   * Callback function to be called when the chat completion finishes successfully.
-   */
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
-  /**
-   * Callback function to be called when an unexpected error is encountered.
-   *
-   * **Note:** This callback is NOT called for aborted requests (via `stop()` or
-   * component unmount). Aborts are intentional actions and are not considered
-   * errors. To detect aborts, check the `error` field in the `sendMessage` result:
-   * `result.error === "Request aborted"`.
-   *
-   * @param error - The error that occurred (never an AbortError)
-   */
-  onError?: (error: Error) => void;
-};
+type UseChatOptions = BaseUseChatOptions;
 
-type UseChatResult = {
-  isLoading: boolean;
+type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
-  /**
-   * Aborts the current streaming request if one is in progress.
-   *
-   * When a request is aborted, `sendMessage` will return with
-   * `{ data: null, error: "Request aborted" }`. The `onError` callback
-   * will NOT be called, as aborts are intentional actions, not errors.
-   */
-  stop: () => void;
 };
 
-type StreamingChunk = {
-  id?: string;
-  model?: string;
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      role?: string;
-    };
-    finish_reason?: string;
-    index?: number;
-  }>;
-  usage?: LlmapiChatCompletionResponse["usage"];
-};
+/**
+ * Processes SSE lines and updates the accumulator
+ * Returns true if any content was processed
+ */
+function processSSELines(
+  lines: string[],
+  accumulator: StreamAccumulator,
+  onData?: (chunk: string) => void,
+  globalOnData?: (chunk: string) => void
+): void {
+  for (const line of lines) {
+    const chunk = parseSSEDataLine(line);
+    if (!chunk) continue;
+
+    if (chunk.id && !accumulator.completionId) {
+      accumulator.completionId = chunk.id;
+    }
+    if (chunk.model && !accumulator.completionModel) {
+      accumulator.completionModel = chunk.model;
+    }
+    if (chunk.usage) {
+      accumulator.usage = { ...accumulator.usage, ...chunk.usage };
+    }
+
+    if (chunk.choices?.[0]) {
+      const choice = chunk.choices[0];
+      if (choice.delta?.content) {
+        const content = choice.delta.content;
+        accumulator.content += content;
+        if (onData) onData(content);
+        if (globalOnData) globalOnData(content);
+      }
+      if (choice.finish_reason) {
+        accumulator.finishReason = choice.finish_reason;
+      }
+    }
+  }
+}
 
 /**
  * A React hook for managing chat completions with authentication.
@@ -148,22 +139,20 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       model,
       onData,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      if (!messages?.length) {
-        const errorMsg = "messages are required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
+      // Validate inputs
+      const messagesValidation = validateMessages(messages);
+      if (!messagesValidation.valid) {
+        return createErrorResult(messagesValidation.message, onError);
       }
 
-      if (!model) {
-        const errorMsg = "model is required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
+      const modelValidation = validateModel(model);
+      if (!modelValidation.valid) {
+        return createErrorResult(modelValidation.message, onError);
       }
 
-      if (!getToken) {
-        const errorMsg = "Token getter function is required.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
+      const tokenGetterValidation = validateTokenGetter(getToken);
+      if (!tokenGetterValidation.valid) {
+        return createErrorResult(tokenGetterValidation.message, onError);
       }
 
       // Abort any pending request
@@ -177,13 +166,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       setIsLoading(true);
 
       try {
-        const token = await getToken();
+        const token = await getToken!();
 
-        if (!token) {
-          const errorMsg = "No access token available.";
+        const tokenValidation = validateToken(token);
+        if (!tokenValidation.valid) {
           setIsLoading(false);
-          if (onError) onError(new Error(errorMsg));
-          return { data: null, error: errorMsg };
+          return createErrorResult(tokenValidation.message, onError);
         }
 
         // Use XMLHttpRequest for streaming in React Native
@@ -192,11 +180,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           const xhr = new XMLHttpRequest();
           const url = `${baseUrl}/api/v1/chat/completions`;
 
-          let accumulatedContent = "";
-          let completionId = "";
-          let completionModel = "";
-          let accumulatedUsage: Partial<LlmapiChatCompletionUsage> = {};
-          let finishReason: string | undefined;
+          const accumulator = createStreamAccumulator();
           let lastProcessedIndex = 0;
           // Buffer for incomplete lines that span across XHR progress events
           let incompleteLineBuffer = "";
@@ -230,41 +214,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               incompleteLineBuffer = lines.pop() || "";
             }
 
-            for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const data = line.substring(6).trim();
-                if (data === "[DONE]") continue;
-
-                try {
-                  const chunk = JSON.parse(data) as StreamingChunk;
-
-                  if (chunk.id && !completionId) {
-                    completionId = chunk.id;
-                  }
-                  if (chunk.model && !completionModel) {
-                    completionModel = chunk.model;
-                  }
-                  if (chunk.usage) {
-                    accumulatedUsage = { ...accumulatedUsage, ...chunk.usage };
-                  }
-
-                  if (chunk.choices?.[0]) {
-                    const choice = chunk.choices[0];
-                    if (choice.delta?.content) {
-                      const content = choice.delta.content;
-                      accumulatedContent += content;
-                      if (onData) onData(content);
-                      if (globalOnData) globalOnData(content);
-                    }
-                    if (choice.finish_reason) {
-                      finishReason = choice.finish_reason;
-                    }
-                  }
-                } catch {
-                  // Ignore parse errors for incomplete chunks
-                }
-              }
-            }
+            processSSELines(lines, accumulator, onData, globalOnData);
           };
 
           xhr.onload = () => {
@@ -272,66 +222,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Process any remaining data in the buffer
             if (incompleteLineBuffer) {
-              const line = incompleteLineBuffer.trim();
-              if (line.startsWith("data: ")) {
-                const data = line.substring(6).trim();
-                if (data !== "[DONE]") {
-                  try {
-                    const chunk = JSON.parse(data) as StreamingChunk;
-
-                    if (chunk.id && !completionId) {
-                      completionId = chunk.id;
-                    }
-                    if (chunk.model && !completionModel) {
-                      completionModel = chunk.model;
-                    }
-                    if (chunk.usage) {
-                      accumulatedUsage = {
-                        ...accumulatedUsage,
-                        ...chunk.usage,
-                      };
-                    }
-
-                    if (chunk.choices?.[0]) {
-                      const choice = chunk.choices[0];
-                      if (choice.delta?.content) {
-                        const content = choice.delta.content;
-                        accumulatedContent += content;
-                        if (onData) onData(content);
-                        if (globalOnData) globalOnData(content);
-                      }
-                      if (choice.finish_reason) {
-                        finishReason = choice.finish_reason;
-                      }
-                    }
-                  } catch {
-                    // Ignore parse errors
-                  }
-                }
-              }
+              processSSELines(
+                [incompleteLineBuffer.trim()],
+                accumulator,
+                onData,
+                globalOnData
+              );
               incompleteLineBuffer = "";
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
-              const completion: LlmapiChatCompletionResponse = {
-                id: completionId,
-                model: completionModel,
-                choices: [
-                  {
-                    index: 0,
-                    message: {
-                      role: "assistant",
-                      content: [{ type: "text", text: accumulatedContent }],
-                    },
-                    finish_reason: finishReason,
-                  },
-                ],
-                usage:
-                  Object.keys(accumulatedUsage).length > 0
-                    ? (accumulatedUsage as LlmapiChatCompletionResponse["usage"])
-                    : undefined,
-              };
-
+              const completion = buildCompletionResponse(accumulator);
               setIsLoading(false);
               if (onFinish) onFinish(completion);
               resolve({ data: completion, error: null });
@@ -368,15 +269,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         return result;
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : "Failed to send message.";
-        const errorObj = err instanceof Error ? err : new Error(errorMsg);
-
         setIsLoading(false);
-        if (onError) {
-          onError(errorObj);
-        }
-        return { data: null, error: errorMsg };
+        return handleError(err, onError);
       } finally {
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
