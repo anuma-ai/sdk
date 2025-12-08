@@ -45,11 +45,11 @@ export type LlmapiChatCompletionRequest = {
     /**
      * Messages is the conversation history
      */
-    messages?: Array<LlmapiMessage>;
+    messages: Array<LlmapiMessage>;
     /**
      * Model is the model identifier
      */
-    model?: string;
+    model: string;
     /**
      * Stream indicates if response should be streamed
      */
@@ -160,11 +160,11 @@ export type LlmapiEmbeddingRequest = {
     /**
      * Input text or tokens to embed (can be string, []string, []int, or [][]int)
      */
-    input?: unknown;
+    input: unknown;
     /**
      * Model identifier in 'provider/model' format
      */
-    model?: string;
+    model: string;
 };
 
 export type LlmapiEmbeddingResponse = {
@@ -235,11 +235,11 @@ export type LlmapiImageGenerationRequest = {
     /**
      * Model is the model identifier to use for generation (e.g., "gpt-image-1").
      */
-    model?: string;
+    model: string;
     /**
      * Prompt is the text description of the desired image.
      */
-    prompt?: string;
+    prompt: string;
     /**
      * Quality targets a quality preset (e.g., "auto", "high").
      */
@@ -497,7 +497,7 @@ export type LlmapiSearchRequest = {
     /**
      * Search query. Can be a single string or array of strings.
      */
-    query?: Array<string>;
+    query: Array<string>;
     /**
      * List of domains to filter results (max 20 domains).
      */
@@ -505,7 +505,7 @@ export type LlmapiSearchRequest = {
     /**
      * The search provider to use.
      */
-    search_tool_name?: string;
+    search_tool_name: string;
 };
 
 export type LlmapiSearchResponse = {
