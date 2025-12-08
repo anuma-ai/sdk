@@ -2,60 +2,37 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Import polyfills for React Native compatibility (TextDecoderStream, etc.)
-import "../lib/polyfills";
-
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
 import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
+import {
+  type BaseSendMessageArgs,
+  type BaseUseChatOptions,
+  type BaseUseChatResult,
+  type StreamingChunk,
+  createStreamAccumulator,
+  validateMessages,
+  validateModel,
+  validateTokenGetter,
+  validateToken,
+  buildCompletionResponse,
+  processStreamingChunk,
+  createErrorResult,
+  handleError,
+  isAbortError,
+  isDoneMarker,
+} from "../lib/chat/useChat";
+import { generateLocalChatCompletion } from "../lib/chat/generation";
+import { DEFAULT_LOCAL_CHAT_MODEL } from "../lib/chat/constants";
+import {
+  selectTool,
+  executeTool,
+  preloadToolSelectorModel,
+  DEFAULT_TOOL_SELECTOR_MODEL,
+} from "../lib/tools/selector";
 
-// Detect React Native environment
-const isReactNative =
-  typeof navigator !== "undefined" && navigator.product === "ReactNative";
-
-// Web-only features container (not available in React Native)
-// These use dynamic imports to avoid bundling issues in React Native
-type WebFeatures = {
-  generateLocalChatCompletion: typeof import("../lib/chat/generation").generateLocalChatCompletion;
-  DEFAULT_LOCAL_CHAT_MODEL: string;
-  selectTool: typeof import("../lib/tools/selector").selectTool;
-  executeTool: typeof import("../lib/tools/selector").executeTool;
-  preloadToolSelectorModel: typeof import("../lib/tools/selector").preloadToolSelectorModel;
-  DEFAULT_TOOL_SELECTOR_MODEL: string;
-};
-
-let webFeatures: WebFeatures | null = null;
-
-// Only load web-specific features when not in React Native
-const webFeaturesPromise: Promise<WebFeatures | null> = isReactNative
-  ? Promise.resolve(null)
-  : Promise.all([
-      import("../lib/chat/generation"),
-      import("../lib/chat/constants"),
-      import("../lib/tools/selector"),
-    ]).then(([generation, constants, selector]) => {
-      webFeatures = {
-        generateLocalChatCompletion: generation.generateLocalChatCompletion,
-        DEFAULT_LOCAL_CHAT_MODEL: constants.DEFAULT_LOCAL_CHAT_MODEL,
-        selectTool: selector.selectTool,
-        executeTool: selector.executeTool,
-        preloadToolSelectorModel: selector.preloadToolSelectorModel,
-        DEFAULT_TOOL_SELECTOR_MODEL: selector.DEFAULT_TOOL_SELECTOR_MODEL,
-      };
-      return webFeatures;
-    });
-
-type SendMessageArgs = {
-  messages: LlmapiMessage[];
-  model?: string;
-  /**
-   * Per-request callback for data chunks. Called in addition to the global
-   * `onData` callback if provided in `useChat` options.
-   *
-   * @param chunk - The content delta from the current chunk
-   */
-  onData?: (chunk: string) => void;
+type SendMessageArgs = BaseSendMessageArgs & {
   /**
    * Whether to run tool selection for this message.
    * Defaults to true if tools are configured.
@@ -71,28 +48,7 @@ type SendMessageResult =
     }
   | { data: null; error: string; toolExecution?: ToolExecutionResult };
 
-type UseChatOptions = {
-  getToken?: () => Promise<string | null>;
-  baseUrl?: string;
-  /**
-   * Callback function to be called when a new data chunk is received.
-   */
-  onData?: (chunk: string) => void;
-  /**
-   * Callback function to be called when the chat completion finishes successfully.
-   */
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
-  /**
-   * Callback function to be called when an unexpected error is encountered.
-   *
-   * **Note:** This callback is NOT called for aborted requests (via `stop()` or
-   * component unmount). Aborts are intentional actions and are not considered
-   * errors. To detect aborts, check the `error` field in the `sendMessage` result:
-   * `result.error === "Request aborted"`.
-   *
-   * @param error - The error that occurred (never an AbortError)
-   */
-  onError?: (error: Error) => void;
+type UseChatOptions = BaseUseChatOptions & {
   /**
    * The provider to use for chat completions (default: "api")
    * "local": Uses a local HuggingFace model (in-browser)
@@ -121,32 +77,9 @@ type UseChatOptions = {
   onToolExecution?: (result: ToolExecutionResult) => void;
 };
 
-type UseChatResult = {
-  isLoading: boolean;
+type UseChatResult = BaseUseChatResult & {
   isSelectingTool: boolean;
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
-  /**
-   * Aborts the current streaming request if one is in progress.
-   *
-   * When a request is aborted, `sendMessage` will return with
-   * `{ data: null, error: "Request aborted" }`. The `onError` callback
-   * will NOT be called, as aborts are intentional actions, not errors.
-   */
-  stop: () => void;
-};
-
-type StreamingChunk = {
-  id?: string;
-  model?: string;
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      role?: string;
-    };
-    finish_reason?: string;
-    index?: number;
-  }>;
-  usage?: LlmapiChatCompletionResponse["usage"];
 };
 
 /**
@@ -234,7 +167,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectingTool, setIsSelectingTool] = useState(false);
-  const [webFeaturesLoaded, setWebFeaturesLoaded] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const stop = useCallback(() => {
@@ -254,28 +186,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     };
   }, []);
 
-  // Load web features (local chat, tools) if not in React Native
-  useEffect(() => {
-    webFeaturesPromise?.then((loaded) => {
-      if (loaded) setWebFeaturesLoaded(true);
-    });
-  }, []);
-
-  // Preload tool selector model when tools are configured (web only)
+  // Preload tool selector model when tools are configured
   // The preload function handles deduplication at module level
   useEffect(() => {
-    if (
-      !isReactNative &&
-      webFeaturesLoaded &&
-      webFeatures &&
-      tools &&
-      tools.length > 0
-    ) {
-      webFeatures.preloadToolSelectorModel({
-        model: toolSelectorModel || webFeatures.DEFAULT_TOOL_SELECTOR_MODEL,
+    if (tools && tools.length > 0) {
+      preloadToolSelectorModel({
+        model: toolSelectorModel || DEFAULT_TOOL_SELECTOR_MODEL,
       });
     }
-  }, [tools, toolSelectorModel, webFeaturesLoaded]);
+  }, [tools, toolSelectorModel]);
 
   const sendMessage = useCallback(
     async ({
@@ -284,10 +203,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onData,
       runTools = true,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      if (!messages?.length) {
-        const errorMsg = "messages are required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
+      // Validate messages
+      const messagesValidation = validateMessages(messages);
+      if (!messagesValidation.valid) {
+        return createErrorResult(messagesValidation.message, onError);
       }
 
       // Abort any pending request
@@ -300,24 +219,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       setIsLoading(true);
 
-      // Tool selection and execution (web only - requires @huggingface/transformers)
+      // Tool selection and execution (requires @huggingface/transformers)
       let toolExecutionResult: ToolExecutionResult | undefined;
       let messagesWithToolContext = messages;
 
-      // Only run tool selection if:
-      // 1. Not in React Native
-      // 2. Web features are loaded
-      // 3. Tools are configured
-      // 4. runTools is enabled
-      const canRunTools =
-        !isReactNative &&
-        webFeaturesLoaded &&
-        webFeatures !== null &&
-        runTools &&
-        tools &&
-        tools.length > 0;
+      // Run tool selection if tools are configured and runTools is enabled
+      const shouldRunTools = runTools && tools && tools.length > 0;
 
-      if (canRunTools && webFeatures) {
+      if (shouldRunTools) {
         // Get the last user message for tool selection
         const lastUserMessage = [...messages]
           .reverse()
@@ -332,15 +241,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             "";
 
           try {
-            const selectionResult = await webFeatures.selectTool(
-              contentString,
-              tools,
-              {
-                model:
-                  toolSelectorModel || webFeatures.DEFAULT_TOOL_SELECTOR_MODEL,
-                signal: abortController.signal,
-              }
-            );
+            const selectionResult = await selectTool(contentString, tools, {
+              model: toolSelectorModel || DEFAULT_TOOL_SELECTOR_MODEL,
+              signal: abortController.signal,
+            });
 
             if (selectionResult.toolSelected && selectionResult.toolName) {
               const selectedTool = tools.find(
@@ -348,7 +252,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               );
 
               if (selectedTool) {
-                const execResult = await webFeatures.executeTool(
+                const execResult = await executeTool(
                   selectedTool,
                   selectionResult.parameters || {}
                 );
@@ -400,7 +304,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               }
             }
           } catch (err) {
-            // Tool selection errors are non-fatal, continue with chat
+            // Check if this was an abort - if so, return early
+            if (isAbortError(err)) {
+              setIsLoading(false);
+              setIsSelectingTool(false);
+              return {
+                data: null,
+                error: "Request aborted",
+                toolExecution: toolExecutionResult,
+              };
+            }
+            // Other tool selection errors are non-fatal, continue with chat
             console.warn("Tool selection error:", err);
           } finally {
             setIsSelectingTool(false);
@@ -408,24 +322,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
 
+      // Check if aborted before proceeding to chat
+      if (abortController.signal.aborted) {
+        setIsLoading(false);
+        return {
+          data: null,
+          error: "Request aborted",
+          toolExecution: toolExecutionResult,
+        };
+      }
+
       try {
         if (chatProvider === "local") {
-          // Local chat provider is not available in React Native
-          if (isReactNative || !webFeaturesLoaded || !webFeatures) {
-            const errorMsg =
-              'Local chat provider is not available in React Native. Use chatProvider: "api" instead.';
-            setIsLoading(false);
-            if (onError) onError(new Error(errorMsg));
-            return {
-              data: null,
-              error: errorMsg,
-              toolExecution: toolExecutionResult,
-            };
-          }
-
           let accumulatedContent = "";
           // For local provider, always use localModel (ignore the model param which is for API)
-          const usedModel = localModel || webFeatures.DEFAULT_LOCAL_CHAT_MODEL;
+          const usedModel = localModel || DEFAULT_LOCAL_CHAT_MODEL;
 
           // Convert messages to format expected by transformers.js if needed
           // Assuming it takes { role: string, content: string }[] which matches LlmapiMessage
@@ -434,7 +345,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             content: m.content?.map((p) => p.text || "").join("") || "",
           }));
 
-          await webFeatures.generateLocalChatCompletion(formattedMessages, {
+          await generateLocalChatCompletion(formattedMessages, {
             model: usedModel,
             signal: abortController.signal,
             onToken: (token) => {
@@ -474,36 +385,38 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             toolExecution: toolExecutionResult,
           };
         } else {
-          // API Provider
-          if (!model) {
-            const errorMsg = "model is required to call sendMessage.";
-            if (onError) onError(new Error(errorMsg));
-            return {
-              data: null,
-              error: errorMsg,
-              toolExecution: toolExecutionResult,
-            };
-          }
-
-          if (!getToken) {
-            const errorMsg = "Token getter function is required.";
-            if (onError) onError(new Error(errorMsg));
-            return {
-              data: null,
-              error: errorMsg,
-              toolExecution: toolExecutionResult,
-            };
-          }
-
-          const token = await getToken();
-
-          if (!token) {
-            const errorMsg = "No access token available.";
+          // API Provider - validate model and token
+          const modelValidation = validateModel(model);
+          if (!modelValidation.valid) {
             setIsLoading(false);
-            if (onError) onError(new Error(errorMsg));
+            if (onError) onError(new Error(modelValidation.message));
             return {
               data: null,
-              error: errorMsg,
+              error: modelValidation.message,
+              toolExecution: toolExecutionResult,
+            };
+          }
+
+          const tokenGetterValidation = validateTokenGetter(getToken);
+          if (!tokenGetterValidation.valid) {
+            setIsLoading(false);
+            if (onError) onError(new Error(tokenGetterValidation.message));
+            return {
+              data: null,
+              error: tokenGetterValidation.message,
+              toolExecution: toolExecutionResult,
+            };
+          }
+
+          const token = await getToken!();
+
+          const tokenValidation = validateToken(token);
+          if (!tokenValidation.valid) {
+            setIsLoading(false);
+            if (onError) onError(new Error(tokenValidation.message));
+            return {
+              data: null,
+              error: tokenValidation.message,
               toolExecution: toolExecutionResult,
             };
           }
@@ -524,89 +437,29 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             signal: abortController.signal,
           });
 
-          let accumulatedContent = "";
-          let completionId = "";
-          let completionModel = "";
-          // Accumulate usage data from all chunks (merge instead of overwrite)
-          // This fixes the issue where token counts come in one chunk and cost in another
-          let accumulatedUsage: Partial<LlmapiChatCompletionResponse["usage"]> =
-            {};
-          let finishReason: string | undefined;
+          const accumulator = createStreamAccumulator();
 
           for await (const chunk of sseResult.stream) {
-            // Skip [DONE] marker (can come as string or in various formats)
-            if (
-              typeof chunk === "string" &&
-              (chunk.trim() === "[DONE]" || chunk.includes("[DONE]"))
-            ) {
+            // Skip [DONE] marker
+            if (isDoneMarker(chunk)) {
               continue;
             }
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const chunkData = chunk as StreamingChunk;
-
-              // Extract completion ID and model from first chunk
-              if (chunkData.id && !completionId) {
-                completionId = chunkData.id;
-              }
-              if (chunkData.model && !completionModel) {
-                completionModel = chunkData.model;
-              }
-
-              // Accumulate usage data - merge instead of replace
-              // This ensures we capture both token counts (from first usage chunk)
-              // and cost_micro_usd (from final usage chunk)
-              if (chunkData.usage) {
-                accumulatedUsage = {
-                  ...accumulatedUsage,
-                  ...chunkData.usage,
-                };
-              }
-
-              // Extract content delta
-              if (
-                chunkData.choices &&
-                Array.isArray(chunkData.choices) &&
-                chunkData.choices.length > 0
-              ) {
-                const choice = chunkData.choices[0];
-                if (choice.delta?.content) {
-                  const content = choice.delta.content;
-                  accumulatedContent += content;
-                  if (onData) {
-                    onData(content);
-                  }
-                  if (globalOnData) {
-                    globalOnData(content);
-                  }
-                }
-                if (choice.finish_reason) {
-                  finishReason = choice.finish_reason;
-                }
+              const contentDelta = processStreamingChunk(
+                chunk as StreamingChunk,
+                accumulator
+              );
+              if (contentDelta) {
+                if (onData) onData(contentDelta);
+                if (globalOnData) globalOnData(contentDelta);
               }
             }
           }
 
           // Build the final response
-          const completion: LlmapiChatCompletionResponse = {
-            id: completionId,
-            model: completionModel,
-            choices: [
-              {
-                index: 0,
-                message: {
-                  role: "assistant",
-                  content: [{ type: "text", text: accumulatedContent }],
-                },
-                finish_reason: finishReason,
-              },
-            ],
-            usage:
-              Object.keys(accumulatedUsage).length > 0
-                ? (accumulatedUsage as LlmapiChatCompletionResponse["usage"])
-                : undefined,
-          };
+          const completion = buildCompletionResponse(accumulator);
 
           setIsLoading(false);
           if (onFinish) {
@@ -620,9 +473,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       } catch (err) {
         // Handle AbortError specifically - aborts are intentional user actions,
-        // not errors, so we don't trigger onError callback (consistent with
-        // Vercel AI SDK and React Query patterns)
-        if (err instanceof Error && err.name === "AbortError") {
+        // not errors, so we don't trigger onError callback
+        if (isAbortError(err)) {
           setIsLoading(false);
           return {
             data: null,
@@ -631,17 +483,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           };
         }
 
-        const errorMsg =
-          err instanceof Error ? err.message : "Failed to send message.";
-        const errorObj = err instanceof Error ? err : new Error(errorMsg);
-
+        const errorResult = handleError<{
+          data: null;
+          error: string;
+        }>(err, onError);
         setIsLoading(false);
-        if (onError) {
-          onError(errorObj);
-        }
         return {
-          data: null,
-          error: errorMsg,
+          ...errorResult,
           toolExecution: toolExecutionResult,
         };
       } finally {
@@ -661,7 +509,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       tools,
       toolSelectorModel,
       onToolExecution,
-      webFeaturesLoaded,
     ]
   );
 

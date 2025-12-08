@@ -236,26 +236,31 @@ export async function selectTool(
 }
 
 // Track preload state at module level to survive React StrictMode remounts
-let preloadPromise: Promise<void> | null = null;
+// Key by model name to support different models
+const preloadState: Map<
+  string,
+  { promise: Promise<void>; attempted: boolean }
+> = new Map();
 
 /**
  * Preload the tool selector model.
  * Call this early to avoid latency on first tool selection.
- * Safe to call multiple times - will only load once.
+ * Safe to call multiple times - will only load once per model.
  */
 export async function preloadToolSelectorModel(
   options: Omit<ToolSelectorOptions, "signal"> = {}
 ): Promise<void> {
-  // Return existing promise if already loading/loaded
-  if (preloadPromise) {
-    return preloadPromise;
-  }
-
   const { model = DEFAULT_TOOL_SELECTOR_MODEL, device = "wasm" } = options;
+
+  // Return existing promise if already loading/loaded/attempted
+  const existing = preloadState.get(model);
+  if (existing) {
+    return existing.promise;
+  }
 
   console.log(`[Tool Selector] Preloading model: ${model}`);
 
-  preloadPromise = getTextGenerationPipeline({
+  const promise = getTextGenerationPipeline({
     model,
     device,
     dtype: "q4",
@@ -265,11 +270,12 @@ export async function preloadToolSelectorModel(
     })
     .catch((error) => {
       console.warn("[Tool Selector] Failed to preload model:", error);
-      // Reset so it can be retried
-      preloadPromise = null;
+      // Don't reset - avoid spamming retries on every render
     });
 
-  return preloadPromise;
+  preloadState.set(model, { promise, attempted: true });
+
+  return promise;
 }
 
 /**
