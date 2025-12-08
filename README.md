@@ -177,6 +177,110 @@ if (response.data) {
 }
 ```
 
+## React Native (Expo)
+
+The SDK supports React Native via Expo with streaming support. For a complete
+example, see
+[ai-example-expo](https://github.com/zeta-chain/ai-example-expo).
+
+### Installation
+
+```bash
+pnpm install @reverbia/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
+```
+
+### Polyfill Setup
+
+Create a custom entry point file (e.g., `entrypoint.js`) and update
+`package.json` to use it:
+
+```json
+{
+  "main": "entrypoint.js"
+}
+```
+
+```javascript
+// entrypoint.js
+
+// Import polyfills in this exact order
+import "react-native-get-random-values";
+import "@ethersproject/shims";
+import { Buffer } from "buffer";
+global.Buffer = Buffer;
+
+// Web Streams polyfill for SSE streaming
+import { ReadableStream, TransformStream } from "web-streams-polyfill";
+if (typeof globalThis.ReadableStream === "undefined") {
+  globalThis.ReadableStream = ReadableStream;
+}
+if (typeof globalThis.TransformStream === "undefined") {
+  globalThis.TransformStream = TransformStream;
+}
+
+// SDK polyfills (TextDecoderStream for streaming)
+import "@reverbia/sdk/polyfills";
+
+// Then import expo router
+import "expo-router/entry";
+```
+
+### Usage
+
+Import from `@reverbia/sdk/expo` instead of `@reverbia/sdk/react`:
+
+```typescript
+import { useIdentityToken } from "@privy-io/expo";
+import { useChat } from "@reverbia/sdk/expo";
+
+function ChatComponent() {
+  const { getIdentityToken } = useIdentityToken();
+
+  const { isLoading, sendMessage } = useChat({
+    getToken: getIdentityToken,
+    baseUrl: "https://ai-portal-dev.zetachain.com",
+    onData: (chunk) => {
+      // Handle streaming chunks
+      const content =
+        typeof chunk === "string"
+          ? chunk
+          : chunk.choices?.[0]?.delta?.content || "";
+      console.log("Received:", content);
+    },
+    onFinish: () => {
+      console.log("Stream finished");
+    },
+    onError: (error) => {
+      console.error("Error:", error);
+    },
+  });
+
+  const handleSend = async () => {
+    await sendMessage({
+      messages: [{ role: "user", content: "Hello!" }],
+      model: "openai/gpt-4o",
+    });
+  };
+}
+```
+
+### Authentication
+
+Use `@privy-io/expo` for authentication in React Native:
+
+```typescript
+import { PrivyProvider, usePrivy } from "@privy-io/expo";
+import { useIdentityToken } from "@privy-io/expo";
+
+// Wrap your app with PrivyProvider
+<PrivyProvider appId="your-app-id" clientId="your-client-id">
+  <App />
+</PrivyProvider>;
+
+// Get identity token for API calls
+const { getIdentityToken } = useIdentityToken();
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request.
