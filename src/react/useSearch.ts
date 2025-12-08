@@ -25,7 +25,28 @@ export type UseSearchOptions = {
   onError?: (error: Error) => void;
 };
 
-export type SearchOptions = Omit<LlmapiSearchRequest, "query">;
+export type SearchOptions = {
+  /**
+   * Country code for search results (e.g., "us", "gb")
+   */
+  country?: string;
+  /**
+   * Maximum number of results to return
+   */
+  max_results?: number;
+  /**
+   * Maximum tokens per page
+   */
+  max_tokens_per_page?: number;
+  /**
+   * List of domains to filter results (max 20 domains)
+   */
+  search_domain_filter?: string[];
+  /**
+   * The search provider to use
+   */
+  search_tool_name?: string;
+};
 
 export type UseSearchResult = {
   isLoading: boolean;
@@ -107,7 +128,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchResult {
           body: {
             query: queryArray,
             ...searchOptions,
-          },
+          } as LlmapiSearchRequest,
           headers: token
             ? {
                 Authorization: `Bearer ${token}`,

@@ -53,7 +53,7 @@ export const generateEmbeddingForText = async (
       baseUrl,
       body: {
         input: text,
-        model: model,
+        model: model ?? DEFAULT_API_EMBEDDING_MODEL,
       },
       headers: {
         Authorization: `Bearer ${token}`,

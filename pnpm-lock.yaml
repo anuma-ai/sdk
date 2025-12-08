@@ -16,8 +16,8 @@ importers:
         specifier: ^3.8.0
         version: 3.8.1
       '@reverbia/portal':
-        specifier: 1.0.0-next.20251202220311
-        version: 1.0.0-next.20251202220311
+        specifier: 1.0.0-next.20251208093751
+        version: 1.0.0-next.20251208093751
       ai:
         specifier: 5.0.93
         version: 5.0.93(zod@4.1.13)
@@ -1346,8 +1346,8 @@ packages:
   '@reown/appkit@1.8.9':
     resolution: {integrity: sha512-e3N2DAzf3Xv3jnoD8IsUo0/Yfwuhk7npwJBe1+9rDJIRwgPsyYcCLD4gKPDFC5IUIfOLqK7YtGOh9oPEUnIWpw==}
 
-  '@reverbia/portal@1.0.0-next.20251202220311':
-    resolution: {integrity: sha512-ba5d/CtWzw2H0I/bZemEo2u9LGA0W7/aJ+WAvhKa0NFWvVgYHZbrDDI42V6fUp6UbRWEAsguqOYnMSiEYE5vqg==}
+  '@reverbia/portal@1.0.0-next.20251208093751':
+    resolution: {integrity: sha512-5rFpo26fC/R71/LJUjlM2AiWcUUQvI5mztSvxRbyHOF5G5yuPIBKud5UAYFUSokwH2uQbwM8ItMehifCvka2qA==}
 
   '@rollup/rollup-android-arm-eabi@4.53.3':
     resolution: {integrity: sha512-mRSi+4cBjrRLoaal2PnqH82Wqyb+d3HsPUN/W+WslCXsZsyHa9ZeQQX/pQsZaVIWDkPcpV6jJ+3KLbTbgnwv8w==}
@@ -7040,7 +7040,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@reverbia/portal@1.0.0-next.20251202220311': {}
+  '@reverbia/portal@1.0.0-next.20251208093751': {}
 
   '@rollup/rollup-android-arm-eabi@4.53.3':
     optional: true
