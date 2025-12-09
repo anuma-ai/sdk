@@ -11,3 +11,4 @@
  */
 
 export { useChat } from "./useChat";
+export { useImageGeneration } from "../react/useImageGeneration";
