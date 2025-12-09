@@ -12,3 +12,5 @@
 
 export { useChat } from "./useChat";
 export { useImageGeneration } from "../react/useImageGeneration";
+export { useModels } from "../react/useModels";
+export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
