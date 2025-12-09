@@ -170,6 +170,43 @@ When `traceId` is provided:
 |--------|-------|-------------|
 | `X-Trace-ID` | UUID string | Unique identifier for the request |
 
+## Enabling Trace ID in Memoryless Client
+
+The SDK already supports the `traceId` parameter, but the consumer code in `packages/hooks` has it temporarily disabled pending SDK publication to npm.
+
+Once the SDK is published, update `packages/hooks/src/useCallChatCompletion.ts`:
+
+1. **Line ~192**: Rename the parameter from `_traceId` to `traceId`:
+   ```typescript
+   // Before:
+   _traceId?: string // TODO: Use traceId when SDK supports it
+
+   // After:
+   traceId?: string
+   ```
+
+2. **Lines ~267-268**: Uncomment the `traceId` parameter in `sendMessage`:
+   ```typescript
+   // Before:
+   const result = await sendMessage({
+     messages: conversationMessages as LlmapiMessage[],
+     model,
+     onData,
+     // TODO: Uncomment when SDK supports traceId
+     // traceId,
+   });
+
+   // After:
+   const result = await sendMessage({
+     messages: conversationMessages as LlmapiMessage[],
+     model,
+     onData,
+     traceId,
+   });
+   ```
+
+3. Remove the ESLint disable comment for the unused variable.
+
 ## See Also
 
 - [PostHog LLM Observability](https://posthog.com/docs/ai-engineering/observability)
