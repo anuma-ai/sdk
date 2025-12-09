@@ -17,6 +17,12 @@ export type { OCRFile } from "./useOCR";
 export { useModels } from "./useModels";
 export { useSearch } from "./useSearch";
 export { useImageGeneration } from "./useImageGeneration";
+export { useModeration } from "./useModeration";
+export type {
+  ModerationResult,
+  UseModerationOptions,
+  UseModerationResult,
+} from "./useModeration";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,
