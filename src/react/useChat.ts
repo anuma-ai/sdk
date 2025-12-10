@@ -436,11 +436,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               model,
               stream: true,
             },
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-              ...(traceId ? { "X-Trace-ID": traceId } : {}),
-            },
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+...headers
+},
             signal: abortController.signal,
           });
 
