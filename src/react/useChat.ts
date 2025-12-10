@@ -253,13 +253,13 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             if (selectionResult.toolSelected && selectionResult.toolName) {
               const selectedTool = tools.find(
-                (t) => t.name === selectionResult.toolName
+                (t) => t.name === selectionResult.toolName,
               );
 
               if (selectedTool) {
                 const execResult = await executeTool(
                   selectedTool,
-                  selectionResult.parameters || {}
+                  selectionResult.parameters || {},
                 );
 
                 toolExecutionResult = {
@@ -288,7 +288,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                         }" was executed with the following result:\n${JSON.stringify(
                           toolExecutionResult.result,
                           null,
-                          2
+                          2,
                         )}\n\nUse this information to respond to the user's request.`,
                       },
                     ],
@@ -455,7 +455,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             if (chunk && typeof chunk === "object") {
               const contentDelta = processStreamingChunk(
                 chunk as StreamingChunk,
-                accumulator
+                accumulator,
               );
               if (contentDelta) {
                 if (onData) onData(contentDelta);
@@ -515,7 +515,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       tools,
       toolSelectorModel,
       onToolExecution,
-    ]
+    ],
   );
 
   return {

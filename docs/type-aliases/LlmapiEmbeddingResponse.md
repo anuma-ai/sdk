@@ -20,15 +20,15 @@ Defined in: [types.gen.ts:174](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Data contains the embeddings
 
-***
+---
 
-### extra\_fields?
+### extra_fields?
 
-> `optional` **extra\_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
+> `optional` **extra_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
 
 Defined in: [types.gen.ts:175](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L175)
 
-***
+---
 
 ### model?
 
@@ -38,7 +38,7 @@ Defined in: [types.gen.ts:179](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Model is the model used
 
-***
+---
 
 ### object?
 
@@ -48,7 +48,7 @@ Defined in: [types.gen.ts:183](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Object is always "list"
 
-***
+---
 
 ### usage?
 

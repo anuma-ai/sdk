@@ -43,7 +43,7 @@ export type UseImageGenerationResult = {
  * React hook for generating images using the LLM API.
  */
 export function useImageGeneration(
-  options: UseImageGenerationOptions = {}
+  options: UseImageGenerationOptions = {},
 ): UseImageGenerationResult {
   const { getToken, baseUrl = BASE_URL, onFinish, onError } = options;
 
@@ -100,8 +100,7 @@ export function useImageGeneration(
         });
 
         if (response.error) {
-          const errorMsg =
-            response.error.error || "Failed to generate image";
+          const errorMsg = response.error.error || "Failed to generate image";
           throw new Error(errorMsg);
         }
 
@@ -138,7 +137,7 @@ export function useImageGeneration(
         }
       }
     },
-    [getToken, baseUrl, onFinish, onError]
+    [getToken, baseUrl, onFinish, onError],
   );
 
   return {
@@ -147,4 +146,3 @@ export function useImageGeneration(
     stop,
   };
 }
-

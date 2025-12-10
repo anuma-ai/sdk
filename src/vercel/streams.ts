@@ -16,7 +16,7 @@ type AssistantStreamEvent =
  * @returns A stream ready to be passed to `createUIMessageStreamResponse`.
  */
 export function createAssistantStream(
-  text: string
+  text: string,
 ): ReadableStream<AssistantStreamEvent> {
   const messageId = crypto.randomUUID();
 
@@ -54,7 +54,7 @@ export function createAssistantStream(
  * @returns A stream that, when consumed, immediately emits the error event.
  */
 export function createErrorStream(
-  errorText: string
+  errorText: string,
 ): ReadableStream<AssistantStreamEvent> {
   return new ReadableStream({
     start(controller) {

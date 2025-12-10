@@ -14,39 +14,39 @@ Usage documents token usage (when available).
 
 ## Properties
 
-### cost\_micro\_usd?
+### cost_micro_usd?
 
-> `optional` **cost\_micro\_usd**: `number`
+> `optional` **cost_micro_usd**: `number`
 
 Defined in: [types.gen.ts:285](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L285)
 
 CostMicroUSD is the inference cost for this image generation request
 
-***
+---
 
-### input\_tokens?
+### input_tokens?
 
-> `optional` **input\_tokens**: `number`
+> `optional` **input_tokens**: `number`
 
 Defined in: [types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L289)
 
 InputTokens is the number of tokens sent in the prompt.
 
-***
+---
 
-### output\_tokens?
+### output_tokens?
 
-> `optional` **output\_tokens**: `number`
+> `optional` **output_tokens**: `number`
 
 Defined in: [types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L293)
 
 OutputTokens is the number of tokens returned by the model.
 
-***
+---
 
-### total\_tokens?
+### total_tokens?
 
-> `optional` **total\_tokens**: `number`
+> `optional` **total_tokens**: `number`
 
 Defined in: [types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L297)
 

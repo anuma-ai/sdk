@@ -12,15 +12,15 @@ Defined in: [types.gen.ts:223](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 ## Properties
 
-### b64\_json?
+### b64_json?
 
-> `optional` **b64\_json**: `string`
+> `optional` **b64_json**: `string`
 
 Defined in: [types.gen.ts:227](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L227)
 
 B64JSON is the base64 payload for models that can only return binary.
 
-***
+---
 
 ### url?
 

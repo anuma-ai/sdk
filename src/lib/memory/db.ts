@@ -108,7 +108,7 @@ export const getAllMemories = async (): Promise<StoredMemoryItem[]> => {
  * Get memories by namespace
  */
 export const getMemoriesByNamespace = async (
-  namespace: string
+  namespace: string,
 ): Promise<StoredMemoryItem[]> => {
   return memoryDb.memories.where("namespace").equals(namespace).toArray();
 };
@@ -118,7 +118,7 @@ export const getMemoriesByNamespace = async (
  */
 export const getMemories = async (
   namespace: string,
-  key: string
+  key: string,
 ): Promise<StoredMemoryItem[]> => {
   const compositeKey = `${namespace}:${key}`;
   return memoryDb.memories.where("compositeKey").equals(compositeKey).toArray();
@@ -130,7 +130,7 @@ export const getMemories = async (
 export const getMemory = async (
   namespace: string,
   key: string,
-  value: string
+  value: string,
 ): Promise<StoredMemoryItem | undefined> => {
   const uniqueKey = `${namespace}:${key}:${value}`;
   return memoryDb.memories.where("uniqueKey").equals(uniqueKey).first();
@@ -141,7 +141,7 @@ export const getMemory = async (
  */
 export const deleteMemories = async (
   namespace: string,
-  key: string
+  key: string,
 ): Promise<void> => {
   const compositeKey = `${namespace}:${key}`;
   await memoryDb.memories.where("compositeKey").equals(compositeKey).delete();
@@ -153,7 +153,7 @@ export const deleteMemories = async (
 export const deleteMemory = async (
   namespace: string,
   key: string,
-  value: string
+  value: string,
 ): Promise<void> => {
   const uniqueKey = `${namespace}:${key}:${value}`;
   const existing = await memoryDb.memories
@@ -211,23 +211,23 @@ export const cosineSimilarity = (a: number[], b: number[]): number => {
 export const searchSimilarMemories = async (
   queryEmbedding: number[],
   limit: number = 10,
-  minSimilarity: number = 0.6
+  minSimilarity: number = 0.6,
 ): Promise<Array<StoredMemoryItem & { similarity: number }>> => {
   const allMemories = await getAllMemories();
   const memoriesWithEmbeddings = allMemories.filter(
-    (m) => m.embedding && m.embedding.length > 0
+    (m) => m.embedding && m.embedding.length > 0,
   );
 
   console.log(
     `[Memory Search] Total memories: ${allMemories.length}, ` +
-      `memories with embeddings: ${memoriesWithEmbeddings.length}`
+      `memories with embeddings: ${memoriesWithEmbeddings.length}`,
   );
 
   if (memoriesWithEmbeddings.length === 0) {
     console.warn(
       "[Memory Search] No memories with embeddings found. " +
         "Memories may need embeddings generated. " +
-        "Use generateAndStoreEmbeddings() to generate embeddings for existing memories."
+        "Use generateAndStoreEmbeddings() to generate embeddings for existing memories.",
     );
     return [];
   }
@@ -248,7 +248,7 @@ export const searchSimilarMemories = async (
       key: `${r.namespace}:${r.key}`,
       value: r.value,
       similarity: r.similarity.toFixed(4),
-    }))
+    })),
   );
 
   const results = allResults
@@ -261,12 +261,12 @@ export const searchSimilarMemories = async (
     console.warn(
       `[Memory Search] No memories above threshold ${minSimilarity}. ` +
         `Highest similarity was ${topSimilarity.toFixed(4)}. ` +
-        `Consider lowering the threshold to ${suggestedThreshold.toFixed(2)}`
+        `Consider lowering the threshold to ${suggestedThreshold.toFixed(2)}`,
     );
   } else {
     console.log(
       `[Memory Search] Found ${results.length} memories above similarity threshold ${minSimilarity}. ` +
-        `Top similarity: ${results[0]?.similarity.toFixed(4) || "N/A"}`
+        `Top similarity: ${results[0]?.similarity.toFixed(4) || "N/A"}`,
     );
   }
 

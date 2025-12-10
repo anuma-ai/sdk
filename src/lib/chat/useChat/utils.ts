@@ -34,7 +34,7 @@ export const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
  * Validates that messages are provided
  */
 export function validateMessages(
-  messages: LlmapiMessage[] | undefined
+  messages: LlmapiMessage[] | undefined,
 ): ValidationResult {
   if (!messages?.length) {
     return {
@@ -64,7 +64,7 @@ export function validateModel(model: string | undefined): ValidationResult {
  * Validates that token getter is provided
  */
 export function validateTokenGetter(
-  getToken: (() => Promise<string | null>) | undefined
+  getToken: (() => Promise<string | null>) | undefined,
 ): ValidationResult {
   if (!getToken) {
     return {
@@ -109,7 +109,7 @@ export function createStreamAccumulator(): StreamAccumulator {
  */
 export function processStreamingChunk(
   chunk: StreamingChunk,
-  accumulator: StreamAccumulator
+  accumulator: StreamAccumulator,
 ): string | null {
   // Extract completion ID and model from first chunk
   if (chunk.id && !accumulator.completionId) {
@@ -147,7 +147,7 @@ export function processStreamingChunk(
  * Builds the final chat completion response from accumulated stream data
  */
 export function buildCompletionResponse(
-  accumulator: StreamAccumulator
+  accumulator: StreamAccumulator,
 ): LlmapiChatCompletionResponse {
   return {
     id: accumulator.completionId,
@@ -174,7 +174,7 @@ export function buildCompletionResponse(
  */
 export function createErrorResult<T extends { data: null; error: string }>(
   message: string,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): T {
   if (onError) {
     onError(new Error(message));
@@ -187,7 +187,7 @@ export function createErrorResult<T extends { data: null; error: string }>(
  */
 export function handleError<T extends { data: null; error: string }>(
   err: unknown,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): T {
   const errorMsg =
     err instanceof Error ? err.message : "Failed to send message.";

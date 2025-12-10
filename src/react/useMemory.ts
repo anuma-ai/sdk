@@ -71,7 +71,7 @@ export type UseMemoryResult = {
   searchMemories: (
     query: string,
     limit?: number,
-    minSimilarity?: number
+    minSimilarity?: number,
   ) => Promise<
     Array<import("../lib/memory/db").StoredMemoryItem & { similarity: number }>
   >;
@@ -145,14 +145,14 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         if (!completion.data) {
           console.error(
             "Memory extraction failed:",
-            completion.error?.error ?? "API did not return a response"
+            completion.error?.error ?? "API did not return a response",
           );
           return null;
         }
 
         if (typeof completion.data === "string") {
           console.error(
-            "Memory extraction failed: API returned a string response instead of a completion object"
+            "Memory extraction failed: API returned a string response instead of a completion object",
           );
           return null;
         }
@@ -201,7 +201,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           }
         } else {
           const jsonMatch = jsonContent.match(
-            /```(?:json)?\s*(\{[\s\S]*?\})\s*```/
+            /```(?:json)?\s*(\{[\s\S]*?\})\s*```/,
           );
           if (jsonMatch && jsonMatch[1]) {
             jsonContent = jsonMatch[1].trim();
@@ -213,7 +213,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
               console.warn(
                 "Memory extraction returned non-JSON response. The model may not have found any memories to extract, or it returned natural language instead of JSON.",
                 "\nFirst 200 chars of response:",
-                content.substring(0, 200)
+                content.substring(0, 200),
               );
               return { items: [] };
             }
@@ -226,7 +226,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             "Memory extraction response doesn't appear to be valid JSON. " +
               "The model may not have found any memories to extract, or returned natural language instead of JSON.",
             "\nResponse preview:",
-            content.substring(0, 200)
+            content.substring(0, 200),
           );
           return { items: [] };
         }
@@ -242,14 +242,14 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           if (!Array.isArray(result.items)) {
             console.warn(
               "Memory extraction result missing 'items' array. Result:",
-              result
+              result,
             );
             return { items: [] };
           }
         } catch (parseError) {
           console.error(
             "Failed to parse memory extraction JSON:",
-            parseError instanceof Error ? parseError.message : parseError
+            parseError instanceof Error ? parseError.message : parseError,
           );
           console.error("Attempted to parse:", jsonContent.substring(0, 200));
           console.error("Full raw content:", content.substring(0, 500));
@@ -265,7 +265,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
             console.log(
               `Preprocessed memories: ${originalCount} -> ${filteredCount} (dropped ${
                 originalCount - filteredCount
-              } entries)`
+              } entries)`,
             );
           }
         }
@@ -286,7 +286,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
                   baseUrl,
                 });
                 console.log(
-                  `Generated embeddings for ${result.items.length} memories`
+                  `Generated embeddings for ${result.items.length} memories`,
                 );
               } catch (error) {
                 console.error("Failed to generate embeddings:", error);
@@ -317,7 +317,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       getToken,
       onFactsExtracted,
       baseUrl,
-    ]
+    ],
   );
 
   const searchMemories = useCallback(
@@ -338,26 +338,26 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         });
 
         console.log(
-          `[Memory Search] Generated query embedding (${queryEmbedding.length} dimensions)`
+          `[Memory Search] Generated query embedding (${queryEmbedding.length} dimensions)`,
         );
 
         const results = await searchSimilarMemories(
           queryEmbedding,
           limit,
-          minSimilarity
+          minSimilarity,
         );
 
         if (results.length === 0) {
           console.warn(
             `[Memory Search] No memories found above similarity threshold ${minSimilarity}. ` +
-              `Try lowering the threshold or ensure memories have embeddings generated.`
+              `Try lowering the threshold or ensure memories have embeddings generated.`,
           );
         } else {
           console.log(
             `[Memory Search] Found ${results.length} memories. ` +
               `Similarity scores: ${results
                 .map((r) => r.similarity.toFixed(3))
-                .join(", ")}`
+                .join(", ")}`,
           );
         }
 
@@ -367,7 +367,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         return [];
       }
     },
-    [embeddingModel, embeddingProvider, getToken, baseUrl]
+    [embeddingModel, embeddingProvider, getToken, baseUrl],
   );
 
   return {

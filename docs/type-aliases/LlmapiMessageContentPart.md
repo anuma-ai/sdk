@@ -12,13 +12,13 @@ Defined in: [types.gen.ts:325](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 ## Properties
 
-### image\_url?
+### image_url?
 
-> `optional` **image\_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
+> `optional` **image_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
 
 Defined in: [types.gen.ts:326](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L326)
 
-***
+---
 
 ### text?
 
@@ -28,7 +28,7 @@ Defined in: [types.gen.ts:330](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Text holds the text content when Type=text
 
-***
+---
 
 ### type?
 

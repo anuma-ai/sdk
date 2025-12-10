@@ -14,15 +14,15 @@ ExtraFields contains additional metadata
 
 ## Properties
 
-### chunk\_index?
+### chunk_index?
 
-> `optional` **chunk\_index**: `number`
+> `optional` **chunk_index**: `number`
 
 Defined in: [types.gen.ts:442](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L442)
 
 ChunkIndex is the chunk index (0 for single requests)
 
-***
+---
 
 ### latency?
 
@@ -32,11 +32,11 @@ Defined in: [types.gen.ts:446](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Latency is the request latency in milliseconds
 
-***
+---
 
-### request\_type?
+### request_type?
 
-> `optional` **request\_type**: `string`
+> `optional` **request_type**: `string`
 
 Defined in: [types.gen.ts:450](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L450)
 

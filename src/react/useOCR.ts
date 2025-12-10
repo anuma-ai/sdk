@@ -81,7 +81,7 @@ export function useOCR() {
 
               if (!text.trim()) {
                 console.warn(
-                  `No text found in OCR source ${filename || "unknown"}`
+                  `No text found in OCR source ${filename || "unknown"}`,
                 );
                 return null;
               }
@@ -92,11 +92,11 @@ export function useOCR() {
             } catch (err) {
               console.error(
                 `Failed to process OCR for ${file.filename || "unknown"}:`,
-                err
+                err,
               );
               return null;
             }
-          })
+          }),
         );
 
         const mergedContext = contexts.filter(Boolean).join("\n\n");
@@ -110,7 +110,7 @@ export function useOCR() {
         setIsProcessing(false);
       }
     },
-    []
+    [],
   );
 
   return {

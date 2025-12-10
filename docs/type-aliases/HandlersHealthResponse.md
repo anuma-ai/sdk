@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:11](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Status indicates the service health status
 
-***
+---
 
 ### timestamp?
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:15](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Timestamp is the Unix timestamp of the response
 
-***
+---
 
 ### version?
 

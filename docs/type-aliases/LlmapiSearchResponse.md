@@ -12,13 +12,13 @@ Defined in: [types.gen.ts:511](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 ## Properties
 
-### extra\_fields?
+### extra_fields?
 
-> `optional` **extra\_fields**: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md)
+> `optional` **extra_fields**: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md)
 
 Defined in: [types.gen.ts:512](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L512)
 
-***
+---
 
 ### results?
 
@@ -28,7 +28,7 @@ Defined in: [types.gen.ts:516](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 List of search results.
 
-***
+---
 
 ### usage?
 

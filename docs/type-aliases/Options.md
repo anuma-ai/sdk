@@ -31,8 +31,8 @@ used to access values that aren't defined as part of the SDK function.
 
 ### TData
 
-`TData` *extends* `TDataShape` = `TDataShape`
+`TData` _extends_ `TDataShape` = `TDataShape`
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `boolean`
+`ThrowOnError` _extends_ `boolean` = `boolean`

@@ -18,7 +18,7 @@ Generates images using the configured LLM gateway.
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `false`
+`ThrowOnError` _extends_ `boolean` = `false`
 
 ## Parameters
 

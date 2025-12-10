@@ -22,17 +22,17 @@ Defined in: [types.gen.ts:29](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Latency is the request latency in milliseconds
 
-***
+---
 
-### model\_requested?
+### model_requested?
 
-> `optional` **model\_requested**: `string`
+> `optional` **model_requested**: `string`
 
 Defined in: [types.gen.ts:33](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L33)
 
 ModelRequested is the model that was requested
 
-***
+---
 
 ### provider?
 
@@ -42,11 +42,11 @@ Defined in: [types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
-***
+---
 
-### request\_type?
+### request_type?
 
-> `optional` **request\_type**: `string`
+> `optional` **request_type**: `string`
 
 Defined in: [types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L41)
 

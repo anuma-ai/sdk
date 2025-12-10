@@ -20,17 +20,17 @@ Defined in: [types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
-***
+---
 
-### encoding\_format?
+### encoding_format?
 
-> `optional` **encoding\_format**: `string`
+> `optional` **encoding_format**: `string`
 
 Defined in: [types.gen.ts:159](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L159)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
-***
+---
 
 ### input?
 
@@ -40,7 +40,7 @@ Defined in: [types.gen.ts:163](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
-***
+---
 
 ### model?
 

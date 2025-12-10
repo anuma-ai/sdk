@@ -29,7 +29,7 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
 }
 
 export async function convertPdfToImages(
-  pdfDataUrl: string
+  pdfDataUrl: string,
 ): Promise<string[]> {
   const images: string[] = [];
 

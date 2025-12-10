@@ -28,7 +28,7 @@ describe("useSearch", () => {
     const { result } = renderHook(() =>
       useSearch({
         getToken: async () => "fake-token",
-      })
+      }),
     );
 
     expect(result.current.isLoading).toBe(false);
@@ -47,7 +47,7 @@ describe("useSearch", () => {
         headers: expect.objectContaining({
           Authorization: "Bearer fake-token",
         }),
-      })
+      }),
     );
 
     expect(result.current.isLoading).toBe(false);
@@ -69,7 +69,7 @@ describe("useSearch", () => {
       useSearch({
         getToken: async () => "fake-token",
         onError,
-      })
+      }),
     );
 
     await act(async () => {

@@ -20,15 +20,15 @@ Defined in: [types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Choices contains the completion choices
 
-***
+---
 
-### extra\_fields?
+### extra_fields?
 
-> `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
+> `optional` **extra_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
 Defined in: [types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L64)
 
-***
+---
 
 ### id?
 
@@ -38,7 +38,7 @@ Defined in: [types.gen.ts:68](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 ID is the completion ID
 
-***
+---
 
 ### model?
 
@@ -48,7 +48,7 @@ Defined in: [types.gen.ts:72](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Model is the model used
 
-***
+---
 
 ### usage?
 

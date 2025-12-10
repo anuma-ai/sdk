@@ -34,7 +34,7 @@ export interface GenerateEmbeddingOptions {
 
 export const generateEmbeddingForText = async (
   text: string,
-  options: GenerateEmbeddingOptions = {}
+  options: GenerateEmbeddingOptions = {},
 ): Promise<number[]> => {
   const { baseUrl = BASE_URL, provider = "local" } = options;
 
@@ -63,10 +63,10 @@ export const generateEmbeddingForText = async (
     if (response.error) {
       throw new Error(
         typeof response.error === "object" &&
-        response.error &&
-        "error" in response.error
+          response.error &&
+          "error" in response.error
           ? (response.error as any).error
-          : "API embedding failed"
+          : "API embedding failed",
       );
     }
 
@@ -111,7 +111,7 @@ export const generateEmbeddingForText = async (
  */
 export const generateEmbeddingForMemory = async (
   memory: MemoryItem,
-  options: GenerateEmbeddingOptions = {}
+  options: GenerateEmbeddingOptions = {},
 ): Promise<number[]> => {
   const text = [
     memory.rawEvidence,
@@ -130,7 +130,7 @@ export const generateEmbeddingForMemory = async (
  */
 export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
-  options: GenerateEmbeddingOptions = {}
+  options: GenerateEmbeddingOptions = {},
 ): Promise<Map<string, number[]>> => {
   const embeddings = new Map<string, number[]>();
 
@@ -142,7 +142,7 @@ export const generateEmbeddingsForMemories = async (
     } catch (error) {
       console.error(
         `Failed to generate embedding for memory ${uniqueKey}:`,
-        error
+        error,
       );
     }
   }
@@ -155,7 +155,7 @@ export const generateEmbeddingsForMemories = async (
  */
 export const updateMemoriesWithEmbeddings = async (
   embeddings: Map<string, number[]>,
-  embeddingModel: string
+  embeddingModel: string,
 ): Promise<void> => {
   const updates = Array.from(embeddings.entries()).map(
     async ([uniqueKey, embedding]) => {
@@ -174,10 +174,10 @@ export const updateMemoriesWithEmbeddings = async (
       } else {
         console.warn(
           `[Embeddings] Memory with uniqueKey ${uniqueKey} not found. ` +
-            `It may have been updated or deleted before embedding was generated.`
+            `It may have been updated or deleted before embedding was generated.`,
         );
       }
-    }
+    },
   );
 
   await Promise.all(updates);
@@ -188,7 +188,7 @@ export const updateMemoriesWithEmbeddings = async (
  */
 export const generateAndStoreEmbeddings = async (
   memories: MemoryItem[],
-  options: GenerateEmbeddingOptions = {}
+  options: GenerateEmbeddingOptions = {},
 ): Promise<void> => {
   let { model } = options;
   const { provider = "local" } = options;
@@ -235,12 +235,12 @@ export const generateAndStoreEmbeddings = async (
  * ```
  */
 export const generateEmbeddingsForAllMemories = async (
-  options: GenerateEmbeddingOptions = {}
+  options: GenerateEmbeddingOptions = {},
 ): Promise<void> => {
   const allMemories = await getAllMemories();
 
   const memoriesWithoutEmbeddings = allMemories.filter(
-    (m) => !m.embedding || m.embedding.length === 0
+    (m) => !m.embedding || m.embedding.length === 0,
   );
 
   if (memoriesWithoutEmbeddings.length === 0) {
@@ -249,7 +249,7 @@ export const generateEmbeddingsForAllMemories = async (
   }
 
   console.log(
-    `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`
+    `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`,
   );
 
   const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map((m) => ({

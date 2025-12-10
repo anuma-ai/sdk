@@ -39,7 +39,7 @@ function processSSELines(
   lines: string[],
   accumulator: StreamAccumulator,
   onData?: (chunk: string) => void,
-  globalOnData?: (chunk: string) => void
+  globalOnData?: (chunk: string) => void,
 ): void {
   for (const line of lines) {
     const chunk = parseSSEDataLine(line);
@@ -226,7 +226,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 [incompleteLineBuffer.trim()],
                 accumulator,
                 onData,
-                globalOnData
+                globalOnData,
               );
               incompleteLineBuffer = "";
             }
@@ -263,7 +263,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               messages,
               model,
               stream: true,
-            })
+            }),
           );
         });
 
@@ -277,7 +277,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [getToken, baseUrl, globalOnData, onFinish, onError],
   );
 
   return {

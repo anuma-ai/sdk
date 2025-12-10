@@ -12,15 +12,15 @@ Defined in: [types.gen.ts:98](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 ## Properties
 
-### finish\_reason?
+### finish_reason?
 
-> `optional` **finish\_reason**: `string`
+> `optional` **finish_reason**: `string`
 
 Defined in: [types.gen.ts:102](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L102)
 
 FinishReason indicates why the completion stopped
 
-***
+---
 
 ### index?
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:106](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Index is the choice index
 
-***
+---
 
 ### message?
 

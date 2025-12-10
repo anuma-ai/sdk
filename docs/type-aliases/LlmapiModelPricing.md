@@ -20,7 +20,7 @@ Pricing contains the pricing structure for using this model
 
 Defined in: [types.gen.ts:420](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L420)
 
-***
+---
 
 ### image?
 
@@ -28,7 +28,7 @@ Defined in: [types.gen.ts:420](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:421](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L421)
 
-***
+---
 
 ### prompt?
 
@@ -36,7 +36,7 @@ Defined in: [types.gen.ts:421](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L422)
 
-***
+---
 
 ### request?
 

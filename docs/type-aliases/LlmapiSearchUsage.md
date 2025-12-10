@@ -14,9 +14,9 @@ Usage contains usage information.
 
 ## Properties
 
-### cost\_micro\_usd?
+### cost_micro_usd?
 
-> `optional` **cost\_micro\_usd**: `number`
+> `optional` **cost_micro_usd**: `number`
 
 Defined in: [types.gen.ts:546](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L546)
 

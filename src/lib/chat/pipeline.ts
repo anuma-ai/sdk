@@ -20,7 +20,7 @@ export interface PipelineOptions {
  * If the same model is already loaded, reuses it.
  */
 export async function getTextGenerationPipeline(
-  options: PipelineOptions
+  options: PipelineOptions,
 ): Promise<any> {
   const { model, device = "wasm", dtype = "q4" } = options;
 

@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:589](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Embedding request
 
-***
+---
 
 ### path?
 
@@ -28,7 +28,7 @@ Embedding request
 
 Defined in: [types.gen.ts:590](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L590)
 
-***
+---
 
 ### query?
 
@@ -36,7 +36,7 @@ Defined in: [types.gen.ts:590](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:591](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L591)
 
-***
+---
 
 ### url
 

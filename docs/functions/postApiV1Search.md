@@ -18,7 +18,7 @@ Returns a list of ranked search results
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `false`
+`ThrowOnError` _extends_ `boolean` = `false`
 
 ## Parameters
 

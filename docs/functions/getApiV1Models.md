@@ -18,7 +18,7 @@ Returns a list of all available models from the configured gateway with optional
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `false`
+`ThrowOnError` _extends_ `boolean` = `false`
 
 ## Parameters
 

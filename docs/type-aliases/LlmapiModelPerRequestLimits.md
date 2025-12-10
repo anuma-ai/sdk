@@ -14,16 +14,16 @@ PerRequestLimits contains rate limiting information
 
 ## Properties
 
-### completion\_tokens?
+### completion_tokens?
 
-> `optional` **completion\_tokens**: `number`
+> `optional` **completion_tokens**: `number`
 
 Defined in: [types.gen.ts:412](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L412)
 
-***
+---
 
-### prompt\_tokens?
+### prompt_tokens?
 
-> `optional` **prompt\_tokens**: `number`
+> `optional` **prompt_tokens**: `number`
 
 Defined in: [types.gen.ts:413](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L413)

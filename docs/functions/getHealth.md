@@ -18,7 +18,7 @@ Returns the current health status of the service.
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `false`
+`ThrowOnError` _extends_ `boolean` = `false`
 
 ## Parameters
 

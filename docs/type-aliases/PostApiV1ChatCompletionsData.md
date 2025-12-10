@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:557](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Chat completion request
 
-***
+---
 
 ### path?
 
@@ -28,7 +28,7 @@ Chat completion request
 
 Defined in: [types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L558)
 
-***
+---
 
 ### query?
 
@@ -36,7 +36,7 @@ Defined in: [types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L559)
 
-***
+---
 
 ### url
 

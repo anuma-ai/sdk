@@ -22,7 +22,7 @@ Defined in: [types.gen.ts:318](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Detail is the OpenAI detail hint (auto|low|high)
 
-***
+---
 
 ### url?
 

@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:621](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Image generation request
 
-***
+---
 
 ### path?
 
@@ -28,7 +28,7 @@ Image generation request
 
 Defined in: [types.gen.ts:622](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L622)
 
-***
+---
 
 ### query?
 
@@ -36,7 +36,7 @@ Defined in: [types.gen.ts:622](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:623](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L623)
 
-***
+---
 
 ### url
 

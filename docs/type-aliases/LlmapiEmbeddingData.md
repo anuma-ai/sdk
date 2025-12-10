@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:114](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Embedding vector
 
-***
+---
 
 ### index?
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:118](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Index of the embedding
 
-***
+---
 
 ### object?
 

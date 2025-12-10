@@ -59,8 +59,8 @@ export const withReverbia = (nextConfig: any = {}) => {
       config.plugins.push(
         new options.webpack.NormalModuleReplacementPlugin(
           /transformers\.node-BSHUG7OY\.mjs/,
-          "@huggingface/transformers"
-        )
+          "@huggingface/transformers",
+        ),
       );
 
       // Apply user's custom webpack config if provided

@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:599](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Bad Request
 
-***
+---
 
 ### 500
 

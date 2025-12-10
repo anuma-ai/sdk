@@ -110,7 +110,7 @@ export interface ExtractFactsOptions {
  */
 export const preprocessMemories = (
   items: MemoryItem[],
-  minConfidence: number = 0.6
+  minConfidence: number = 0.6,
 ): MemoryItem[] => {
   if (!items || !Array.isArray(items)) {
     return [];
@@ -120,7 +120,7 @@ export const preprocessMemories = (
     if (item.namespace == null || item.key == null || item.value == null) {
       console.warn(
         "Dropping memory item with null/undefined namespace, key, or value:",
-        item
+        item,
       );
       return false;
     }
@@ -132,7 +132,7 @@ export const preprocessMemories = (
     if (namespace === "" || key === "" || value === "") {
       console.warn(
         "Dropping memory item with empty namespace, key, or value after trimming:",
-        item
+        item,
       );
       return false;
     }
@@ -143,7 +143,7 @@ export const preprocessMemories = (
     ) {
       console.warn(
         `Dropping memory item with confidence ${item.confidence} below threshold ${minConfidence}:`,
-        item
+        item,
       );
       return false;
     }
@@ -162,7 +162,7 @@ export const preprocessMemories = (
     } else {
       console.debug(
         `Deduplicating memory item: keeping entry with higher confidence (${existing.confidence} > ${item.confidence})`,
-        { namespace: item.namespace, key: item.key, value: item.value }
+        { namespace: item.namespace, key: item.key, value: item.value },
       );
     }
   }

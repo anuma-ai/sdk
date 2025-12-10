@@ -77,7 +77,7 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
   // 2. Hash with SHA-256 to get 32-byte key
   const hashBuffer = await crypto.subtle.digest(
     "SHA-256",
-    sigBytes.buffer as ArrayBuffer
+    sigBytes.buffer as ArrayBuffer,
   );
   const hashBytes = new Uint8Array(hashBuffer);
 
@@ -103,7 +103,7 @@ async function getEncryptionKey(address: string): Promise<CryptoKey> {
     keyBytes.buffer as ArrayBuffer,
     { name: "AES-GCM" },
     false,
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"],
   );
 }
 
@@ -114,7 +114,7 @@ async function getEncryptionKey(address: string): Promise<CryptoKey> {
  */
 export async function encryptData(
   plaintext: string | Uint8Array,
-  address: string
+  address: string,
 ): Promise<string> {
   const key = await getEncryptionKey(address);
 
@@ -134,7 +134,7 @@ export async function encryptData(
       iv: iv,
     },
     key,
-    plaintextBytes.buffer as ArrayBuffer
+    plaintextBytes.buffer as ArrayBuffer,
   );
 
   // Combine IV + encrypted data (which includes auth tag)
@@ -154,7 +154,7 @@ export async function encryptData(
  */
 export async function decryptData(
   encryptedHex: string,
-  address: string
+  address: string,
 ): Promise<string> {
   const key = await getEncryptionKey(address);
 
@@ -172,7 +172,7 @@ export async function decryptData(
       iv: iv,
     },
     key,
-    encryptedData
+    encryptedData,
   );
 
   // Convert decrypted bytes to string
@@ -186,7 +186,7 @@ export async function decryptData(
  */
 export async function decryptDataBytes(
   encryptedHex: string,
-  address: string
+  address: string,
 ): Promise<Uint8Array> {
   const key = await getEncryptionKey(address);
 
@@ -204,7 +204,7 @@ export async function decryptDataBytes(
       iv: iv,
     },
     key,
-    encryptedData
+    encryptedData,
   );
 
   return new Uint8Array(decryptedData);
@@ -232,7 +232,7 @@ export type SignMessageFn = (message: string) => Promise<string>;
  */
 export async function requestEncryptionKey(
   walletAddress: string,
-  signMessage: SignMessageFn
+  signMessage: SignMessageFn,
 ): Promise<void> {
   const storageKey = getStorageKey(walletAddress);
 
@@ -266,4 +266,3 @@ export function useEncryption(signMessage: SignMessageFn) {
       requestEncryptionKey(walletAddress, signMessage),
   };
 }
-

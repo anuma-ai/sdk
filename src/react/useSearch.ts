@@ -52,7 +52,7 @@ export type UseSearchResult = {
   isLoading: boolean;
   search: (
     query: string | string[],
-    options?: SearchOptions
+    options?: SearchOptions,
   ) => Promise<LlmapiSearchResponse | null>;
   results: LlmapiSearchResult[] | null;
   response: LlmapiSearchResponse | null;
@@ -98,7 +98,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchResult {
   const search = useCallback(
     async (
       query: string | string[],
-      searchOptions: SearchOptions = {}
+      searchOptions: SearchOptions = {},
     ): Promise<LlmapiSearchResponse | null> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -172,7 +172,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchResult {
         }
       }
     },
-    [baseUrl, getToken, onError]
+    [baseUrl, getToken, onError],
   );
 
   return {

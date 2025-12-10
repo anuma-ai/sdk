@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Messages is the conversation history
 
-***
+---
 
 ### model?
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:52](https://github.com/zeta-chain/ai-sdk/blob/a75794bb
 
 Model is the model identifier
 
-***
+---
 
 ### stream?
 

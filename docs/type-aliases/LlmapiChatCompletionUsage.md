@@ -14,39 +14,39 @@ Usage contains token usage information
 
 ## Properties
 
-### completion\_tokens?
+### completion_tokens?
 
-> `optional` **completion\_tokens**: `number`
+> `optional` **completion_tokens**: `number`
 
 Defined in: [types.gen.ts:83](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L83)
 
 CompletionTokens is the number of tokens in the completion
 
-***
+---
 
-### cost\_micro\_usd?
+### cost_micro_usd?
 
-> `optional` **cost\_micro\_usd**: `number`
+> `optional` **cost_micro_usd**: `number`
 
 Defined in: [types.gen.ts:87](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L87)
 
 CostMicroUSD is the cost of this completion in micro-dollars (USD × 1,000,000)
 
-***
+---
 
-### prompt\_tokens?
+### prompt_tokens?
 
-> `optional` **prompt\_tokens**: `number`
+> `optional` **prompt_tokens**: `number`
 
 Defined in: [types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L91)
 
 PromptTokens is the number of tokens in the prompt
 
-***
+---
 
-### total\_tokens?
+### total_tokens?
 
-> `optional` **total\_tokens**: `number`
+> `optional` **total_tokens**: `number`
 
 Defined in: [types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L95)
 

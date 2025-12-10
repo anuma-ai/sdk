@@ -18,7 +18,7 @@ Generates a chat completion using the configured gateway. Supports streaming whe
 
 ### ThrowOnError
 
-`ThrowOnError` *extends* `boolean` = `false`
+`ThrowOnError` _extends_ `boolean` = `false`
 
 ## Parameters
 

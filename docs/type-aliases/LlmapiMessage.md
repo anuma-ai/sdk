@@ -22,7 +22,7 @@ Defined in: [types.gen.ts:307](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Content is the message content
 
-***
+---
 
 ### role?
 

@@ -12,7 +12,7 @@ export interface GenerateLocalChatCompletionOptions {
 
 export async function generateLocalChatCompletion(
   messages: Array<{ role: string; content: string }>,
-  options: GenerateLocalChatCompletionOptions = {}
+  options: GenerateLocalChatCompletionOptions = {},
 ) {
   const {
     model = DEFAULT_LOCAL_CHAT_MODEL,

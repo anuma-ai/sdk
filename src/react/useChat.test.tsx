@@ -44,7 +44,7 @@ describe("useChat", () => {
     const { result } = renderHook(() =>
       useChat({
         getToken: async () => "fake-token",
-      })
+      }),
     );
 
     let response: SendMessageResult | undefined;
@@ -63,7 +63,7 @@ describe("useChat", () => {
           model: "gpt-3.5-turbo",
           stream: true,
         }),
-      })
+      }),
     );
 
     expect(response).toBeDefined();

@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:524](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Optional publication or last updated date.
 
-***
+---
 
 ### snippet?
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:528](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Text snippet from the result.
 
-***
+---
 
 ### title?
 
@@ -40,7 +40,7 @@ Defined in: [types.gen.ts:532](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Title of the search result.
 
-***
+---
 
 ### url?
 

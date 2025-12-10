@@ -18,7 +18,7 @@ Defined in: [types.gen.ts:653](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:654](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L654)
 
-***
+---
 
 ### path?
 
@@ -26,7 +26,7 @@ Defined in: [types.gen.ts:654](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:655](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L655)
 
-***
+---
 
 ### query?
 
@@ -34,15 +34,15 @@ Defined in: [types.gen.ts:655](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Defined in: [types.gen.ts:656](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L656)
 
-#### page\_size?
+#### page_size?
 
-> `optional` **page\_size**: `number`
+> `optional` **page_size**: `number`
 
 Number of models to return per page
 
-#### page\_token?
+#### page_token?
 
-> `optional` **page\_token**: `string`
+> `optional` **page_token**: `string`
 
 Token to get next page of results
 
@@ -52,7 +52,7 @@ Token to get next page of results
 
 Filter by provider (e.g., openai, anthropic)
 
-***
+---
 
 ### url
 

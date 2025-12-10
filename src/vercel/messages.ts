@@ -13,7 +13,7 @@ import type { LlmapiMessage } from "../client/types.gen";
  * @returns A clean array of Portal-ready messages, filtered to user, assistant, and system roles.
  */
 export function mapMessagesToCompletionPayload(
-  messages: UIMessage[]
+  messages: UIMessage[],
 ): LlmapiMessage[] {
   return messages
     .map((message) => {

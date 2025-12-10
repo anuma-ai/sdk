@@ -8,7 +8,7 @@ import type { StoredMemoryItem } from "./db";
  */
 export const formatMemoriesForChat = (
   memories: Array<StoredMemoryItem & { similarity?: number }>,
-  format: "compact" | "detailed" = "compact"
+  format: "compact" | "detailed" = "compact",
 ): string => {
   if (memories.length === 0) {
     return "";
@@ -36,7 +36,7 @@ export const formatMemoriesForChat = (
             memory.similarity
               ? `, relevance: ${memory.similarity.toFixed(2)}`
               : ""
-          })`
+          })`,
         );
         if (memory.rawEvidence) {
           items.push(`  Evidence: "${memory.rawEvidence}"`);
@@ -62,7 +62,7 @@ export const formatMemoriesForChat = (
  */
 export const createMemoryContextSystemMessage = (
   memories: Array<StoredMemoryItem & { similarity?: number }>,
-  baseSystemPrompt?: string
+  baseSystemPrompt?: string,
 ): string => {
   const memoryContext = formatMemoriesForChat(memories, "compact");
 
@@ -87,7 +87,7 @@ export const createMemoryContextSystemMessage = (
  */
 export const extractConversationContext = (
   messages: Array<{ role: string; content: string }>,
-  maxMessages: number = 3
+  maxMessages: number = 3,
 ): string => {
   const userMessages = messages
     .filter((msg) => msg.role === "user")

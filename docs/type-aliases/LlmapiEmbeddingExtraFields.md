@@ -14,15 +14,15 @@ ExtraFields contains additional metadata
 
 ## Properties
 
-### chunk\_index?
+### chunk_index?
 
-> `optional` **chunk\_index**: `number`
+> `optional` **chunk_index**: `number`
 
 Defined in: [types.gen.ts:132](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L132)
 
 ChunkIndex is the chunk index (0 for single requests)
 
-***
+---
 
 ### latency?
 
@@ -32,17 +32,17 @@ Defined in: [types.gen.ts:136](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Latency is the request latency in milliseconds
 
-***
+---
 
-### model\_requested?
+### model_requested?
 
-> `optional` **model\_requested**: `string`
+> `optional` **model_requested**: `string`
 
 Defined in: [types.gen.ts:140](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L140)
 
 ModelRequested is the model that was requested
 
-***
+---
 
 ### provider?
 
@@ -52,11 +52,11 @@ Defined in: [types.gen.ts:144](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
-***
+---
 
-### request\_type?
+### request_type?
 
-> `optional` **request\_type**: `string`
+> `optional` **request_type**: `string`
 
 Defined in: [types.gen.ts:148](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L148)
 

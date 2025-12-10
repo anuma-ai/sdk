@@ -20,7 +20,7 @@ Defined in: [types.gen.ts:631](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Bad Request
 
-***
+---
 
 ### 500
 
@@ -30,7 +30,7 @@ Defined in: [types.gen.ts:635](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Internal Server Error
 
-***
+---
 
 ### 501
 

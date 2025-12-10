@@ -23,7 +23,7 @@ export function usePdf() {
         const pdfFiles = files.filter(
           (file) =>
             file.mediaType === PDF_MIME_TYPE ||
-            file.filename?.toLowerCase().endsWith(".pdf")
+            file.filename?.toLowerCase().endsWith(".pdf"),
         );
 
         if (pdfFiles.length === 0) {
@@ -45,7 +45,7 @@ export function usePdf() {
               console.error(`Failed to process PDF ${file.filename}:`, err);
               return null;
             }
-          })
+          }),
         );
 
         const mergedContext = contexts.filter(Boolean).join("\n\n");
@@ -59,7 +59,7 @@ export function usePdf() {
         setIsProcessing(false);
       }
     },
-    []
+    [],
   );
 
   return {

@@ -20,15 +20,15 @@ Defined in: [types.gen.ts:261](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Created is the Unix timestamp when the image was generated.
 
-***
+---
 
-### extra\_fields?
+### extra_fields?
 
-> `optional` **extra\_fields**: [`LlmapiImageGenerationExtraFields`](LlmapiImageGenerationExtraFields.md)
+> `optional` **extra_fields**: [`LlmapiImageGenerationExtraFields`](LlmapiImageGenerationExtraFields.md)
 
 Defined in: [types.gen.ts:262](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L262)
 
-***
+---
 
 ### images?
 
@@ -38,7 +38,7 @@ Defined in: [types.gen.ts:266](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Images contains the generated images.
 
-***
+---
 
 ### model?
 
@@ -48,7 +48,7 @@ Defined in: [types.gen.ts:270](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Model is the model identifier that generated the image.
 
-***
+---
 
 ### provider?
 
@@ -58,7 +58,7 @@ Defined in: [types.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Provider is the gateway that produced the image.
 
-***
+---
 
 ### usage?
 

@@ -20,19 +20,19 @@ Defined in: [types.gen.ts:457](https://github.com/zeta-chain/ai-sdk/blob/a75794b
 
 Data contains the list of available models
 
-***
+---
 
-### extra\_fields?
+### extra_fields?
 
-> `optional` **extra\_fields**: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md)
+> `optional` **extra_fields**: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md)
 
 Defined in: [types.gen.ts:458](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L458)
 
-***
+---
 
-### next\_page\_token?
+### next_page_token?
 
-> `optional` **next\_page\_token**: `string`
+> `optional` **next_page_token**: `string`
 
 Defined in: [types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/a75794bb81ba266385e051ab7e34485d7229f825/src/client/types.gen.ts#L462)
 
