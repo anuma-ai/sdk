@@ -38,6 +38,10 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * Defaults to true if tools are configured.
    */
   runTools?: boolean;
+  /**
+   * Optional custom headers to include with the request.
+   */
+  headers?: Record<string, string>;
 };
 
 type SendMessageResult =
@@ -202,6 +206,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       model,
       onData,
       runTools = true,
+      headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -433,6 +438,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
+              ...headers,
             },
             signal: abortController.signal,
           });
