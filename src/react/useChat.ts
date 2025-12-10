@@ -39,10 +39,9 @@ type SendMessageArgs = BaseSendMessageArgs & {
    */
   runTools?: boolean;
   /**
-   * Optional trace ID for request tracing/observability.
-   * Will be sent as X-Trace-ID header.
+   * Optional custom headers to include with the request.
    */
-  traceId?: string;
+  headers?: Record<string, string>;
 };
 
 type SendMessageResult =
@@ -207,7 +206,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       model,
       onData,
       runTools = true,
-      traceId,
+      headers,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -436,11 +435,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               model,
               stream: true,
             },
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-...headers
-},
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              ...headers,
+            },
             signal: abortController.signal,
           });
 
