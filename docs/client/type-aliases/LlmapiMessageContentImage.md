@@ -1,10 +1,4 @@
----
-title: LlmapiMessageContentImage
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiMessageContentImage
-
-# Type Alias: LlmapiMessageContentImage
+# LlmapiMessageContentImage
 
 > **LlmapiMessageContentImage** = `object`
 

@@ -1,9 +1,3 @@
----
-title: next
----
-
-[SDK Documentation](../README.md) / next
-
 # next
 
 ## Functions

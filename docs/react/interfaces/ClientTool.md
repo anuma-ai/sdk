@@ -1,10 +1,4 @@
----
-title: ClientTool
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / ClientTool
-
-# Interface: ClientTool
+# ClientTool
 
 Defined in: [lib/tools/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L20)
 

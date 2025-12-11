@@ -1,10 +1,4 @@
----
-title: ToolSelectionResult
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / ToolSelectionResult
-
-# Interface: ToolSelectionResult
+# ToolSelectionResult
 
 Defined in: [lib/tools/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L37)
 

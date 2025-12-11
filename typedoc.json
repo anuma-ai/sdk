@@ -1,8 +1,14 @@
 {
-  "name": "SDK Documentation",
+  "name": "Overview",
   "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "textContentMappings": {
+    "title.indexPage": "{projectName}",
+    "title.memberPage": "{name}"
+  },
   "gitRevision": "main",
-  "readme": "none",
+  "readme": "./overview.md",
+  "mergeReadme": true,
   "entryPoints": [
     "src/react/index.ts",
     "src/client/index.ts",
@@ -10,9 +16,9 @@
     "src/vercel/index.ts",
     "src/expo/index.ts"
   ],
+  "entryFileName": "README.md",
   "plugin": [
     "typedoc-plugin-markdown",
-    "typedoc-plugin-frontmatter",
-    "./utils/typedoc-fumadocs.js"
+    "typedoc-plugin-frontmatter"
   ]
 }

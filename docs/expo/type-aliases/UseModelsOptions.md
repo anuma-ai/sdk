@@ -1,10 +1,4 @@
----
-title: UseModelsOptions
----
-
-[SDK Documentation](../../README.md) / [expo](../README.md) / UseModelsOptions
-
-# Type Alias: UseModelsOptions
+# UseModelsOptions
 
 > **UseModelsOptions** = `object`
 

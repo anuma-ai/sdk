@@ -1,10 +1,4 @@
----
-title: PostApiV1EmbeddingsError
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1EmbeddingsError
-
-# Type Alias: PostApiV1EmbeddingsError
+# PostApiV1EmbeddingsError
 
 > **PostApiV1EmbeddingsError** = [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)\[keyof [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)\]
 

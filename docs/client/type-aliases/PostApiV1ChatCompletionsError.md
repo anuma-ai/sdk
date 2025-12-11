@@ -1,10 +1,4 @@
----
-title: PostApiV1ChatCompletionsError
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ChatCompletionsError
-
-# Type Alias: PostApiV1ChatCompletionsError
+# PostApiV1ChatCompletionsError
 
 > **PostApiV1ChatCompletionsError** = [`PostApiV1ChatCompletionsErrors`](PostApiV1ChatCompletionsErrors.md)\[keyof [`PostApiV1ChatCompletionsErrors`](PostApiV1ChatCompletionsErrors.md)\]
 

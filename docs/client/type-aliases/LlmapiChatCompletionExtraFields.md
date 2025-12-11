@@ -1,10 +1,4 @@
----
-title: LlmapiChatCompletionExtraFields
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiChatCompletionExtraFields
-
-# Type Alias: LlmapiChatCompletionExtraFields
+# LlmapiChatCompletionExtraFields
 
 > **LlmapiChatCompletionExtraFields** = `object`
 

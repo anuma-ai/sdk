@@ -1,10 +1,4 @@
----
-title: createMemoryContextSystemMessage
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / createMemoryContextSystemMessage
-
-# Function: createMemoryContextSystemMessage()
+# createMemoryContextSystemMessage()
 
 > **createMemoryContextSystemMessage**(`memories`, `baseSystemPrompt?`): `string`
 

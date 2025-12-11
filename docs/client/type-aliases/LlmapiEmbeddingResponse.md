@@ -1,10 +1,4 @@
----
-title: LlmapiEmbeddingResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiEmbeddingResponse
-
-# Type Alias: LlmapiEmbeddingResponse
+# LlmapiEmbeddingResponse
 
 > **LlmapiEmbeddingResponse** = `object`
 

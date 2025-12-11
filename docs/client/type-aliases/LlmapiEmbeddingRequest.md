@@ -1,10 +1,4 @@
----
-title: LlmapiEmbeddingRequest
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiEmbeddingRequest
-
-# Type Alias: LlmapiEmbeddingRequest
+# LlmapiEmbeddingRequest
 
 > **LlmapiEmbeddingRequest** = `object`
 

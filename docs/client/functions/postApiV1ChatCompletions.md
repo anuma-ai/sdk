@@ -1,10 +1,4 @@
----
-title: postApiV1ChatCompletions
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / postApiV1ChatCompletions
-
-# Function: postApiV1ChatCompletions()
+# postApiV1ChatCompletions()
 
 > **postApiV1ChatCompletions**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1ChatCompletionsResponses`](../type-aliases/PostApiV1ChatCompletionsResponses.md), [`PostApiV1ChatCompletionsErrors`](../type-aliases/PostApiV1ChatCompletionsErrors.md), `ThrowOnError`\>
 

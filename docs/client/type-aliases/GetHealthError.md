@@ -1,10 +1,4 @@
----
-title: GetHealthError
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetHealthError
-
-# Type Alias: GetHealthError
+# GetHealthError
 
 > **GetHealthError** = [`GetHealthErrors`](GetHealthErrors.md)\[keyof [`GetHealthErrors`](GetHealthErrors.md)\]
 

@@ -1,10 +1,4 @@
----
-title: useOCR
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useOCR
-
-# Function: useOCR()
+# useOCR()
 
 > **useOCR**(): `object`
 

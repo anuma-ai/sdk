@@ -1,10 +1,4 @@
----
-title: LlmapiMessage
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiMessage
-
-# Type Alias: LlmapiMessage
+# LlmapiMessage
 
 > **LlmapiMessage** = `object`
 

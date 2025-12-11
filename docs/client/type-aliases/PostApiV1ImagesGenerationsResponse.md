@@ -1,10 +1,4 @@
----
-title: PostApiV1ImagesGenerationsResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ImagesGenerationsResponse
-
-# Type Alias: PostApiV1ImagesGenerationsResponse
+# PostApiV1ImagesGenerationsResponse
 
 > **PostApiV1ImagesGenerationsResponse** = [`PostApiV1ImagesGenerationsResponses`](PostApiV1ImagesGenerationsResponses.md)\[keyof [`PostApiV1ImagesGenerationsResponses`](PostApiV1ImagesGenerationsResponses.md)\]
 

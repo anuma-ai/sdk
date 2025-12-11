@@ -1,10 +1,4 @@
----
-title: GetHealthData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetHealthData
-
-# Type Alias: GetHealthData
+# GetHealthData
 
 > **GetHealthData** = `object`
 

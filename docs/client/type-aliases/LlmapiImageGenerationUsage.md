@@ -1,10 +1,4 @@
----
-title: LlmapiImageGenerationUsage
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiImageGenerationUsage
-
-# Type Alias: LlmapiImageGenerationUsage
+# LlmapiImageGenerationUsage
 
 > **LlmapiImageGenerationUsage** = `object`
 

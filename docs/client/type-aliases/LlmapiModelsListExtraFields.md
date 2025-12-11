@@ -1,10 +1,4 @@
----
-title: LlmapiModelsListExtraFields
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelsListExtraFields
-
-# Type Alias: LlmapiModelsListExtraFields
+# LlmapiModelsListExtraFields
 
 > **LlmapiModelsListExtraFields** = `object`
 

@@ -1,10 +1,4 @@
----
-title: LlmapiModelPerRequestLimits
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelPerRequestLimits
-
-# Type Alias: LlmapiModelPerRequestLimits
+# LlmapiModelPerRequestLimits
 
 > **LlmapiModelPerRequestLimits** = `object`
 

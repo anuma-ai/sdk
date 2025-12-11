@@ -1,10 +1,4 @@
----
-title: LlmapiImageGenerationExtraFields
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiImageGenerationExtraFields
-
-# Type Alias: LlmapiImageGenerationExtraFields
+# LlmapiImageGenerationExtraFields
 
 > **LlmapiImageGenerationExtraFields** = `object`
 

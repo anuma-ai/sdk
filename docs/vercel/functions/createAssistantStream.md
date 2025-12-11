@@ -1,10 +1,4 @@
----
-title: createAssistantStream
----
-
-[SDK Documentation](../../README.md) / [vercel](../README.md) / createAssistantStream
-
-# Function: createAssistantStream()
+# createAssistantStream()
 
 > **createAssistantStream**(`text`): `ReadableStream`\<`AssistantStreamEvent`\>
 

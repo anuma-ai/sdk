@@ -1,10 +1,4 @@
----
-title: postApiV1Embeddings
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / postApiV1Embeddings
-
-# Function: postApiV1Embeddings()
+# postApiV1Embeddings()
 
 > **postApiV1Embeddings**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1EmbeddingsResponses`](../type-aliases/PostApiV1EmbeddingsResponses.md), [`PostApiV1EmbeddingsErrors`](../type-aliases/PostApiV1EmbeddingsErrors.md), `ThrowOnError`\>
 

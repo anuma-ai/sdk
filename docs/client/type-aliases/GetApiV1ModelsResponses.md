@@ -1,10 +1,4 @@
----
-title: GetApiV1ModelsResponses
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetApiV1ModelsResponses
-
-# Type Alias: GetApiV1ModelsResponses
+# GetApiV1ModelsResponses
 
 > **GetApiV1ModelsResponses** = `object`
 

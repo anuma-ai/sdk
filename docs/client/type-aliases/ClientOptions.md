@@ -1,10 +1,4 @@
----
-title: ClientOptions
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / ClientOptions
-
-# Type Alias: ClientOptions
+# ClientOptions
 
 > **ClientOptions** = `object`
 

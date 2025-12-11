@@ -1,10 +1,4 @@
----
-title: PostApiV1SearchData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1SearchData
-
-# Type Alias: PostApiV1SearchData
+# PostApiV1SearchData
 
 > **PostApiV1SearchData** = `object`
 

@@ -1,10 +1,4 @@
----
-title: ToolExecutionResult
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / ToolExecutionResult
-
-# Interface: ToolExecutionResult
+# ToolExecutionResult
 
 Defined in: [lib/tools/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L51)
 

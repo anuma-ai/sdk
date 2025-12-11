@@ -1,10 +1,4 @@
----
-title: hasEncryptionKey
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / hasEncryptionKey
-
-# Function: hasEncryptionKey()
+# hasEncryptionKey()
 
 > **hasEncryptionKey**(`address`): `boolean`
 

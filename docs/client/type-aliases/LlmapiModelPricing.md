@@ -1,10 +1,4 @@
----
-title: LlmapiModelPricing
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelPricing
-
-# Type Alias: LlmapiModelPricing
+# LlmapiModelPricing
 
 > **LlmapiModelPricing** = `object`
 

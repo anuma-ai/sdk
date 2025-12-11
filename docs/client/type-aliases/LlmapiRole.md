@@ -1,10 +1,4 @@
----
-title: LlmapiRole
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiRole
-
-# Type Alias: LlmapiRole
+# LlmapiRole
 
 > **LlmapiRole** = `string`
 

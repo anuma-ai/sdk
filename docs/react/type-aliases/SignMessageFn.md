@@ -1,10 +1,4 @@
----
-title: SignMessageFn
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / SignMessageFn
-
-# Type Alias: SignMessageFn()
+# SignMessageFn()
 
 > **SignMessageFn** = (`message`) => `Promise`\<`string`\>
 

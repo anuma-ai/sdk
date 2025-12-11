@@ -1,10 +1,4 @@
----
-title: PostApiV1EmbeddingsData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1EmbeddingsData
-
-# Type Alias: PostApiV1EmbeddingsData
+# PostApiV1EmbeddingsData
 
 > **PostApiV1EmbeddingsData** = `object`
 

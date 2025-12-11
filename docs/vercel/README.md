@@ -1,9 +1,3 @@
----
-title: vercel
----
-
-[SDK Documentation](../README.md) / vercel
-
 # vercel
 
 ## Functions

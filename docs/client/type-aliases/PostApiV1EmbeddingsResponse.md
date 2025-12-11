@@ -1,10 +1,4 @@
----
-title: PostApiV1EmbeddingsResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1EmbeddingsResponse
-
-# Type Alias: PostApiV1EmbeddingsResponse
+# PostApiV1EmbeddingsResponse
 
 > **PostApiV1EmbeddingsResponse** = [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)\[keyof [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)\]
 

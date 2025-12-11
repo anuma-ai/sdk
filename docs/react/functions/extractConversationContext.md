@@ -1,10 +1,4 @@
----
-title: extractConversationContext
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / extractConversationContext
-
-# Function: extractConversationContext()
+# extractConversationContext()
 
 > **extractConversationContext**(`messages`, `maxMessages`): `string`
 

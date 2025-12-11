@@ -1,10 +1,4 @@
----
-title: LlmapiModelsListResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelsListResponse
-
-# Type Alias: LlmapiModelsListResponse
+# LlmapiModelsListResponse
 
 > **LlmapiModelsListResponse** = `object`
 

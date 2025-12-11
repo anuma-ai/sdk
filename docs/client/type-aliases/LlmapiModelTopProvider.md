@@ -1,10 +1,4 @@
----
-title: LlmapiModelTopProvider
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelTopProvider
-
-# Type Alias: LlmapiModelTopProvider
+# LlmapiModelTopProvider
 
 > **LlmapiModelTopProvider** = `object`
 

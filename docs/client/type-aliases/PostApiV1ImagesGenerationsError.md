@@ -1,10 +1,4 @@
----
-title: PostApiV1ImagesGenerationsError
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ImagesGenerationsError
-
-# Type Alias: PostApiV1ImagesGenerationsError
+# PostApiV1ImagesGenerationsError
 
 > **PostApiV1ImagesGenerationsError** = [`PostApiV1ImagesGenerationsErrors`](PostApiV1ImagesGenerationsErrors.md)\[keyof [`PostApiV1ImagesGenerationsErrors`](PostApiV1ImagesGenerationsErrors.md)\]
 

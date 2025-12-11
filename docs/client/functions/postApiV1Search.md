@@ -1,10 +1,4 @@
----
-title: postApiV1Search
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / postApiV1Search
-
-# Function: postApiV1Search()
+# postApiV1Search()
 
 > **postApiV1Search**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1SearchResponses`](../type-aliases/PostApiV1SearchResponses.md), [`PostApiV1SearchErrors`](../type-aliases/PostApiV1SearchErrors.md), `ThrowOnError`\>
 

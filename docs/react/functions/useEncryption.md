@@ -1,10 +1,4 @@
----
-title: useEncryption
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useEncryption
-
-# Function: useEncryption()
+# useEncryption()
 
 > **useEncryption**(`signMessage`): `object`
 

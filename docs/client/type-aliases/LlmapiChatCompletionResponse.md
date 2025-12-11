@@ -1,10 +1,4 @@
----
-title: LlmapiChatCompletionResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiChatCompletionResponse
-
-# Type Alias: LlmapiChatCompletionResponse
+# LlmapiChatCompletionResponse
 
 > **LlmapiChatCompletionResponse** = `object`
 

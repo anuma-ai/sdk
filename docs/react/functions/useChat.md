@@ -1,10 +1,4 @@
----
-title: useChat
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useChat
-
-# Function: useChat()
+# useChat()
 
 > **useChat**(`options?`): `UseChatResult`
 

@@ -1,10 +1,4 @@
----
-title: executeTool
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / executeTool
-
-# Function: executeTool()
+# executeTool()
 
 > **executeTool**(`tool`, `params`): `Promise`\<\{ `error?`: `string`; `result?`: `unknown`; `success`: `boolean`; \}\>
 

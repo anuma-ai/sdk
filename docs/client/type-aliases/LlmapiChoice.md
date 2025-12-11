@@ -1,10 +1,4 @@
----
-title: LlmapiChoice
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiChoice
-
-# Type Alias: LlmapiChoice
+# LlmapiChoice
 
 > **LlmapiChoice** = `object`
 

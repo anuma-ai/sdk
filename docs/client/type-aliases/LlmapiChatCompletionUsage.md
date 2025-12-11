@@ -1,10 +1,4 @@
----
-title: LlmapiChatCompletionUsage
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiChatCompletionUsage
-
-# Type Alias: LlmapiChatCompletionUsage
+# LlmapiChatCompletionUsage
 
 > **LlmapiChatCompletionUsage** = `object`
 

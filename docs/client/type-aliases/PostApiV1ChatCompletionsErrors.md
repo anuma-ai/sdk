@@ -1,10 +1,4 @@
----
-title: PostApiV1ChatCompletionsErrors
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ChatCompletionsErrors
-
-# Type Alias: PostApiV1ChatCompletionsErrors
+# PostApiV1ChatCompletionsErrors
 
 > **PostApiV1ChatCompletionsErrors** = `object`
 

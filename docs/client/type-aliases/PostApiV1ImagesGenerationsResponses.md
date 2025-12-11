@@ -1,10 +1,4 @@
----
-title: PostApiV1ImagesGenerationsResponses
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ImagesGenerationsResponses
-
-# Type Alias: PostApiV1ImagesGenerationsResponses
+# PostApiV1ImagesGenerationsResponses
 
 > **PostApiV1ImagesGenerationsResponses** = `object`
 

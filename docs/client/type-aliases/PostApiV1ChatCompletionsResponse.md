@@ -1,10 +1,4 @@
----
-title: PostApiV1ChatCompletionsResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ChatCompletionsResponse
-
-# Type Alias: PostApiV1ChatCompletionsResponse
+# PostApiV1ChatCompletionsResponse
 
 > **PostApiV1ChatCompletionsResponse** = [`PostApiV1ChatCompletionsResponses`](PostApiV1ChatCompletionsResponses.md)\[keyof [`PostApiV1ChatCompletionsResponses`](PostApiV1ChatCompletionsResponses.md)\]
 

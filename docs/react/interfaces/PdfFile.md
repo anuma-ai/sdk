@@ -1,10 +1,4 @@
----
-title: PdfFile
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / PdfFile
-
-# Interface: PdfFile
+# PdfFile
 
 Defined in: [react/usePdf.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L7)
 

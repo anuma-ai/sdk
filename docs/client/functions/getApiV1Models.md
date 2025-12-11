@@ -1,10 +1,4 @@
----
-title: getApiV1Models
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / getApiV1Models
-
-# Function: getApiV1Models()
+# getApiV1Models()
 
 > **getApiV1Models**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetApiV1ModelsResponses`](../type-aliases/GetApiV1ModelsResponses.md), [`GetApiV1ModelsErrors`](../type-aliases/GetApiV1ModelsErrors.md), `ThrowOnError`\>
 

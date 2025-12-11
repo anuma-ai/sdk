@@ -1,10 +1,4 @@
----
-title: formatMemoriesForChat
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / formatMemoriesForChat
-
-# Function: formatMemoriesForChat()
+# formatMemoriesForChat()
 
 > **formatMemoriesForChat**(`memories`, `format`): `string`
 

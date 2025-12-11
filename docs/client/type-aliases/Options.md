@@ -1,10 +1,4 @@
----
-title: Options
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / Options
-
-# Type Alias: Options\<TData, ThrowOnError\>
+# Options\<TData, ThrowOnError\>
 
 > **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & `object`
 

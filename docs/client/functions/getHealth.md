@@ -1,10 +1,4 @@
----
-title: getHealth
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / getHealth
-
-# Function: getHealth()
+# getHealth()
 
 > **getHealth**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`\>
 

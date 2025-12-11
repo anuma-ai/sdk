@@ -1,10 +1,4 @@
----
-title: encryptData
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / encryptData
-
-# Function: encryptData()
+# encryptData()
 
 > **encryptData**(`plaintext`, `address`): `Promise`\<`string`\>
 

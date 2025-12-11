@@ -1,10 +1,4 @@
----
-title: useImageGeneration
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useImageGeneration
-
-# Function: useImageGeneration()
+# useImageGeneration()
 
 > **useImageGeneration**(`options`): `UseImageGenerationResult`
 

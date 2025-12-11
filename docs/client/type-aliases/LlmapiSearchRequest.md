@@ -1,10 +1,4 @@
----
-title: LlmapiSearchRequest
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiSearchRequest
-
-# Type Alias: LlmapiSearchRequest
+# LlmapiSearchRequest
 
 > **LlmapiSearchRequest** = `object`
 

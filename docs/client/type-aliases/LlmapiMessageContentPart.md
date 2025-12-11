@@ -1,10 +1,4 @@
----
-title: LlmapiMessageContentPart
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiMessageContentPart
-
-# Type Alias: LlmapiMessageContentPart
+# LlmapiMessageContentPart
 
 > **LlmapiMessageContentPart** = `object`
 

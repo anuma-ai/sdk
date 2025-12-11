@@ -1,10 +1,4 @@
----
-title: mapMessagesToCompletionPayload
----
-
-[SDK Documentation](../../README.md) / [vercel](../README.md) / mapMessagesToCompletionPayload
-
-# Function: mapMessagesToCompletionPayload()
+# mapMessagesToCompletionPayload()
 
 > **mapMessagesToCompletionPayload**(`messages`): [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
 

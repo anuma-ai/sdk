@@ -1,10 +1,4 @@
----
-title: ResponseErrorResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / ResponseErrorResponse
-
-# Type Alias: ResponseErrorResponse
+# ResponseErrorResponse
 
 > **ResponseErrorResponse** = `object`
 

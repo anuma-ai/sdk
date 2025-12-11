@@ -1,10 +1,4 @@
----
-title: useModels
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useModels
-
-# Function: useModels()
+# useModels()
 
 > **useModels**(`options`): [`UseModelsResult`](../../expo/type-aliases/UseModelsResult.md)
 

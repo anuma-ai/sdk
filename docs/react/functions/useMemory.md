@@ -1,10 +1,4 @@
----
-title: useMemory
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useMemory
-
-# Function: useMemory()
+# useMemory()
 
 > **useMemory**(`options`): `UseMemoryResult`
 

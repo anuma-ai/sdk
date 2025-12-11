@@ -1,10 +1,4 @@
----
-title: GetHealthErrors
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetHealthErrors
-
-# Type Alias: GetHealthErrors
+# GetHealthErrors
 
 > **GetHealthErrors** = `object`
 

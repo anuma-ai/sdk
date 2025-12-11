@@ -1,10 +1,4 @@
----
-title: selectTool
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / selectTool
-
-# Function: selectTool()
+# selectTool()
 
 > **selectTool**(`userMessage`, `tools`, `options`): `Promise`\<[`ToolSelectionResult`](../interfaces/ToolSelectionResult.md)\>
 

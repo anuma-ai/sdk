@@ -1,10 +1,4 @@
----
-title: createErrorStream
----
-
-[SDK Documentation](../../README.md) / [vercel](../README.md) / createErrorStream
-
-# Function: createErrorStream()
+# createErrorStream()
 
 > **createErrorStream**(`errorText`): `ReadableStream`\<`AssistantStreamEvent`\>
 

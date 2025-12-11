@@ -1,10 +1,4 @@
----
-title: LlmapiSearchExtraFields
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiSearchExtraFields
-
-# Type Alias: LlmapiSearchExtraFields
+# LlmapiSearchExtraFields
 
 > **LlmapiSearchExtraFields** = `object`
 

@@ -1,10 +1,4 @@
----
-title: postApiV1ImagesGenerations
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / postApiV1ImagesGenerations
-
-# Function: postApiV1ImagesGenerations()
+# postApiV1ImagesGenerations()
 
 > **postApiV1ImagesGenerations**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1ImagesGenerationsResponses`](../type-aliases/PostApiV1ImagesGenerationsResponses.md), [`PostApiV1ImagesGenerationsErrors`](../type-aliases/PostApiV1ImagesGenerationsErrors.md), `ThrowOnError`\>
 

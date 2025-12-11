@@ -1,10 +1,4 @@
----
-title: GetApiV1ModelsData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetApiV1ModelsData
-
-# Type Alias: GetApiV1ModelsData
+# GetApiV1ModelsData
 
 > **GetApiV1ModelsData** = `object`
 

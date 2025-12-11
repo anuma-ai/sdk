@@ -1,10 +1,4 @@
----
-title: LlmapiImageGenerationRequest
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiImageGenerationRequest
-
-# Type Alias: LlmapiImageGenerationRequest
+# LlmapiImageGenerationRequest
 
 > **LlmapiImageGenerationRequest** = `object`
 

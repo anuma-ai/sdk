@@ -1,10 +1,4 @@
----
-title: PostApiV1EmbeddingsResponses
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1EmbeddingsResponses
-
-# Type Alias: PostApiV1EmbeddingsResponses
+# PostApiV1EmbeddingsResponses
 
 > **PostApiV1EmbeddingsResponses** = `object`
 

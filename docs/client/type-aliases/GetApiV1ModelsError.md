@@ -1,10 +1,4 @@
----
-title: GetApiV1ModelsError
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetApiV1ModelsError
-
-# Type Alias: GetApiV1ModelsError
+# GetApiV1ModelsError
 
 > **GetApiV1ModelsError** = [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)\[keyof [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)\]
 

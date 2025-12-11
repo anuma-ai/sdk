@@ -1,10 +1,4 @@
----
-title: LlmapiEmbeddingUsage
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiEmbeddingUsage
-
-# Type Alias: LlmapiEmbeddingUsage
+# LlmapiEmbeddingUsage
 
 > **LlmapiEmbeddingUsage** = `object`
 

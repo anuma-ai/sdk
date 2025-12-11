@@ -1,9 +1,3 @@
----
-title: client
----
-
-[SDK Documentation](../README.md) / client
-
 # client
 
 ## Type Aliases

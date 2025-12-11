@@ -1,10 +1,4 @@
----
-title: LlmapiModelArchitecture
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiModelArchitecture
-
-# Type Alias: LlmapiModelArchitecture
+# LlmapiModelArchitecture
 
 > **LlmapiModelArchitecture** = `object`
 

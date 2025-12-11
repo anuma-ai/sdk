@@ -1,10 +1,4 @@
----
-title: PostApiV1ChatCompletionsData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1ChatCompletionsData
-
-# Type Alias: PostApiV1ChatCompletionsData
+# PostApiV1ChatCompletionsData
 
 > **PostApiV1ChatCompletionsData** = `object`
 

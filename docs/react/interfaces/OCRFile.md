@@ -1,10 +1,4 @@
----
-title: OCRFile
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / OCRFile
-
-# Interface: OCRFile
+# OCRFile
 
 Defined in: [react/useOCR.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L5)
 

@@ -1,10 +1,4 @@
----
-title: withReverbia
----
-
-[SDK Documentation](../../README.md) / [next](../README.md) / withReverbia
-
-# Function: withReverbia()
+# withReverbia()
 
 > **withReverbia**(`nextConfig`): `any`
 

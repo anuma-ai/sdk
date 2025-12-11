@@ -1,10 +1,4 @@
----
-title: UseModelsResult
----
-
-[SDK Documentation](../../README.md) / [expo](../README.md) / UseModelsResult
-
-# Type Alias: UseModelsResult
+# UseModelsResult
 
 > **UseModelsResult** = `object`
 

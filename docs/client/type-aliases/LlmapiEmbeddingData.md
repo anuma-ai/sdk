@@ -1,10 +1,4 @@
----
-title: LlmapiEmbeddingData
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiEmbeddingData
-
-# Type Alias: LlmapiEmbeddingData
+# LlmapiEmbeddingData
 
 > **LlmapiEmbeddingData** = `object`
 

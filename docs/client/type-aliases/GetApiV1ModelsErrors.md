@@ -1,10 +1,4 @@
----
-title: GetApiV1ModelsErrors
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetApiV1ModelsErrors
-
-# Type Alias: GetApiV1ModelsErrors
+# GetApiV1ModelsErrors
 
 > **GetApiV1ModelsErrors** = `object`
 

@@ -1,10 +1,4 @@
----
-title: PostApiV1SearchErrors
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / PostApiV1SearchErrors
-
-# Type Alias: PostApiV1SearchErrors
+# PostApiV1SearchErrors
 
 > **PostApiV1SearchErrors** = `object`
 

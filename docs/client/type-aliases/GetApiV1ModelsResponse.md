@@ -1,10 +1,4 @@
----
-title: GetApiV1ModelsResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / GetApiV1ModelsResponse
-
-# Type Alias: GetApiV1ModelsResponse
+# GetApiV1ModelsResponse
 
 > **GetApiV1ModelsResponse** = [`GetApiV1ModelsResponses`](GetApiV1ModelsResponses.md)\[keyof [`GetApiV1ModelsResponses`](GetApiV1ModelsResponses.md)\]
 

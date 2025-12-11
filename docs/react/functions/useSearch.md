@@ -1,10 +1,4 @@
----
-title: useSearch
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / useSearch
-
-# Function: useSearch()
+# useSearch()
 
 > **useSearch**(`options`): `UseSearchResult`
 

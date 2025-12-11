@@ -1,9 +1,3 @@
----
-title: expo
----
-
-[SDK Documentation](../README.md) / expo
-
 # expo
 
 ## Type Aliases

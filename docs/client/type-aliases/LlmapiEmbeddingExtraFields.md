@@ -1,10 +1,4 @@
----
-title: LlmapiEmbeddingExtraFields
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / LlmapiEmbeddingExtraFields
-
-# Type Alias: LlmapiEmbeddingExtraFields
+# LlmapiEmbeddingExtraFields
 
 > **LlmapiEmbeddingExtraFields** = `object`
 

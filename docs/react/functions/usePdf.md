@@ -1,10 +1,4 @@
----
-title: usePdf
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / usePdf
-
-# Function: usePdf()
+# usePdf()
 
 > **usePdf**(): `object`
 

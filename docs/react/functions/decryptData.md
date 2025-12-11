@@ -1,10 +1,4 @@
----
-title: decryptData
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / decryptData
-
-# Function: decryptData()
+# decryptData()
 
 > **decryptData**(`encryptedHex`, `address`): `Promise`\<`string`\>
 

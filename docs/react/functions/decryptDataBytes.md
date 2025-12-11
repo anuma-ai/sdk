@@ -1,10 +1,4 @@
----
-title: decryptDataBytes
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / decryptDataBytes
-
-# Function: decryptDataBytes()
+# decryptDataBytes()
 
 > **decryptDataBytes**(`encryptedHex`, `address`): `Promise`\<`Uint8Array`\<`ArrayBufferLike`\>\>
 

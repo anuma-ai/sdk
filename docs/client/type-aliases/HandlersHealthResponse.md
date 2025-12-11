@@ -1,10 +1,4 @@
----
-title: HandlersHealthResponse
----
-
-[SDK Documentation](../../README.md) / [client](../README.md) / HandlersHealthResponse
-
-# Type Alias: HandlersHealthResponse
+# HandlersHealthResponse
 
 > **HandlersHealthResponse** = `object`
 

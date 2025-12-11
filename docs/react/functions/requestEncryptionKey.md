@@ -1,10 +1,4 @@
----
-title: requestEncryptionKey
----
-
-[SDK Documentation](../../README.md) / [react](../README.md) / requestEncryptionKey
-
-# Function: requestEncryptionKey()
+# requestEncryptionKey()
 
 > **requestEncryptionKey**(`walletAddress`, `signMessage`): `Promise`\<`void`\>
 
