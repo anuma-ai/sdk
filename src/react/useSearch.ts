@@ -64,6 +64,7 @@ export type UseSearchResult = {
  *
  * @param options - Configuration options for the search hook
  * @returns Object containing search function, results, loading state, and error
+ * @category Hooks
  *
  * @example
  * ```tsx

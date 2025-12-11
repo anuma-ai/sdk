@@ -259,6 +259,7 @@ export async function requestEncryptionKey(
  * Hook that provides on-demand encryption key management.
  * @param signMessage - Function to sign a message (from Privy's useSignMessage)
  * @returns Functions to request encryption keys
+ * @category Hooks
  */
 export function useEncryption(signMessage: SignMessageFn) {
   return {

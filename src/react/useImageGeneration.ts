@@ -41,6 +41,7 @@ export type UseImageGenerationResult = {
 
 /**
  * React hook for generating images using the LLM API.
+ * @category Hooks
  */
 export function useImageGeneration(
   options: UseImageGenerationOptions = {}

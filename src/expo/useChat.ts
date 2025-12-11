@@ -89,6 +89,8 @@ function processSSELines(
  *   - `sendMessage`: An async function to send chat messages
  *   - `stop`: A function to abort the current request
  *
+ * @category Hooks
+ *
  * @example
  * ```tsx
  * const { isLoading, sendMessage, stop } = useChat({
