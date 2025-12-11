@@ -4,7 +4,8 @@
   "hideBreadcrumbs": true,
   "textContentMappings": {
     "title.indexPage": "{projectName}",
-    "title.memberPage": "{name}"
+    "title.memberPage": "{name}",
+    "title.modulePage": "Overview"
   },
   "gitRevision": "main",
   "readme": "./overview.md",

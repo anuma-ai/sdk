@@ -2,7 +2,7 @@
 
 > **useSearch**(`options`): `UseSearchResult`
 
-Defined in: [react/useSearch.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L79)
+Defined in: [react/useSearch.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L80)
 
 React hook for performing search operations using the AI SDK.
 

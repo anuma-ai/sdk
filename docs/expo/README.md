@@ -1,15 +1,10 @@
-# expo
+# Overview
 
-## Type Aliases
-
-- [UseModelsOptions](type-aliases/UseModelsOptions.md)
-- [UseModelsResult](type-aliases/UseModelsResult.md)
-
-## Functions
+## Hooks
 
 - [useChat](functions/useChat.md)
 
-## References
+## Other
 
 ### useImageGeneration
 

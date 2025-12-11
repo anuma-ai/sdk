@@ -1,4 +1,4 @@
-# react
+# Overview
 
 Your custom content goes here.
 
@@ -12,7 +12,13 @@ You can use markdown formatting:
 ## Hooks
 
 - [useChat](functions/useChat.md)
+- [useEncryption](functions/useEncryption.md)
+- [useImageGeneration](functions/useImageGeneration.md)
+- [useMemory](functions/useMemory.md)
 - [useModels](functions/useModels.md)
+- [useOCR](functions/useOCR.md)
+- [usePdf](functions/usePdf.md)
+- [useSearch](functions/useSearch.md)
 
 ## Other
 
@@ -34,9 +40,3 @@ You can use markdown formatting:
 - [hasEncryptionKey](functions/hasEncryptionKey.md)
 - [requestEncryptionKey](functions/requestEncryptionKey.md)
 - [selectTool](functions/selectTool.md)
-- [useEncryption](functions/useEncryption.md)
-- [useImageGeneration](functions/useImageGeneration.md)
-- [useMemory](functions/useMemory.md)
-- [useOCR](functions/useOCR.md)
-- [usePdf](functions/usePdf.md)
-- [useSearch](functions/useSearch.md)
