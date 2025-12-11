@@ -23,7 +23,6 @@ export {
   extractConversationContext,
 } from "../lib/memory/chat";
 
-// Tool types for client-side tools
 export type {
   ClientTool,
   ToolParameter,

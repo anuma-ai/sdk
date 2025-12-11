@@ -1,5 +1,15 @@
 {
+  "name": "SDK Documentation",
   "hidePageHeader": true,
+  "gitRevision": "main",
+  "readme": "none",
+  "entryPoints": [
+    "src/react/index.ts",
+    "src/client/index.ts",
+    "src/next/index.ts",
+    "src/vercel/index.ts",
+    "src/expo/index.ts"
+  ],
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter",

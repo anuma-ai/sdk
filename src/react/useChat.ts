@@ -108,6 +108,8 @@ type UseChatResult = BaseUseChatResult & {
  * @param options.toolSelectorModel - The model to use for tool selection.
  * @param options.onToolExecution - Callback function to be called when a tool is executed.
  *
+ * @category Hooks
+ *
  * @returns An object containing:
  *   - `isLoading`: A boolean indicating whether a request is currently in progress
  *   - `isSelectingTool`: A boolean indicating whether tool selection is in progress
