@@ -1,14 +1,4 @@
 /**
- *
- * Your custom content goes here.
- *
- * This will appear in the generated README.md for the react module.
- *
- * You can use markdown formatting:
- * - Lists
- * - **Bold text**
- * - `code blocks`
- *
  * @module
  */
 export { useChat } from "./useChat";
