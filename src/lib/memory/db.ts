@@ -98,10 +98,48 @@ export const saveMemories = async (memories: MemoryItem[]): Promise<void> => {
 };
 
 /**
+ * Update a memory item in IndexedDB
+ */
+export const updateMemoryById = async (
+  id: number,
+  updates: Partial<StoredMemoryItem & MemoryItem>,
+  existingMemory: StoredMemoryItem,
+  embedding: number[],
+  embeddingModel: string
+): Promise<StoredMemoryItem | undefined> => {
+  const now = Date.now();
+  const updatedMemory: Partial<StoredMemoryItem & MemoryItem> = {
+    ...updates,
+    updatedAt: now,
+  };
+
+  // Update composite keys if namespace, key, or value changed
+  if ("namespace" in updates || "key" in updates || "value" in updates) {
+    const namespace = updates.namespace ?? existingMemory.namespace;
+    const key = updates.key ?? existingMemory.key;
+    const value = updates.value ?? existingMemory.value;
+    updatedMemory.compositeKey = `${namespace}:${key}`;
+    updatedMemory.uniqueKey = `${namespace}:${key}:${value}`;
+  }
+
+  updatedMemory.embedding = embedding;
+  updatedMemory.embeddingModel = embeddingModel;
+
+  await memoryDb.memories.update(id, updatedMemory);
+  return await memoryDb.memories.get(id);
+};
+
+/**
  * Get all memories from IndexedDB
  */
 export const getAllMemories = async (): Promise<StoredMemoryItem[]> => {
   return memoryDb.memories.toArray();
+};
+
+export const getMemoryById = async (
+  id: number
+): Promise<StoredMemoryItem | undefined> => {
+  return memoryDb.memories.get(id);
 };
 
 /**
@@ -164,6 +202,10 @@ export const deleteMemory = async (
   if (existing?.id) {
     await memoryDb.memories.delete(existing.id);
   }
+};
+
+export const deleteMemoryById = async (id: number): Promise<void> => {
+  await memoryDb.memories.delete(id);
 };
 
 /**

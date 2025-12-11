@@ -12,8 +12,10 @@ import {
   getMemories,
   deleteMemory,
   deleteMemories,
+  deleteMemoryById,
   clearAllMemories,
-  memoryDb,
+  updateMemoryById,
+  getMemoryById,
   type StoredMemoryItem,
 } from "../lib/memory/db";
 import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
@@ -27,7 +29,11 @@ import {
   DEFAULT_COMPLETION_MODEL,
   DEFAULT_LOCAL_EMBEDDING_MODEL,
 } from "../lib/memory/constants";
-
+import {
+  generateEmbeddingForMemory,
+  type GenerateEmbeddingOptions,
+} from "../lib/memory/embeddings";
+import type { MemoryItem } from "../lib/memory/service";
 export type UseMemoryOptions = {
   /**
    * The model to use for fact extraction (default: "openai/gpt-4o")
@@ -100,7 +106,10 @@ export type UseMemoryResult = {
    * @param key The key within the namespace
    * @returns Array of memories matching the namespace and key
    */
-  fetchMemories: (namespace: string, key: string) => Promise<StoredMemoryItem[]>;
+  fetchMemoriesByKey: (
+    namespace: string,
+    key: string
+  ) => Promise<StoredMemoryItem[]>;
   /**
    * Update a memory by its ID
    * @param id The memory ID
@@ -109,7 +118,7 @@ export type UseMemoryResult = {
    */
   updateMemory: (
     id: number,
-    updates: Partial<Omit<StoredMemoryItem, "id" | "createdAt" | "updatedAt">>
+    updates: Partial<StoredMemoryItem & MemoryItem>
   ) => Promise<StoredMemoryItem | undefined>;
   /**
    * Delete a specific memory by namespace, key, and value
@@ -432,107 +441,190 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     [embeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
-  const fetchAllMemories = useCallback(async (): Promise<StoredMemoryItem[]> => {
+  const fetchAllMemories = useCallback(async (): Promise<
+    StoredMemoryItem[]
+  > => {
     try {
       return await getAllMemories();
     } catch (error) {
-      console.error("Failed to fetch all memories:", error);
-      return [];
+      throw new Error(
+        "Failed to fetch all memories: " +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }, []);
 
   const fetchMemoriesByNamespace = useCallback(
     async (namespace: string): Promise<StoredMemoryItem[]> => {
+      if (!namespace) {
+        throw new Error("Missing required field: namespace");
+      }
       try {
         return await getMemoriesByNamespace(namespace);
       } catch (error) {
-        console.error(`Failed to fetch memories for namespace "${namespace}":`, error);
-        return [];
+        throw new Error(
+          `Failed to fetch memories for namespace "${namespace}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
     []
   );
 
-  const fetchMemories = useCallback(
+  const fetchMemoriesByKey = useCallback(
     async (namespace: string, key: string): Promise<StoredMemoryItem[]> => {
+      if (!namespace || !key) {
+        throw new Error("Missing required fields: namespace, key");
+      }
       try {
         return await getMemories(namespace, key);
       } catch (error) {
-        console.error(`Failed to fetch memories for "${namespace}:${key}":`, error);
-        return [];
+        throw new Error(
+          `Failed to fetch memories for "${namespace}:${key}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
     []
   );
 
+  /**
+   * Update a memory by its ID
+   * @param id The memory ID
+   * @param updates All memory fields (complete replacement, not partial)
+   * @returns The updated memory or undefined if not found
+   */
   const updateMemory = useCallback(
     async (
       id: number,
-      updates: Partial<Omit<StoredMemoryItem, "id" | "createdAt" | "updatedAt">>
+      updates: Partial<StoredMemoryItem & MemoryItem>
     ): Promise<StoredMemoryItem | undefined> => {
       try {
-        const existing = await memoryDb.memories.get(id);
-        if (!existing) {
-          console.warn(`Memory with id ${id} not found`);
-          return undefined;
-        }
+        const embeddingModelToUse =
+          embeddingProvider === "api"
+            ? embeddingModel ?? DEFAULT_API_EMBEDDING_MODEL
+            : embeddingModel && embeddingModel !== DEFAULT_API_EMBEDDING_MODEL
+            ? embeddingModel
+            : DEFAULT_LOCAL_EMBEDDING_MODEL;
 
-        const now = Date.now();
-        const updatedMemory: Partial<StoredMemoryItem> = {
-          ...updates,
-          updatedAt: now,
+        const embeddingOptions: GenerateEmbeddingOptions = {
+          model: embeddingModelToUse,
+          provider: embeddingProvider,
+          getToken: getToken || undefined,
+          baseUrl,
         };
 
-        // Update composite keys if namespace, key, or value changed
-        if (updates.namespace || updates.key || updates.value) {
-          const namespace = updates.namespace ?? existing.namespace;
-          const key = updates.key ?? existing.key;
-          const value = updates.value ?? existing.value;
-          updatedMemory.compositeKey = `${namespace}:${key}`;
-          updatedMemory.uniqueKey = `${namespace}:${key}:${value}`;
+        if (
+          !updates.type ||
+          !updates.namespace ||
+          !updates.key ||
+          !updates.value ||
+          !updates.rawEvidence ||
+          updates.confidence === undefined ||
+          updates.confidence === null ||
+          updates.pii === undefined ||
+          updates.pii === null
+        ) {
+          throw new Error(
+            "Missing required fields: type, namespace, key, value, rawEvidence, confidence, pii"
+          );
         }
 
-        // Clear embedding if value changed (needs re-embedding)
-        if (updates.value && updates.value !== existing.value) {
-          updatedMemory.embedding = [];
-          updatedMemory.embeddingModel = undefined;
+        const existingMemory = await getMemoryById(id);
+        if (!existingMemory) {
+          throw new Error(`Memory with id ${id} not found`);
         }
 
-        await memoryDb.memories.update(id, updatedMemory);
-        return await memoryDb.memories.get(id);
+        const embeddingFieldsChanged =
+          (updates.value !== undefined &&
+            updates.value !== existingMemory.value) ||
+          (updates.rawEvidence !== undefined &&
+            updates.rawEvidence !== existingMemory.rawEvidence) ||
+          (updates.type !== undefined &&
+            updates.type !== existingMemory.type) ||
+          (updates.namespace !== undefined &&
+            updates.namespace !== existingMemory.namespace) ||
+          (updates.key !== undefined && updates.key !== existingMemory.key);
+
+        if (!embeddingFieldsChanged) {
+          return existingMemory;
+        }
+
+        const memory: MemoryItem = {
+          type: updates.type as MemoryItem["type"],
+          namespace: updates.namespace as MemoryItem["namespace"],
+          key: updates.key as MemoryItem["key"],
+          value: updates.value as MemoryItem["value"],
+          rawEvidence: updates.rawEvidence as MemoryItem["rawEvidence"],
+          confidence: updates.confidence as MemoryItem["confidence"],
+          pii: updates.pii as MemoryItem["pii"],
+        };
+
+        const embedding = await generateEmbeddingForMemory(
+          memory,
+          embeddingOptions
+        );
+
+        return await updateMemoryById(
+          id,
+          updates as Partial<StoredMemoryItem & MemoryItem>,
+          existingMemory as StoredMemoryItem,
+          embedding,
+          embeddingModelToUse
+        );
       } catch (error) {
-        console.error(`Failed to update memory ${id}:`, error);
-        return undefined;
+        throw new Error(
+          `Failed to update memory ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
-    []
+    [embeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
   const removeMemory = useCallback(
     async (namespace: string, key: string, value: string): Promise<void> => {
+      if (!namespace || !key || !value) {
+        throw new Error("Missing required fields: namespace, key, value");
+      }
       try {
         await deleteMemory(namespace, key, value);
       } catch (error) {
-        console.error(`Failed to delete memory "${namespace}:${key}:${value}":`, error);
+        throw new Error(
+          `Failed to delete memory "${namespace}:${key}:${value}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
     []
   );
 
   const removeMemoryById = useCallback(async (id: number): Promise<void> => {
+    if (id === undefined || id === null) {
+      throw new Error("id is required");
+    }
     try {
-      await memoryDb.memories.delete(id);
+      await deleteMemoryById(id);
     } catch (error) {
-      console.error(`Failed to delete memory with id ${id}:`, error);
+      throw new Error(
+        `Failed to delete memory with id ${id}: ` +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }, []);
 
   const removeMemories = useCallback(
     async (namespace: string, key: string): Promise<void> => {
+      if (!namespace || !key) {
+        throw new Error("Missing required fields: namespace, key");
+      }
       try {
         await deleteMemories(namespace, key);
       } catch (error) {
-        console.error(`Failed to delete memories for "${namespace}:${key}":`, error);
+        throw new Error(
+          `Failed to delete memories for "${namespace}:${key}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
       }
     },
     []
@@ -542,7 +634,10 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     try {
       await clearAllMemories();
     } catch (error) {
-      console.error("Failed to clear all memories:", error);
+      throw new Error(
+        "Failed to clear all memories: " +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }, []);
 
@@ -551,7 +646,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     searchMemories,
     fetchAllMemories,
     fetchMemoriesByNamespace,
-    fetchMemories,
+    fetchMemoriesByKey,
     updateMemory,
     removeMemory,
     removeMemoryById,
