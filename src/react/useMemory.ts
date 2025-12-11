@@ -5,7 +5,17 @@ import { postApiV1ChatCompletions } from "../client";
 import { BASE_URL } from "../clientConfig";
 import type { MemoryExtractionResult } from "../lib/memory/service";
 import { preprocessMemories } from "../lib/memory/service";
-import { saveMemories } from "../lib/memory/db";
+import {
+  saveMemories,
+  getAllMemories,
+  getMemoriesByNamespace,
+  getMemories,
+  deleteMemory,
+  deleteMemories,
+  clearAllMemories,
+  memoryDb,
+  type StoredMemoryItem,
+} from "../lib/memory/db";
 import { FACT_EXTRACTION_PROMPT } from "../lib/memory/service";
 import {
   generateAndStoreEmbeddings,
@@ -72,9 +82,61 @@ export type UseMemoryResult = {
     query: string,
     limit?: number,
     minSimilarity?: number
-  ) => Promise<
-    Array<import("../lib/memory/db").StoredMemoryItem & { similarity: number }>
-  >;
+  ) => Promise<Array<StoredMemoryItem & { similarity: number }>>;
+  /**
+   * Get all memories stored in IndexedDB
+   * @returns Array of all stored memories
+   */
+  fetchAllMemories: () => Promise<StoredMemoryItem[]>;
+  /**
+   * Get memories filtered by namespace
+   * @param namespace The namespace to filter by
+   * @returns Array of memories in the specified namespace
+   */
+  fetchMemoriesByNamespace: (namespace: string) => Promise<StoredMemoryItem[]>;
+  /**
+   * Get memories by namespace and key
+   * @param namespace The namespace
+   * @param key The key within the namespace
+   * @returns Array of memories matching the namespace and key
+   */
+  fetchMemories: (namespace: string, key: string) => Promise<StoredMemoryItem[]>;
+  /**
+   * Update a memory by its ID
+   * @param id The memory ID
+   * @param updates Partial memory fields to update
+   * @returns The updated memory or undefined if not found
+   */
+  updateMemory: (
+    id: number,
+    updates: Partial<Omit<StoredMemoryItem, "id" | "createdAt" | "updatedAt">>
+  ) => Promise<StoredMemoryItem | undefined>;
+  /**
+   * Delete a specific memory by namespace, key, and value
+   * @param namespace The namespace
+   * @param key The key
+   * @param value The value
+   */
+  removeMemory: (
+    namespace: string,
+    key: string,
+    value: string
+  ) => Promise<void>;
+  /**
+   * Delete a memory by its ID
+   * @param id The memory ID
+   */
+  removeMemoryById: (id: number) => Promise<void>;
+  /**
+   * Delete all memories by namespace and key
+   * @param namespace The namespace
+   * @param key The key
+   */
+  removeMemories: (namespace: string, key: string) => Promise<void>;
+  /**
+   * Clear all memories from IndexedDB
+   */
+  clearMemories: () => Promise<void>;
 };
 
 /**
@@ -370,8 +432,130 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
     [embeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
+  const fetchAllMemories = useCallback(async (): Promise<StoredMemoryItem[]> => {
+    try {
+      return await getAllMemories();
+    } catch (error) {
+      console.error("Failed to fetch all memories:", error);
+      return [];
+    }
+  }, []);
+
+  const fetchMemoriesByNamespace = useCallback(
+    async (namespace: string): Promise<StoredMemoryItem[]> => {
+      try {
+        return await getMemoriesByNamespace(namespace);
+      } catch (error) {
+        console.error(`Failed to fetch memories for namespace "${namespace}":`, error);
+        return [];
+      }
+    },
+    []
+  );
+
+  const fetchMemories = useCallback(
+    async (namespace: string, key: string): Promise<StoredMemoryItem[]> => {
+      try {
+        return await getMemories(namespace, key);
+      } catch (error) {
+        console.error(`Failed to fetch memories for "${namespace}:${key}":`, error);
+        return [];
+      }
+    },
+    []
+  );
+
+  const updateMemory = useCallback(
+    async (
+      id: number,
+      updates: Partial<Omit<StoredMemoryItem, "id" | "createdAt" | "updatedAt">>
+    ): Promise<StoredMemoryItem | undefined> => {
+      try {
+        const existing = await memoryDb.memories.get(id);
+        if (!existing) {
+          console.warn(`Memory with id ${id} not found`);
+          return undefined;
+        }
+
+        const now = Date.now();
+        const updatedMemory: Partial<StoredMemoryItem> = {
+          ...updates,
+          updatedAt: now,
+        };
+
+        // Update composite keys if namespace, key, or value changed
+        if (updates.namespace || updates.key || updates.value) {
+          const namespace = updates.namespace ?? existing.namespace;
+          const key = updates.key ?? existing.key;
+          const value = updates.value ?? existing.value;
+          updatedMemory.compositeKey = `${namespace}:${key}`;
+          updatedMemory.uniqueKey = `${namespace}:${key}:${value}`;
+        }
+
+        // Clear embedding if value changed (needs re-embedding)
+        if (updates.value && updates.value !== existing.value) {
+          updatedMemory.embedding = [];
+          updatedMemory.embeddingModel = undefined;
+        }
+
+        await memoryDb.memories.update(id, updatedMemory);
+        return await memoryDb.memories.get(id);
+      } catch (error) {
+        console.error(`Failed to update memory ${id}:`, error);
+        return undefined;
+      }
+    },
+    []
+  );
+
+  const removeMemory = useCallback(
+    async (namespace: string, key: string, value: string): Promise<void> => {
+      try {
+        await deleteMemory(namespace, key, value);
+      } catch (error) {
+        console.error(`Failed to delete memory "${namespace}:${key}:${value}":`, error);
+      }
+    },
+    []
+  );
+
+  const removeMemoryById = useCallback(async (id: number): Promise<void> => {
+    try {
+      await memoryDb.memories.delete(id);
+    } catch (error) {
+      console.error(`Failed to delete memory with id ${id}:`, error);
+    }
+  }, []);
+
+  const removeMemories = useCallback(
+    async (namespace: string, key: string): Promise<void> => {
+      try {
+        await deleteMemories(namespace, key);
+      } catch (error) {
+        console.error(`Failed to delete memories for "${namespace}:${key}":`, error);
+      }
+    },
+    []
+  );
+
+  const clearMemories = useCallback(async (): Promise<void> => {
+    try {
+      await clearAllMemories();
+    } catch (error) {
+      console.error("Failed to clear all memories:", error);
+    }
+  }, []);
+
   return {
     extractMemoriesFromMessage,
     searchMemories,
+    fetchAllMemories,
+    fetchMemoriesByNamespace,
+    fetchMemories,
+    updateMemory,
+    removeMemory,
+    removeMemoryById,
+    removeMemories,
+    clearMemories,
   };
 }
