@@ -4,6 +4,7 @@ import type { Database, Collection } from "@nozbe/watermelondb";
 import { Message, Conversation } from "./models";
 import {
   type StoredMessage,
+  type StoredMessageWithSimilarity,
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
@@ -214,9 +215,112 @@ export async function createMessageOp(
       if (opts.sources) msg._setRaw("sources", JSON.stringify(opts.sources));
       if (opts.responseDuration !== undefined)
         msg._setRaw("response_duration", opts.responseDuration);
-      // vector and embeddingModel are not populated for now
+      if (opts.vector) msg._setRaw("vector", JSON.stringify(opts.vector));
+      if (opts.embeddingModel) msg._setRaw("embedding_model", opts.embeddingModel);
     });
   });
 
   return messageToStored(created);
+}
+
+/**
+ * Update message embedding in the database
+ */
+export async function updateMessageEmbeddingOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  vector: number[],
+  embeddingModel: string
+): Promise<void> {
+  const message = await ctx.messagesCollection.find(uniqueId);
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("vector", JSON.stringify(vector));
+      msg._setRaw("embedding_model", embeddingModel);
+    });
+  });
+}
+
+/**
+ * Calculate cosine similarity between two vectors
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+  return magnitude === 0 ? 0 : dotProduct / magnitude;
+}
+
+/**
+ * Search messages by vector similarity
+ */
+export async function searchMessagesOp(
+  ctx: StorageOperationsContext,
+  queryVector: number[],
+  options?: {
+    /** Limit the number of results (default: 10) */
+    limit?: number;
+    /** Minimum similarity threshold (default: 0.5) */
+    minSimilarity?: number;
+    /** Filter by conversation ID */
+    conversationId?: string;
+  }
+): Promise<StoredMessageWithSimilarity[]> {
+  const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
+
+  // Build query
+  const queryConditions = conversationId
+    ? [Q.where("conversation_id", conversationId)]
+    : [];
+
+  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+
+  // Calculate similarity for messages with embeddings
+  const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
+
+  for (const message of messages) {
+    const messageVector = message.vector;
+    if (!messageVector || messageVector.length === 0) continue;
+
+    const similarity = cosineSimilarity(queryVector, messageVector);
+    if (similarity >= minSimilarity) {
+      resultsWithSimilarity.push({
+        ...messageToStored(message),
+        similarity,
+      });
+    }
+  }
+
+  // Sort by similarity descending and limit results
+  return resultsWithSimilarity
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+}
+
+/**
+ * Get all messages that have embeddings
+ */
+export async function getMessagesWithEmbeddingsOp(
+  ctx: StorageOperationsContext,
+  conversationId?: string
+): Promise<StoredMessage[]> {
+  const queryConditions = conversationId
+    ? [Q.where("conversation_id", conversationId)]
+    : [];
+
+  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+
+  return messages
+    .filter((m) => m.vector && m.vector.length > 0)
+    .map(messageToStored);
 }

@@ -66,6 +66,7 @@ export type {
   UseChatStorageResult,
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
+  SearchMessagesOptions,
 } from "./useChatStorage";
 export {
   chatStorageSchema,
@@ -76,6 +77,7 @@ export {
   type ChatCompletionUsage as StoredChatCompletionUsage,
   type SearchSource,
   type StoredMessage,
+  type StoredMessageWithSimilarity,
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
@@ -92,6 +94,23 @@ export {
 export type { SignMessageFn } from "./useEncryption";
 
 export { useMemory } from "./useMemory";
+export { useMemoryStorage } from "./useMemoryStorage";
+export type {
+  UseMemoryStorageOptions,
+  UseMemoryStorageResult,
+} from "./useMemoryStorage";
+export {
+  memoryStorageSchema,
+  Memory as StoredMemoryModel,
+  type MemoryType,
+  type MemoryItem,
+  type StoredMemory,
+  type StoredMemoryWithSimilarity,
+  type CreateMemoryOptions,
+  type UpdateMemoryOptions,
+  generateCompositeKey,
+  generateUniqueKey,
+} from "../lib/memoryStorage";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
 export { useOCR } from "./useOCR";

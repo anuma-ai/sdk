@@ -58,6 +58,13 @@ export { useImageGeneration } from "../react/useImageGeneration";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 
+// Memory storage hooks
+export { useMemoryStorage } from "./useMemoryStorage";
+export type {
+  UseMemoryStorageOptions,
+  UseMemoryStorageResult,
+} from "./useMemoryStorage";
+
 // Re-export chat storage schema and types for database setup
 export {
   chatStorageSchema,
@@ -73,3 +80,17 @@ export {
   type CreateConversationOptions,
   generateConversationId,
 } from "../lib/chatStorage";
+
+// Re-export memory storage schema and types for database setup
+export {
+  memoryStorageSchema,
+  Memory as StoredMemoryModel,
+  type MemoryType,
+  type MemoryItem,
+  type StoredMemory,
+  type StoredMemoryWithSimilarity,
+  type CreateMemoryOptions,
+  type UpdateMemoryOptions,
+  generateCompositeKey,
+  generateUniqueKey,
+} from "../lib/memoryStorage";

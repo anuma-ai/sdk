@@ -6,6 +6,7 @@ export {
   type ChatCompletionUsage,
   type SearchSource,
   type StoredMessage,
+  type StoredMessageWithSimilarity,
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
@@ -18,3 +19,8 @@ export {
   convertUsageToStored,
   generateConversationId,
 } from "./types";
+export {
+  searchMessagesOp,
+  updateMessageEmbeddingOp,
+  getMessagesWithEmbeddingsOp,
+} from "./operations";

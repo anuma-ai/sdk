@@ -42,6 +42,11 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * Optional custom headers to include with the request.
    */
   headers?: Record<string, string>;
+  /**
+   * Memory context to inject as a system message.
+   * This is typically formatted memories from useMemoryStorage.
+   */
+  memoryContext?: string;
 };
 
 type SendMessageResult =
@@ -209,6 +214,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onData,
       runTools = true,
       headers,
+      memoryContext,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -228,7 +234,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       // Tool selection and execution (requires @huggingface/transformers)
       let toolExecutionResult: ToolExecutionResult | undefined;
-      let messagesWithToolContext = messages;
+
+      // Inject memory context as a system message at the beginning if provided
+      let messagesWithContext = messages;
+      if (memoryContext) {
+        const memorySystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: memoryContext,
+            },
+          ],
+        };
+        messagesWithContext = [memorySystemMessage, ...messages];
+      }
+
+      let messagesWithToolContext = messagesWithContext;
 
       // Run tool selection if tools are configured and runTools is enabled
       const shouldRunTools = runTools && tools && tools.length > 0;

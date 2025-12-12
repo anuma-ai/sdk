@@ -1,0 +1,845 @@
+"use client";
+
+import { useCallback, useState, useMemo, useRef } from "react";
+
+import { postApiV1ChatCompletions } from "../client";
+import { BASE_URL } from "../clientConfig";
+import { Memory } from "../lib/memoryStorage/models";
+import {
+  type StoredMemory,
+  type StoredMemoryWithSimilarity,
+  type CreateMemoryOptions,
+  type UpdateMemoryOptions,
+  type BaseUseMemoryStorageOptions,
+  type BaseUseMemoryStorageResult,
+  type MemoryItem,
+} from "../lib/memoryStorage/types";
+import {
+  type MemoryStorageOperationsContext,
+  getAllMemoriesOp,
+  getMemoryByIdOp,
+  getMemoriesByNamespaceOp,
+  getMemoriesByKeyOp,
+  saveMemoryOp,
+  saveMemoriesOp,
+  updateMemoryOp,
+  deleteMemoryByIdOp,
+  deleteMemoryOp,
+  deleteMemoriesByKeyOp,
+  clearAllMemoriesOp,
+  searchSimilarMemoriesOp,
+  updateMemoryEmbeddingOp,
+} from "../lib/memoryStorage/operations";
+import {
+  FACT_EXTRACTION_PROMPT,
+  preprocessMemories,
+  type MemoryExtractionResult,
+} from "../lib/memory/service";
+import {
+  generateEmbeddingForText,
+  generateEmbeddingForMemory,
+  type GenerateEmbeddingOptions,
+} from "../lib/memory/embeddings";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_COMPLETION_MODEL,
+  DEFAULT_LOCAL_EMBEDDING_MODEL,
+} from "../lib/memory/constants";
+
+/**
+ * Options for useMemoryStorage hook (React version)
+ *
+ * Uses the base options. React-specific features can be added here if needed.
+ */
+export type UseMemoryStorageOptions = BaseUseMemoryStorageOptions;
+
+/**
+ * Result returned by useMemoryStorage hook (React version)
+ *
+ * Uses the base result. React-specific features can be added here if needed.
+ */
+export type UseMemoryStorageResult = BaseUseMemoryStorageResult;
+
+/**
+ * A React hook that wraps useMemory with automatic memory persistence using WatermelonDB.
+ *
+ * This hook provides all the functionality of useMemory plus automatic storage of
+ * memories to a WatermelonDB database. Memories are automatically saved when extracted
+ * and can be searched using semantic similarity.
+ *
+ * @param options - Configuration options
+ * @returns An object containing memory state, methods, and storage operations
+ *
+ * @example
+ * ```tsx
+ * import { Database } from '@nozbe/watermelondb';
+ * import { useMemoryStorage } from '@reverbia/sdk/react';
+ *
+ * function MemoryComponent({ database }: { database: Database }) {
+ *   const {
+ *     memories,
+ *     extractMemoriesFromMessage,
+ *     searchMemories,
+ *     fetchAllMemories,
+ *   } = useMemoryStorage({
+ *     database,
+ *     getToken: async () => getAuthToken(),
+ *     onFactsExtracted: (facts) => console.log('Extracted:', facts),
+ *   });
+ *
+ *   const handleExtract = async () => {
+ *     const result = await extractMemoriesFromMessage({
+ *       messages: [{ role: 'user', content: 'My name is John and I live in NYC' }],
+ *       model: 'gpt-4o-mini',
+ *     });
+ *   };
+ *
+ *   return (
+ *     <div>
+ *       <button onClick={handleExtract}>Extract Memories</button>
+ *       <p>Total memories: {memories.length}</p>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @category Hooks
+ */
+export function useMemoryStorage(
+  options: UseMemoryStorageOptions
+): UseMemoryStorageResult {
+  const {
+    database,
+    completionsModel = DEFAULT_COMPLETION_MODEL,
+    embeddingModel: userEmbeddingModel,
+    embeddingProvider = "local",
+    generateEmbeddings = true,
+    onFactsExtracted,
+    getToken,
+    baseUrl = BASE_URL,
+  } = options;
+
+  // Resolve default model if undefined, preserve null if set explicitly to disable
+  const embeddingModel =
+    userEmbeddingModel === undefined
+      ? embeddingProvider === "local"
+        ? DEFAULT_LOCAL_EMBEDDING_MODEL
+        : DEFAULT_API_EMBEDDING_MODEL
+      : userEmbeddingModel;
+
+  const [memories, setMemories] = useState<StoredMemory[]>([]);
+  const extractionInProgressRef = useRef(false);
+
+  // Get collection
+  const memoriesCollection = useMemo(
+    () => database.get<Memory>("memories"),
+    [database]
+  );
+
+  // Storage operations context
+  const storageCtx = useMemo<MemoryStorageOperationsContext>(
+    () => ({
+      database,
+      memoriesCollection,
+    }),
+    [database, memoriesCollection]
+  );
+
+  // Get the effective embedding model (used when embeddings are enabled)
+  const effectiveEmbeddingModel = useMemo(
+    () =>
+      embeddingModel ??
+      (embeddingProvider === "api"
+        ? DEFAULT_API_EMBEDDING_MODEL
+        : DEFAULT_LOCAL_EMBEDDING_MODEL),
+    [embeddingModel, embeddingProvider]
+  );
+
+  // Embedding options
+  const embeddingOptions = useMemo<GenerateEmbeddingOptions>(
+    () => ({
+      model: effectiveEmbeddingModel,
+      provider: embeddingProvider,
+      getToken: getToken || undefined,
+      baseUrl,
+    }),
+    [effectiveEmbeddingModel, embeddingProvider, getToken, baseUrl]
+  );
+
+  /**
+   * Refresh memories from storage
+   */
+  const refreshMemories = useCallback(async (): Promise<void> => {
+    const storedMemories = await getAllMemoriesOp(storageCtx);
+    setMemories(storedMemories);
+  }, [storageCtx]);
+
+  /**
+   * Extract memories from messages and store them
+   */
+  const extractMemoriesFromMessage = useCallback(
+    async (opts: {
+      messages: Array<{ role: string; content: string }>;
+      model?: string;
+    }): Promise<MemoryExtractionResult | null> => {
+      const { messages, model } = opts;
+
+      if (!getToken || extractionInProgressRef.current) {
+        return null;
+      }
+
+      extractionInProgressRef.current = true;
+
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.error("No access token available for memory extraction");
+          return null;
+        }
+
+        const completion = await postApiV1ChatCompletions({
+          baseUrl,
+          body: {
+            messages: [
+              {
+                role: "system",
+                content: [{ type: "text", text: FACT_EXTRACTION_PROMPT }],
+              },
+              ...messages.map((m) => ({
+                role: m.role,
+                content: [{ type: "text", text: m.content }],
+              })),
+            ],
+            model: model || completionsModel,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!completion.data) {
+          console.error(
+            "Memory extraction failed:",
+            completion.error?.error ?? "API did not return a response"
+          );
+          return null;
+        }
+
+        if (typeof completion.data === "string") {
+          console.error(
+            "Memory extraction failed: API returned a string response instead of a completion object"
+          );
+          return null;
+        }
+
+        const messageContent = completion.data.choices?.[0]?.message?.content;
+        let content = "";
+
+        if (Array.isArray(messageContent)) {
+          content = messageContent
+            .map((p) => p.text || "")
+            .join("")
+            .trim();
+        } else if (typeof messageContent === "string") {
+          content = (messageContent as string).trim();
+        }
+
+        if (!content) {
+          console.error("No content in memory extraction response");
+          return null;
+        }
+
+        let jsonContent = content;
+        jsonContent = jsonContent.replace(/^data:\s*/gm, "").trim();
+
+        if (jsonContent.startsWith("{")) {
+          let braceCount = 0;
+          let jsonStart = -1;
+          let jsonEnd = -1;
+
+          for (let i = 0; i < jsonContent.length; i++) {
+            if (jsonContent[i] === "{") {
+              if (jsonStart === -1) jsonStart = i;
+              braceCount++;
+            } else if (jsonContent[i] === "}") {
+              braceCount--;
+              if (braceCount === 0 && jsonStart !== -1) {
+                jsonEnd = i + 1;
+                break;
+              }
+            }
+          }
+
+          if (jsonStart !== -1 && jsonEnd !== -1) {
+            jsonContent = jsonContent.substring(jsonStart, jsonEnd);
+          }
+        } else {
+          const jsonMatch = jsonContent.match(
+            /```(?:json)?\s*(\{[\s\S]*?\})\s*```/
+          );
+          if (jsonMatch && jsonMatch[1]) {
+            jsonContent = jsonMatch[1].trim();
+          } else {
+            const jsonObjectMatch = jsonContent.match(/\{[\s\S]*\}/);
+            if (jsonObjectMatch && jsonObjectMatch[0]) {
+              jsonContent = jsonObjectMatch[0];
+            } else {
+              console.warn(
+                "Memory extraction returned non-JSON response.",
+                "\nFirst 200 chars of response:",
+                content.substring(0, 200)
+              );
+              return { items: [] };
+            }
+          }
+        }
+
+        const trimmedJson = jsonContent.trim();
+        if (!trimmedJson.startsWith("{") || !trimmedJson.includes("items")) {
+          console.warn(
+            "Memory extraction response doesn't appear to be valid JSON.",
+            "\nResponse preview:",
+            content.substring(0, 200)
+          );
+          return { items: [] };
+        }
+
+        let result: MemoryExtractionResult;
+        try {
+          result = JSON.parse(jsonContent);
+
+          if (!result || typeof result !== "object") {
+            throw new Error("Invalid JSON structure: not an object");
+          }
+
+          if (!Array.isArray(result.items)) {
+            console.warn(
+              "Memory extraction result missing 'items' array. Result:",
+              result
+            );
+            return { items: [] };
+          }
+        } catch (parseError) {
+          console.error(
+            "Failed to parse memory extraction JSON:",
+            parseError instanceof Error ? parseError.message : parseError
+          );
+          return { items: [] };
+        }
+
+        if (result.items && Array.isArray(result.items)) {
+          const originalCount = result.items.length;
+          result.items = preprocessMemories(result.items);
+          const filteredCount = result.items.length;
+
+          if (originalCount !== filteredCount) {
+            console.log(
+              `Preprocessed memories: ${originalCount} -> ${filteredCount}`
+            );
+          }
+        }
+
+        console.log("Extracted memories:", JSON.stringify(result, null, 2));
+
+        if (result.items && result.items.length > 0) {
+          try {
+            // Convert MemoryItem to CreateMemoryOptions and save
+            const createOptions: CreateMemoryOptions[] = result.items.map(
+              (item: MemoryItem) => ({
+                type: item.type,
+                namespace: item.namespace,
+                key: item.key,
+                value: item.value,
+                rawEvidence: item.rawEvidence,
+                confidence: item.confidence,
+                pii: item.pii,
+              })
+            );
+
+            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
+            console.log(
+              `Saved ${savedMemories.length} memories to WatermelonDB`
+            );
+
+            // Generate embeddings if enabled
+            if (generateEmbeddings && embeddingModel) {
+              try {
+                for (const saved of savedMemories) {
+                  const memoryItem: MemoryItem = {
+                    type: saved.type,
+                    namespace: saved.namespace,
+                    key: saved.key,
+                    value: saved.value,
+                    rawEvidence: saved.rawEvidence,
+                    confidence: saved.confidence,
+                    pii: saved.pii,
+                  };
+                  const embedding = await generateEmbeddingForMemory(
+                    memoryItem,
+                    embeddingOptions
+                  );
+                  await updateMemoryEmbeddingOp(
+                    storageCtx,
+                    saved.uniqueId,
+                    embedding,
+                    effectiveEmbeddingModel
+                  );
+                }
+                console.log(
+                  `Generated embeddings for ${savedMemories.length} memories`
+                );
+              } catch (error) {
+                console.error("Failed to generate embeddings:", error);
+              }
+            }
+
+            // Refresh memories state
+            await refreshMemories();
+          } catch (error) {
+            console.error("Failed to save memories to WatermelonDB:", error);
+          }
+        }
+
+        if (onFactsExtracted) {
+          onFactsExtracted(result);
+        }
+
+        return result;
+      } catch (error) {
+        console.error("Failed to extract facts:", error);
+        return null;
+      } finally {
+        extractionInProgressRef.current = false;
+      }
+    },
+    [
+      completionsModel,
+      embeddingModel,
+      embeddingOptions,
+      generateEmbeddings,
+      getToken,
+      onFactsExtracted,
+      baseUrl,
+      storageCtx,
+      refreshMemories,
+    ]
+  );
+
+  /**
+   * Search for similar memories using semantic search
+   */
+  const searchMemories = useCallback(
+    async (
+      query: string,
+      limit: number = 10,
+      minSimilarity: number = 0.6
+    ): Promise<StoredMemoryWithSimilarity[]> => {
+      if (!embeddingModel) {
+        console.warn("Cannot search memories: embeddingModel not provided");
+        return [];
+      }
+
+      try {
+        console.log(`[Memory Search] Searching for: "${query}"`);
+
+        const queryEmbedding = await generateEmbeddingForText(
+          query,
+          embeddingOptions
+        );
+
+        console.log(
+          `[Memory Search] Generated query embedding (${queryEmbedding.length} dimensions)`
+        );
+
+        const results = await searchSimilarMemoriesOp(
+          storageCtx,
+          queryEmbedding,
+          limit,
+          minSimilarity
+        );
+
+        if (results.length === 0) {
+          console.warn(
+            `[Memory Search] No memories found above similarity threshold ${minSimilarity}.`
+          );
+        } else {
+          console.log(
+            `[Memory Search] Found ${results.length} memories. ` +
+              `Similarity scores: ${results
+                .map((r) => r.similarity.toFixed(3))
+                .join(", ")}`
+          );
+        }
+
+        return results;
+      } catch (error) {
+        console.error("Failed to search memories:", error);
+        return [];
+      }
+    },
+    [embeddingModel, embeddingOptions, storageCtx]
+  );
+
+  /**
+   * Get all memories
+   */
+  const fetchAllMemories = useCallback(async (): Promise<StoredMemory[]> => {
+    try {
+      return await getAllMemoriesOp(storageCtx);
+    } catch (error) {
+      throw new Error(
+        "Failed to fetch all memories: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
+  }, [storageCtx]);
+
+  /**
+   * Get memories by namespace
+   */
+  const fetchMemoriesByNamespace = useCallback(
+    async (namespace: string): Promise<StoredMemory[]> => {
+      if (!namespace) {
+        throw new Error("Missing required field: namespace");
+      }
+      try {
+        return await getMemoriesByNamespaceOp(storageCtx, namespace);
+      } catch (error) {
+        throw new Error(
+          `Failed to fetch memories for namespace "${namespace}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Get memories by namespace and key
+   */
+  const fetchMemoriesByKey = useCallback(
+    async (namespace: string, key: string): Promise<StoredMemory[]> => {
+      if (!namespace || !key) {
+        throw new Error("Missing required fields: namespace, key");
+      }
+      try {
+        return await getMemoriesByKeyOp(storageCtx, namespace, key);
+      } catch (error) {
+        throw new Error(
+          `Failed to fetch memories for "${namespace}:${key}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Get a memory by ID
+   */
+  const getMemoryById = useCallback(
+    async (id: string): Promise<StoredMemory | null> => {
+      try {
+        return await getMemoryByIdOp(storageCtx, id);
+      } catch (error) {
+        throw new Error(
+          `Failed to get memory ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Save a single memory
+   */
+  const saveMemory = useCallback(
+    async (memory: CreateMemoryOptions): Promise<StoredMemory> => {
+      try {
+        const saved = await saveMemoryOp(storageCtx, memory);
+
+        // Generate embedding if enabled
+        if (generateEmbeddings && embeddingModel && !memory.embedding) {
+          try {
+            const memoryItem: MemoryItem = {
+              type: memory.type,
+              namespace: memory.namespace,
+              key: memory.key,
+              value: memory.value,
+              rawEvidence: memory.rawEvidence,
+              confidence: memory.confidence,
+              pii: memory.pii,
+            };
+            const embedding = await generateEmbeddingForMemory(
+              memoryItem,
+              embeddingOptions
+            );
+            await updateMemoryEmbeddingOp(
+              storageCtx,
+              saved.uniqueId,
+              embedding,
+              effectiveEmbeddingModel
+            );
+          } catch (error) {
+            console.error("Failed to generate embedding:", error);
+          }
+        }
+
+        // Update local state
+        setMemories((prev) => {
+          const existing = prev.find((m) => m.uniqueId === saved.uniqueId);
+          if (existing) {
+            return prev.map((m) => (m.uniqueId === saved.uniqueId ? saved : m));
+          }
+          return [saved, ...prev];
+        });
+
+        return saved;
+      } catch (error) {
+        throw new Error(
+          "Failed to save memory: " +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
+  );
+
+  /**
+   * Save multiple memories
+   */
+  const saveMemories = useCallback(
+    async (memoriesToSave: CreateMemoryOptions[]): Promise<StoredMemory[]> => {
+      try {
+        const saved = await saveMemoriesOp(storageCtx, memoriesToSave);
+
+        // Generate embeddings if enabled
+        if (generateEmbeddings && embeddingModel) {
+          for (let i = 0; i < saved.length; i++) {
+            const memory = memoriesToSave[i];
+            if (!memory.embedding) {
+              try {
+                const memoryItem: MemoryItem = {
+                  type: memory.type,
+                  namespace: memory.namespace,
+                  key: memory.key,
+                  value: memory.value,
+                  rawEvidence: memory.rawEvidence,
+                  confidence: memory.confidence,
+                  pii: memory.pii,
+                };
+                const embedding = await generateEmbeddingForMemory(
+                  memoryItem,
+                  embeddingOptions
+                );
+                await updateMemoryEmbeddingOp(
+                  storageCtx,
+                  saved[i].uniqueId,
+                  embedding,
+                  effectiveEmbeddingModel
+                );
+              } catch (error) {
+                console.error("Failed to generate embedding:", error);
+              }
+            }
+          }
+        }
+
+        // Refresh state
+        await refreshMemories();
+
+        return saved;
+      } catch (error) {
+        throw new Error(
+          "Failed to save memories: " +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [
+      storageCtx,
+      generateEmbeddings,
+      embeddingModel,
+      embeddingOptions,
+      refreshMemories,
+    ]
+  );
+
+  /**
+   * Update a memory
+   */
+  const updateMemory = useCallback(
+    async (
+      id: string,
+      updates: UpdateMemoryOptions
+    ): Promise<StoredMemory | null> => {
+      try {
+        const updated = await updateMemoryOp(storageCtx, id, updates);
+
+        if (updated) {
+          // Regenerate embedding if content changed and embeddings are enabled
+          const contentChanged =
+            updates.value !== undefined ||
+            updates.rawEvidence !== undefined ||
+            updates.type !== undefined ||
+            updates.namespace !== undefined ||
+            updates.key !== undefined;
+
+          if (
+            contentChanged &&
+            generateEmbeddings &&
+            embeddingModel &&
+            !updates.embedding
+          ) {
+            try {
+              const memoryItem: MemoryItem = {
+                type: updated.type,
+                namespace: updated.namespace,
+                key: updated.key,
+                value: updated.value,
+                rawEvidence: updated.rawEvidence,
+                confidence: updated.confidence,
+                pii: updated.pii,
+              };
+              const embedding = await generateEmbeddingForMemory(
+                memoryItem,
+                embeddingOptions
+              );
+              await updateMemoryEmbeddingOp(
+                storageCtx,
+                id,
+                embedding,
+                effectiveEmbeddingModel
+              );
+            } catch (error) {
+              console.error("Failed to regenerate embedding:", error);
+            }
+          }
+
+          // Update local state
+          setMemories((prev) =>
+            prev.map((m) => (m.uniqueId === id ? updated : m))
+          );
+        }
+
+        return updated;
+      } catch (error) {
+        throw new Error(
+          `Failed to update memory ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
+  );
+
+  /**
+   * Remove a memory by namespace, key, value
+   */
+  const removeMemory = useCallback(
+    async (namespace: string, key: string, value: string): Promise<void> => {
+      if (!namespace || !key || !value) {
+        throw new Error("Missing required fields: namespace, key, value");
+      }
+      try {
+        await deleteMemoryOp(storageCtx, namespace, key, value);
+        // Update local state
+        setMemories((prev) =>
+          prev.filter(
+            (m) =>
+              !(
+                m.namespace === namespace &&
+                m.key === key &&
+                m.value === value
+              )
+          )
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to delete memory "${namespace}:${key}:${value}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Remove a memory by ID
+   */
+  const removeMemoryById = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await deleteMemoryByIdOp(storageCtx, id);
+        // Update local state
+        setMemories((prev) => prev.filter((m) => m.uniqueId !== id));
+      } catch (error) {
+        throw new Error(
+          `Failed to delete memory with id ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Remove memories by namespace and key
+   */
+  const removeMemories = useCallback(
+    async (namespace: string, key: string): Promise<void> => {
+      if (!namespace || !key) {
+        throw new Error("Missing required fields: namespace, key");
+      }
+      try {
+        await deleteMemoriesByKeyOp(storageCtx, namespace, key);
+        // Update local state
+        setMemories((prev) =>
+          prev.filter(
+            (m) => !(m.namespace === namespace && m.key === key)
+          )
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to delete memories for "${namespace}:${key}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Clear all memories
+   */
+  const clearMemories = useCallback(async (): Promise<void> => {
+    try {
+      await clearAllMemoriesOp(storageCtx);
+      setMemories([]);
+    } catch (error) {
+      throw new Error(
+        "Failed to clear all memories: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
+  }, [storageCtx]);
+
+  return {
+    memories,
+    refreshMemories,
+    extractMemoriesFromMessage,
+    searchMemories,
+    fetchAllMemories,
+    fetchMemoriesByNamespace,
+    fetchMemoriesByKey,
+    getMemoryById,
+    saveMemory,
+    saveMemories,
+    updateMemory,
+    removeMemory,
+    removeMemoryById,
+    removeMemories,
+    clearMemories,
+  };
+}

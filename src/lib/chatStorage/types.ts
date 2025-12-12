@@ -106,6 +106,14 @@ export interface StoredConversation {
 }
 
 /**
+ * Stored message with similarity score (for search results)
+ */
+export interface StoredMessageWithSimilarity extends StoredMessage {
+  /** Cosine similarity score (0 to 1) */
+  similarity: number;
+}
+
+/**
  * Options for creating a new message
  */
 export interface CreateMessageOptions {
@@ -125,6 +133,10 @@ export interface CreateMessageOptions {
   sources?: SearchSource[];
   /** Response duration in seconds */
   responseDuration?: number;
+  /** Embedding vector for semantic search */
+  vector?: number[];
+  /** Model used to generate the embedding */
+  embeddingModel?: string;
 }
 
 /**
@@ -177,6 +189,8 @@ export interface BaseSendMessageWithStorageArgs {
   files?: FileMetadata[];
   /** Per-request data callback */
   onData?: (chunk: string) => void;
+  /** Memory context to inject as system message (formatted memories from useMemoryStorage) */
+  memoryContext?: string;
 }
 
 /**

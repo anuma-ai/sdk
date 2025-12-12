@@ -3,16 +3,18 @@
 import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage } from "../client";
+import type { LlmapiMessage, LlmapiMessageContentPart } from "../client";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import { Message, Conversation } from "../lib/chatStorage/models";
 import {
   type StoredMessage,
+  type StoredMessageWithSimilarity,
   type StoredConversation,
   type CreateConversationOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseUseChatStorageResult,
+  type FileMetadata,
   convertUsageToStored,
 } from "../lib/chatStorage/types";
 import {
@@ -26,6 +28,8 @@ import {
   getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
+  updateMessageEmbeddingOp,
+  searchMessagesOp,
 } from "../lib/chatStorage/operations";
 
 /**
@@ -91,6 +95,18 @@ export type SendMessageWithStorageResult =
     };
 
 /**
+ * Options for searching messages
+ */
+export interface SearchMessagesOptions {
+  /** Limit the number of results (default: 10) */
+  limit?: number;
+  /** Minimum similarity threshold (default: 0.5) */
+  minSimilarity?: number;
+  /** Filter by conversation ID */
+  conversationId?: string;
+}
+
+/**
  * Result returned by useChatStorage hook (React version)
  *
  * Extends base result with tool selection state and React-specific sendMessage signature.
@@ -102,6 +118,17 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
+  /** Search messages by vector similarity */
+  searchMessages: (
+    queryVector: number[],
+    options?: SearchMessagesOptions
+  ) => Promise<StoredMessageWithSimilarity[]>;
+  /** Update a message's embedding vector */
+  updateMessageEmbedding: (
+    uniqueId: string,
+    vector: number[],
+    embeddingModel: string
+  ) => Promise<void>;
 }
 
 /**
@@ -359,6 +386,7 @@ export function useChatStorage(
         onData: perRequestOnData,
         runTools,
         headers,
+        memoryContext,
       } = args;
 
       // Ensure we have a conversation
@@ -385,9 +413,31 @@ export function useChatStorage(
       }
 
       // Add the user's new message
+      const userMessageContent: LlmapiMessageContentPart[] = [
+        { type: "text", text: content },
+      ];
+
+      // Add image content parts for files with URLs (data URIs)
+      // eslint-disable-next-line no-console
+      console.log("[useChatStorage] files received:", files?.length, files?.map(f => ({ id: f.id, type: f.type, hasUrl: !!f.url })));
+      if (files && files.length > 0) {
+        for (const file of files) {
+          if (file.url && file.type.startsWith("image/")) {
+            // eslint-disable-next-line no-console
+            console.log("[useChatStorage] Adding image_url for file:", file.id, "url length:", file.url.length);
+            userMessageContent.push({
+              type: "image_url",
+              image_url: { url: file.url },
+            });
+          }
+        }
+      }
+      // eslint-disable-next-line no-console
+      console.log("[useChatStorage] userMessageContent parts:", userMessageContent.length, userMessageContent.map(p => p.type));
+
       const userMessage: LlmapiMessage = {
         role: "user",
-        content: [{ type: "text", text: content }],
+        content: userMessageContent,
       };
       messagesToSend.push(userMessage);
 
@@ -420,6 +470,7 @@ export function useChatStorage(
         onData: perRequestOnData,
         runTools,
         headers,
+        memoryContext,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -474,6 +525,33 @@ export function useChatStorage(
     [ensureConversation, getMessages, storageCtx, baseSendMessage]
   );
 
+  /**
+   * Search messages by vector similarity
+   */
+  const searchMessages = useCallback(
+    async (
+      queryVector: number[],
+      options?: SearchMessagesOptions
+    ): Promise<StoredMessageWithSimilarity[]> => {
+      return searchMessagesOp(storageCtx, queryVector, options);
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Update a message's embedding vector
+   */
+  const updateMessageEmbedding = useCallback(
+    async (
+      uniqueId: string,
+      vector: number[],
+      embeddingModel: string
+    ): Promise<void> => {
+      return updateMessageEmbeddingOp(storageCtx, uniqueId, vector, embeddingModel);
+    },
+    [storageCtx]
+  );
+
   return {
     isLoading,
     isSelectingTool,
@@ -489,5 +567,7 @@ export function useChatStorage(
     getMessages,
     getMessageCount,
     clearMessages,
+    searchMessages,
+    updateMessageEmbedding,
   };
 }
