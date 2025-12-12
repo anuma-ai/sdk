@@ -60,6 +60,27 @@
  * @module react
  */
 export { useChat } from "./useChat";
+export { useChatStorage } from "./useChatStorage";
+export type {
+  UseChatStorageOptions,
+  UseChatStorageResult,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageResult,
+} from "./useChatStorage";
+export {
+  chatStorageSchema,
+  Message as ChatMessage,
+  Conversation as ChatConversation,
+  type ChatRole,
+  type FileMetadata,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type SearchSource,
+  type StoredMessage,
+  type StoredConversation,
+  type CreateMessageOptions,
+  type CreateConversationOptions,
+  generateConversationId,
+} from "../lib/chatStorage";
 export {
   useEncryption,
   requestEncryptionKey,

@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
+    "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^19.2.6",
@@ -93,6 +94,7 @@
     "vitest": "^4.0.14"
   },
   "peerDependencies": {
+    "@nozbe/watermelondb": ">=0.27.0",
     "@privy-io/react-auth": "^3.7.0",
     "dexie": "^4.2.1",
     "react": "^18.0.0 || ^19.0.0",
@@ -100,6 +102,9 @@
     "react-native": ">=0.70.0"
   },
   "peerDependenciesMeta": {
+    "@nozbe/watermelondb": {
+      "optional": true
+    },
     "react-dom": {
       "optional": true
     },
