@@ -499,6 +499,9 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
       id: number,
       updates: Partial<StoredMemoryItem & MemoryItem>
     ): Promise<StoredMemoryItem | undefined> => {
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new Error("id must be a non-negative integer");
+      }
       try {
         const embeddingModelToUse =
           embeddingProvider === "api"
@@ -560,17 +563,31 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
           pii: updates.pii as MemoryItem["pii"],
         };
 
-        const embedding = await generateEmbeddingForMemory(
-          memory,
-          embeddingOptions
-        );
+        let embedding = existingMemory.embedding ?? [];
+        let embeddingModelToStore = existingMemory.embeddingModel ?? "";
+
+        if (generateEmbeddings && embeddingModelToUse) {
+          try {
+            embedding = await generateEmbeddingForMemory(
+              memory,
+              embeddingOptions
+            );
+            embeddingModelToStore = embeddingModelToUse;
+          } catch (embeddingError) {
+            console.error(
+              "Failed to generate embedding, keeping existing:",
+              embeddingError
+            );
+            // Keep existing embedding on failure
+          }
+        }
 
         return await updateMemoryById(
           id,
-          updates as Partial<StoredMemoryItem & MemoryItem>,
+          updates as StoredMemoryItem & MemoryItem,
           existingMemory as StoredMemoryItem,
           embedding,
-          embeddingModelToUse
+          embeddingModelToStore
         );
       } catch (error) {
         throw new Error(
@@ -579,7 +596,7 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
         );
       }
     },
-    [embeddingModel, embeddingProvider, getToken, baseUrl]
+    [embeddingModel, embeddingProvider, generateEmbeddings, getToken, baseUrl]
   );
 
   const removeMemory = useCallback(
@@ -600,8 +617,8 @@ export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   );
 
   const removeMemoryById = useCallback(async (id: number): Promise<void> => {
-    if (id === undefined || id === null) {
-      throw new Error("id is required");
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error("id must be a non-negative integer");
     }
     try {
       await deleteMemoryById(id);

@@ -102,7 +102,7 @@ export const saveMemories = async (memories: MemoryItem[]): Promise<void> => {
  */
 export const updateMemoryById = async (
   id: number,
-  updates: Partial<StoredMemoryItem & MemoryItem>,
+  updates: StoredMemoryItem & MemoryItem,
   existingMemory: StoredMemoryItem,
   embedding: number[],
   embeddingModel: string
@@ -118,15 +118,29 @@ export const updateMemoryById = async (
     const namespace = updates.namespace ?? existingMemory.namespace;
     const key = updates.key ?? existingMemory.key;
     const value = updates.value ?? existingMemory.value;
+    const newUniqueKey = `${namespace}:${key}:${value}`;
+
+    // Check for uniqueKey conflict (skip if unchanged)
+    if (newUniqueKey !== existingMemory.uniqueKey) {
+      const conflicting = await getMemory(namespace, key, value);
+      if (conflicting) {
+        throw new Error(
+          `A memory with uniqueKey "${newUniqueKey}" already exists (id: ${conflicting.id})`
+        );
+      }
+    }
+
     updatedMemory.compositeKey = `${namespace}:${key}`;
-    updatedMemory.uniqueKey = `${namespace}:${key}:${value}`;
+    updatedMemory.uniqueKey = newUniqueKey;
   }
 
   updatedMemory.embedding = embedding;
   updatedMemory.embeddingModel = embeddingModel;
 
-  await memoryDb.memories.update(id, updatedMemory);
-  return await memoryDb.memories.get(id);
+  return await memoryDb.transaction("rw", memoryDb.memories, async () => {
+    await memoryDb.memories.update(id, updatedMemory);
+    return await memoryDb.memories.get(id);
+  });
 };
 
 /**
