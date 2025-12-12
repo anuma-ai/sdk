@@ -1,9 +1,5 @@
 # Overview
 
-React hooks for building AI-powered user interfaces.
-
-## Overview
-
 The `@reverbia/sdk/react` package provides a collection of React hooks
 designed to simplify building AI features in your applications. These hooks
 abstract away the complexity of managing streaming responses, loading states,

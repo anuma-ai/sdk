@@ -1,7 +1,25 @@
 # Overview
 
-Your custom documentation content goes here.
+A TypeScript SDK for building AI-powered applications with the Reverbia Portal
+API.
 
-## Getting Started
+## Installation
 
-Add your getting started guide, installation instructions, examples, etc.
+```bash
+npm install @reverbia/sdk
+# or
+pnpm add @reverbia/sdk
+```
+
+## What's Included
+
+The SDK provides everything you need to integrate AI capabilities into your
+applications:
+
+- Chat completions with streaming support
+- Image generation from text prompts
+- Text embeddings for semantic search
+- Web search integration
+- PDF and image text extraction (OCR)
+- Memory and context management for conversational AI
+- Wallet-based encryption
