@@ -47,6 +47,29 @@
  */
 
 export { useChat } from "./useChat";
+export { useChatStorage } from "./useChatStorage";
+export type {
+  UseChatStorageOptions,
+  UseChatStorageResult,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageResult,
+} from "./useChatStorage";
 export { useImageGeneration } from "../react/useImageGeneration";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
+
+// Re-export chat storage schema and types for database setup
+export {
+  chatStorageSchema,
+  Message as ChatMessage,
+  Conversation as ChatConversation,
+  type ChatRole,
+  type FileMetadata,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type SearchSource,
+  type StoredMessage,
+  type StoredConversation,
+  type CreateMessageOptions,
+  type CreateConversationOptions,
+  generateConversationId,
+} from "../lib/chatStorage";

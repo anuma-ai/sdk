@@ -4,7 +4,6 @@ import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage } from "../client";
-import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import { Message, Conversation } from "../lib/chatStorage/models";
 import {
   type StoredMessage,
@@ -12,6 +11,7 @@ import {
   type CreateConversationOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
+  type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
   convertUsageToStored,
 } from "../lib/chatStorage/types";
@@ -39,66 +39,33 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
 }
 
 /**
- * Options for useChatStorage hook (React version)
+ * Options for useChatStorage hook (Expo version)
  *
- * Extends base options with React-specific features like local chat and tools.
+ * Uses the base options without React-specific features (no local chat, no tools).
  */
-export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
-  /** Chat provider: "api" or "local" */
-  chatProvider?: "api" | "local";
-  /** Model for local chat */
-  localModel?: string;
-  /** Client-side tools */
-  tools?: ClientTool[];
-  /** Tool selector model */
-  toolSelectorModel?: string;
-  /** Callback when tool is executed */
-  onToolExecution?: (result: ToolExecutionResult) => void;
-}
+export type UseChatStorageOptions = BaseUseChatStorageOptions;
 
 /**
- * Arguments for sendMessage with storage (React version)
+ * Arguments for sendMessage with storage (Expo version)
  *
- * Extends base arguments with React-specific features like tools and headers.
+ * Uses the base arguments without React-specific features (no runTools, no headers).
  */
-export interface SendMessageWithStorageArgs
-  extends BaseSendMessageWithStorageArgs {
-  /** Whether to run tool selection */
-  runTools?: boolean;
-  /** Custom headers */
-  headers?: Record<string, string>;
-}
+export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs;
 
 /**
- * Result from sendMessage with storage (React version)
+ * Result from sendMessage with storage (Expo version)
  *
- * Extends base result with tool execution information.
+ * Uses the base result without tool execution information.
  */
-export type SendMessageWithStorageResult =
-  | {
-      data: import("../client").LlmapiChatCompletionResponse;
-      error: null;
-      toolExecution?: ToolExecutionResult;
-      userMessage: StoredMessage;
-      assistantMessage: StoredMessage;
-    }
-  | {
-      data: null;
-      error: string;
-      toolExecution?: ToolExecutionResult;
-      userMessage?: StoredMessage;
-      assistantMessage?: undefined;
-    };
+export type SendMessageWithStorageResult = BaseSendMessageWithStorageResult;
 
 /**
- * Result returned by useChatStorage hook (React version)
+ * Result returned by useChatStorage hook (Expo version)
  *
- * Extends base result with tool selection state and React-specific sendMessage signature.
+ * Extends base result with Expo-specific sendMessage signature.
  */
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
-  /** Whether tool selection is in progress */
-  isSelectingTool: boolean;
-  /** Send a message and automatically store it (React version with tool support) */
+  /** Send a message and automatically store it (Expo version) */
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
@@ -107,9 +74,8 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 /**
  * A React hook that wraps useChat with automatic message persistence using WatermelonDB.
  *
- * This hook provides all the functionality of useChat plus automatic storage of
- * messages and conversations to a WatermelonDB database. Messages are automatically
- * saved when sent and when responses are received.
+ * **Expo/React Native version** - This is a lightweight version that only supports
+ * API-based chat completions. Local chat and client-side tools are not available.
  *
  * @param options - Configuration options
  * @returns An object containing chat state, methods, and storage operations
@@ -117,15 +83,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @example
  * ```tsx
  * import { Database } from '@nozbe/watermelondb';
- * import { useChatStorage } from '@reverbia/sdk/react';
+ * import { useChatStorage } from '@reverbia/sdk/expo';
  *
- * function ChatComponent({ database }: { database: Database }) {
+ * function ChatScreen({ database }: { database: Database }) {
  *   const {
  *     isLoading,
  *     sendMessage,
  *     conversationId,
  *     getMessages,
- *     createConversation,
  *   } = useChatStorage({
  *     database,
  *     getToken: async () => getAuthToken(),
@@ -134,23 +99,16 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *
  *   const handleSend = async () => {
  *     const result = await sendMessage({
- *       content: 'Hello, how are you?',
+ *       content: 'Hello!',
  *       model: 'gpt-4o-mini',
- *       includeHistory: true, // Include previous messages from this conversation
+ *       includeHistory: true,
  *     });
- *
- *     if (result.error) {
- *       console.error('Error:', result.error);
- *     } else {
- *       console.log('User message stored:', result.userMessage);
- *       console.log('Assistant message stored:', result.assistantMessage);
- *     }
  *   };
  *
  *   return (
- *     <div>
- *       <button onClick={handleSend} disabled={isLoading}>Send</button>
- *     </div>
+ *     <View>
+ *       <Button onPress={handleSend} disabled={isLoading} title="Send" />
+ *     </View>
  *   );
  * }
  * ```
@@ -170,11 +128,6 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
-    chatProvider,
-    localModel,
-    tools,
-    toolSelectorModel,
-    onToolExecution,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -201,10 +154,9 @@ export function useChatStorage(
     [database, messagesCollection, conversationsCollection]
   );
 
-  // Use the underlying useChat hook
+  // Use the underlying useChat hook (Expo version - no tools, no local chat)
   const {
     isLoading,
-    isSelectingTool,
     sendMessage: baseSendMessage,
     stop,
   } = useChat({
@@ -213,11 +165,6 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
-    chatProvider,
-    localModel,
-    tools,
-    toolSelectorModel,
-    onToolExecution,
   });
 
   /**
@@ -348,8 +295,6 @@ export function useChatStorage(
         includeHistory = true,
         files,
         onData: perRequestOnData,
-        runTools,
-        headers,
       } = args;
 
       // Ensure we have a conversation
@@ -409,8 +354,6 @@ export function useChatStorage(
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
-        runTools,
-        headers,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -419,7 +362,6 @@ export function useChatStorage(
         return {
           data: null,
           error: result.error || "No response data received",
-          toolExecution: result.toolExecution,
           userMessage: storedUserMessage,
         };
       }
@@ -449,7 +391,6 @@ export function useChatStorage(
             err instanceof Error
               ? err.message
               : "Failed to store assistant message",
-          toolExecution: result.toolExecution,
           userMessage: storedUserMessage,
         };
       }
@@ -457,7 +398,6 @@ export function useChatStorage(
       return {
         data: responseData,
         error: null,
-        toolExecution: result.toolExecution,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
       };
@@ -467,7 +407,6 @@ export function useChatStorage(
 
   return {
     isLoading,
-    isSelectingTool,
     sendMessage,
     stop,
     conversationId: currentConversationId,

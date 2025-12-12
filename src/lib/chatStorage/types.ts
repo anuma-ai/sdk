@@ -138,27 +138,86 @@ export interface CreateConversationOptions {
 }
 
 /**
- * Options for useChatStorage hook
+ * Base options for useChatStorage hook (shared between React and Expo)
  */
-export interface UseChatStorageOptions {
+export interface BaseUseChatStorageOptions {
   /** WatermelonDB database instance */
   database: Database;
   /** Current conversation ID (will create new if not provided) */
   conversationId?: string;
-  /** Auto-create conversation if it doesn't exist */
+  /** Auto-create conversation if it doesn't exist (default: true) */
   autoCreateConversation?: boolean;
   /** Default title for auto-created conversations */
   defaultConversationTitle?: string;
+  /** Authentication token getter */
+  getToken?: () => Promise<string | null>;
+  /** Base URL for API requests */
+  baseUrl?: string;
+  /** Callback when data chunk is received */
+  onData?: (chunk: string) => void;
+  /** Callback when chat completion finishes */
+  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  /** Callback when an error occurs */
+  onError?: (error: Error) => void;
 }
 
 /**
- * Result returned by useChatStorage hook
+ * Base arguments for sendMessage with storage (shared between React and Expo)
  */
-export interface UseChatStorageResult {
+export interface BaseSendMessageWithStorageArgs {
+  /** Message content to send */
+  content: string;
+  /** Model to use for the completion */
+  model?: string;
+  /** Previous messages to include (if not using stored messages) */
+  messages?: import("../../client").LlmapiMessage[];
+  /** Whether to include stored messages from conversation */
+  includeHistory?: boolean;
+  /** Attached files */
+  files?: FileMetadata[];
+  /** Per-request data callback */
+  onData?: (chunk: string) => void;
+}
+
+/**
+ * Base success result from sendMessage with storage
+ */
+export interface BaseSendMessageSuccessResult {
+  data: LlmapiChatCompletionResponse;
+  error: null;
+  userMessage: StoredMessage;
+  assistantMessage: StoredMessage;
+}
+
+/**
+ * Base error result from sendMessage with storage
+ */
+export interface BaseSendMessageErrorResult {
+  data: null;
+  error: string;
+  userMessage?: StoredMessage;
+  assistantMessage?: undefined;
+}
+
+/**
+ * Base result type from sendMessage with storage
+ */
+export type BaseSendMessageWithStorageResult =
+  | BaseSendMessageSuccessResult
+  | BaseSendMessageErrorResult;
+
+/**
+ * Base result returned by useChatStorage hook (shared between React and Expo)
+ */
+export interface BaseUseChatStorageResult {
+  /** Whether a chat request is in progress */
+  isLoading: boolean;
+  /** Stop the current request */
+  stop: () => void;
   /** Current conversation ID */
   conversationId: string | null;
   /** Set the current conversation ID */
-  setConversationId: (id: string) => void;
+  setConversationId: (id: string | null) => void;
   /** Create a new conversation */
   createConversation: (
     options?: CreateConversationOptions
