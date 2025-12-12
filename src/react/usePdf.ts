@@ -10,6 +10,10 @@ export interface PdfFile {
   filename?: string;
 }
 
+/**
+ * React hook for extracting text from PDF files.
+ * @category Hooks
+ */
 export function usePdf() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<Error | null>(null);

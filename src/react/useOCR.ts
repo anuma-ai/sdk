@@ -8,6 +8,10 @@ export interface OCRFile {
   language?: string;
 }
 
+/**
+ * React hook for extracting text from images using OCR.
+ * @category Hooks
+ */
 export function useOCR() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<Error | null>(null);

@@ -1,8 +1,25 @@
 {
+  "name": "Overview",
   "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "textContentMappings": {
+    "title.indexPage": "{projectName}",
+    "title.memberPage": "{name}",
+    "title.modulePage": "Overview"
+  },
+  "gitRevision": "main",
+  "readme": "./overview.md",
+  "mergeReadme": true,
+  "entryPoints": [
+    "src/react/index.ts",
+    "src/client/index.ts",
+    "src/next/index.ts",
+    "src/vercel/index.ts",
+    "src/expo/index.ts"
+  ],
+  "entryFileName": "README.md",
   "plugin": [
     "typedoc-plugin-markdown",
-    "typedoc-plugin-frontmatter",
-    "./utils/typedoc-fumadocs.js"
+    "typedoc-plugin-frontmatter"
   ]
 }

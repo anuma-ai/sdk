@@ -151,6 +151,7 @@ export type UseMemoryResult = {
 /**
  * Standalone hook for extracting memories from user messages.
  * Can be composed with other hooks like useChat, useFiles, etc.
+ * @category Hooks
  */
 export function useMemory(options: UseMemoryOptions = {}): UseMemoryResult {
   const {

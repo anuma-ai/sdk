@@ -15,6 +15,8 @@
  *
  * export default withReverbia(nextConfig);
  * ```
+ *
+ * @module
  */
 export const withReverbia = (nextConfig: any = {}) => {
   return {

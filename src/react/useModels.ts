@@ -34,6 +34,7 @@ export type UseModelsResult = {
 /**
  * React hook for fetching available LLM models.
  * Automatically fetches all available models.
+ * @category Hooks
  */
 export function useModels(options: UseModelsOptions = {}): UseModelsResult {
   const { getToken, baseUrl = BASE_URL, provider, autoFetch = true } = options;

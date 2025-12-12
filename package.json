@@ -56,7 +56,7 @@
     "test": "vitest run",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
-    "docs": "typedoc src/client/index.ts",
+    "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs"
   },
   "repository": {
