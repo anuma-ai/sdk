@@ -317,6 +317,15 @@ export function useChatStorage(
       if (existing) {
         return currentConversationId;
       }
+
+      // Conversation ID is provided but doesn't exist in storage yet
+      // Create it with the provided ID to maintain consistency
+      if (autoCreateConversation) {
+        const newConv = await createConversation({
+          conversationId: currentConversationId,
+        });
+        return newConv.conversationId;
+      }
     }
 
     if (autoCreateConversation) {
