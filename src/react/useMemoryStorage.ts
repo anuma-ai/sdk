@@ -284,11 +284,7 @@ export function useMemoryStorage(
             if (jsonObjectMatch && jsonObjectMatch[0]) {
               jsonContent = jsonObjectMatch[0];
             } else {
-              console.warn(
-                "Memory extraction returned non-JSON response.",
-                "\nFirst 200 chars of response:",
-                content.substring(0, 200)
-              );
+              console.warn("Memory extraction returned non-JSON response");
               return { items: [] };
             }
           }
@@ -297,9 +293,7 @@ export function useMemoryStorage(
         const trimmedJson = jsonContent.trim();
         if (!trimmedJson.startsWith("{") || !trimmedJson.includes("items")) {
           console.warn(
-            "Memory extraction response doesn't appear to be valid JSON.",
-            "\nResponse preview:",
-            content.substring(0, 200)
+            "Memory extraction response doesn't appear to be valid JSON"
           );
           return { items: [] };
         }
@@ -313,10 +307,7 @@ export function useMemoryStorage(
           }
 
           if (!Array.isArray(result.items)) {
-            console.warn(
-              "Memory extraction result missing 'items' array. Result:",
-              result
-            );
+            console.warn("Memory extraction result missing 'items' array");
             return { items: [] };
           }
         } catch (parseError) {
@@ -328,18 +319,8 @@ export function useMemoryStorage(
         }
 
         if (result.items && Array.isArray(result.items)) {
-          const originalCount = result.items.length;
           result.items = preprocessMemories(result.items);
-          const filteredCount = result.items.length;
-
-          if (originalCount !== filteredCount) {
-            console.log(
-              `Preprocessed memories: ${originalCount} -> ${filteredCount}`
-            );
-          }
         }
-
-        console.log("Extracted memories:", JSON.stringify(result, null, 2));
 
         if (result.items && result.items.length > 0) {
           try {

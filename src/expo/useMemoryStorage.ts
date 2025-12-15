@@ -350,7 +350,10 @@ export function useMemoryStorage(
             return { items: [] };
           }
         } catch (parseError) {
-          console.error("Failed to parse memory extraction JSON:", parseError);
+          console.error(
+            "Failed to parse memory extraction JSON:",
+            parseError instanceof Error ? parseError.message : "Unknown error"
+          );
           return { items: [] };
         }
 
