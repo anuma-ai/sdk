@@ -185,6 +185,8 @@ export interface BaseSendMessageWithStorageArgs {
   messages?: import("../../client").LlmapiMessage[];
   /** Whether to include stored messages from conversation */
   includeHistory?: boolean;
+  /** Maximum number of history messages to include (default: 50) */
+  maxHistoryMessages?: number;
   /** Attached files */
   files?: FileMetadata[];
   /** Per-request data callback */

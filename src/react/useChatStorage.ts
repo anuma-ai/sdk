@@ -382,6 +382,7 @@ export function useChatStorage(
         model,
         messages: providedMessages,
         includeHistory = true,
+        maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
         runTools,
@@ -407,7 +408,9 @@ export function useChatStorage(
       // Include history if requested
       if (includeHistory && !providedMessages) {
         const storedMessages = await getMessages(convId);
-        messagesToSend = storedMessages.map(storedToLlmapiMessage);
+        // Limit history to most recent messages to avoid unbounded growth
+        const limitedMessages = storedMessages.slice(-maxHistoryMessages);
+        messagesToSend = limitedMessages.map(storedToLlmapiMessage);
       } else if (providedMessages) {
         messagesToSend = providedMessages;
       }
