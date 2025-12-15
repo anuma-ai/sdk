@@ -71,9 +71,9 @@ export interface StoredMessage {
   model?: string;
   /** Optional attached files */
   files?: FileMetadata[];
-  /** ISO timestamp */
+  /** When the message was created */
   createdAt: Date;
-  /** ISO timestamp */
+  /** When the message was last updated */
   updatedAt: Date;
   /** Embedding vector for semantic search */
   vector?: number[];
@@ -97,9 +97,9 @@ export interface StoredConversation {
   conversationId: string;
   /** Conversation title */
   title: string;
-  /** ISO timestamp */
+  /** When the conversation was created */
   createdAt: Date;
-  /** ISO timestamp */
+  /** When the conversation was last updated */
   updatedAt: Date;
   /** Soft delete flag */
   isDeleted: boolean;
