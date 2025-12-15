@@ -36,9 +36,25 @@ import {
  * Convert StoredMessage to LlmapiMessage format
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
+  const content: LlmapiMessage["content"] = [
+    { type: "text", text: stored.content },
+  ];
+
+  // Add file image parts if present
+  if (stored.files?.length) {
+    for (const file of stored.files) {
+      if (file.url) {
+        content.push({
+          type: "image_url",
+          image_url: { url: file.url },
+        });
+      }
+    }
+  }
+
   return {
     role: stored.role,
-    content: [{ type: "text", text: stored.content }],
+    content,
   };
 }
 
