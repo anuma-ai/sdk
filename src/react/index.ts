@@ -93,7 +93,6 @@ export {
 } from "./useEncryption";
 export type { SignMessageFn } from "./useEncryption";
 
-export { useMemory } from "./useMemory";
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,
