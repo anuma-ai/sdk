@@ -242,10 +242,10 @@ export interface BaseUseChatStorageResult {
   getConversation: (id: string) => Promise<StoredConversation | null>;
   /** Get all conversations (excluding soft-deleted) */
   getConversations: () => Promise<StoredConversation[]>;
-  /** Update conversation title */
-  updateConversationTitle: (id: string, title: string) => Promise<void>;
-  /** Soft delete a conversation */
-  deleteConversation: (id: string) => Promise<void>;
+  /** Update conversation title. Returns true if updated, false if not found. */
+  updateConversationTitle: (id: string, title: string) => Promise<boolean>;
+  /** Soft delete a conversation. Returns true if deleted, false if not found. */
+  deleteConversation: (id: string) => Promise<boolean>;
   /** Get messages for a conversation */
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
   /** Get message count for a conversation */

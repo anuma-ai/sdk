@@ -284,9 +284,10 @@ export function useChatStorage(
 
   /**
    * Update conversation title
+   * @returns true if updated, false if conversation not found
    */
   const updateConversationTitle = useCallback(
-    async (id: string, title: string): Promise<void> => {
+    async (id: string, title: string): Promise<boolean> => {
       return updateConversationTitleOp(storageCtx, id, title);
     },
     [storageCtx]
@@ -294,13 +295,15 @@ export function useChatStorage(
 
   /**
    * Soft delete a conversation
+   * @returns true if deleted, false if conversation not found
    */
   const deleteConversation = useCallback(
-    async (id: string): Promise<void> => {
-      await deleteConversationOp(storageCtx, id);
-      if (currentConversationId === id) {
+    async (id: string): Promise<boolean> => {
+      const deleted = await deleteConversationOp(storageCtx, id);
+      if (deleted && currentConversationId === id) {
         setCurrentConversationId(null);
       }
+      return deleted;
     },
     [storageCtx, currentConversationId]
   );

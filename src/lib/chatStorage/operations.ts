@@ -109,14 +109,15 @@ export async function getConversationsOp(
 
 /**
  * Update conversation title
+ * @returns true if update was performed, false if no non-deleted conversation was found
  */
 export async function updateConversationTitleOp(
   ctx: StorageOperationsContext,
   id: string,
   title: string
-): Promise<void> {
+): Promise<boolean> {
   const results = await ctx.conversationsCollection
-    .query(Q.where("conversation_id", id))
+    .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
     .fetch();
 
   if (results.length > 0) {
@@ -125,18 +126,21 @@ export async function updateConversationTitleOp(
         conv._setRaw("title", title);
       });
     });
+    return true;
   }
+  return false;
 }
 
 /**
  * Soft delete a conversation
+ * @returns true if delete was performed, false if no non-deleted conversation was found
  */
 export async function deleteConversationOp(
   ctx: StorageOperationsContext,
   id: string
-): Promise<void> {
+): Promise<boolean> {
   const results = await ctx.conversationsCollection
-    .query(Q.where("conversation_id", id))
+    .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
     .fetch();
 
   if (results.length > 0) {
@@ -145,7 +149,9 @@ export async function deleteConversationOp(
         conv._setRaw("is_deleted", true);
       });
     });
+    return true;
   }
+  return false;
 }
 
 /**
