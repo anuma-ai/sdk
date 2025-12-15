@@ -70,7 +70,46 @@ export {
 } from "./useEncryption";
 export type { SignMessageFn } from "./useEncryption";
 
-export { useMemory } from "./useMemory";
+export { useChatStorage } from "./useChatStorage";
+export type {
+  UseChatStorageOptions,
+  UseChatStorageResult,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageResult,
+  SearchMessagesOptions,
+} from "./useChatStorage";
+export {
+  chatStorageSchema,
+  Message as ChatMessage,
+  Conversation as ChatConversation,
+  type ChatRole,
+  type FileMetadata,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type SearchSource,
+  type StoredMessage,
+  type StoredMessageWithSimilarity,
+  type StoredConversation,
+  type CreateMessageOptions,
+  type CreateConversationOptions,
+  generateConversationId,
+} from "../lib/chatStorage";
+export { useMemoryStorage } from "./useMemoryStorage";
+export type {
+  UseMemoryStorageOptions,
+  UseMemoryStorageResult,
+} from "./useMemoryStorage";
+export {
+  memoryStorageSchema,
+  Memory as StoredMemoryModel,
+  type MemoryType,
+  type MemoryItem,
+  type StoredMemory,
+  type StoredMemoryWithSimilarity,
+  type CreateMemoryOptions,
+  type UpdateMemoryOptions,
+  generateCompositeKey,
+  generateUniqueKey,
+} from "../lib/memoryStorage";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
 export { useOCR } from "./useOCR";

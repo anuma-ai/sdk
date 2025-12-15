@@ -1,4 +1,4 @@
-import type { StoredMemoryItem } from "./db";
+import type { StoredMemory } from "../memoryStorage/types";
 
 /**
  * Format memories into a context string that can be included in chat messages
@@ -7,7 +7,7 @@ import type { StoredMemoryItem } from "./db";
  * @returns Formatted string ready to include in system/user message
  */
 export const formatMemoriesForChat = (
-  memories: Array<StoredMemoryItem & { similarity?: number }>,
+  memories: Array<StoredMemory & { similarity?: number }>,
   format: "compact" | "detailed" = "compact"
 ): string => {
   if (memories.length === 0) {
@@ -61,7 +61,7 @@ export const formatMemoriesForChat = (
  * @returns System message content with memories
  */
 export const createMemoryContextSystemMessage = (
-  memories: Array<StoredMemoryItem & { similarity?: number }>,
+  memories: Array<StoredMemory & { similarity?: number }>,
   baseSystemPrompt?: string
 ): string => {
   const memoryContext = formatMemoriesForChat(memories, "compact");

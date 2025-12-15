@@ -47,6 +47,51 @@
  */
 
 export { useChat } from "./useChat";
+export { useChatStorage } from "./useChatStorage";
+export type {
+  UseChatStorageOptions,
+  UseChatStorageResult,
+  SendMessageWithStorageArgs,
+  SendMessageWithStorageResult,
+} from "./useChatStorage";
 export { useImageGeneration } from "../react/useImageGeneration";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
+
+// Memory storage hooks
+export { useMemoryStorage } from "./useMemoryStorage";
+export type {
+  UseMemoryStorageOptions,
+  UseMemoryStorageResult,
+} from "./useMemoryStorage";
+
+// Re-export chat storage schema and types for database setup
+export {
+  chatStorageSchema,
+  Message as ChatMessage,
+  Conversation as ChatConversation,
+  type ChatRole,
+  type FileMetadata,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type SearchSource,
+  type StoredMessage,
+  type StoredMessageWithSimilarity,
+  type StoredConversation,
+  type CreateMessageOptions,
+  type CreateConversationOptions,
+  generateConversationId,
+} from "../lib/chatStorage";
+
+// Re-export memory storage schema and types for database setup
+export {
+  memoryStorageSchema,
+  Memory as StoredMemoryModel,
+  type MemoryType,
+  type MemoryItem,
+  type StoredMemory,
+  type StoredMemoryWithSimilarity,
+  type CreateMemoryOptions,
+  type UpdateMemoryOptions,
+  generateCompositeKey,
+  generateUniqueKey,
+} from "../lib/memoryStorage";
