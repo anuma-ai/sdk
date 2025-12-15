@@ -231,20 +231,30 @@ export async function createMessageOp(
 
 /**
  * Update message embedding in the database
+ * @returns The updated message, or null if message not found
  */
 export async function updateMessageEmbeddingOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
   vector: number[],
   embeddingModel: string
-): Promise<void> {
-  const message = await ctx.messagesCollection.find(uniqueId);
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    // Message not found
+    return null;
+  }
+
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("vector", JSON.stringify(vector));
       msg._setRaw("embedding_model", embeddingModel);
     });
   });
+
+  return messageToStored(message);
 }
 
 /**

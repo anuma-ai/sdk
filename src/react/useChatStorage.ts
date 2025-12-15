@@ -123,12 +123,12 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     queryVector: number[],
     options?: SearchMessagesOptions
   ) => Promise<StoredMessageWithSimilarity[]>;
-  /** Update a message's embedding vector */
+  /** Update a message's embedding vector. Returns updated message or null if not found. */
   updateMessageEmbedding: (
     uniqueId: string,
     vector: number[],
     embeddingModel: string
-  ) => Promise<void>;
+  ) => Promise<StoredMessage | null>;
 }
 
 /**
@@ -545,14 +545,15 @@ export function useChatStorage(
   );
 
   /**
-   * Update a message's embedding vector
+   * Update message embedding
+   * @returns The updated message, or null if message not found
    */
   const updateMessageEmbedding = useCallback(
     async (
       uniqueId: string,
       vector: number[],
       embeddingModel: string
-    ): Promise<void> => {
+    ): Promise<StoredMessage | null> => {
       return updateMessageEmbeddingOp(storageCtx, uniqueId, vector, embeddingModel);
     },
     [storageCtx]
