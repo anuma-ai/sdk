@@ -375,13 +375,23 @@ export function useChatStorage(
       messagesToSend.push(userMessage);
 
       // Store the user message
+      // Sanitize files for storage: remove large data URIs to avoid bloating the database
+      const sanitizedFiles = files?.map((file) => ({
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        // Only keep URL if it's not a data URI (e.g., external URLs)
+        url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
+      }));
+
       let storedUserMessage: StoredMessage;
       try {
         storedUserMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "user",
           content,
-          files,
+          files: sanitizedFiles,
         });
       } catch (err) {
         return {
