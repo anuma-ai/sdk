@@ -21,9 +21,6 @@ importers:
       ai:
         specifier: 5.0.93
         version: 5.0.93(zod@4.1.13)
-      dexie:
-        specifier: ^4.2.1
-        version: 4.2.1
       pdfjs-dist:
         specifier: ^4.10.38
         version: 4.10.38
@@ -2943,9 +2940,6 @@ packages:
 
   detect-node@2.1.0:
     resolution: {integrity: sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g==}
-
-  dexie@4.2.1:
-    resolution: {integrity: sha512-Ckej0NS6jxQ4Po3OrSQBFddayRhTCic2DoCAG5zacOfOVB9P2Q5Xc5uL/nVa7ZVs+HdMnvUPzLFCB/JwpB6Csg==}
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
@@ -9853,8 +9847,6 @@ snapshots:
   detect-libc@2.1.2: {}
 
   detect-node@2.1.0: {}
-
-  dexie@4.2.1: {}
 
   dijkstrajs@1.0.3: {}
 
