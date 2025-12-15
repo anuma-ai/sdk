@@ -60,6 +60,16 @@
  * @module react
  */
 export { useChat } from "./useChat";
+export {
+  useEncryption,
+  requestEncryptionKey,
+  hasEncryptionKey,
+  encryptData,
+  decryptData,
+  decryptDataBytes,
+} from "./useEncryption";
+export type { SignMessageFn } from "./useEncryption";
+
 export { useChatStorage } from "./useChatStorage";
 export type {
   UseChatStorageOptions,
@@ -83,16 +93,6 @@ export {
   type CreateConversationOptions,
   generateConversationId,
 } from "../lib/chatStorage";
-export {
-  useEncryption,
-  requestEncryptionKey,
-  hasEncryptionKey,
-  encryptData,
-  decryptData,
-  decryptDataBytes,
-} from "./useEncryption";
-export type { SignMessageFn } from "./useEncryption";
-
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,

@@ -421,15 +421,9 @@ export function useMemoryStorage(
       }
 
       try {
-        console.log(`[Memory Search] Searching for: "${query}"`);
-
         const queryEmbedding = await generateEmbeddingForText(
           query,
           embeddingOptions
-        );
-
-        console.log(
-          `[Memory Search] Generated query embedding (${queryEmbedding.length} dimensions)`
         );
 
         const results = await searchSimilarMemoriesOp(
@@ -453,8 +447,7 @@ export function useMemoryStorage(
         }
 
         return results;
-      } catch (error) {
-        console.error("Failed to search memories:", error);
+      } catch {
         return [];
       }
     },
