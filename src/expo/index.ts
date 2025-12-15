@@ -75,6 +75,7 @@ export {
   type ChatCompletionUsage as StoredChatCompletionUsage,
   type SearchSource,
   type StoredMessage,
+  type StoredMessageWithSimilarity,
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
