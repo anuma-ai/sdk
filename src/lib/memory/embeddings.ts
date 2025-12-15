@@ -1,11 +1,16 @@
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import type { MemoryItem } from "./service";
-import { memoryDb, getAllMemories } from "./db";
 import {
   DEFAULT_API_EMBEDDING_MODEL,
   DEFAULT_LOCAL_EMBEDDING_MODEL,
 } from "./constants";
+import type { MemoryStorageOperationsContext } from "../memoryStorage/operations";
+import {
+  getAllMemoriesOp,
+  updateMemoryEmbeddingOp,
+} from "../memoryStorage/operations";
+import type { StoredMemory } from "../memoryStorage/types";
 
 // Cache the pipeline instance
 let embeddingPipeline: any = null;
@@ -154,23 +159,27 @@ export const generateEmbeddingsForMemories = async (
  * Update memory items in the database with their embeddings
  */
 export const updateMemoriesWithEmbeddings = async (
+  ctx: MemoryStorageOperationsContext,
   embeddings: Map<string, number[]>,
   embeddingModel: string
 ): Promise<void> => {
+  // Get all memories to find by unique key
+  const allMemories = await getAllMemoriesOp(ctx);
+  const memoryByUniqueKey = new Map(
+    allMemories.map((m) => [m.uniqueKey, m])
+  );
+
   const updates = Array.from(embeddings.entries()).map(
     async ([uniqueKey, embedding]) => {
-      const existing = await memoryDb.memories
-        .where("uniqueKey")
-        .equals(uniqueKey)
-        .first();
+      const existing = memoryByUniqueKey.get(uniqueKey);
 
-      if (existing?.id) {
-        await memoryDb.memories.update(existing.id, {
+      if (existing?.uniqueId) {
+        await updateMemoryEmbeddingOp(
+          ctx,
+          existing.uniqueId,
           embedding,
-          embeddingModel,
-          updatedAt: Date.now(),
-          createdAt: existing.createdAt,
-        });
+          embeddingModel
+        );
       } else {
         console.warn(
           `[Embeddings] Memory with uniqueKey ${uniqueKey} not found. ` +
@@ -187,6 +196,7 @@ export const updateMemoriesWithEmbeddings = async (
  * Generate and store embeddings for memory items
  */
 export const generateAndStoreEmbeddings = async (
+  ctx: MemoryStorageOperationsContext,
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
@@ -215,7 +225,7 @@ export const generateAndStoreEmbeddings = async (
     ...options,
     model,
   });
-  await updateMemoriesWithEmbeddings(embeddings, model);
+  await updateMemoriesWithEmbeddings(ctx, embeddings, model);
 
   console.log(`Generated and stored ${embeddings.size} embeddings`);
 };
@@ -229,18 +239,19 @@ export const generateAndStoreEmbeddings = async (
  * import { generateEmbeddingsForAllMemories } from '@your-sdk/lib/memory/embeddings';
  *
  * // Generate embeddings for all memories without them
- * await generateEmbeddingsForAllMemories({
+ * await generateEmbeddingsForAllMemories(ctx, {
  *   model: "Snowflake/snowflake-arctic-embed-xs"
  * });
  * ```
  */
 export const generateEmbeddingsForAllMemories = async (
+  ctx: MemoryStorageOperationsContext,
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
-  const allMemories = await getAllMemories();
+  const allMemories = await getAllMemoriesOp(ctx);
 
   const memoriesWithoutEmbeddings = allMemories.filter(
-    (m) => !m.embedding || m.embedding.length === 0
+    (m: StoredMemory) => !m.embedding || m.embedding.length === 0
   );
 
   if (memoriesWithoutEmbeddings.length === 0) {
@@ -252,15 +263,17 @@ export const generateEmbeddingsForAllMemories = async (
     `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`
   );
 
-  const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map((m) => ({
-    type: m.type,
-    namespace: m.namespace,
-    key: m.key,
-    value: m.value,
-    rawEvidence: m.rawEvidence,
-    confidence: m.confidence,
-    pii: m.pii,
-  }));
+  const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map(
+    (m: StoredMemory) => ({
+      type: m.type,
+      namespace: m.namespace,
+      key: m.key,
+      value: m.value,
+      rawEvidence: m.rawEvidence,
+      confidence: m.confidence,
+      pii: m.pii,
+    })
+  );
 
-  await generateAndStoreEmbeddings(memoryItems, options);
+  await generateAndStoreEmbeddings(ctx, memoryItems, options);
 };
