@@ -269,6 +269,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 /**
  * Search messages by vector similarity
+ * Excludes messages from soft-deleted conversations
  */
 export async function searchMessagesOp(
   ctx: StorageOperationsContext,
@@ -284,6 +285,14 @@ export async function searchMessagesOp(
 ): Promise<StoredMessageWithSimilarity[]> {
   const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
 
+  // Get IDs of non-deleted conversations to filter messages
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => c.conversationId)
+  );
+
   // Build query
   const queryConditions = conversationId
     ? [Q.where("conversation_id", conversationId)]
@@ -295,6 +304,9 @@ export async function searchMessagesOp(
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
   for (const message of messages) {
+    // Skip messages from deleted conversations
+    if (!activeConversationIds.has(message.conversationId)) continue;
+
     const messageVector = message.vector;
     if (!messageVector || messageVector.length === 0) continue;
 
@@ -315,11 +327,20 @@ export async function searchMessagesOp(
 
 /**
  * Get all messages that have embeddings
+ * Excludes messages from soft-deleted conversations
  */
 export async function getMessagesWithEmbeddingsOp(
   ctx: StorageOperationsContext,
   conversationId?: string
 ): Promise<StoredMessage[]> {
+  // Get IDs of non-deleted conversations to filter messages
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => c.conversationId)
+  );
+
   const queryConditions = conversationId
     ? [Q.where("conversation_id", conversationId)]
     : [];
@@ -327,6 +348,11 @@ export async function getMessagesWithEmbeddingsOp(
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
   return messages
-    .filter((m) => m.vector && m.vector.length > 0)
+    .filter(
+      (m) =>
+        m.vector &&
+        m.vector.length > 0 &&
+        activeConversationIds.has(m.conversationId)
+    )
     .map(messageToStored);
 }
