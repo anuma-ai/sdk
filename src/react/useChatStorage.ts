@@ -440,13 +440,9 @@ export function useChatStorage(
       ];
 
       // Add image content parts for files with URLs (data URIs)
-      // eslint-disable-next-line no-console
-      console.log("[useChatStorage] files received:", files?.length, files?.map(f => ({ id: f.id, type: f.type, hasUrl: !!f.url })));
       if (files && files.length > 0) {
         for (const file of files) {
           if (file.url && file.type.startsWith("image/")) {
-            // eslint-disable-next-line no-console
-            console.log("[useChatStorage] Adding image_url for file:", file.id, "url length:", file.url.length);
             userMessageContent.push({
               type: "image_url",
               image_url: { url: file.url },
@@ -454,8 +450,6 @@ export function useChatStorage(
           }
         }
       }
-      // eslint-disable-next-line no-console
-      console.log("[useChatStorage] userMessageContent parts:", userMessageContent.length, userMessageContent.map(p => p.type));
 
       const userMessage: LlmapiMessage = {
         role: "user",
