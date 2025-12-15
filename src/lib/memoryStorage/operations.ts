@@ -129,6 +129,7 @@ export async function getMemoryByUniqueKeyOp(
 
 /**
  * Create or update a memory (upsert by unique key)
+ * The existence check and create/update are performed atomically within a single transaction
  */
 export async function saveMemoryOp(
   ctx: MemoryStorageOperationsContext,
@@ -137,27 +138,28 @@ export async function saveMemoryOp(
   const compositeKey = generateCompositeKey(opts.namespace, opts.key);
   const uniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
 
-  // Check if memory with this unique key already exists
-  const existing = await ctx.memoriesCollection
-    .query(Q.where("unique_key", uniqueKey))
-    .fetch();
+  // Perform existence check and create/update atomically within a single transaction
+  const result = await ctx.database.write(async () => {
+    // Check if memory with this unique key already exists
+    const existing = await ctx.memoriesCollection
+      .query(Q.where("unique_key", uniqueKey))
+      .fetch();
 
-  if (existing.length > 0) {
-    // Update existing memory
-    const existingMemory = existing[0];
+    if (existing.length > 0) {
+      // Update existing memory
+      const existingMemory = existing[0];
 
-    // Determine if we should preserve existing embedding
-    const shouldPreserveEmbedding =
-      existingMemory.value === opts.value &&
-      existingMemory.rawEvidence === opts.rawEvidence &&
-      existingMemory.type === opts.type &&
-      existingMemory.namespace === opts.namespace &&
-      existingMemory.key === opts.key &&
-      existingMemory.embedding !== undefined &&
-      existingMemory.embedding.length > 0 &&
-      !opts.embedding;
+      // Determine if we should preserve existing embedding
+      const shouldPreserveEmbedding =
+        existingMemory.value === opts.value &&
+        existingMemory.rawEvidence === opts.rawEvidence &&
+        existingMemory.type === opts.type &&
+        existingMemory.namespace === opts.namespace &&
+        existingMemory.key === opts.key &&
+        existingMemory.embedding !== undefined &&
+        existingMemory.embedding.length > 0 &&
+        !opts.embedding;
 
-    const updated = await ctx.database.write(async () => {
       await existingMemory.update((mem) => {
         mem._setRaw("type", opts.type);
         mem._setRaw("namespace", opts.namespace);
@@ -182,14 +184,11 @@ export async function saveMemoryOp(
           mem._setRaw("embedding_model", null);
         }
       });
+
       return existingMemory;
-    });
+    }
 
-    return memoryToStored(updated);
-  }
-
-  // Create new memory
-  const created = await ctx.database.write(async () => {
+    // Create new memory
     return await ctx.memoriesCollection.create((mem) => {
       mem._setRaw("type", opts.type);
       mem._setRaw("namespace", opts.namespace);
@@ -211,7 +210,7 @@ export async function saveMemoryOp(
     });
   });
 
-  return memoryToStored(created);
+  return memoryToStored(result);
 }
 
 /**
