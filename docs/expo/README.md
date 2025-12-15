@@ -47,8 +47,148 @@ function ChatScreen() {
 ## Hooks
 
 - [useChat](functions/useChat.md)
+- [useChatStorage](functions/useChatStorage.md)
+- [useMemoryStorage](functions/useMemoryStorage.md)
 
 ## Other
+
+### ChatConversation
+
+Re-exports [ChatConversation](../react/classes/ChatConversation.md)
+
+***
+
+### ChatMessage
+
+Re-exports [ChatMessage](../react/classes/ChatMessage.md)
+
+***
+
+### ChatRole
+
+Re-exports [ChatRole](../react/type-aliases/ChatRole.md)
+
+***
+
+### chatStorageSchema
+
+Re-exports [chatStorageSchema](../react/variables/chatStorageSchema.md)
+
+***
+
+### CreateConversationOptions
+
+Re-exports [CreateConversationOptions](../react/interfaces/CreateConversationOptions.md)
+
+***
+
+### CreateMemoryOptions
+
+Re-exports [CreateMemoryOptions](../react/interfaces/CreateMemoryOptions.md)
+
+***
+
+### CreateMessageOptions
+
+Re-exports [CreateMessageOptions](../react/interfaces/CreateMessageOptions.md)
+
+***
+
+### FileMetadata
+
+Re-exports [FileMetadata](../react/interfaces/FileMetadata.md)
+
+***
+
+### generateCompositeKey
+
+Re-exports [generateCompositeKey](../react/functions/generateCompositeKey.md)
+
+***
+
+### generateConversationId
+
+Re-exports [generateConversationId](../react/functions/generateConversationId.md)
+
+***
+
+### generateUniqueKey
+
+Re-exports [generateUniqueKey](../react/functions/generateUniqueKey.md)
+
+***
+
+### MemoryItem
+
+Re-exports [MemoryItem](../react/interfaces/MemoryItem.md)
+
+***
+
+### memoryStorageSchema
+
+Re-exports [memoryStorageSchema](../react/variables/memoryStorageSchema.md)
+
+***
+
+### MemoryType
+
+Re-exports [MemoryType](../react/type-aliases/MemoryType.md)
+
+***
+
+### SearchSource
+
+Re-exports [SearchSource](../react/interfaces/SearchSource.md)
+
+***
+
+### StoredChatCompletionUsage
+
+Re-exports [StoredChatCompletionUsage](../react/interfaces/StoredChatCompletionUsage.md)
+
+***
+
+### StoredConversation
+
+Re-exports [StoredConversation](../react/interfaces/StoredConversation.md)
+
+***
+
+### StoredMemory
+
+Re-exports [StoredMemory](../react/interfaces/StoredMemory.md)
+
+***
+
+### StoredMemoryModel
+
+Re-exports [StoredMemoryModel](../react/classes/StoredMemoryModel.md)
+
+***
+
+### StoredMemoryWithSimilarity
+
+Re-exports [StoredMemoryWithSimilarity](../react/interfaces/StoredMemoryWithSimilarity.md)
+
+***
+
+### StoredMessage
+
+Re-exports [StoredMessage](../react/interfaces/StoredMessage.md)
+
+***
+
+### StoredMessageWithSimilarity
+
+Re-exports [StoredMessageWithSimilarity](../react/interfaces/StoredMessageWithSimilarity.md)
+
+***
+
+### UpdateMemoryOptions
+
+Re-exports [UpdateMemoryOptions](../react/interfaces/UpdateMemoryOptions.md)
+
+***
 
 ### useImageGeneration
 

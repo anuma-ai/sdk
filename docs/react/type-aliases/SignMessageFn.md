@@ -2,7 +2,7 @@
 
 > **SignMessageFn** = (`message`) => `Promise`\<`string`\>
 
-Defined in: [react/useEncryption.ts:224](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L224)
+Defined in: [src/react/useEncryption.ts:224](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L224)
 
 Type for the signMessage function that client must provide
 

@@ -2,7 +2,7 @@
 
 > **formatMemoriesForChat**(`memories`, `format`): `string`
 
-Defined in: [lib/memory/chat.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L9)
+Defined in: [src/lib/memory/chat.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L9)
 
 Format memories into a context string that can be included in chat messages
 
@@ -10,7 +10,7 @@ Format memories into a context string that can be included in chat messages
 
 ### memories
 
-`StoredMemoryItem` & `object`[]
+[`StoredMemory`](../interfaces/StoredMemory.md) & `object`[]
 
 Array of memories with similarity scores
 

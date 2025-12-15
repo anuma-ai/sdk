@@ -2,7 +2,7 @@
 
 > **postApiV1ChatCompletions**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1ChatCompletionsResponses`](../type-aliases/PostApiV1ChatCompletionsResponses.md), [`PostApiV1ChatCompletionsErrors`](../type-aliases/PostApiV1ChatCompletionsErrors.md), `ThrowOnError`\>
 
-Defined in: [client/sdk.gen.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L26)
+Defined in: [src/client/sdk.gen.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L26)
 
 Create chat completion
 

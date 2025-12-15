@@ -2,7 +2,7 @@
 
 > **executeTool**(`tool`, `params`): `Promise`\<\{ `error?`: `string`; `result?`: `unknown`; `success`: `boolean`; \}\>
 
-Defined in: [lib/tools/selector.ts:284](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/selector.ts#L284)
+Defined in: [src/lib/tools/selector.ts:284](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/selector.ts#L284)
 
 Execute a client-side tool with the given parameters
 
