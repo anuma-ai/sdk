@@ -2,7 +2,7 @@
 
 > **LlmapiSearchResponse** = `object`
 
-Defined in: [client/types.gen.ts:511](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L511)
+Defined in: [src/client/types.gen.ts:511](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L511)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [client/types.gen.ts:511](https://github.com/zeta-chain/ai-sdk/blob/
 
 > `optional` **extra\_fields**: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md)
 
-Defined in: [client/types.gen.ts:512](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L512)
+Defined in: [src/client/types.gen.ts:512](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L512)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [client/types.gen.ts:512](https://github.com/zeta-chain/ai-sdk/blob/
 
 > `optional` **results**: [`LlmapiSearchResult`](LlmapiSearchResult.md)[]
 
-Defined in: [client/types.gen.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L516)
+Defined in: [src/client/types.gen.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L516)
 
 List of search results.
 
@@ -28,4 +28,4 @@ List of search results.
 
 > `optional` **usage**: [`LlmapiSearchUsage`](LlmapiSearchUsage.md)
 
-Defined in: [client/types.gen.ts:517](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L517)
+Defined in: [src/client/types.gen.ts:517](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L517)

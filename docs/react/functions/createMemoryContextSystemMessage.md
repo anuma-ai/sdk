@@ -2,7 +2,7 @@
 
 > **createMemoryContextSystemMessage**(`memories`, `baseSystemPrompt?`): `string`
 
-Defined in: [lib/memory/chat.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L63)
+Defined in: [src/lib/memory/chat.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L63)
 
 Create a system message that includes relevant memories
 
@@ -10,7 +10,7 @@ Create a system message that includes relevant memories
 
 ### memories
 
-`StoredMemoryItem` & `object`[]
+[`StoredMemory`](../interfaces/StoredMemory.md) & `object`[]
 
 Array of memories to include
 

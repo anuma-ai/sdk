@@ -2,7 +2,7 @@
 
 > **LlmapiMessage** = `object`
 
-Defined in: [client/types.gen.ts:303](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L303)
+Defined in: [src/client/types.gen.ts:303](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L303)
 
 Message is the generated message
 
@@ -12,7 +12,7 @@ Message is the generated message
 
 > `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]
 
-Defined in: [client/types.gen.ts:307](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L307)
+Defined in: [src/client/types.gen.ts:307](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L307)
 
 Content is the message content
 
@@ -22,4 +22,4 @@ Content is the message content
 
 > `optional` **role**: [`LlmapiRole`](LlmapiRole.md)
 
-Defined in: [client/types.gen.ts:308](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L308)
+Defined in: [src/client/types.gen.ts:308](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L308)

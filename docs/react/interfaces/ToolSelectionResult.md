@@ -1,6 +1,6 @@
 # ToolSelectionResult
 
-Defined in: [lib/tools/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L37)
+Defined in: [src/lib/tools/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L37)
 
 Result of a tool selection operation
 
@@ -10,7 +10,7 @@ Result of a tool selection operation
 
 > `optional` **confidence**: `number`
 
-Defined in: [lib/tools/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L45)
+Defined in: [src/lib/tools/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L45)
 
 Confidence score (0-1) of the selection
 
@@ -20,7 +20,7 @@ Confidence score (0-1) of the selection
 
 > `optional` **parameters**: `Record`\<`string`, `unknown`\>
 
-Defined in: [lib/tools/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L43)
+Defined in: [src/lib/tools/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L43)
 
 Extracted parameters for the tool
 
@@ -30,7 +30,7 @@ Extracted parameters for the tool
 
 > `optional` **toolName**: `string`
 
-Defined in: [lib/tools/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L41)
+Defined in: [src/lib/tools/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L41)
 
 Name of the selected tool (if any)
 
@@ -40,6 +40,6 @@ Name of the selected tool (if any)
 
 > **toolSelected**: `boolean`
 
-Defined in: [lib/tools/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L39)
+Defined in: [src/lib/tools/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L39)
 
 Whether a tool was selected

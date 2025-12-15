@@ -2,7 +2,7 @@
 
 > **usePdf**(): `object`
 
-Defined in: [react/usePdf.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L17)
+Defined in: [src/react/usePdf.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L17)
 
 React hook for extracting text from PDF files.
 

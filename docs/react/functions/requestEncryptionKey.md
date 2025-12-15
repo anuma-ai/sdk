@@ -2,7 +2,7 @@
 
 > **requestEncryptionKey**(`walletAddress`, `signMessage`): `Promise`\<`void`\>
 
-Defined in: [react/useEncryption.ts:233](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L233)
+Defined in: [src/react/useEncryption.ts:233](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L233)
 
 Requests the user to sign a message to generate an encryption key.
 If a key already exists for the given wallet, resolves immediately.

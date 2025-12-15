@@ -1,6 +1,6 @@
 # ToolExecutionResult
 
-Defined in: [lib/tools/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L51)
+Defined in: [src/lib/tools/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L51)
 
 Result of executing a client-side tool
 
@@ -10,7 +10,7 @@ Result of executing a client-side tool
 
 > `optional` **error**: `string`
 
-Defined in: [lib/tools/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L59)
+Defined in: [src/lib/tools/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L59)
 
 Error message if execution failed
 
@@ -20,7 +20,7 @@ Error message if execution failed
 
 > `optional` **result**: `unknown`
 
-Defined in: [lib/tools/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L57)
+Defined in: [src/lib/tools/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L57)
 
 The result returned by the tool
 
@@ -30,7 +30,7 @@ The result returned by the tool
 
 > **success**: `boolean`
 
-Defined in: [lib/tools/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L55)
+Defined in: [src/lib/tools/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L55)
 
 Whether execution was successful
 
@@ -40,6 +40,6 @@ Whether execution was successful
 
 > **toolName**: `string`
 
-Defined in: [lib/tools/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L53)
+Defined in: [src/lib/tools/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/types.ts#L53)
 
 Name of the tool that was executed

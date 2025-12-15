@@ -2,7 +2,7 @@
 
 > **mapMessagesToCompletionPayload**(`messages`): [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
 
-Defined in: [vercel/messages.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/messages.ts#L15)
+Defined in: [src/vercel/messages.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/messages.ts#L15)
 
 Converts an array of Vercel AI UIMessage objects into the
 `LlmapiMessage` format that the Portal API expects.
