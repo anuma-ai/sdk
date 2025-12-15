@@ -7,6 +7,7 @@ import {
   type StoredMemoryWithSimilarity,
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
+  type UpdateMemoryResult,
   generateCompositeKey,
   generateUniqueKey,
   cosineSimilarity,
@@ -230,36 +231,44 @@ export async function saveMemoriesOp(
 
 /**
  * Update a memory by ID
+ * Returns a discriminated union result to distinguish between not_found, conflict, and error cases
  */
 export async function updateMemoryOp(
   ctx: MemoryStorageOperationsContext,
   id: string,
   updates: UpdateMemoryOptions
-): Promise<StoredMemory | null> {
+): Promise<UpdateMemoryResult> {
+  let memory;
   try {
-    const memory = await ctx.memoriesCollection.find(id);
-    if (memory.isDeleted) return null;
+    memory = await ctx.memoriesCollection.find(id);
+  } catch {
+    // Memory not found
+    return { ok: false, reason: "not_found" };
+  }
 
-    // If namespace, key, or value is changing, recalculate keys
-    const newNamespace = updates.namespace ?? memory.namespace;
-    const newKey = updates.key ?? memory.key;
-    const newValue = updates.value ?? memory.value;
-    const newCompositeKey = generateCompositeKey(newNamespace, newKey);
-    const newUniqueKey = generateUniqueKey(newNamespace, newKey, newValue);
+  if (memory.isDeleted) {
+    return { ok: false, reason: "not_found" };
+  }
 
-    // Check for unique key conflict if key is changing
-    if (newUniqueKey !== memory.uniqueKey) {
-      const existing = await ctx.memoriesCollection
-        .query(Q.where("unique_key", newUniqueKey), Q.where("is_deleted", false))
-        .fetch();
+  // If namespace, key, or value is changing, recalculate keys
+  const newNamespace = updates.namespace ?? memory.namespace;
+  const newKey = updates.key ?? memory.key;
+  const newValue = updates.value ?? memory.value;
+  const newCompositeKey = generateCompositeKey(newNamespace, newKey);
+  const newUniqueKey = generateUniqueKey(newNamespace, newKey, newValue);
 
-      if (existing.length > 0) {
-        throw new Error(
-          `A memory with uniqueKey "${newUniqueKey}" already exists`
-        );
-      }
+  // Check for unique key conflict if key is changing
+  if (newUniqueKey !== memory.uniqueKey) {
+    const existing = await ctx.memoriesCollection
+      .query(Q.where("unique_key", newUniqueKey), Q.where("is_deleted", false))
+      .fetch();
+
+    if (existing.length > 0) {
+      return { ok: false, reason: "conflict", conflictingKey: newUniqueKey };
     }
+  }
 
+  try {
     const updated = await ctx.database.write(async () => {
       await memory.update((mem) => {
         if (updates.type !== undefined) mem._setRaw("type", updates.type);
@@ -296,9 +305,13 @@ export async function updateMemoryOp(
       return memory;
     });
 
-    return memoryToStored(updated);
-  } catch {
-    return null;
+    return { ok: true, memory: memoryToStored(updated) };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      error: err instanceof Error ? err : new Error(String(err)),
+    };
   }
 }
 

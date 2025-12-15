@@ -674,62 +674,70 @@ export function useMemoryStorage(
       id: string,
       updates: UpdateMemoryOptions
     ): Promise<StoredMemory | null> => {
-      try {
-        const updated = await updateMemoryOp(storageCtx, id, updates);
+      const result = await updateMemoryOp(storageCtx, id, updates);
 
-        if (updated) {
-          // Regenerate embedding if content changed and embeddings are enabled
-          const contentChanged =
-            updates.value !== undefined ||
-            updates.rawEvidence !== undefined ||
-            updates.type !== undefined ||
-            updates.namespace !== undefined ||
-            updates.key !== undefined;
-
-          if (
-            contentChanged &&
-            generateEmbeddings &&
-            embeddingModel &&
-            !updates.embedding
-          ) {
-            try {
-              const memoryItem: MemoryItem = {
-                type: updated.type,
-                namespace: updated.namespace,
-                key: updated.key,
-                value: updated.value,
-                rawEvidence: updated.rawEvidence,
-                confidence: updated.confidence,
-                pii: updated.pii,
-              };
-              const embedding = await generateEmbeddingForMemory(
-                memoryItem,
-                embeddingOptions
-              );
-              await updateMemoryEmbeddingOp(
-                storageCtx,
-                id,
-                embedding,
-                effectiveEmbeddingModel
-              );
-            } catch (error) {
-              console.error("Failed to regenerate embedding:", error);
-            }
-          }
-
-          // Update local state
-          setMemories((prev) =>
-            prev.map((m) => (m.uniqueId === id ? updated : m))
+      if (!result.ok) {
+        if (result.reason === "not_found") {
+          return null;
+        }
+        if (result.reason === "conflict") {
+          throw new Error(
+            `Cannot update memory: a memory with key "${result.conflictingKey}" already exists`
           );
         }
-
-        return updated;
-      } catch (error) {
+        // result.reason === "error"
         throw new Error(
-          `Failed to update memory ${id}: ` +
-            (error instanceof Error ? error.message : String(error))
+          `Failed to update memory ${id}: ${result.error.message}`
         );
       }
+
+      const updated = result.memory;
+
+      // Regenerate embedding if content changed and embeddings are enabled
+      const contentChanged =
+        updates.value !== undefined ||
+        updates.rawEvidence !== undefined ||
+        updates.type !== undefined ||
+        updates.namespace !== undefined ||
+        updates.key !== undefined;
+
+      if (
+        contentChanged &&
+        generateEmbeddings &&
+        embeddingModel &&
+        !updates.embedding
+      ) {
+        try {
+          const memoryItem: MemoryItem = {
+            type: updated.type,
+            namespace: updated.namespace,
+            key: updated.key,
+            value: updated.value,
+            rawEvidence: updated.rawEvidence,
+            confidence: updated.confidence,
+            pii: updated.pii,
+          };
+          const embedding = await generateEmbeddingForMemory(
+            memoryItem,
+            embeddingOptions
+          );
+          await updateMemoryEmbeddingOp(
+            storageCtx,
+            id,
+            embedding,
+            effectiveEmbeddingModel
+          );
+        } catch (error) {
+          console.error("Failed to regenerate embedding:", error);
+        }
+      }
+
+      // Update local state
+      setMemories((prev) =>
+        prev.map((m) => (m.uniqueId === id ? updated : m))
+      );
+
+      return updated;
     },
     [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
   );

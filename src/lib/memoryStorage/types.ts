@@ -117,6 +117,15 @@ export interface UpdateMemoryOptions {
 }
 
 /**
+ * Result type for updateMemoryOp - discriminated union for different outcomes
+ */
+export type UpdateMemoryResult =
+  | { ok: true; memory: StoredMemory }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "conflict"; conflictingKey: string }
+  | { ok: false; reason: "error"; error: Error };
+
+/**
  * Base options for useMemoryStorage hook (shared between React and Expo)
  */
 export interface BaseUseMemoryStorageOptions {

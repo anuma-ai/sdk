@@ -7,6 +7,7 @@ export {
   type StoredMemoryWithSimilarity,
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
+  type UpdateMemoryResult,
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
   generateCompositeKey,
