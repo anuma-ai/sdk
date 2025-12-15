@@ -358,8 +358,6 @@ export function useMemoryStorage(
           result.items = preprocessMemories(result.items);
         }
 
-        console.log("Extracted memories:", JSON.stringify(result, null, 2));
-
         if (result.items && result.items.length > 0) {
           try {
             const createOptions: CreateMemoryOptions[] = result.items.map(
