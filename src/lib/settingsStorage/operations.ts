@@ -88,26 +88,36 @@ export async function updateModelPreferenceOp(
 }
 
 /**
- * Create or update model preference (upsert)
+ * Create or update model preference (atomic upsert)
+ * Uses a single write transaction to prevent duplicate records from concurrent calls
  */
 export async function setModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string,
   models?: string
 ): Promise<StoredModelPreference> {
-  const existing = await getModelPreferenceOp(ctx, walletAddress);
+  const result = await ctx.database.write(async () => {
+    const results = await ctx.modelPreferencesCollection
+      .query(Q.where("wallet_address", walletAddress))
+      .fetch();
 
-  if (existing) {
-    const updated = await updateModelPreferenceOp(ctx, walletAddress, {
-      models,
-    });
-    // Handle race condition: record may have been deleted between check and update
-    if (updated) {
-      return updated;
+    if (results.length > 0) {
+      const preference = results[0];
+      await preference.update((pref) => {
+        if (models !== undefined) {
+          pref._setRaw("models", models || null);
+        }
+      });
+      return preference;
     }
-  }
 
-  return await createModelPreferenceOp(ctx, { walletAddress, models });
+    return await ctx.modelPreferencesCollection.create((pref) => {
+      pref._setRaw("wallet_address", walletAddress);
+      if (models) pref._setRaw("models", models);
+    });
+  });
+
+  return modelPreferenceToStored(result);
 }
 
 /**
