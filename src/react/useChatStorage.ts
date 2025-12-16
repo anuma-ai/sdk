@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiMessageContentPart } from "../client";
+import type { LlmapiMessage, LlmapiMessageContentPart, LlmapiChatCompletionResponse } from "../client";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import { Message, Conversation } from "../lib/chatStorage/models";
 import {
@@ -503,14 +503,14 @@ export function useChatStorage(
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
-        const abortedResult = result as { data: import("../client").LlmapiChatCompletionResponse | null; error: string; toolExecution?: ToolExecutionResult };
+        const abortedResult = result as { data: LlmapiChatCompletionResponse | null; error: string; toolExecution?: ToolExecutionResult };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
           const assistantContent = abortedResult.data?.choices?.[0]?.message?.content
             ?.map((part: { text?: string }) => part.text || "")
             .join("") || "";
-          
+
           const responseModel = abortedResult.data?.model || model || "";
 
           // Store the assistant message as stopped
@@ -525,9 +525,9 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
             });
-            
+
             // Build a valid completion response for the return (even if original was null)
-            const completionData: import("../client").LlmapiChatCompletionResponse = abortedResult.data || {
+            const completionData: LlmapiChatCompletionResponse = abortedResult.data || {
               id: `aborted-${Date.now()}`,
               model: responseModel,
               choices: [{
