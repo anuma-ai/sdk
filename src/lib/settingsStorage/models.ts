@@ -15,8 +15,8 @@ export class ModelPreference extends Model {
   }
 
   /** Preferred model identifier */
-  get model(): string | undefined {
-    const value = this._getRaw("model");
+  get models(): string | undefined {
+    const value = this._getRaw("models");
     return value ? (value as string) : undefined;
   }
 }

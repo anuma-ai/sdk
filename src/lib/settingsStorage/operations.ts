@@ -17,7 +17,7 @@ export function modelPreferenceToStored(
   return {
     uniqueId: preference.id,
     walletAddress: preference.walletAddress,
-    model: preference.model,
+    models: preference.models,
   };
 }
 
@@ -53,7 +53,7 @@ export async function createModelPreferenceOp(
   const created = await ctx.database.write(async () => {
     return await ctx.modelPreferencesCollection.create((pref) => {
       pref._setRaw("wallet_address", opts.walletAddress);
-      if (opts.model) pref._setRaw("model", opts.model);
+      if (opts.models) pref._setRaw("models", opts.models);
     });
   });
 
@@ -78,8 +78,8 @@ export async function updateModelPreferenceOp(
   const preference = results[0];
   await ctx.database.write(async () => {
     await preference.update((pref) => {
-      if (opts.model !== undefined) {
-        pref._setRaw("model", opts.model || null);
+      if (opts.models !== undefined) {
+        pref._setRaw("models", opts.models || null);
       }
     });
   });
@@ -93,18 +93,21 @@ export async function updateModelPreferenceOp(
 export async function setModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string,
-  model?: string
+  models?: string
 ): Promise<StoredModelPreference> {
   const existing = await getModelPreferenceOp(ctx, walletAddress);
 
   if (existing) {
     const updated = await updateModelPreferenceOp(ctx, walletAddress, {
-      model,
+      models,
     });
-    return updated!;
+    // Handle race condition: record may have been deleted between check and update
+    if (updated) {
+      return updated;
+    }
   }
 
-  return await createModelPreferenceOp(ctx, { walletAddress, model });
+  return await createModelPreferenceOp(ctx, { walletAddress, models });
 }
 
 /**

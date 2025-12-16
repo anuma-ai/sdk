@@ -8,8 +8,8 @@ export interface StoredModelPreference {
   uniqueId: string;
   /** User's wallet address */
   walletAddress: string;
-  /** Preferred model identifier */
-  model?: string;
+  /** Preferred model identifiers */
+  models?: string;
 }
 
 /**
@@ -18,16 +18,16 @@ export interface StoredModelPreference {
 export interface CreateModelPreferenceOptions {
   /** User's wallet address */
   walletAddress: string;
-  /** Preferred model identifier */
-  model?: string;
+  /** Preferred model identifiers */
+  models?: string;
 }
 
 /**
  * Options for updating a model preference
  */
 export interface UpdateModelPreferenceOptions {
-  /** New preferred model identifier */
-  model?: string;
+  /** New preferred model identifiers */
+  models?: string;
 }
 
 /**
@@ -41,14 +41,6 @@ export interface BaseUseSettingsOptions {
 }
 
 /**
- * Result with data and error pattern
- */
-export interface SettingsResult<T> {
-  data: T;
-  error: string | null;
-}
-
-/**
  * Base result returned by useSettings hook
  */
 export interface BaseUseSettingsResult {
@@ -56,17 +48,15 @@ export interface BaseUseSettingsResult {
   modelPreference: StoredModelPreference | null;
   /** Whether the settings are loading */
   isLoading: boolean;
-  /** Get model preference by wallet address */
+  /** Get model preference by wallet address. Throws on error. */
   getModelPreference: (
     walletAddress: string
-  ) => Promise<SettingsResult<StoredModelPreference | null>>;
-  /** Create or update model preference */
+  ) => Promise<StoredModelPreference | null>;
+  /** Create or update model preference. Throws on error. */
   setModelPreference: (
     walletAddress: string,
-    model?: string
-  ) => Promise<SettingsResult<StoredModelPreference | null>>;
-  /** Delete model preference */
-  deleteModelPreference: (
-    walletAddress: string
-  ) => Promise<SettingsResult<boolean>>;
+    models?: string
+  ) => Promise<StoredModelPreference | null>;
+  /** Delete model preference. Throws on error. */
+  deleteModelPreference: (walletAddress: string) => Promise<boolean>;
 }

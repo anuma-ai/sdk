@@ -94,22 +94,16 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * Get model preference by wallet address
    */
   const getModelPreference = useCallback(
-    async (
-      address: string
-    ): Promise<{
-      data: StoredModelPreference | null;
-      error: string | null;
-    }> => {
-      if (!address)
-        return {
-          data: null,
-          error: "Wallet address is required",
-        };
-      const result = await getModelPreferenceOp(storageCtx, address);
-      return {
-        data: result,
-        error: null,
-      };
+    async (address: string): Promise<StoredModelPreference | null> => {
+      try {
+        if (!address) throw new Error("Wallet address is required");
+        const result = await getModelPreferenceOp(storageCtx, address);
+        return result;
+      } catch (error) {
+        throw new Error(
+          error instanceof Error ? error.message : "An unknown error occurred"
+        );
+      }
     },
     [storageCtx]
   );
@@ -120,25 +114,21 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const setModelPreference = useCallback(
     async (
       address: string,
-      model?: string
-    ): Promise<{
-      data: StoredModelPreference | null;
-      error: string | null;
-    }> => {
-      if (!address)
-        return {
-          data: null,
-          error: "Wallet address is required",
-        };
-      const result = await setModelPreferenceOp(storageCtx, address, model);
-      // Update local state if this is for the current wallet
-      if (walletAddress && address === walletAddress) {
-        setModelPreferenceState(result);
+      models?: string
+    ): Promise<StoredModelPreference | null> => {
+      try {
+        if (!address) throw new Error("Wallet address is required");
+        const result = await setModelPreferenceOp(storageCtx, address, models);
+        // Update local state if this is for the current wallet
+        if (walletAddress && address === walletAddress) {
+          setModelPreferenceState(result);
+        }
+        return result;
+      } catch (error) {
+        throw new Error(
+          error instanceof Error ? error.message : "An unknown error occurred"
+        );
       }
-      return {
-        data: result,
-        error: null,
-      };
     },
     [storageCtx, walletAddress]
   );
@@ -147,23 +137,20 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * Delete model preference
    */
   const deleteModelPreference = useCallback(
-    async (
-      address: string
-    ): Promise<{ data: boolean; error: string | null }> => {
-      if (!address)
-        return {
-          data: false,
-          error: "Wallet address is required",
-        };
-      const deleted = await deleteModelPreferenceOp(storageCtx, address);
-      // Clear local state if this is for the current wallet
-      if (deleted && walletAddress && address === walletAddress) {
-        setModelPreferenceState(null);
+    async (address: string): Promise<boolean> => {
+      try {
+        if (!address) throw new Error("Wallet address is required");
+        const deleted = await deleteModelPreferenceOp(storageCtx, address);
+        // Clear local state if this is for the current wallet
+        if (deleted && walletAddress && address === walletAddress) {
+          setModelPreferenceState(null);
+        }
+        return deleted;
+      } catch (error) {
+        throw new Error(
+          error instanceof Error ? error.message : "An unknown error occurred"
+        );
       }
-      return {
-        data: deleted,
-        error: null,
-      };
     },
     [storageCtx, walletAddress]
   );
@@ -180,12 +167,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     const loadPreference = async () => {
       setIsLoading(true);
       try {
-        const { data: preference, error } = await getModelPreference(
-          walletAddress
-        );
-        if (error) {
-          throw new Error(error);
-        }
+        const preference = await getModelPreference(walletAddress);
         if (!cancelled) {
           setModelPreferenceState(preference);
         }
