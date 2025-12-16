@@ -30,6 +30,7 @@ export function messageToStored(message: Message): StoredMessage {
     usage: message.usage,
     sources: message.sources,
     responseDuration: message.responseDuration,
+    wasStopped: message.wasStopped,
   };
 }
 
@@ -223,6 +224,7 @@ export async function createMessageOp(
         msg._setRaw("response_duration", opts.responseDuration);
       if (opts.vector) msg._setRaw("vector", JSON.stringify(opts.vector));
       if (opts.embeddingModel) msg._setRaw("embedding_model", opts.embeddingModel);
+      if (opts.wasStopped) msg._setRaw("was_stopped", opts.wasStopped);
     });
   });
 

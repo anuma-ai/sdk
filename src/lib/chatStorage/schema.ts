@@ -1,4 +1,5 @@
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
+import { schemaMigrations, addColumns } from "@nozbe/watermelondb/Schema/migrations";
 
 /**
  * WatermelonDB schema for chat storage
@@ -8,7 +9,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
  * - conversations: Conversation metadata
  */
 export const chatStorageSchema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
     tableSchema({
       name: "history",
@@ -26,6 +27,7 @@ export const chatStorageSchema = appSchema({
         { name: "usage", type: "string", isOptional: true }, // JSON stringified ChatCompletionUsage
         { name: "sources", type: "string", isOptional: true }, // JSON stringified SearchSource[]
         { name: "response_duration", type: "number", isOptional: true },
+        { name: "was_stopped", type: "boolean", isOptional: true },
       ],
     }),
     tableSchema({
@@ -38,5 +40,24 @@ export const chatStorageSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
+  ],
+});
+
+/**
+ * Schema migrations
+ */
+export const chatStorageMigrations = schemaMigrations({
+  migrations: [
+    {
+      toVersion: 2,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "was_stopped", type: "boolean", isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

@@ -1,4 +1,4 @@
-export { chatStorageSchema } from "./schema";
+export { chatStorageSchema, chatStorageMigrations } from "./schema";
 export { Message, Conversation } from "./models";
 export {
   type ChatRole,
