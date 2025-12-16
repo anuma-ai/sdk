@@ -110,6 +110,15 @@ export {
   generateCompositeKey,
   generateUniqueKey,
 } from "../lib/memoryStorage";
+export { useSettings } from "./useSettings";
+export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
+export {
+  settingsStorageSchema,
+  ModelPreference as StoredModelPreferenceModel,
+  type StoredModelPreference,
+  type CreateModelPreferenceOptions,
+  type UpdateModelPreferenceOptions,
+} from "../lib/settingsStorage";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
 export { useOCR } from "./useOCR";
