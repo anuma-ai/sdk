@@ -11,11 +11,16 @@ import {
   useState,
 } from "react";
 
+import type { Client } from "../client/client";
 import {
   clearToken,
+  getDropboxAccessToken,
   getStoredToken,
   handleDropboxCallback,
-  requestDropboxAccess,
+  hasDropboxCredentials,
+  isDropboxCallback,
+  revokeDropboxToken,
+  startDropboxAuth,
   storeToken,
 } from "../lib/backup/dropbox/auth";
 
@@ -27,6 +32,8 @@ export interface DropboxAuthProviderProps {
   appKey: string | undefined;
   /** OAuth callback path (e.g., "/auth/dropbox/callback") */
   callbackPath?: string;
+  /** API client for backend requests */
+  apiClient?: Client;
   /** Children to render */
   children: ReactNode;
 }
@@ -44,7 +51,9 @@ export interface DropboxAuthContextValue {
   /** Request Dropbox access - returns token or redirects to OAuth */
   requestAccess: () => Promise<string>;
   /** Clear stored token and log out */
-  logout: () => void;
+  logout: () => Promise<void>;
+  /** Refresh the access token using the refresh token */
+  refreshToken: () => Promise<string | null>;
 }
 
 const DropboxAuthContext = createContext<DropboxAuthContextValue | null>(null);
@@ -53,7 +62,7 @@ const DropboxAuthContext = createContext<DropboxAuthContextValue | null>(null);
  * Provider component for Dropbox OAuth authentication.
  *
  * Wrap your app with this provider to enable Dropbox authentication.
- * It handles the OAuth 2.0 PKCE flow automatically.
+ * It handles the OAuth 2.0 Authorization Code flow with refresh tokens.
  *
  * @example
  * ```tsx
@@ -76,6 +85,7 @@ const DropboxAuthContext = createContext<DropboxAuthContextValue | null>(null);
 export function DropboxAuthProvider({
   appKey,
   callbackPath = "/auth/dropbox/callback",
+  apiClient,
   children,
 }: DropboxAuthProviderProps): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -83,25 +93,42 @@ export function DropboxAuthProvider({
 
   // Check for stored token on mount
   useEffect(() => {
-    const storedToken = getStoredToken();
-    if (storedToken) {
-      setAccessToken(storedToken);
-    }
-  }, []);
+    const checkStoredToken = async () => {
+      // First check if we have valid stored credentials
+      if (hasDropboxCredentials()) {
+        // Try to get a valid access token (will refresh if expired)
+        const token = await getDropboxAccessToken(apiClient);
+        if (token) {
+          setAccessToken(token);
+        }
+      }
+    };
+    checkStoredToken();
+  }, [apiClient]);
 
   // Handle OAuth callback
   useEffect(() => {
-    if (!isConfigured || !appKey) return;
+    if (!isConfigured) return;
 
     const handleCallback = async () => {
-      const token = await handleDropboxCallback(appKey, callbackPath);
-      if (token) {
-        setAccessToken(token);
+      if (isDropboxCallback()) {
+        const token = await handleDropboxCallback(callbackPath, apiClient);
+        if (token) {
+          setAccessToken(token);
+        }
       }
     };
 
     handleCallback();
-  }, [appKey, callbackPath, isConfigured]);
+  }, [callbackPath, isConfigured, apiClient]);
+
+  const refreshTokenFn = useCallback(async (): Promise<string | null> => {
+    const token = await getDropboxAccessToken(apiClient);
+    if (token) {
+      setAccessToken(token);
+    }
+    return token;
+  }, [apiClient]);
 
   const requestAccess = useCallback(async (): Promise<string> => {
     if (!isConfigured || !appKey) {
@@ -113,21 +140,21 @@ export function DropboxAuthProvider({
       return accessToken;
     }
 
-    // Check session storage
-    const storedToken = getStoredToken();
+    // Try to get a valid token (will refresh if expired)
+    const storedToken = await getDropboxAccessToken(apiClient);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
     }
 
     // Start OAuth flow (this will redirect)
-    return requestDropboxAccess(appKey, callbackPath);
-  }, [accessToken, appKey, callbackPath, isConfigured]);
+    return startDropboxAuth(appKey, callbackPath);
+  }, [accessToken, appKey, callbackPath, isConfigured, apiClient]);
 
-  const logout = useCallback(() => {
-    clearToken();
+  const logout = useCallback(async () => {
+    await revokeDropboxToken(apiClient);
     setAccessToken(null);
-  }, []);
+  }, [apiClient]);
 
   return createElement(
     DropboxAuthContext.Provider,
@@ -138,6 +165,7 @@ export function DropboxAuthProvider({
         isConfigured,
         requestAccess,
         logout,
+        refreshToken: refreshTokenFn,
       },
     },
     children
@@ -179,4 +207,9 @@ export function useDropboxAuth(): DropboxAuthContextValue {
 }
 
 // Re-export utility functions for direct use
-export { getStoredToken, storeToken, clearToken } from "../lib/backup/dropbox/auth";
+export {
+  getStoredToken,
+  storeToken,
+  clearToken,
+  hasDropboxCredentials,
+} from "../lib/backup/dropbox/auth";

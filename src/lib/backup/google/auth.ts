@@ -1,8 +1,8 @@
 /**
- * Dropbox OAuth 2.0 Authorization Code Flow
+ * Google Drive OAuth 2.0 Authorization Code Flow
  *
  * Flow:
- * 1. Redirect user to Dropbox authorization URL
+ * 1. Redirect user to Google authorization URL
  * 2. User authorizes and is redirected back with authorization code
  * 3. Exchange code on backend for access + refresh tokens
  * 4. Use refresh token to get new access tokens silently
@@ -23,11 +23,16 @@ import {
   tokenResponseToStoredData,
 } from "../oauth/storage";
 
-const PROVIDER = "dropbox";
-const STATE_STORAGE_KEY = "dropbox_oauth_state";
+const PROVIDER = "google-drive";
+const CODE_STORAGE_KEY = "google_oauth_state";
 
-// Dropbox OAuth endpoint
-const DROPBOX_AUTH_URL = "https://www.dropbox.com/oauth2/authorize";
+// Google OAuth endpoints
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+
+// Google Drive API scopes
+const DRIVE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.file", // Access to files created by the app
+].join(" ");
 
 /**
  * Get the redirect URI for OAuth callback
@@ -53,7 +58,7 @@ function generateState(): string {
  */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(STATE_STORAGE_KEY, state);
+  sessionStorage.setItem(CODE_STORAGE_KEY, state);
 }
 
 /**
@@ -61,27 +66,27 @@ function storeOAuthState(state: string): void {
  */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
-  const state = sessionStorage.getItem(STATE_STORAGE_KEY);
-  sessionStorage.removeItem(STATE_STORAGE_KEY);
+  const state = sessionStorage.getItem(CODE_STORAGE_KEY);
+  sessionStorage.removeItem(CODE_STORAGE_KEY);
   return state;
 }
 
 /**
- * Check if current URL is a Dropbox OAuth callback
+ * Check if current URL is a Google OAuth callback
  */
-export function isDropboxCallback(): boolean {
+export function isGoogleDriveCallback(): boolean {
   if (typeof window === "undefined") return false;
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const storedState = sessionStorage.getItem(STATE_STORAGE_KEY);
+  const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
   return !!code && !!state && state === storedState;
 }
 
 /**
  * Handle the OAuth callback - exchange code for tokens via backend
  */
-export async function handleDropboxCallback(
+export async function handleGoogleDriveCallback(
   callbackPath: string,
   apiClient?: Client
 ): Promise<string | null> {
@@ -132,7 +137,7 @@ export async function handleDropboxCallback(
 /**
  * Refresh the access token using the stored refresh token
  */
-export async function refreshDropboxToken(
+export async function refreshGoogleDriveToken(
   apiClient?: Client
 ): Promise<string | null> {
   const refreshToken = getRefreshToken(PROVIDER);
@@ -170,7 +175,9 @@ export async function refreshDropboxToken(
 /**
  * Revoke the OAuth token
  */
-export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
+export async function revokeGoogleDriveToken(
+  apiClient?: Client
+): Promise<void> {
   const tokenData = getStoredTokenData(PROVIDER);
   if (!tokenData) return;
 
@@ -192,7 +199,7 @@ export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
 /**
  * Get a valid access token, refreshing if necessary
  */
-export async function getDropboxAccessToken(
+export async function getGoogleDriveAccessToken(
   apiClient?: Client
 ): Promise<string | null> {
   // First check for a valid (non-expired) token
@@ -200,83 +207,53 @@ export async function getDropboxAccessToken(
   if (validToken) return validToken;
 
   // Try to refresh if we have a refresh token
-  return refreshDropboxToken(apiClient);
+  return refreshGoogleDriveToken(apiClient);
 }
 
 /**
- * Start the OAuth flow - redirects to Dropbox
+ * Start the OAuth flow - redirects to Google
  */
-export async function startDropboxAuth(
-  appKey: string,
+export async function startGoogleDriveAuth(
+  clientId: string,
   callbackPath: string
 ): Promise<never> {
   const state = generateState();
   storeOAuthState(state);
 
   const params = new URLSearchParams({
-    client_id: appKey,
+    client_id: clientId,
     redirect_uri: getRedirectUri(callbackPath),
     response_type: "code",
+    scope: DRIVE_SCOPES,
     state,
-    token_access_type: "offline", // Request refresh token
+    access_type: "offline", // Request refresh token
+    prompt: "consent", // Force consent to always get refresh token
   });
 
-  window.location.href = `${DROPBOX_AUTH_URL}?${params.toString()}`;
+  window.location.href = `${GOOGLE_AUTH_URL}?${params.toString()}`;
 
   // This will never resolve - page redirects
   return new Promise(() => {});
 }
 
 /**
- * Get stored token data for Dropbox
- * @deprecated Use getDropboxAccessToken instead for automatic refresh
+ * Get stored token data for Google Drive
  */
-export function getStoredToken(): string | null {
+export function getGoogleDriveStoredToken(): string | null {
   return getValidAccessToken(PROVIDER);
 }
 
 /**
- * Store token data for Dropbox
- * @deprecated Tokens are now managed internally via OAuth flow
+ * Clear Google Drive token data
  */
-export function storeToken(token: string): void {
-  const tokenData = tokenResponseToStoredData(token);
-  storeTokenData(PROVIDER, tokenData);
-}
-
-/**
- * Clear Dropbox token data
- */
-export function clearToken(): void {
+export function clearGoogleDriveToken(): void {
   clearTokenData(PROVIDER);
 }
 
 /**
  * Check if we have any stored credentials (including refresh token)
  */
-export function hasDropboxCredentials(): boolean {
+export function hasGoogleDriveCredentials(): boolean {
   const data = getStoredTokenData(PROVIDER);
   return !!(data?.accessToken || data?.refreshToken);
-}
-
-/**
- * Request Dropbox access - returns existing token or starts OAuth flow
- * @deprecated Use the DropboxAuthProvider with apiClient instead
- */
-export async function requestDropboxAccess(
-  appKey: string,
-  callbackPath: string
-): Promise<string> {
-  if (!appKey) {
-    throw new Error("Dropbox is not configured");
-  }
-
-  // Check for existing valid token
-  const storedToken = getValidAccessToken(PROVIDER);
-  if (storedToken) {
-    return storedToken;
-  }
-
-  // Start OAuth flow (this will redirect and never return)
-  return startDropboxAuth(appKey, callbackPath);
 }

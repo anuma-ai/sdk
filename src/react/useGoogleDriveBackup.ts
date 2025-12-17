@@ -11,6 +11,7 @@ import {
   type GoogleDriveExportResult,
   type GoogleDriveImportResult,
 } from "../lib/backup/google/backup";
+import { useGoogleDriveAuth } from "./useGoogleDriveAuth";
 
 export { DEFAULT_ROOT_FOLDER, DEFAULT_CONVERSATIONS_FOLDER };
 
@@ -22,10 +23,6 @@ export interface UseGoogleDriveBackupOptions {
   database: Database;
   /** Current user address (null if not signed in) */
   userAddress: string | null;
-  /** Current Google Drive access token (null if not authenticated) */
-  accessToken: string | null;
-  /** Request Google Drive access - returns access token */
-  requestDriveAccess: () => Promise<string>;
   /** Request encryption key for the user address */
   requestEncryptionKey: (address: string) => Promise<void>;
   /** Export a conversation to an encrypted blob */
@@ -56,6 +53,8 @@ export interface UseGoogleDriveBackupResult {
   restore: (options?: {
     onProgress?: (current: number, total: number) => void;
   }) => Promise<GoogleDriveImportResult | { error: string }>;
+  /** Whether Google Drive is configured */
+  isConfigured: boolean;
   /** Whether user has a Google Drive token */
   isAuthenticated: boolean;
 }
@@ -65,23 +64,18 @@ export interface UseGoogleDriveBackupResult {
  *
  * This hook provides methods to backup conversations to Google Drive and restore them.
  * It handles all the logic for checking timestamps, skipping unchanged files,
- * and managing the backup/restore process.
+ * authentication, and managing the backup/restore process.
  *
- * Unlike Dropbox, Google Drive auth requires browser-specific setup (Google Identity Services),
- * so the auth provider must be implemented in the app. This hook accepts the auth
- * callbacks as options.
+ * Must be used within a GoogleDriveAuthProvider.
  *
  * @example
  * ```tsx
  * import { useGoogleDriveBackup } from "@reverbia/sdk/react";
  *
  * function BackupButton() {
- *   const { accessToken, requestDriveAccess } = useGoogleAccessToken();
- *   const { backup, restore, isAuthenticated } = useGoogleDriveBackup({
+ *   const { backup, restore, isConfigured, isAuthenticated } = useGoogleDriveBackup({
  *     database,
  *     userAddress,
- *     accessToken,
- *     requestDriveAccess,
  *     requestEncryptionKey,
  *     exportConversation,
  *     importConversation,
@@ -101,7 +95,7 @@ export interface UseGoogleDriveBackupResult {
  *     }
  *   };
  *
- *   return <button onClick={handleBackup}>Backup</button>;
+ *   return <button onClick={handleBackup} disabled={!isConfigured}>Backup</button>;
  * }
  * ```
  *
@@ -113,14 +107,19 @@ export function useGoogleDriveBackup(
   const {
     database,
     userAddress,
-    accessToken,
-    requestDriveAccess,
     requestEncryptionKey,
     exportConversation,
     importConversation,
     rootFolder = DEFAULT_ROOT_FOLDER,
     conversationsFolder = DEFAULT_CONVERSATIONS_FOLDER,
   } = options;
+
+  // Get auth state from GoogleDriveAuthProvider
+  const {
+    accessToken: driveToken,
+    isConfigured: isDriveConfigured,
+    requestAccess: requestDriveAccess,
+  } = useGoogleDriveAuth();
 
   const deps = useMemo(
     () => ({
@@ -129,22 +128,17 @@ export function useGoogleDriveBackup(
       exportConversation,
       importConversation,
     }),
-    [
-      requestDriveAccess,
-      requestEncryptionKey,
-      exportConversation,
-      importConversation,
-    ]
+    [requestDriveAccess, requestEncryptionKey, exportConversation, importConversation]
   );
 
   const ensureToken = useCallback(async (): Promise<string | null> => {
-    if (accessToken) return accessToken;
+    if (driveToken) return driveToken;
     try {
       return await requestDriveAccess();
     } catch {
       return null;
     }
-  }, [accessToken, requestDriveAccess]);
+  }, [driveToken, requestDriveAccess]);
 
   const backup = useCallback(
     async (backupOptions?: {
@@ -218,6 +212,7 @@ export function useGoogleDriveBackup(
   return {
     backup,
     restore,
-    isAuthenticated: !!accessToken,
+    isConfigured: isDriveConfigured,
+    isAuthenticated: !!driveToken,
   };
 }
