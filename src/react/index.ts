@@ -156,3 +156,17 @@ export type {
   DropboxAuthProviderProps,
   DropboxAuthContextValue,
 } from "./useDropboxAuth";
+
+export {
+  useGoogleDriveBackup,
+  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
+  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+} from "./useGoogleDriveBackup";
+export type {
+  UseGoogleDriveBackupOptions,
+  UseGoogleDriveBackupResult,
+} from "./useGoogleDriveBackup";
+export type {
+  GoogleDriveExportResult,
+  GoogleDriveImportResult,
+} from "../lib/backup/google/backup";
