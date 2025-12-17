@@ -138,6 +138,11 @@ export async function handleDropboxCallback(appKey: string, callbackPath: string
     const data = await response.json();
     const token = data.access_token;
 
+    // Validate token exists and is a non-empty string
+    if (typeof token !== 'string' || token.trim() === '') {
+      throw new Error('Invalid token response: access_token is missing or empty');
+    }
+
     // Store token and clean up
     storeToken(token);
     clearVerifier();
