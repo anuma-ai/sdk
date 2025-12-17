@@ -158,8 +158,6 @@ export type {
 export {
   DropboxAuthProvider,
   useDropboxAuth,
-  getStoredToken as getDropboxToken,
-  storeToken as storeDropboxToken,
   clearToken as clearDropboxToken,
   hasDropboxCredentials,
 } from "./useDropboxAuth";

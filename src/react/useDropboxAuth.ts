@@ -27,9 +27,12 @@ import {
 export interface DropboxAuthProviderProps {
   /** Dropbox App Key (from Dropbox Developer Console) */
   appKey: string | undefined;
-  /** OAuth callback path (e.g., "/auth/dropbox/callback") */
+  /** OAuth callback path (default: "/auth/dropbox/callback") */
   callbackPath?: string;
-  /** API client for backend requests */
+  /**
+   * API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
+   * Only needed if you have a custom client configuration (e.g., different baseUrl).
+   */
   apiClient?: Client;
   /** Children to render */
   children: ReactNode;
@@ -204,9 +207,4 @@ export function useDropboxAuth(): DropboxAuthContextValue {
 }
 
 // Re-export utility functions for direct use
-export {
-  getStoredToken,
-  storeToken,
-  clearToken,
-  hasDropboxCredentials,
-} from "../lib/backup/dropbox/auth";
+export { clearToken, hasDropboxCredentials } from "../lib/backup/dropbox/auth";

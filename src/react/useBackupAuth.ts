@@ -33,17 +33,24 @@ import {
 
 /**
  * Props for BackupAuthProvider
+ *
+ * At least one of `dropboxAppKey` or `googleClientId` should be provided
+ * for the provider to be useful. Both are optional to allow using just
+ * one backup provider.
  */
 export interface BackupAuthProviderProps {
-  /** Dropbox App Key (from Dropbox Developer Console) */
+  /** Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dropbox. */
   dropboxAppKey?: string;
-  /** Dropbox OAuth callback path (e.g., "/auth/dropbox/callback") */
+  /** Dropbox OAuth callback path (default: "/auth/dropbox/callback") */
   dropboxCallbackPath?: string;
-  /** Google OAuth Client ID (from Google Cloud Console) */
+  /** Google OAuth Client ID (from Google Cloud Console). Optional - omit to disable Google Drive. */
   googleClientId?: string;
-  /** Google OAuth callback path (e.g., "/auth/google/callback") */
+  /** Google OAuth callback path (default: "/auth/google/callback") */
   googleCallbackPath?: string;
-  /** API client for backend requests */
+  /**
+   * API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
+   * Only needed if you have a custom client configuration (e.g., different baseUrl).
+   */
   apiClient?: Client;
   /** Children to render */
   children: ReactNode;

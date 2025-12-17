@@ -29,9 +29,12 @@ import {
 export interface GoogleDriveAuthProviderProps {
   /** Google OAuth Client ID (from Google Cloud Console) */
   clientId: string | undefined;
-  /** OAuth callback path (e.g., "/auth/google/callback") */
+  /** OAuth callback path (default: "/auth/google/callback") */
   callbackPath?: string;
-  /** API client for backend requests */
+  /**
+   * API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
+   * Only needed if you have a custom client configuration (e.g., different baseUrl).
+   */
   apiClient?: Client;
   /** Children to render */
   children: ReactNode;
