@@ -111,6 +111,11 @@ export class Message extends Model {
     const value = this._getRaw("response_duration");
     return value !== null && value !== undefined ? (value as number) : undefined;
   }
+
+  /** Whether the message generation was stopped by the user */
+  get wasStopped(): boolean {
+    return this._getRaw("was_stopped") as boolean;
+  }
 }
 
 /**
