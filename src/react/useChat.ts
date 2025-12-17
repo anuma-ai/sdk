@@ -451,6 +451,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           }
 
           // Use SSE client for streaming
+          // Track SSE errors to surface them after streaming completes
+          let sseError: Error | null = null;
+
           const sseResult = await client.sse.post({
             baseUrl,
             url: "/api/v1/chat/completions",
@@ -465,7 +468,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               ...headers,
             },
             signal: abortController.signal,
+            sseMaxRetryAttempts: 1,
+            onSseError: (error) => {
+              sseError =
+                error instanceof Error ? error : new Error(String(error));
+            },
           });
+
+          // Check if SSE encountered an error
+          if (sseError) {
+            throw sseError;
+          }
 
           const accumulator = createStreamAccumulator();
 
@@ -495,6 +508,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (onFinish) {
             onFinish(completion);
           }
+
           return {
             data: completion,
             error: null,
