@@ -55,7 +55,8 @@ export async function pushConversationToDropbox(
   userAddress: string,
   token: string,
   deps: DropboxBackupDeps,
-  backupFolder: string = DEFAULT_BACKUP_FOLDER
+  backupFolder: string = DEFAULT_BACKUP_FOLDER,
+  _retried: boolean = false
 ): Promise<'uploaded' | 'skipped' | 'failed'> {
   try {
     await deps.requestEncryptionKey(userAddress);
@@ -90,11 +91,11 @@ export async function pushConversationToDropbox(
     await uploadFileToDropbox(token, filename, exportResult.blob, backupFolder);
     return 'uploaded';
   } catch (err) {
-    if (isAuthError(err)) {
-      // Try to re-authenticate
+    if (isAuthError(err) && !_retried) {
+      // Try to re-authenticate once
       try {
         const newToken = await deps.requestDropboxAccess();
-        return pushConversationToDropbox(database, conversationId, userAddress, newToken, deps, backupFolder);
+        return pushConversationToDropbox(database, conversationId, userAddress, newToken, deps, backupFolder, true);
       } catch {
         return 'failed';
       }

@@ -82,7 +82,8 @@ export async function pushConversationToDrive(
   token: string,
   deps: GoogleDriveBackupDeps,
   rootFolder: string = DEFAULT_ROOT_FOLDER,
-  subfolder: string = DEFAULT_CONVERSATIONS_FOLDER
+  subfolder: string = DEFAULT_CONVERSATIONS_FOLDER,
+  _retried: boolean = false
 ): Promise<'uploaded' | 'skipped' | 'failed'> {
   try {
     await deps.requestEncryptionKey(userAddress);
@@ -125,11 +126,11 @@ export async function pushConversationToDrive(
     }
     return 'uploaded';
   } catch (err) {
-    if (isAuthError(err)) {
-      // Try to re-authenticate
+    if (isAuthError(err) && !_retried) {
+      // Try to re-authenticate once
       try {
         const newToken = await deps.requestDriveAccess();
-        return pushConversationToDrive(database, conversationId, userAddress, newToken, deps, rootFolder, subfolder);
+        return pushConversationToDrive(database, conversationId, userAddress, newToken, deps, rootFolder, subfolder, true);
       } catch {
         return 'failed';
       }
