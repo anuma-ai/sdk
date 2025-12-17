@@ -1,8 +1,6 @@
 # FileMetadata
 
-Defined in: [src/lib/chatStorage/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L15)
-
-File metadata for attached files
+Defined in: [src/lib/db/chat/types.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L12)
 
 ## Properties
 
@@ -10,9 +8,7 @@ File metadata for attached files
 
 > **id**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L17)
-
-Unique file identifier
+Defined in: [src/lib/db/chat/types.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L13)
 
 ***
 
@@ -20,9 +16,7 @@ Unique file identifier
 
 > **name**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L19)
-
-Original file name
+Defined in: [src/lib/db/chat/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L14)
 
 ***
 
@@ -30,9 +24,7 @@ Original file name
 
 > **size**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L23)
-
-File size in bytes
+Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L16)
 
 ***
 
@@ -40,9 +32,7 @@ File size in bytes
 
 > **type**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L21)
-
-MIME type
+Defined in: [src/lib/db/chat/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L15)
 
 ***
 
@@ -50,6 +40,4 @@ MIME type
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L25)
-
-Optional URL or data URI
+Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L17)

@@ -1,8 +1,6 @@
 # StoredConversation
 
-Defined in: [src/lib/chatStorage/types.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L93)
-
-Stored conversation record
+Defined in: [src/lib/db/chat/types.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L52)
 
 ## Properties
 
@@ -10,9 +8,7 @@ Stored conversation record
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L97)
-
-Unique conversation identifier
+Defined in: [src/lib/db/chat/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L54)
 
 ***
 
@@ -20,9 +16,7 @@ Unique conversation identifier
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/chatStorage/types.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L101)
-
-When the conversation was created
+Defined in: [src/lib/db/chat/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L56)
 
 ***
 
@@ -30,9 +24,7 @@ When the conversation was created
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/chatStorage/types.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L105)
-
-Soft delete flag
+Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
 
 ***
 
@@ -40,9 +32,7 @@ Soft delete flag
 
 > **title**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L99)
-
-Conversation title
+Defined in: [src/lib/db/chat/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L55)
 
 ***
 
@@ -50,9 +40,7 @@ Conversation title
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L95)
-
-Primary key (WatermelonDB auto-generated)
+Defined in: [src/lib/db/chat/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L53)
 
 ***
 
@@ -60,6 +48,4 @@ Primary key (WatermelonDB auto-generated)
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/chatStorage/types.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L103)
-
-When the conversation was last updated
+Defined in: [src/lib/db/chat/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L57)

@@ -4,6 +4,14 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersExchangeRequest = {
+    code: string;
+    /**
+     * Optional - uses config default if not provided
+     */
+    redirect_uri?: string;
+};
+
 export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
@@ -17,6 +25,34 @@ export type HandlersHealthResponse = {
      * Version is the current API version
      */
     version?: string;
+};
+
+export type HandlersRefreshRequest = {
+    refresh_token: string;
+};
+
+export type HandlersRevokeRequest = {
+    token: string;
+};
+
+export type HandlersTokenResponse = {
+    access_token?: string;
+    /**
+     * Seconds until expiration
+     */
+    expires_in?: number;
+    /**
+     * May not be present on refresh
+     */
+    refresh_token?: string;
+    /**
+     * Granted scopes
+     */
+    scope?: string;
+    /**
+     * Usually "Bearer"
+     */
+    token_type?: string;
 };
 
 /**
@@ -375,6 +411,10 @@ export type LlmapiModel = {
      */
     max_output_tokens?: number;
     /**
+     * Modalities is a list of supported modalities (e.g., ["llm", "vision"])
+     */
+    modalities?: Array<string>;
+    /**
      * Name is the human-readable model name (optional)
      */
     name?: string;
@@ -582,6 +622,24 @@ export type PostApiV1ChatCompletionsResponses = {
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
 
+export type GetApiV1DocsSwaggerJsonData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/docs/swagger.json';
+};
+
+export type GetApiV1DocsSwaggerJsonResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetApiV1DocsSwaggerJsonResponse = GetApiV1DocsSwaggerJsonResponses[keyof GetApiV1DocsSwaggerJsonResponses];
+
 export type PostApiV1EmbeddingsData = {
     /**
      * Embedding request
@@ -723,6 +781,119 @@ export type PostApiV1SearchResponses = {
 };
 
 export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
+
+export type PostAuthOauthByProviderExchangeData = {
+    /**
+     * Exchange request
+     */
+    body: HandlersExchangeRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/exchange';
+};
+
+export type PostAuthOauthByProviderExchangeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostAuthOauthByProviderExchangeError = PostAuthOauthByProviderExchangeErrors[keyof PostAuthOauthByProviderExchangeErrors];
+
+export type PostAuthOauthByProviderExchangeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersTokenResponse;
+};
+
+export type PostAuthOauthByProviderExchangeResponse = PostAuthOauthByProviderExchangeResponses[keyof PostAuthOauthByProviderExchangeResponses];
+
+export type PostAuthOauthByProviderRefreshData = {
+    /**
+     * Refresh request
+     */
+    body: HandlersRefreshRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/refresh';
+};
+
+export type PostAuthOauthByProviderRefreshErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostAuthOauthByProviderRefreshError = PostAuthOauthByProviderRefreshErrors[keyof PostAuthOauthByProviderRefreshErrors];
+
+export type PostAuthOauthByProviderRefreshResponses = {
+    /**
+     * OK
+     */
+    200: HandlersTokenResponse;
+};
+
+export type PostAuthOauthByProviderRefreshResponse = PostAuthOauthByProviderRefreshResponses[keyof PostAuthOauthByProviderRefreshResponses];
+
+export type PostAuthOauthByProviderRevokeData = {
+    /**
+     * Revoke request
+     */
+    body: HandlersRevokeRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/revoke';
+};
+
+export type PostAuthOauthByProviderRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostAuthOauthByProviderRevokeError = PostAuthOauthByProviderRevokeErrors[keyof PostAuthOauthByProviderRevokeErrors];
+
+export type PostAuthOauthByProviderRevokeResponses = {
+    /**
+     * Empty object on success
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostAuthOauthByProviderRevokeResponse = PostAuthOauthByProviderRevokeResponses[keyof PostAuthOauthByProviderRevokeResponses];
 
 export type GetHealthData = {
     body?: never;

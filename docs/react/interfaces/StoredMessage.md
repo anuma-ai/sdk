@@ -1,8 +1,6 @@
 # StoredMessage
 
-Defined in: [src/lib/chatStorage/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L59)
-
-Stored message record (what gets persisted to the database)
+Defined in: [src/lib/db/chat/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L34)
 
 ## Extended by
 
@@ -14,9 +12,7 @@ Stored message record (what gets persisted to the database)
 
 > **content**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L69)
-
-The message text
+Defined in: [src/lib/db/chat/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L39)
 
 ***
 
@@ -24,9 +20,7 @@ The message text
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L65)
-
-Links message to its conversation
+Defined in: [src/lib/db/chat/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L37)
 
 ***
 
@@ -34,9 +28,7 @@ Links message to its conversation
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/chatStorage/types.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L75)
-
-When the message was created
+Defined in: [src/lib/db/chat/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L42)
 
 ***
 
@@ -44,9 +36,7 @@ When the message was created
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L81)
-
-Model used to generate embedding
+Defined in: [src/lib/db/chat/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L45)
 
 ***
 
@@ -54,9 +44,7 @@ Model used to generate embedding
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
 
-Defined in: [src/lib/chatStorage/types.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L73)
-
-Optional attached files
+Defined in: [src/lib/db/chat/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L41)
 
 ***
 
@@ -64,9 +52,7 @@ Optional attached files
 
 > **messageId**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L63)
-
-Sequential message ID within conversation
+Defined in: [src/lib/db/chat/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L36)
 
 ***
 
@@ -74,9 +60,7 @@ Sequential message ID within conversation
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L71)
-
-LLM model used
+Defined in: [src/lib/db/chat/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L40)
 
 ***
 
@@ -84,9 +68,7 @@ LLM model used
 
 > `optional` **responseDuration**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L87)
-
-Response time in seconds
+Defined in: [src/lib/db/chat/types.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L48)
 
 ***
 
@@ -94,9 +76,7 @@ Response time in seconds
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/chatStorage/types.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L67)
-
-Who sent the message
+Defined in: [src/lib/db/chat/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L38)
 
 ***
 
@@ -104,9 +84,7 @@ Who sent the message
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)[]
 
-Defined in: [src/lib/chatStorage/types.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L85)
-
-Web search sources
+Defined in: [src/lib/db/chat/types.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L47)
 
 ***
 
@@ -114,9 +92,7 @@ Web search sources
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L61)
-
-Primary key, unique message identifier (WatermelonDB auto-generated)
+Defined in: [src/lib/db/chat/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L35)
 
 ***
 
@@ -124,9 +100,7 @@ Primary key, unique message identifier (WatermelonDB auto-generated)
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/chatStorage/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L77)
-
-When the message was last updated
+Defined in: [src/lib/db/chat/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L43)
 
 ***
 
@@ -134,9 +108,7 @@ When the message was last updated
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: [src/lib/chatStorage/types.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L83)
-
-Token counts and cost
+Defined in: [src/lib/db/chat/types.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L46)
 
 ***
 
@@ -144,6 +116,12 @@ Token counts and cost
 
 > `optional` **vector**: `number`[]
 
-Defined in: [src/lib/chatStorage/types.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L79)
+Defined in: [src/lib/db/chat/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L44)
 
-Embedding vector for semantic search
+***
+
+### wasStopped?
+
+> `optional` **wasStopped**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L49)

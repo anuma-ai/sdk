@@ -1,8 +1,6 @@
 # StoredChatCompletionUsage
 
-Defined in: [src/lib/chatStorage/types.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L31)
-
-Token usage and cost information
+Defined in: [src/lib/db/chat/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L20)
 
 ## Properties
 
@@ -10,9 +8,7 @@ Token usage and cost information
 
 > `optional` **completionTokens**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L35)
-
-Number of tokens in the completion
+Defined in: [src/lib/db/chat/types.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L22)
 
 ***
 
@@ -20,9 +16,7 @@ Number of tokens in the completion
 
 > `optional` **costMicroUsd**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L39)
-
-Cost in micro-dollars (USD × 1,000,000)
+Defined in: [src/lib/db/chat/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L24)
 
 ***
 
@@ -30,9 +24,7 @@ Cost in micro-dollars (USD × 1,000,000)
 
 > `optional` **promptTokens**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L33)
-
-Number of tokens in the prompt
+Defined in: [src/lib/db/chat/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L21)
 
 ***
 
@@ -40,6 +32,4 @@ Number of tokens in the prompt
 
 > `optional` **totalTokens**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L37)
-
-Total tokens used
+Defined in: [src/lib/db/chat/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L23)

@@ -2,7 +2,7 @@
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [src/client/types.gen.ts:553](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L553)
+Defined in: [src/client/types.gen.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L593)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:553](https://github.com/zeta-chain/ai-sdk/b
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:557](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L557)
+Defined in: [src/client/types.gen.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L597)
 
 Chat completion request
 
@@ -20,7 +20,7 @@ Chat completion request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L558)
+Defined in: [src/client/types.gen.ts:598](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L598)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L559)
+Defined in: [src/client/types.gen.ts:599](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L599)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/b
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [src/client/types.gen.ts:560](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L560)
+Defined in: [src/client/types.gen.ts:600](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L600)

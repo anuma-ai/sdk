@@ -1,8 +1,6 @@
 # StoredMemoryWithSimilarity
 
-Defined in: [src/lib/memoryStorage/types.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L66)
-
-Memory with similarity score (returned from semantic search)
+Defined in: [src/lib/db/memory/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L41)
 
 ## Extends
 
@@ -14,9 +12,7 @@ Memory with similarity score (returned from semantic search)
 
 > **compositeKey**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L48)
-
-Composite key (namespace:key) for efficient lookups
+Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L32)
 
 #### Inherited from
 
@@ -28,9 +24,7 @@ Composite key (namespace:key) for efficient lookups
 
 > **confidence**: `number`
 
-Defined in: [src/lib/memoryStorage/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L44)
-
-Confidence score (0-1)
+Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
 
 #### Inherited from
 
@@ -42,9 +36,7 @@ Confidence score (0-1)
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/memoryStorage/types.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L52)
-
-ISO timestamp
+Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L34)
 
 #### Inherited from
 
@@ -56,9 +48,7 @@ ISO timestamp
 
 > `optional` **embedding**: `number`[]
 
-Defined in: [src/lib/memoryStorage/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L56)
-
-Embedding vector for semantic search
+Defined in: [src/lib/db/memory/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L36)
 
 #### Inherited from
 
@@ -70,9 +60,7 @@ Embedding vector for semantic search
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L58)
-
-Model used to generate embedding
+Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L37)
 
 #### Inherited from
 
@@ -84,9 +72,7 @@ Model used to generate embedding
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/memoryStorage/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L60)
-
-Soft delete flag
+Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L38)
 
 #### Inherited from
 
@@ -98,9 +84,7 @@ Soft delete flag
 
 > **key**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L38)
-
-Key within the namespace
+Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
 
 #### Inherited from
 
@@ -112,9 +96,7 @@ Key within the namespace
 
 > **namespace**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L36)
-
-Namespace for grouping related memories
+Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
 
 #### Inherited from
 
@@ -126,9 +108,7 @@ Namespace for grouping related memories
 
 > **pii**: `boolean`
 
-Defined in: [src/lib/memoryStorage/types.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L46)
-
-Whether this memory contains PII
+Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
 
 #### Inherited from
 
@@ -140,9 +120,7 @@ Whether this memory contains PII
 
 > **rawEvidence**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L42)
-
-Raw evidence from which this memory was extracted
+Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
 
 #### Inherited from
 
@@ -154,9 +132,7 @@ Raw evidence from which this memory was extracted
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryStorage/types.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L68)
-
-Cosine similarity score (0-1)
+Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L42)
 
 ***
 
@@ -164,9 +140,7 @@ Cosine similarity score (0-1)
 
 > **type**: [`MemoryType`](../type-aliases/MemoryType.md)
 
-Defined in: [src/lib/memoryStorage/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L34)
-
-Memory type classification
+Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L14)
 
 #### Inherited from
 
@@ -178,9 +152,7 @@ Memory type classification
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L32)
-
-Primary key, unique memory identifier (WatermelonDB auto-generated)
+Defined in: [src/lib/db/memory/types.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L31)
 
 #### Inherited from
 
@@ -192,9 +164,7 @@ Primary key, unique memory identifier (WatermelonDB auto-generated)
 
 > **uniqueKey**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L50)
-
-Unique key (namespace:key:value) for deduplication
+Defined in: [src/lib/db/memory/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L33)
 
 #### Inherited from
 
@@ -206,9 +176,7 @@ Unique key (namespace:key:value) for deduplication
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/memoryStorage/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L54)
-
-ISO timestamp
+Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L35)
 
 #### Inherited from
 
@@ -220,9 +188,7 @@ ISO timestamp
 
 > **value**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L40)
-
-The memory value/content
+Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
 
 #### Inherited from
 

@@ -72,7 +72,7 @@
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
     "@huggingface/transformers": "^3.8.0",
-    "@reverbia/portal": "1.0.0-next.20251208093751",
+    "@reverbia/portal": "1.0.0-next.20251217051358",
     "ai": "5.0.93",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1"

@@ -2,9 +2,7 @@
 
 > **generateConversationId**(): `string`
 
-Defined in: [src/lib/chatStorage/types.ts:275](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L275)
-
-Generate a unique ID for conversations
+Defined in: [src/lib/db/chat/types.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L146)
 
 ## Returns
 

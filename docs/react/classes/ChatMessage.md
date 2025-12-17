@@ -1,11 +1,6 @@
 # ChatMessage
 
-Defined in: [src/lib/chatStorage/models.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L16)
-
-Message model representing a single chat message
-
-Note: This model uses raw column accessors instead of decorators
-for better TypeScript compatibility without requiring legacy decorators.
+Defined in: [src/lib/db/chat/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L11)
 
 ## Extends
 
@@ -111,6 +106,118 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### content
+
+> **content**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L21)
+
+***
+
+### conversationId
+
+> **conversationId**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L19)
+
+***
+
+### createdAt
+
+> **createdAt**: `Date`
+
+Defined in: [src/lib/db/chat/models.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L24)
+
+***
+
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L27)
+
+***
+
+### files?
+
+> `optional` **files**: [`FileMetadata`](../interfaces/FileMetadata.md)[]
+
+Defined in: [src/lib/db/chat/models.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L23)
+
+***
+
+### messageId
+
+> **messageId**: `number`
+
+Defined in: [src/lib/db/chat/models.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L18)
+
+***
+
+### model?
+
+> `optional` **model**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L22)
+
+***
+
+### responseDuration?
+
+> `optional` **responseDuration**: `number`
+
+Defined in: [src/lib/db/chat/models.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L30)
+
+***
+
+### role
+
+> **role**: [`ChatRole`](../type-aliases/ChatRole.md)
+
+Defined in: [src/lib/db/chat/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L20)
+
+***
+
+### sources?
+
+> `optional` **sources**: [`SearchSource`](../interfaces/SearchSource.md)[]
+
+Defined in: [src/lib/db/chat/models.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L29)
+
+***
+
+### updatedAt
+
+> **updatedAt**: `Date`
+
+Defined in: [src/lib/db/chat/models.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L25)
+
+***
+
+### usage?
+
+> `optional` **usage**: [`StoredChatCompletionUsage`](../interfaces/StoredChatCompletionUsage.md)
+
+Defined in: [src/lib/db/chat/models.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L28)
+
+***
+
+### vector?
+
+> `optional` **vector**: `number`[]
+
+Defined in: [src/lib/db/chat/models.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L26)
+
+***
+
+### wasStopped?
+
+> `optional` **wasStopped**: `boolean`
+
+Defined in: [src/lib/db/chat/models.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L31)
+
+***
+
 ### \_wmelonTag
 
 > `static` **\_wmelonTag**: `string`
@@ -127,7 +234,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/chatStorage/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L19)
+Defined in: [src/lib/db/chat/models.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L14)
 
 #### Overrides
 
@@ -139,7 +246,7 @@ Defined in: [src/lib/chatStorage/models.ts:19](https://github.com/zeta-chain/ai-
 
 > `static` **table**: `string` = `"history"`
 
-Defined in: [src/lib/chatStorage/models.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L17)
+Defined in: [src/lib/db/chat/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L12)
 
 #### Overrides
 
@@ -183,54 +290,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### content
-
-#### Get Signature
-
-> **get** **content**(): `string`
-
-Defined in: [src/lib/chatStorage/models.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L39)
-
-The message text content
-
-##### Returns
-
-`string`
-
-***
-
-### conversationId
-
-#### Get Signature
-
-> **get** **conversationId**(): `string`
-
-Defined in: [src/lib/chatStorage/models.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L29)
-
-Links message to its conversation
-
-##### Returns
-
-`string`
-
-***
-
-### createdAt
-
-#### Get Signature
-
-> **get** **createdAt**(): `Date`
-
-Defined in: [src/lib/chatStorage/models.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L61)
-
-Created timestamp
-
-##### Returns
-
-`Date`
-
-***
-
 ### database
 
 #### Get Signature
@@ -267,38 +326,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### embeddingModel
-
-#### Get Signature
-
-> **get** **embeddingModel**(): `string` \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L82)
-
-Model used to generate embedding
-
-##### Returns
-
-`string` \| `undefined`
-
-***
-
-### files
-
-#### Get Signature
-
-> **get** **files**(): [`FileMetadata`](../interfaces/FileMetadata.md)[] \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L50)
-
-Optional attached files
-
-##### Returns
-
-[`FileMetadata`](../interfaces/FileMetadata.md)[] \| `undefined`
-
-***
-
 ### id
 
 #### Get Signature
@@ -314,86 +341,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 `Model.id`
-
-***
-
-### messageId
-
-#### Get Signature
-
-> **get** **messageId**(): `number`
-
-Defined in: [src/lib/chatStorage/models.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L24)
-
-Sequential message ID within conversation
-
-##### Returns
-
-`number`
-
-***
-
-### model
-
-#### Get Signature
-
-> **get** **model**(): `string` \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L44)
-
-LLM model used (e.g., GPT-4, Claude)
-
-##### Returns
-
-`string` \| `undefined`
-
-***
-
-### responseDuration
-
-#### Get Signature
-
-> **get** **responseDuration**(): `number` \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L110)
-
-Response time in seconds
-
-##### Returns
-
-`number` \| `undefined`
-
-***
-
-### role
-
-#### Get Signature
-
-> **get** **role**(): [`ChatRole`](../type-aliases/ChatRole.md)
-
-Defined in: [src/lib/chatStorage/models.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L34)
-
-Who sent the message: 'user' | 'assistant' | 'system'
-
-##### Returns
-
-[`ChatRole`](../type-aliases/ChatRole.md)
-
-***
-
-### sources
-
-#### Get Signature
-
-> **get** **sources**(): [`SearchSource`](../interfaces/SearchSource.md)[] \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L99)
-
-Web search sources
-
-##### Returns
-
-[`SearchSource`](../interfaces/SearchSource.md)[] \| `undefined`
 
 ***
 
@@ -430,54 +377,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 [`StoredMemoryModel`](StoredMemoryModel.md).[`table`](StoredMemoryModel.md#table-1)
-
-***
-
-### updatedAt
-
-#### Get Signature
-
-> **get** **updatedAt**(): `Date`
-
-Defined in: [src/lib/chatStorage/models.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L66)
-
-Updated timestamp
-
-##### Returns
-
-`Date`
-
-***
-
-### usage
-
-#### Get Signature
-
-> **get** **usage**(): [`StoredChatCompletionUsage`](../interfaces/StoredChatCompletionUsage.md) \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L88)
-
-Token counts and cost
-
-##### Returns
-
-[`StoredChatCompletionUsage`](../interfaces/StoredChatCompletionUsage.md) \| `undefined`
-
-***
-
-### vector
-
-#### Get Signature
-
-> **get** **vector**(): `number`[] \| `undefined`
-
-Defined in: [src/lib/chatStorage/models.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L71)
-
-Embedding vector for semantic search
-
-##### Returns
-
-`number`[] \| `undefined`
 
 ## Methods
 

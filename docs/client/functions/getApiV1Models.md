@@ -2,11 +2,11 @@
 
 > **getApiV1Models**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetApiV1ModelsResponses`](../type-aliases/GetApiV1ModelsResponses.md), [`GetApiV1ModelsErrors`](../type-aliases/GetApiV1ModelsErrors.md), `ThrowOnError`\>
 
-Defined in: [src/client/sdk.gen.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L74)
+Defined in: [src/client/sdk.gen.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L86)
 
 List available models
 
-Returns a list of all available models from the configured gateway with optional filters.
+Returns a list of all available models from the configured gateway with optional filters. Models include modality information indicating their capabilities (e.g., llm, embedding, vision, image, audio, reasoning, code, reranker, multimodal, video).
 
 ## Type Parameters
 

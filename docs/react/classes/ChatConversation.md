@@ -1,8 +1,6 @@
 # ChatConversation
 
-Defined in: [src/lib/chatStorage/models.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L119)
-
-Conversation model representing conversation metadata
+Defined in: [src/lib/db/chat/models.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L34)
 
 ## Extends
 
@@ -108,6 +106,46 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### conversationId
+
+> **conversationId**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L41)
+
+***
+
+### createdAt
+
+> **createdAt**: `Date`
+
+Defined in: [src/lib/db/chat/models.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L43)
+
+***
+
+### isDeleted
+
+> **isDeleted**: `boolean`
+
+Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L45)
+
+***
+
+### title
+
+> **title**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L42)
+
+***
+
+### updatedAt
+
+> **updatedAt**: `Date`
+
+Defined in: [src/lib/db/chat/models.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L44)
+
+***
+
 ### \_wmelonTag
 
 > `static` **\_wmelonTag**: `string`
@@ -124,7 +162,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/chatStorage/models.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L122)
+Defined in: [src/lib/db/chat/models.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L37)
 
 #### Overrides
 
@@ -136,7 +174,7 @@ Defined in: [src/lib/chatStorage/models.ts:122](https://github.com/zeta-chain/ai
 
 > `static` **table**: `string` = `"conversations"`
 
-Defined in: [src/lib/chatStorage/models.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L120)
+Defined in: [src/lib/db/chat/models.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L35)
 
 #### Overrides
 
@@ -177,38 +215,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 `Model.collections`
-
-***
-
-### conversationId
-
-#### Get Signature
-
-> **get** **conversationId**(): `string`
-
-Defined in: [src/lib/chatStorage/models.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L127)
-
-Unique conversation identifier
-
-##### Returns
-
-`string`
-
-***
-
-### createdAt
-
-#### Get Signature
-
-> **get** **createdAt**(): `Date`
-
-Defined in: [src/lib/chatStorage/models.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L137)
-
-Created timestamp
-
-##### Returns
-
-`Date`
 
 ***
 
@@ -266,22 +272,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### isDeleted
-
-#### Get Signature
-
-> **get** **isDeleted**(): `boolean`
-
-Defined in: [src/lib/chatStorage/models.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L147)
-
-Soft delete flag
-
-##### Returns
-
-`boolean`
-
-***
-
 ### syncStatus
 
 #### Get Signature
@@ -315,38 +305,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 [`StoredMemoryModel`](StoredMemoryModel.md).[`table`](StoredMemoryModel.md#table-1)
-
-***
-
-### title
-
-#### Get Signature
-
-> **get** **title**(): `string`
-
-Defined in: [src/lib/chatStorage/models.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L132)
-
-Conversation title
-
-##### Returns
-
-`string`
-
-***
-
-### updatedAt
-
-#### Get Signature
-
-> **get** **updatedAt**(): `Date`
-
-Defined in: [src/lib/chatStorage/models.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/models.ts#L142)
-
-Updated timestamp
-
-##### Returns
-
-`Date`
 
 ## Methods
 

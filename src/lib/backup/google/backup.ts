@@ -5,10 +5,10 @@
  * Works directly with WatermelonDB database.
  */
 
-import type { Database } from '@nozbe/watermelondb';
+import type { Database } from "@nozbe/watermelondb";
 
-import { Conversation } from '../../chatStorage/models';
-import { conversationToStored } from '../../chatStorage/operations';
+import { Conversation } from "../../db/chat";
+import { conversationToStored } from "../../db/chat/operations";
 import {
   DEFAULT_CONVERSATIONS_FOLDER,
   DEFAULT_ROOT_FOLDER,
@@ -19,21 +19,27 @@ import {
   listDriveFiles,
   updateDriveFile,
   uploadFileToDrive,
-} from './api';
+} from "./api";
 
 export { DEFAULT_ROOT_FOLDER, DEFAULT_CONVERSATIONS_FOLDER };
 
 const isAuthError = (err: unknown): boolean =>
   err instanceof Error &&
-  (err.message.includes('401') || err.message.includes('403'));
+  (err.message.includes("401") || err.message.includes("403"));
 
 export interface GoogleDriveBackupDeps {
   requestDriveAccess: () => Promise<string>;
   requestEncryptionKey: (address: string) => Promise<void>;
   /** Export a conversation to an encrypted blob */
-  exportConversation: (conversationId: string, userAddress: string) => Promise<{ success: boolean; blob?: Blob }>;
+  exportConversation: (
+    conversationId: string,
+    userAddress: string
+  ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
+  importConversation: (
+    blob: Blob,
+    userAddress: string
+  ) => Promise<{ success: boolean }>;
 }
 
 export interface GoogleDriveExportResult {
@@ -84,12 +90,17 @@ export async function pushConversationToDrive(
   rootFolder: string = DEFAULT_ROOT_FOLDER,
   subfolder: string = DEFAULT_CONVERSATIONS_FOLDER,
   _retried: boolean = false
-): Promise<'uploaded' | 'skipped' | 'failed'> {
+): Promise<"uploaded" | "skipped" | "failed"> {
   try {
     await deps.requestEncryptionKey(userAddress);
 
-    const folderResult = await getConversationsFolder(token, deps.requestDriveAccess, rootFolder, subfolder);
-    if (!folderResult) return 'failed';
+    const folderResult = await getConversationsFolder(
+      token,
+      deps.requestDriveAccess,
+      rootFolder,
+      subfolder
+    );
+    if (!folderResult) return "failed";
     const { folderId, token: activeToken } = folderResult;
 
     const filename = `${conversationId}.json`;
@@ -97,10 +108,11 @@ export async function pushConversationToDrive(
 
     // Check if we can skip upload based on timestamps
     if (existingFile) {
-      const { Q } = await import('@nozbe/watermelondb');
-      const conversationsCollection = database.get<Conversation>('conversations');
+      const { Q } = await import("@nozbe/watermelondb");
+      const conversationsCollection =
+        database.get<Conversation>("conversations");
       const records = await conversationsCollection
-        .query(Q.where('conversation_id', conversationId))
+        .query(Q.where("conversation_id", conversationId))
         .fetch();
 
       if (records.length > 0) {
@@ -108,34 +120,51 @@ export async function pushConversationToDrive(
         const localUpdated = conversation.updatedAt.getTime();
         const remoteModified = new Date(existingFile.modifiedTime).getTime();
         if (localUpdated <= remoteModified) {
-          return 'skipped';
+          return "skipped";
         }
       }
     }
 
-    const exportResult = await deps.exportConversation(conversationId, userAddress);
+    const exportResult = await deps.exportConversation(
+      conversationId,
+      userAddress
+    );
 
     if (!exportResult.success || !exportResult.blob) {
-      return 'failed';
+      return "failed";
     }
 
     if (existingFile) {
       await updateDriveFile(activeToken, existingFile.id, exportResult.blob);
     } else {
-      await uploadFileToDrive(activeToken, folderId, exportResult.blob, filename);
+      await uploadFileToDrive(
+        activeToken,
+        folderId,
+        exportResult.blob,
+        filename
+      );
     }
-    return 'uploaded';
+    return "uploaded";
   } catch (err) {
     if (isAuthError(err) && !_retried) {
       // Try to re-authenticate once
       try {
         const newToken = await deps.requestDriveAccess();
-        return pushConversationToDrive(database, conversationId, userAddress, newToken, deps, rootFolder, subfolder, true);
+        return pushConversationToDrive(
+          database,
+          conversationId,
+          userAddress,
+          newToken,
+          deps,
+          rootFolder,
+          subfolder,
+          true
+        );
       } catch {
-        return 'failed';
+        return "failed";
       }
     }
-    return 'failed';
+    return "failed";
   }
 }
 
@@ -150,16 +179,21 @@ export async function performGoogleDriveExport(
 ): Promise<GoogleDriveExportResult> {
   await deps.requestEncryptionKey(userAddress);
 
-  const folderResult = await getConversationsFolder(token, deps.requestDriveAccess, rootFolder, subfolder);
+  const folderResult = await getConversationsFolder(
+    token,
+    deps.requestDriveAccess,
+    rootFolder,
+    subfolder
+  );
   if (!folderResult) {
     return { success: false, uploaded: 0, skipped: 0, total: 0 };
   }
   const { token: activeToken } = folderResult;
 
-  const { Q } = await import('@nozbe/watermelondb');
-  const conversationsCollection = database.get<Conversation>('conversations');
+  const { Q } = await import("@nozbe/watermelondb");
+  const conversationsCollection = database.get<Conversation>("conversations");
   const records = await conversationsCollection
-    .query(Q.where('is_deleted', false))
+    .query(Q.where("is_deleted", false))
     .fetch();
 
   const conversations = records.map(conversationToStored);
@@ -186,8 +220,8 @@ export async function performGoogleDriveExport(
       subfolder
     );
 
-    if (result === 'uploaded') uploaded++;
-    if (result === 'skipped') skipped++;
+    if (result === "uploaded") uploaded++;
+    if (result === "skipped") skipped++;
   }
 
   return { success: true, uploaded, skipped, total };
@@ -203,18 +237,37 @@ export async function performGoogleDriveImport(
 ): Promise<GoogleDriveImportResult> {
   await deps.requestEncryptionKey(userAddress);
 
-  const folderResult = await getConversationsFolder(token, deps.requestDriveAccess, rootFolder, subfolder);
+  const folderResult = await getConversationsFolder(
+    token,
+    deps.requestDriveAccess,
+    rootFolder,
+    subfolder
+  );
   if (!folderResult) {
-    return { success: false, restored: 0, failed: 0, total: 0, noBackupsFound: true };
+    return {
+      success: false,
+      restored: 0,
+      failed: 0,
+      total: 0,
+      noBackupsFound: true,
+    };
   }
   const { folderId, token: activeToken } = folderResult;
 
   const remoteFiles = await listDriveFiles(activeToken, folderId);
   if (remoteFiles.length === 0) {
-    return { success: false, restored: 0, failed: 0, total: 0, noBackupsFound: true };
+    return {
+      success: false,
+      restored: 0,
+      failed: 0,
+      total: 0,
+      noBackupsFound: true,
+    };
   }
 
-  const jsonFiles = remoteFiles.filter((file: DriveFile) => file.name.endsWith('.json'));
+  const jsonFiles = remoteFiles.filter((file: DriveFile) =>
+    file.name.endsWith(".json")
+  );
   const total = jsonFiles.length;
   let restored = 0;
   let failed = 0;
