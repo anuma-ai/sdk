@@ -168,20 +168,38 @@ export async function performDropboxImport(
   let restored = 0;
   let failed = 0;
 
+  let currentToken = token;
+
   for (let i = 0; i < jsonFiles.length; i++) {
     const file = jsonFiles[i];
     onProgress?.(i + 1, total);
 
     try {
-      const blob = await downloadDropboxFile(token, file.path_lower);
+      const blob = await downloadDropboxFile(currentToken, file.path_lower);
       const result = await deps.importConversation(blob, userAddress);
       if (result.success) {
         restored++;
       } else {
         failed++;
       }
-    } catch {
-      failed++;
+    } catch (err) {
+      // Handle auth errors by refreshing token and retrying once
+      if (isAuthError(err)) {
+        try {
+          currentToken = await deps.requestDropboxAccess();
+          const blob = await downloadDropboxFile(currentToken, file.path_lower);
+          const result = await deps.importConversation(blob, userAddress);
+          if (result.success) {
+            restored++;
+          } else {
+            failed++;
+          }
+        } catch {
+          failed++;
+        }
+      } else {
+        failed++;
+      }
     }
   }
 
