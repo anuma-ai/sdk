@@ -68,6 +68,7 @@ export type {
 // Re-export chat storage schema and types for database setup
 export {
   chatStorageSchema,
+  chatStorageMigrations,
   Message as ChatMessage,
   Conversation as ChatConversation,
   type ChatRole,
