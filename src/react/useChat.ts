@@ -475,11 +475,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             },
           });
 
-          // Check if SSE encountered an error
-          if (sseError) {
-            throw sseError;
-          }
-
           const accumulator = createStreamAccumulator();
 
           for await (const chunk of sseResult.stream) {
@@ -499,6 +494,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 if (globalOnData) globalOnData(contentDelta);
               }
             }
+          }
+
+          // Check if SSE encountered an error
+          if (sseError) {
+            throw sseError;
           }
 
           // Build the final response
