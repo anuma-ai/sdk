@@ -4,8 +4,9 @@ import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiChatCompletionResponse } from "../client";
-import { Message, Conversation } from "../lib/chatStorage/models";
 import {
+  Message,
+  Conversation,
   type StoredMessage,
   type StoredConversation,
   type CreateConversationOptions,
@@ -14,8 +15,6 @@ import {
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
   convertUsageToStored,
-} from "../lib/chatStorage/types";
-import {
   type StorageOperationsContext,
   createConversationOp,
   getConversationOp,
@@ -26,7 +25,7 @@ import {
   getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
-} from "../lib/chatStorage/operations";
+} from "../lib/db/chat";
 
 /**
  * Convert StoredMessage to LlmapiMessage format

@@ -93,7 +93,7 @@ export {
   type CreateMessageOptions,
   type CreateConversationOptions,
   generateConversationId,
-} from "../lib/chatStorage";
+} from "../lib/db/chat";
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,
@@ -110,7 +110,7 @@ export {
   type UpdateMemoryOptions,
   generateCompositeKey,
   generateUniqueKey,
-} from "../lib/memoryStorage";
+} from "../lib/db/memory";
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {
@@ -119,7 +119,7 @@ export {
   type StoredModelPreference,
   type CreateModelPreferenceOptions,
   type UpdateModelPreferenceOptions,
-} from "../lib/settingsStorage";
+} from "../lib/db/settings";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
 export { useOCR } from "./useOCR";

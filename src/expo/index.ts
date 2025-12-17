@@ -81,7 +81,7 @@ export {
   type CreateMessageOptions,
   type CreateConversationOptions,
   generateConversationId,
-} from "../lib/chatStorage";
+} from "../lib/db/chat";
 
 // Re-export memory storage schema and types for database setup
 export {
@@ -95,4 +95,4 @@ export {
   type UpdateMemoryOptions,
   generateCompositeKey,
   generateUniqueKey,
-} from "../lib/memoryStorage";
+} from "../lib/db/memory";

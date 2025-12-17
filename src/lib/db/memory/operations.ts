@@ -13,9 +13,6 @@ import {
   cosineSimilarity,
 } from "./types";
 
-/**
- * Convert a Memory model to StoredMemory
- */
 export function memoryToStored(memory: Memory): StoredMemory {
   return {
     uniqueId: memory.id,
@@ -36,17 +33,11 @@ export function memoryToStored(memory: Memory): StoredMemory {
   };
 }
 
-/**
- * Storage operations context
- */
 export interface MemoryStorageOperationsContext {
   database: Database;
   memoriesCollection: Collection<Memory>;
 }
 
-/**
- * Get all memories (excluding soft-deleted)
- */
 export async function getAllMemoriesOp(
   ctx: MemoryStorageOperationsContext
 ): Promise<StoredMemory[]> {
@@ -57,9 +48,6 @@ export async function getAllMemoriesOp(
   return results.map(memoryToStored);
 }
 
-/**
- * Get a memory by ID
- */
 export async function getMemoryByIdOp(
   ctx: MemoryStorageOperationsContext,
   id: string
@@ -73,9 +61,6 @@ export async function getMemoryByIdOp(
   }
 }
 
-/**
- * Get memories by namespace
- */
 export async function getMemoriesByNamespaceOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string
@@ -91,9 +76,6 @@ export async function getMemoriesByNamespaceOp(
   return results.map(memoryToStored);
 }
 
-/**
- * Get memories by namespace and key
- */
 export async function getMemoriesByKeyOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string,
@@ -111,9 +93,6 @@ export async function getMemoriesByKeyOp(
   return results.map(memoryToStored);
 }
 
-/**
- * Get a memory by unique key (namespace:key:value)
- */
 export async function getMemoryByUniqueKeyOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string,
@@ -128,10 +107,6 @@ export async function getMemoryByUniqueKeyOp(
   return results.length > 0 ? memoryToStored(results[0]) : null;
 }
 
-/**
- * Create or update a memory (upsert by unique key)
- * The existence check and create/update are performed atomically within a single transaction
- */
 export async function saveMemoryOp(
   ctx: MemoryStorageOperationsContext,
   opts: CreateMemoryOptions
@@ -139,18 +114,14 @@ export async function saveMemoryOp(
   const compositeKey = generateCompositeKey(opts.namespace, opts.key);
   const uniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
 
-  // Perform existence check and create/update atomically within a single transaction
   const result = await ctx.database.write(async () => {
-    // Check if memory with this unique key already exists
     const existing = await ctx.memoriesCollection
       .query(Q.where("unique_key", uniqueKey))
       .fetch();
 
     if (existing.length > 0) {
-      // Update existing memory
       const existingMemory = existing[0];
 
-      // Determine if we should preserve existing embedding
       const shouldPreserveEmbedding =
         existingMemory.value === opts.value &&
         existingMemory.rawEvidence === opts.rawEvidence &&
@@ -189,7 +160,6 @@ export async function saveMemoryOp(
       return existingMemory;
     }
 
-    // Create new memory
     return await ctx.memoriesCollection.create((mem) => {
       mem._setRaw("type", opts.type);
       mem._setRaw("namespace", opts.namespace);
@@ -214,9 +184,6 @@ export async function saveMemoryOp(
   return memoryToStored(result);
 }
 
-/**
- * Save multiple memories
- */
 export async function saveMemoriesOp(
   ctx: MemoryStorageOperationsContext,
   memories: CreateMemoryOptions[]
@@ -229,10 +196,6 @@ export async function saveMemoriesOp(
   return results;
 }
 
-/**
- * Update a memory by ID
- * Returns a discriminated union result to distinguish between not_found, conflict, and error cases
- */
 export async function updateMemoryOp(
   ctx: MemoryStorageOperationsContext,
   id: string,
@@ -242,7 +205,6 @@ export async function updateMemoryOp(
   try {
     memory = await ctx.memoriesCollection.find(id);
   } catch {
-    // Memory not found
     return { ok: false, reason: "not_found" };
   }
 
@@ -250,14 +212,12 @@ export async function updateMemoryOp(
     return { ok: false, reason: "not_found" };
   }
 
-  // If namespace, key, or value is changing, recalculate keys
   const newNamespace = updates.namespace ?? memory.namespace;
   const newKey = updates.key ?? memory.key;
   const newValue = updates.value ?? memory.value;
   const newCompositeKey = generateCompositeKey(newNamespace, newKey);
   const newUniqueKey = generateUniqueKey(newNamespace, newKey, newValue);
 
-  // Check for unique key conflict if key is changing
   if (newUniqueKey !== memory.uniqueKey) {
     const existing = await ctx.memoriesCollection
       .query(Q.where("unique_key", newUniqueKey), Q.where("is_deleted", false))
@@ -282,7 +242,6 @@ export async function updateMemoryOp(
           mem._setRaw("confidence", updates.confidence);
         if (updates.pii !== undefined) mem._setRaw("pii", updates.pii);
 
-        // Update composite keys if any key components changed
         if (
           updates.namespace !== undefined ||
           updates.key !== undefined ||
@@ -315,9 +274,6 @@ export async function updateMemoryOp(
   }
 }
 
-/**
- * Soft delete a memory by ID
- */
 export async function deleteMemoryByIdOp(
   ctx: MemoryStorageOperationsContext,
   id: string
@@ -330,13 +286,10 @@ export async function deleteMemoryByIdOp(
       });
     });
   } catch {
-    // Memory not found, nothing to delete
+    // Memory not found
   }
 }
 
-/**
- * Soft delete a memory by unique key
- */
 export async function deleteMemoryOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string,
@@ -357,9 +310,6 @@ export async function deleteMemoryOp(
   }
 }
 
-/**
- * Soft delete all memories by namespace and key
- */
 export async function deleteMemoriesByKeyOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string,
@@ -379,9 +329,6 @@ export async function deleteMemoriesByKeyOp(
   });
 }
 
-/**
- * Clear all memories (soft delete all)
- */
 export async function clearAllMemoriesOp(
   ctx: MemoryStorageOperationsContext
 ): Promise<void> {
@@ -398,9 +345,6 @@ export async function clearAllMemoriesOp(
   });
 }
 
-/**
- * Search for similar memories using vector similarity
- */
 export async function searchSimilarMemoriesOp(
   ctx: MemoryStorageOperationsContext,
   queryEmbedding: number[],
@@ -434,9 +378,6 @@ export async function searchSimilarMemoriesOp(
   return results;
 }
 
-/**
- * Update embedding for a memory
- */
 export async function updateMemoryEmbeddingOp(
   ctx: MemoryStorageOperationsContext,
   id: string,

@@ -11,9 +11,6 @@ import {
   generateConversationId,
 } from "./types";
 
-/**
- * Convert a Message model to StoredMessage
- */
 export function messageToStored(message: Message): StoredMessage {
   return {
     uniqueId: message.id,
@@ -34,9 +31,6 @@ export function messageToStored(message: Message): StoredMessage {
   };
 }
 
-/**
- * Convert a Conversation model to StoredConversation
- */
 export function conversationToStored(
   conversation: Conversation
 ): StoredConversation {
@@ -50,18 +44,12 @@ export function conversationToStored(
   };
 }
 
-/**
- * Storage operations context
- */
 export interface StorageOperationsContext {
   database: Database;
   messagesCollection: Collection<Message>;
   conversationsCollection: Collection<Conversation>;
 }
 
-/**
- * Create a new conversation
- */
 export async function createConversationOp(
   ctx: StorageOperationsContext,
   opts?: CreateConversationOptions,
@@ -81,9 +69,6 @@ export async function createConversationOp(
   return conversationToStored(created);
 }
 
-/**
- * Get a conversation by ID
- */
 export async function getConversationOp(
   ctx: StorageOperationsContext,
   id: string
@@ -95,9 +80,6 @@ export async function getConversationOp(
   return results.length > 0 ? conversationToStored(results[0]) : null;
 }
 
-/**
- * Get all conversations (excluding soft-deleted)
- */
 export async function getConversationsOp(
   ctx: StorageOperationsContext
 ): Promise<StoredConversation[]> {
@@ -108,10 +90,6 @@ export async function getConversationsOp(
   return results.map(conversationToStored);
 }
 
-/**
- * Update conversation title
- * @returns true if update was performed, false if no non-deleted conversation was found
- */
 export async function updateConversationTitleOp(
   ctx: StorageOperationsContext,
   id: string,
@@ -132,10 +110,6 @@ export async function updateConversationTitleOp(
   return false;
 }
 
-/**
- * Soft delete a conversation
- * @returns true if delete was performed, false if no non-deleted conversation was found
- */
 export async function deleteConversationOp(
   ctx: StorageOperationsContext,
   id: string
@@ -155,9 +129,6 @@ export async function deleteConversationOp(
   return false;
 }
 
-/**
- * Get messages for a conversation
- */
 export async function getMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -169,9 +140,6 @@ export async function getMessagesOp(
   return results.map(messageToStored);
 }
 
-/**
- * Get message count for a conversation
- */
 export async function getMessageCountOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -181,9 +149,6 @@ export async function getMessageCountOp(
     .fetchCount();
 }
 
-/**
- * Clear all messages in a conversation
- */
 export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -199,14 +164,10 @@ export async function clearMessagesOp(
   });
 }
 
-/**
- * Create a message in the database
- */
 export async function createMessageOp(
   ctx: StorageOperationsContext,
   opts: CreateMessageOptions
 ): Promise<StoredMessage> {
-  // Get the next message ID for this conversation
   const existingCount = await getMessageCountOp(ctx, opts.conversationId);
   const messageId = existingCount + 1;
 
@@ -231,10 +192,6 @@ export async function createMessageOp(
   return messageToStored(created);
 }
 
-/**
- * Update message embedding in the database
- * @returns The updated message, or null if message not found
- */
 export async function updateMessageEmbeddingOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
@@ -245,7 +202,6 @@ export async function updateMessageEmbeddingOp(
   try {
     message = await ctx.messagesCollection.find(uniqueId);
   } catch {
-    // Message not found
     return null;
   }
 
@@ -259,9 +215,6 @@ export async function updateMessageEmbeddingOp(
   return messageToStored(message);
 }
 
-/**
- * Calculate cosine similarity between two vectors
- */
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
 
@@ -279,25 +232,17 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return magnitude === 0 ? 0 : dotProduct / magnitude;
 }
 
-/**
- * Search messages by vector similarity
- * Excludes messages from soft-deleted conversations
- */
 export async function searchMessagesOp(
   ctx: StorageOperationsContext,
   queryVector: number[],
   options?: {
-    /** Limit the number of results (default: 10) */
     limit?: number;
-    /** Minimum similarity threshold (default: 0.5) */
     minSimilarity?: number;
-    /** Filter by conversation ID */
     conversationId?: string;
   }
 ): Promise<StoredMessageWithSimilarity[]> {
   const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
 
-  // Get IDs of non-deleted conversations to filter messages
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
     .fetch();
@@ -305,18 +250,15 @@ export async function searchMessagesOp(
     activeConversations.map((c) => c.conversationId)
   );
 
-  // Build query
   const queryConditions = conversationId
     ? [Q.where("conversation_id", conversationId)]
     : [];
 
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
-  // Calculate similarity for messages with embeddings
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
   for (const message of messages) {
-    // Skip messages from deleted conversations
     if (!activeConversationIds.has(message.conversationId)) continue;
 
     const messageVector = message.vector;
@@ -331,21 +273,15 @@ export async function searchMessagesOp(
     }
   }
 
-  // Sort by similarity descending and limit results
   return resultsWithSimilarity
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
 }
 
-/**
- * Get all messages that have embeddings
- * Excludes messages from soft-deleted conversations
- */
 export async function getMessagesWithEmbeddingsOp(
   ctx: StorageOperationsContext,
   conversationId?: string
 ): Promise<StoredMessage[]> {
-  // Get IDs of non-deleted conversations to filter messages
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
     .fetch();

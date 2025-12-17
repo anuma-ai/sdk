@@ -1,4 +1,4 @@
-import type { StoredMemory } from "../memoryStorage/types";
+import type { StoredMemory } from "../db/memory";
 
 /**
  * Format memories into a context string that can be included in chat messages
