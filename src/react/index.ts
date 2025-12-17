@@ -144,3 +144,39 @@ export {
   executeTool,
   DEFAULT_TOOL_SELECTOR_MODEL,
 } from "../lib/tools/selector";
+
+export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
+export type {
+  UseDropboxBackupOptions,
+  UseDropboxBackupResult,
+} from "./useDropboxBackup";
+export type {
+  DropboxExportResult,
+  DropboxImportResult,
+} from "../lib/backup/dropbox/backup";
+
+export {
+  DropboxAuthProvider,
+  useDropboxAuth,
+  getStoredToken as getDropboxToken,
+  storeToken as storeDropboxToken,
+  clearToken as clearDropboxToken,
+} from "./useDropboxAuth";
+export type {
+  DropboxAuthProviderProps,
+  DropboxAuthContextValue,
+} from "./useDropboxAuth";
+
+export {
+  useGoogleDriveBackup,
+  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
+  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+} from "./useGoogleDriveBackup";
+export type {
+  UseGoogleDriveBackupOptions,
+  UseGoogleDriveBackupResult,
+} from "./useGoogleDriveBackup";
+export type {
+  GoogleDriveExportResult,
+  GoogleDriveImportResult,
+} from "../lib/backup/google/backup";
