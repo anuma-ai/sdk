@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L151)
+Defined in: [src/client/types.gen.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L187)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **dimensions**: `number`
 
-Defined in: [src/client/types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L155)
+Defined in: [src/client/types.gen.ts:191](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L191)
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
@@ -20,7 +20,7 @@ Dimensions is the number of dimensions the resulting output embeddings should ha
 
 > `optional` **encoding\_format**: `string`
 
-Defined in: [src/client/types.gen.ts:159](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L159)
+Defined in: [src/client/types.gen.ts:195](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L195)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
@@ -30,7 +30,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 > **input**: `unknown`
 
-Defined in: [src/client/types.gen.ts:163](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L163)
+Defined in: [src/client/types.gen.ts:199](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L199)
 
 Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
@@ -40,6 +40,6 @@ Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L167)
+Defined in: [src/client/types.gen.ts:203](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L203)
 
 Model identifier in 'provider/model' format

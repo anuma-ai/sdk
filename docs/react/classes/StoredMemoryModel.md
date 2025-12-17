@@ -1,11 +1,6 @@
 # StoredMemoryModel
 
-Defined in: [src/lib/memoryStorage/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L10)
-
-Memory model representing a single extracted memory
-
-Note: This model uses raw column accessors instead of decorators
-for better TypeScript compatibility without requiring legacy decorators.
+Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L5)
 
 ## Extends
 
@@ -111,6 +106,118 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### compositeKey
+
+> **compositeKey**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L15)
+
+***
+
+### confidence
+
+> **confidence**: `number`
+
+Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L13)
+
+***
+
+### createdAt
+
+> **createdAt**: `Date`
+
+Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L17)
+
+***
+
+### embedding?
+
+> `optional` **embedding**: `number`[]
+
+Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
+
+***
+
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L20)
+
+***
+
+### isDeleted
+
+> **isDeleted**: `boolean`
+
+Defined in: [src/lib/db/memory/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L21)
+
+***
+
+### key
+
+> **key**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L10)
+
+***
+
+### namespace
+
+> **namespace**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L9)
+
+***
+
+### pii
+
+> **pii**: `boolean`
+
+Defined in: [src/lib/db/memory/models.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L14)
+
+***
+
+### rawEvidence
+
+> **rawEvidence**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L12)
+
+***
+
+### type
+
+> **type**: [`MemoryType`](../type-aliases/MemoryType.md)
+
+Defined in: [src/lib/db/memory/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L8)
+
+***
+
+### uniqueKey
+
+> **uniqueKey**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L16)
+
+***
+
+### updatedAt
+
+> **updatedAt**: `Date`
+
+Defined in: [src/lib/db/memory/models.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L18)
+
+***
+
+### value
+
+> **value**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L11)
+
+***
+
 ### \_wmelonTag
 
 > `static` **\_wmelonTag**: `string`
@@ -139,7 +246,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **table**: `string` = `"memories"`
 
-Defined in: [src/lib/memoryStorage/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L11)
+Defined in: [src/lib/db/memory/models.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L6)
 
 #### Overrides
 
@@ -183,54 +290,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### compositeKey
-
-#### Get Signature
-
-> **get** **compositeKey**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L49)
-
-Composite key (namespace:key) for efficient lookups
-
-##### Returns
-
-`string`
-
-***
-
-### confidence
-
-#### Get Signature
-
-> **get** **confidence**(): `number`
-
-Defined in: [src/lib/memoryStorage/models.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L39)
-
-Confidence score (0-1)
-
-##### Returns
-
-`number`
-
-***
-
-### createdAt
-
-#### Get Signature
-
-> **get** **createdAt**(): `Date`
-
-Defined in: [src/lib/memoryStorage/models.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L59)
-
-Created timestamp
-
-##### Returns
-
-`Date`
-
-***
-
 ### database
 
 #### Get Signature
@@ -267,38 +326,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### embedding
-
-#### Get Signature
-
-> **get** **embedding**(): `number`[] \| `undefined`
-
-Defined in: [src/lib/memoryStorage/models.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L69)
-
-Embedding vector for semantic search
-
-##### Returns
-
-`number`[] \| `undefined`
-
-***
-
-### embeddingModel
-
-#### Get Signature
-
-> **get** **embeddingModel**(): `string` \| `undefined`
-
-Defined in: [src/lib/memoryStorage/models.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L80)
-
-Model used to generate embedding
-
-##### Returns
-
-`string` \| `undefined`
-
-***
-
 ### id
 
 #### Get Signature
@@ -314,86 +341,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 `Model.id`
-
-***
-
-### isDeleted
-
-#### Get Signature
-
-> **get** **isDeleted**(): `boolean`
-
-Defined in: [src/lib/memoryStorage/models.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L86)
-
-Soft delete flag
-
-##### Returns
-
-`boolean`
-
-***
-
-### key
-
-#### Get Signature
-
-> **get** **key**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L24)
-
-Key within the namespace
-
-##### Returns
-
-`string`
-
-***
-
-### namespace
-
-#### Get Signature
-
-> **get** **namespace**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L19)
-
-Namespace for grouping related memories
-
-##### Returns
-
-`string`
-
-***
-
-### pii
-
-#### Get Signature
-
-> **get** **pii**(): `boolean`
-
-Defined in: [src/lib/memoryStorage/models.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L44)
-
-Whether this memory contains PII
-
-##### Returns
-
-`boolean`
-
-***
-
-### rawEvidence
-
-#### Get Signature
-
-> **get** **rawEvidence**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L34)
-
-Raw evidence from which this memory was extracted
-
-##### Returns
-
-`string`
 
 ***
 
@@ -430,70 +377,6 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 #### Inherited from
 
 `Model.table`
-
-***
-
-### type
-
-#### Get Signature
-
-> **get** **type**(): [`MemoryType`](../type-aliases/MemoryType.md)
-
-Defined in: [src/lib/memoryStorage/models.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L14)
-
-Memory type classification
-
-##### Returns
-
-[`MemoryType`](../type-aliases/MemoryType.md)
-
-***
-
-### uniqueKey
-
-#### Get Signature
-
-> **get** **uniqueKey**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L54)
-
-Unique key (namespace:key:value) for deduplication
-
-##### Returns
-
-`string`
-
-***
-
-### updatedAt
-
-#### Get Signature
-
-> **get** **updatedAt**(): `Date`
-
-Defined in: [src/lib/memoryStorage/models.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L64)
-
-Updated timestamp
-
-##### Returns
-
-`Date`
-
-***
-
-### value
-
-#### Get Signature
-
-> **get** **value**(): `string`
-
-Defined in: [src/lib/memoryStorage/models.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/models.ts#L29)
-
-The memory value/content
-
-##### Returns
-
-`string`
 
 ## Methods
 

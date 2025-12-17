@@ -1,8 +1,6 @@
 # SearchSource
 
-Defined in: [src/lib/chatStorage/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L45)
-
-Web search source information
+Defined in: [src/lib/db/chat/types.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L27)
 
 ## Properties
 
@@ -10,9 +8,7 @@ Web search source information
 
 > `optional` **date**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L53)
-
-Publication or last updated date
+Defined in: [src/lib/db/chat/types.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L31)
 
 ***
 
@@ -20,9 +16,7 @@ Publication or last updated date
 
 > `optional` **snippet**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L51)
-
-Text snippet from the source
+Defined in: [src/lib/db/chat/types.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L30)
 
 ***
 
@@ -30,9 +24,7 @@ Text snippet from the source
 
 > `optional` **title**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L47)
-
-Source title
+Defined in: [src/lib/db/chat/types.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L28)
 
 ***
 
@@ -40,6 +32,4 @@ Source title
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L49)
-
-Source URL
+Defined in: [src/lib/db/chat/types.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L29)

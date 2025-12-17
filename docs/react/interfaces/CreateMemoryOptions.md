@@ -1,8 +1,10 @@
 # CreateMemoryOptions
 
-Defined in: [src/lib/memoryStorage/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L74)
+Defined in: [src/lib/db/memory/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L23)
 
-Options for creating a new memory
+## Extends
+
+- [`MemoryItem`](MemoryItem.md)
 
 ## Properties
 
@@ -10,9 +12,11 @@ Options for creating a new memory
 
 > **confidence**: `number`
 
-Defined in: [src/lib/memoryStorage/types.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L86)
+Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
 
-Confidence score (0-1)
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`confidence`](MemoryItem.md#confidence)
 
 ***
 
@@ -20,9 +24,7 @@ Confidence score (0-1)
 
 > `optional` **embedding**: `number`[]
 
-Defined in: [src/lib/memoryStorage/types.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L90)
-
-Optional embedding vector
+Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L24)
 
 ***
 
@@ -30,9 +32,7 @@ Optional embedding vector
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L92)
-
-Optional embedding model name
+Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L25)
 
 ***
 
@@ -40,9 +40,11 @@ Optional embedding model name
 
 > **key**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L80)
+Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
 
-Key within namespace
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`key`](MemoryItem.md#key)
 
 ***
 
@@ -50,9 +52,11 @@ Key within namespace
 
 > **namespace**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L78)
+Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
 
-Namespace for grouping
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`namespace`](MemoryItem.md#namespace)
 
 ***
 
@@ -60,9 +64,11 @@ Namespace for grouping
 
 > **pii**: `boolean`
 
-Defined in: [src/lib/memoryStorage/types.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L88)
+Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
 
-Whether this contains PII
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`pii`](MemoryItem.md#pii)
 
 ***
 
@@ -70,9 +76,11 @@ Whether this contains PII
 
 > **rawEvidence**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L84)
+Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
 
-Raw evidence text
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`rawEvidence`](MemoryItem.md#rawevidence)
 
 ***
 
@@ -80,9 +88,11 @@ Raw evidence text
 
 > **type**: [`MemoryType`](../type-aliases/MemoryType.md)
 
-Defined in: [src/lib/memoryStorage/types.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L76)
+Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L14)
 
-Memory type
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`type`](MemoryItem.md#type)
 
 ***
 
@@ -90,6 +100,8 @@ Memory type
 
 > **value**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L82)
+Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
 
-Memory value/content
+#### Inherited from
+
+[`MemoryItem`](MemoryItem.md).[`value`](MemoryItem.md#value)

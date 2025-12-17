@@ -70,6 +70,12 @@ Re-exports [ChatRole](../react/type-aliases/ChatRole.md)
 
 ***
 
+### chatStorageMigrations
+
+Re-exports [chatStorageMigrations](../react/variables/chatStorageMigrations.md)
+
+***
+
 ### chatStorageSchema
 
 Re-exports [chatStorageSchema](../react/variables/chatStorageSchema.md)
@@ -186,7 +192,7 @@ Re-exports [StoredMessageWithSimilarity](../react/interfaces/StoredMessageWithSi
 
 ### UpdateMemoryOptions
 
-Re-exports [UpdateMemoryOptions](../react/interfaces/UpdateMemoryOptions.md)
+Re-exports [UpdateMemoryOptions](../react/type-aliases/UpdateMemoryOptions.md)
 
 ***
 

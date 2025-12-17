@@ -2,7 +2,7 @@
 
 > **UseMemoryStorageOptions** = `BaseUseMemoryStorageOptions`
 
-Defined in: [src/react/useMemoryStorage.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L54)
+Defined in: [src/react/useMemoryStorage.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L52)
 
 Options for useMemoryStorage hook (React version)
 

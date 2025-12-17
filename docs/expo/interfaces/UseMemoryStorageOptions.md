@@ -1,6 +1,6 @@
 # UseMemoryStorageOptions
 
-Defined in: [src/expo/useMemoryStorage.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L50)
+Defined in: [src/expo/useMemoryStorage.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L48)
 
 Options for useMemoryStorage hook (Expo version)
 
@@ -17,9 +17,7 @@ In Expo, only "api" embedding provider is supported.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:156](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L156)
-
-Optional base URL for the API requests
+Defined in: [src/lib/db/memory/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L61)
 
 #### Inherited from
 
@@ -31,9 +29,7 @@ Optional base URL for the API requests
 
 > `optional` **completionsModel**: `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L135)
-
-The model to use for fact extraction (default: "openai/gpt-4o")
+Defined in: [src/lib/db/memory/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L55)
 
 #### Inherited from
 
@@ -45,9 +41,7 @@ The model to use for fact extraction (default: "openai/gpt-4o")
 
 > **database**: `Database`
 
-Defined in: [src/lib/memoryStorage/types.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L133)
-
-WatermelonDB database instance
+Defined in: [src/lib/db/memory/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L54)
 
 #### Inherited from
 
@@ -59,12 +53,7 @@ WatermelonDB database instance
 
 > `optional` **embeddingModel**: `string` \| `null`
 
-Defined in: [src/lib/memoryStorage/types.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L142)
-
-The model to use for generating embeddings
-For local: default is "Snowflake/snowflake-arctic-embed-xs"
-For api: default is "openai/text-embedding-3-small"
-Set to null to disable embedding generation
+Defined in: [src/lib/db/memory/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L56)
 
 #### Inherited from
 
@@ -76,7 +65,7 @@ Set to null to disable embedding generation
 
 > `optional` **embeddingProvider**: `"api"`
 
-Defined in: [src/expo/useMemoryStorage.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L56)
+Defined in: [src/expo/useMemoryStorage.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L54)
 
 The provider to use for generating embeddings
 Note: In Expo, only "api" is supported (local embeddings require web APIs)
@@ -87,9 +76,7 @@ Note: In Expo, only "api" is supported (local embeddings require web APIs)
 
 > `optional` **generateEmbeddings**: `boolean`
 
-Defined in: [src/lib/memoryStorage/types.ts:150](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L150)
-
-Whether to automatically generate embeddings for extracted memories (default: true)
+Defined in: [src/lib/db/memory/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L58)
 
 #### Inherited from
 
@@ -101,9 +88,7 @@ Whether to automatically generate embeddings for extracted memories (default: tr
 
 > `optional` **getToken**: () => `Promise`\<`string` \| `null`\>
 
-Defined in: [src/lib/memoryStorage/types.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L154)
-
-Custom function to get auth token for API calls
+Defined in: [src/lib/db/memory/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L60)
 
 #### Returns
 
@@ -119,9 +104,7 @@ Custom function to get auth token for API calls
 
 > `optional` **onFactsExtracted**: (`facts`) => `void`
 
-Defined in: [src/lib/memoryStorage/types.ts:152](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L152)
-
-Callback when facts are extracted
+Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L59)
 
 #### Parameters
 

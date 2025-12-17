@@ -1,8 +1,6 @@
 # CreateMessageOptions
 
-Defined in: [src/lib/chatStorage/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L119)
-
-Options for creating a new message
+Defined in: [src/lib/db/chat/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L65)
 
 ## Properties
 
@@ -10,9 +8,7 @@ Options for creating a new message
 
 > **content**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L125)
-
-Message content
+Defined in: [src/lib/db/chat/types.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L68)
 
 ***
 
@@ -20,9 +16,7 @@ Message content
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L121)
-
-Conversation ID to add the message to
+Defined in: [src/lib/db/chat/types.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L66)
 
 ***
 
@@ -30,9 +24,7 @@ Conversation ID to add the message to
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L139)
-
-Model used to generate the embedding
+Defined in: [src/lib/db/chat/types.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L75)
 
 ***
 
@@ -40,9 +32,7 @@ Model used to generate the embedding
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
 
-Defined in: [src/lib/chatStorage/types.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L129)
-
-Attached files
+Defined in: [src/lib/db/chat/types.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L70)
 
 ***
 
@@ -50,9 +40,7 @@ Attached files
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L127)
-
-LLM model used (for assistant messages)
+Defined in: [src/lib/db/chat/types.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L69)
 
 ***
 
@@ -60,9 +48,7 @@ LLM model used (for assistant messages)
 
 > `optional` **responseDuration**: `number`
 
-Defined in: [src/lib/chatStorage/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L135)
-
-Response duration in seconds
+Defined in: [src/lib/db/chat/types.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L73)
 
 ***
 
@@ -70,9 +56,7 @@ Response duration in seconds
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/chatStorage/types.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L123)
-
-Message role
+Defined in: [src/lib/db/chat/types.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L67)
 
 ***
 
@@ -80,9 +64,7 @@ Message role
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)[]
 
-Defined in: [src/lib/chatStorage/types.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L133)
-
-Web search sources
+Defined in: [src/lib/db/chat/types.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L72)
 
 ***
 
@@ -90,9 +72,7 @@ Web search sources
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: [src/lib/chatStorage/types.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L131)
-
-Token usage information
+Defined in: [src/lib/db/chat/types.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L71)
 
 ***
 
@@ -100,6 +80,12 @@ Token usage information
 
 > `optional` **vector**: `number`[]
 
-Defined in: [src/lib/chatStorage/types.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L137)
+Defined in: [src/lib/db/chat/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L74)
 
-Embedding vector for semantic search
+***
+
+### wasStopped?
+
+> `optional` **wasStopped**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L76)

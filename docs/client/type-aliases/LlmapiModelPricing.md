@@ -2,7 +2,7 @@
 
 > **LlmapiModelPricing** = `object`
 
-Defined in: [src/client/types.gen.ts:419](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L419)
+Defined in: [src/client/types.gen.ts:459](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L459)
 
 Pricing contains the pricing structure for using this model
 
@@ -12,7 +12,7 @@ Pricing contains the pricing structure for using this model
 
 > `optional` **completion**: `string`
 
-Defined in: [src/client/types.gen.ts:420](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L420)
+Defined in: [src/client/types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L460)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:420](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **image**: `string`
 
-Defined in: [src/client/types.gen.ts:421](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L421)
+Defined in: [src/client/types.gen.ts:461](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L461)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:421](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **prompt**: `string`
 
-Defined in: [src/client/types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L422)
+Defined in: [src/client/types.gen.ts:462](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L462)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **request**: `string`
 
-Defined in: [src/client/types.gen.ts:423](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L423)
+Defined in: [src/client/types.gen.ts:463](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L463)

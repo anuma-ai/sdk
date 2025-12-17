@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L66)
+Defined in: [src/react/useChatStorage.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L65)
 
 Options for useChatStorage hook (React version)
 
@@ -16,9 +16,7 @@ Extends base options with React-specific features like local chat and tools.
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: [src/lib/chatStorage/types.ts:161](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L161)
-
-Auto-create conversation if it doesn't exist (default: true)
+Defined in: [src/lib/db/chat/types.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L89)
 
 #### Inherited from
 
@@ -30,9 +28,7 @@ Auto-create conversation if it doesn't exist (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L167)
-
-Base URL for API requests
+Defined in: [src/lib/db/chat/types.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L92)
 
 #### Inherited from
 
@@ -44,7 +40,7 @@ Base URL for API requests
 
 > `optional` **chatProvider**: `"local"` \| `"api"`
 
-Defined in: [src/react/useChatStorage.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L68)
+Defined in: [src/react/useChatStorage.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L67)
 
 Chat provider: "api" or "local"
 
@@ -54,9 +50,7 @@ Chat provider: "api" or "local"
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:159](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L159)
-
-Current conversation ID (will create new if not provided)
+Defined in: [src/lib/db/chat/types.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L88)
 
 #### Inherited from
 
@@ -68,9 +62,7 @@ Current conversation ID (will create new if not provided)
 
 > **database**: `Database`
 
-Defined in: [src/lib/chatStorage/types.ts:157](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L157)
-
-WatermelonDB database instance
+Defined in: [src/lib/db/chat/types.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L87)
 
 #### Inherited from
 
@@ -82,9 +74,7 @@ WatermelonDB database instance
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:163](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L163)
-
-Default title for auto-created conversations
+Defined in: [src/lib/db/chat/types.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L90)
 
 #### Inherited from
 
@@ -96,9 +86,7 @@ Default title for auto-created conversations
 
 > `optional` **getToken**: () => `Promise`\<`string` \| `null`\>
 
-Defined in: [src/lib/chatStorage/types.ts:165](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L165)
-
-Authentication token getter
+Defined in: [src/lib/db/chat/types.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L91)
 
 #### Returns
 
@@ -114,7 +102,7 @@ Authentication token getter
 
 > `optional` **localModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L70)
+Defined in: [src/react/useChatStorage.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L69)
 
 Model for local chat
 
@@ -124,9 +112,7 @@ Model for local chat
 
 > `optional` **onData**: (`chunk`) => `void`
 
-Defined in: [src/lib/chatStorage/types.ts:169](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L169)
-
-Callback when data chunk is received
+Defined in: [src/lib/db/chat/types.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L93)
 
 #### Parameters
 
@@ -148,9 +134,7 @@ Callback when data chunk is received
 
 > `optional` **onError**: (`error`) => `void`
 
-Defined in: [src/lib/chatStorage/types.ts:173](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L173)
-
-Callback when an error occurs
+Defined in: [src/lib/db/chat/types.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L95)
 
 #### Parameters
 
@@ -172,9 +156,7 @@ Callback when an error occurs
 
 > `optional` **onFinish**: (`response`) => `void`
 
-Defined in: [src/lib/chatStorage/types.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L171)
-
-Callback when chat completion finishes
+Defined in: [src/lib/db/chat/types.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L94)
 
 #### Parameters
 
@@ -196,7 +178,7 @@ Callback when chat completion finishes
 
 > `optional` **onToolExecution**: (`result`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L76)
+Defined in: [src/react/useChatStorage.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L75)
 
 Callback when tool is executed
 
@@ -216,7 +198,7 @@ Callback when tool is executed
 
 > `optional` **tools**: [`ClientTool`](ClientTool.md)[]
 
-Defined in: [src/react/useChatStorage.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L72)
+Defined in: [src/react/useChatStorage.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L71)
 
 Client-side tools
 
@@ -226,6 +208,6 @@ Client-side tools
 
 > `optional` **toolSelectorModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L74)
+Defined in: [src/react/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L73)
 
 Tool selector model

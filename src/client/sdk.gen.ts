@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses } from './types.gen';
+import type { GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -31,6 +31,18 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Get OpenAPI specification
+ *
+ * Returns the OpenAPI 3.1 specification for this API
+ */
+export const getApiV1DocsSwaggerJson = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DocsSwaggerJsonData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1DocsSwaggerJsonResponses, unknown, ThrowOnError>({
+        url: '/api/v1/docs/swagger.json',
+        ...options
     });
 };
 
@@ -69,7 +81,7 @@ export const postApiV1ImagesGenerations = <ThrowOnError extends boolean = false>
 /**
  * List available models
  *
- * Returns a list of all available models from the configured gateway with optional filters.
+ * Returns a list of all available models from the configured gateway with optional filters. Models include modality information indicating their capabilities (e.g., llm, embedding, vision, image, audio, reasoning, code, reranker, multimodal, video).
  */
 export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ModelsData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({
@@ -86,6 +98,54 @@ export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: O
 export const postApiV1Search = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SearchData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1SearchResponses, PostApiV1SearchErrors, ThrowOnError>({
         url: '/api/v1/search',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Exchange authorization code for tokens
+ *
+ * Exchanges an OAuth authorization code for access and refresh tokens
+ */
+export const postAuthOauthByProviderExchange = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderExchangeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderExchangeErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/exchange',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Refresh access token
+ *
+ * Refreshes an expired access token using a refresh token
+ */
+export const postAuthOauthByProviderRefresh = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRefreshData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRefreshErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/refresh',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Revoke OAuth token
+ *
+ * Revokes an OAuth access or refresh token
+ */
+export const postAuthOauthByProviderRevoke = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRevokeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderRevokeResponses, PostAuthOauthByProviderRevokeErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/revoke',
         ...options,
         headers: {
             'Content-Type': 'application/json',

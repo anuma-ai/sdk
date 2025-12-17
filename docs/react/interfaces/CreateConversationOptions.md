@@ -1,8 +1,6 @@
 # CreateConversationOptions
 
-Defined in: [src/lib/chatStorage/types.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L145)
-
-Options for creating a new conversation
+Defined in: [src/lib/db/chat/types.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L79)
 
 ## Properties
 
@@ -10,9 +8,7 @@ Options for creating a new conversation
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L147)
-
-Custom conversation ID (auto-generated if not provided)
+Defined in: [src/lib/db/chat/types.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L80)
 
 ***
 
@@ -20,6 +16,4 @@ Custom conversation ID (auto-generated if not provided)
 
 > `optional` **title**: `string`
 
-Defined in: [src/lib/chatStorage/types.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/chatStorage/types.ts#L149)
-
-Conversation title
+Defined in: [src/lib/db/chat/types.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L81)

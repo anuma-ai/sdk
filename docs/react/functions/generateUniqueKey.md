@@ -2,9 +2,7 @@
 
 > **generateUniqueKey**(`namespace`, `key`, `value`): `string`
 
-Defined in: [src/lib/memoryStorage/types.ts:275](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryStorage/types.ts#L275)
-
-Generate unique key from namespace, key, and value
+Defined in: [src/lib/db/memory/types.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L105)
 
 ## Parameters
 
