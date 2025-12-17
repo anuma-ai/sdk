@@ -228,23 +228,6 @@ export async function startDropboxAuth(
 }
 
 /**
- * Get stored token data for Dropbox
- * @deprecated Use getDropboxAccessToken instead for automatic refresh
- */
-export function getStoredToken(): string | null {
-  return getValidAccessToken(PROVIDER);
-}
-
-/**
- * Store token data for Dropbox
- * @deprecated Tokens are now managed internally via OAuth flow
- */
-export function storeToken(token: string): void {
-  const tokenData = tokenResponseToStoredData(token);
-  storeTokenData(PROVIDER, tokenData);
-}
-
-/**
  * Clear Dropbox token data
  */
 export function clearToken(): void {
@@ -257,26 +240,4 @@ export function clearToken(): void {
 export function hasDropboxCredentials(): boolean {
   const data = getStoredTokenData(PROVIDER);
   return !!(data?.accessToken || data?.refreshToken);
-}
-
-/**
- * Request Dropbox access - returns existing token or starts OAuth flow
- * @deprecated Use the DropboxAuthProvider with apiClient instead
- */
-export async function requestDropboxAccess(
-  appKey: string,
-  callbackPath: string
-): Promise<string> {
-  if (!appKey) {
-    throw new Error("Dropbox is not configured");
-  }
-
-  // Check for existing valid token
-  const storedToken = getValidAccessToken(PROVIDER);
-  if (storedToken) {
-    return storedToken;
-  }
-
-  // Start OAuth flow (this will redirect and never return)
-  return startDropboxAuth(appKey, callbackPath);
 }

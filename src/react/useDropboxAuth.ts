@@ -13,15 +13,12 @@ import {
 
 import type { Client } from "../client/client";
 import {
-  clearToken,
   getDropboxAccessToken,
-  getStoredToken,
   handleDropboxCallback,
   hasDropboxCredentials,
   isDropboxCallback,
   revokeDropboxToken,
   startDropboxAuth,
-  storeToken,
 } from "../lib/backup/dropbox/auth";
 
 /**
