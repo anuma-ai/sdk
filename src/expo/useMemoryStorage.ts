@@ -4,8 +4,8 @@ import { useCallback, useState, useMemo, useRef } from "react";
 
 import { postApiV1ChatCompletions } from "../client";
 import { BASE_URL } from "../clientConfig";
-import { Memory } from "../lib/memoryStorage/models";
 import {
+  Memory,
   type StoredMemory,
   type StoredMemoryWithSimilarity,
   type CreateMemoryOptions,
@@ -13,8 +13,6 @@ import {
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
   type MemoryItem,
-} from "../lib/memoryStorage/types";
-import {
   type MemoryStorageOperationsContext,
   getAllMemoriesOp,
   getMemoryByIdOp,
@@ -29,7 +27,7 @@ import {
   clearAllMemoriesOp,
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
-} from "../lib/memoryStorage/operations";
+} from "../lib/db/memory";
 import {
   FACT_EXTRACTION_PROMPT,
   preprocessMemories,

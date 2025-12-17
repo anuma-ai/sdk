@@ -2,18 +2,16 @@
 
 import { useCallback, useState, useMemo, useEffect } from "react";
 
-import { ModelPreference } from "../lib/settingsStorage/models";
-import type {
-  StoredModelPreference,
-  BaseUseSettingsOptions,
-  BaseUseSettingsResult,
-} from "../lib/settingsStorage/types";
 import {
+  ModelPreference,
+  type StoredModelPreference,
   type SettingsStorageOperationsContext,
+  type BaseUseSettingsOptions,
+  type BaseUseSettingsResult,
   getModelPreferenceOp,
   setModelPreferenceOp,
   deleteModelPreferenceOp,
-} from "../lib/settingsStorage/operations";
+} from "../lib/db/settings";
 
 /**
  * Options for useSettings hook (React version)

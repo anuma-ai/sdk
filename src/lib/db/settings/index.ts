@@ -1,13 +1,14 @@
 export { settingsStorageSchema } from "./schema";
 export { ModelPreference } from "./models";
-export type {
-  StoredModelPreference,
-  CreateModelPreferenceOptions,
-  UpdateModelPreferenceOptions,
-  BaseUseSettingsOptions,
-  BaseUseSettingsResult,
+export {
+  type StoredModelPreference,
+  type CreateModelPreferenceOptions,
+  type UpdateModelPreferenceOptions,
+  type BaseUseSettingsOptions,
+  type BaseUseSettingsResult,
 } from "./types";
 export {
+  type SettingsStorageOperationsContext,
   modelPreferenceToStored,
   getModelPreferenceOp,
   createModelPreferenceOp,
@@ -15,5 +16,4 @@ export {
   setModelPreferenceOp,
   deleteModelPreferenceOp,
   getAllModelPreferencesOp,
-  type SettingsStorageOperationsContext,
 } from "./operations";

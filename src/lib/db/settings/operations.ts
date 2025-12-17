@@ -8,9 +8,6 @@ import type {
   UpdateModelPreferenceOptions,
 } from "./types";
 
-/**
- * Convert a ModelPreference model to StoredModelPreference
- */
 export function modelPreferenceToStored(
   preference: ModelPreference
 ): StoredModelPreference {
@@ -21,17 +18,11 @@ export function modelPreferenceToStored(
   };
 }
 
-/**
- * Settings storage operations context
- */
 export interface SettingsStorageOperationsContext {
   database: Database;
   modelPreferencesCollection: Collection<ModelPreference>;
 }
 
-/**
- * Get model preference by wallet address
- */
 export async function getModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string
@@ -43,9 +34,6 @@ export async function getModelPreferenceOp(
   return results.length > 0 ? modelPreferenceToStored(results[0]) : null;
 }
 
-/**
- * Create a new model preference
- */
 export async function createModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   opts: CreateModelPreferenceOptions
@@ -60,10 +48,6 @@ export async function createModelPreferenceOp(
   return modelPreferenceToStored(created);
 }
 
-/**
- * Update model preference
- * @returns The updated preference, or null if not found
- */
 export async function updateModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string,
@@ -87,10 +71,6 @@ export async function updateModelPreferenceOp(
   return modelPreferenceToStored(preference);
 }
 
-/**
- * Create or update model preference (atomic upsert)
- * Uses a single write transaction to prevent duplicate records from concurrent calls
- */
 export async function setModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string,
@@ -120,10 +100,6 @@ export async function setModelPreferenceOp(
   return modelPreferenceToStored(result);
 }
 
-/**
- * Delete model preference
- * @returns true if deleted, false if not found
- */
 export async function deleteModelPreferenceOp(
   ctx: SettingsStorageOperationsContext,
   walletAddress: string
@@ -141,9 +117,6 @@ export async function deleteModelPreferenceOp(
   return true;
 }
 
-/**
- * Get all model preferences
- */
 export async function getAllModelPreferencesOp(
   ctx: SettingsStorageOperationsContext
 ): Promise<StoredModelPreference[]> {

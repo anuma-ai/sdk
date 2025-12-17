@@ -20,7 +20,19 @@ export {
   generateConversationId,
 } from "./types";
 export {
-  searchMessagesOp,
+  type StorageOperationsContext,
+  messageToStored,
+  conversationToStored,
+  createConversationOp,
+  getConversationOp,
+  getConversationsOp,
+  updateConversationTitleOp,
+  deleteConversationOp,
+  getMessagesOp,
+  getMessageCountOp,
+  clearMessagesOp,
+  createMessageOp,
   updateMessageEmbeddingOp,
+  searchMessagesOp,
   getMessagesWithEmbeddingsOp,
 } from "./operations";

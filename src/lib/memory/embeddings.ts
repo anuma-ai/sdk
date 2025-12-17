@@ -5,12 +5,12 @@ import {
   DEFAULT_API_EMBEDDING_MODEL,
   DEFAULT_LOCAL_EMBEDDING_MODEL,
 } from "./constants";
-import type { MemoryStorageOperationsContext } from "../memoryStorage/operations";
 import {
+  type MemoryStorageOperationsContext,
   getAllMemoriesOp,
   updateMemoryEmbeddingOp,
-} from "../memoryStorage/operations";
-import type { StoredMemory } from "../memoryStorage/types";
+  type StoredMemory,
+} from "../db/memory";
 
 // Cache the pipeline instance
 let embeddingPipeline: any = null;

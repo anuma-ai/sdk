@@ -1,31 +1,27 @@
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
-import { schemaMigrations, addColumns } from "@nozbe/watermelondb/Schema/migrations";
+import {
+  schemaMigrations,
+  addColumns,
+} from "@nozbe/watermelondb/Schema/migrations";
 
-/**
- * WatermelonDB schema for chat storage
- *
- * Defines two tables:
- * - history: Chat messages with metadata
- * - conversations: Conversation metadata
- */
 export const chatStorageSchema = appSchema({
   version: 2,
   tables: [
     tableSchema({
       name: "history",
       columns: [
-        { name: "message_id", type: "number" }, // Sequential ID within conversation
+        { name: "message_id", type: "number" },
         { name: "conversation_id", type: "string", isIndexed: true },
-        { name: "role", type: "string", isIndexed: true }, // 'user' | 'assistant' | 'system'
+        { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
-        { name: "files", type: "string", isOptional: true }, // JSON stringified FileMetadata[]
+        { name: "files", type: "string", isOptional: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
-        { name: "vector", type: "string", isOptional: true }, // JSON stringified number[]
+        { name: "vector", type: "string", isOptional: true },
         { name: "embedding_model", type: "string", isOptional: true },
-        { name: "usage", type: "string", isOptional: true }, // JSON stringified ChatCompletionUsage
-        { name: "sources", type: "string", isOptional: true }, // JSON stringified SearchSource[]
+        { name: "usage", type: "string", isOptional: true },
+        { name: "sources", type: "string", isOptional: true },
         { name: "response_duration", type: "number", isOptional: true },
         { name: "was_stopped", type: "boolean", isOptional: true },
       ],
@@ -43,9 +39,6 @@ export const chatStorageSchema = appSchema({
   ],
 });
 
-/**
- * Schema migrations
- */
 export const chatStorageMigrations = schemaMigrations({
   migrations: [
     {
@@ -53,9 +46,7 @@ export const chatStorageMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "was_stopped", type: "boolean", isOptional: true },
-          ],
+          columns: [{ name: "was_stopped", type: "boolean", isOptional: true }],
         }),
       ],
     },
