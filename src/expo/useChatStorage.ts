@@ -334,7 +334,9 @@ export function useChatStorage(
         return {
           data: null,
           error:
-            err instanceof Error ? err.message : "Failed to ensure conversation",
+            err instanceof Error
+              ? err.message
+              : "Failed to ensure conversation",
         };
       }
 
@@ -397,9 +399,7 @@ export function useChatStorage(
         return {
           data: null,
           error:
-            err instanceof Error
-              ? err.message
-              : "Failed to store user message",
+            err instanceof Error ? err.message : "Failed to store user message",
         };
       }
 

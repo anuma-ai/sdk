@@ -134,3 +134,25 @@ export {
   executeTool,
   DEFAULT_TOOL_SELECTOR_MODEL,
 } from "../lib/tools/selector";
+
+export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
+export type {
+  UseDropboxBackupOptions,
+  UseDropboxBackupResult,
+} from "./useDropboxBackup";
+export type {
+  DropboxExportResult,
+  DropboxImportResult,
+} from "../lib/backup/dropbox/backup";
+
+export {
+  DropboxAuthProvider,
+  useDropboxAuth,
+  getStoredToken as getDropboxToken,
+  storeToken as storeDropboxToken,
+  clearToken as clearDropboxToken,
+} from "./useDropboxAuth";
+export type {
+  DropboxAuthProviderProps,
+  DropboxAuthContextValue,
+} from "./useDropboxAuth";
