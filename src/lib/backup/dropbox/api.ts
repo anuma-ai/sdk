@@ -148,10 +148,35 @@ export async function listDropboxFiles(
     throw new Error(`Dropbox list failed: ${error.error_summary}`);
   }
 
-  const data: DropboxListFolderResponse = await response.json();
+  let data: DropboxListFolderResponse = await response.json();
+
+  // Accumulate all entries across paginated responses
+  const allEntries: DropboxListFolderResponse['entries'] = [...data.entries];
+
+  // Continue fetching while there are more results
+  while (data.has_more) {
+    const continueResponse = await fetch(`${DROPBOX_API_URL}/files/list_folder/continue`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cursor: data.cursor,
+      }),
+    });
+
+    if (!continueResponse.ok) {
+      const errorText = await continueResponse.text();
+      throw new Error(`Dropbox list continue failed: ${continueResponse.status} - ${errorText}`);
+    }
+
+    data = await continueResponse.json();
+    allEntries.push(...data.entries);
+  }
 
   // Filter to only files (not folders) and map to our interface
-  const files: DropboxFile[] = data.entries
+  const files: DropboxFile[] = allEntries
     .filter(entry => entry['.tag'] === 'file')
     .map(entry => ({
       id: entry.id,
