@@ -2,12 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "./useChat";
 import { client } from "../client/client.gen";
-import type { LlmapiChatCompletionResponse } from "../client";
 import type { ServerSentEventsResult } from "../client/core/serverSentEvents.gen";
 
-type SendMessageResult =
-  | { data: LlmapiChatCompletionResponse; error: null }
-  | { data: null; error: string };
+type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
 
 vi.mock("../client/client.gen", () => ({
   client: {
