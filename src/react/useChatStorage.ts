@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiMessageContentPart } from "../client";
+import type { LlmapiMessage, LlmapiMessageContentPart, LlmapiChatCompletionResponse } from "../client";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import { Message, Conversation } from "../lib/chatStorage/models";
 import {
@@ -502,6 +502,57 @@ export function useChatStorage(
       const responseDuration = (Date.now() - startTime) / 1000;
 
       if (result.error || !result.data) {
+        // If aborted, store the message with wasStopped=true (even without partial data)
+        const abortedResult = result as { data: LlmapiChatCompletionResponse | null; error: string; toolExecution?: ToolExecutionResult };
+
+        if (abortedResult.error === "Request aborted") {
+          // Extract content if we have partial data, otherwise empty string
+          const assistantContent = abortedResult.data?.choices?.[0]?.message?.content
+            ?.map((part: { text?: string }) => part.text || "")
+            .join("") || "";
+
+          const responseModel = abortedResult.data?.model || model || "";
+
+          // Store the assistant message as stopped
+          let storedAssistantMessage: StoredMessage;
+          try {
+            storedAssistantMessage = await createMessageOp(storageCtx, {
+              conversationId: convId,
+              role: "assistant",
+              content: assistantContent,
+              model: responseModel,
+              usage: convertUsageToStored(abortedResult.data?.usage),
+              responseDuration,
+              wasStopped: true,
+            });
+
+            // Build a valid completion response for the return (even if original was null)
+            const completionData: LlmapiChatCompletionResponse = abortedResult.data || {
+              id: `aborted-${Date.now()}`,
+              model: responseModel,
+              choices: [{
+                index: 0,
+                message: {
+                  role: "assistant" as const,
+                  content: [{ type: "text" as const, text: assistantContent }],
+                },
+                finish_reason: "stop" as const,
+              }],
+              usage: undefined,
+            };
+            
+            return {
+              data: completionData,
+              error: null, // Treat as success to the caller
+              toolExecution: abortedResult.toolExecution,
+              userMessage: storedUserMessage,
+              assistantMessage: storedAssistantMessage,
+            };
+          } catch (err) {
+             // Fall through to error return if storage failed
+          }
+        }
+
         return {
           data: null,
           error: result.error || "No response data received",

@@ -80,6 +80,7 @@ export type {
 } from "./useChatStorage";
 export {
   chatStorageSchema,
+  chatStorageMigrations,
   Message as ChatMessage,
   Conversation as ChatConversation,
   type ChatRole,

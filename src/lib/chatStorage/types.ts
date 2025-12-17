@@ -85,6 +85,8 @@ export interface StoredMessage {
   sources?: SearchSource[];
   /** Response time in seconds */
   responseDuration?: number;
+  /** Whether the message generation was stopped by the user */
+  wasStopped?: boolean;
 }
 
 /**
@@ -137,6 +139,8 @@ export interface CreateMessageOptions {
   vector?: number[];
   /** Model used to generate the embedding */
   embeddingModel?: string;
+  /** Whether the message generation was stopped by the user */
+  wasStopped?: boolean;
 }
 
 /**

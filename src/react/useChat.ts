@@ -55,7 +55,11 @@ type SendMessageResult =
       error: null;
       toolExecution?: ToolExecutionResult;
     }
-  | { data: null; error: string; toolExecution?: ToolExecutionResult };
+  | { 
+      data: LlmapiChatCompletionResponse | null; 
+      error: string; 
+      toolExecution?: ToolExecutionResult 
+    };
 
 type UseChatOptions = BaseUseChatOptions & {
   /**
@@ -477,23 +481,49 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           const accumulator = createStreamAccumulator();
 
-          for await (const chunk of sseResult.stream) {
-            // Skip [DONE] marker
-            if (isDoneMarker(chunk)) {
-              continue;
-            }
+          try {
+            for await (const chunk of sseResult.stream) {
+              // Skip [DONE] marker
+              if (isDoneMarker(chunk)) {
+                continue;
+              }
 
-            // Handle chunk data
-            if (chunk && typeof chunk === "object") {
-              const contentDelta = processStreamingChunk(
-                chunk as StreamingChunk,
-                accumulator
-              );
-              if (contentDelta) {
-                if (onData) onData(contentDelta);
-                if (globalOnData) globalOnData(contentDelta);
+              // Handle chunk data
+              if (chunk && typeof chunk === "object") {
+                const contentDelta = processStreamingChunk(
+                  chunk as StreamingChunk,
+                  accumulator
+                );
+                if (contentDelta) {
+                  if (onData) onData(contentDelta);
+                  if (globalOnData) globalOnData(contentDelta);
+                }
               }
             }
+          } catch (streamErr) {
+            // Check if this was an abort during streaming
+            if (isAbortError(streamErr) || abortController.signal.aborted) {
+              setIsLoading(false);
+              // Return partial data so far
+              const partialCompletion = buildCompletionResponse(accumulator);
+              return {
+                data: partialCompletion,
+                error: "Request aborted",
+                toolExecution: toolExecutionResult,
+              };
+            }
+            throw streamErr;
+          }
+
+          // Check if abort happened during streaming but loop completed before throw
+          if (abortController.signal.aborted) {
+            setIsLoading(false);
+            const partialCompletion = buildCompletionResponse(accumulator);
+            return {
+              data: partialCompletion,
+              error: "Request aborted",
+              toolExecution: toolExecutionResult,
+            };
           }
 
           // Check if SSE encountered an error
