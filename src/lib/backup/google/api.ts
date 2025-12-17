@@ -9,6 +9,14 @@ const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
 
+/**
+ * Escape single quotes for Google Drive API query strings
+ * Single quotes must be doubled to prevent query injection
+ */
+function escapeQueryValue(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 /** Default root folder name for backups */
 export const DEFAULT_ROOT_FOLDER = 'ai-chat-app';
 /** Default subfolder for conversation backups */
@@ -30,8 +38,8 @@ export async function ensureFolder(
   name: string,
   parentId?: string
 ): Promise<string> {
-  const parentQuery = parentId ? `'${parentId}' in parents and ` : '';
-  const query = `${parentQuery}mimeType='${FOLDER_MIME_TYPE}' and name='${name}' and trashed=false`;
+  const parentQuery = parentId ? `'${escapeQueryValue(parentId)}' in parents and ` : '';
+  const query = `${parentQuery}mimeType='${FOLDER_MIME_TYPE}' and name='${escapeQueryValue(name)}' and trashed=false`;
 
   const response = await fetch(
     `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=files(id)`,
@@ -153,7 +161,7 @@ export async function listDriveFiles(
   accessToken: string,
   folderId: string
 ): Promise<DriveFile[]> {
-  const query = `'${folderId}' in parents and mimeType='application/json' and trashed=false`;
+  const query = `'${escapeQueryValue(folderId)}' in parents and mimeType='application/json' and trashed=false`;
   const fields = 'files(id,name,createdTime,modifiedTime,size)';
 
   const response = await fetch(
@@ -194,7 +202,7 @@ export async function findDriveFile(
   folderId: string,
   filename: string
 ): Promise<DriveFile | null> {
-  const query = `'${folderId}' in parents and name='${filename}' and trashed=false`;
+  const query = `'${escapeQueryValue(folderId)}' in parents and name='${escapeQueryValue(filename)}' and trashed=false`;
   const fields = 'files(id,name,createdTime,modifiedTime,size)';
 
   const response = await fetch(
