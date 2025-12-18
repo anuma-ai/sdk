@@ -104,6 +104,8 @@ export interface BaseSendMessageWithStorageArgs {
   files?: FileMetadata[];
   onData?: (chunk: string) => void;
   memoryContext?: string;
+  searchContext?: string;
+  sources?: SearchSource[];
 }
 
 export interface BaseSendMessageSuccessResult {
