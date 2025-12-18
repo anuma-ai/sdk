@@ -47,6 +47,11 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * This is typically formatted memories from useMemoryStorage.
    */
   memoryContext?: string;
+  /**
+   * Search context to inject as a system message.
+   * This is typically formatted search results from useSearch.
+   */
+  searchContext?: string;
 };
 
 type SendMessageResult =
@@ -55,10 +60,10 @@ type SendMessageResult =
       error: null;
       toolExecution?: ToolExecutionResult;
     }
-  | { 
-      data: LlmapiChatCompletionResponse | null; 
-      error: string; 
-      toolExecution?: ToolExecutionResult 
+  | {
+      data: LlmapiChatCompletionResponse | null;
+      error: string;
+      toolExecution?: ToolExecutionResult;
     };
 
 type UseChatOptions = BaseUseChatOptions & {
@@ -219,6 +224,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       runTools = true,
       headers,
       memoryContext,
+      searchContext,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -252,6 +258,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           ],
         };
         messagesWithContext = [memorySystemMessage, ...messages];
+      }
+
+      if (searchContext) {
+        const searchSystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: "Here are the search results for the user's query. Use this information to respond to the user's request:",
+            },
+            {
+              type: "text",
+              text: searchContext,
+            },
+          ],
+        };
+        messagesWithContext = [searchSystemMessage, ...messagesWithContext];
       }
 
       let messagesWithToolContext = messagesWithContext;

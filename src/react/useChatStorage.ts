@@ -3,7 +3,11 @@
 import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiMessageContentPart, LlmapiChatCompletionResponse } from "../client";
+import type {
+  LlmapiMessage,
+  LlmapiMessageContentPart,
+  LlmapiChatCompletionResponse,
+} from "../client";
 import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import {
   Message,
@@ -406,6 +410,8 @@ export function useChatStorage(
         runTools,
         headers,
         memoryContext,
+        searchContext,
+        sources,
       } = args;
 
       // Ensure we have a conversation
@@ -416,7 +422,9 @@ export function useChatStorage(
         return {
           data: null,
           error:
-            err instanceof Error ? err.message : "Failed to ensure conversation",
+            err instanceof Error
+              ? err.message
+              : "Failed to ensure conversation",
         };
       }
 
@@ -479,9 +487,7 @@ export function useChatStorage(
         return {
           data: null,
           error:
-            err instanceof Error
-              ? err.message
-              : "Failed to store user message",
+            err instanceof Error ? err.message : "Failed to store user message",
         };
       }
 
@@ -496,19 +502,25 @@ export function useChatStorage(
         runTools,
         headers,
         memoryContext,
+        searchContext,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
-        const abortedResult = result as { data: LlmapiChatCompletionResponse | null; error: string; toolExecution?: ToolExecutionResult };
+        const abortedResult = result as {
+          data: LlmapiChatCompletionResponse | null;
+          error: string;
+          toolExecution?: ToolExecutionResult;
+        };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
-          const assistantContent = abortedResult.data?.choices?.[0]?.message?.content
-            ?.map((part: { text?: string }) => part.text || "")
-            .join("") || "";
+          const assistantContent =
+            abortedResult.data?.choices?.[0]?.message?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || "";
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -523,23 +535,29 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
+              sources,
             });
 
             // Build a valid completion response for the return (even if original was null)
-            const completionData: LlmapiChatCompletionResponse = abortedResult.data || {
-              id: `aborted-${Date.now()}`,
-              model: responseModel,
-              choices: [{
-                index: 0,
-                message: {
-                  role: "assistant" as const,
-                  content: [{ type: "text" as const, text: assistantContent }],
-                },
-                finish_reason: "stop" as const,
-              }],
-              usage: undefined,
-            };
-            
+            const completionData: LlmapiChatCompletionResponse =
+              abortedResult.data || {
+                id: `aborted-${Date.now()}`,
+                model: responseModel,
+                choices: [
+                  {
+                    index: 0,
+                    message: {
+                      role: "assistant" as const,
+                      content: [
+                        { type: "text" as const, text: assistantContent },
+                      ],
+                    },
+                    finish_reason: "stop" as const,
+                  },
+                ],
+                usage: undefined,
+              };
+
             return {
               data: completionData,
               error: null, // Treat as success to the caller
@@ -548,7 +566,7 @@ export function useChatStorage(
               assistantMessage: storedAssistantMessage,
             };
           } catch (err) {
-             // Fall through to error return if storage failed
+            // Fall through to error return if storage failed
           }
         }
 
@@ -624,7 +642,12 @@ export function useChatStorage(
       vector: number[],
       embeddingModel: string
     ): Promise<StoredMessage | null> => {
-      return updateMessageEmbeddingOp(storageCtx, uniqueId, vector, embeddingModel);
+      return updateMessageEmbeddingOp(
+        storageCtx,
+        uniqueId,
+        vector,
+        embeddingModel
+      );
     },
     [storageCtx]
   );
