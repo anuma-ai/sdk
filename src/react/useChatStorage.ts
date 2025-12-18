@@ -595,6 +595,7 @@ export function useChatStorage(
           model: responseData.model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
+          sources,
         });
       } catch (err) {
         return {
