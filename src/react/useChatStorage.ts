@@ -593,7 +593,7 @@ export function useChatStorage(
           conversationId: convId,
           role: "assistant",
           content: assistantContent,
-          model: responseData.model,
+          model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources,
