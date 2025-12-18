@@ -78,8 +78,19 @@ export type {
   SendMessageWithStorageResult,
   SearchMessagesOptions,
 } from "./useChatStorage";
+
+// Consolidated SDK schema exports (recommended)
 export {
+  sdkSchema,
+  sdkMigrations,
+  sdkModelClasses,
+} from "../lib/db/schema";
+
+// Individual schema exports (deprecated - use sdkSchema instead)
+export {
+  /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
+  /** @deprecated Use sdkMigrations instead */
   chatStorageMigrations,
   Message as ChatMessage,
   Conversation as ChatConversation,
@@ -100,6 +111,7 @@ export type {
   UseMemoryStorageResult,
 } from "./useMemoryStorage";
 export {
+  /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,
   Memory as StoredMemoryModel,
   type MemoryType,
@@ -114,6 +126,7 @@ export {
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {
+  /** @deprecated Use sdkSchema instead */
   settingsStorageSchema,
   ModelPreference as StoredModelPreferenceModel,
   type StoredModelPreference,

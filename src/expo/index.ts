@@ -65,9 +65,18 @@ export type {
   UseMemoryStorageResult,
 } from "./useMemoryStorage";
 
+// Consolidated SDK schema exports (recommended)
+export {
+  sdkSchema,
+  sdkMigrations,
+  sdkModelClasses,
+} from "../lib/db/schema";
+
 // Re-export chat storage schema and types for database setup
 export {
+  /** @deprecated Use sdkSchema instead */
   chatStorageSchema,
+  /** @deprecated Use sdkMigrations instead */
   chatStorageMigrations,
   Message as ChatMessage,
   Conversation as ChatConversation,
@@ -85,6 +94,7 @@ export {
 
 // Re-export memory storage schema and types for database setup
 export {
+  /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,
   Memory as StoredMemoryModel,
   type MemoryType,
