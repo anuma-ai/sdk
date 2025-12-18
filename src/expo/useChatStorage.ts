@@ -393,6 +393,7 @@ export function useChatStorage(
           role: "user",
           content,
           files: sanitizedFiles,
+          model,
         });
       } catch (err) {
         return {
