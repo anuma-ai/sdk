@@ -14,8 +14,7 @@ import { ModelPreference } from "./settings/models";
  * Current combined schema version for all SDK storage modules.
  *
  * Version history:
- * - v1: Initial schema (chat + memory tables)
- * - v2: No changes (placeholder for arithmetic compatibility)
+ * - v2: Baseline (chat + memory tables) - minimum supported version for migrations
  * - v3: Added was_stopped column to history table
  * - v4: Added modelPreferences table for settings storage
  */
@@ -120,6 +119,9 @@ export const sdkSchema = appSchema({
  * These migrations handle database schema upgrades from any previous version
  * to the current version. The SDK manages all migration logic internally,
  * so consumer apps don't need to handle version arithmetic or migration merging.
+ *
+ * **Minimum supported version: v2**
+ * Migrations from v1 are not supported. Databases at v1 require a fresh install.
  *
  * Migration history:
  * - v2 → v3: Added `was_stopped` column to history table
