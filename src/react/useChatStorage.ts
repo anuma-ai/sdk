@@ -20,6 +20,7 @@ import {
   type BaseSendMessageWithStorageArgs,
   type BaseUseChatStorageResult,
   type FileMetadata,
+  type SearchSource,
   convertUsageToStored,
   type StorageOperationsContext,
   createConversationOp,
@@ -149,6 +150,10 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     vector: number[],
     embeddingModel: string
   ) => Promise<StoredMessage | null>;
+  /** Extract all links from assistant message content as SearchSource objects */
+  extractSourcesFromAssistantMessage: (
+    assistantMessage: StoredMessage
+  ) => SearchSource[];
 }
 
 /**
@@ -394,6 +399,79 @@ export function useChatStorage(
   ]);
 
   /**
+   * Extracts all links from assistant message content and returns them as SearchSource objects.
+   * Parses both markdown links [text](url) and plain URLs from the message content,
+   * then merges them with any existing sources already attached to the message.
+   */
+  const extractSourcesFromAssistantMessage = useCallback(
+    (assistantMessage: StoredMessage): SearchSource[] => {
+      const extractedSources: SearchSource[] = [];
+      const seenUrls = new Set<string>();
+
+      // Add existing sources first (they have priority)
+      if (assistantMessage.sources) {
+        for (const source of assistantMessage.sources) {
+          if (source.url) {
+            seenUrls.add(source.url);
+          }
+          extractedSources.push(source);
+        }
+      }
+
+      const content = assistantMessage.content;
+      if (!content) {
+        return extractedSources;
+      }
+
+      // Regex to match markdown links: [title](url)
+      const markdownLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+
+      // Regex to match plain URLs (http, https)
+      const plainUrlRegex =
+        /(?<![(\[])https?:\/\/[^\s<>\[\]()'"]+(?<![.,;:!?])/g;
+
+      // Extract markdown links
+      let match: RegExpExecArray | null;
+      while ((match = markdownLinkRegex.exec(content)) !== null) {
+        const title = match[1].trim();
+        const url = match[2].trim();
+
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
+          extractedSources.push({
+            title: title || undefined,
+            url: url,
+          });
+        }
+      }
+
+      // Extract plain URLs (not already captured in markdown links)
+      while ((match = plainUrlRegex.exec(content)) !== null) {
+        const url = match[0].trim();
+
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
+          // Try to extract a title from the URL domain
+          try {
+            const urlObj = new URL(url);
+            extractedSources.push({
+              title: urlObj.hostname,
+              url: url,
+            });
+          } catch {
+            extractedSources.push({
+              url: url,
+            });
+          }
+        }
+      }
+
+      return extractedSources;
+    },
+    []
+  );
+
+  /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
@@ -617,6 +695,32 @@ export function useChatStorage(
           ?.map((part) => part.text || "")
           .join("") || "";
 
+      // Combine passed sources with extracted sources from content, deduplicating by URL
+      const seenUrls = new Set<string>();
+      const combinedSources: SearchSource[] = [];
+
+      // Add passed sources first (they have priority)
+      if (sources) {
+        for (const source of sources) {
+          if (source.url) {
+            seenUrls.add(source.url);
+          }
+          combinedSources.push(source);
+        }
+      }
+
+      // Extract and add sources from assistant content
+      const extractedSources = extractSourcesFromAssistantMessage({
+        content: assistantContent,
+      } as StoredMessage);
+
+      for (const source of extractedSources) {
+        if (source.url && !seenUrls.has(source.url)) {
+          seenUrls.add(source.url);
+          combinedSources.push(source);
+        }
+      }
+
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
@@ -627,7 +731,7 @@ export function useChatStorage(
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
-          sources,
+          sources: combinedSources.length > 0 ? combinedSources : undefined,
         });
       } catch (err) {
         return {
@@ -702,5 +806,6 @@ export function useChatStorage(
     clearMessages,
     searchMessages,
     updateMessageEmbedding,
+    extractSourcesFromAssistantMessage,
   };
 }
