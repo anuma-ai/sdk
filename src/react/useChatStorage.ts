@@ -568,8 +568,16 @@ export function useChatStorage(
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
             };
-          } catch (err) {
-            // Fall through to error return if storage failed
+          } catch {
+            // Storage failed for abort - don't set error field on stored messages
+            // so they won't be filtered from history. Aborts are intentional, not failures.
+            // The return value's `error` informs the caller, but StoredMessage.error stays unset.
+            return {
+              data: null,
+              error: "Request aborted",
+              toolExecution: abortedResult.toolExecution,
+              userMessage: storedUserMessage,
+            };
           }
         }
 
