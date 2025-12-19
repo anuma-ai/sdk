@@ -1,6 +1,6 @@
 # DropboxAuthContextValue
 
-Defined in: [src/react/useDropboxAuth.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L37)
+Defined in: [src/react/useDropboxAuth.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L44)
 
 Context value for Dropbox authentication
 
@@ -10,7 +10,7 @@ Context value for Dropbox authentication
 
 > **accessToken**: `string` \| `null`
 
-Defined in: [src/react/useDropboxAuth.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L39)
+Defined in: [src/react/useDropboxAuth.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L46)
 
 Current access token (null if not authenticated)
 
@@ -20,7 +20,7 @@ Current access token (null if not authenticated)
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useDropboxAuth.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L41)
+Defined in: [src/react/useDropboxAuth.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L48)
 
 Whether user has authenticated with Dropbox
 
@@ -30,7 +30,7 @@ Whether user has authenticated with Dropbox
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useDropboxAuth.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L43)
+Defined in: [src/react/useDropboxAuth.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L50)
 
 Whether Dropbox is configured (app key exists)
 
@@ -38,15 +38,29 @@ Whether Dropbox is configured (app key exists)
 
 ### logout()
 
-> **logout**: () => `void`
+> **logout**: () => `Promise`\<`void`\>
 
-Defined in: [src/react/useDropboxAuth.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L47)
+Defined in: [src/react/useDropboxAuth.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L54)
 
 Clear stored token and log out
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
+
+***
+
+### refreshToken()
+
+> **refreshToken**: () => `Promise`\<`string` \| `null`\>
+
+Defined in: [src/react/useDropboxAuth.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L56)
+
+Refresh the access token using the refresh token
+
+#### Returns
+
+`Promise`\<`string` \| `null`\>
 
 ***
 
@@ -54,7 +68,7 @@ Clear stored token and log out
 
 > **requestAccess**: () => `Promise`\<`string`\>
 
-Defined in: [src/react/useDropboxAuth.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L45)
+Defined in: [src/react/useDropboxAuth.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L52)
 
 Request Dropbox access - returns token or redirects to OAuth
 

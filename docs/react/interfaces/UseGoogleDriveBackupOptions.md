@@ -1,26 +1,16 @@
 # UseGoogleDriveBackupOptions
 
-Defined in: [src/react/useGoogleDriveBackup.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L20)
+Defined in: [src/react/useGoogleDriveBackup.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L21)
 
 Options for useGoogleDriveBackup hook
 
 ## Properties
 
-### accessToken
-
-> **accessToken**: `string` \| `null`
-
-Defined in: [src/react/useGoogleDriveBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L26)
-
-Current Google Drive access token (null if not authenticated)
-
-***
-
 ### conversationsFolder?
 
 > `optional` **conversationsFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L44)
+Defined in: [src/react/useGoogleDriveBackup.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L41)
 
 Subfolder for conversations (default: 'conversations')
 
@@ -30,7 +20,7 @@ Subfolder for conversations (default: 'conversations')
 
 > **database**: `Database`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L22)
+Defined in: [src/react/useGoogleDriveBackup.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L23)
 
 WatermelonDB database instance
 
@@ -40,7 +30,7 @@ WatermelonDB database instance
 
 > **exportConversation**: (`conversationId`, `userAddress`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L32)
+Defined in: [src/react/useGoogleDriveBackup.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L29)
 
 Export a conversation to an encrypted blob
 
@@ -64,7 +54,7 @@ Export a conversation to an encrypted blob
 
 > **importConversation**: (`blob`, `userAddress`) => `Promise`\<\{ `success`: `boolean`; \}\>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L37)
+Defined in: [src/react/useGoogleDriveBackup.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L34)
 
 Import a conversation from an encrypted blob
 
@@ -84,25 +74,11 @@ Import a conversation from an encrypted blob
 
 ***
 
-### requestDriveAccess()
-
-> **requestDriveAccess**: () => `Promise`\<`string`\>
-
-Defined in: [src/react/useGoogleDriveBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L28)
-
-Request Google Drive access - returns access token
-
-#### Returns
-
-`Promise`\<`string`\>
-
-***
-
 ### requestEncryptionKey()
 
 > **requestEncryptionKey**: (`address`) => `Promise`\<`void`\>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L30)
+Defined in: [src/react/useGoogleDriveBackup.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L27)
 
 Request encryption key for the user address
 
@@ -122,7 +98,7 @@ Request encryption key for the user address
 
 > `optional` **rootFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L42)
+Defined in: [src/react/useGoogleDriveBackup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L39)
 
 Root folder name in Google Drive (default: 'ai-chat-app')
 
@@ -132,6 +108,6 @@ Root folder name in Google Drive (default: 'ai-chat-app')
 
 > **userAddress**: `string` \| `null`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L24)
+Defined in: [src/react/useGoogleDriveBackup.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L25)
 
 Current user address (null if not signed in)

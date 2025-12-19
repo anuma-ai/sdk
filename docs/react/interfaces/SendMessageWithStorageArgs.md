@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
+Defined in: [src/react/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L87)
 
 Arguments for sendMessage with storage (React version)
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [src/react/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L88)
+Defined in: [src/react/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L92)
 
 Custom headers
 
@@ -132,6 +132,30 @@ Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **runTools**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L86)
+Defined in: [src/react/useChatStorage.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L90)
 
 Whether to run tool selection
+
+***
+
+### searchContext?
+
+> `optional` **searchContext**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L107)
+
+#### Inherited from
+
+`BaseSendMessageWithStorageArgs.searchContext`
+
+***
+
+### sources?
+
+> `optional` **sources**: [`SearchSource`](SearchSource.md)[]
+
+Defined in: [src/lib/db/chat/types.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L108)
+
+#### Inherited from
+
+`BaseSendMessageWithStorageArgs.sources`

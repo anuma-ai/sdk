@@ -2,7 +2,7 @@
 
 > **postApiV1Search**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1SearchResponses`](../type-aliases/PostApiV1SearchResponses.md), [`PostApiV1SearchErrors`](../type-aliases/PostApiV1SearchErrors.md), `ThrowOnError`\>
 
-Defined in: [src/client/sdk.gen.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L98)
+Defined in: [src/client/sdk.gen.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L114)
 
 Create search
 

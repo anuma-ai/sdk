@@ -59,15 +59,20 @@ function ChatComponent() {
 
 ## Components
 
+- [BackupAuthProvider](functions/BackupAuthProvider.md)
 - [DropboxAuthProvider](functions/DropboxAuthProvider.md)
+- [GoogleDriveAuthProvider](functions/GoogleDriveAuthProvider.md)
 
 ## Hooks
 
+- [useBackup](functions/useBackup.md)
+- [useBackupAuth](functions/useBackupAuth.md)
 - [useChat](functions/useChat.md)
 - [useChatStorage](functions/useChatStorage.md)
 - [useDropboxAuth](functions/useDropboxAuth.md)
 - [useDropboxBackup](functions/useDropboxBackup.md)
 - [useEncryption](functions/useEncryption.md)
+- [useGoogleDriveAuth](functions/useGoogleDriveAuth.md)
 - [useGoogleDriveBackup](functions/useGoogleDriveBackup.md)
 - [useImageGeneration](functions/useImageGeneration.md)
 - [useMemoryStorage](functions/useMemoryStorage.md)
@@ -79,75 +84,18 @@ function ChatComponent() {
 
 ## Other
 
-- [ChatConversation](classes/ChatConversation.md)
-- [ChatMessage](classes/ChatMessage.md)
-- [StoredMemoryModel](classes/StoredMemoryModel.md)
-- [StoredModelPreferenceModel](classes/StoredModelPreferenceModel.md)
-- [ClientTool](interfaces/ClientTool.md)
-- [CreateConversationOptions](interfaces/CreateConversationOptions.md)
-- [CreateMemoryOptions](interfaces/CreateMemoryOptions.md)
-- [CreateMessageOptions](interfaces/CreateMessageOptions.md)
-- [CreateModelPreferenceOptions](interfaces/CreateModelPreferenceOptions.md)
-- [DropboxAuthContextValue](interfaces/DropboxAuthContextValue.md)
-- [DropboxAuthProviderProps](interfaces/DropboxAuthProviderProps.md)
-- [DropboxExportResult](interfaces/DropboxExportResult.md)
-- [DropboxImportResult](interfaces/DropboxImportResult.md)
-- [FileMetadata](interfaces/FileMetadata.md)
-- [GoogleDriveExportResult](interfaces/GoogleDriveExportResult.md)
-- [GoogleDriveImportResult](interfaces/GoogleDriveImportResult.md)
-- [MemoryItem](interfaces/MemoryItem.md)
-- [OCRFile](interfaces/OCRFile.md)
-- [PdfFile](interfaces/PdfFile.md)
-- [SearchMessagesOptions](interfaces/SearchMessagesOptions.md)
-- [SearchSource](interfaces/SearchSource.md)
-- [SendMessageWithStorageArgs](interfaces/SendMessageWithStorageArgs.md)
-- [StoredChatCompletionUsage](interfaces/StoredChatCompletionUsage.md)
-- [StoredConversation](interfaces/StoredConversation.md)
-- [StoredMemory](interfaces/StoredMemory.md)
-- [StoredMemoryWithSimilarity](interfaces/StoredMemoryWithSimilarity.md)
-- [StoredMessage](interfaces/StoredMessage.md)
-- [StoredMessageWithSimilarity](interfaces/StoredMessageWithSimilarity.md)
-- [StoredModelPreference](interfaces/StoredModelPreference.md)
-- [ToolExecutionResult](interfaces/ToolExecutionResult.md)
-- [ToolParameter](interfaces/ToolParameter.md)
-- [ToolSelectionResult](interfaces/ToolSelectionResult.md)
-- [UpdateModelPreferenceOptions](interfaces/UpdateModelPreferenceOptions.md)
-- [UseChatStorageOptions](interfaces/UseChatStorageOptions.md)
-- [UseChatStorageResult](interfaces/UseChatStorageResult.md)
-- [UseDropboxBackupOptions](interfaces/UseDropboxBackupOptions.md)
-- [UseDropboxBackupResult](interfaces/UseDropboxBackupResult.md)
-- [UseGoogleDriveBackupOptions](interfaces/UseGoogleDriveBackupOptions.md)
-- [UseGoogleDriveBackupResult](interfaces/UseGoogleDriveBackupResult.md)
-- [UseSettingsOptions](interfaces/UseSettingsOptions.md)
-- [UseSettingsResult](interfaces/UseSettingsResult.md)
-- [ChatRole](type-aliases/ChatRole.md)
-- [MemoryType](type-aliases/MemoryType.md)
-- [SendMessageWithStorageResult](type-aliases/SendMessageWithStorageResult.md)
-- [SignMessageFn](type-aliases/SignMessageFn.md)
-- [UpdateMemoryOptions](type-aliases/UpdateMemoryOptions.md)
-- [UseMemoryStorageOptions](type-aliases/UseMemoryStorageOptions.md)
-- [UseMemoryStorageResult](type-aliases/UseMemoryStorageResult.md)
-- [chatStorageMigrations](variables/chatStorageMigrations.md)
-- [chatStorageSchema](variables/chatStorageSchema.md)
-- [DEFAULT\_BACKUP\_FOLDER](variables/DEFAULT_BACKUP_FOLDER.md)
-- [DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER](variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
-- [DEFAULT\_DRIVE\_ROOT\_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
-- [DEFAULT\_TOOL\_SELECTOR\_MODEL](variables/DEFAULT_TOOL_SELECTOR_MODEL.md)
-- [memoryStorageSchema](variables/memoryStorageSchema.md)
-- [settingsStorageSchema](variables/settingsStorageSchema.md)
-- [clearDropboxToken](functions/clearDropboxToken.md)
-- [createMemoryContextSystemMessage](functions/createMemoryContextSystemMessage.md)
-- [decryptData](functions/decryptData.md)
-- [decryptDataBytes](functions/decryptDataBytes.md)
-- [encryptData](functions/encryptData.md)
-- [executeTool](functions/executeTool.md)
-- [extractConversationContext](functions/extractConversationContext.md)
-- [formatMemoriesForChat](functions/formatMemoriesForChat.md)
-- [generateCompositeKey](functions/generateCompositeKey.md)
-- [generateConversationId](functions/generateConversationId.md)
-- [generateUniqueKey](functions/generateUniqueKey.md)
-- [getDropboxToken](functions/getDropboxToken.md)
-- [hasEncryptionKey](functions/hasEncryptionKey.md)
-- [requestEncryptionKey](functions/requestEncryptionKey.md)
-- [selectTool](functions/selectTool.md)
-- [storeDropboxToken](functions/storeDropboxToken.md)
+### BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER
+
+Renames and re-exports [DEFAULT_DRIVE_CONVERSATIONS_FOLDER](variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
+
+***
+
+### BACKUP\_DRIVE\_ROOT\_FOLDER
+
+Renames and re-exports [DEFAULT_DRIVE_ROOT_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
+
+***
+
+### DEFAULT\_DROPBOX\_FOLDER
+
+Renames and re-exports [DEFAULT_BACKUP_FOLDER](variables/DEFAULT_BACKUP_FOLDER.md)

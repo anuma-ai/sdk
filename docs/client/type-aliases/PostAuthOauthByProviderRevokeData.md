@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRevokeData** = `object`
 
-Defined in: [src/client/types.gen.ts:859](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L859)
+Defined in: [src/client/types.gen.ts:1107](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1107)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:859](https://github.com/zeta-chain/ai-sdk/b
 
 > **body**: [`HandlersRevokeRequest`](HandlersRevokeRequest.md)
 
-Defined in: [src/client/types.gen.ts:863](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L863)
+Defined in: [src/client/types.gen.ts:1111](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1111)
 
 Revoke request
 
@@ -20,13 +20,13 @@ Revoke request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:864](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L864)
+Defined in: [src/client/types.gen.ts:1112](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1112)
 
 #### provider
 
 > **provider**: `string`
 
-OAuth provider (google-drive)
+OAuth provider (google-drive, dropbox)
 
 ***
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:870](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L870)
+Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1118)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:870](https://github.com/zeta-chain/ai-sdk/b
 
 > **url**: `"/auth/oauth/{provider}/revoke"`
 
-Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
+Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1119)
