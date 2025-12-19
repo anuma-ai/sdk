@@ -180,7 +180,7 @@ export function useChatStorage(
    * Create a new conversation
    */
   const createConversation = useCallback(
-    async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
+    async (opts: CreateConversationOptions): Promise<StoredConversation> => {
       const created = await createConversationOp(storageCtx, opts);
       return created;
     },
@@ -268,11 +268,9 @@ export function useChatStorage(
         throw new Error("No conversation ID provided");
       }
 
-      if (conversationId) {
-        const existing = await getConversation(conversationId);
-        if (existing) {
-          return conversationId;
-        }
+      const existing = await getConversation(conversationId);
+      if (existing) {
+        return conversationId;
       }
 
       const newConv = await createConversation({
@@ -281,7 +279,7 @@ export function useChatStorage(
       });
       return newConv.conversationId;
     },
-    [getConversation, createConversation]
+    [getConversation, createConversation, defaultConversationTitle]
   );
 
   /**

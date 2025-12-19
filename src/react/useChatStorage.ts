@@ -363,7 +363,7 @@ export function useChatStorage(
 
       throw new Error("No conversation ID provided");
     },
-    [getConversation, createConversation]
+    [getConversation, createConversation, defaultConversationTitle]
   );
 
   /**
