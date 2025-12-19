@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L65)
+Defined in: [src/react/useChatStorage.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L69)
 
 Options for useChatStorage hook (React version)
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:92](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **chatProvider**: `"local"` \| `"api"`
 
-Defined in: [src/react/useChatStorage.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L67)
+Defined in: [src/react/useChatStorage.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L71)
 
 Chat provider: "api" or "local"
 
@@ -102,7 +102,7 @@ Defined in: [src/lib/db/chat/types.ts:91](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **localModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L69)
+Defined in: [src/react/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L73)
 
 Model for local chat
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/db/chat/types.ts:94](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **onToolExecution**: (`result`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L75)
+Defined in: [src/react/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L79)
 
 Callback when tool is executed
 
@@ -198,7 +198,7 @@ Callback when tool is executed
 
 > `optional` **tools**: [`ClientTool`](ClientTool.md)[]
 
-Defined in: [src/react/useChatStorage.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L71)
+Defined in: [src/react/useChatStorage.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L75)
 
 Client-side tools
 
@@ -208,6 +208,6 @@ Client-side tools
 
 > `optional` **toolSelectorModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L73)
+Defined in: [src/react/useChatStorage.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L77)
 
 Tool selector model
