@@ -25,6 +25,7 @@ import {
   getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
+  updateMessageErrorOp,
 } from "../lib/db/chat";
 
 /**
@@ -345,8 +346,9 @@ export function useChatStorage(
       // Include history if requested
       if (includeHistory && !providedMessages) {
         const storedMessages = await getMessages(convId);
-        // Limit history to most recent messages to avoid unbounded growth
-        const limitedMessages = storedMessages.slice(-maxHistoryMessages);
+        // Filter out errored messages and limit history to most recent messages
+        const validMessages = storedMessages.filter((msg) => !msg.error);
+        const limitedMessages = validMessages.slice(-maxHistoryMessages);
         messagesToSend = limitedMessages.map(storedToLlmapiMessage);
       } else if (providedMessages) {
         messagesToSend = providedMessages;
@@ -462,14 +464,42 @@ export function useChatStorage(
               assistantMessage: storedAssistantMessage,
             };
           } catch {
-             // Fall through to error return if storage failed
+            // Storage failed for abort - don't set error field on stored messages
+            // so they won't be filtered from history. Aborts are intentional, not failures.
+            // The return value's `error` informs the caller, but StoredMessage.error stays unset.
+            return {
+              data: null,
+              error: "Request aborted",
+              userMessage: storedUserMessage,
+            };
           }
+        }
+
+        // Store an assistant message with error for non-abort errors
+        // Also update the user message with the error so both are filtered from history
+        const errorMessage = result.error || "No response data received";
+        try {
+          await updateMessageErrorOp(
+            storageCtx,
+            storedUserMessage.uniqueId,
+            errorMessage
+          );
+          await createMessageOp(storageCtx, {
+            conversationId: convId,
+            role: "assistant",
+            content: "",
+            model: model || "",
+            responseDuration,
+            error: errorMessage,
+          });
+        } catch {
+          // Ignore storage failure for error message
         }
 
         return {
           data: null,
-          error: result.error || "No response data received",
-          userMessage: storedUserMessage,
+          error: errorMessage,
+          userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
 

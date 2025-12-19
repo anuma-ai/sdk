@@ -33,6 +33,7 @@ export {
   clearMessagesOp,
   createMessageOp,
   updateMessageEmbeddingOp,
+  updateMessageErrorOp,
   searchMessagesOp,
   getMessagesWithEmbeddingsOp,
 } from "./operations";

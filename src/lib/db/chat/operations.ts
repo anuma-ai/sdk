@@ -28,6 +28,7 @@ export function messageToStored(message: Message): StoredMessage {
     sources: message.sources,
     responseDuration: message.responseDuration,
     wasStopped: message.wasStopped,
+    error: message.error,
   };
 }
 
@@ -186,6 +187,7 @@ export async function createMessageOp(
       if (opts.vector) msg._setRaw("vector", JSON.stringify(opts.vector));
       if (opts.embeddingModel) msg._setRaw("embedding_model", opts.embeddingModel);
       if (opts.wasStopped) msg._setRaw("was_stopped", opts.wasStopped);
+      if (opts.error) msg._setRaw("error", opts.error);
     });
   });
 
@@ -209,6 +211,27 @@ export async function updateMessageEmbeddingOp(
     await message.update((msg) => {
       msg._setRaw("vector", JSON.stringify(vector));
       msg._setRaw("embedding_model", embeddingModel);
+    });
+  });
+
+  return messageToStored(message);
+}
+
+export async function updateMessageErrorOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  error: string
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("error", error);
     });
   });
 
