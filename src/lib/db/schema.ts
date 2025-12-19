@@ -17,8 +17,9 @@ import { ModelPreference } from "./settings/models";
  * - v2: Baseline (chat + memory tables) - minimum supported version for migrations
  * - v3: Added was_stopped column to history table
  * - v4: Added modelPreferences table for settings storage
+ * - v5: Added error column to history table for error persistence
  */
-const SDK_SCHEMA_VERSION = 4;
+const SDK_SCHEMA_VERSION = 5;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -70,6 +71,7 @@ export const sdkSchema = appSchema({
         { name: "sources", type: "string", isOptional: true },
         { name: "response_duration", type: "number", isOptional: true },
         { name: "was_stopped", type: "boolean", isOptional: true },
+        { name: "error", type: "string", isOptional: true },
       ],
     }),
     tableSchema({
@@ -126,6 +128,7 @@ export const sdkSchema = appSchema({
  * Migration history:
  * - v2 → v3: Added `was_stopped` column to history table
  * - v3 → v4: Added `modelPreferences` table for settings storage
+ * - v4 → v5: Added `error` column to history table for error persistence
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -149,6 +152,16 @@ export const sdkMigrations = schemaMigrations({
             { name: "wallet_address", type: "string", isIndexed: true },
             { name: "models", type: "string", isOptional: true },
           ],
+        }),
+      ],
+    },
+    // v4 -> v5: Added error column to history for error persistence
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "error", type: "string", isOptional: true }],
         }),
       ],
     },

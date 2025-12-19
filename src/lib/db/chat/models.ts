@@ -29,6 +29,7 @@ export class Message extends Model {
   @json("sources", (json) => json) sources?: SearchSource[];
   @field("response_duration") responseDuration?: number;
   @field("was_stopped") wasStopped?: boolean;
+  @text("error") error?: string;
 }
 
 export class Conversation extends Model {

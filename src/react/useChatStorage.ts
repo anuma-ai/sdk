@@ -434,8 +434,9 @@ export function useChatStorage(
       // Include history if requested
       if (includeHistory && !providedMessages) {
         const storedMessages = await getMessages(convId);
-        // Limit history to most recent messages to avoid unbounded growth
-        const limitedMessages = storedMessages.slice(-maxHistoryMessages);
+        // Filter out errored messages and limit history to most recent messages
+        const validMessages = storedMessages.filter((msg) => !msg.error);
+        const limitedMessages = validMessages.slice(-maxHistoryMessages);
         messagesToSend = limitedMessages.map(storedToLlmapiMessage);
       } else if (providedMessages) {
         messagesToSend = providedMessages;
@@ -571,9 +572,24 @@ export function useChatStorage(
           }
         }
 
+        // Store an assistant message with error for non-abort errors
+        const errorMessage = result.error || "No response data received";
+        try {
+          await createMessageOp(storageCtx, {
+            conversationId: convId,
+            role: "assistant",
+            content: "",
+            model: model || "",
+            responseDuration,
+            error: errorMessage,
+          });
+        } catch {
+          // Ignore storage failure for error message
+        }
+
         return {
           data: null,
-          error: result.error || "No response data received",
+          error: errorMessage,
           toolExecution: result.toolExecution,
           userMessage: storedUserMessage,
         };

@@ -47,6 +47,8 @@ export interface StoredMessage {
   sources?: SearchSource[];
   responseDuration?: number;
   wasStopped?: boolean;
+  /** If set, indicates the message failed with this error */
+  error?: string;
 }
 
 export interface StoredConversation {
@@ -74,6 +76,8 @@ export interface CreateMessageOptions {
   vector?: number[];
   embeddingModel?: string;
   wasStopped?: boolean;
+  /** If set, indicates the message failed with this error */
+  error?: string;
 }
 
 export interface CreateConversationOptions {
