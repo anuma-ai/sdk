@@ -133,15 +133,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
 export function useChatStorage(
   options: UseChatStorageOptions
 ): UseChatStorageResult {
-  const {
-    database,
-    defaultConversationTitle = "New Conversation",
-    getToken,
-    baseUrl,
-    onData,
-    onFinish,
-    onError,
-  } = options;
+  const { database, getToken, baseUrl, onData, onFinish, onError } = options;
 
   // Get collections
   const messagesCollection = useMemo(
@@ -260,29 +252,6 @@ export function useChatStorage(
   );
 
   /**
-   * Ensure a conversation exists for the current ID or create a new one
-   */
-  const ensureConversation = useCallback(
-    async (conversationId: string): Promise<string> => {
-      if (!conversationId) {
-        throw new Error("No conversation ID provided");
-      }
-
-      const existing = await getConversation(conversationId);
-      if (existing) {
-        return conversationId;
-      }
-
-      const newConv = await createConversation({
-        conversationId,
-        title: defaultConversationTitle,
-      });
-      return newConv.conversationId;
-    },
-    [getConversation, createConversation, defaultConversationTitle]
-  );
-
-  /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
@@ -299,6 +268,16 @@ export function useChatStorage(
         onData: perRequestOnData,
         conversationId,
       } = args;
+
+      if (!conversationId) {
+        throw new Error("Conversation ID is required");
+      }
+
+      // Verify conversation exists
+      const conversation = await getConversation(conversationId);
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${conversationId}`);
+      }
 
       // Build the messages array
       let messagesToSend: LlmapiMessage[] = [];
@@ -478,7 +457,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [getConversation, getMessages, storageCtx, baseSendMessage]
   );
 
   return {

@@ -208,7 +208,6 @@ export function useChatStorage(
 ): UseChatStorageResult {
   const {
     database,
-    defaultConversationTitle = "New Conversation",
     getToken,
     baseUrl,
     onData,
@@ -344,29 +343,6 @@ export function useChatStorage(
   );
 
   /**
-   * Ensure a conversation exists for the current ID or create a new one
-   */
-  const ensureConversation = useCallback(
-    async (currentConversationId: string | null): Promise<string> => {
-      if (currentConversationId) {
-        const existing = await getConversation(currentConversationId);
-        if (existing) {
-          return currentConversationId;
-        }
-
-        const newConv = await createConversation({
-          conversationId: currentConversationId,
-          title: defaultConversationTitle,
-        });
-        return newConv.conversationId;
-      }
-
-      throw new Error("No conversation ID provided");
-    },
-    [getConversation, createConversation, defaultConversationTitle]
-  );
-
-  /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
@@ -391,6 +367,12 @@ export function useChatStorage(
 
       if (!conversationId) {
         throw new Error("Conversation ID is required");
+      }
+
+      // Verify conversation exists
+      const conversation = await getConversation(conversationId);
+      if (!conversation) {
+        throw new Error(`Conversation not found: ${conversationId}`);
       }
 
       // Build the messages array
@@ -582,7 +564,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [getConversation, getMessages, storageCtx, baseSendMessage]
   );
 
   /**
