@@ -171,14 +171,25 @@ export type {
 export {
   DropboxAuthProvider,
   useDropboxAuth,
-  getStoredToken as getDropboxToken,
-  storeToken as storeDropboxToken,
   clearToken as clearDropboxToken,
+  hasDropboxCredentials,
 } from "./useDropboxAuth";
 export type {
   DropboxAuthProviderProps,
   DropboxAuthContextValue,
 } from "./useDropboxAuth";
+
+export {
+  GoogleDriveAuthProvider,
+  useGoogleDriveAuth,
+  getGoogleDriveStoredToken,
+  clearGoogleDriveToken,
+  hasGoogleDriveCredentials,
+} from "./useGoogleDriveAuth";
+export type {
+  GoogleDriveAuthProviderProps,
+  GoogleDriveAuthContextValue,
+} from "./useGoogleDriveAuth";
 
 export {
   useGoogleDriveBackup,
@@ -193,3 +204,25 @@ export type {
   GoogleDriveExportResult,
   GoogleDriveImportResult,
 } from "../lib/backup/google/backup";
+
+// Unified backup providers and hooks
+export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
+export type {
+  BackupAuthProviderProps,
+  BackupAuthContextValue,
+  ProviderAuthState,
+} from "./useBackupAuth";
+
+export {
+  useBackup,
+  DEFAULT_DROPBOX_FOLDER,
+  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
+  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
+} from "./useBackup";
+export type {
+  UseBackupOptions,
+  UseBackupResult,
+  ProviderBackupState,
+  BackupOperationOptions,
+  ProgressCallback,
+} from "./useBackup";
