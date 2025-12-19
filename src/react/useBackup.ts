@@ -18,12 +18,20 @@ import {
   type GoogleDriveExportResult,
   type GoogleDriveImportResult,
 } from "../lib/backup/google/backup";
+import {
+  DEFAULT_BACKUP_FOLDER as DEFAULT_ICLOUD_FOLDER,
+  performICloudExport,
+  performICloudImport,
+  type ICloudExportResult,
+  type ICloudImportResult,
+} from "../lib/backup/icloud/backup";
 import { useBackupAuth } from "./useBackupAuth";
 
 export {
   DEFAULT_BACKUP_FOLDER as DEFAULT_DROPBOX_FOLDER,
   DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
   DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_ICLOUD_FOLDER,
 };
 
 /**
@@ -77,11 +85,11 @@ export interface ProviderBackupState {
   /** Backup all conversations to this provider */
   backup: (
     options?: BackupOperationOptions
-  ) => Promise<DropboxExportResult | GoogleDriveExportResult | { error: string }>;
+  ) => Promise<DropboxExportResult | GoogleDriveExportResult | ICloudExportResult | { error: string }>;
   /** Restore conversations from this provider */
   restore: (
     options?: BackupOperationOptions
-  ) => Promise<DropboxImportResult | GoogleDriveImportResult | { error: string }>;
+  ) => Promise<DropboxImportResult | GoogleDriveImportResult | ICloudImportResult | { error: string }>;
   /** Request access to this provider (triggers OAuth if needed) */
   connect: () => Promise<string>;
   /** Disconnect from this provider */
@@ -96,6 +104,8 @@ export interface UseBackupResult {
   dropbox: ProviderBackupState;
   /** Google Drive backup state and methods */
   googleDrive: ProviderBackupState;
+  /** iCloud backup state and methods */
+  icloud: ProviderBackupState;
   /** Whether any backup provider is configured */
   hasAnyProvider: boolean;
   /** Whether any backup provider is authenticated */
@@ -183,6 +193,7 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
   const {
     dropbox: dropboxAuth,
     googleDrive: googleDriveAuth,
+    icloud: icloudAuth,
     hasAnyProvider,
     hasAnyAuthentication,
     logoutAll,
@@ -208,6 +219,19 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
       importConversation,
     }),
     [googleDriveAuth.requestAccess, requestEncryptionKey, exportConversation, importConversation]
+  );
+
+  // iCloud dependencies
+  const icloudDeps = useMemo(
+    () => ({
+      requestICloudAccess: async () => {
+        await icloudAuth.requestAccess();
+      },
+      requestEncryptionKey,
+      exportConversation,
+      importConversation,
+    }),
+    [icloudAuth.requestAccess, requestEncryptionKey, exportConversation, importConversation]
   );
 
   // Dropbox backup
@@ -391,9 +415,98 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
     disconnect: googleDriveAuth.logout,
   };
 
+  // iCloud backup
+  const icloudBackup = useCallback(
+    async (
+      backupOptions?: BackupOperationOptions
+    ): Promise<ICloudExportResult | { error: string }> => {
+      if (!userAddress) {
+        return { error: "Please sign in to backup to iCloud" };
+      }
+
+      if (!icloudAuth.isConfigured) {
+        return { error: "iCloud is not configured" };
+      }
+
+      if (!icloudAuth.isAuthenticated) {
+        try {
+          await icloudAuth.requestAccess();
+        } catch {
+          return { error: "iCloud access denied" };
+        }
+      }
+
+      try {
+        return await performICloudExport(
+          database,
+          userAddress,
+          icloudDeps,
+          backupOptions?.onProgress
+        );
+      } catch (err) {
+        return {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to backup to iCloud",
+        };
+      }
+    },
+    [database, userAddress, icloudAuth, icloudDeps]
+  );
+
+  // iCloud restore
+  const icloudRestore = useCallback(
+    async (
+      restoreOptions?: BackupOperationOptions
+    ): Promise<ICloudImportResult | { error: string }> => {
+      if (!userAddress) {
+        return { error: "Please sign in to restore from iCloud" };
+      }
+
+      if (!icloudAuth.isConfigured) {
+        return { error: "iCloud is not configured" };
+      }
+
+      if (!icloudAuth.isAuthenticated) {
+        try {
+          await icloudAuth.requestAccess();
+        } catch {
+          return { error: "iCloud access denied" };
+        }
+      }
+
+      try {
+        return await performICloudImport(
+          userAddress,
+          icloudDeps,
+          restoreOptions?.onProgress
+        );
+      } catch (err) {
+        return {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to restore from iCloud",
+        };
+      }
+    },
+    [userAddress, icloudAuth, icloudDeps]
+  );
+
+  const icloudState: ProviderBackupState = {
+    isConfigured: icloudAuth.isConfigured,
+    isAuthenticated: icloudAuth.isAuthenticated,
+    backup: icloudBackup,
+    restore: icloudRestore,
+    connect: icloudAuth.requestAccess,
+    disconnect: icloudAuth.logout,
+  };
+
   return {
     dropbox: dropboxState,
     googleDrive: googleDriveState,
+    icloud: icloudState,
     hasAnyProvider,
     hasAnyAuthentication,
     disconnectAll: logoutAll,

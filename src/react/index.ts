@@ -205,6 +205,31 @@ export type {
   GoogleDriveImportResult,
 } from "../lib/backup/google/backup";
 
+// iCloud backup
+export {
+  ICloudAuthProvider,
+  useICloudAuth,
+  hasICloudCredentials,
+  clearICloudAuth,
+} from "./useICloudAuth";
+export type {
+  ICloudAuthProviderProps,
+  ICloudAuthContextValue,
+} from "./useICloudAuth";
+
+export {
+  useICloudBackup,
+  DEFAULT_ICLOUD_BACKUP_FOLDER,
+} from "./useICloudBackup";
+export type {
+  UseICloudBackupOptions,
+  UseICloudBackupResult,
+} from "./useICloudBackup";
+export type {
+  ICloudExportResult,
+  ICloudImportResult,
+} from "../lib/backup/icloud/backup";
+
 // Unified backup providers and hooks
 export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 export type {
@@ -218,6 +243,7 @@ export {
   DEFAULT_DROPBOX_FOLDER,
   DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
   DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
 } from "./useBackup";
 export type {
   UseBackupOptions,
