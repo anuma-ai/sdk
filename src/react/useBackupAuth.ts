@@ -30,13 +30,20 @@ import {
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
+import {
+  authenticateICloud,
+  configureCloudKit,
+  type CloudKitConfig,
+  DEFAULT_CONTAINER_ID,
+  loadCloudKit,
+  requestICloudSignIn,
+} from "../lib/backup/icloud/api";
 
 /**
  * Props for BackupAuthProvider
  *
- * At least one of `dropboxAppKey` or `googleClientId` should be provided
- * for the provider to be useful. Both are optional to allow using just
- * one backup provider.
+ * At least one of `dropboxAppKey`, `googleClientId`, or `icloudApiToken` should be provided
+ * for the provider to be useful. All are optional to allow using just one backup provider.
  */
 export interface BackupAuthProviderProps {
   /** Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dropbox. */
@@ -47,6 +54,12 @@ export interface BackupAuthProviderProps {
   googleClientId?: string;
   /** Google OAuth callback path (default: "/auth/google/callback") */
   googleCallbackPath?: string;
+  /** CloudKit API token (from Apple Developer Console). Optional - omit to disable iCloud. */
+  icloudApiToken?: string;
+  /** CloudKit container identifier (default: "iCloud.Memoryless") */
+  icloudContainerIdentifier?: string;
+  /** CloudKit environment (default: "production") */
+  icloudEnvironment?: "development" | "production";
   /**
    * API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
    * Only needed if you have a custom client configuration (e.g., different baseUrl).
@@ -82,6 +95,8 @@ export interface BackupAuthContextValue {
   dropbox: ProviderAuthState;
   /** Google Drive authentication state and methods */
   googleDrive: ProviderAuthState;
+  /** iCloud authentication state and methods */
+  icloud: ProviderAuthState;
   /** Check if any provider is configured */
   hasAnyProvider: boolean;
   /** Check if any provider is authenticated */
@@ -110,6 +125,8 @@ const BackupAuthContext = createContext<BackupAuthContextValue | null>(null);
  *       dropboxCallbackPath="/auth/dropbox/callback"
  *       googleClientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
  *       googleCallbackPath="/auth/google/callback"
+ *       icloudApiToken={process.env.NEXT_PUBLIC_CLOUDKIT_API_TOKEN}
+ *       icloudContainerIdentifier="iCloud.Memoryless"
  *       apiClient={apiClient}
  *     >
  *       <MyApp />
@@ -125,6 +142,9 @@ export function BackupAuthProvider({
   dropboxCallbackPath = "/auth/dropbox/callback",
   googleClientId,
   googleCallbackPath = "/auth/google/callback",
+  icloudApiToken,
+  icloudContainerIdentifier = DEFAULT_CONTAINER_ID,
+  icloudEnvironment = "production",
   apiClient,
   children,
 }: BackupAuthProviderProps): JSX.Element {
@@ -135,6 +155,12 @@ export function BackupAuthProvider({
   // Google Drive state
   const [googleToken, setGoogleToken] = useState<string | null>(null);
   const isGoogleConfigured = !!googleClientId;
+
+  // iCloud state
+  const [icloudAuthenticated, setIcloudAuthenticated] = useState(false);
+  const [icloudUserRecordName, setIcloudUserRecordName] = useState<string | null>(null);
+  const [isIcloudAvailable, setIsIcloudAvailable] = useState(false);
+  const isIcloudConfigured = isIcloudAvailable && !!icloudApiToken;
 
   // Check for stored tokens on mount
   useEffect(() => {
@@ -157,6 +183,45 @@ export function BackupAuthProvider({
     };
     checkStoredTokens();
   }, [apiClient]);
+
+  // Initialize iCloud on mount - load dynamically
+  useEffect(() => {
+    if (!icloudApiToken || typeof window === "undefined") {
+      return;
+    }
+
+    const initCloudKit = async () => {
+      try {
+        // Load CloudKit JS dynamically
+        await loadCloudKit();
+        setIsIcloudAvailable(true);
+
+        // Configure CloudKit
+        const config: CloudKitConfig = {
+          containerIdentifier: icloudContainerIdentifier,
+          apiToken: icloudApiToken,
+          environment: icloudEnvironment,
+        };
+        await configureCloudKit(config);
+
+        // Check for existing authentication
+        try {
+          const userIdentity = await authenticateICloud();
+          if (userIdentity) {
+            setIcloudAuthenticated(true);
+            setIcloudUserRecordName(userIdentity.userRecordName);
+          }
+        } catch {
+          // User not signed in
+        }
+      } catch {
+        // CloudKit configuration failed
+        setIsIcloudAvailable(false);
+      }
+    };
+
+    initCloudKit();
+  }, [icloudApiToken, icloudContainerIdentifier, icloudEnvironment]);
 
   // Handle Dropbox OAuth callback
   useEffect(() => {
@@ -272,13 +337,60 @@ export function BackupAuthProvider({
     setGoogleToken(null);
   }, [apiClient]);
 
+  // iCloud methods
+  const refreshIcloudTokenFn = useCallback(async (): Promise<string | null> => {
+    // iCloud doesn't use tokens in the same way - just check auth status
+    try {
+      const userIdentity = await authenticateICloud();
+      if (userIdentity) {
+        setIcloudAuthenticated(true);
+        setIcloudUserRecordName(userIdentity.userRecordName);
+        return userIdentity.userRecordName;
+      }
+    } catch {
+      // Not authenticated
+    }
+    return null;
+  }, []);
+
+  const requestIcloudAccess = useCallback(async (): Promise<string> => {
+    if (!isIcloudConfigured) {
+      throw new Error("iCloud is not configured");
+    }
+
+    if (icloudAuthenticated && icloudUserRecordName) {
+      return icloudUserRecordName;
+    }
+
+    try {
+      // Request sign-in - this will check for existing session first,
+      // then programmatically trigger the Apple sign-in popup if needed
+      const userIdentity = await requestICloudSignIn();
+      setIcloudAuthenticated(true);
+      setIcloudUserRecordName(userIdentity.userRecordName);
+      return userIdentity.userRecordName;
+    } catch (err) {
+      throw new Error(
+        err instanceof Error ? err.message : "Failed to sign in to iCloud"
+      );
+    }
+  }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
+
+  const logoutIcloud = useCallback(async () => {
+    setIcloudAuthenticated(false);
+    setIcloudUserRecordName(null);
+    // Note: CloudKit JS doesn't have a programmatic sign-out
+    // Users sign out through Apple ID settings
+  }, []);
+
   // Combined methods
   const logoutAll = useCallback(async () => {
     await Promise.all([
       isDropboxConfigured ? logoutDropbox() : Promise.resolve(),
       isGoogleConfigured ? logoutGoogle() : Promise.resolve(),
+      isIcloudConfigured ? logoutIcloud() : Promise.resolve(),
     ]);
-  }, [isDropboxConfigured, isGoogleConfigured, logoutDropbox, logoutGoogle]);
+  }, [isDropboxConfigured, isGoogleConfigured, isIcloudConfigured, logoutDropbox, logoutGoogle, logoutIcloud]);
 
   const dropboxState: ProviderAuthState = {
     accessToken: dropboxToken,
@@ -298,14 +410,24 @@ export function BackupAuthProvider({
     refreshToken: refreshGoogleTokenFn,
   };
 
+  const icloudState: ProviderAuthState = {
+    accessToken: icloudUserRecordName, // Use userRecordName as the "token" for iCloud
+    isAuthenticated: icloudAuthenticated,
+    isConfigured: isIcloudConfigured,
+    requestAccess: requestIcloudAccess,
+    logout: logoutIcloud,
+    refreshToken: refreshIcloudTokenFn,
+  };
+
   return createElement(
     BackupAuthContext.Provider,
     {
       value: {
         dropbox: dropboxState,
         googleDrive: googleDriveState,
-        hasAnyProvider: isDropboxConfigured || isGoogleConfigured,
-        hasAnyAuthentication: !!dropboxToken || !!googleToken,
+        icloud: icloudState,
+        hasAnyProvider: isDropboxConfigured || isGoogleConfigured || isIcloudConfigured,
+        hasAnyAuthentication: !!dropboxToken || !!googleToken || icloudAuthenticated,
         logoutAll,
       },
     },
@@ -387,4 +509,15 @@ export function useDropboxAuthFromBackup(): ProviderAuthState {
 export function useGoogleDriveAuthFromBackup(): ProviderAuthState {
   const { googleDrive } = useBackupAuth();
   return googleDrive;
+}
+
+/**
+ * Hook to access iCloud authentication from BackupAuthProvider.
+ * Convenience wrapper that returns only iCloud state.
+ *
+ * @category Hooks
+ */
+export function useICloudAuthFromBackup(): ProviderAuthState {
+  const { icloud } = useBackupAuth();
+  return icloud;
 }
