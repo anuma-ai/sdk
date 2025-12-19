@@ -77,16 +77,14 @@ export interface CreateMessageOptions {
 }
 
 export interface CreateConversationOptions {
-  conversationId?: string;
-  title?: string;
+  conversationId: string;
+  title: string;
 }
 
 // Hook types
 
 export interface BaseUseChatStorageOptions {
   database: Database;
-  conversationId?: string;
-  autoCreateConversation?: boolean;
   defaultConversationTitle?: string;
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
@@ -96,6 +94,7 @@ export interface BaseUseChatStorageOptions {
 }
 
 export interface BaseSendMessageWithStorageArgs {
+  conversationId: string;
   content: string;
   model?: string;
   messages?: LlmapiMessage[];
@@ -129,10 +128,8 @@ export type BaseSendMessageWithStorageResult =
 export interface BaseUseChatStorageResult {
   isLoading: boolean;
   stop: () => void;
-  conversationId: string | null;
-  setConversationId: (id: string | null) => void;
   createConversation: (
-    options?: CreateConversationOptions
+    options: CreateConversationOptions
   ) => Promise<StoredConversation>;
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;

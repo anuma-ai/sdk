@@ -135,8 +135,6 @@ export function useChatStorage(
 ): UseChatStorageResult {
   const {
     database,
-    conversationId: initialConversationId,
-    autoCreateConversation = true,
     defaultConversationTitle = "New Conversation",
     getToken,
     baseUrl,
@@ -144,10 +142,6 @@ export function useChatStorage(
     onFinish,
     onError,
   } = options;
-
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(initialConversationId || null);
 
   // Get collections
   const messagesCollection = useMemo(
@@ -187,15 +181,10 @@ export function useChatStorage(
    */
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
-      const created = await createConversationOp(
-        storageCtx,
-        opts,
-        defaultConversationTitle
-      );
-      setCurrentConversationId(created.conversationId);
+      const created = await createConversationOp(storageCtx, opts);
       return created;
     },
-    [storageCtx, defaultConversationTitle]
+    [storageCtx]
   );
 
   /**
@@ -235,12 +224,9 @@ export function useChatStorage(
   const deleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
       const deleted = await deleteConversationOp(storageCtx, id);
-      if (deleted && currentConversationId === id) {
-        setCurrentConversationId(null);
-      }
       return deleted;
     },
-    [storageCtx, currentConversationId]
+    [storageCtx]
   );
 
   /**
@@ -276,37 +262,27 @@ export function useChatStorage(
   /**
    * Ensure a conversation exists for the current ID or create a new one
    */
-  const ensureConversation = useCallback(async (): Promise<string> => {
-    if (currentConversationId) {
-      const existing = await getConversation(currentConversationId);
-      if (existing) {
-        return currentConversationId;
+  const ensureConversation = useCallback(
+    async (conversationId: string): Promise<string> => {
+      if (!conversationId) {
+        throw new Error("No conversation ID provided");
       }
 
-      // Conversation ID is provided but doesn't exist in storage yet
-      // Create it with the provided ID to maintain consistency
-      if (autoCreateConversation) {
-        const newConv = await createConversation({
-          conversationId: currentConversationId,
-        });
-        return newConv.conversationId;
+      if (conversationId) {
+        const existing = await getConversation(conversationId);
+        if (existing) {
+          return conversationId;
+        }
       }
-    }
 
-    if (autoCreateConversation) {
-      const newConv = await createConversation();
+      const newConv = await createConversation({
+        conversationId,
+        title: defaultConversationTitle,
+      });
       return newConv.conversationId;
-    }
-
-    throw new Error(
-      "No conversation ID provided and autoCreateConversation is disabled"
-    );
-  }, [
-    currentConversationId,
-    getConversation,
-    autoCreateConversation,
-    createConversation,
-  ]);
+    },
+    [getConversation, createConversation]
+  );
 
   /**
    * Send a message with automatic storage
@@ -323,28 +299,15 @@ export function useChatStorage(
         maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
+        conversationId,
       } = args;
-
-      // Ensure we have a conversation
-      let convId: string;
-      try {
-        convId = await ensureConversation();
-      } catch (err) {
-        return {
-          data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to ensure conversation",
-        };
-      }
 
       // Build the messages array
       let messagesToSend: LlmapiMessage[] = [];
 
       // Include history if requested
       if (includeHistory && !providedMessages) {
-        const storedMessages = await getMessages(convId);
+        const storedMessages = await getMessages(conversationId);
         // Limit history to most recent messages to avoid unbounded growth
         const limitedMessages = storedMessages.slice(-maxHistoryMessages);
         messagesToSend = limitedMessages.map(storedToLlmapiMessage);
@@ -389,7 +352,7 @@ export function useChatStorage(
       let storedUserMessage: StoredMessage;
       try {
         storedUserMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
+          conversationId: conversationId,
           role: "user",
           content,
           files: sanitizedFiles,
@@ -416,13 +379,17 @@ export function useChatStorage(
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
-        const abortedResult = result as { data: LlmapiChatCompletionResponse | null; error: string };
+        const abortedResult = result as {
+          data: LlmapiChatCompletionResponse | null;
+          error: string;
+        };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
-          const assistantContent = abortedResult.data?.choices?.[0]?.message?.content
-            ?.map((part: { text?: string }) => part.text || "")
-            .join("") || "";
+          const assistantContent =
+            abortedResult.data?.choices?.[0]?.message?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || "";
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -430,7 +397,7 @@ export function useChatStorage(
           let storedAssistantMessage: StoredMessage;
           try {
             storedAssistantMessage = await createMessageOp(storageCtx, {
-              conversationId: convId,
+              conversationId: conversationId,
               role: "assistant",
               content: assistantContent,
               model: responseModel,
@@ -440,19 +407,24 @@ export function useChatStorage(
             });
 
             // Build a valid completion response for the return (even if original was null)
-            const completionData: LlmapiChatCompletionResponse = abortedResult.data || {
-              id: `aborted-${Date.now()}`,
-              model: responseModel,
-              choices: [{
-                index: 0,
-                message: {
-                  role: "assistant" as const,
-                  content: [{ type: "text" as const, text: assistantContent }],
-                },
-                finish_reason: "stop" as const,
-              }],
-              usage: undefined,
-            };
+            const completionData: LlmapiChatCompletionResponse =
+              abortedResult.data || {
+                id: `aborted-${Date.now()}`,
+                model: responseModel,
+                choices: [
+                  {
+                    index: 0,
+                    message: {
+                      role: "assistant" as const,
+                      content: [
+                        { type: "text" as const, text: assistantContent },
+                      ],
+                    },
+                    finish_reason: "stop" as const,
+                  },
+                ],
+                usage: undefined,
+              };
 
             return {
               data: completionData,
@@ -461,7 +433,7 @@ export function useChatStorage(
               assistantMessage: storedAssistantMessage,
             };
           } catch {
-             // Fall through to error return if storage failed
+            // Fall through to error return if storage failed
           }
         }
 
@@ -483,7 +455,7 @@ export function useChatStorage(
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
+          conversationId: conversationId,
           role: "assistant",
           content: assistantContent,
           model: responseData.model,
@@ -515,8 +487,6 @@ export function useChatStorage(
     isLoading,
     sendMessage,
     stop,
-    conversationId: currentConversationId,
-    setConversationId: setCurrentConversationId,
     createConversation,
     getConversation,
     getConversations,

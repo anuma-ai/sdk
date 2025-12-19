@@ -208,8 +208,6 @@ export function useChatStorage(
 ): UseChatStorageResult {
   const {
     database,
-    conversationId: initialConversationId,
-    autoCreateConversation = true,
     defaultConversationTitle = "New Conversation",
     getToken,
     baseUrl,
@@ -222,10 +220,6 @@ export function useChatStorage(
     toolSelectorModel,
     onToolExecution,
   } = options;
-
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(initialConversationId || null);
 
   // Get collections
   const messagesCollection = useMemo(
@@ -270,16 +264,11 @@ export function useChatStorage(
    * Create a new conversation
    */
   const createConversation = useCallback(
-    async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
-      const created = await createConversationOp(
-        storageCtx,
-        opts,
-        defaultConversationTitle
-      );
-      setCurrentConversationId(created.conversationId);
+    async (opts: CreateConversationOptions): Promise<StoredConversation> => {
+      const created = await createConversationOp(storageCtx, opts);
       return created;
     },
-    [storageCtx, defaultConversationTitle]
+    [storageCtx]
   );
 
   /**
@@ -319,12 +308,9 @@ export function useChatStorage(
   const deleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
       const deleted = await deleteConversationOp(storageCtx, id);
-      if (deleted && currentConversationId === id) {
-        setCurrentConversationId(null);
-      }
       return deleted;
     },
-    [storageCtx, currentConversationId]
+    [storageCtx]
   );
 
   /**
@@ -360,37 +346,25 @@ export function useChatStorage(
   /**
    * Ensure a conversation exists for the current ID or create a new one
    */
-  const ensureConversation = useCallback(async (): Promise<string> => {
-    if (currentConversationId) {
-      const existing = await getConversation(currentConversationId);
-      if (existing) {
-        return currentConversationId;
-      }
+  const ensureConversation = useCallback(
+    async (currentConversationId: string | null): Promise<string> => {
+      if (currentConversationId) {
+        const existing = await getConversation(currentConversationId);
+        if (existing) {
+          return currentConversationId;
+        }
 
-      // Conversation ID is provided but doesn't exist in storage yet
-      // Create it with the provided ID to maintain consistency
-      if (autoCreateConversation) {
         const newConv = await createConversation({
           conversationId: currentConversationId,
+          title: defaultConversationTitle,
         });
         return newConv.conversationId;
       }
-    }
 
-    if (autoCreateConversation) {
-      const newConv = await createConversation();
-      return newConv.conversationId;
-    }
-
-    throw new Error(
-      "No conversation ID provided and autoCreateConversation is disabled"
-    );
-  }, [
-    currentConversationId,
-    getConversation,
-    autoCreateConversation,
-    createConversation,
-  ]);
+      throw new Error("No conversation ID provided");
+    },
+    [getConversation, createConversation]
+  );
 
   /**
    * Send a message with automatic storage
@@ -412,20 +386,11 @@ export function useChatStorage(
         memoryContext,
         searchContext,
         sources,
+        conversationId,
       } = args;
 
-      // Ensure we have a conversation
-      let convId: string;
-      try {
-        convId = await ensureConversation();
-      } catch (err) {
-        return {
-          data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to ensure conversation",
-        };
+      if (!conversationId) {
+        throw new Error("Conversation ID is required");
       }
 
       // Build the messages array
@@ -433,7 +398,7 @@ export function useChatStorage(
 
       // Include history if requested
       if (includeHistory && !providedMessages) {
-        const storedMessages = await getMessages(convId);
+        const storedMessages = await getMessages(conversationId);
         // Limit history to most recent messages to avoid unbounded growth
         const limitedMessages = storedMessages.slice(-maxHistoryMessages);
         messagesToSend = limitedMessages.map(storedToLlmapiMessage);
@@ -478,7 +443,7 @@ export function useChatStorage(
       let storedUserMessage: StoredMessage;
       try {
         storedUserMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
+          conversationId: conversationId,
           role: "user",
           content,
           files: sanitizedFiles,
@@ -528,7 +493,7 @@ export function useChatStorage(
           let storedAssistantMessage: StoredMessage;
           try {
             storedAssistantMessage = await createMessageOp(storageCtx, {
-              conversationId: convId,
+              conversationId: conversationId,
               role: "assistant",
               content: assistantContent,
               model: responseModel,
@@ -589,7 +554,7 @@ export function useChatStorage(
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
+          conversationId: conversationId,
           role: "assistant",
           content: assistantContent,
           model: responseData.model,
@@ -658,8 +623,6 @@ export function useChatStorage(
     isSelectingTool,
     sendMessage,
     stop,
-    conversationId: currentConversationId,
-    setConversationId: setCurrentConversationId,
     createConversation,
     getConversation,
     getConversations,
