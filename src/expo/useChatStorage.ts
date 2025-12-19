@@ -273,10 +273,9 @@ export function useChatStorage(
         throw new Error("Conversation ID is required");
       }
 
-      // Verify conversation exists
-      const conversation = await getConversation(conversationId);
-      if (!conversation) {
-        throw new Error(`Conversation not found: ${conversationId}`);
+      const ensuredConversationId = await ensureConversation(conversationId);
+      if (!ensuredConversationId) {
+        throw new Error("Failed to create conversation");
       }
 
       // Build the messages array
@@ -458,6 +457,29 @@ export function useChatStorage(
       };
     },
     [getConversation, getMessages, storageCtx, baseSendMessage]
+  );
+
+  /**
+   * Ensure a conversation exists for the current ID or create a new one
+   */
+  const ensureConversation = useCallback(
+    async (currentConversationId: string | null): Promise<string> => {
+      if (currentConversationId) {
+        const existing = await getConversation(currentConversationId);
+        if (existing) {
+          return currentConversationId;
+        }
+
+        const newConv = await createConversation({
+          conversationId: currentConversationId,
+          title: "New Title",
+        });
+        return newConv.conversationId;
+      }
+
+      throw new Error("No conversation ID provided");
+    },
+    [getConversation, createConversation]
   );
 
   return {
