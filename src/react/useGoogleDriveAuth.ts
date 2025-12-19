@@ -8,20 +8,26 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import type { Client } from "../client/client";
 import {
   clearGoogleDriveToken,
+  clearGoogleOAuthState,
   getGoogleDriveAccessToken,
   getGoogleDriveStoredToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
-  isGoogleDriveCallback,
+  parseGoogleDriveCallback,
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
+import type {
+  OAuthCallbackError,
+  OAuthCallbackStatus,
+} from "../lib/backup/oauth/types";
 
 /**
  * Props for GoogleDriveAuthProvider
@@ -56,6 +62,12 @@ export interface GoogleDriveAuthContextValue {
   logout: () => Promise<void>;
   /** Refresh the access token using the refresh token */
   refreshToken: () => Promise<string | null>;
+  /** Current OAuth callback processing status */
+  callbackStatus: OAuthCallbackStatus;
+  /** OAuth callback error (if any) */
+  callbackError: OAuthCallbackError | null;
+  /** Clear callback error state */
+  clearCallbackError: () => void;
 }
 
 const GoogleDriveAuthContext =
@@ -92,6 +104,12 @@ export function GoogleDriveAuthProvider({
   children,
 }: GoogleDriveAuthProviderProps): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [callbackStatus, setCallbackStatus] =
+    useState<OAuthCallbackStatus>("idle");
+  const [callbackError, setCallbackError] = useState<OAuthCallbackError | null>(
+    null
+  );
+  const hasHandledCallback = useRef(false);
   const isConfigured = !!clientId;
 
   // Check for stored token on mount
@@ -111,14 +129,36 @@ export function GoogleDriveAuthProvider({
 
   // Handle OAuth callback
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!isConfigured || hasHandledCallback.current) return;
 
+    // Check if we're on a callback URL (has code or error param)
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const hasCallbackParams =
+      url.searchParams.has("code") || url.searchParams.has("error");
+    if (!hasCallbackParams) return;
+
+    hasHandledCallback.current = true;
+    setCallbackStatus("processing");
+
+    // First, validate the callback parameters
+    const validationError = parseGoogleDriveCallback();
+    if (validationError) {
+      clearGoogleOAuthState();
+      setCallbackError(validationError);
+      setCallbackStatus("error");
+      return;
+    }
+
+    // Parameters are valid, proceed with token exchange
     const handleCallback = async () => {
-      if (isGoogleDriveCallback()) {
-        const token = await handleGoogleDriveCallback(callbackPath, apiClient);
-        if (token) {
-          setAccessToken(token);
-        }
+      const result = await handleGoogleDriveCallback(callbackPath, apiClient);
+      if (result.success) {
+        setAccessToken(result.accessToken);
+        setCallbackStatus("success");
+      } else {
+        setCallbackError(result.error);
+        setCallbackStatus("error");
       }
     };
 
@@ -159,6 +199,11 @@ export function GoogleDriveAuthProvider({
     setAccessToken(null);
   }, [apiClient]);
 
+  const clearCallbackError = useCallback(() => {
+    setCallbackError(null);
+    setCallbackStatus("idle");
+  }, []);
+
   return createElement(
     GoogleDriveAuthContext.Provider,
     {
@@ -169,6 +214,9 @@ export function GoogleDriveAuthProvider({
         requestAccess,
         logout,
         refreshToken: refreshTokenFn,
+        callbackStatus,
+        callbackError,
+        clearCallbackError,
       },
     },
     children
@@ -216,4 +264,13 @@ export {
   getGoogleDriveStoredToken,
   clearGoogleDriveToken,
   hasGoogleDriveCredentials,
+  GOOGLE_STATE_STORAGE_KEY,
 } from "../lib/backup/google/auth";
+
+// Re-export types
+export type {
+  OAuthCallbackError,
+  OAuthCallbackErrorType,
+  OAuthCallbackResult,
+  OAuthCallbackStatus,
+} from "../lib/backup/oauth/types";

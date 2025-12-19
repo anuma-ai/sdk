@@ -8,18 +8,24 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import type { Client } from "../client/client";
 import {
+  clearDropboxOAuthState,
   getDropboxAccessToken,
   handleDropboxCallback,
   hasDropboxCredentials,
-  isDropboxCallback,
+  parseDropboxCallback,
   revokeDropboxToken,
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
+import type {
+  OAuthCallbackError,
+  OAuthCallbackStatus,
+} from "../lib/backup/oauth/types";
 
 /**
  * Props for DropboxAuthProvider
@@ -54,6 +60,12 @@ export interface DropboxAuthContextValue {
   logout: () => Promise<void>;
   /** Refresh the access token using the refresh token */
   refreshToken: () => Promise<string | null>;
+  /** Current OAuth callback processing status */
+  callbackStatus: OAuthCallbackStatus;
+  /** OAuth callback error (if any) */
+  callbackError: OAuthCallbackError | null;
+  /** Clear callback error state */
+  clearCallbackError: () => void;
 }
 
 const DropboxAuthContext = createContext<DropboxAuthContextValue | null>(null);
@@ -89,6 +101,12 @@ export function DropboxAuthProvider({
   children,
 }: DropboxAuthProviderProps): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [callbackStatus, setCallbackStatus] =
+    useState<OAuthCallbackStatus>("idle");
+  const [callbackError, setCallbackError] = useState<OAuthCallbackError | null>(
+    null
+  );
+  const hasHandledCallback = useRef(false);
   const isConfigured = !!appKey;
 
   // Check for stored token on mount
@@ -108,14 +126,36 @@ export function DropboxAuthProvider({
 
   // Handle OAuth callback
   useEffect(() => {
-    if (!isConfigured) return;
+    if (!isConfigured || hasHandledCallback.current) return;
 
+    // Check if we're on a callback URL (has code or error param)
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const hasCallbackParams =
+      url.searchParams.has("code") || url.searchParams.has("error");
+    if (!hasCallbackParams) return;
+
+    hasHandledCallback.current = true;
+    setCallbackStatus("processing");
+
+    // First, validate the callback parameters
+    const validationError = parseDropboxCallback();
+    if (validationError) {
+      clearDropboxOAuthState();
+      setCallbackError(validationError);
+      setCallbackStatus("error");
+      return;
+    }
+
+    // Parameters are valid, proceed with token exchange
     const handleCallback = async () => {
-      if (isDropboxCallback()) {
-        const token = await handleDropboxCallback(callbackPath, apiClient);
-        if (token) {
-          setAccessToken(token);
-        }
+      const result = await handleDropboxCallback(callbackPath, apiClient);
+      if (result.success) {
+        setAccessToken(result.accessToken);
+        setCallbackStatus("success");
+      } else {
+        setCallbackError(result.error);
+        setCallbackStatus("error");
       }
     };
 
@@ -156,6 +196,11 @@ export function DropboxAuthProvider({
     setAccessToken(null);
   }, [apiClient]);
 
+  const clearCallbackError = useCallback(() => {
+    setCallbackError(null);
+    setCallbackStatus("idle");
+  }, []);
+
   return createElement(
     DropboxAuthContext.Provider,
     {
@@ -166,6 +211,9 @@ export function DropboxAuthProvider({
         requestAccess,
         logout,
         refreshToken: refreshTokenFn,
+        callbackStatus,
+        callbackError,
+        clearCallbackError,
       },
     },
     children
@@ -207,4 +255,16 @@ export function useDropboxAuth(): DropboxAuthContextValue {
 }
 
 // Re-export utility functions for direct use
-export { clearToken, hasDropboxCredentials } from "../lib/backup/dropbox/auth";
+export {
+  clearToken,
+  hasDropboxCredentials,
+  DROPBOX_STATE_STORAGE_KEY,
+} from "../lib/backup/dropbox/auth";
+
+// Re-export types
+export type {
+  OAuthCallbackError,
+  OAuthCallbackErrorType,
+  OAuthCallbackResult,
+  OAuthCallbackStatus,
+} from "../lib/backup/oauth/types";

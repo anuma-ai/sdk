@@ -22,9 +22,10 @@ import {
   storeTokenData,
   tokenResponseToStoredData,
 } from "../oauth/storage";
+import type { OAuthCallbackResult, OAuthCallbackError } from "../oauth/types";
 
 const PROVIDER = "dropbox";
-const STATE_STORAGE_KEY = "dropbox_oauth_state";
+export const DROPBOX_STATE_STORAGE_KEY = "dropbox_oauth_state";
 
 // Dropbox OAuth endpoint
 const DROPBOX_AUTH_URL = "https://www.dropbox.com/oauth2/authorize";
@@ -53,7 +54,7 @@ function generateState(): string {
  */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(STATE_STORAGE_KEY, state);
+  sessionStorage.setItem(DROPBOX_STATE_STORAGE_KEY, state);
 }
 
 /**
@@ -61,9 +62,17 @@ function storeOAuthState(state: string): void {
  */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
-  const state = sessionStorage.getItem(STATE_STORAGE_KEY);
-  sessionStorage.removeItem(STATE_STORAGE_KEY);
+  const state = sessionStorage.getItem(DROPBOX_STATE_STORAGE_KEY);
+  sessionStorage.removeItem(DROPBOX_STATE_STORAGE_KEY);
   return state;
+}
+
+/**
+ * Clear stored OAuth state without retrieving it
+ */
+export function clearDropboxOAuthState(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(DROPBOX_STATE_STORAGE_KEY);
 }
 
 /**
@@ -74,28 +83,87 @@ export function isDropboxCallback(): boolean {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const storedState = sessionStorage.getItem(STATE_STORAGE_KEY);
+  const storedState = sessionStorage.getItem(DROPBOX_STATE_STORAGE_KEY);
   return !!code && !!state && state === storedState;
 }
 
 /**
- * Handle the OAuth callback - exchange code for tokens via backend
+ * Parse OAuth callback URL parameters and validate state
+ * Returns structured error information for different failure cases
  */
-export async function handleDropboxCallback(
-  callbackPath: string,
-  apiClient?: Client
-): Promise<string | null> {
+export function parseDropboxCallback(): OAuthCallbackError | null {
   if (typeof window === "undefined") return null;
 
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const storedState = getAndClearOAuthState();
+  const oauthError = url.searchParams.get("error");
+  const errorDescription = url.searchParams.get("error_description");
 
-  // Validate state to prevent CSRF
-  if (!code || !state || state !== storedState) {
-    return null;
+  // Check for OAuth error from Dropbox
+  if (oauthError) {
+    return {
+      type: "oauth_error",
+      message: oauthError,
+      description: errorDescription ?? undefined,
+    };
   }
+
+  // Check for missing required parameters
+  if (!code || !state) {
+    return {
+      type: "missing_params",
+      message: "Missing authorization code or state parameter",
+    };
+  }
+
+  // Validate state against stored value (CSRF protection)
+  const storedState = sessionStorage.getItem(DROPBOX_STATE_STORAGE_KEY);
+  if (!storedState) {
+    return {
+      type: "csrf_mismatch",
+      message: "No stored OAuth state found. Session may have expired.",
+    };
+  }
+
+  if (state !== storedState) {
+    return {
+      type: "csrf_mismatch",
+      message: "OAuth state mismatch. Possible CSRF attack detected.",
+    };
+  }
+
+  // All validations passed
+  return null;
+}
+
+/**
+ * Handle the OAuth callback - exchange code for tokens via backend
+ * Returns structured result with success/error information
+ */
+export async function handleDropboxCallback(
+  callbackPath: string,
+  apiClient?: Client
+): Promise<OAuthCallbackResult> {
+  if (typeof window === "undefined") {
+    return {
+      success: false,
+      error: { type: "missing_params", message: "Not in browser environment" },
+    };
+  }
+
+  // First validate the callback parameters
+  const validationError = parseDropboxCallback();
+  if (validationError) {
+    clearDropboxOAuthState();
+    return { success: false, error: validationError };
+  }
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code")!;
+
+  // Clear the stored state now that we've validated it
+  getAndClearOAuthState();
 
   try {
     const response = await postAuthOauthByProviderExchange({
@@ -108,7 +176,13 @@ export async function handleDropboxCallback(
     });
 
     if (!response.data?.access_token) {
-      throw new Error("No access token in response");
+      return {
+        success: false,
+        error: {
+          type: "exchange_failed",
+          message: "No access token in response",
+        },
+      };
     }
 
     // Store tokens
@@ -123,10 +197,27 @@ export async function handleDropboxCallback(
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
-    return response.data.access_token;
-  } catch {
-    return null;
+    return { success: true, accessToken: response.data.access_token };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Token exchange failed";
+    return {
+      success: false,
+      error: { type: "exchange_failed", message },
+    };
   }
+}
+
+/**
+ * Handle the OAuth callback - legacy version that returns string | null
+ * @deprecated Use handleDropboxCallback which returns structured results
+ */
+export async function handleDropboxCallbackLegacy(
+  callbackPath: string,
+  apiClient?: Client
+): Promise<string | null> {
+  const result = await handleDropboxCallback(callbackPath, apiClient);
+  return result.success ? result.accessToken : null;
 }
 
 /**

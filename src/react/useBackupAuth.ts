@@ -8,28 +8,33 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import type { Client } from "../client/client";
 import {
-  clearToken as clearDropboxToken,
+  clearDropboxOAuthState,
   getDropboxAccessToken,
   handleDropboxCallback,
   hasDropboxCredentials,
-  isDropboxCallback,
+  parseDropboxCallback,
   revokeDropboxToken,
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
 import {
-  clearGoogleDriveToken,
+  clearGoogleOAuthState,
   getGoogleDriveAccessToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
-  isGoogleDriveCallback,
+  parseGoogleDriveCallback,
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
+import type {
+  OAuthCallbackError,
+  OAuthCallbackStatus,
+} from "../lib/backup/oauth/types";
 
 /**
  * Props for BackupAuthProvider
@@ -72,6 +77,12 @@ export interface ProviderAuthState {
   logout: () => Promise<void>;
   /** Refresh the access token using the refresh token */
   refreshToken: () => Promise<string | null>;
+  /** Current OAuth callback processing status */
+  callbackStatus: OAuthCallbackStatus;
+  /** OAuth callback error (if any) */
+  callbackError: OAuthCallbackError | null;
+  /** Clear callback error state */
+  clearCallbackError: () => void;
 }
 
 /**
@@ -130,10 +141,20 @@ export function BackupAuthProvider({
 }: BackupAuthProviderProps): JSX.Element {
   // Dropbox state
   const [dropboxToken, setDropboxToken] = useState<string | null>(null);
+  const [dropboxCallbackStatus, setDropboxCallbackStatus] =
+    useState<OAuthCallbackStatus>("idle");
+  const [dropboxCallbackError, setDropboxCallbackError] =
+    useState<OAuthCallbackError | null>(null);
+  const hasHandledDropboxCallback = useRef(false);
   const isDropboxConfigured = !!dropboxAppKey;
 
   // Google Drive state
   const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleCallbackStatus, setGoogleCallbackStatus] =
+    useState<OAuthCallbackStatus>("idle");
+  const [googleCallbackError, setGoogleCallbackError] =
+    useState<OAuthCallbackError | null>(null);
+  const hasHandledGoogleCallback = useRef(false);
   const isGoogleConfigured = !!googleClientId;
 
   // Check for stored tokens on mount
@@ -160,17 +181,37 @@ export function BackupAuthProvider({
 
   // Handle Dropbox OAuth callback
   useEffect(() => {
-    if (!isDropboxConfigured) return;
+    if (!isDropboxConfigured || hasHandledDropboxCallback.current) return;
 
+    // Check if we're on a Dropbox callback URL
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.pathname.includes(dropboxCallbackPath)) return;
+    const hasCallbackParams =
+      url.searchParams.has("code") || url.searchParams.has("error");
+    if (!hasCallbackParams) return;
+
+    hasHandledDropboxCallback.current = true;
+    setDropboxCallbackStatus("processing");
+
+    // First, validate the callback parameters
+    const validationError = parseDropboxCallback();
+    if (validationError) {
+      clearDropboxOAuthState();
+      setDropboxCallbackError(validationError);
+      setDropboxCallbackStatus("error");
+      return;
+    }
+
+    // Parameters are valid, proceed with token exchange
     const handleCallback = async () => {
-      if (isDropboxCallback()) {
-        const token = await handleDropboxCallback(
-          dropboxCallbackPath,
-          apiClient
-        );
-        if (token) {
-          setDropboxToken(token);
-        }
+      const result = await handleDropboxCallback(dropboxCallbackPath, apiClient);
+      if (result.success) {
+        setDropboxToken(result.accessToken);
+        setDropboxCallbackStatus("success");
+      } else {
+        setDropboxCallbackError(result.error);
+        setDropboxCallbackStatus("error");
       }
     };
 
@@ -179,17 +220,40 @@ export function BackupAuthProvider({
 
   // Handle Google OAuth callback
   useEffect(() => {
-    if (!isGoogleConfigured) return;
+    if (!isGoogleConfigured || hasHandledGoogleCallback.current) return;
 
+    // Check if we're on a Google callback URL
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.pathname.includes(googleCallbackPath)) return;
+    const hasCallbackParams =
+      url.searchParams.has("code") || url.searchParams.has("error");
+    if (!hasCallbackParams) return;
+
+    hasHandledGoogleCallback.current = true;
+    setGoogleCallbackStatus("processing");
+
+    // First, validate the callback parameters
+    const validationError = parseGoogleDriveCallback();
+    if (validationError) {
+      clearGoogleOAuthState();
+      setGoogleCallbackError(validationError);
+      setGoogleCallbackStatus("error");
+      return;
+    }
+
+    // Parameters are valid, proceed with token exchange
     const handleCallback = async () => {
-      if (isGoogleDriveCallback()) {
-        const token = await handleGoogleDriveCallback(
-          googleCallbackPath,
-          apiClient
-        );
-        if (token) {
-          setGoogleToken(token);
-        }
+      const result = await handleGoogleDriveCallback(
+        googleCallbackPath,
+        apiClient
+      );
+      if (result.success) {
+        setGoogleToken(result.accessToken);
+        setGoogleCallbackStatus("success");
+      } else {
+        setGoogleCallbackError(result.error);
+        setGoogleCallbackStatus("error");
       }
     };
 
@@ -272,6 +336,17 @@ export function BackupAuthProvider({
     setGoogleToken(null);
   }, [apiClient]);
 
+  // Clear callback error functions
+  const clearDropboxCallbackError = useCallback(() => {
+    setDropboxCallbackError(null);
+    setDropboxCallbackStatus("idle");
+  }, []);
+
+  const clearGoogleCallbackError = useCallback(() => {
+    setGoogleCallbackError(null);
+    setGoogleCallbackStatus("idle");
+  }, []);
+
   // Combined methods
   const logoutAll = useCallback(async () => {
     await Promise.all([
@@ -287,6 +362,9 @@ export function BackupAuthProvider({
     requestAccess: requestDropboxAccess,
     logout: logoutDropbox,
     refreshToken: refreshDropboxTokenFn,
+    callbackStatus: dropboxCallbackStatus,
+    callbackError: dropboxCallbackError,
+    clearCallbackError: clearDropboxCallbackError,
   };
 
   const googleDriveState: ProviderAuthState = {
@@ -296,6 +374,9 @@ export function BackupAuthProvider({
     requestAccess: requestGoogleAccess,
     logout: logoutGoogle,
     refreshToken: refreshGoogleTokenFn,
+    callbackStatus: googleCallbackStatus,
+    callbackError: googleCallbackError,
+    clearCallbackError: clearGoogleCallbackError,
   };
 
   return createElement(
