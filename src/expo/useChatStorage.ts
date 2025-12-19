@@ -25,6 +25,7 @@ import {
   getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
+  updateMessageErrorOp,
 } from "../lib/db/chat";
 
 /**
@@ -468,8 +469,14 @@ export function useChatStorage(
         }
 
         // Store an assistant message with error for non-abort errors
+        // Also update the user message with the error so both are filtered from history
         const errorMessage = result.error || "No response data received";
         try {
+          await updateMessageErrorOp(
+            storageCtx,
+            storedUserMessage.uniqueId,
+            errorMessage
+          );
           await createMessageOp(storageCtx, {
             conversationId: convId,
             role: "assistant",
@@ -485,7 +492,7 @@ export function useChatStorage(
         return {
           data: null,
           error: errorMessage,
-          userMessage: storedUserMessage,
+          userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
 

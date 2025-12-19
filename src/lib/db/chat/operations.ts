@@ -217,6 +217,27 @@ export async function updateMessageEmbeddingOp(
   return messageToStored(message);
 }
 
+export async function updateMessageErrorOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  error: string
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("error", error);
+    });
+  });
+
+  return messageToStored(message);
+}
+
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
 
