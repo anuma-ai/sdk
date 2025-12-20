@@ -10,6 +10,7 @@ export {
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
+  type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageSuccessResult,
@@ -34,6 +35,7 @@ export {
   createMessageOp,
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
+  updateMessageOp,
   searchMessagesOp,
   getMessagesWithEmbeddingsOp,
 } from "./operations";
