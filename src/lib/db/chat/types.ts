@@ -85,6 +85,19 @@ export interface CreateConversationOptions {
   title?: string;
 }
 
+export interface UpdateMessageOptions {
+  content?: string;
+  model?: string;
+  files?: FileMetadata[];
+  usage?: ChatCompletionUsage;
+  sources?: SearchSource[];
+  responseDuration?: number;
+  vector?: number[];
+  embeddingModel?: string;
+  wasStopped?: boolean;
+  error?: string | null;
+}
+
 // Hook types
 
 export interface BaseUseChatStorageOptions {
