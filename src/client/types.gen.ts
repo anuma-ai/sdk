@@ -342,6 +342,10 @@ export type LlmapiMessage = {
      */
     content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
+    /**
+     * ToolCalls contains tool/function calls made by the assistant (only for assistant role)
+     */
+    tool_calls?: Array<LlmapiToolCall>;
 };
 
 /**
@@ -503,6 +507,168 @@ export type LlmapiModelsListResponse = {
 };
 
 /**
+ * ExtraFields contains additional metadata
+ */
+export type LlmapiResponseExtraFields = {
+    /**
+     * Latency is the request latency in milliseconds
+     */
+    latency?: number;
+    /**
+     * ModelRequested is the model that was requested
+     */
+    model_requested?: string;
+    /**
+     * Provider is the LLM provider used (e.g., "openai", "anthropic")
+     */
+    provider?: string;
+    /**
+     * RequestType is always "responses"
+     */
+    request_type?: string;
+};
+
+export type LlmapiResponseOutputContent = {
+    /**
+     * Text is the text content
+     */
+    text?: string;
+    /**
+     * Type is the content type (e.g., "output_text")
+     */
+    type?: string;
+};
+
+export type LlmapiResponseOutputItem = {
+    /**
+     * Arguments is the function arguments for function_call types
+     */
+    arguments?: string;
+    /**
+     * CallID is the call ID for function_call types
+     */
+    call_id?: string;
+    /**
+     * Content is the content array for message types
+     */
+    content?: Array<LlmapiResponseOutputContent>;
+    /**
+     * ID is the unique identifier for this output item
+     */
+    id?: string;
+    /**
+     * Name is the function name for function_call types
+     */
+    name?: string;
+    /**
+     * Role is the role for message types (e.g., "assistant")
+     */
+    role?: string;
+    /**
+     * Status is the status of this output item (e.g., "completed")
+     */
+    status?: string;
+    /**
+     * Type is the output item type (e.g., "message", "function_call")
+     */
+    type?: string;
+};
+
+export type LlmapiResponseRequest = {
+    /**
+     * Background indicates if request should be processed in background
+     */
+    background?: boolean;
+    /**
+     * Conversation is the conversation ID (optional)
+     */
+    conversation?: string;
+    /**
+     * Input is the simple text input for the response
+     */
+    input: string;
+    /**
+     * MaxOutputTokens is the maximum number of tokens to generate
+     */
+    max_output_tokens?: number;
+    /**
+     * Model is the model identifier in 'provider/model' format
+     */
+    model: string;
+    /**
+     * PreviousResponseID is the ID of a previous response to continue from
+     */
+    previous_response_id?: string;
+    /**
+     * Store indicates if the response should be stored
+     */
+    store?: boolean;
+    /**
+     * Stream indicates if response should be streamed
+     */
+    stream?: boolean;
+    /**
+     * Temperature controls randomness (0.0 to 2.0)
+     */
+    temperature?: number;
+    /**
+     * ToolChoice controls which tool to use (auto, any, none, required, or tool name)
+     */
+    tool_choice?: string;
+    /**
+     * Tools is an array of tool definitions (passed through, no MCP loop)
+     */
+    tools?: Array<LlmapiTool>;
+};
+
+export type LlmapiResponseResponse = {
+    /**
+     * Created is the Unix timestamp of creation (created_at in OpenAI format)
+     */
+    created_at?: number;
+    extra_fields?: LlmapiResponseExtraFields;
+    /**
+     * ID is the unique response identifier
+     */
+    id?: string;
+    /**
+     * Model is the model used for generation
+     */
+    model?: string;
+    /**
+     * Object is the response type (e.g., "response")
+     */
+    object?: string;
+    /**
+     * Output is the array of output items (OpenAI Responses API format)
+     */
+    output?: Array<LlmapiResponseOutputItem>;
+    usage?: LlmapiResponseUsage;
+};
+
+/**
+ * Usage contains token usage information
+ */
+export type LlmapiResponseUsage = {
+    /**
+     * CompletionTokens is the number of tokens in the completion
+     */
+    completion_tokens?: number;
+    /**
+     * CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
+     */
+    cost_micro_usd?: number;
+    /**
+     * PromptTokens is the number of tokens in the prompt
+     */
+    prompt_tokens?: number;
+    /**
+     * TotalTokens is the total number of tokens used
+     */
+    total_tokens?: number;
+};
+
+/**
  * Role is the message role (system, user, assistant)
  */
 export type LlmapiRole = string;
@@ -584,6 +750,56 @@ export type LlmapiSearchUsage = {
      * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
      */
     cost_micro_usd?: number;
+};
+
+export type LlmapiTool = {
+    function?: LlmapiToolFunction;
+    /**
+     * Type is the tool type (function, code_interpreter, file_search, web_search)
+     */
+    type?: string;
+};
+
+export type LlmapiToolCall = {
+    function?: LlmapiToolCallFunction;
+    /**
+     * ID is the unique identifier for this tool call
+     */
+    id?: string;
+    /**
+     * Type is the type of tool call (always "function" for now)
+     */
+    type?: string;
+};
+
+/**
+ * Function contains the function call details
+ */
+export type LlmapiToolCallFunction = {
+    /**
+     * Arguments is the JSON string of arguments to pass to the function
+     */
+    arguments?: string;
+    /**
+     * Name is the name of the function to call
+     */
+    name?: string;
+};
+
+/**
+ * Function is the function definition (when Type is "function")
+ */
+export type LlmapiToolFunction = {
+    /**
+     * Arguments is the function arguments schema (JSON object)
+     */
+    arguments?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name is the function name
+     */
+    name?: string;
 };
 
 export type ResponseErrorResponse = {
@@ -750,6 +966,38 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
+export type PostApiV1ResponsesData = {
+    /**
+     * Response request
+     */
+    body: LlmapiResponseRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/responses';
+};
+
+export type PostApiV1ResponsesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1ResponsesError = PostApiV1ResponsesErrors[keyof PostApiV1ResponsesErrors];
+
+export type PostApiV1ResponsesResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiResponseResponse | string;
+};
+
+export type PostApiV1ResponsesResponse = PostApiV1ResponsesResponses[keyof PostApiV1ResponsesResponses];
+
 export type PostApiV1SearchData = {
     /**
      * Search request
@@ -789,7 +1037,7 @@ export type PostAuthOauthByProviderExchangeData = {
     body: HandlersExchangeRequest;
     path: {
         /**
-         * OAuth provider (google-drive)
+         * OAuth provider (google-drive, dropbox)
          */
         provider: string;
     };
@@ -826,7 +1074,7 @@ export type PostAuthOauthByProviderRefreshData = {
     body: HandlersRefreshRequest;
     path: {
         /**
-         * OAuth provider (google-drive)
+         * OAuth provider (google-drive, dropbox)
          */
         provider: string;
     };
@@ -863,7 +1111,7 @@ export type PostAuthOauthByProviderRevokeData = {
     body: HandlersRevokeRequest;
     path: {
         /**
-         * OAuth provider (google-drive)
+         * OAuth provider (google-drive, dropbox)
          */
         provider: string;
     };

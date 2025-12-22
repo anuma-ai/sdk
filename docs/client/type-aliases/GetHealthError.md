@@ -2,4 +2,4 @@
 
 > **GetHealthError** = [`GetHealthErrors`](GetHealthErrors.md)\[keyof [`GetHealthErrors`](GetHealthErrors.md)\]
 
-Defined in: [src/client/types.gen.ts:912](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L912)
+Defined in: [src/client/types.gen.ts:1160](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1160)
