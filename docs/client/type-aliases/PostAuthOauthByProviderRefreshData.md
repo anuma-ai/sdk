@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRefreshData** = `object`
 
-Defined in: [src/client/types.gen.ts:822](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L822)
+Defined in: [src/client/types.gen.ts:1070](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1070)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:822](https://github.com/zeta-chain/ai-sdk/b
 
 > **body**: [`HandlersRefreshRequest`](HandlersRefreshRequest.md)
 
-Defined in: [src/client/types.gen.ts:826](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L826)
+Defined in: [src/client/types.gen.ts:1074](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1074)
 
 Refresh request
 
@@ -20,13 +20,13 @@ Refresh request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:827](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L827)
+Defined in: [src/client/types.gen.ts:1075](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1075)
 
 #### provider
 
 > **provider**: `string`
 
-OAuth provider (google-drive)
+OAuth provider (google-drive, dropbox)
 
 ***
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:833](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L833)
+Defined in: [src/client/types.gen.ts:1081](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1081)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:833](https://github.com/zeta-chain/ai-sdk/b
 
 > **url**: `"/auth/oauth/{provider}/refresh"`
 
-Defined in: [src/client/types.gen.ts:834](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L834)
+Defined in: [src/client/types.gen.ts:1082](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1082)

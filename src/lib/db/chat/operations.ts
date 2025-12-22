@@ -8,6 +8,7 @@ import {
   type StoredConversation,
   type CreateMessageOptions,
   type CreateConversationOptions,
+  type UpdateMessageOptions,
   generateConversationId,
 } from "./types";
 
@@ -232,6 +233,44 @@ export async function updateMessageErrorOp(
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("error", error);
+    });
+  });
+
+  return messageToStored(message);
+}
+
+export async function updateMessageOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  opts: UpdateMessageOptions
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      if (opts.content !== undefined) msg._setRaw("content", opts.content);
+      if (opts.model !== undefined) msg._setRaw("model", opts.model);
+      if (opts.files !== undefined)
+        msg._setRaw("files", JSON.stringify(opts.files));
+      if (opts.usage !== undefined)
+        msg._setRaw("usage", JSON.stringify(opts.usage));
+      if (opts.sources !== undefined)
+        msg._setRaw("sources", JSON.stringify(opts.sources));
+      if (opts.responseDuration !== undefined)
+        msg._setRaw("response_duration", opts.responseDuration);
+      if (opts.vector !== undefined)
+        msg._setRaw("vector", JSON.stringify(opts.vector));
+      if (opts.embeddingModel !== undefined)
+        msg._setRaw("embedding_model", opts.embeddingModel);
+      if (opts.wasStopped !== undefined)
+        msg._setRaw("was_stopped", opts.wasStopped);
+      if (opts.error !== undefined)
+        msg._setRaw("error", opts.error === null ? "" : opts.error);
     });
   });
 
