@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
+Defined in: [src/react/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L88)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with React-specific features like tools and headers.
 
 > **content**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L99)
+Defined in: [src/lib/db/chat/types.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L103)
 
 #### Inherited from
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/chat/types.ts:99](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
 
-Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L104)
+Defined in: [src/lib/db/chat/types.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L108)
 
 #### Inherited from
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [src/react/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L88)
+Defined in: [src/react/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L93)
 
 Custom headers
 
@@ -50,7 +50,7 @@ Custom headers
 
 > `optional` **includeHistory**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L102)
+Defined in: [src/lib/db/chat/types.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L106)
 
 #### Inherited from
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/chat/types.ts:102](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **maxHistoryMessages**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L103)
+Defined in: [src/lib/db/chat/types.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L107)
 
 #### Inherited from
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/chat/types.ts:103](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **memoryContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L106)
+Defined in: [src/lib/db/chat/types.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L110)
 
 #### Inherited from
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/db/chat/types.ts:106](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **messages**: [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
 
-Defined in: [src/lib/db/chat/types.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L101)
+Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L105)
 
 #### Inherited from
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/db/chat/types.ts:101](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L100)
+Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L104)
 
 #### Inherited from
 
@@ -110,7 +110,7 @@ Defined in: [src/lib/db/chat/types.ts:100](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onData**: (`chunk`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L105)
+Defined in: [src/lib/db/chat/types.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L109)
 
 #### Parameters
 
@@ -132,6 +132,30 @@ Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **runTools**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L86)
+Defined in: [src/react/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L91)
 
 Whether to run tool selection
+
+***
+
+### searchContext?
+
+> `optional` **searchContext**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L111)
+
+#### Inherited from
+
+`BaseSendMessageWithStorageArgs.searchContext`
+
+***
+
+### sources?
+
+> `optional` **sources**: [`SearchSource`](SearchSource.md)[]
+
+Defined in: [src/lib/db/chat/types.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L112)
+
+#### Inherited from
+
+`BaseSendMessageWithStorageArgs.sources`

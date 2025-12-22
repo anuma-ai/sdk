@@ -2,17 +2,15 @@
 
 > **useGoogleDriveBackup**(`options`): [`UseGoogleDriveBackupResult`](../interfaces/UseGoogleDriveBackupResult.md)
 
-Defined in: [src/react/useGoogleDriveBackup.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L110)
+Defined in: [src/react/useGoogleDriveBackup.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L104)
 
 React hook for Google Drive backup and restore functionality.
 
 This hook provides methods to backup conversations to Google Drive and restore them.
 It handles all the logic for checking timestamps, skipping unchanged files,
-and managing the backup/restore process.
+authentication, and managing the backup/restore process.
 
-Unlike Dropbox, Google Drive auth requires browser-specific setup (Google Identity Services),
-so the auth provider must be implemented in the app. This hook accepts the auth
-callbacks as options.
+Must be used within a GoogleDriveAuthProvider.
 
 ## Parameters
 
@@ -30,12 +28,9 @@ callbacks as options.
 import { useGoogleDriveBackup } from "@reverbia/sdk/react";
 
 function BackupButton() {
-  const { accessToken, requestDriveAccess } = useGoogleAccessToken();
-  const { backup, restore, isAuthenticated } = useGoogleDriveBackup({
+  const { backup, restore, isConfigured, isAuthenticated } = useGoogleDriveBackup({
     database,
     userAddress,
-    accessToken,
-    requestDriveAccess,
     requestEncryptionKey,
     exportConversation,
     importConversation,
@@ -55,6 +50,6 @@ function BackupButton() {
     }
   };
 
-  return <button onClick={handleBackup}>Backup</button>;
+  return <button onClick={handleBackup} disabled={!isConfigured}>Backup</button>;
 }
 ```

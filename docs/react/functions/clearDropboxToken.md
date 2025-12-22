@@ -2,9 +2,9 @@
 
 > **clearDropboxToken**(): `void`
 
-Defined in: [src/lib/backup/dropbox/auth.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/auth.ts#L56)
+Defined in: [src/lib/backup/dropbox/auth.ts:233](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/auth.ts#L233)
 
-Clear stored access token
+Clear Dropbox token data
 
 ## Returns
 
