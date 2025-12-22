@@ -4,6 +4,33 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersConfigResponse = {
+    /**
+     * ChainID is the blockchain chain ID
+     */
+    chain_id?: string;
+    /**
+     * CostLimitEscrowAddress is the cost-limit escrow contract address (if configured)
+     */
+    cost_limit_escrow_address?: string;
+    /**
+     * OperatorAddress is the operator wallet address
+     */
+    operator_address?: string;
+    /**
+     * PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configured)
+     */
+    pay_as_you_go_escrow_address?: string;
+    /**
+     * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
+     */
+    payment_model?: string;
+    /**
+     * SettlementRecipient is the address that receives settlement payments
+     */
+    settlement_recipient?: string;
+};
+
 export type HandlersExchangeRequest = {
     code: string;
     /**
@@ -837,6 +864,31 @@ export type PostApiV1ChatCompletionsResponses = {
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
+
+export type GetApiV1ConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config';
+};
+
+export type GetApiV1ConfigErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ConfigError = GetApiV1ConfigErrors[keyof GetApiV1ConfigErrors];
+
+export type GetApiV1ConfigResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConfigResponse;
+};
+
+export type GetApiV1ConfigResponse = GetApiV1ConfigResponses[keyof GetApiV1ConfigResponses];
 
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;

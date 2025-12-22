@@ -2,7 +2,7 @@
 
 > **ProgressCallback** = (`current`, `total`) => `void`
 
-Defined in: [src/react/useBackup.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L60)
+Defined in: [src/react/useBackup.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L68)
 
 Progress callback type
 

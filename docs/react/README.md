@@ -62,6 +62,7 @@ function ChatComponent() {
 - [BackupAuthProvider](functions/BackupAuthProvider.md)
 - [DropboxAuthProvider](functions/DropboxAuthProvider.md)
 - [GoogleDriveAuthProvider](functions/GoogleDriveAuthProvider.md)
+- [ICloudAuthProvider](functions/ICloudAuthProvider.md)
 
 ## Hooks
 
@@ -74,6 +75,8 @@ function ChatComponent() {
 - [useEncryption](functions/useEncryption.md)
 - [useGoogleDriveAuth](functions/useGoogleDriveAuth.md)
 - [useGoogleDriveBackup](functions/useGoogleDriveBackup.md)
+- [useICloudAuth](functions/useICloudAuth.md)
+- [useICloudBackup](functions/useICloudBackup.md)
 - [useImageGeneration](functions/useImageGeneration.md)
 - [useMemoryStorage](functions/useMemoryStorage.md)
 - [useModels](functions/useModels.md)
@@ -93,6 +96,12 @@ Renames and re-exports [DEFAULT_DRIVE_CONVERSATIONS_FOLDER](variables/DEFAULT_DR
 ### BACKUP\_DRIVE\_ROOT\_FOLDER
 
 Renames and re-exports [DEFAULT_DRIVE_ROOT_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
+
+***
+
+### BACKUP\_ICLOUD\_FOLDER
+
+Renames and re-exports [DEFAULT_ICLOUD_BACKUP_FOLDER](variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
 
 ***
 

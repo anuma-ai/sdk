@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputItem** = `object`
 
-Defined in: [src/client/types.gen.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L542)
+Defined in: [src/client/types.gen.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L569)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:542](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:546](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L546)
+Defined in: [src/client/types.gen.ts:573](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L573)
 
 Arguments is the function arguments for function_call types
 
@@ -20,7 +20,7 @@ Arguments is the function arguments for function_call types
 
 > `optional` **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:550](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L550)
+Defined in: [src/client/types.gen.ts:577](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L577)
 
 CallID is the call ID for function_call types
 
@@ -30,7 +30,7 @@ CallID is the call ID for function_call types
 
 > `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]
 
-Defined in: [src/client/types.gen.ts:554](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L554)
+Defined in: [src/client/types.gen.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L581)
 
 Content is the content array for message types
 
@@ -40,7 +40,7 @@ Content is the content array for message types
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L558)
+Defined in: [src/client/types.gen.ts:585](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L585)
 
 ID is the unique identifier for this output item
 
@@ -50,7 +50,7 @@ ID is the unique identifier for this output item
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:562](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L562)
+Defined in: [src/client/types.gen.ts:589](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L589)
 
 Name is the function name for function_call types
 
@@ -60,7 +60,7 @@ Name is the function name for function_call types
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:566](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L566)
+Defined in: [src/client/types.gen.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L593)
 
 Role is the role for message types (e.g., "assistant")
 
@@ -70,7 +70,7 @@ Role is the role for message types (e.g., "assistant")
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:570](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L570)
+Defined in: [src/client/types.gen.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L597)
 
 Status is the status of this output item (e.g., "completed")
 
@@ -80,6 +80,6 @@ Status is the status of this output item (e.g., "completed")
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:574](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L574)
+Defined in: [src/client/types.gen.ts:601](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L601)
 
 Type is the output item type (e.g., "message", "function_call")

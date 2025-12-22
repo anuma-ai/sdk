@@ -2,7 +2,7 @@
 
 > **ResponseErrorResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:805](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L805)
+Defined in: [src/client/types.gen.ts:832](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L832)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:805](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:806](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L806)
+Defined in: [src/client/types.gen.ts:833](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L833)

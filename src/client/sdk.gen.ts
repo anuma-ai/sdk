@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
+import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -31,6 +31,18 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Get configuration
+ *
+ * Returns public configuration including contract addresses and payment model
+ */
+export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({
+        url: '/api/v1/config',
+        ...options
     });
 };
 

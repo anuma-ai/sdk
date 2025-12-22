@@ -3,6 +3,11 @@
 ## Type Aliases
 
 - [ClientOptions](type-aliases/ClientOptions.md)
+- [GetApiV1ConfigData](type-aliases/GetApiV1ConfigData.md)
+- [GetApiV1ConfigError](type-aliases/GetApiV1ConfigError.md)
+- [GetApiV1ConfigErrors](type-aliases/GetApiV1ConfigErrors.md)
+- [GetApiV1ConfigResponse](type-aliases/GetApiV1ConfigResponse.md)
+- [GetApiV1ConfigResponses](type-aliases/GetApiV1ConfigResponses.md)
 - [GetApiV1DocsSwaggerJsonData](type-aliases/GetApiV1DocsSwaggerJsonData.md)
 - [GetApiV1DocsSwaggerJsonResponse](type-aliases/GetApiV1DocsSwaggerJsonResponse.md)
 - [GetApiV1DocsSwaggerJsonResponses](type-aliases/GetApiV1DocsSwaggerJsonResponses.md)
@@ -16,6 +21,7 @@
 - [GetHealthErrors](type-aliases/GetHealthErrors.md)
 - [GetHealthResponse](type-aliases/GetHealthResponse.md)
 - [GetHealthResponses](type-aliases/GetHealthResponses.md)
+- [HandlersConfigResponse](type-aliases/HandlersConfigResponse.md)
 - [HandlersExchangeRequest](type-aliases/HandlersExchangeRequest.md)
 - [HandlersHealthResponse](type-aliases/HandlersHealthResponse.md)
 - [HandlersRefreshRequest](type-aliases/HandlersRefreshRequest.md)
@@ -107,6 +113,7 @@
 
 ## Functions
 
+- [getApiV1Config](functions/getApiV1Config.md)
 - [getApiV1DocsSwaggerJson](functions/getApiV1DocsSwaggerJson.md)
 - [getApiV1Models](functions/getApiV1Models.md)
 - [getHealth](functions/getHealth.md)
