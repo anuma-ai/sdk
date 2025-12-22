@@ -2,7 +2,7 @@
 
 > **BackupAuthProvider**(`__namedParameters`): `Element`
 
-Defined in: [src/react/useBackupAuth.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L123)
+Defined in: [src/react/useBackupAuth.ts:140](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L140)
 
 Unified provider component for backup OAuth authentication.
 
@@ -32,6 +32,8 @@ function App() {
       dropboxCallbackPath="/auth/dropbox/callback"
       googleClientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       googleCallbackPath="/auth/google/callback"
+      icloudApiToken={process.env.NEXT_PUBLIC_CLOUDKIT_API_TOKEN}
+      icloudContainerIdentifier="iCloud.Memoryless"
       apiClient={apiClient}
     >
       <MyApp />

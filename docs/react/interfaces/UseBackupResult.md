@@ -1,6 +1,6 @@
 # UseBackupResult
 
-Defined in: [src/react/useBackup.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L94)
+Defined in: [src/react/useBackup.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L102)
 
 Result returned by useBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useBackup hook
 
 > **disconnectAll**: () => `Promise`\<`void`\>
 
-Defined in: [src/react/useBackup.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L104)
+Defined in: [src/react/useBackup.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L114)
 
 Disconnect from all providers
 
@@ -24,7 +24,7 @@ Disconnect from all providers
 
 > **dropbox**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: [src/react/useBackup.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L96)
+Defined in: [src/react/useBackup.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L104)
 
 Dropbox backup state and methods
 
@@ -34,7 +34,7 @@ Dropbox backup state and methods
 
 > **googleDrive**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: [src/react/useBackup.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L98)
+Defined in: [src/react/useBackup.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L106)
 
 Google Drive backup state and methods
 
@@ -44,7 +44,7 @@ Google Drive backup state and methods
 
 > **hasAnyAuthentication**: `boolean`
 
-Defined in: [src/react/useBackup.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L102)
+Defined in: [src/react/useBackup.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L112)
 
 Whether any backup provider is authenticated
 
@@ -54,6 +54,16 @@ Whether any backup provider is authenticated
 
 > **hasAnyProvider**: `boolean`
 
-Defined in: [src/react/useBackup.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L100)
+Defined in: [src/react/useBackup.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L110)
 
 Whether any backup provider is configured
+
+***
+
+### icloud
+
+> **icloud**: [`ProviderBackupState`](ProviderBackupState.md)
+
+Defined in: [src/react/useBackup.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L108)
+
+iCloud backup state and methods
