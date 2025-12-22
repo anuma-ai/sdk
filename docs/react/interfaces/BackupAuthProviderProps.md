@@ -1,12 +1,11 @@
 # BackupAuthProviderProps
 
-Defined in: [src/react/useBackupAuth.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L41)
+Defined in: [src/react/useBackupAuth.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L48)
 
 Props for BackupAuthProvider
 
-At least one of `dropboxAppKey` or `googleClientId` should be provided
-for the provider to be useful. Both are optional to allow using just
-one backup provider.
+At least one of `dropboxAppKey`, `googleClientId`, or `icloudApiToken` should be provided
+for the provider to be useful. All are optional to allow using just one backup provider.
 
 ## Properties
 
@@ -14,7 +13,7 @@ one backup provider.
 
 > `optional` **apiClient**: `Client`
 
-Defined in: [src/react/useBackupAuth.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L54)
+Defined in: [src/react/useBackupAuth.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L67)
 
 API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
 Only needed if you have a custom client configuration (e.g., different baseUrl).
@@ -25,7 +24,7 @@ Only needed if you have a custom client configuration (e.g., different baseUrl).
 
 > **children**: `ReactNode`
 
-Defined in: [src/react/useBackupAuth.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L56)
+Defined in: [src/react/useBackupAuth.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L69)
 
 Children to render
 
@@ -35,7 +34,7 @@ Children to render
 
 > `optional` **dropboxAppKey**: `string`
 
-Defined in: [src/react/useBackupAuth.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L43)
+Defined in: [src/react/useBackupAuth.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L50)
 
 Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dropbox.
 
@@ -45,7 +44,7 @@ Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dro
 
 > `optional` **dropboxCallbackPath**: `string`
 
-Defined in: [src/react/useBackupAuth.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L45)
+Defined in: [src/react/useBackupAuth.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L52)
 
 Dropbox OAuth callback path (default: "/auth/dropbox/callback")
 
@@ -55,7 +54,7 @@ Dropbox OAuth callback path (default: "/auth/dropbox/callback")
 
 > `optional` **googleCallbackPath**: `string`
 
-Defined in: [src/react/useBackupAuth.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L49)
+Defined in: [src/react/useBackupAuth.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L56)
 
 Google OAuth callback path (default: "/auth/google/callback")
 
@@ -65,6 +64,36 @@ Google OAuth callback path (default: "/auth/google/callback")
 
 > `optional` **googleClientId**: `string`
 
-Defined in: [src/react/useBackupAuth.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L47)
+Defined in: [src/react/useBackupAuth.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L54)
 
 Google OAuth Client ID (from Google Cloud Console). Optional - omit to disable Google Drive.
+
+***
+
+### icloudApiToken?
+
+> `optional` **icloudApiToken**: `string`
+
+Defined in: [src/react/useBackupAuth.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L58)
+
+CloudKit API token (from Apple Developer Console). Optional - omit to disable iCloud.
+
+***
+
+### icloudContainerIdentifier?
+
+> `optional` **icloudContainerIdentifier**: `string`
+
+Defined in: [src/react/useBackupAuth.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L60)
+
+CloudKit container identifier (default: "iCloud.Memoryless")
+
+***
+
+### icloudEnvironment?
+
+> `optional` **icloudEnvironment**: `"development"` \| `"production"`
+
+Defined in: [src/react/useBackupAuth.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L62)
+
+CloudKit environment (default: "production")
