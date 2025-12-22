@@ -42,18 +42,18 @@ jobs:
       - name: Check if docs changed
         id: changes
         run: |
-          git add -A
-          git diff --staged --quiet || echo "docs_changed=true" >> $GITHUB_OUTPUT
+          git add docs/
+          git diff --staged --quiet docs/ || echo "docs_changed=true" >> $GITHUB_OUTPUT
 
       - name: Fail if docs changed
         if: steps.changes.outputs.docs_changed == 'true'
         run: |
-          echo "❌ Changes detected after running 'pnpm generate'"
+          echo "❌ Changes detected in docs/ after running 'pnpm generate'"
           echo "Please run 'pnpm generate' locally and commit the changes."
           echo ""
           echo "Changed files:"
-          git status
+          git status docs/
           echo ""
           echo "Diff:"
-          git diff --staged
+          git diff --staged docs/
           exit 1
