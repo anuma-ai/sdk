@@ -2,7 +2,7 @@
 
 > **PostApiV1ImagesGenerationsData** = `object`
 
-Defined in: [src/client/types.gen.ts:891](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L891)
+Defined in: [src/client/types.gen.ts:675](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L675)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:891](https://github.com/zeta-chain/ai-sdk/b
 
 > **body**: [`LlmapiImageGenerationRequest`](LlmapiImageGenerationRequest.md)
 
-Defined in: [src/client/types.gen.ts:895](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L895)
+Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
 
 Image generation request
 
@@ -20,7 +20,7 @@ Image generation request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:896](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L896)
+Defined in: [src/client/types.gen.ts:680](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L680)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:896](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:897](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L897)
+Defined in: [src/client/types.gen.ts:681](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L681)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:897](https://github.com/zeta-chain/ai-sdk/b
 
 > **url**: `"/api/v1/images/generations"`
 
-Defined in: [src/client/types.gen.ts:898](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L898)
+Defined in: [src/client/types.gen.ts:682](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L682)

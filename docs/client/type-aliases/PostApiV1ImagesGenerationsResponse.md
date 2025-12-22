@@ -2,4 +2,4 @@
 
 > **PostApiV1ImagesGenerationsResponse** = [`PostApiV1ImagesGenerationsResponses`](PostApiV1ImagesGenerationsResponses.md)\[keyof [`PostApiV1ImagesGenerationsResponses`](PostApiV1ImagesGenerationsResponses.md)\]
 
-Defined in: [src/client/types.gen.ts:925](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L925)
+Defined in: [src/client/types.gen.ts:709](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L709)
