@@ -15,6 +15,7 @@ import {
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
+  type SearchSource,
   convertUsageToStored,
   finalizeThoughtProcess,
   type StorageOperationsContext,
@@ -88,6 +89,11 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
+  /** Extract all links from assistant message content as SearchSource objects */
+  extractSourcesFromAssistantMessage: (assistantMessage: {
+    content: string;
+    sources?: SearchSource[];
+  }) => SearchSource[];
   /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
   updateMessage: (
     uniqueId: string,
@@ -294,6 +300,87 @@ export function useChatStorage(
       return updateMessageOp(storageCtx, uniqueId, options);
     },
     [storageCtx]
+  );
+
+  /**
+   * Extracts all links from assistant message content and returns them as SearchSource objects.
+   * Parses both markdown links [text](url) and plain URLs from the message content,
+   * then merges them with any existing sources already attached to the message.
+   */
+  const extractSourcesFromAssistantMessage = useCallback(
+    (assistantMessage: {
+      content: string;
+      sources?: SearchSource[];
+    }): SearchSource[] => {
+      try {
+        const extractedSources: SearchSource[] = [];
+        const seenUrls = new Set<string>();
+
+        // Add existing sources first (they have priority)
+        if (assistantMessage.sources) {
+          for (const source of assistantMessage.sources) {
+            if (source.url) {
+              seenUrls.add(source.url);
+            }
+            extractedSources.push(source);
+          }
+        }
+
+        const content = assistantMessage.content;
+        if (!content) {
+          return extractedSources;
+        }
+
+        // Regex to match markdown links: [title](url) with support for balanced parentheses
+        const markdownLinkRegex =
+          /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
+
+        // Regex to match plain URLs (http, https) - Hermes-compatible (no lookbehind)
+        const plainUrlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
+
+        // Extract markdown links
+        let match: RegExpExecArray | null;
+        while ((match = markdownLinkRegex.exec(content)) !== null) {
+          const title = match[1].trim();
+          const url = match[2].trim();
+
+          if (url && !seenUrls.has(url)) {
+            seenUrls.add(url);
+            extractedSources.push({
+              title: title || undefined,
+              url: url,
+            });
+          }
+        }
+
+        // Extract plain URLs (not already captured in markdown links)
+        while ((match = plainUrlRegex.exec(content)) !== null) {
+          // Trim trailing punctuation that's not part of the URL
+          const url = match[0].replace(/[.,;:!?]+$/, "").trim();
+
+          if (url && !seenUrls.has(url)) {
+            seenUrls.add(url);
+            // Try to extract a title from the URL domain
+            try {
+              const urlObj = new URL(url);
+              extractedSources.push({
+                title: urlObj.hostname,
+                url: url,
+              });
+            } catch {
+              extractedSources.push({
+                url: url,
+              });
+            }
+          }
+        }
+
+        return extractedSources;
+      } catch {
+        return []; // Return empty array if error occurs
+      }
+    },
+    []
   );
 
   /**
@@ -538,6 +625,12 @@ export function useChatStorage(
           ?.map((part) => part.text || "")
           .join("") || "";
 
+      // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      const combinedSources = extractSourcesFromAssistantMessage({
+        content: assistantContent,
+        sources,
+      });
+
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
@@ -548,7 +641,7 @@ export function useChatStorage(
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
-          sources,
+          sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         });
       } catch (err) {
@@ -586,6 +679,7 @@ export function useChatStorage(
     getMessages,
     getMessageCount,
     clearMessages,
+    extractSourcesFromAssistantMessage,
     updateMessage,
   };
 }
