@@ -30,6 +30,7 @@ export function messageToStored(message: Message): StoredMessage {
     responseDuration: message.responseDuration,
     wasStopped: message.wasStopped,
     error: message.error,
+    thoughtProcess: message.thoughtProcess,
   };
 }
 
@@ -186,9 +187,12 @@ export async function createMessageOp(
       if (opts.responseDuration !== undefined)
         msg._setRaw("response_duration", opts.responseDuration);
       if (opts.vector) msg._setRaw("vector", JSON.stringify(opts.vector));
-      if (opts.embeddingModel) msg._setRaw("embedding_model", opts.embeddingModel);
+      if (opts.embeddingModel)
+        msg._setRaw("embedding_model", opts.embeddingModel);
       if (opts.wasStopped) msg._setRaw("was_stopped", opts.wasStopped);
       if (opts.error) msg._setRaw("error", opts.error);
+      if (opts.thoughtProcess)
+        msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
     });
   });
 
@@ -271,6 +275,8 @@ export async function updateMessageOp(
         msg._setRaw("was_stopped", opts.wasStopped);
       if (opts.error !== undefined)
         msg._setRaw("error", opts.error === null ? "" : opts.error);
+      if (opts.thoughtProcess !== undefined)
+        msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
     });
   });
 
@@ -316,7 +322,9 @@ export async function searchMessagesOp(
     ? [Q.where("conversation_id", conversationId)]
     : [];
 
-  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+  const messages = await ctx.messagesCollection
+    .query(...queryConditions)
+    .fetch();
 
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
@@ -355,7 +363,9 @@ export async function getMessagesWithEmbeddingsOp(
     ? [Q.where("conversation_id", conversationId)]
     : [];
 
-  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
+  const messages = await ctx.messagesCollection
+    .query(...queryConditions)
+    .fetch();
 
   return messages
     .filter(

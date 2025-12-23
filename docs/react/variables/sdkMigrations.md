@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`\<\{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`\<\{ `steps`: `MigrationStep`[]; `toVersion`: `number`; \}\>[]; `validated`: `true`; \}\>
 
-Defined in: [src/lib/db/schema.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L133)
+Defined in: [src/lib/db/schema.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L136)
 
 Combined migrations for all SDK storage modules.
 
@@ -17,3 +17,4 @@ Migration history:
 - v2 → v3: Added `was_stopped` column to history table
 - v3 → v4: Added `modelPreferences` table for settings storage
 - v4 → v5: Added `error` column to history table for error persistence
+- v5 → v6: Added `thought_process` column to history table for activity tracking

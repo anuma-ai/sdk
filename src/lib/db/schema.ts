@@ -18,8 +18,9 @@ import { ModelPreference } from "./settings/models";
  * - v3: Added was_stopped column to history table
  * - v4: Added modelPreferences table for settings storage
  * - v5: Added error column to history table for error persistence
+ * - v6: Added thought_process column to history table for activity tracking
  */
-const SDK_SCHEMA_VERSION = 5;
+const SDK_SCHEMA_VERSION = 6;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -72,6 +73,7 @@ export const sdkSchema = appSchema({
         { name: "response_duration", type: "number", isOptional: true },
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
+        { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
       ],
     }),
     tableSchema({
@@ -129,6 +131,7 @@ export const sdkSchema = appSchema({
  * - v2 → v3: Added `was_stopped` column to history table
  * - v3 → v4: Added `modelPreferences` table for settings storage
  * - v4 → v5: Added `error` column to history table for error persistence
+ * - v5 → v6: Added `thought_process` column to history table for activity tracking
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -162,6 +165,18 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "error", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v5 -> v6: Added thought_process column to history table
+    {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "thought_process", type: "string", isOptional: true },
+          ],
         }),
       ],
     },

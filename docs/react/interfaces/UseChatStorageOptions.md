@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L73)
+Defined in: [src/react/useChatStorage.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L74)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with React-specific features like local chat and tools.
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L106)
+Defined in: [src/lib/db/chat/types.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L118)
 
 #### Inherited from
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/chat/types.ts:106](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L109)
+Defined in: [src/lib/db/chat/types.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L121)
 
 #### Inherited from
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:109](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **chatProvider**: `"local"` \| `"api"`
 
-Defined in: [src/react/useChatStorage.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L75)
+Defined in: [src/react/useChatStorage.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L76)
 
 Chat provider: "api" or "local"
 
@@ -50,7 +50,7 @@ Chat provider: "api" or "local"
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L105)
+Defined in: [src/lib/db/chat/types.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L117)
 
 #### Inherited from
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/chat/types.ts:105](https://github.com/zeta-chain/ai-sdk/
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L104)
+Defined in: [src/lib/db/chat/types.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L116)
 
 #### Inherited from
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/chat/types.ts:104](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L107)
+Defined in: [src/lib/db/chat/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L119)
 
 #### Inherited from
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/db/chat/types.ts:107](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **getToken**: () => `Promise`\<`string` \| `null`\>
 
-Defined in: [src/lib/db/chat/types.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L108)
+Defined in: [src/lib/db/chat/types.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L120)
 
 #### Returns
 
@@ -102,7 +102,7 @@ Defined in: [src/lib/db/chat/types.ts:108](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **localModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L77)
+Defined in: [src/react/useChatStorage.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L78)
 
 Model for local chat
 
@@ -112,7 +112,7 @@ Model for local chat
 
 > `optional` **onData**: (`chunk`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L110)
+Defined in: [src/lib/db/chat/types.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L122)
 
 #### Parameters
 
@@ -134,7 +134,7 @@ Defined in: [src/lib/db/chat/types.ts:110](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onError**: (`error`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L112)
+Defined in: [src/lib/db/chat/types.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L124)
 
 #### Parameters
 
@@ -156,7 +156,7 @@ Defined in: [src/lib/db/chat/types.ts:112](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onFinish**: (`response`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L111)
+Defined in: [src/lib/db/chat/types.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L123)
 
 #### Parameters
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/db/chat/types.ts:111](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onToolExecution**: (`result`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
+Defined in: [src/react/useChatStorage.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L84)
 
 Callback when tool is executed
 
@@ -198,7 +198,7 @@ Callback when tool is executed
 
 > `optional` **tools**: [`ClientTool`](ClientTool.md)[]
 
-Defined in: [src/react/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L79)
+Defined in: [src/react/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L80)
 
 Client-side tools
 
@@ -208,6 +208,6 @@ Client-side tools
 
 > `optional` **toolSelectorModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L81)
+Defined in: [src/react/useChatStorage.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L82)
 
 Tool selector model
