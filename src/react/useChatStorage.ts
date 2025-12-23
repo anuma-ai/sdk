@@ -420,6 +420,7 @@ export function useChatStorage(
         memoryContext,
         searchContext,
         sources,
+        thoughtProcess,
       } = args;
 
       // Ensure we have a conversation
@@ -537,6 +538,9 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
+            if (thoughtProcess) {
+              thoughtProcess[thoughtProcess.length - 1].status = "completed";
+            }
             storedAssistantMessage = await createMessageOp(storageCtx, {
               conversationId: convId,
               role: "assistant",
@@ -546,6 +550,7 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
               sources,
+              thoughtProcess,
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -627,6 +632,9 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
+        if (thoughtProcess) {
+          thoughtProcess[thoughtProcess.length - 1].status = "completed";
+        }
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
@@ -635,6 +643,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources,
+          thoughtProcess,
         });
       } catch (err) {
         return {

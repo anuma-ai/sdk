@@ -4,6 +4,7 @@ import type {
   LlmapiChatCompletionUsage,
   LlmapiMessage,
 } from "../../../client";
+import type { StoredMemory } from "../memory/types";
 
 // Core types
 
@@ -49,6 +50,15 @@ export interface StoredMessage {
   wasStopped?: boolean;
   /** If set, indicates the message failed with this error */
   error?: string;
+  thoughtProcess?: ActivityPhase[];
+}
+
+export interface ActivityPhase {
+  id: string;
+  label: string;
+  timestamp: number;
+  status: "pending" | "active" | "completed";
+  data?: StoredMemory[];
 }
 
 export interface StoredConversation {
@@ -78,6 +88,7 @@ export interface CreateMessageOptions {
   wasStopped?: boolean;
   /** If set, indicates the message failed with this error */
   error?: string;
+  thoughtProcess?: ActivityPhase[];
 }
 
 export interface CreateConversationOptions {
@@ -96,6 +107,7 @@ export interface UpdateMessageOptions {
   embeddingModel?: string;
   wasStopped?: boolean;
   error?: string | null;
+  thoughtProcess?: ActivityPhase[];
 }
 
 // Hook types
@@ -123,6 +135,7 @@ export interface BaseSendMessageWithStorageArgs {
   memoryContext?: string;
   searchContext?: string;
   sources?: SearchSource[];
+  thoughtProcess?: ActivityPhase[];
 }
 
 export interface BaseSendMessageSuccessResult {

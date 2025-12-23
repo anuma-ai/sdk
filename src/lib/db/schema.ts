@@ -72,6 +72,7 @@ export const sdkSchema = appSchema({
         { name: "response_duration", type: "number", isOptional: true },
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
+        { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
       ],
     }),
     tableSchema({
