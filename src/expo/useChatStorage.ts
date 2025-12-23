@@ -345,6 +345,8 @@ export function useChatStorage(
         maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
+        sources,
+        thoughtProcess,
       } = args;
 
       // Ensure we have a conversation
@@ -453,6 +455,14 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
+            // Clone and mark last phase as completed
+            const finalThoughtProcess = thoughtProcess?.length
+              ? thoughtProcess.map((phase, idx) =>
+                  idx === thoughtProcess.length - 1
+                    ? { ...phase, status: "completed" as const }
+                    : phase
+                )
+              : thoughtProcess;
             storedAssistantMessage = await createMessageOp(storageCtx, {
               conversationId: convId,
               role: "assistant",
@@ -461,6 +471,8 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
+              sources,
+              thoughtProcess: finalThoughtProcess,
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -534,6 +546,15 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
+        // Clone and mark last phase as completed
+        const finalThoughtProcess = thoughtProcess?.length
+          ? thoughtProcess.map((phase, idx) =>
+              idx === thoughtProcess.length - 1
+                ? { ...phase, status: "completed" as const }
+                : phase
+            )
+          : thoughtProcess;
+
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
@@ -541,6 +562,8 @@ export function useChatStorage(
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
+          sources,
+          thoughtProcess: finalThoughtProcess,
         });
       } catch (err) {
         return {

@@ -538,9 +538,14 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
-            if (thoughtProcess) {
-              thoughtProcess[thoughtProcess.length - 1].status = "completed";
-            }
+            // Clone and mark last phase as completed
+            const finalThoughtProcess = thoughtProcess?.length
+              ? thoughtProcess.map((phase, idx) =>
+                  idx === thoughtProcess.length - 1
+                    ? { ...phase, status: "completed" as const }
+                    : phase
+                )
+              : thoughtProcess;
             storedAssistantMessage = await createMessageOp(storageCtx, {
               conversationId: convId,
               role: "assistant",
@@ -550,7 +555,7 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
               sources,
-              thoughtProcess,
+              thoughtProcess: finalThoughtProcess,
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -632,9 +637,15 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
-        if (thoughtProcess) {
-          thoughtProcess[thoughtProcess.length - 1].status = "completed";
-        }
+        // Clone and mark last phase as completed
+        const finalThoughtProcess = thoughtProcess?.length
+          ? thoughtProcess.map((phase, idx) =>
+              idx === thoughtProcess.length - 1
+                ? { ...phase, status: "completed" as const }
+                : phase
+            )
+          : thoughtProcess;
+
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
@@ -643,7 +654,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources,
-          thoughtProcess,
+          thoughtProcess: finalThoughtProcess,
         });
       } catch (err) {
         return {
