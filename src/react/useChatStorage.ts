@@ -154,9 +154,10 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     embeddingModel: string
   ) => Promise<StoredMessage | null>;
   /** Extract all links from assistant message content as SearchSource objects */
-  extractSourcesFromAssistantMessage: (
-    assistantMessage: StoredMessage
-  ) => SearchSource[];
+  extractSourcesFromAssistantMessage: (assistantMessage: {
+    content: string;
+    sources?: SearchSource[];
+  }) => SearchSource[];
   /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
   updateMessage: (
     uniqueId: string,
@@ -412,7 +413,10 @@ export function useChatStorage(
    * then merges them with any existing sources already attached to the message.
    */
   const extractSourcesFromAssistantMessage = useCallback(
-    (assistantMessage: StoredMessage): SearchSource[] => {
+    (assistantMessage: {
+      content: string;
+      sources?: SearchSource[];
+    }): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
@@ -712,31 +716,11 @@ export function useChatStorage(
           ?.map((part) => part.text || "")
           .join("") || "";
 
-      // Combine passed sources with extracted sources from content, deduplicating by URL
-      const seenUrls = new Set<string>();
-      const combinedSources: SearchSource[] = [];
-
-      // Add passed sources first (they have priority)
-      if (sources) {
-        for (const source of sources) {
-          if (source.url) {
-            seenUrls.add(source.url);
-          }
-          combinedSources.push(source);
-        }
-      }
-
-      // Extract and add sources from assistant content
-      const extractedSources = extractSourcesFromAssistantMessage({
+      // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      const combinedSources = extractSourcesFromAssistantMessage({
         content: assistantContent,
-      } as StoredMessage);
-
-      for (const source of extractedSources) {
-        if (source.url && !seenUrls.has(source.url)) {
-          seenUrls.add(source.url);
-          combinedSources.push(source);
-        }
-      }
+        sources,
+      });
 
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
@@ -748,7 +732,7 @@ export function useChatStorage(
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
-          sources,
+          sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         });
       } catch (err) {
