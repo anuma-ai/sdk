@@ -102,7 +102,13 @@ Extract all links from assistant message content as SearchSource objects
 
 ##### assistantMessage
 
-[`StoredMessage`](StoredMessage.md)
+###### content
+
+`string`
+
+###### sources?
+
+[`SearchSource`](SearchSource.md)[]
 
 #### Returns
 
@@ -326,7 +332,7 @@ Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`, `options`) => `Promise`\<[`StoredMessage`](StoredMessage.md) \| `null`\>
 
-Defined in: [src/react/useChatStorage.ts:161](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L161)
+Defined in: [src/react/useChatStorage.ts:162](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L162)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

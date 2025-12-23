@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L86)
+Defined in: [src/expo/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L87)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -87,6 +87,32 @@ Defined in: [src/lib/db/chat/types.ts:170](https://github.com/zeta-chain/ai-sdk/
 #### Inherited from
 
 `BaseUseChatStorageResult.deleteConversation`
+
+***
+
+### extractSourcesFromAssistantMessage()
+
+> **extractSourcesFromAssistantMessage**: (`assistantMessage`) => [`SearchSource`](../../react/interfaces/SearchSource.md)[]
+
+Defined in: [src/expo/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L93)
+
+Extract all links from assistant message content as SearchSource objects
+
+#### Parameters
+
+##### assistantMessage
+
+###### content
+
+`string`
+
+###### sources?
+
+[`SearchSource`](../../react/interfaces/SearchSource.md)[]
+
+#### Returns
+
+[`SearchSource`](../../react/interfaces/SearchSource.md)[]
 
 ***
 
@@ -188,7 +214,7 @@ Defined in: [src/lib/db/chat/types.ts:160](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`) => `Promise`\<`BaseSendMessageWithStorageResult`\>
 
-Defined in: [src/expo/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L88)
+Defined in: [src/expo/useChatStorage.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L89)
 
 Send a message and automatically store it (Expo version)
 
@@ -272,7 +298,7 @@ Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`, `options`) => `Promise`\<[`StoredMessage`](../../react/interfaces/StoredMessage.md) \| `null`\>
 
-Defined in: [src/expo/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L92)
+Defined in: [src/expo/useChatStorage.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L98)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

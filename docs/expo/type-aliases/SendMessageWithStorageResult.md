@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageResult** = `BaseSendMessageWithStorageResult`
 
-Defined in: [src/expo/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L79)
+Defined in: [src/expo/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L80)
 
 Result from sendMessage with storage (Expo version)
 
