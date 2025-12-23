@@ -243,13 +243,13 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to backup to Dropbox" };
       }
 
-      let token = dropboxAuth.accessToken;
-      if (!token) {
-        try {
-          token = await dropboxAuth.requestAccess();
-        } catch {
-          return { error: "Dropbox access denied" };
-        }
+      // Always request access to ensure we have a valid (non-expired) token
+      // requestAccess() validates expiration and refreshes if needed
+      let token: string;
+      try {
+        token = await dropboxAuth.requestAccess();
+      } catch {
+        return { error: "Dropbox access denied" };
       }
 
       try {
@@ -279,13 +279,13 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to restore from Dropbox" };
       }
 
-      let token = dropboxAuth.accessToken;
-      if (!token) {
-        try {
-          token = await dropboxAuth.requestAccess();
-        } catch {
-          return { error: "Dropbox access denied" };
-        }
+      // Always request access to ensure we have a valid (non-expired) token
+      // requestAccess() validates expiration and refreshes if needed
+      let token: string;
+      try {
+        token = await dropboxAuth.requestAccess();
+      } catch {
+        return { error: "Dropbox access denied" };
       }
 
       try {
@@ -314,13 +314,13 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to backup to Google Drive" };
       }
 
-      let token = googleDriveAuth.accessToken;
-      if (!token) {
-        try {
-          token = await googleDriveAuth.requestAccess();
-        } catch {
-          return { error: "Google Drive access denied" };
-        }
+      // Always request access to ensure we have a valid (non-expired) token
+      // requestAccess() validates expiration and refreshes if needed
+      let token: string;
+      try {
+        token = await googleDriveAuth.requestAccess();
+      } catch {
+        return { error: "Google Drive access denied" };
       }
 
       try {
@@ -361,13 +361,13 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         return { error: "Please sign in to restore from Google Drive" };
       }
 
-      let token = googleDriveAuth.accessToken;
-      if (!token) {
-        try {
-          token = await googleDriveAuth.requestAccess();
-        } catch {
-          return { error: "Google Drive access denied" };
-        }
+      // Always request access to ensure we have a valid (non-expired) token
+      // requestAccess() validates expiration and refreshes if needed
+      let token: string;
+      try {
+        token = await googleDriveAuth.requestAccess();
+      } catch {
+        return { error: "Google Drive access denied" };
       }
 
       try {
