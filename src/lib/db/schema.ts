@@ -18,8 +18,9 @@ import { ModelPreference } from "./settings/models";
  * - v3: Added was_stopped column to history table
  * - v4: Added modelPreferences table for settings storage
  * - v5: Added error column to history table for error persistence
+ * - v6: Added thought_process column to history table for activity tracking
  */
-const SDK_SCHEMA_VERSION = 5;
+const SDK_SCHEMA_VERSION = 6;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -130,6 +131,7 @@ export const sdkSchema = appSchema({
  * - v2 → v3: Added `was_stopped` column to history table
  * - v3 → v4: Added `modelPreferences` table for settings storage
  * - v4 → v5: Added `error` column to history table for error persistence
+ * - v5 → v6: Added `thought_process` column to history table for activity tracking
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
