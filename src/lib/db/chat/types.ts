@@ -190,3 +190,18 @@ export function convertUsageToStored(
     costMicroUsd: usage.cost_micro_usd,
   };
 }
+
+/**
+ * Marks the last phase in a thought process as completed.
+ * Used when storing messages to finalize the activity tracking state.
+ */
+export function finalizeThoughtProcess(
+  thoughtProcess?: ActivityPhase[]
+): ActivityPhase[] | undefined {
+  if (!thoughtProcess?.length) return thoughtProcess;
+  return thoughtProcess.map((phase, idx) =>
+    idx === thoughtProcess.length - 1
+      ? { ...phase, status: "completed" as const }
+      : phase
+  );
+}

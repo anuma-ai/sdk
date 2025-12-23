@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L85)
+Defined in: [src/expo/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L86)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -188,7 +188,7 @@ Defined in: [src/lib/db/chat/types.ts:160](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`) => `Promise`\<`BaseSendMessageWithStorageResult`\>
 
-Defined in: [src/expo/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L87)
+Defined in: [src/expo/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L88)
 
 Send a message and automatically store it (Expo version)
 
@@ -272,7 +272,7 @@ Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`, `options`) => `Promise`\<[`StoredMessage`](../../react/interfaces/StoredMessage.md) \| `null`\>
 
-Defined in: [src/expo/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L91)
+Defined in: [src/expo/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L92)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

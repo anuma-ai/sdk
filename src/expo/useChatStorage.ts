@@ -16,6 +16,7 @@ import {
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
   convertUsageToStored,
+  finalizeThoughtProcess,
   type StorageOperationsContext,
   createConversationOp,
   getConversationOp,
@@ -455,14 +456,6 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
-            // Clone and mark last phase as completed
-            const finalThoughtProcess = thoughtProcess?.length
-              ? thoughtProcess.map((phase, idx) =>
-                  idx === thoughtProcess.length - 1
-                    ? { ...phase, status: "completed" as const }
-                    : phase
-                )
-              : thoughtProcess;
             storedAssistantMessage = await createMessageOp(storageCtx, {
               conversationId: convId,
               role: "assistant",
@@ -472,7 +465,7 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
               sources,
-              thoughtProcess: finalThoughtProcess,
+              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -517,14 +510,6 @@ export function useChatStorage(
             storedUserMessage.uniqueId,
             errorMessage
           );
-          // Clone and mark last phase as completed for error case
-          const finalThoughtProcess = thoughtProcess?.length
-            ? thoughtProcess.map((phase, idx) =>
-                idx === thoughtProcess.length - 1
-                  ? { ...phase, status: "completed" as const }
-                  : phase
-              )
-            : thoughtProcess;
           await createMessageOp(storageCtx, {
             conversationId: convId,
             role: "assistant",
@@ -532,7 +517,7 @@ export function useChatStorage(
             model: model || "",
             responseDuration,
             sources,
-            thoughtProcess: finalThoughtProcess,
+            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
           });
         } catch {
@@ -556,15 +541,6 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
-        // Clone and mark last phase as completed
-        const finalThoughtProcess = thoughtProcess?.length
-          ? thoughtProcess.map((phase, idx) =>
-              idx === thoughtProcess.length - 1
-                ? { ...phase, status: "completed" as const }
-                : phase
-            )
-          : thoughtProcess;
-
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
@@ -573,7 +549,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources,
-          thoughtProcess: finalThoughtProcess,
+          thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         });
       } catch (err) {
         return {

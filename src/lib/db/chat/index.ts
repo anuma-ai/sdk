@@ -20,6 +20,7 @@ export {
   type BaseUseChatStorageResult,
   convertUsageToStored,
   generateConversationId,
+  finalizeThoughtProcess,
 } from "./types";
 export {
   type StorageOperationsContext,
