@@ -11,6 +11,7 @@ export {
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
+  type ActivityPhase,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageSuccessResult,

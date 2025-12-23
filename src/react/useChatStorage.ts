@@ -607,12 +607,22 @@ export function useChatStorage(
             storedUserMessage.uniqueId,
             errorMessage
           );
+          // Clone and mark last phase as completed for error case
+          const finalThoughtProcess = thoughtProcess?.length
+            ? thoughtProcess.map((phase, idx) =>
+                idx === thoughtProcess.length - 1
+                  ? { ...phase, status: "completed" as const }
+                  : phase
+              )
+            : thoughtProcess;
           await createMessageOp(storageCtx, {
             conversationId: convId,
             role: "assistant",
             content: "",
             model: model || "",
             responseDuration,
+            sources,
+            thoughtProcess: finalThoughtProcess,
             error: errorMessage,
           });
         } catch {
