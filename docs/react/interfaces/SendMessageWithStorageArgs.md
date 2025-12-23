@@ -16,7 +16,7 @@ Extends base arguments with React-specific features like tools and headers.
 
 > **content**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L116)
+Defined in: [src/lib/db/chat/types.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L128)
 
 #### Inherited from
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/chat/types.ts:116](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
 
-Defined in: [src/lib/db/chat/types.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L121)
+Defined in: [src/lib/db/chat/types.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L133)
 
 #### Inherited from
 
@@ -50,7 +50,7 @@ Custom headers
 
 > `optional` **includeHistory**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L119)
+Defined in: [src/lib/db/chat/types.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L131)
 
 #### Inherited from
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/chat/types.ts:119](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **maxHistoryMessages**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L120)
+Defined in: [src/lib/db/chat/types.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L132)
 
 #### Inherited from
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/chat/types.ts:120](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **memoryContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L123)
+Defined in: [src/lib/db/chat/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L135)
 
 #### Inherited from
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/db/chat/types.ts:123](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **messages**: [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
 
-Defined in: [src/lib/db/chat/types.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L118)
+Defined in: [src/lib/db/chat/types.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L130)
 
 #### Inherited from
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/db/chat/types.ts:118](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L117)
+Defined in: [src/lib/db/chat/types.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L129)
 
 #### Inherited from
 
@@ -110,7 +110,7 @@ Defined in: [src/lib/db/chat/types.ts:117](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onData**: (`chunk`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L122)
+Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L134)
 
 #### Parameters
 
@@ -142,7 +142,7 @@ Whether to run tool selection
 
 > `optional` **searchContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L124)
+Defined in: [src/lib/db/chat/types.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L136)
 
 #### Inherited from
 
@@ -154,8 +154,20 @@ Defined in: [src/lib/db/chat/types.ts:124](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)[]
 
-Defined in: [src/lib/db/chat/types.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L125)
+Defined in: [src/lib/db/chat/types.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L137)
 
 #### Inherited from
 
 `BaseSendMessageWithStorageArgs.sources`
+
+***
+
+### thoughtProcess?
+
+> `optional` **thoughtProcess**: `ActivityPhase`[]
+
+Defined in: [src/lib/db/chat/types.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L138)
+
+#### Inherited from
+
+`BaseSendMessageWithStorageArgs.thoughtProcess`

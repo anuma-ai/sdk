@@ -1,6 +1,6 @@
 # StoredConversation
 
-Defined in: [src/lib/db/chat/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L54)
+Defined in: [src/lib/db/chat/types.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L64)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:54](https://github.com/zeta-chain/ai-sdk/b
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L56)
+Defined in: [src/lib/db/chat/types.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L66)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:56](https://github.com/zeta-chain/ai-sdk/b
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
+Defined in: [src/lib/db/chat/types.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L68)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/b
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L60)
+Defined in: [src/lib/db/chat/types.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L70)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/chat/types.ts:60](https://github.com/zeta-chain/ai-sdk/b
 
 > **title**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L57)
+Defined in: [src/lib/db/chat/types.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L67)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:57](https://github.com/zeta-chain/ai-sdk/b
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L55)
+Defined in: [src/lib/db/chat/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L65)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/lib/db/chat/types.ts:55](https://github.com/zeta-chain/ai-sdk/b
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L59)
+Defined in: [src/lib/db/chat/types.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L69)
