@@ -138,6 +138,14 @@ Defined in: [src/lib/db/chat/models.ts:27](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### error?
+
+> `optional` **error**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L32)
+
+***
+
 ### files?
 
 > `optional` **files**: [`FileMetadata`](../interfaces/FileMetadata.md)[]

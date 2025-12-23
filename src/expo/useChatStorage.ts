@@ -10,6 +10,7 @@ import {
   type StoredMessage,
   type StoredConversation,
   type CreateConversationOptions,
+  type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
@@ -26,6 +27,7 @@ import {
   clearMessagesOp,
   createMessageOp,
   updateMessageErrorOp,
+  updateMessageOp,
 } from "../lib/db/chat";
 
 /**
@@ -85,6 +87,11 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
+  /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
+  updateMessage: (
+    uniqueId: string,
+    options: UpdateMessageOptions
+  ) => Promise<StoredMessage | null>;
 }
 
 /**
@@ -270,6 +277,20 @@ export function useChatStorage(
   const clearMessages = useCallback(
     async (convId: string): Promise<void> => {
       return clearMessagesOp(storageCtx, convId);
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Update message fields (content, embedding, files, etc)
+   * @returns The updated message, or null if message not found
+   */
+  const updateMessage = useCallback(
+    async (
+      uniqueId: string,
+      options: UpdateMessageOptions
+    ): Promise<StoredMessage | null> => {
+      return updateMessageOp(storageCtx, uniqueId, options);
     },
     [storageCtx]
   );
@@ -556,5 +577,6 @@ export function useChatStorage(
     getMessages,
     getMessageCount,
     clearMessages,
+    updateMessage,
   };
 }

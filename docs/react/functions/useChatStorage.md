@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:206](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L206)
+Defined in: [src/react/useChatStorage.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L214)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
