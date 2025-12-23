@@ -335,9 +335,8 @@ export function useChatStorage(
         const markdownLinkRegex =
           /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
 
-        // Regex to match plain URLs (http, https)
-        const plainUrlRegex =
-          /(?<![(\[])https?:\/\/[^\s<>\[\]()'"]+(?<![.,;:!?])/g;
+        // Regex to match plain URLs (http, https) - Hermes-compatible (no lookbehind)
+        const plainUrlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
 
         // Extract markdown links
         let match: RegExpExecArray | null;
@@ -356,7 +355,8 @@ export function useChatStorage(
 
         // Extract plain URLs (not already captured in markdown links)
         while ((match = plainUrlRegex.exec(content)) !== null) {
-          const url = match[0].trim();
+          // Trim trailing punctuation that's not part of the URL
+          const url = match[0].replace(/[.,;:!?]+$/, "").trim();
 
           if (url && !seenUrls.has(url)) {
             seenUrls.add(url);
