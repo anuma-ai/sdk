@@ -11,6 +11,7 @@ export {
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
+  type ActivityPhase,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageSuccessResult,
@@ -19,6 +20,7 @@ export {
   type BaseUseChatStorageResult,
   convertUsageToStored,
   generateConversationId,
+  finalizeThoughtProcess,
 } from "./types";
 export {
   type StorageOperationsContext,

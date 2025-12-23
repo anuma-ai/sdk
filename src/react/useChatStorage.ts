@@ -22,6 +22,7 @@ import {
   type BaseUseChatStorageResult,
   type FileMetadata,
   convertUsageToStored,
+  finalizeThoughtProcess,
   type StorageOperationsContext,
   createConversationOp,
   getConversationOp,
@@ -420,6 +421,7 @@ export function useChatStorage(
         memoryContext,
         searchContext,
         sources,
+        thoughtProcess,
       } = args;
 
       // Ensure we have a conversation
@@ -546,6 +548,7 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
               sources,
+              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -603,6 +606,8 @@ export function useChatStorage(
             content: "",
             model: model || "",
             responseDuration,
+            sources,
+            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
           });
         } catch {
@@ -635,6 +640,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources,
+          thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         });
       } catch (err) {
         return {

@@ -16,6 +16,7 @@ import {
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
   convertUsageToStored,
+  finalizeThoughtProcess,
   type StorageOperationsContext,
   createConversationOp,
   getConversationOp,
@@ -345,6 +346,8 @@ export function useChatStorage(
         maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
+        sources,
+        thoughtProcess,
       } = args;
 
       // Ensure we have a conversation
@@ -461,6 +464,8 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
+              sources,
+              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             });
 
             // Build a valid completion response for the return (even if original was null)
@@ -511,6 +516,8 @@ export function useChatStorage(
             content: "",
             model: model || "",
             responseDuration,
+            sources,
+            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
           });
         } catch {
@@ -541,6 +548,8 @@ export function useChatStorage(
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
+          sources,
+          thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         });
       } catch (err) {
         return {

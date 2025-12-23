@@ -6,6 +6,7 @@ import type {
   FileMetadata,
   ChatCompletionUsage,
   SearchSource,
+  ActivityPhase,
 } from "./types";
 
 export class Message extends Model {
@@ -30,6 +31,7 @@ export class Message extends Model {
   @field("response_duration") responseDuration?: number;
   @field("was_stopped") wasStopped?: boolean;
   @text("error") error?: string;
+  @json("thought_process", (json) => json) thoughtProcess?: ActivityPhase[];
 }
 
 export class Conversation extends Model {
