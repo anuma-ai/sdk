@@ -19,6 +19,7 @@ import {
   getRefreshToken,
   getStoredTokenData,
   getValidAccessToken,
+  isTokenExpired,
   storeTokenData,
   tokenResponseToStoredData,
 } from "../oauth/storage";
@@ -202,12 +203,34 @@ export async function revokeGoogleDriveToken(
 export async function getGoogleDriveAccessToken(
   apiClient?: Client
 ): Promise<string | null> {
-  // First check for a valid (non-expired) token
-  const validToken = getValidAccessToken(PROVIDER);
-  if (validToken) return validToken;
+  const storedData = getStoredTokenData(PROVIDER);
 
-  // Try to refresh if we have a refresh token
-  return refreshGoogleDriveToken(apiClient);
+  // If no stored data at all, nothing to do
+  if (!storedData) {
+    return null;
+  }
+
+  // If we have expiration info and token is NOT expired, use it
+  if (storedData.expiresAt && !isTokenExpired(storedData)) {
+    return storedData.accessToken;
+  }
+
+  // Token is either expired OR has no expiration info (can't verify validity)
+  // In both cases, try to refresh if we have a refresh token
+  if (storedData.refreshToken) {
+    const refreshedToken = await refreshGoogleDriveToken(apiClient);
+    if (refreshedToken) {
+      return refreshedToken;
+    }
+  }
+
+  // Fallback: if we have an access token but couldn't refresh, return it
+  // This handles edge cases where refresh fails but token might still work
+  if (storedData.accessToken && !storedData.expiresAt) {
+    return storedData.accessToken;
+  }
+
+  return null;
 }
 
 /**
