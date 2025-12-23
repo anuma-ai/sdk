@@ -275,24 +275,17 @@ export function BackupAuthProvider({
       throw new Error("Dropbox is not configured");
     }
 
-    if (dropboxToken) {
-      return dropboxToken;
-    }
-
+    // Always try to get a valid token from storage (which handles expiration + refresh)
+    // Don't short-circuit with cached state token as it may be expired
     const storedToken = await getDropboxAccessToken(apiClient);
     if (storedToken) {
-      setDropboxToken(storedToken);
+      setDropboxToken(storedToken); // Update state with potentially refreshed token
       return storedToken;
     }
 
+    // No valid token available - start OAuth flow
     return startDropboxAuth(dropboxAppKey, dropboxCallbackPath);
-  }, [
-    dropboxToken,
-    dropboxAppKey,
-    dropboxCallbackPath,
-    isDropboxConfigured,
-    apiClient,
-  ]);
+  }, [dropboxAppKey, dropboxCallbackPath, isDropboxConfigured, apiClient]);
 
   const logoutDropbox = useCallback(async () => {
     await revokeDropboxToken(apiClient);
@@ -313,24 +306,17 @@ export function BackupAuthProvider({
       throw new Error("Google Drive is not configured");
     }
 
-    if (googleToken) {
-      return googleToken;
-    }
-
+    // Always try to get a valid token from storage (which handles expiration + refresh)
+    // Don't short-circuit with cached state token as it may be expired
     const storedToken = await getGoogleDriveAccessToken(apiClient);
     if (storedToken) {
-      setGoogleToken(storedToken);
+      setGoogleToken(storedToken); // Update state with potentially refreshed token
       return storedToken;
     }
 
+    // No valid token available - start OAuth flow
     return startGoogleDriveAuth(googleClientId, googleCallbackPath);
-  }, [
-    googleToken,
-    googleClientId,
-    googleCallbackPath,
-    isGoogleConfigured,
-    apiClient,
-  ]);
+  }, [googleClientId, googleCallbackPath, isGoogleConfigured, apiClient]);
 
   const logoutGoogle = useCallback(async () => {
     await revokeGoogleDriveToken(apiClient);

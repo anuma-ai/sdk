@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L61)
+Defined in: [src/lib/db/chat/types.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L63)
 
 ## Extends
 
@@ -53,6 +53,20 @@ Defined in: [src/lib/db/chat/types.ts:45](https://github.com/zeta-chain/ai-sdk/b
 #### Inherited from
 
 [`StoredMessage`](StoredMessage.md).[`embeddingModel`](StoredMessage.md#embeddingmodel)
+
+***
+
+### error?
+
+> `optional` **error**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L51)
+
+If set, indicates the message failed with this error
+
+#### Inherited from
+
+[`StoredMessage`](StoredMessage.md).[`error`](StoredMessage.md#error)
 
 ***
 
@@ -120,7 +134,7 @@ Defined in: [src/lib/db/chat/types.ts:38](https://github.com/zeta-chain/ai-sdk/b
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L62)
+Defined in: [src/lib/db/chat/types.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L64)
 
 ***
 

@@ -1,6 +1,6 @@
 # ChatConversation
 
-Defined in: [src/lib/db/chat/models.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L34)
+Defined in: [src/lib/db/chat/models.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L35)
 
 ## Extends
 
@@ -110,7 +110,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L41)
+Defined in: [src/lib/db/chat/models.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L42)
 
 ***
 
@@ -118,7 +118,7 @@ Defined in: [src/lib/db/chat/models.ts:41](https://github.com/zeta-chain/ai-sdk/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L43)
+Defined in: [src/lib/db/chat/models.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L44)
 
 ***
 
@@ -126,7 +126,7 @@ Defined in: [src/lib/db/chat/models.ts:43](https://github.com/zeta-chain/ai-sdk/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L45)
+Defined in: [src/lib/db/chat/models.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L46)
 
 ***
 
@@ -134,7 +134,7 @@ Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/
 
 > **title**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L42)
+Defined in: [src/lib/db/chat/models.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L43)
 
 ***
 
@@ -142,7 +142,7 @@ Defined in: [src/lib/db/chat/models.ts:42](https://github.com/zeta-chain/ai-sdk/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L44)
+Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L45)
 
 ***
 
@@ -162,7 +162,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/db/chat/models.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L37)
+Defined in: [src/lib/db/chat/models.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L38)
 
 #### Overrides
 
@@ -174,7 +174,7 @@ Defined in: [src/lib/db/chat/models.ts:37](https://github.com/zeta-chain/ai-sdk/
 
 > `static` **table**: `string` = `"conversations"`
 
-Defined in: [src/lib/db/chat/models.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L35)
+Defined in: [src/lib/db/chat/models.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L36)
 
 #### Overrides
 
