@@ -166,6 +166,18 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v5 -> v6: Added thought_process column to history table
+    {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "thought_process", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
