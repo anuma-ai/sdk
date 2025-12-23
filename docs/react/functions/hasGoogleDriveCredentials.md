@@ -2,7 +2,7 @@
 
 > **hasGoogleDriveCredentials**(): `boolean`
 
-Defined in: [src/lib/backup/google/auth.ts:256](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/auth.ts#L256)
+Defined in: [src/lib/backup/google/auth.ts:279](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/auth.ts#L279)
 
 Check if we have any stored credentials (including refresh token)
 

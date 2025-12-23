@@ -2,7 +2,7 @@
 
 > **LlmapiModelArchitecture** = `object`
 
-Defined in: [src/client/types.gen.ts:445](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L445)
+Defined in: [src/client/types.gen.ts:441](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L441)
 
 Architecture describes the model's technical capabilities
 
@@ -12,7 +12,7 @@ Architecture describes the model's technical capabilities
 
 > `optional` **instruct\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:446](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L446)
+Defined in: [src/client/types.gen.ts:442](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L442)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:446](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **modality**: `string`
 
-Defined in: [src/client/types.gen.ts:447](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L447)
+Defined in: [src/client/types.gen.ts:443](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L443)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:447](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **prompt\_formatting**: `string`
 
-Defined in: [src/client/types.gen.ts:448](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L448)
+Defined in: [src/client/types.gen.ts:444](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L444)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:448](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **tokenizer**: `string`
 
-Defined in: [src/client/types.gen.ts:449](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L449)
+Defined in: [src/client/types.gen.ts:445](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L445)
