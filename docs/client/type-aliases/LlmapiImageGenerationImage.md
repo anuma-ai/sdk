@@ -2,7 +2,7 @@
 
 > **LlmapiImageGenerationImage** = `object`
 
-Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L259)
+Defined in: [src/client/types.gen.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L286)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **b64\_json**: `string`
 
-Defined in: [src/client/types.gen.ts:263](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L263)
+Defined in: [src/client/types.gen.ts:290](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L290)
 
 B64JSON is the base64 payload for models that can only return binary.
 
@@ -20,6 +20,6 @@ B64JSON is the base64 payload for models that can only return binary.
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:267](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L267)
+Defined in: [src/client/types.gen.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L294)
 
 URL is the signed URL to download the image.

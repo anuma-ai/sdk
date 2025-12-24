@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentPart** = `object`
 
-Defined in: [src/client/types.gen.ts:365](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L365)
+Defined in: [src/client/types.gen.ts:392](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L392)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:365](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **image\_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
 
-Defined in: [src/client/types.gen.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L366)
+Defined in: [src/client/types.gen.ts:393](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L393)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:366](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L370)
+Defined in: [src/client/types.gen.ts:397](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L397)
 
 Text holds the text content when Type=text
 
@@ -28,6 +28,6 @@ Text holds the text content when Type=text
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:374](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L374)
+Defined in: [src/client/types.gen.ts:401](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L401)
 
 Type is the block type (`text` or `image_url`)

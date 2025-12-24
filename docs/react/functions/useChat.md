@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L175)
+Defined in: [src/react/useChat.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L100)
 
 A React hook for managing chat completions with authentication.
 
@@ -14,7 +14,7 @@ Streaming is enabled by default for better user experience.
 
 ### options?
 
-`UseChatOptions`
+`BaseUseChatOptions`
 
 Optional configuration object
 
@@ -24,7 +24,6 @@ Optional configuration object
 
 An object containing:
   - `isLoading`: A boolean indicating whether a request is currently in progress
-  - `isSelectingTool`: A boolean indicating whether tool selection is in progress
   - `sendMessage`: An async function to send chat messages
   - `stop`: A function to abort the current request
 
@@ -38,35 +37,10 @@ const { isLoading, sendMessage, stop } = useChat({
   onError: (error) => console.error("Chat error:", error)
 });
 
-// With client-side tools
-const { isLoading, isSelectingTool, sendMessage } = useChat({
-  getToken: async () => await getAuthToken(),
-  tools: [
-    {
-      name: "get_weather",
-      description: "Get the current weather for a location",
-      parameters: [
-        { name: "location", type: "string", description: "City name", required: true }
-      ],
-      execute: async ({ location }) => {
-        // Your weather API call here
-        return { temperature: 72, condition: "sunny" };
-      }
-    }
-  ],
-  onToolExecution: (result) => {
-    console.log("Tool executed:", result.toolName, result.result);
-  }
-});
-
 const handleSend = async () => {
   const result = await sendMessage({
-    messages: [{ role: 'user', content: 'What is the weather in Paris?' }],
+    messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
     model: 'gpt-4o-mini'
   });
-
-  if (result.toolExecution) {
-    console.log("Tool was called:", result.toolExecution);
-  }
 };
 ```

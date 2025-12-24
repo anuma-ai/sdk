@@ -2,7 +2,7 @@
 
 > **LlmapiChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L134)
+Defined in: [src/client/types.gen.ts:161](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L161)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:134](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **finish\_reason**: `string`
 
-Defined in: [src/client/types.gen.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L138)
+Defined in: [src/client/types.gen.ts:165](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L165)
 
 FinishReason indicates why the completion stopped
 
@@ -20,7 +20,7 @@ FinishReason indicates why the completion stopped
 
 > `optional` **index**: `number`
 
-Defined in: [src/client/types.gen.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L142)
+Defined in: [src/client/types.gen.ts:169](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L169)
 
 Index is the choice index
 
@@ -30,4 +30,4 @@ Index is the choice index
 
 > `optional` **message**: [`LlmapiMessage`](LlmapiMessage.md)
 
-Defined in: [src/client/types.gen.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L143)
+Defined in: [src/client/types.gen.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L170)

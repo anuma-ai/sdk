@@ -2,7 +2,7 @@
 
 > **LlmapiSearchUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:748](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L748)
+Defined in: [src/client/types.gen.ts:775](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L775)
 
 Usage contains usage information.
 
@@ -12,6 +12,6 @@ Usage contains usage information.
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:752](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L752)
+Defined in: [src/client/types.gen.ts:779](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L779)
 
 CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).

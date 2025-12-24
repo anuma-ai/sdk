@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L80)
+Defined in: [src/client/types.gen.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L107)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:80](https://github.com/zeta-chain/ai-sdk/bl
 
 > **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
 
-Defined in: [src/client/types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L84)
+Defined in: [src/client/types.gen.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L111)
 
 Messages is the conversation history
 
@@ -20,7 +20,7 @@ Messages is the conversation history
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L88)
+Defined in: [src/client/types.gen.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L115)
 
 Model is the model identifier
 
@@ -30,6 +30,6 @@ Model is the model identifier
 
 > `optional` **stream**: `boolean`
 
-Defined in: [src/client/types.gen.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L92)
+Defined in: [src/client/types.gen.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L119)
 
 Stream indicates if response should be streamed

@@ -2,7 +2,7 @@
 
 > **LlmapiImageGenerationResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L293)
+Defined in: [src/client/types.gen.ts:320](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L320)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **created**: `number`
 
-Defined in: [src/client/types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L297)
+Defined in: [src/client/types.gen.ts:324](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L324)
 
 Created is the Unix timestamp when the image was generated.
 
@@ -20,7 +20,7 @@ Created is the Unix timestamp when the image was generated.
 
 > `optional` **extra\_fields**: [`LlmapiImageGenerationExtraFields`](LlmapiImageGenerationExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:298](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L298)
+Defined in: [src/client/types.gen.ts:325](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L325)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:298](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **images**: [`LlmapiImageGenerationImage`](LlmapiImageGenerationImage.md)[]
 
-Defined in: [src/client/types.gen.ts:302](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L302)
+Defined in: [src/client/types.gen.ts:329](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L329)
 
 Images contains the generated images.
 
@@ -38,7 +38,7 @@ Images contains the generated images.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:306](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L306)
+Defined in: [src/client/types.gen.ts:333](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L333)
 
 Model is the model identifier that generated the image.
 
@@ -48,7 +48,7 @@ Model is the model identifier that generated the image.
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:310](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L310)
+Defined in: [src/client/types.gen.ts:337](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L337)
 
 Provider is the gateway that produced the image.
 
@@ -58,4 +58,4 @@ Provider is the gateway that produced the image.
 
 > `optional` **usage**: [`LlmapiImageGenerationUsage`](LlmapiImageGenerationUsage.md)
 
-Defined in: [src/client/types.gen.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L311)
+Defined in: [src/client/types.gen.ts:338](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L338)

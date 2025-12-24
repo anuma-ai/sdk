@@ -1,10 +1,10 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L92)
+Defined in: [src/react/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L80)
 
 Arguments for sendMessage with storage (React version)
 
-Extends base arguments with React-specific features like tools and headers.
+Extends base arguments with headers support.
 
 ## Extends
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:133](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [src/react/useChatStorage.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L97)
+Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
 
 Custom headers
 
@@ -125,16 +125,6 @@ Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/
 #### Inherited from
 
 `BaseSendMessageWithStorageArgs.onData`
-
-***
-
-### runTools?
-
-> `optional` **runTools**: `boolean`
-
-Defined in: [src/react/useChatStorage.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L95)
-
-Whether to run tool selection
 
 ***
 

@@ -3,7 +3,7 @@
 Next.js configuration plugin for @reverbia/sdk
 
 Use this to automatically configure Webpack aliases and server exclusions
-needed for the SDK's AI dependencies (transformers.js, onnxruntime, etc).
+needed for the SDK's dependencies.
 
 ## Example
 
