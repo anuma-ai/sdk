@@ -134,6 +134,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       headers,
       memoryContext,
       searchContext,
+      // Responses API options
+      store,
+      previousResponseId,
+      conversation,
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -237,6 +245,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             input: messagesToInput(messagesWithContext),
             model,
             stream: true,
+            // Responses API options (only include if defined)
+            ...(store !== undefined && { store }),
+            ...(previousResponseId && { previous_response_id: previousResponseId }),
+            ...(conversation && { conversation }),
+            ...(temperature !== undefined && { temperature }),
+            ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
+            ...(tools && { tools }),
+            ...(toolChoice && { tool_choice: toolChoice }),
           },
           headers: {
             "Content-Type": "application/json",

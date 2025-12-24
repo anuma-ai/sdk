@@ -182,6 +182,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       messages,
       model,
       onData,
+      // Responses API options
+      store,
+      previousResponseId,
+      conversation,
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate inputs
       const messagesValidation = validateMessages(messages);
@@ -307,6 +315,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               input: messagesToInput(messages),
               model,
               stream: true,
+              // Responses API options (only include if defined)
+              ...(store !== undefined && { store }),
+              ...(previousResponseId && { previous_response_id: previousResponseId }),
+              ...(conversation && { conversation }),
+              ...(temperature !== undefined && { temperature }),
+              ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
+              ...(tools && { tools }),
+              ...(toolChoice && { tool_choice: toolChoice }),
             })
           );
         });

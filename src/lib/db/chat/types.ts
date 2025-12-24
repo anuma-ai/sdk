@@ -3,6 +3,7 @@ import type {
   LlmapiMessage,
   LlmapiResponseResponse,
   LlmapiResponseUsage,
+  LlmapiTool,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 
@@ -136,6 +137,37 @@ export interface BaseSendMessageWithStorageArgs {
   searchContext?: string;
   sources?: SearchSource[];
   thoughtProcess?: ActivityPhase[];
+  // Responses API options
+  /**
+   * Whether to store the response server-side.
+   * When true, the response can be retrieved later using the response ID.
+   */
+  store?: boolean;
+  /**
+   * ID of a previous response to continue from.
+   * Enables multi-turn conversations without resending full history.
+   */
+  previousResponseId?: string;
+  /**
+   * Conversation ID for grouping related responses on the server.
+   */
+  serverConversation?: string;
+  /**
+   * Controls randomness in the response (0.0 to 2.0).
+   */
+  temperature?: number;
+  /**
+   * Maximum number of tokens to generate in the response.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Array of tool definitions available to the model.
+   */
+  tools?: LlmapiTool[];
+  /**
+   * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
+   */
+  toolChoice?: string;
 }
 
 export interface BaseSendMessageSuccessResult {

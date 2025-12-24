@@ -435,6 +435,14 @@ export function useChatStorage(
         onData: perRequestOnData,
         sources,
         thoughtProcess,
+        // Responses API options
+        store,
+        previousResponseId,
+        serverConversation,
+        temperature,
+        maxOutputTokens,
+        tools,
+        toolChoice,
       } = args;
 
       // Ensure we have a conversation
@@ -524,6 +532,14 @@ export function useChatStorage(
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
+        // Responses API options
+        store,
+        previousResponseId,
+        conversation: serverConversation,
+        temperature,
+        maxOutputTokens,
+        tools,
+        toolChoice,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
