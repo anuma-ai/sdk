@@ -23,7 +23,7 @@ export default defineConfig([
       };
     },
   },
-  // Expo/React Native entry - lightweight, no pdfjs-dist or @huggingface/transformers
+  // Expo/React Native entry - lightweight, no pdfjs-dist
   // Use this for Expo/React Native: import { useChat } from "@reverbia/sdk/expo"
   {
     entry: ["src/expo/index.ts"],
@@ -52,7 +52,7 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react", "@privy-io/react-auth", "@huggingface/transformers"],
+    external: ["react", "@privy-io/react-auth"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

@@ -54,7 +54,6 @@ export interface BaseUseMemoryStorageOptions {
   database: Database;
   completionsModel?: string;
   embeddingModel?: string | null;
-  embeddingProvider?: "local" | "api";
   generateEmbeddings?: boolean;
   onFactsExtracted?: (facts: MemoryExtractionResult) => void;
   getToken?: () => Promise<string | null>;
