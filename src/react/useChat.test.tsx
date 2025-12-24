@@ -26,11 +26,11 @@ describe("useChat", () => {
       };
       yield {
         type: "response.output_text.delta",
-        delta: "Hello",
+        delta: { OfString: "Hello" },
       };
       yield {
         type: "response.output_text.delta",
-        delta: " world",
+        delta: { OfString: " world" },
       };
       yield {
         type: "response.completed",
