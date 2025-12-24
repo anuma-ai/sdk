@@ -182,8 +182,13 @@ export function processStreamingChunk(
   if (chunk.type === "response.output_text.delta") {
     const delta = chunk.delta;
     if (delta) {
-      accumulator.content += delta;
-      return delta;
+      // Handle both string and object delta formats
+      // The API may return delta as either a string or an object with OfString property
+      const deltaText = typeof delta === "string" ? delta : delta.OfString;
+      if (deltaText) {
+        accumulator.content += deltaText;
+        return deltaText;
+      }
     }
   }
 

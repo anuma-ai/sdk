@@ -100,9 +100,14 @@ function processSSELines(
 
     // Handle responses API streaming format
     if (chunk.type === "response.output_text.delta" && chunk.delta) {
-      accumulator.content += chunk.delta;
-      if (onData) onData(chunk.delta);
-      if (globalOnData) globalOnData(chunk.delta);
+      // Handle both string and object delta formats
+      // The API may return delta as either a string or an object with OfString property
+      const deltaText = typeof chunk.delta === "string" ? chunk.delta : chunk.delta.OfString;
+      if (deltaText) {
+        accumulator.content += deltaText;
+        if (onData) onData(deltaText);
+        if (globalOnData) globalOnData(deltaText);
+      }
     }
   }
 }

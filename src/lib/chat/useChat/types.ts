@@ -11,7 +11,7 @@ export type StreamingChunk = {
   id?: string;
   model?: string;
   type?: string;
-  delta?: string;
+  delta?: string | { OfString?: string; OfResponseReasoningSummaryDeltaEventDelta?: string };
   usage?: LlmapiResponseUsage;
   // For response.created and response.completed events
   response?: {
