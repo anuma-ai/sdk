@@ -1,6 +1,7 @@
 import type {
-  LlmapiChatCompletionResponse,
   LlmapiMessage,
+  LlmapiMessageContentPart,
+  LlmapiResponseResponse,
 } from "../../../client";
 import type { StreamAccumulator, StreamingChunk } from "./types";
 
@@ -91,15 +92,40 @@ export function validateToken(token: string | null): ValidationResult {
 }
 
 /**
+ * Extracts text from a message content part
+ */
+function extractTextFromContentPart(part: LlmapiMessageContentPart): string {
+  if (part.type === "text" && part.text) {
+    return part.text;
+  }
+  return "";
+}
+
+/**
+ * Converts a messages array to a string input for the responses API.
+ * Format: Each message is prefixed with its role, messages are separated by newlines.
+ */
+export function messagesToInput(messages: LlmapiMessage[]): string {
+  return messages
+    .map((msg) => {
+      const role = msg.role || "user";
+      const content = Array.isArray(msg.content)
+        ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
+        : String(msg.content || "");
+      return `${role}: ${content}`;
+    })
+    .join("\n\n");
+}
+
+/**
  * Creates an initial stream accumulator
  */
 export function createStreamAccumulator(): StreamAccumulator {
   return {
     content: "",
-    completionId: "",
-    completionModel: "",
+    responseId: "",
+    responseModel: "",
     usage: {},
-    finishReason: undefined,
   };
 }
 
@@ -111,12 +137,36 @@ export function processStreamingChunk(
   chunk: StreamingChunk,
   accumulator: StreamAccumulator
 ): string | null {
-  // Extract completion ID and model from first chunk
-  if (chunk.id && !accumulator.completionId) {
-    accumulator.completionId = chunk.id;
+  // Handle response.created event - extract ID and model from response object
+  if (chunk.type === "response.created" && chunk.response) {
+    if (chunk.response.id && !accumulator.responseId) {
+      accumulator.responseId = chunk.response.id;
+    }
+    if (chunk.response.model && !accumulator.responseModel) {
+      accumulator.responseModel = chunk.response.model;
+    }
+    return null;
   }
-  if (chunk.model && !accumulator.completionModel) {
-    accumulator.completionModel = chunk.model;
+
+  // Handle response.completed event - extract usage from response object
+  if (chunk.type === "response.completed" && chunk.response?.usage) {
+    accumulator.usage = {
+      ...accumulator.usage,
+      prompt_tokens: chunk.response.usage.input_tokens,
+      completion_tokens: chunk.response.usage.output_tokens,
+      total_tokens:
+        (chunk.response.usage.input_tokens || 0) +
+        (chunk.response.usage.output_tokens || 0),
+    };
+    return null;
+  }
+
+  // Legacy: Extract response ID and model from top-level fields
+  if (chunk.id && !accumulator.responseId) {
+    accumulator.responseId = chunk.id;
+  }
+  if (chunk.model && !accumulator.responseModel) {
+    accumulator.responseModel = chunk.model;
   }
 
   // Accumulate usage data - merge instead of replace
@@ -128,15 +178,12 @@ export function processStreamingChunk(
     };
   }
 
-  // Extract content delta
-  if (chunk.choices?.[0]) {
-    const choice = chunk.choices[0];
-    if (choice.delta?.content) {
-      accumulator.content += choice.delta.content;
-      return choice.delta.content;
-    }
-    if (choice.finish_reason) {
-      accumulator.finishReason = choice.finish_reason;
+  // Extract content delta from responses API format
+  if (chunk.type === "response.output_text.delta") {
+    const delta = chunk.delta;
+    if (delta) {
+      accumulator.content += delta;
+      return delta;
     }
   }
 
@@ -144,27 +191,26 @@ export function processStreamingChunk(
 }
 
 /**
- * Builds the final chat completion response from accumulated stream data
+ * Builds the final response from accumulated stream data
  */
-export function buildCompletionResponse(
+export function buildResponseResponse(
   accumulator: StreamAccumulator
-): LlmapiChatCompletionResponse {
+): LlmapiResponseResponse {
   return {
-    id: accumulator.completionId,
-    model: accumulator.completionModel,
-    choices: [
+    id: accumulator.responseId,
+    model: accumulator.responseModel,
+    object: "response",
+    output: [
       {
-        index: 0,
-        message: {
-          role: "assistant",
-          content: [{ type: "text", text: accumulator.content }],
-        },
-        finish_reason: accumulator.finishReason,
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: accumulator.content }],
+        status: "completed",
       },
     ],
     usage:
       Object.keys(accumulator.usage).length > 0
-        ? (accumulator.usage as LlmapiChatCompletionResponse["usage"])
+        ? accumulator.usage
         : undefined,
   };
 }

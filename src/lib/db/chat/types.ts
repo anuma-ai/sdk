@@ -1,8 +1,8 @@
 import type { Database } from "@nozbe/watermelondb";
 import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionUsage,
   LlmapiMessage,
+  LlmapiResponseResponse,
+  LlmapiResponseUsage,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 
@@ -120,7 +120,7 @@ export interface BaseUseChatStorageOptions {
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
   onData?: (chunk: string) => void;
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  onFinish?: (response: LlmapiResponseResponse) => void;
   onError?: (error: Error) => void;
 }
 
@@ -139,7 +139,7 @@ export interface BaseSendMessageWithStorageArgs {
 }
 
 export interface BaseSendMessageSuccessResult {
-  data: LlmapiChatCompletionResponse;
+  data: LlmapiResponseResponse;
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
@@ -180,7 +180,7 @@ export function generateConversationId(): string {
 }
 
 export function convertUsageToStored(
-  usage?: LlmapiChatCompletionUsage
+  usage?: LlmapiResponseUsage
 ): ChatCompletionUsage | undefined {
   if (!usage) return undefined;
   return {

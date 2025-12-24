@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
-import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
+import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
 import {
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
@@ -15,12 +15,13 @@ import {
   validateModel,
   validateTokenGetter,
   validateToken,
-  buildCompletionResponse,
+  buildResponseResponse,
   processStreamingChunk,
   createErrorResult,
   handleError,
   isAbortError,
   isDoneMarker,
+  messagesToInput,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -42,11 +43,11 @@ type SendMessageArgs = BaseSendMessageArgs & {
 
 type SendMessageResult =
   | {
-      data: LlmapiChatCompletionResponse;
+      data: LlmapiResponseResponse;
       error: null;
     }
   | {
-      data: LlmapiChatCompletionResponse | null;
+      data: LlmapiResponseResponse | null;
       error: string;
     };
 
@@ -231,9 +232,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const sseResult = await client.sse.post({
           baseUrl,
-          url: "/api/v1/chat/completions",
+          url: "/api/v1/responses",
           body: {
-            messages: messagesWithContext,
+            input: messagesToInput(messagesWithContext),
             model,
             stream: true,
           },
@@ -276,9 +277,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (isAbortError(streamErr) || abortController.signal.aborted) {
             setIsLoading(false);
             // Return partial data so far
-            const partialCompletion = buildCompletionResponse(accumulator);
+            const partialResponse = buildResponseResponse(accumulator);
             return {
-              data: partialCompletion,
+              data: partialResponse,
               error: "Request aborted",
             };
           }
@@ -288,9 +289,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Check if abort happened during streaming but loop completed before throw
         if (abortController.signal.aborted) {
           setIsLoading(false);
-          const partialCompletion = buildCompletionResponse(accumulator);
+          const partialResponse = buildResponseResponse(accumulator);
           return {
-            data: partialCompletion,
+            data: partialResponse,
             error: "Request aborted",
           };
         }
@@ -301,14 +302,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
 
         // Build the final response
-        const completion = buildCompletionResponse(accumulator);
+        const response = buildResponseResponse(accumulator);
 
         setIsLoading(false);
         if (onFinish) {
-          onFinish(completion);
+          onFinish(response);
         }
         return {
-          data: completion,
+          data: response,
           error: null,
         };
       } catch (err) {

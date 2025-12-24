@@ -15,10 +15,11 @@ import {
   validateModel,
   validateTokenGetter,
   validateToken,
-  buildCompletionResponse,
+  buildResponseResponse,
   createErrorResult,
   handleError,
   parseSSEDataLine,
+  messagesToInput,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs;
@@ -45,27 +46,63 @@ function processSSELines(
     const chunk = parseSSEDataLine(line);
     if (!chunk) continue;
 
-    if (chunk.id && !accumulator.completionId) {
-      accumulator.completionId = chunk.id;
+    // Handle response.created event - extract ID and model from response object
+    if (
+      chunk.type === "response.created" &&
+      chunk.response &&
+      typeof chunk.response === "object"
+    ) {
+      const response = chunk.response as {
+        id?: string;
+        model?: string;
+      };
+      if (response.id && !accumulator.responseId) {
+        accumulator.responseId = response.id;
+      }
+      if (response.model && !accumulator.responseModel) {
+        accumulator.responseModel = response.model;
+      }
+      continue;
     }
-    if (chunk.model && !accumulator.completionModel) {
-      accumulator.completionModel = chunk.model;
+
+    // Handle response.completed event - extract usage from response object
+    if (
+      chunk.type === "response.completed" &&
+      chunk.response &&
+      typeof chunk.response === "object"
+    ) {
+      const response = chunk.response as {
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      if (response.usage) {
+        accumulator.usage = {
+          ...accumulator.usage,
+          prompt_tokens: response.usage.input_tokens,
+          completion_tokens: response.usage.output_tokens,
+          total_tokens:
+            (response.usage.input_tokens || 0) +
+            (response.usage.output_tokens || 0),
+        };
+      }
+      continue;
+    }
+
+    // Legacy: handle top-level fields
+    if (chunk.id && !accumulator.responseId) {
+      accumulator.responseId = chunk.id;
+    }
+    if (chunk.model && !accumulator.responseModel) {
+      accumulator.responseModel = chunk.model;
     }
     if (chunk.usage) {
       accumulator.usage = { ...accumulator.usage, ...chunk.usage };
     }
 
-    if (chunk.choices?.[0]) {
-      const choice = chunk.choices[0];
-      if (choice.delta?.content) {
-        const content = choice.delta.content;
-        accumulator.content += content;
-        if (onData) onData(content);
-        if (globalOnData) globalOnData(content);
-      }
-      if (choice.finish_reason) {
-        accumulator.finishReason = choice.finish_reason;
-      }
+    // Handle responses API streaming format
+    if (chunk.type === "response.output_text.delta" && chunk.delta) {
+      accumulator.content += chunk.delta;
+      if (onData) onData(chunk.delta);
+      if (globalOnData) globalOnData(chunk.delta);
     }
   }
 }
@@ -180,7 +217,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // (fetch doesn't support response.body streaming in RN)
         const result = await new Promise<SendMessageResult>((resolve) => {
           const xhr = new XMLHttpRequest();
-          const url = `${baseUrl}/api/v1/chat/completions`;
+          const url = `${baseUrl}/api/v1/responses`;
 
           const accumulator = createStreamAccumulator();
           let lastProcessedIndex = 0;
@@ -234,10 +271,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
-              const completion = buildCompletionResponse(accumulator);
+              const response = buildResponseResponse(accumulator);
               setIsLoading(false);
-              if (onFinish) onFinish(completion);
-              resolve({ data: completion, error: null });
+              if (onFinish) onFinish(response);
+              resolve({ data: response, error: null });
             } else {
               const errorMsg = `Request failed with status ${xhr.status}`;
               setIsLoading(false);
@@ -262,7 +299,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.send(
             JSON.stringify({
-              messages,
+              input: messagesToInput(messages),
               model,
               stream: true,
             })

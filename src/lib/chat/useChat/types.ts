@@ -1,24 +1,27 @@
 import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionUsage,
   LlmapiMessage,
+  LlmapiResponseResponse,
+  LlmapiResponseUsage,
 } from "../../../client";
 
 /**
- * Streaming chunk structure received from SSE events
+ * Streaming chunk structure received from SSE events (Responses API format)
  */
 export type StreamingChunk = {
   id?: string;
   model?: string;
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      role?: string;
+  type?: string;
+  delta?: string;
+  usage?: LlmapiResponseUsage;
+  // For response.created and response.completed events
+  response?: {
+    id?: string;
+    model?: string;
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
     };
-    finish_reason?: string;
-    index?: number;
-  }>;
-  usage?: LlmapiChatCompletionResponse["usage"];
+  };
 };
 
 /**
@@ -41,7 +44,7 @@ export type BaseSendMessageArgs = {
  */
 export type BaseSendMessageResult =
   | {
-      data: LlmapiChatCompletionResponse;
+      data: LlmapiResponseResponse;
       error: null;
     }
   | { data: null; error: string };
@@ -59,7 +62,7 @@ export type BaseUseChatOptions = {
   /**
    * Callback function to be called when the chat completion finishes successfully.
    */
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  onFinish?: (response: LlmapiResponseResponse) => void;
   /**
    * Callback function to be called when an unexpected error is encountered.
    *
@@ -93,8 +96,7 @@ export type BaseUseChatResult = {
  */
 export type StreamAccumulator = {
   content: string;
-  completionId: string;
-  completionModel: string;
-  usage: Partial<LlmapiChatCompletionUsage>;
-  finishReason: string | undefined;
+  responseId: string;
+  responseModel: string;
+  usage: Partial<LlmapiResponseUsage>;
 };

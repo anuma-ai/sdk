@@ -18,17 +18,28 @@ describe("useChat", () => {
   it("should send message and handle stream response", async () => {
     const mockStream = (async function* () {
       yield {
-        id: "chatcmpl-123",
-        model: "gpt-3.5-turbo",
-        choices: [{ delta: { content: "Hello", role: "assistant" }, index: 0 }],
+        type: "response.created",
+        response: {
+          id: "resp-123",
+          model: "gpt-3.5-turbo",
+        },
       };
       yield {
-        choices: [
-          { delta: { content: " world", role: "assistant" }, index: 0 },
-        ],
+        type: "response.output_text.delta",
+        delta: "Hello",
       };
       yield {
-        choices: [{ delta: {}, finish_reason: "stop", index: 0 }],
+        type: "response.output_text.delta",
+        delta: " world",
+      };
+      yield {
+        type: "response.completed",
+        response: {
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+          },
+        },
       };
     })();
 
@@ -56,7 +67,7 @@ describe("useChat", () => {
     expect(client.sse.post).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+          input: "user: Hi",
           model: "gpt-3.5-turbo",
           stream: true,
         }),
@@ -69,8 +80,8 @@ describe("useChat", () => {
 
     // Type guard: after the assertions above, we know this is the success case
     if (response && response.error === null && response.data) {
-      const content = response.data.choices?.[0]?.message?.content;
-      expect(content).toEqual([{ type: "text", text: "Hello world" }]);
+      const content = response.data.output?.[0]?.content;
+      expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
     }
     expect(result.current.isLoading).toBe(false);
   });
