@@ -1,7 +1,9 @@
 import type {
   LlmapiMessage,
+  LlmapiResponseReasoning,
   LlmapiResponseResponse,
   LlmapiResponseUsage,
+  LlmapiThinkingOptions,
   LlmapiTool,
 } from "../../../client";
 
@@ -23,6 +25,9 @@ export type StreamingChunk = {
       output_tokens?: number;
     };
   };
+  // For thinking/reasoning content
+  content_index?: number;
+  output_index?: number;
 };
 
 /**
@@ -60,6 +65,16 @@ export type ResponsesApiOptions = {
    * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
    */
   toolChoice?: string;
+  /**
+   * Reasoning configuration for o-series and other reasoning models.
+   * Controls reasoning effort and summary output.
+   */
+  reasoning?: LlmapiResponseReasoning;
+  /**
+   * Extended thinking configuration for Anthropic models (Claude).
+   * Enables the model to think through complex problems step by step.
+   */
+  thinking?: LlmapiThinkingOptions;
 };
 
 /**
@@ -98,6 +113,11 @@ export type BaseUseChatOptions = {
    */
   onData?: (chunk: string) => void;
   /**
+   * Callback function to be called when thinking/reasoning content is received.
+   * This is called with delta chunks as the model "thinks" through a problem.
+   */
+  onThinking?: (chunk: string) => void;
+  /**
    * Callback function to be called when the chat completion finishes successfully.
    */
   onFinish?: (response: LlmapiResponseResponse) => void;
@@ -134,6 +154,7 @@ export type BaseUseChatResult = {
  */
 export type StreamAccumulator = {
   content: string;
+  thinking: string;
   responseId: string;
   responseModel: string;
   usage: Partial<LlmapiResponseUsage>;

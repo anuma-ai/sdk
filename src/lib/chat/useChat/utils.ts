@@ -123,6 +123,7 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
 export function createStreamAccumulator(): StreamAccumulator {
   return {
     content: "",
+    thinking: "",
     responseId: "",
     responseModel: "",
     usage: {},
@@ -130,13 +131,25 @@ export function createStreamAccumulator(): StreamAccumulator {
 }
 
 /**
+ * Result from processing a streaming chunk
+ */
+export type ProcessChunkResult = {
+  /** Content delta (regular assistant response) */
+  content: string | null;
+  /** Thinking delta (reasoning/thinking content) */
+  thinking: string | null;
+};
+
+/**
  * Processes a streaming chunk and updates the accumulator
- * Returns the content delta if present
+ * Returns the content and thinking deltas if present
  */
 export function processStreamingChunk(
   chunk: StreamingChunk,
   accumulator: StreamAccumulator
-): string | null {
+): ProcessChunkResult {
+  const result: ProcessChunkResult = { content: null, thinking: null };
+
   // Handle response.created event - extract ID and model from response object
   if (chunk.type === "response.created" && chunk.response) {
     if (chunk.response.id && !accumulator.responseId) {
@@ -145,7 +158,7 @@ export function processStreamingChunk(
     if (chunk.response.model && !accumulator.responseModel) {
       accumulator.responseModel = chunk.response.model;
     }
-    return null;
+    return result;
   }
 
   // Handle response.completed event - extract usage from response object
@@ -158,7 +171,7 @@ export function processStreamingChunk(
         (chunk.response.usage.input_tokens || 0) +
         (chunk.response.usage.output_tokens || 0),
     };
-    return null;
+    return result;
   }
 
   // Legacy: Extract response ID and model from top-level fields
@@ -178,6 +191,28 @@ export function processStreamingChunk(
     };
   }
 
+  // Handle thinking/reasoning content deltas
+  // These event types are used by various providers for thinking content
+  if (
+    chunk.type === "response.reasoning.delta" ||
+    chunk.type === "response.reasoning_summary_text.delta" ||
+    chunk.type === "response.thinking.delta"
+  ) {
+    const delta = chunk.delta;
+    if (delta) {
+      // Handle both string and object delta formats
+      const deltaText =
+        typeof delta === "string"
+          ? delta
+          : delta.OfString || delta.OfResponseReasoningSummaryDeltaEventDelta;
+      if (deltaText) {
+        accumulator.thinking += deltaText;
+        result.thinking = deltaText;
+      }
+    }
+    return result;
+  }
+
   // Extract content delta from responses API format
   if (chunk.type === "response.output_text.delta") {
     const delta = chunk.delta;
@@ -187,12 +222,12 @@ export function processStreamingChunk(
       const deltaText = typeof delta === "string" ? delta : delta.OfString;
       if (deltaText) {
         accumulator.content += deltaText;
-        return deltaText;
+        result.content = deltaText;
       }
     }
   }
 
-  return null;
+  return result;
 }
 
 /**
@@ -201,18 +236,31 @@ export function processStreamingChunk(
 export function buildResponseResponse(
   accumulator: StreamAccumulator
 ): LlmapiResponseResponse {
+  const output: LlmapiResponseResponse["output"] = [];
+
+  // Add thinking/reasoning output if present
+  if (accumulator.thinking) {
+    output.push({
+      type: "reasoning",
+      role: "assistant",
+      content: [{ type: "output_text", text: accumulator.thinking }],
+      status: "completed",
+    });
+  }
+
+  // Add the main message output
+  output.push({
+    type: "message",
+    role: "assistant",
+    content: [{ type: "output_text", text: accumulator.content }],
+    status: "completed",
+  });
+
   return {
     id: accumulator.responseId,
     model: accumulator.responseModel,
     object: "response",
-    output: [
-      {
-        type: "message",
-        role: "assistant",
-        content: [{ type: "output_text", text: accumulator.content }],
-        status: "completed",
-      },
-    ],
+    output,
     usage:
       Object.keys(accumulator.usage).length > 0
         ? accumulator.usage

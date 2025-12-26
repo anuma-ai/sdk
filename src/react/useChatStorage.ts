@@ -485,6 +485,9 @@ export function useChatStorage(
         maxOutputTokens,
         tools,
         toolChoice,
+        reasoning,
+        thinking,
+        onThinking,
       } = args;
 
       // Ensure we have a conversation
@@ -585,6 +588,9 @@ export function useChatStorage(
         maxOutputTokens,
         tools,
         toolChoice,
+        reasoning,
+        thinking,
+        onThinking,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;

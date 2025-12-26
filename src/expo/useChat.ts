@@ -22,7 +22,12 @@ import {
   messagesToInput,
 } from "../lib/chat/useChat";
 
-type SendMessageArgs = BaseSendMessageArgs;
+type SendMessageArgs = BaseSendMessageArgs & {
+  /**
+   * Per-request callback for thinking/reasoning chunks.
+   */
+  onThinking?: (chunk: string) => void;
+};
 
 type SendMessageResult = BaseSendMessageResult;
 
@@ -34,13 +39,15 @@ type UseChatResult = BaseUseChatResult & {
 
 /**
  * Processes SSE lines and updates the accumulator
- * Returns true if any content was processed
+ * Calls appropriate callbacks for content and thinking deltas
  */
 function processSSELines(
   lines: string[],
   accumulator: StreamAccumulator,
   onData?: (chunk: string) => void,
-  globalOnData?: (chunk: string) => void
+  globalOnData?: (chunk: string) => void,
+  onThinking?: (chunk: string) => void,
+  globalOnThinking?: (chunk: string) => void
 ): void {
   for (const line of lines) {
     const chunk = parseSSEDataLine(line);
@@ -96,6 +103,27 @@ function processSSELines(
     }
     if (chunk.usage) {
       accumulator.usage = { ...accumulator.usage, ...chunk.usage };
+    }
+
+    // Handle thinking/reasoning content deltas
+    if (
+      chunk.type === "response.reasoning.delta" ||
+      chunk.type === "response.reasoning_summary_text.delta" ||
+      chunk.type === "response.thinking.delta"
+    ) {
+      const delta = chunk.delta;
+      if (delta) {
+        const deltaText =
+          typeof delta === "string"
+            ? delta
+            : delta.OfString || delta.OfResponseReasoningSummaryDeltaEventDelta;
+        if (deltaText) {
+          accumulator.thinking += deltaText;
+          if (onThinking) onThinking(deltaText);
+          if (globalOnThinking) globalOnThinking(deltaText);
+        }
+      }
+      continue;
     }
 
     // Handle responses API streaming format
@@ -154,6 +182,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     getToken,
     baseUrl = BASE_URL,
     onData: globalOnData,
+    onThinking: globalOnThinking,
     onFinish,
     onError,
   } = options || {};
@@ -182,6 +211,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       messages,
       model,
       onData,
+      onThinking,
       // Responses API options
       store,
       previousResponseId,
@@ -190,6 +220,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice,
+      reasoning,
+      thinking,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate inputs
       const messagesValidation = validateMessages(messages);
@@ -266,7 +298,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               incompleteLineBuffer = lines.pop() || "";
             }
 
-            processSSELines(lines, accumulator, onData, globalOnData);
+            processSSELines(lines, accumulator, onData, globalOnData, onThinking, globalOnThinking);
           };
 
           xhr.onload = () => {
@@ -278,7 +310,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 [incompleteLineBuffer.trim()],
                 accumulator,
                 onData,
-                globalOnData
+                globalOnData,
+                onThinking,
+                globalOnThinking
               );
               incompleteLineBuffer = "";
             }
@@ -323,6 +357,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
               ...(tools && { tools }),
               ...(toolChoice && { tool_choice: toolChoice }),
+              ...(reasoning && { reasoning }),
+              ...(thinking && { thinking }),
             })
           );
         });
@@ -337,7 +373,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError]
   );
 
   return {

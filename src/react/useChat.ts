@@ -10,6 +10,7 @@ import {
   type BaseUseChatOptions,
   type BaseUseChatResult,
   type StreamingChunk,
+  type ProcessChunkResult,
   createStreamAccumulator,
   validateMessages,
   validateModel,
@@ -39,6 +40,13 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * This is typically formatted search results from useSearch.
    */
   searchContext?: string;
+  /**
+   * Per-request callback for thinking/reasoning chunks. Called in addition to the global
+   * `onThinking` callback if provided in `useChat` options.
+   *
+   * @param chunk - The thinking delta from the current chunk
+   */
+  onThinking?: (chunk: string) => void;
 };
 
 type SendMessageResult =
@@ -70,6 +78,7 @@ type UseChatResult = BaseUseChatResult & {
  *   If not provided, `sendMessage` will return an error.
  * @param options.baseUrl - Optional base URL for the API requests.
  * @param options.onData - Callback function to be called when a new data chunk is received.
+ * @param options.onThinking - Callback function to be called when thinking/reasoning content is received.
  * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
  * @param options.onError - Callback function to be called when an unexpected error
  *   is encountered. Note: This is NOT called for aborted requests (see `stop()`).
@@ -96,6 +105,21 @@ type UseChatResult = BaseUseChatResult & {
  *     model: 'gpt-4o-mini'
  *   });
  * };
+ *
+ * // Using extended thinking (Anthropic Claude)
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
+ *   model: 'anthropic/claude-3-7-sonnet-20250219',
+ *   thinking: { type: 'enabled', budget_tokens: 10000 },
+ *   onThinking: (chunk) => console.log('Thinking:', chunk)
+ * });
+ *
+ * // Using reasoning (OpenAI o-series)
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
+ *   model: 'openai/o1',
+ *   reasoning: { effort: 'high', summary: 'detailed' }
+ * });
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
@@ -103,6 +127,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     getToken,
     baseUrl = BASE_URL,
     onData: globalOnData,
+    onThinking: globalOnThinking,
     onFinish,
     onError,
   } = options || {};
@@ -131,6 +156,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       messages,
       model,
       onData,
+      onThinking,
       headers,
       memoryContext,
       searchContext,
@@ -142,6 +168,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice,
+      reasoning,
+      thinking,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate messages
       const messagesValidation = validateMessages(messages);
@@ -253,6 +281,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
             ...(tools && { tools }),
             ...(toolChoice && { tool_choice: toolChoice }),
+            ...(reasoning && { reasoning }),
+            ...(thinking && { thinking }),
           },
           headers: {
             "Content-Type": "application/json",
@@ -278,13 +308,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const contentDelta = processStreamingChunk(
+              const { content: contentDelta, thinking: thinkingDelta } = processStreamingChunk(
                 chunk as StreamingChunk,
                 accumulator
               );
               if (contentDelta) {
                 if (onData) onData(contentDelta);
                 if (globalOnData) globalOnData(contentDelta);
+              }
+              if (thinkingDelta) {
+                if (onThinking) onThinking(thinkingDelta);
+                if (globalOnThinking) globalOnThinking(thinkingDelta);
               }
             }
           }
@@ -351,7 +385,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError]
   );
 
   return {
