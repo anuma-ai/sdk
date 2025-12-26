@@ -67,6 +67,8 @@ export {
   encryptData,
   decryptData,
   decryptDataBytes,
+  clearEncryptionKey,
+  clearAllEncryptionKeys,
 } from "./useEncryption";
 export type { SignMessageFn } from "./useEncryption";
 
