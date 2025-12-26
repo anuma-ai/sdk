@@ -98,6 +98,16 @@ Defined in: [src/lib/db/chat/types.ts:51](https://github.com/zeta-chain/ai-sdk/b
 
 ***
 
+### thinking?
+
+> `optional` **thinking**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
+
+Reasoning/thinking content from models that support extended thinking
+
+***
+
 ### thoughtProcess?
 
 > `optional` **thoughtProcess**: `ActivityPhase`[]

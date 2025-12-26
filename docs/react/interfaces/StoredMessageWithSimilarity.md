@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L76)
+Defined in: [src/lib/db/chat/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L78)
 
 ## Extends
 
@@ -134,7 +134,7 @@ Defined in: [src/lib/db/chat/types.ts:42](https://github.com/zeta-chain/ai-sdk/b
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L77)
+Defined in: [src/lib/db/chat/types.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L79)
 
 ***
 
@@ -147,6 +147,20 @@ Defined in: [src/lib/db/chat/types.ts:51](https://github.com/zeta-chain/ai-sdk/b
 #### Inherited from
 
 [`StoredMessage`](StoredMessage.md).[`sources`](StoredMessage.md#sources)
+
+***
+
+### thinking?
+
+> `optional` **thinking**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
+
+Reasoning/thinking content from models that support extended thinking
+
+#### Inherited from
+
+[`StoredMessage`](StoredMessage.md).[`thinking`](StoredMessage.md#thinking)
 
 ***
 
