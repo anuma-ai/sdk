@@ -1,6 +1,6 @@
 # StoredChatCompletionUsage
 
-Defined in: [src/lib/db/chat/types.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L22)
+Defined in: [src/lib/db/chat/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L24)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:22](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **completionTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L24)
+Defined in: [src/lib/db/chat/types.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L26)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:24](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **costMicroUsd**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L26)
+Defined in: [src/lib/db/chat/types.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L28)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:26](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **promptTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L23)
+Defined in: [src/lib/db/chat/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L25)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/db/chat/types.ts:23](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **totalTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L25)
+Defined in: [src/lib/db/chat/types.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L27)

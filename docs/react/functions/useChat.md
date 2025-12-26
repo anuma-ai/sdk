@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L101)
+Defined in: [src/react/useChat.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L125)
 
 A React hook for managing chat completions with authentication.
 
@@ -43,4 +43,19 @@ const handleSend = async () => {
     model: 'gpt-4o-mini'
   });
 };
+
+// Using extended thinking (Anthropic Claude)
+const result = await sendMessage({
+  messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
+  model: 'anthropic/claude-3-7-sonnet-20250219',
+  thinking: { type: 'enabled', budget_tokens: 10000 },
+  onThinking: (chunk) => console.log('Thinking:', chunk)
+});
+
+// Using reasoning (OpenAI o-series)
+const result = await sendMessage({
+  messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
+  model: 'openai/o1',
+  reasoning: { effort: 'high', summary: 'detailed' }
+});
 ```
