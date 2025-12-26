@@ -32,6 +32,7 @@ export class Message extends Model {
   @field("was_stopped") wasStopped?: boolean;
   @text("error") error?: string;
   @json("thought_process", (json) => json) thoughtProcess?: ActivityPhase[];
+  @text("thinking") thinking?: string;
 }
 
 export class Conversation extends Model {

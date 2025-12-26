@@ -31,6 +31,7 @@ export function messageToStored(message: Message): StoredMessage {
     wasStopped: message.wasStopped,
     error: message.error,
     thoughtProcess: message.thoughtProcess,
+    thinking: message.thinking,
   };
 }
 
@@ -193,6 +194,7 @@ export async function createMessageOp(
       if (opts.error) msg._setRaw("error", opts.error);
       if (opts.thoughtProcess)
         msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
+      if (opts.thinking) msg._setRaw("thinking", opts.thinking);
     });
   });
 
@@ -277,6 +279,8 @@ export async function updateMessageOp(
         msg._setRaw("error", opts.error === null ? "" : opts.error);
       if (opts.thoughtProcess !== undefined)
         msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
+      if (opts.thinking !== undefined)
+        msg._setRaw("thinking", opts.thinking === null ? "" : opts.thinking);
     });
   });
 

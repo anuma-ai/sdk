@@ -54,6 +54,8 @@ export interface StoredMessage {
   /** If set, indicates the message failed with this error */
   error?: string;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string;
 }
 
 export interface ActivityPhase {
@@ -92,6 +94,8 @@ export interface CreateMessageOptions {
   /** If set, indicates the message failed with this error */
   error?: string;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string;
 }
 
 export interface CreateConversationOptions {
@@ -111,6 +115,8 @@ export interface UpdateMessageOptions {
   wasStopped?: boolean;
   error?: string | null;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string | null;
 }
 
 // Hook types

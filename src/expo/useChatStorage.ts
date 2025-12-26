@@ -433,6 +433,7 @@ export function useChatStorage(
         maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
+        onThinking: perRequestOnThinking,
         sources,
         thoughtProcess,
         // Responses API options
@@ -443,6 +444,8 @@ export function useChatStorage(
         maxOutputTokens,
         tools,
         toolChoice,
+        reasoning,
+        thinking,
       } = args;
 
       // Ensure we have a conversation
@@ -532,6 +535,7 @@ export function useChatStorage(
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
+        onThinking: perRequestOnThinking,
         // Responses API options
         store,
         previousResponseId,
@@ -540,6 +544,8 @@ export function useChatStorage(
         maxOutputTokens,
         tools,
         toolChoice,
+        reasoning,
+        thinking,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -633,12 +639,26 @@ export function useChatStorage(
         };
       }
 
-      // Extract assistant response content
+      // Extract assistant response content and thinking/reasoning
       const responseData = result.data;
+
+      // Find the message output item (type: "message") for main content
+      const messageOutput = responseData.output?.find(
+        (item) => item.type === "message"
+      );
       const assistantContent =
-        responseData.output?.[0]?.content
+        messageOutput?.content
           ?.map((part: { text?: string }) => part.text || "")
           .join("") || "";
+
+      // Find the reasoning output item (type: "reasoning") for thinking content
+      const reasoningOutput = responseData.output?.find(
+        (item) => item.type === "reasoning"
+      );
+      const thinkingContent =
+        reasoningOutput?.content
+          ?.map((part: { text?: string }) => part.text || "")
+          .join("") || undefined;
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
       const combinedSources = extractSourcesFromAssistantMessage({
@@ -658,6 +678,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+          thinking: thinkingContent,
         });
       } catch (err) {
         return {
