@@ -2,7 +2,7 @@
 
 > **GetApiV1ConfigErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:875](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L875)
+Defined in: [src/client/types.gen.ts:901](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L901)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:875](https://github.com/zeta-chain/ai-sdk/b
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:879](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L879)
+Defined in: [src/client/types.gen.ts:905](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L905)
 
 Internal Server Error

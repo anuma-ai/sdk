@@ -576,7 +576,7 @@ export type LlmapiResponseOutputItem = {
      */
     call_id?: string;
     /**
-     * Content is the content array for message types
+     * Content is the content array for message and reasoning types
      */
     content?: Array<LlmapiResponseOutputContent>;
     /**
@@ -596,9 +596,27 @@ export type LlmapiResponseOutputItem = {
      */
     status?: string;
     /**
-     * Type is the output item type (e.g., "message", "function_call")
+     * Summary is the reasoning summary for reasoning types
+     */
+    summary?: Array<LlmapiResponseOutputContent>;
+    /**
+     * Type is the output item type (e.g., "message", "function_call", "reasoning")
      */
     type?: string;
+};
+
+/**
+ * Reasoning configures reasoning for o-series and other reasoning models
+ */
+export type LlmapiResponseReasoning = {
+    /**
+     * Effort controls reasoning effort: "low", "medium", or "high"
+     */
+    effort?: string;
+    /**
+     * Summary controls reasoning summary: "auto", "concise", or "detailed"
+     */
+    summary?: string;
 };
 
 export type LlmapiResponseRequest = {
@@ -622,14 +640,7 @@ export type LlmapiResponseRequest = {
      * Model is the model identifier in 'provider/model' format
      */
     model: string;
-    /**
-     * PreviousResponseID is the ID of a previous response to continue from
-     */
-    previous_response_id?: string;
-    /**
-     * Store indicates if the response should be stored
-     */
-    store?: boolean;
+    reasoning?: LlmapiResponseReasoning;
     /**
      * Stream indicates if response should be streamed
      */
@@ -638,6 +649,7 @@ export type LlmapiResponseRequest = {
      * Temperature controls randomness (0.0 to 2.0)
      */
     temperature?: number;
+    thinking?: LlmapiThinkingOptions;
     /**
      * ToolChoice controls which tool to use (auto, any, none, required, or tool name)
      */
@@ -777,6 +789,20 @@ export type LlmapiSearchUsage = {
      * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
      */
     cost_micro_usd?: number;
+};
+
+/**
+ * Thinking configures extended thinking for Anthropic models
+ */
+export type LlmapiThinkingOptions = {
+    /**
+     * BudgetTokens is the token budget for thinking
+     */
+    budget_tokens?: number;
+    /**
+     * Type indicates if thinking is enabled: "enabled" or "disabled"
+     */
+    type?: string;
 };
 
 export type LlmapiTool = {

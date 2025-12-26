@@ -2,4 +2,4 @@
 
 > **GetApiV1ModelsError** = [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)\[keyof [`GetApiV1ModelsErrors`](GetApiV1ModelsErrors.md)\]
 
-Defined in: [src/client/types.gen.ts:1010](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1010)
+Defined in: [src/client/types.gen.ts:1036](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1036)

@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderExchangeResponse** = [`PostAuthOauthByProviderExchangeResponses`](PostAuthOauthByProviderExchangeResponses.md)\[keyof [`PostAuthOauthByProviderExchangeResponses`](PostAuthOauthByProviderExchangeResponses.md)\]
 
-Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1120)
+Defined in: [src/client/types.gen.ts:1146](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1146)

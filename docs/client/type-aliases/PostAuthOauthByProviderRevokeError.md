@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRevokeError** = [`PostAuthOauthByProviderRevokeErrors`](PostAuthOauthByProviderRevokeErrors.md)\[keyof [`PostAuthOauthByProviderRevokeErrors`](PostAuthOauthByProviderRevokeErrors.md)\]
 
-Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
+Defined in: [src/client/types.gen.ts:1211](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1211)

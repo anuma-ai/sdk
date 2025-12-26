@@ -2,4 +2,4 @@
 
 > **GetApiV1ConfigResponse** = [`GetApiV1ConfigResponses`](GetApiV1ConfigResponses.md)\[keyof [`GetApiV1ConfigResponses`](GetApiV1ConfigResponses.md)\]
 
-Defined in: [src/client/types.gen.ts:891](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L891)
+Defined in: [src/client/types.gen.ts:917](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L917)

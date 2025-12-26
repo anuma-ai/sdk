@@ -2,7 +2,7 @@
 
 > **LlmapiTool** = `object`
 
-Defined in: [src/client/types.gen.ts:782](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L782)
+Defined in: [src/client/types.gen.ts:808](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L808)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:782](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **function**: [`LlmapiToolFunction`](LlmapiToolFunction.md)
 
-Defined in: [src/client/types.gen.ts:783](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L783)
+Defined in: [src/client/types.gen.ts:809](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L809)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:783](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:787](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L787)
+Defined in: [src/client/types.gen.ts:813](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L813)
 
 Type is the tool type (function, code_interpreter, file_search, web_search)

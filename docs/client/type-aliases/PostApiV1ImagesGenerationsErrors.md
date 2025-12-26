@@ -2,7 +2,7 @@
 
 > **PostApiV1ImagesGenerationsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:953](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L953)
+Defined in: [src/client/types.gen.ts:979](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L979)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:953](https://github.com/zeta-chain/ai-sdk/b
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:957](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L957)
+Defined in: [src/client/types.gen.ts:983](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L983)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:961](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L961)
+Defined in: [src/client/types.gen.ts:987](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L987)
 
 Internal Server Error
 
@@ -30,6 +30,6 @@ Internal Server Error
 
 > **501**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:965](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L965)
+Defined in: [src/client/types.gen.ts:991](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L991)
 
 Not Implemented
