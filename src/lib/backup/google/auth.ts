@@ -17,8 +17,11 @@ import type { Client } from "../../../client/client";
 import {
   clearTokenData,
   getRefreshToken,
+  getRefreshTokenSync,
   getStoredTokenData,
+  getStoredTokenDataSync,
   getValidAccessToken,
+  getValidAccessTokenSync,
   isTokenExpired,
   storeTokenData,
   tokenResponseToStoredData,
@@ -44,6 +47,11 @@ function getRedirectUri(callbackPath: string): string {
 }
 
 /**
+ * Maximum age for OAuth state (10 minutes)
+ */
+const MAX_STATE_AGE_MS = 10 * 60 * 1000;
+
+/**
  * Generate a random state for CSRF protection
  */
 function generateState(): string {
@@ -55,21 +63,45 @@ function generateState(): string {
 }
 
 /**
- * Store OAuth state for validation
+ * Store OAuth state for validation with timestamp
  */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(CODE_STORAGE_KEY, state);
+  const stateData = {
+    state,
+    timestamp: Date.now(),
+  };
+  sessionStorage.setItem(CODE_STORAGE_KEY, JSON.stringify(stateData));
 }
 
 /**
- * Get and clear stored OAuth state
+ * Get and clear stored OAuth state with timestamp validation
  */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
-  const state = sessionStorage.getItem(CODE_STORAGE_KEY);
-  sessionStorage.removeItem(CODE_STORAGE_KEY);
-  return state;
+  
+  try {
+    const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
+    if (!stored) return null;
+    
+    const stateData = JSON.parse(stored) as { state: string; timestamp: number };
+    
+    // Validate timestamp - state must not be too old
+    const age = Date.now() - stateData.timestamp;
+    if (age > MAX_STATE_AGE_MS) {
+      // State is too old, clear it
+      sessionStorage.removeItem(CODE_STORAGE_KEY);
+      return null;
+    }
+    
+    // Clear state after use (one-time use)
+    sessionStorage.removeItem(CODE_STORAGE_KEY);
+    return stateData.state;
+  } catch {
+    // Invalid state data, clear it
+    sessionStorage.removeItem(CODE_STORAGE_KEY);
+    return null;
+  }
 }
 
 /**
@@ -80,8 +112,25 @@ export function isGoogleDriveCallback(): boolean {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
-  return !!code && !!state && state === storedState;
+  
+  if (!code || !state) return false;
+  
+  try {
+    const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
+    if (!stored) return false;
+    
+    const stateData = JSON.parse(stored) as { state: string; timestamp: number };
+    
+    // Validate timestamp
+    const age = Date.now() - stateData.timestamp;
+    if (age > MAX_STATE_AGE_MS) {
+      return false; // State is too old
+    }
+    
+    return state === stateData.state;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -117,14 +166,14 @@ export async function handleGoogleDriveCallback(
       throw new Error("No access token in response");
     }
 
-    // Store tokens
+    // Store tokens (without encryption for now - wallet address not available in OAuth callback)
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token,
       response.data.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData);
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
@@ -139,9 +188,12 @@ export async function handleGoogleDriveCallback(
  * Refresh the access token using the stored refresh token
  */
 export async function refreshGoogleDriveToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const refreshToken = getRefreshToken(PROVIDER);
+  const refreshToken = walletAddress
+    ? await getRefreshToken(PROVIDER, walletAddress)
+    : getRefreshTokenSync(PROVIDER);
   if (!refreshToken) return null;
 
   try {
@@ -156,14 +208,16 @@ export async function refreshGoogleDriveToken(
     }
 
     // Update stored tokens (refresh token may or may not be included)
-    const currentData = getStoredTokenData(PROVIDER);
+    const currentData = walletAddress
+      ? await getStoredTokenData(PROVIDER, walletAddress)
+      : getStoredTokenDataSync(PROVIDER);
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token ?? currentData?.refreshToken,
       response.data.scope ?? currentData?.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData, walletAddress);
 
     return response.data.access_token;
   } catch {
@@ -177,9 +231,12 @@ export async function refreshGoogleDriveToken(
  * Revoke the OAuth token
  */
 export async function revokeGoogleDriveToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<void> {
-  const tokenData = getStoredTokenData(PROVIDER);
+  const tokenData = walletAddress
+    ? await getStoredTokenData(PROVIDER, walletAddress)
+    : getStoredTokenDataSync(PROVIDER);
   if (!tokenData) return;
 
   try {
@@ -201,9 +258,12 @@ export async function revokeGoogleDriveToken(
  * Get a valid access token, refreshing if necessary
  */
 export async function getGoogleDriveAccessToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const storedData = getStoredTokenData(PROVIDER);
+  const storedData = walletAddress
+    ? await getStoredTokenData(PROVIDER, walletAddress)
+    : getStoredTokenDataSync(PROVIDER);
 
   // If no stored data at all, nothing to do
   if (!storedData) {
@@ -218,7 +278,7 @@ export async function getGoogleDriveAccessToken(
   // Token is either expired OR has no expiration info (can't verify validity)
   // In both cases, try to refresh if we have a refresh token
   if (storedData.refreshToken) {
-    const refreshedToken = await refreshGoogleDriveToken(apiClient);
+    const refreshedToken = await refreshGoogleDriveToken(apiClient, walletAddress);
     if (refreshedToken) {
       return refreshedToken;
     }
@@ -263,7 +323,7 @@ export async function startGoogleDriveAuth(
  * Get stored token data for Google Drive
  */
 export function getGoogleDriveStoredToken(): string | null {
-  return getValidAccessToken(PROVIDER);
+  return getValidAccessTokenSync(PROVIDER);
 }
 
 /**
@@ -277,6 +337,6 @@ export function clearGoogleDriveToken(): void {
  * Check if we have any stored credentials (including refresh token)
  */
 export function hasGoogleDriveCredentials(): boolean {
-  const data = getStoredTokenData(PROVIDER);
+  const data = getStoredTokenDataSync(PROVIDER);
   return !!(data?.accessToken || data?.refreshToken);
 }

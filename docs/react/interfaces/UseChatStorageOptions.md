@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L74)
+Defined in: [src/react/useChatStorage.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L81)
 
 Options for useChatStorage hook (React version)
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/chat/types.ts:121](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **chatProvider**: `"local"` \| `"api"`
 
-Defined in: [src/react/useChatStorage.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L76)
+Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
 
 Chat provider: "api" or "local"
 
@@ -102,7 +102,7 @@ Defined in: [src/lib/db/chat/types.ts:120](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **localModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L78)
+Defined in: [src/react/useChatStorage.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L85)
 
 Model for local chat
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/db/chat/types.ts:123](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onToolExecution**: (`result`) => `void`
 
-Defined in: [src/react/useChatStorage.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L84)
+Defined in: [src/react/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L91)
 
 Callback when tool is executed
 
@@ -194,11 +194,59 @@ Callback when tool is executed
 
 ***
 
+### requestEncryptionKey()?
+
+> `optional` **requestEncryptionKey**: (`address`) => `Promise`\<`void`\>
+
+Defined in: [src/lib/db/chat/types.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L128)
+
+Function to request encryption key (optional - encryption disabled if not provided)
+
+#### Parameters
+
+##### address
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+`BaseUseChatStorageOptions.requestEncryptionKey`
+
+***
+
+### signMessage()?
+
+> `optional` **signMessage**: (`message`) => `Promise`\<`string`\>
+
+Defined in: [src/lib/db/chat/types.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L130)
+
+Function to sign message for migration (optional - required for migrating old encrypted data)
+
+#### Parameters
+
+##### message
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+#### Inherited from
+
+`BaseUseChatStorageOptions.signMessage`
+
+***
+
 ### tools?
 
 > `optional` **tools**: [`ClientTool`](ClientTool.md)[]
 
-Defined in: [src/react/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L80)
+Defined in: [src/react/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L87)
 
 Client-side tools
 
@@ -208,6 +256,20 @@ Client-side tools
 
 > `optional` **toolSelectorModel**: `string`
 
-Defined in: [src/react/useChatStorage.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L82)
+Defined in: [src/react/useChatStorage.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L89)
 
 Tool selector model
+
+***
+
+### walletAddress?
+
+> `optional` **walletAddress**: `string` \| `null`
+
+Defined in: [src/lib/db/chat/types.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L126)
+
+Wallet address for encryption (optional - encryption disabled if not provided)
+
+#### Inherited from
+
+`BaseUseChatStorageOptions.walletAddress`

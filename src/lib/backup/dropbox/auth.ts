@@ -17,8 +17,11 @@ import type { Client } from "../../../client/client";
 import {
   clearTokenData,
   getRefreshToken,
+  getRefreshTokenSync,
   getStoredTokenData,
+  getStoredTokenDataSync,
   getValidAccessToken,
+  getValidAccessTokenSync,
   storeTokenData,
   tokenResponseToStoredData,
 } from "../oauth/storage";
@@ -38,6 +41,11 @@ function getRedirectUri(callbackPath: string): string {
 }
 
 /**
+ * Maximum age for OAuth state (10 minutes)
+ */
+const MAX_STATE_AGE_MS = 10 * 60 * 1000;
+
+/**
  * Generate a random state for CSRF protection
  */
 function generateState(): string {
@@ -49,21 +57,45 @@ function generateState(): string {
 }
 
 /**
- * Store OAuth state for validation
+ * Store OAuth state for validation with timestamp
  */
 function storeOAuthState(state: string): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(STATE_STORAGE_KEY, state);
+  const stateData = {
+    state,
+    timestamp: Date.now(),
+  };
+  sessionStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(stateData));
 }
 
 /**
- * Get and clear stored OAuth state
+ * Get and clear stored OAuth state with timestamp validation
  */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
-  const state = sessionStorage.getItem(STATE_STORAGE_KEY);
-  sessionStorage.removeItem(STATE_STORAGE_KEY);
-  return state;
+  
+  try {
+    const stored = sessionStorage.getItem(STATE_STORAGE_KEY);
+    if (!stored) return null;
+    
+    const stateData = JSON.parse(stored) as { state: string; timestamp: number };
+    
+    // Validate timestamp - state must not be too old
+    const age = Date.now() - stateData.timestamp;
+    if (age > MAX_STATE_AGE_MS) {
+      // State is too old, clear it
+      sessionStorage.removeItem(STATE_STORAGE_KEY);
+      return null;
+    }
+    
+    // Clear state after use (one-time use)
+    sessionStorage.removeItem(STATE_STORAGE_KEY);
+    return stateData.state;
+  } catch {
+    // Invalid state data, clear it
+    sessionStorage.removeItem(STATE_STORAGE_KEY);
+    return null;
+  }
 }
 
 /**
@@ -74,8 +106,25 @@ export function isDropboxCallback(): boolean {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const storedState = sessionStorage.getItem(STATE_STORAGE_KEY);
-  return !!code && !!state && state === storedState;
+  
+  if (!code || !state) return false;
+  
+  try {
+    const stored = sessionStorage.getItem(STATE_STORAGE_KEY);
+    if (!stored) return false;
+    
+    const stateData = JSON.parse(stored) as { state: string; timestamp: number };
+    
+    // Validate timestamp
+    const age = Date.now() - stateData.timestamp;
+    if (age > MAX_STATE_AGE_MS) {
+      return false; // State is too old
+    }
+    
+    return state === stateData.state;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -111,14 +160,14 @@ export async function handleDropboxCallback(
       throw new Error("No access token in response");
     }
 
-    // Store tokens
+    // Store tokens (without encryption for now - wallet address not available in OAuth callback)
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token,
       response.data.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData);
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
@@ -133,9 +182,12 @@ export async function handleDropboxCallback(
  * Refresh the access token using the stored refresh token
  */
 export async function refreshDropboxToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const refreshToken = getRefreshToken(PROVIDER);
+  const refreshToken = walletAddress
+    ? await getRefreshToken(PROVIDER, walletAddress)
+    : getRefreshTokenSync(PROVIDER);
   if (!refreshToken) return null;
 
   try {
@@ -150,14 +202,16 @@ export async function refreshDropboxToken(
     }
 
     // Update stored tokens (refresh token may or may not be included)
-    const currentData = getStoredTokenData(PROVIDER);
+    const currentData = walletAddress
+      ? await getStoredTokenData(PROVIDER, walletAddress)
+      : getStoredTokenDataSync(PROVIDER);
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token ?? currentData?.refreshToken,
       response.data.scope ?? currentData?.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData, walletAddress);
 
     return response.data.access_token;
   } catch {
@@ -170,8 +224,13 @@ export async function refreshDropboxToken(
 /**
  * Revoke the OAuth token
  */
-export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
-  const tokenData = getStoredTokenData(PROVIDER);
+export async function revokeDropboxToken(
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<void> {
+  const tokenData = walletAddress
+    ? await getStoredTokenData(PROVIDER, walletAddress)
+    : getStoredTokenDataSync(PROVIDER);
   if (!tokenData) return;
 
   try {
@@ -193,14 +252,17 @@ export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
  * Get a valid access token, refreshing if necessary
  */
 export async function getDropboxAccessToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
   // First check for a valid (non-expired) token
-  const validToken = getValidAccessToken(PROVIDER);
+  const validToken = walletAddress
+    ? await getValidAccessToken(PROVIDER, walletAddress)
+    : getValidAccessTokenSync(PROVIDER);
   if (validToken) return validToken;
 
   // Try to refresh if we have a refresh token
-  return refreshDropboxToken(apiClient);
+  return refreshDropboxToken(apiClient, walletAddress);
 }
 
 /**
@@ -238,6 +300,6 @@ export function clearToken(): void {
  * Check if we have any stored credentials (including refresh token)
  */
 export function hasDropboxCredentials(): boolean {
-  const data = getStoredTokenData(PROVIDER);
+  const data = getStoredTokenDataSync(PROVIDER);
   return !!(data?.accessToken || data?.refreshToken);
 }

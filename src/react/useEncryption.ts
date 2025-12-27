@@ -76,6 +76,21 @@ function bytesToHex(bytes: Uint8Array): string {
  * Derives a 32-byte encryption key from a signature using SHA-256
  */
 async function deriveKeyFromSignature(signature: string): Promise<string> {
+  // Validate signature format
+  if (!signature || typeof signature !== "string") {
+    throw new Error("Signature must be a non-empty string");
+  }
+  
+  // Validate hex format (signature should be hex string, typically 130 chars with 0x prefix)
+  const cleanHex = signature.startsWith("0x") ? signature.slice(2) : signature;
+  if (!/^[a-fA-F0-9]+$/.test(cleanHex)) {
+    throw new Error("Signature must be a valid hex string");
+  }
+  
+  if (cleanHex.length < 64) {
+    throw new Error("Signature must be at least 64 hex characters (32 bytes)");
+  }
+  
   // 1. Convert hex signature to bytes
   const sigBytes = hexToBytes(signature);
 
@@ -110,11 +125,38 @@ function setStoredKeyPair(address: string, keyPair: CryptoKeyPair): void {
 
 /**
  * Derives an ECDH P-256 key pair from a signature using HKDF
- * The key pair is deterministically generated from the signature.
+ * The key pair is deterministically generated from the signature and wallet address.
+ * 
+ * @param signature - The signature hex string
+ * @param walletAddress - The wallet address to use as deterministic salt (same per user)
  */
 async function deriveKeyPairFromSignature(
-  signature: string
+  signature: string,
+  walletAddress: string
 ): Promise<CryptoKeyPair> {
+  // Validate signature format
+  if (!signature || typeof signature !== "string") {
+    throw new Error("Signature must be a non-empty string");
+  }
+  
+  const cleanSigHex = signature.startsWith("0x") ? signature.slice(2) : signature;
+  if (!/^[a-fA-F0-9]+$/.test(cleanSigHex)) {
+    throw new Error("Signature must be a valid hex string");
+  }
+  
+  if (cleanSigHex.length < 64) {
+    throw new Error("Signature must be at least 64 hex characters (32 bytes)");
+  }
+  
+  // Validate wallet address format
+  if (!walletAddress || typeof walletAddress !== "string") {
+    throw new Error("Wallet address must be a non-empty string");
+  }
+  
+  if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    throw new Error("Wallet address must be a valid Ethereum address (0x followed by 40 hex characters)");
+  }
+  
   // 1. Convert hex signature to bytes
   const sigBytes = hexToBytes(signature);
 
@@ -134,12 +176,16 @@ async function deriveKeyPairFromSignature(
     ["deriveBits"]
   );
 
-  // 4. Derive 32 bytes for ECDH P-256 private key
+  // 4. Convert wallet address to bytes for use as deterministic salt
+  // This ensures same user always gets same key, but different users get different keys
+  const saltBytes = new TextEncoder().encode(walletAddress.toLowerCase());
+
+  // 5. Derive 32 bytes for ECDH P-256 private key
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new Uint8Array(0), // No salt for deterministic derivation
+      salt: saltBytes, // Deterministic salt per user (wallet address)
       info: new TextEncoder().encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
@@ -153,21 +199,21 @@ async function deriveKeyPairFromSignature(
     privateKeyBytes[31] = 1;
   }
 
-  // 6. Import as ECDH private key using PKCS#8 format
-  const privateKey = await crypto.subtle.importKey(
+  // 6. Import as ECDH private key using PKCS#8 format (temporarily extractable to get public key)
+  const tempPrivateKey = await crypto.subtle.importKey(
     "pkcs8",
     await createPKCS8PrivateKey(privateKeyBytes),
     {
       name: "ECDH",
       namedCurve: "P-256",
     },
-    true, // extractable so we can export to JWK
+    true, // temporarily extractable to export public key coordinates
     ["deriveBits", "deriveKey"]
   );
 
   // 7. Export private key as JWK to get public key coordinates
   // JWK format includes both private and public key information
-  const privateKeyJwk = await crypto.subtle.exportKey("jwk", privateKey);
+  const privateKeyJwk = await crypto.subtle.exportKey("jwk", tempPrivateKey);
   
   if (!privateKeyJwk.x || !privateKeyJwk.y) {
     throw new Error("Failed to derive public key from private key");
@@ -186,8 +232,20 @@ async function deriveKeyPairFromSignature(
       name: "ECDH",
       namedCurve: "P-256",
     },
-    true, // extractable
+    true, // extractable (public keys can be extractable)
     [] // no key usage needed for public key
+  );
+
+  // 9. Re-import private key as non-extractable for security
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    await createPKCS8PrivateKey(privateKeyBytes),
+    {
+      name: "ECDH",
+      namedCurve: "P-256",
+    },
+    false, // non-extractable for security
+    ["deriveBits", "deriveKey"]
   );
 
   return {
@@ -301,6 +359,23 @@ export async function encryptData(
   plaintext: string | Uint8Array,
   address: string
 ): Promise<string> {
+  // Validate inputs
+  if (plaintext === null || plaintext === undefined) {
+    throw new Error("Plaintext cannot be null or undefined");
+  }
+  
+  if (typeof plaintext !== "string" && !(plaintext instanceof Uint8Array)) {
+    throw new Error("Plaintext must be a string or Uint8Array");
+  }
+  
+  if (!address || typeof address !== "string") {
+    throw new Error("Address must be a non-empty string");
+  }
+  
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new Error("Address must be a valid Ethereum address (0x followed by 40 hex characters)");
+  }
+  
   const key = await getEncryptionKey(address);
 
   // Convert plaintext to Uint8Array if it's a string
@@ -341,6 +416,29 @@ export async function decryptData(
   encryptedHex: string,
   address: string
 ): Promise<string> {
+  // Validate inputs
+  if (!encryptedHex || typeof encryptedHex !== "string") {
+    throw new Error("Encrypted data must be a non-empty hex string");
+  }
+  
+  const cleanHex = encryptedHex.startsWith("0x") ? encryptedHex.slice(2) : encryptedHex;
+  if (!/^[a-fA-F0-9]+$/.test(cleanHex)) {
+    throw new Error("Encrypted data must be a valid hex string");
+  }
+  
+  // Minimum size: 12 bytes (IV) + 16 bytes (auth tag) = 28 bytes = 56 hex chars
+  if (cleanHex.length < 56) {
+    throw new Error("Encrypted data is too short (must be at least 28 bytes)");
+  }
+  
+  if (!address || typeof address !== "string") {
+    throw new Error("Address must be a non-empty string");
+  }
+  
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    throw new Error("Address must be a valid Ethereum address (0x followed by 40 hex characters)");
+  }
+  
   const key = await getEncryptionKey(address);
 
   // Convert hex to bytes
@@ -422,14 +520,41 @@ export async function requestEncryptionKey(
   walletAddress: string,
   signMessage: SignMessageFn
 ): Promise<void> {
+  // Validate wallet address
+  if (!walletAddress || typeof walletAddress !== "string") {
+    throw new Error("Wallet address must be a non-empty string");
+  }
+  
+  if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    throw new Error("Wallet address must be a valid Ethereum address (0x followed by 40 hex characters)");
+  }
+  
+  // Validate signMessage function
+  if (typeof signMessage !== "function") {
+    throw new Error("signMessage must be a function");
+  }
+  
   // Check if key already exists in memory
   const existingKey = getStoredKey(walletAddress);
   if (existingKey) {
     return; // Key already exists in memory, no need to sign again
   }
 
+  // Check rate limit for signature requests
+  const { checkSignatureRateLimit } = await import("../lib/rateLimit");
+  checkSignatureRateLimit(walletAddress);
+
   // Request signature from user
   const signature = await signMessage(SIGN_MESSAGE);
+  
+  // Validate signature response
+  if (!signature || typeof signature !== "string") {
+    throw new Error("Signature must be a non-empty string");
+  }
+
+  // Check rate limit for key derivation
+  const { checkKeyDerivationRateLimit } = await import("../lib/rateLimit");
+  checkKeyDerivationRateLimit(walletAddress);
 
   // Derive encryption key from signature
   const encryptionKey = await deriveKeyFromSignature(signature);
@@ -480,17 +605,44 @@ export async function requestKeyPair(
   walletAddress: string,
   signMessage: SignMessageFn
 ): Promise<void> {
+  // Validate wallet address
+  if (!walletAddress || typeof walletAddress !== "string") {
+    throw new Error("Wallet address must be a non-empty string");
+  }
+  
+  if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    throw new Error("Wallet address must be a valid Ethereum address (0x followed by 40 hex characters)");
+  }
+  
+  // Validate signMessage function
+  if (typeof signMessage !== "function") {
+    throw new Error("signMessage must be a function");
+  }
+  
   // Check if key pair already exists in memory
   const existingKeyPair = getStoredKeyPair(walletAddress);
   if (existingKeyPair) {
     return; // Key pair already exists in memory, no need to sign again
   }
 
+  // Check rate limit for signature requests
+  const { checkSignatureRateLimit } = await import("../lib/rateLimit");
+  checkSignatureRateLimit(walletAddress);
+
   // Request signature from user
   const signature = await signMessage(SIGN_MESSAGE);
+  
+  // Validate signature response
+  if (!signature || typeof signature !== "string") {
+    throw new Error("Signature must be a non-empty string");
+  }
 
-  // Derive key pair from signature
-  const keyPair = await deriveKeyPairFromSignature(signature);
+  // Check rate limit for key derivation
+  const { checkKeyDerivationRateLimit } = await import("../lib/rateLimit");
+  checkKeyDerivationRateLimit(walletAddress);
+
+  // Derive key pair from signature with wallet address as salt
+  const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
   // Store the derived key pair in memory
   setStoredKeyPair(walletAddress, keyPair);

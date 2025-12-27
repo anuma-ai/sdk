@@ -119,3 +119,65 @@ Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk
 #### Inherited from
 
 `Omit.onFactsExtracted`
+
+***
+
+### requestEncryptionKey()?
+
+> `optional` **requestEncryptionKey**: (`address`) => `Promise`\<`void`\>
+
+Defined in: [src/lib/db/memory/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L65)
+
+Function to request encryption key (optional - encryption disabled if not provided)
+
+#### Parameters
+
+##### address
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+`Omit.requestEncryptionKey`
+
+***
+
+### signMessage()?
+
+> `optional` **signMessage**: (`message`) => `Promise`\<`string`\>
+
+Defined in: [src/lib/db/memory/types.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L67)
+
+Function to sign message for migration (optional - migration disabled if not provided)
+
+#### Parameters
+
+##### message
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+#### Inherited from
+
+`Omit.signMessage`
+
+***
+
+### walletAddress?
+
+> `optional` **walletAddress**: `string` \| `null`
+
+Defined in: [src/lib/db/memory/types.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L63)
+
+Wallet address for encryption (optional - encryption disabled if not provided)
+
+#### Inherited from
+
+`Omit.walletAddress`

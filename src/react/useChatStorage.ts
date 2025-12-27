@@ -39,6 +39,13 @@ import {
   updateMessageOp,
   searchMessagesOp,
 } from "../lib/db/chat";
+import {
+  encryptMessageFields,
+  decryptMessageFields,
+  decryptMessagesBatch,
+  type MessageData,
+} from "../lib/db/chat/encryption";
+import { hasEncryptionKey } from "./useEncryption";
 
 /**
  * Convert StoredMessage to LlmapiMessage format
@@ -236,6 +243,9 @@ export function useChatStorage(
     tools,
     toolSelectorModel,
     onToolExecution,
+    walletAddress,
+    requestEncryptionKey,
+    signMessage,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -261,6 +271,36 @@ export function useChatStorage(
     }),
     [database, messagesCollection, conversationsCollection]
   );
+
+  // Encryption support
+  const isEncryptionEnabled = useMemo(
+    () => !!walletAddress && !!requestEncryptionKey,
+    [walletAddress, requestEncryptionKey]
+  );
+
+  /**
+   * Ensure encryption key is ready
+   */
+  const ensureEncryptionReady = useCallback(async (): Promise<string | null> => {
+    if (!isEncryptionEnabled || !walletAddress) {
+      return null;
+    }
+
+    if (hasEncryptionKey(walletAddress)) {
+      return walletAddress;
+    }
+
+    if (requestEncryptionKey) {
+      try {
+        await requestEncryptionKey(walletAddress);
+        return walletAddress;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }, [isEncryptionEnabled, walletAddress, requestEncryptionKey]);
 
   // Use the underlying useChat hook
   const {
@@ -347,9 +387,31 @@ export function useChatStorage(
    */
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
-      return getMessagesOp(storageCtx, convId);
+      const messages = await getMessagesOp(storageCtx, convId);
+      
+      // Decrypt if encryption is enabled
+      if (isEncryptionEnabled && walletAddress && messages.length > 0) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const updateMessageFn = async (id: string, data: Partial<MessageData>) => {
+            const result = await updateMessageOp(storageCtx, id, data as UpdateMessageOptions);
+            if (!result) {
+              throw new Error(`Failed to update message ${id} during migration`);
+            }
+          };
+          const decrypted = await decryptMessagesBatch(
+            messages as unknown as MessageData[],
+            address,
+            signMessage,
+            updateMessageFn
+          );
+          return decrypted as unknown as StoredMessage[];
+        }
+      }
+      
+      return messages;
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, signMessage]
   );
 
   /**
@@ -575,13 +637,43 @@ export function useChatStorage(
 
       let storedUserMessage: StoredMessage;
       try {
-        storedUserMessage = await createMessageOp(storageCtx, {
+        // Encrypt before saving if encryption is enabled
+        let messageOptions = {
           conversationId: convId,
-          role: "user",
+          role: "user" as const,
           content,
           files: sanitizedFiles,
           model,
-        });
+        };
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            messageOptions = (await encryptMessageFields(
+              messageOptions as unknown as MessageData,
+              address
+            )) as unknown as typeof messageOptions;
+          }
+        }
+        storedUserMessage = await createMessageOp(storageCtx, messageOptions);
+        
+        // Decrypt for return if encryption is enabled
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const updateMessageFn = async (id: string, data: Partial<MessageData>) => {
+              const result = await updateMessageOp(storageCtx, id, data as UpdateMessageOptions);
+              if (!result) {
+                throw new Error(`Failed to update message ${id} during migration`);
+              }
+            };
+            storedUserMessage = (await decryptMessageFields(
+              storedUserMessage as unknown as MessageData,
+              address,
+              signMessage,
+              updateMessageFn
+            )) as unknown as StoredMessage;
+          }
+        }
       } catch (err) {
         return {
           data: null,
@@ -626,9 +718,10 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
-            storedAssistantMessage = await createMessageOp(storageCtx, {
+            // Encrypt before saving if encryption is enabled
+            let messageOptions = {
               conversationId: convId,
-              role: "assistant",
+              role: "assistant" as const,
               content: assistantContent,
               model: responseModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
@@ -636,7 +729,28 @@ export function useChatStorage(
               wasStopped: true,
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-            });
+            };
+            if (isEncryptionEnabled && walletAddress) {
+              const address = await ensureEncryptionReady();
+              if (address) {
+                messageOptions = (await encryptMessageFields(
+                  messageOptions as unknown as MessageData,
+                  address
+                )) as unknown as typeof messageOptions;
+              }
+            }
+            storedAssistantMessage = await createMessageOp(storageCtx, messageOptions);
+            
+            // Decrypt for return if encryption is enabled
+            if (isEncryptionEnabled && walletAddress) {
+              const address = await ensureEncryptionReady();
+              if (address) {
+                storedAssistantMessage = (await decryptMessageFields(
+                  storedAssistantMessage as unknown as MessageData,
+                  address
+                )) as unknown as StoredMessage;
+              }
+            }
 
             // Build a valid completion response for the return (even if original was null)
             const completionData: LlmapiChatCompletionResponse =
@@ -687,16 +801,27 @@ export function useChatStorage(
             storedUserMessage.uniqueId,
             errorMessage
           );
-          await createMessageOp(storageCtx, {
+          // Encrypt before saving if encryption is enabled
+          let errorMessageOptions = {
             conversationId: convId,
-            role: "assistant",
+            role: "assistant" as const,
             content: "",
             model: model || "",
             responseDuration,
             sources,
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
-          });
+          };
+          if (isEncryptionEnabled && walletAddress) {
+            const address = await ensureEncryptionReady();
+            if (address) {
+              errorMessageOptions = (await encryptMessageFields(
+                errorMessageOptions as unknown as MessageData,
+                address
+              )) as unknown as typeof errorMessageOptions;
+            }
+          }
+          await createMessageOp(storageCtx, errorMessageOptions);
         } catch {
           // Ignore storage failure for error message
         }
@@ -725,16 +850,46 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
-        storedAssistantMessage = await createMessageOp(storageCtx, {
+        // Encrypt before saving if encryption is enabled
+        let messageOptions = {
           conversationId: convId,
-          role: "assistant",
+          role: "assistant" as const,
           content: assistantContent,
           model: responseData.model || model,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-        });
+        };
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            messageOptions = (await encryptMessageFields(
+              messageOptions as unknown as MessageData,
+              address
+            )) as unknown as typeof messageOptions;
+          }
+        }
+        storedAssistantMessage = await createMessageOp(storageCtx, messageOptions);
+        
+        // Decrypt for return if encryption is enabled
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const updateMessageFn = async (id: string, data: Partial<MessageData>) => {
+              const result = await updateMessageOp(storageCtx, id, data as UpdateMessageOptions);
+              if (!result) {
+                throw new Error(`Failed to update message ${id} during migration`);
+              }
+            };
+            storedAssistantMessage = (await decryptMessageFields(
+              storedAssistantMessage as unknown as MessageData,
+              address,
+              signMessage,
+              updateMessageFn
+            )) as unknown as StoredMessage;
+          }
+        }
       } catch (err) {
         return {
           data: null,
@@ -755,7 +910,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   /**
@@ -766,9 +921,31 @@ export function useChatStorage(
       queryVector: number[],
       options?: SearchMessagesOptions
     ): Promise<StoredMessageWithSimilarity[]> => {
-      return searchMessagesOp(storageCtx, queryVector, options);
+      const results = await searchMessagesOp(storageCtx, queryVector, options);
+      
+      // Decrypt results if encryption is enabled
+      if (isEncryptionEnabled && walletAddress && results.length > 0) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const updateMessageFn = async (id: string, data: Partial<MessageData>) => {
+            const result = await updateMessageOp(storageCtx, id, data as UpdateMessageOptions);
+            if (!result) {
+              throw new Error(`Failed to update message ${id} during migration`);
+            }
+          };
+          const decrypted = await decryptMessagesBatch(
+            results as unknown as MessageData[],
+            address,
+            signMessage,
+            updateMessageFn
+          );
+          return decrypted as unknown as StoredMessageWithSimilarity[];
+        }
+      }
+      
+      return results;
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   /**
@@ -800,9 +977,43 @@ export function useChatStorage(
       uniqueId: string,
       options: UpdateMessageOptions
     ): Promise<StoredMessage | null> => {
-      return updateMessageOp(storageCtx, uniqueId, options);
+      // Encrypt updates before saving if encryption is enabled
+      let optionsToSave = options;
+      if (isEncryptionEnabled && walletAddress && options.content !== undefined) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const encrypted = await encryptMessageFields(
+            { content: options.content } as MessageData,
+            address
+          );
+          optionsToSave = { ...options, content: encrypted.content };
+        }
+      }
+
+      const result = await updateMessageOp(storageCtx, uniqueId, optionsToSave);
+      
+      // Decrypt result if encryption is enabled
+      if (result && isEncryptionEnabled && walletAddress) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const updateMessageFn = async (id: string, data: Partial<MessageData>) => {
+            const result = await updateMessageOp(storageCtx, id, data as UpdateMessageOptions);
+            if (!result) {
+              throw new Error(`Failed to update message ${id} during migration`);
+            }
+          };
+          return (await decryptMessageFields(
+            result as unknown as MessageData,
+            address,
+            signMessage,
+            updateMessageFn
+          )) as unknown as StoredMessage;
+        }
+      }
+      
+      return result;
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   return {

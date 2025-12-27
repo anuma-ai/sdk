@@ -111,6 +111,26 @@ export async function saveMemoryOp(
   ctx: MemoryStorageOperationsContext,
   opts: CreateMemoryOptions
 ): Promise<StoredMemory> {
+  // Validate required fields
+  if (!opts.namespace || typeof opts.namespace !== "string") {
+    throw new Error("Namespace is required and must be a string");
+  }
+  if (!opts.key || typeof opts.key !== "string") {
+    throw new Error("Key is required and must be a string");
+  }
+  if (!opts.value || typeof opts.value !== "string") {
+    throw new Error("Value is required and must be a string");
+  }
+  if (!opts.type || typeof opts.type !== "string") {
+    throw new Error("Type is required and must be a string");
+  }
+  if (typeof opts.confidence !== "number" || opts.confidence < 0 || opts.confidence > 1) {
+    throw new Error("Confidence must be a number between 0 and 1");
+  }
+  if (typeof opts.pii !== "boolean") {
+    throw new Error("PII must be a boolean");
+  }
+  
   const compositeKey = generateCompositeKey(opts.namespace, opts.key);
   const uniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
 

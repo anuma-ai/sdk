@@ -59,6 +59,12 @@ export interface BaseUseMemoryStorageOptions {
   onFactsExtracted?: (facts: MemoryExtractionResult) => void;
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
+  /** Wallet address for encryption (optional - encryption disabled if not provided) */
+  walletAddress?: string | null;
+  /** Function to request encryption key (optional - encryption disabled if not provided) */
+  requestEncryptionKey?: (address: string) => Promise<void>;
+  /** Function to sign message for migration (optional - migration disabled if not provided) */
+  signMessage?: (message: string) => Promise<string>;
 }
 
 export interface BaseUseMemoryStorageResult {

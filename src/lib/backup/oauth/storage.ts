@@ -3,7 +3,10 @@
  *
  * Unified storage for OAuth tokens with refresh token support.
  * Uses localStorage for persistent storage across sessions.
+ * Supports optional encryption when wallet address is provided.
  */
+
+import { encryptData, decryptData, hasEncryptionKey } from "../../../react/useEncryption";
 
 export type OAuthProvider = "google-drive" | "dropbox";
 
@@ -15,6 +18,7 @@ export interface StoredTokenData {
 }
 
 const STORAGE_KEY_PREFIX = "oauth_token_";
+const ENCRYPTION_PREFIX = "enc:";
 
 /**
  * Get the storage key for a provider
@@ -24,9 +28,61 @@ function getStorageKey(provider: OAuthProvider): string {
 }
 
 /**
- * Get stored token data for a provider
+ * Check if a stored value is encrypted
  */
-export function getStoredTokenData(
+function isEncrypted(value: string): boolean {
+  return value.startsWith(ENCRYPTION_PREFIX);
+}
+
+/**
+ * Get stored token data for a provider
+ * @param provider - The OAuth provider
+ * @param walletAddress - Optional wallet address for decryption
+ * @returns Stored token data or null if not found
+ */
+export async function getStoredTokenData(
+  provider: OAuthProvider,
+  walletAddress?: string
+): Promise<StoredTokenData | null> {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = localStorage.getItem(getStorageKey(provider));
+    if (!stored) return null;
+
+    // Check if stored value is encrypted
+    if (isEncrypted(stored)) {
+      // Try to decrypt if wallet address is provided
+      if (walletAddress && hasEncryptionKey(walletAddress)) {
+        try {
+          const encryptedPayload = stored.slice(ENCRYPTION_PREFIX.length);
+          const decrypted = await decryptData(encryptedPayload, walletAddress);
+          const data = JSON.parse(decrypted) as StoredTokenData;
+          if (!data.accessToken) return null;
+          return data;
+        } catch {
+          // Decryption failed - return null
+          return null;
+        }
+      } else {
+        // Encrypted but no wallet address or key - cannot decrypt
+        return null;
+      }
+    } else {
+      // Not encrypted - parse directly (backward compatibility)
+      const data = JSON.parse(stored) as StoredTokenData;
+      if (!data.accessToken) return null;
+      return data;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Synchronous version for backward compatibility (returns null if encrypted)
+ */
+export function getStoredTokenDataSync(
   provider: OAuthProvider
 ): StoredTokenData | null {
   if (typeof window === "undefined") return null;
@@ -35,11 +91,13 @@ export function getStoredTokenData(
     const stored = localStorage.getItem(getStorageKey(provider));
     if (!stored) return null;
 
+    // If encrypted, cannot decrypt synchronously - return null
+    if (isEncrypted(stored)) {
+      return null;
+    }
+
     const data = JSON.parse(stored) as StoredTokenData;
-
-    // Validate that access token exists
     if (!data.accessToken) return null;
-
     return data;
   } catch {
     return null;
@@ -48,14 +106,33 @@ export function getStoredTokenData(
 
 /**
  * Store token data for a provider
+ * @param provider - The OAuth provider
+ * @param data - Token data to store
+ * @param walletAddress - Optional wallet address for encryption
  */
-export function storeTokenData(
+export async function storeTokenData(
   provider: OAuthProvider,
-  data: StoredTokenData
-): void {
+  data: StoredTokenData,
+  walletAddress?: string
+): Promise<void> {
   if (typeof window === "undefined") return;
 
-  localStorage.setItem(getStorageKey(provider), JSON.stringify(data));
+  const jsonData = JSON.stringify(data);
+
+  // Encrypt if wallet address is provided and encryption key is available
+  if (walletAddress && hasEncryptionKey(walletAddress)) {
+    try {
+      const encrypted = await encryptData(jsonData, walletAddress);
+      localStorage.setItem(getStorageKey(provider), `${ENCRYPTION_PREFIX}${encrypted}`);
+      return;
+    } catch {
+      // Encryption failed - fall back to unencrypted storage
+      // This allows the system to continue working even if encryption fails
+    }
+  }
+
+  // Store unencrypted (backward compatibility or encryption not available)
+  localStorage.setItem(getStorageKey(provider), jsonData);
 }
 
 /**
@@ -89,9 +166,30 @@ export function isTokenExpired(
 
 /**
  * Get the access token if it's valid and not expired
+ * @param provider - The OAuth provider
+ * @param walletAddress - Optional wallet address for decryption
  */
-export function getValidAccessToken(provider: OAuthProvider): string | null {
-  const data = getStoredTokenData(provider);
+export async function getValidAccessToken(
+  provider: OAuthProvider,
+  walletAddress?: string
+): Promise<string | null> {
+  const data = await getStoredTokenData(provider, walletAddress);
+
+  if (!data) return null;
+
+  // If we have expiration info and token is expired, return null
+  if (data.expiresAt && isTokenExpired(data)) {
+    return null;
+  }
+
+  return data.accessToken;
+}
+
+/**
+ * Synchronous version for backward compatibility (returns null if encrypted)
+ */
+export function getValidAccessTokenSync(provider: OAuthProvider): string | null {
+  const data = getStoredTokenDataSync(provider);
 
   if (!data) return null;
 
@@ -105,9 +203,22 @@ export function getValidAccessToken(provider: OAuthProvider): string | null {
 
 /**
  * Get the refresh token for a provider
+ * @param provider - The OAuth provider
+ * @param walletAddress - Optional wallet address for decryption
  */
-export function getRefreshToken(provider: OAuthProvider): string | null {
-  const data = getStoredTokenData(provider);
+export async function getRefreshToken(
+  provider: OAuthProvider,
+  walletAddress?: string
+): Promise<string | null> {
+  const data = await getStoredTokenData(provider, walletAddress);
+  return data?.refreshToken ?? null;
+}
+
+/**
+ * Synchronous version for backward compatibility (returns null if encrypted)
+ */
+export function getRefreshTokenSync(provider: OAuthProvider): string | null {
+  const data = getStoredTokenDataSync(provider);
   return data?.refreshToken ?? null;
 }
 

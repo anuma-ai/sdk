@@ -122,6 +122,12 @@ export interface BaseUseChatStorageOptions {
   onData?: (chunk: string) => void;
   onFinish?: (response: LlmapiChatCompletionResponse) => void;
   onError?: (error: Error) => void;
+  /** Wallet address for encryption (optional - encryption disabled if not provided) */
+  walletAddress?: string | null;
+  /** Function to request encryption key (optional - encryption disabled if not provided) */
+  requestEncryptionKey?: (address: string) => Promise<void>;
+  /** Function to sign message for migration (optional - required for migrating old encrypted data) */
+  signMessage?: (message: string) => Promise<string>;
 }
 
 export interface BaseSendMessageWithStorageArgs {

@@ -43,6 +43,15 @@ import {
   DEFAULT_COMPLETION_MODEL,
   DEFAULT_LOCAL_EMBEDDING_MODEL,
 } from "../lib/memory/constants";
+import {
+  encryptMemoryFields,
+  decryptMemoryFields,
+  decryptMemoriesBatch,
+  encryptMemoriesBatchInPlace,
+  needsEncryption,
+  type MemoryData,
+} from "../lib/db/memory/encryption";
+import { hasEncryptionKey, type SignMessageFn } from "./useEncryption";
 
 /**
  * Options for useMemoryStorage hook (React version)
@@ -115,6 +124,9 @@ export function useMemoryStorage(
     onFactsExtracted,
     getToken,
     baseUrl = BASE_URL,
+    walletAddress,
+    requestEncryptionKey,
+    signMessage,
   } = options;
 
   // Resolve default model if undefined, preserve null if set explicitly to disable
@@ -164,13 +176,140 @@ export function useMemoryStorage(
     [effectiveEmbeddingModel, embeddingProvider, getToken, baseUrl]
   );
 
+  // Encryption support
+  const isEncryptionEnabled = useMemo(
+    () => !!walletAddress && !!requestEncryptionKey,
+    [walletAddress, requestEncryptionKey]
+  );
+
+  /**
+   * Ensure encryption key is ready
+   */
+  const ensureEncryptionReady = useCallback(async (): Promise<string | null> => {
+    if (!isEncryptionEnabled || !walletAddress) {
+      return null;
+    }
+
+    if (hasEncryptionKey(walletAddress)) {
+      return walletAddress;
+    }
+
+    if (requestEncryptionKey) {
+      try {
+        await requestEncryptionKey(walletAddress);
+        return walletAddress;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  }, [isEncryptionEnabled, walletAddress, requestEncryptionKey]);
+
+  /**
+   * Get signMessage function for migration (if available)
+   * This is needed for migrating old encrypted data
+   */
+  const getSignMessageForMigration = useCallback((): SignMessageFn | undefined => {
+    return signMessage;
+  }, [signMessage]);
+
+  /**
+   * Encrypt unencrypted memories in background
+   */
+  const encryptUnencryptedMemories = useCallback(
+    async (address: string): Promise<void> => {
+      if (!isEncryptionEnabled) return;
+
+      try {
+        const allMemories = await getAllMemoriesOp(storageCtx);
+        if (!allMemories || allMemories.length === 0) return;
+
+        const memoriesToEncrypt = allMemories.filter((m) =>
+          needsEncryption(m as unknown as MemoryData)
+        );
+        if (memoriesToEncrypt.length === 0) return;
+
+        await encryptMemoriesBatchInPlace(
+          memoriesToEncrypt as Parameters<typeof encryptMemoriesBatchInPlace>[0],
+          address,
+          async (id: string, data: MemoryData) => {
+            const result = await updateMemoryOp(storageCtx, id, data);
+            if (!result.ok) {
+              throw new Error(`Failed to update memory ${id}`);
+            }
+          }
+        );
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to encrypt unencrypted memories:", error);
+        }
+      }
+    },
+    [isEncryptionEnabled, storageCtx]
+  );
+
+  const encryptionInProgressRef = useRef(false);
+  const autoEncryptionRunRef = useRef(false);
+
+  // Auto-encrypt unencrypted memories when key becomes ready
+  useMemo(() => {
+    if (!isEncryptionEnabled || !walletAddress) {
+      autoEncryptionRunRef.current = false;
+      return;
+    }
+
+    if (autoEncryptionRunRef.current || encryptionInProgressRef.current) {
+      return;
+    }
+
+    ensureEncryptionReady().then((address) => {
+      if (address && !encryptionInProgressRef.current) {
+        autoEncryptionRunRef.current = true;
+        encryptionInProgressRef.current = true;
+        encryptUnencryptedMemories(address)
+          .catch((err) => {
+            if (process.env.NODE_ENV === "development") {
+              console.error("Failed to automatically encrypt memories:", err);
+            }
+          })
+          .finally(() => {
+            encryptionInProgressRef.current = false;
+          });
+      }
+    });
+  }, [isEncryptionEnabled, walletAddress, ensureEncryptionReady, encryptUnencryptedMemories]);
+
   /**
    * Refresh memories from storage
    */
   const refreshMemories = useCallback(async (): Promise<void> => {
     const storedMemories = await getAllMemoriesOp(storageCtx);
+    
+      // Decrypt if encryption is enabled
+      if (isEncryptionEnabled && walletAddress) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const signMsg = getSignMessageForMigration();
+          const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+            const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+            if (!result.ok) {
+              throw new Error(`Failed to update memory ${id} during migration`);
+            }
+          };
+          const decrypted = await decryptMemoriesBatch(
+            storedMemories as unknown as MemoryData[],
+            address,
+            signMsg,
+            updateMemoryFn
+          );
+          setMemories(decrypted as unknown as StoredMemory[]);
+          return;
+        }
+      }
+    
     setMemories(storedMemories);
-  }, [storageCtx]);
+  }, [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]);
 
   /**
    * Extract memories from messages and store them
@@ -322,7 +461,7 @@ export function useMemoryStorage(
 
         if (result.items && result.items.length > 0) {
           try {
-            // Convert MemoryItem to CreateMemoryOptions and save
+            // Convert MemoryItem to CreateMemoryOptions
             const createOptions: CreateMemoryOptions[] = result.items.map(
               (item: MemoryItem) => ({
                 type: item.type,
@@ -335,7 +474,24 @@ export function useMemoryStorage(
               })
             );
 
-            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
+            // Encrypt before saving if encryption is enabled
+            let optionsToSave = createOptions;
+            if (isEncryptionEnabled && walletAddress) {
+              const address = await ensureEncryptionReady();
+              if (address) {
+                optionsToSave = await Promise.all(
+                  createOptions.map(async (opt) => {
+                    const encrypted = await encryptMemoryFields(
+                      opt as unknown as MemoryData,
+                      address
+                    );
+                    return encrypted as unknown as CreateMemoryOptions;
+                  })
+                );
+              }
+            }
+
+            const savedMemories = await saveMemoriesOp(storageCtx, optionsToSave);
             console.log(
               `Saved ${savedMemories.length} memories to WatermelonDB`
             );
@@ -374,6 +530,23 @@ export function useMemoryStorage(
 
             // Refresh memories state
             await refreshMemories();
+
+            // Encrypt unencrypted memories in background if encryption is enabled
+            if (isEncryptionEnabled && walletAddress && !encryptionInProgressRef.current) {
+              const address = await ensureEncryptionReady();
+              if (address) {
+                encryptionInProgressRef.current = true;
+                encryptUnencryptedMemories(address)
+                  .catch((err) => {
+                    if (process.env.NODE_ENV === "development") {
+                      console.error("Failed to encrypt memories:", err);
+                    }
+                  })
+                  .finally(() => {
+                    encryptionInProgressRef.current = false;
+                  });
+              }
+            }
           } catch (error) {
             console.error("Failed to save memories to WatermelonDB:", error);
           }
@@ -401,6 +574,10 @@ export function useMemoryStorage(
       baseUrl,
       storageCtx,
       refreshMemories,
+      isEncryptionEnabled,
+      walletAddress,
+      ensureEncryptionReady,
+      encryptUnencryptedMemories,
     ]
   );
 
@@ -431,6 +608,27 @@ export function useMemoryStorage(
           minSimilarity
         );
 
+        // Decrypt results if encryption is enabled
+        if (isEncryptionEnabled && walletAddress && results.length > 0) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            const decrypted = await decryptMemoriesBatch(
+              results as unknown as MemoryData[],
+              address,
+              signMsg,
+              updateMemoryFn
+            );
+            return decrypted as unknown as StoredMemoryWithSimilarity[];
+          }
+        }
+
         if (results.length === 0) {
           console.warn(
             `[Memory Search] No memories found above similarity threshold ${minSimilarity}.`
@@ -449,7 +647,7 @@ export function useMemoryStorage(
         return [];
       }
     },
-    [embeddingModel, embeddingOptions, storageCtx]
+    [embeddingModel, embeddingOptions, storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   /**
@@ -457,14 +655,37 @@ export function useMemoryStorage(
    */
   const fetchAllMemories = useCallback(async (): Promise<StoredMemory[]> => {
     try {
-      return await getAllMemoriesOp(storageCtx);
+      const memories = await getAllMemoriesOp(storageCtx);
+      
+      // Decrypt if encryption is enabled
+      if (isEncryptionEnabled && walletAddress && memories.length > 0) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const signMsg = getSignMessageForMigration();
+          const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+            const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+            if (!result.ok) {
+              throw new Error(`Failed to update memory ${id} during migration`);
+            }
+          };
+          const decrypted = await decryptMemoriesBatch(
+            memories as unknown as MemoryData[],
+            address,
+            signMsg,
+            updateMemoryFn
+          );
+          return decrypted as unknown as StoredMemory[];
+        }
+      }
+      
+      return memories;
     } catch (error) {
       throw new Error(
         "Failed to fetch all memories: " +
           (error instanceof Error ? error.message : String(error))
       );
     }
-  }, [storageCtx]);
+  }, [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]);
 
   /**
    * Get memories by namespace
@@ -475,7 +696,30 @@ export function useMemoryStorage(
         throw new Error("Missing required field: namespace");
       }
       try {
-        return await getMemoriesByNamespaceOp(storageCtx, namespace);
+        const memories = await getMemoriesByNamespaceOp(storageCtx, namespace);
+        
+        // Decrypt if encryption is enabled
+        if (isEncryptionEnabled && walletAddress && memories.length > 0) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            const decrypted = await decryptMemoriesBatch(
+              memories as unknown as MemoryData[],
+              address,
+              signMsg,
+              updateMemoryFn
+            );
+            return decrypted as unknown as StoredMemory[];
+          }
+        }
+        
+        return memories;
       } catch (error) {
         throw new Error(
           `Failed to fetch memories for namespace "${namespace}": ` +
@@ -483,7 +727,7 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
@@ -495,7 +739,30 @@ export function useMemoryStorage(
         throw new Error("Missing required fields: namespace, key");
       }
       try {
-        return await getMemoriesByKeyOp(storageCtx, namespace, key);
+        const memories = await getMemoriesByKeyOp(storageCtx, namespace, key);
+        
+        // Decrypt if encryption is enabled
+        if (isEncryptionEnabled && walletAddress && memories.length > 0) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            const decrypted = await decryptMemoriesBatch(
+              memories as unknown as MemoryData[],
+              address,
+              signMsg,
+              updateMemoryFn
+            );
+            return decrypted as unknown as StoredMemory[];
+          }
+        }
+        
+        return memories;
       } catch (error) {
         throw new Error(
           `Failed to fetch memories for "${namespace}:${key}": ` +
@@ -503,7 +770,7 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
@@ -512,7 +779,31 @@ export function useMemoryStorage(
   const getMemoryById = useCallback(
     async (id: string): Promise<StoredMemory | null> => {
       try {
-        return await getMemoryByIdOp(storageCtx, id);
+        const memory = await getMemoryByIdOp(storageCtx, id);
+        if (!memory) return null;
+        
+        // Decrypt if encryption is enabled
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            const decrypted = await decryptMemoryFields(
+              memory as unknown as MemoryData,
+              address,
+              signMsg,
+              updateMemoryFn
+            );
+            return decrypted as unknown as StoredMemory;
+          }
+        }
+        
+        return memory;
       } catch (error) {
         throw new Error(
           `Failed to get memory ${id}: ` +
@@ -520,7 +811,7 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
@@ -529,7 +820,19 @@ export function useMemoryStorage(
   const saveMemory = useCallback(
     async (memory: CreateMemoryOptions): Promise<StoredMemory> => {
       try {
-        const saved = await saveMemoryOp(storageCtx, memory);
+        // Encrypt before saving if encryption is enabled
+        let memoryToSave = memory;
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            memoryToSave = (await encryptMemoryFields(
+              memory as unknown as MemoryData,
+              address
+            )) as unknown as CreateMemoryOptions;
+          }
+        }
+
+        const saved = await saveMemoryOp(storageCtx, memoryToSave);
 
         // Generate embedding if enabled
         if (generateEmbeddings && embeddingModel && !memory.embedding) {
@@ -567,7 +870,37 @@ export function useMemoryStorage(
           return [saved, ...prev];
         });
 
-        return saved;
+        // Decrypt saved memory for local state if encryption is enabled
+        let savedForState = saved;
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            savedForState = (await decryptMemoryFields(
+              saved as unknown as MemoryData,
+              address,
+              signMsg,
+              updateMemoryFn
+            )) as unknown as StoredMemory;
+          }
+        }
+
+        // Update local state
+        setMemories((prev) => {
+          const existing = prev.find((m) => m.uniqueId === savedForState.uniqueId);
+          if (existing) {
+            return prev.map((m) => (m.uniqueId === savedForState.uniqueId ? savedForState : m));
+          }
+          return [savedForState, ...prev];
+        });
+
+        return savedForState;
       } catch (error) {
         throw new Error(
           "Failed to save memory: " +
@@ -575,7 +908,7 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   /**
@@ -584,7 +917,24 @@ export function useMemoryStorage(
   const saveMemories = useCallback(
     async (memoriesToSave: CreateMemoryOptions[]): Promise<StoredMemory[]> => {
       try {
-        const saved = await saveMemoriesOp(storageCtx, memoriesToSave);
+        // Encrypt before saving if encryption is enabled
+        let optionsToSave = memoriesToSave;
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            optionsToSave = await Promise.all(
+              memoriesToSave.map(async (opt) => {
+                const encrypted = await encryptMemoryFields(
+                  opt as unknown as MemoryData,
+                  address
+                );
+                return encrypted as unknown as CreateMemoryOptions;
+              })
+            );
+          }
+        }
+
+        const saved = await saveMemoriesOp(storageCtx, optionsToSave);
 
         // Generate embeddings if enabled
         if (generateEmbeddings && embeddingModel) {
@@ -618,10 +968,31 @@ export function useMemoryStorage(
           }
         }
 
+        // Decrypt saved memories for return if encryption is enabled
+        let savedForReturn = saved;
+        if (isEncryptionEnabled && walletAddress) {
+          const address = await ensureEncryptionReady();
+          if (address) {
+            const signMsg = getSignMessageForMigration();
+            const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+              const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+              if (!result.ok) {
+                throw new Error(`Failed to update memory ${id} during migration`);
+              }
+            };
+            savedForReturn = (await decryptMemoriesBatch(
+              saved as unknown as MemoryData[],
+              address,
+              signMsg,
+              updateMemoryFn
+            )) as unknown as StoredMemory[];
+          }
+        }
+
         // Refresh state
         await refreshMemories();
 
-        return saved;
+        return savedForReturn;
       } catch (error) {
         throw new Error(
           "Failed to save memories: " +
@@ -635,6 +1006,10 @@ export function useMemoryStorage(
       embeddingModel,
       embeddingOptions,
       refreshMemories,
+      isEncryptionEnabled,
+      walletAddress,
+      ensureEncryptionReady,
+      getSignMessageForMigration,
     ]
   );
 
@@ -646,7 +1021,46 @@ export function useMemoryStorage(
       id: string,
       updates: UpdateMemoryOptions
     ): Promise<StoredMemory | null> => {
-      const result = await updateMemoryOp(storageCtx, id, updates);
+      // Encrypt updates before saving if encryption is enabled
+      let updatesToSave = updates;
+      if (isEncryptionEnabled && walletAddress) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          // Only encrypt fields that are being updated
+          const encryptedUpdates: UpdateMemoryOptions = { ...updates };
+          if (updates.value !== undefined) {
+            const encrypted = await encryptMemoryFields(
+              { value: updates.value } as MemoryData,
+              address
+            );
+            encryptedUpdates.value = encrypted.value;
+          }
+          if (updates.rawEvidence !== undefined) {
+            const encrypted = await encryptMemoryFields(
+              { rawEvidence: updates.rawEvidence } as MemoryData,
+              address
+            );
+            encryptedUpdates.rawEvidence = encrypted.rawEvidence;
+          }
+          if (updates.key !== undefined) {
+            const encrypted = await encryptMemoryFields(
+              { key: updates.key } as MemoryData,
+              address
+            );
+            encryptedUpdates.key = encrypted.key;
+          }
+          if (updates.namespace !== undefined) {
+            const encrypted = await encryptMemoryFields(
+              { namespace: updates.namespace } as MemoryData,
+              address
+            );
+            encryptedUpdates.namespace = encrypted.namespace;
+          }
+          updatesToSave = encryptedUpdates;
+        }
+      }
+
+      const result = await updateMemoryOp(storageCtx, id, updatesToSave);
 
       if (!result.ok) {
         if (result.reason === "not_found") {
@@ -663,7 +1077,27 @@ export function useMemoryStorage(
         );
       }
 
-      const updated = result.memory;
+      let updated = result.memory;
+
+      // Decrypt updated memory if encryption is enabled
+      if (isEncryptionEnabled && walletAddress) {
+        const address = await ensureEncryptionReady();
+        if (address) {
+          const signMsg = getSignMessageForMigration();
+          const updateMemoryFn = async (id: string, data: Partial<MemoryData>) => {
+            const result = await updateMemoryOp(storageCtx, id, data as UpdateMemoryOptions);
+            if (!result.ok) {
+              throw new Error(`Failed to update memory ${id} during migration`);
+            }
+          };
+          updated = (await decryptMemoryFields(
+            updated as unknown as MemoryData,
+            address,
+            signMsg,
+            updateMemoryFn
+          )) as unknown as StoredMemory;
+        }
+      }
 
       // Regenerate embedding if content changed and embeddings are enabled
       const contentChanged =
@@ -711,7 +1145,7 @@ export function useMemoryStorage(
 
       return updated;
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
   );
 
   /**

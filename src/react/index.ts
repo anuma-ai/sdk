@@ -113,6 +113,21 @@ export {
   generateConversationId,
 } from "../lib/db/chat";
 export { useMemoryStorage } from "./useMemoryStorage";
+export {
+  encryptField,
+  decryptField,
+  encryptMemoryFields,
+  decryptMemoryFields,
+  encryptMemoriesBatch,
+  decryptMemoriesBatch,
+  encryptMemoriesBatchInPlace,
+  hasEncryptedFields,
+  needsEncryption,
+  getEncryptionVersion,
+  DECRYPTION_FAILED_PLACEHOLDER,
+  type MemoryData,
+  type MemoryEncryptionFields,
+} from "../lib/db/memory/encryption";
 export type {
   UseMemoryStorageOptions,
   UseMemoryStorageResult,
