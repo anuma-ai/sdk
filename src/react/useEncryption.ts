@@ -1,7 +1,7 @@
 "use client";
 
 const SIGN_MESSAGE =
-  "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
+  "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.";
 
 /**
  * In-memory storage for encryption keys.
@@ -10,6 +10,13 @@ const SIGN_MESSAGE =
  * and are not accessible to XSS attacks after page reload.
  */
 const encryptionKeyStore = new Map<string, string>();
+
+/**
+ * In-memory storage for ECDH key pairs.
+ * Key pairs are stored per wallet address and only persist for the session.
+ * Private keys are never stored to disk and are not accessible to XSS attacks after page reload.
+ */
+const keyPairStore = new Map<string, CryptoKeyPair>();
 
 /**
  * Gets the encryption key for a wallet address from in-memory storage
@@ -82,6 +89,185 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
   // 3. Return as hex string
   return bytesToHex(hashBytes);
 }
+
+/**
+ * Gets the stored key pair for a wallet address from in-memory storage
+ * @param address - The wallet address
+ * @returns The stored key pair or null if not available
+ */
+function getStoredKeyPair(address: string): CryptoKeyPair | null {
+  return keyPairStore.get(address) ?? null;
+}
+
+/**
+ * Stores a key pair for a wallet address in memory
+ * @param address - The wallet address
+ * @param keyPair - The ECDH key pair
+ */
+function setStoredKeyPair(address: string, keyPair: CryptoKeyPair): void {
+  keyPairStore.set(address, keyPair);
+}
+
+/**
+ * Derives an ECDH P-256 key pair from a signature using HKDF
+ * The key pair is deterministically generated from the signature.
+ */
+async function deriveKeyPairFromSignature(
+  signature: string
+): Promise<CryptoKeyPair> {
+  // 1. Convert hex signature to bytes
+  const sigBytes = hexToBytes(signature);
+
+  // 2. Hash with SHA-256 to get 32-byte seed
+  const seedBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    sigBytes.buffer as ArrayBuffer
+  );
+  const seed = new Uint8Array(seedBuffer);
+
+  // 3. Use HKDF to derive key material for ECDH private key
+  const hkdfKey = await crypto.subtle.importKey(
+    "raw",
+    seed.buffer as ArrayBuffer,
+    { name: "HKDF" },
+    false,
+    ["deriveBits"]
+  );
+
+  // 4. Derive 32 bytes for ECDH P-256 private key
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0), // No salt for deterministic derivation
+      info: new TextEncoder().encode("ECDH-P256-KeyPair"), // Context info
+    },
+    hkdfKey,
+    256 // 32 bytes = 256 bits
+  );
+
+  const privateKeyBytes = new Uint8Array(derivedBits);
+
+  // 5. Ensure the private key is non-zero (P-256 requirement)
+  if (privateKeyBytes.every((b) => b === 0)) {
+    privateKeyBytes[31] = 1;
+  }
+
+  // 6. Import as ECDH private key using PKCS#8 format
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    await createPKCS8PrivateKey(privateKeyBytes),
+    {
+      name: "ECDH",
+      namedCurve: "P-256",
+    },
+    true, // extractable so we can export to JWK
+    ["deriveBits", "deriveKey"]
+  );
+
+  // 7. Export private key as JWK to get public key coordinates
+  // JWK format includes both private and public key information
+  const privateKeyJwk = await crypto.subtle.exportKey("jwk", privateKey);
+  
+  if (!privateKeyJwk.x || !privateKeyJwk.y) {
+    throw new Error("Failed to derive public key from private key");
+  }
+
+  // 8. Import the public key from JWK
+  const publicKey = await crypto.subtle.importKey(
+    "jwk",
+    {
+      kty: "EC",
+      crv: "P-256",
+      x: privateKeyJwk.x,
+      y: privateKeyJwk.y,
+    },
+    {
+      name: "ECDH",
+      namedCurve: "P-256",
+    },
+    true, // extractable
+    [] // no key usage needed for public key
+  );
+
+  return {
+    privateKey,
+    publicKey,
+  };
+}
+
+/**
+ * Creates a minimal PKCS#8 structure for an ECDH P-256 private key
+ * PKCS#8 format: SEQUENCE { version, AlgorithmIdentifier, OCTET STRING (ECPrivateKey) }
+ */
+async function createPKCS8PrivateKey(
+  privateKeyBytes: Uint8Array
+): Promise<ArrayBuffer> {
+  // OIDs for ECDH P-256
+  // ecPublicKey: 1.2.840.10045.2.1
+  const ecPublicKeyOID = new Uint8Array([
+    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+  ]);
+  // prime256v1: 1.2.840.10045.3.1.7
+  const prime256v1OID = new Uint8Array([
+    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
+  ]);
+
+  // ECPrivateKey structure: SEQUENCE { version INTEGER(1), privateKey OCTET STRING }
+  const version = new Uint8Array([0x02, 0x01, 0x01]); // INTEGER 1
+  const privateKeyOctet = new Uint8Array([
+    0x04, 0x20, // OCTET STRING, 32 bytes
+    ...privateKeyBytes,
+  ]);
+
+  // Build ECPrivateKey SEQUENCE
+  const ecPrivateKeyContent = new Uint8Array([
+    ...version,
+    ...privateKeyOctet,
+  ]);
+  const ecPrivateKeyLength = ecPrivateKeyContent.length;
+  const ecPrivateKeySeq = new Uint8Array([
+    0x30, // SEQUENCE
+    ecPrivateKeyLength, // Length
+    ...ecPrivateKeyContent,
+  ]);
+
+  // Wrap ECPrivateKey in OCTET STRING
+  const wrappedPrivateKey = new Uint8Array([
+    0x04, // OCTET STRING
+    ecPrivateKeySeq.length, // Length
+    ...ecPrivateKeySeq,
+  ]);
+
+  // AlgorithmIdentifier: SEQUENCE { algorithm OID, parameters OID }
+  const algorithmIdContent = new Uint8Array([
+    ...ecPublicKeyOID,
+    ...prime256v1OID,
+  ]);
+  const algorithmIdLength = algorithmIdContent.length;
+  const algorithmIdSeq = new Uint8Array([
+    0x30, // SEQUENCE
+    algorithmIdLength, // Length
+    ...algorithmIdContent,
+  ]);
+
+  // Full PKCS#8: SEQUENCE { version INTEGER(0), algorithmId, privateKey }
+  const pkcs8Version = new Uint8Array([0x02, 0x01, 0x00]); // INTEGER 0
+  const pkcs8Content = new Uint8Array([
+    ...pkcs8Version,
+    ...algorithmIdSeq,
+    ...wrappedPrivateKey,
+  ]);
+  const pkcs8ContentLength = pkcs8Content.length;
+  const pkcs8Seq = new Uint8Array([
+    0x30, // SEQUENCE
+    pkcs8ContentLength, // Length
+    ...pkcs8Content,
+  ]);
+
+  return pkcs8Seq.buffer;
+}
+
 
 /**
  * Gets the encryption key from in-memory storage and imports it as a CryptoKey
@@ -253,15 +439,123 @@ export async function requestEncryptionKey(
 }
 
 /**
+ * Gets the key pair for a wallet address, generating it if needed
+ * @param address - The wallet address
+ * @param signMessage - Function to sign a message (returns signature hex string)
+ * @returns The ECDH key pair
+ * @throws Error if key pair doesn't exist and signature is required but not available
+ */
+async function getKeyPair(
+  address: string,
+  signMessage: SignMessageFn
+): Promise<CryptoKeyPair> {
+  const existingKeyPair = getStoredKeyPair(address);
+  if (existingKeyPair) {
+    return existingKeyPair;
+  }
+
+  // Key pair doesn't exist, need to request it
+  await requestKeyPair(address, signMessage);
+  const keyPair = getStoredKeyPair(address);
+  if (!keyPair) {
+    throw new Error(
+      "Key pair not found. Please sign a message to generate your key pair."
+    );
+  }
+  return keyPair;
+}
+
+/**
+ * Requests the user to sign a message to generate an ECDH key pair.
+ * If a key pair already exists in memory for the given wallet, resolves immediately.
+ *
+ * Note: Key pairs are stored in memory only and do not persist across page reloads.
+ * This is a security feature - users must sign once per session to derive their key pair.
+ *
+ * @param walletAddress - The wallet address to generate the key pair for
+ * @param signMessage - Function to sign a message (returns signature hex string)
+ * @returns Promise that resolves when the key pair is available
+ */
+export async function requestKeyPair(
+  walletAddress: string,
+  signMessage: SignMessageFn
+): Promise<void> {
+  // Check if key pair already exists in memory
+  const existingKeyPair = getStoredKeyPair(walletAddress);
+  if (existingKeyPair) {
+    return; // Key pair already exists in memory, no need to sign again
+  }
+
+  // Request signature from user
+  const signature = await signMessage(SIGN_MESSAGE);
+
+  // Derive key pair from signature
+  const keyPair = await deriveKeyPairFromSignature(signature);
+
+  // Store the derived key pair in memory
+  setStoredKeyPair(walletAddress, keyPair);
+}
+
+/**
+ * Exports the public key for a wallet address as SPKI format (base64)
+ * @param address - The wallet address
+ * @param signMessage - Function to sign a message (returns signature hex string)
+ * @returns The public key as base64-encoded SPKI string
+ */
+export async function exportPublicKey(
+  address: string,
+  signMessage: SignMessageFn
+): Promise<string> {
+  const keyPair = await getKeyPair(address, signMessage);
+
+  // Export public key as SPKI format
+  const spkiBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+  const spkiBytes = new Uint8Array(spkiBuffer);
+
+  // Convert to base64
+  return btoa(String.fromCharCode(...spkiBytes));
+}
+
+/**
+ * Checks if a key pair exists in memory for the given wallet address
+ * @param address - The wallet address
+ * @returns True if key pair exists, false otherwise
+ */
+export function hasKeyPair(address: string): boolean {
+  return getStoredKeyPair(address) !== null;
+}
+
+/**
+ * Clears the key pair for a wallet address from memory
+ * @param address - The wallet address
+ */
+export function clearKeyPair(address: string): void {
+  keyPairStore.delete(address);
+}
+
+/**
+ * Clears all key pairs from memory
+ */
+export function clearAllKeyPairs(): void {
+  keyPairStore.clear();
+}
+
+/**
  * Hook that provides on-demand encryption key management.
  * @param signMessage - Function to sign a message (from Privy's useSignMessage)
- * @returns Functions to request encryption keys
+ * @returns Functions to request encryption keys and manage key pairs
  * @category Hooks
  */
 export function useEncryption(signMessage: SignMessageFn) {
   return {
     requestEncryptionKey: (walletAddress: string) =>
       requestEncryptionKey(walletAddress, signMessage),
+    requestKeyPair: (walletAddress: string) =>
+      requestKeyPair(walletAddress, signMessage),
+    exportPublicKey: (walletAddress: string) =>
+      exportPublicKey(walletAddress, signMessage),
+    hasKeyPair: (walletAddress: string) => hasKeyPair(walletAddress),
+    clearKeyPair: (walletAddress: string) => clearKeyPair(walletAddress),
   };
 }
 
