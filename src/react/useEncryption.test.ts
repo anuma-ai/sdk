@@ -41,9 +41,9 @@ function isValidSPKI(spki: string): boolean {
 }
 
 describe("useEncryption - Key Pair Generation", () => {
-  const mockSignMessage: SignMessageFn = vi.fn(async (message: string) => {
+  const mockSignMessage = vi.fn(async (message: string) => {
     return createMockSignature(message);
-  });
+  }) as unknown as SignMessageFn & { mock: { calls: string[][] } };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -404,7 +404,7 @@ describe("useEncryption - Key Pair Generation", () => {
 
       expect(importedKey.algorithm.name).toBe("ECDH");
       expect(
-        (importedKey.algorithm as { namedCurve: string }).namedCurve
+        (importedKey.algorithm as { name: string; namedCurve: string }).namedCurve
       ).toBe("P-256");
     });
 
