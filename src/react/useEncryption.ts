@@ -1,7 +1,7 @@
 "use client";
 
 const SIGN_MESSAGE =
-  "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.";
+  "The app is asking you to sign this message to generate keys, which will be used to encrypt data.";
 
 /**
  * In-memory storage for encryption keys.
