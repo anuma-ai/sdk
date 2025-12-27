@@ -161,10 +161,9 @@ export async function migrateEncryptedValue(
 
   // Ensure encryption key is available (same key works for both old and new)
   if (!hasEncryptionKey(walletAddress)) {
-    // Request key if not available
-    const SIGN_MESSAGE =
-      "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.";
-    await signMessage(SIGN_MESSAGE);
+    // Request key if not available using requestEncryptionKey
+    const { requestEncryptionKey } = await import("../../react/useEncryption");
+    await requestEncryptionKey(walletAddress, signMessage);
     
     if (!hasEncryptionKey(walletAddress)) {
       throw new Error("Encryption key not available after signing");

@@ -15,18 +15,18 @@ import {
 } from "../../react/useEncryption";
 import type { SignMessageFn } from "../../react/useEncryption";
 import { clearAllRateLimits } from "../rateLimit";
+import { getTestSignMessage } from "../../test-utils/signature";
 
 const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
-const TEST_SIGN_MESSAGE: SignMessageFn = async () => {
-  return "0x" + "a".repeat(130);
-};
+// Use mock signature by default (bypasses rate limiting)
+const TEST_SIGN_MESSAGE = getTestSignMessage();
 
 describe("Migration Utilities", () => {
   beforeEach(async () => {
     clearAllEncryptionKeys();
     clearAllRateLimits();
     clearMigrationStatus(TEST_ADDRESS);
-    // Ensure encryption key is available
+    // Ensure encryption key is available (uses mock signature by default, no rate limiting)
     await requestEncryptionKey(TEST_ADDRESS, TEST_SIGN_MESSAGE);
   });
 
@@ -152,13 +152,17 @@ describe("Migration Utilities", () => {
       clearAllEncryptionKeys();
       clearMigrationStatus(TEST_ADDRESS);
 
+      // First, create the key and encrypted value
+      await requestEncryptionKey(TEST_ADDRESS, TEST_SIGN_MESSAGE);
       const plaintext = "Test value";
       const encrypted = await encryptData(plaintext, TEST_ADDRESS);
       const v1Value = `enc:v1:${encrypted}`;
 
-      // Re-request key to ensure it's available
-      await requestEncryptionKey(TEST_ADDRESS, TEST_SIGN_MESSAGE);
+      // Clear key to simulate key not being available
+      clearAllEncryptionKeys();
+      clearAllRateLimits();
 
+      // Migrate should request key via signMessage
       const migrated = await migrateEncryptedValue(
         v1Value,
         TEST_ADDRESS,
@@ -348,8 +352,9 @@ describe("Migration Utilities", () => {
       clearAllRateLimits();
       clearMigrationStatus(TEST_ADDRESS);
 
+      // First, create the key and encrypted value
+      await requestEncryptionKey(TEST_ADDRESS, TEST_SIGN_MESSAGE);
       const plaintext = "Value to migrate";
-      // Create encrypted value (this will create the key)
       const encrypted = await encryptData(plaintext, TEST_ADDRESS);
       const v1Value = `enc:v1:${encrypted}`;
 

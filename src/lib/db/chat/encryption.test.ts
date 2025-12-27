@@ -12,11 +12,11 @@ import {
 } from "./encryption";
 import { requestEncryptionKey, clearAllEncryptionKeys } from "../../../react/useEncryption";
 import type { SignMessageFn } from "../../../react/useEncryption";
+import { getTestSignMessage } from "../../../test-utils/signature";
 
 const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
-const TEST_SIGN_MESSAGE: SignMessageFn = async () => {
-  return "0x" + "a".repeat(130);
-};
+// Use mock signature by default (bypasses rate limiting)
+const TEST_SIGN_MESSAGE = getTestSignMessage();
 
 describe("Chat Message Encryption", () => {
   beforeEach(async () => {

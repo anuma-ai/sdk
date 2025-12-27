@@ -14,11 +14,11 @@ import {
   clearAllEncryptionKeys,
 } from "../../../react/useEncryption";
 import type { SignMessageFn } from "../../../react/useEncryption";
+import { getTestSignMessage } from "../../../test-utils/signature";
 
 const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
-const TEST_SIGN_MESSAGE: SignMessageFn = async () => {
-  return "0x" + "a".repeat(130);
-};
+// Use mock signature by default (bypasses rate limiting)
+const TEST_SIGN_MESSAGE = getTestSignMessage();
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -44,13 +44,23 @@ describe("OAuth Token Storage", () => {
     localStorageMock.clear();
     clearAllEncryptionKeys();
 
-    // Mock global localStorage
-    Object.defineProperty(global, "window", {
-      value: {
-        localStorage: localStorageMock,
-      },
-      writable: true,
-    });
+    // Mock global window and localStorage
+    // Ensure window is defined for synchronous functions
+    if (typeof global.window === "undefined") {
+      Object.defineProperty(global, "window", {
+        value: {
+          localStorage: localStorageMock,
+        },
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      Object.defineProperty(global.window, "localStorage", {
+        value: localStorageMock,
+        writable: true,
+        configurable: true,
+      });
+    }
   });
 
   describe("Unencrypted Storage", () => {
@@ -208,13 +218,18 @@ describe("OAuth Token Storage", () => {
     it("should get valid access token synchronously", () => {
       const tokenData = {
         accessToken: "access_token_123",
-        expiresAt: Date.now() + 3600000,
+        expiresAt: Date.now() + 3600000, // 1 hour in the future
       };
 
       localStorageMock.setItem(
         "oauth_token_dropbox",
         JSON.stringify(tokenData)
       );
+
+      // Verify the data was stored correctly
+      const stored = localStorageMock.getItem("oauth_token_dropbox");
+      expect(stored).toBeTruthy();
+      expect(stored).not.toMatch(/^enc:/); // Should not be encrypted
 
       const accessToken = getValidAccessTokenSync("dropbox");
       // Note: getValidAccessTokenSync may return null if token is expired or invalid

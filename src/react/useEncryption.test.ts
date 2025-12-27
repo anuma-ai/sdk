@@ -22,11 +22,7 @@ const mockCryptoSubtle = {
   exportKey: vi.fn(),
 };
 
-// Helper to create a deterministic signature
-function createMockSignature(message: string): string {
-  // Return a deterministic signature based on message
-  return `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
-}
+import { createMockSignature, getTestSignMessage, mockSignMessage as testMockSignMessage } from "../test-utils/signature";
 
 // Helper to validate SPKI format (base64, starts with MII)
 function isValidSPKI(spki: string): boolean {
@@ -41,6 +37,7 @@ function isValidSPKI(spki: string): boolean {
 }
 
 describe("useEncryption - Key Pair Generation", () => {
+  // Use mock signature by default (bypasses rate limiting)
   const mockSignMessage = vi.fn(async (message: string) => {
     return createMockSignature(message);
   }) as unknown as SignMessageFn & { mock: { calls: string[][] } };
@@ -534,10 +531,12 @@ describe("useEncryption - Key Pair Generation", () => {
       const address = "";
 
       await act(async () => {
-        await requestKeyPair(address, mockSignMessage);
+        await expect(
+          requestKeyPair(address, mockSignMessage)
+        ).rejects.toThrow("Wallet address must be a non-empty string");
       });
 
-      expect(hasKeyPair(address)).toBe(true);
+      expect(hasKeyPair(address)).toBe(false);
     });
 
     it("should handle concurrent key pair requests", async () => {

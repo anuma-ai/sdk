@@ -13,16 +13,16 @@ import {
 } from "./encryption";
 import { requestEncryptionKey, clearAllEncryptionKeys } from "../../../react/useEncryption";
 import type { SignMessageFn } from "../../../react/useEncryption";
+import { getTestSignMessage } from "../../../test-utils/signature";
 
 const TEST_ADDRESS = "0x1234567890123456789012345678901234567890";
-const TEST_SIGN_MESSAGE: SignMessageFn = async () => {
-  return "0x" + "a".repeat(130);
-};
+// Use mock signature by default (bypasses rate limiting)
+const TEST_SIGN_MESSAGE = getTestSignMessage();
 
 describe("Memory Encryption", () => {
   beforeEach(async () => {
     clearAllEncryptionKeys();
-    // Clear rate limit state
+    // Clear rate limit state (only needed if using live signatures)
     if (typeof window !== "undefined" && window.localStorage) {
       const keys = Object.keys(window.localStorage);
       keys.forEach((key) => {
@@ -31,7 +31,7 @@ describe("Memory Encryption", () => {
         }
       });
     }
-    // Ensure encryption key is available
+    // Ensure encryption key is available (uses mock signature by default)
     await requestEncryptionKey(TEST_ADDRESS, TEST_SIGN_MESSAGE);
   });
 

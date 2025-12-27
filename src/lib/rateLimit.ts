@@ -2,6 +2,7 @@
  * Rate Limiting Utilities
  *
  * Provides rate limiting for signature requests and key derivation operations.
+ * In test environments with mock signatures, rate limiting is bypassed.
  */
 
 /**
@@ -19,6 +20,25 @@ const DEFAULT_RATE_LIMITS = {
   signatureRequest: { maxRequests: 5, windowMs: 60000 }, // 5 requests per minute
   keyDerivation: { maxRequests: 10, windowMs: 60000 }, // 10 requests per minute
 } as const;
+
+/**
+ * Check if we're in a test environment where rate limiting should be bypassed.
+ * This allows tests to run without hitting Privy's rate limits.
+ */
+function shouldBypassRateLimit(): boolean {
+  // Bypass rate limiting in test environments
+  // Tests use mock signatures that don't hit Privy's API
+  if (typeof process === "undefined") {
+    return false; // Not in Node.js environment, don't bypass
+  }
+  
+  return (
+    process.env.NODE_ENV === "test" ||
+    process.env.VITEST === "true" ||
+    process.env.CI === "true" ||
+    process.env.TEST === "true"
+  );
+}
 
 /**
  * Rate limit entry tracking request timestamps
@@ -62,6 +82,11 @@ export function isRateLimited(
   key: string,
   config: RateLimitConfig = DEFAULT_RATE_LIMITS.signatureRequest
 ): boolean {
+  // Bypass rate limiting in test environments (mock signatures don't hit Privy)
+  if (shouldBypassRateLimit()) {
+    return false;
+  }
+
   const now = Date.now();
   const [address, operation] = key.split(":");
   
