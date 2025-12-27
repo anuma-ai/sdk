@@ -2,7 +2,7 @@
 
 > **encryptMemoryFields**\<`T`\>(`memory`, `address`): `Promise`\<`T`\>
 
-Defined in: src/lib/db/memory/encryption.ts:215
+Defined in: [src/lib/db/memory/encryption.ts:215](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L215)
 
 Encrypt sensitive fields in a memory object.
 Only encrypts the fields defined in ENCRYPTED_FIELDS.

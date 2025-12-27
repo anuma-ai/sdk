@@ -2,7 +2,7 @@
 
 > **encryptField**(`value`, `address`): `Promise`\<`string`\>
 
-Defined in: src/lib/db/memory/encryption.ts:84
+Defined in: [src/lib/db/memory/encryption.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L84)
 
 Encrypt a single string value using the SDK's encryption.
 Returns the encrypted value with a prefix for identification.

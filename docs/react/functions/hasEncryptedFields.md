@@ -2,7 +2,7 @@
 
 > **hasEncryptedFields**(`memory`): `boolean`
 
-Defined in: src/lib/db/memory/encryption.ts:345
+Defined in: [src/lib/db/memory/encryption.ts:345](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L345)
 
 Check if a memory has any encrypted fields.
 Useful for determining if migration is needed.

@@ -2,7 +2,7 @@
 
 > **encryptMemoriesBatchInPlace**(`memories`, `address`, `updateFn`, `batchSize`): `Promise`\<\{ `failed`: `string`[]; `success`: `number`; \}\>
 
-Defined in: src/lib/db/memory/encryption.ts:452
+Defined in: [src/lib/db/memory/encryption.ts:452](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L452)
 
 Encrypt a batch of memories in parallel with rate limiting and retry logic.
 Tracks failed memories for error reporting.

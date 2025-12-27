@@ -2,7 +2,7 @@
 
 > **decryptMemoryFields**\<`T`\>(`memory`, `address`, `signMessage?`, `updateMemory?`): `Promise`\<`T`\>
 
-Defined in: src/lib/db/memory/encryption.ts:246
+Defined in: [src/lib/db/memory/encryption.ts:246](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L246)
 
 Decrypt sensitive fields in a memory object.
 Only decrypts the fields defined in ENCRYPTED_FIELDS.

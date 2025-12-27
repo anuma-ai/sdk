@@ -2,7 +2,7 @@
 
 > **encryptMemoriesBatch**\<`T`\>(`memories`, `address`): `Promise`\<`T`[]\>
 
-Defined in: src/lib/db/memory/encryption.ts:308
+Defined in: [src/lib/db/memory/encryption.ts:308](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L308)
 
 Batch encrypt multiple memory objects.
 Uses parallel processing for performance.
