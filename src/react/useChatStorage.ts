@@ -910,7 +910,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, isEncryptionEnabled, walletAddress, ensureEncryptionReady, signMessage]
   );
 
   /**
@@ -945,7 +945,7 @@ export function useChatStorage(
       
       return results;
     },
-    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, signMessage]
   );
 
   /**
@@ -1013,7 +1013,7 @@ export function useChatStorage(
       
       return result;
     },
-    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, signMessage]
   );
 
   return {
