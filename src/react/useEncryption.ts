@@ -2,48 +2,46 @@
 
 const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
-const BASE_SIGNATURE_STORAGE_KEY = "privy_encryption_key";
 
 /**
- * Gets the storage key for a specific wallet address
+ * In-memory storage for encryption keys.
+ * Keys are stored per wallet address and only persist for the session.
+ * This is more secure than localStorage as keys are not persisted to disk
+ * and are not accessible to XSS attacks after page reload.
+ */
+const encryptionKeyStore = new Map<string, string>();
+
+/**
+ * Gets the encryption key for a wallet address from in-memory storage
  * @param address - The wallet address
- * @returns The storage key
+ * @returns The stored key hex string or null if not available
  */
-function getStorageKey(address: string): string {
-  return `${BASE_SIGNATURE_STORAGE_KEY}_${address}`;
-}
-/**
- * Safely gets an item from localStorage, handling SSR environments
- * @param key - The storage key
- * @returns The stored value or null if not available or in SSR
- */
-function getStorageItem(key: string): string | null {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return null;
-  }
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+function getStoredKey(address: string): string | null {
+  return encryptionKeyStore.get(address) ?? null;
 }
 
 /**
- * Safely sets an item in localStorage, handling SSR environments
- * @param key - The storage key
- * @param value - The value to store
- * @returns true if successful, false otherwise
+ * Stores an encryption key for a wallet address in memory
+ * @param address - The wallet address
+ * @param keyHex - The encryption key as hex string
  */
-function setStorageItem(key: string, value: string): boolean {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return false;
-  }
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
+function setStoredKey(address: string, keyHex: string): void {
+  encryptionKeyStore.set(address, keyHex);
+}
+
+/**
+ * Clears the encryption key for a wallet address from memory
+ * @param address - The wallet address
+ */
+export function clearEncryptionKey(address: string): void {
+  encryptionKeyStore.delete(address);
+}
+
+/**
+ * Clears all encryption keys from memory
+ */
+export function clearAllEncryptionKeys(): void {
+  encryptionKeyStore.clear();
 }
 
 /**
@@ -86,13 +84,14 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
 }
 
 /**
- * Gets the encryption key from localStorage and imports it as a CryptoKey
+ * Gets the encryption key from in-memory storage and imports it as a CryptoKey
  */
 async function getEncryptionKey(address: string): Promise<CryptoKey> {
-  const storageKey = getStorageKey(address);
-  const keyHex = getStorageItem(storageKey);
+  const keyHex = getStoredKey(address);
   if (!keyHex) {
-    throw new Error("Encryption key not found. Please sign in first.");
+    throw new Error(
+      "Encryption key not found. Please sign a message to generate your encryption key."
+    );
   }
 
   const keyBytes = hexToBytes(keyHex);
@@ -211,11 +210,10 @@ export async function decryptDataBytes(
 }
 
 /**
- * Checks if an encryption key exists for the given wallet address
+ * Checks if an encryption key exists in memory for the given wallet address
  */
 export function hasEncryptionKey(address: string): boolean {
-  const storageKey = getStorageKey(address);
-  return getStorageItem(storageKey) !== null;
+  return getStoredKey(address) !== null;
 }
 
 /**
@@ -225,7 +223,11 @@ export type SignMessageFn = (message: string) => Promise<string>;
 
 /**
  * Requests the user to sign a message to generate an encryption key.
- * If a key already exists for the given wallet, resolves immediately.
+ * If a key already exists in memory for the given wallet, resolves immediately.
+ *
+ * Note: Keys are stored in memory only and do not persist across page reloads.
+ * This is a security feature - users must sign once per session to derive their key.
+ *
  * @param walletAddress - The wallet address to generate the key for
  * @param signMessage - Function to sign a message (returns signature hex string)
  * @returns Promise that resolves when the key is available
@@ -234,12 +236,10 @@ export async function requestEncryptionKey(
   walletAddress: string,
   signMessage: SignMessageFn
 ): Promise<void> {
-  const storageKey = getStorageKey(walletAddress);
-
-  // Check if key already exists
-  const existingKey = getStorageItem(storageKey);
+  // Check if key already exists in memory
+  const existingKey = getStoredKey(walletAddress);
   if (existingKey) {
-    return; // Key already exists, no need to sign again
+    return; // Key already exists in memory, no need to sign again
   }
 
   // Request signature from user
@@ -248,11 +248,8 @@ export async function requestEncryptionKey(
   // Derive encryption key from signature
   const encryptionKey = await deriveKeyFromSignature(signature);
 
-  // Store the derived key in localStorage
-  const stored = setStorageItem(storageKey, encryptionKey);
-  if (!stored) {
-    throw new Error("Failed to store encryption key in localStorage");
-  }
+  // Store the derived key in memory
+  setStoredKey(walletAddress, encryptionKey);
 }
 
 /**
