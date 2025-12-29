@@ -850,10 +850,6 @@ export type LlmapiToolFunction = {
         [key: string]: unknown;
     };
     /**
-     * Description of what the function does
-     */
-    description?: string;
-    /**
      * Name is the function name
      */
     name?: string;
