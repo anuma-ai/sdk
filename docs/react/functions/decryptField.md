@@ -2,7 +2,7 @@
 
 > **decryptField**(`value`, `address`, `signMessage?`, `onMigrated?`): `Promise`\<`string`\>
 
-Defined in: [src/lib/db/memory/encryption.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L127)
+Defined in: [src/lib/db/memory/encryption.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L125)
 
 Decrypt a single string value using the SDK's decryption.
 Supports both v1 (legacy) and v2 encryption formats.
