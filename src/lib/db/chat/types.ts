@@ -1,8 +1,11 @@
 import type { Database } from "@nozbe/watermelondb";
 import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionUsage,
   LlmapiMessage,
+  LlmapiResponseReasoning,
+  LlmapiResponseResponse,
+  LlmapiResponseUsage,
+  LlmapiThinkingOptions,
+  LlmapiTool,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 
@@ -51,6 +54,8 @@ export interface StoredMessage {
   /** If set, indicates the message failed with this error */
   error?: string;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string;
 }
 
 export interface ActivityPhase {
@@ -89,6 +94,8 @@ export interface CreateMessageOptions {
   /** If set, indicates the message failed with this error */
   error?: string;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string;
 }
 
 export interface CreateConversationOptions {
@@ -108,6 +115,8 @@ export interface UpdateMessageOptions {
   wasStopped?: boolean;
   error?: string | null;
   thoughtProcess?: ActivityPhase[];
+  /** Reasoning/thinking content from models that support extended thinking */
+  thinking?: string | null;
 }
 
 // Hook types
@@ -120,7 +129,7 @@ export interface BaseUseChatStorageOptions {
   getToken?: () => Promise<string | null>;
   baseUrl?: string;
   onData?: (chunk: string) => void;
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  onFinish?: (response: LlmapiResponseResponse) => void;
   onError?: (error: Error) => void;
 }
 
@@ -136,10 +145,56 @@ export interface BaseSendMessageWithStorageArgs {
   searchContext?: string;
   sources?: SearchSource[];
   thoughtProcess?: ActivityPhase[];
+  // Responses API options
+  /**
+   * Whether to store the response server-side.
+   * When true, the response can be retrieved later using the response ID.
+   */
+  store?: boolean;
+  /**
+   * ID of a previous response to continue from.
+   * Enables multi-turn conversations without resending full history.
+   */
+  previousResponseId?: string;
+  /**
+   * Conversation ID for grouping related responses on the server.
+   */
+  serverConversation?: string;
+  /**
+   * Controls randomness in the response (0.0 to 2.0).
+   */
+  temperature?: number;
+  /**
+   * Maximum number of tokens to generate in the response.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Array of tool definitions available to the model.
+   */
+  tools?: LlmapiTool[];
+  /**
+   * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
+   */
+  toolChoice?: string;
+  /**
+   * Reasoning configuration for o-series and other reasoning models.
+   * Controls reasoning effort and summary output.
+   */
+  reasoning?: LlmapiResponseReasoning;
+  /**
+   * Extended thinking configuration for Anthropic models (Claude).
+   * Enables the model to think through complex problems step by step.
+   */
+  thinking?: LlmapiThinkingOptions;
+  /**
+   * Per-request callback for thinking/reasoning chunks.
+   * Called with delta chunks as the model "thinks" through a problem.
+   */
+  onThinking?: (chunk: string) => void;
 }
 
 export interface BaseSendMessageSuccessResult {
-  data: LlmapiChatCompletionResponse;
+  data: LlmapiResponseResponse;
   error: null;
   userMessage: StoredMessage;
   assistantMessage: StoredMessage;
@@ -180,7 +235,7 @@ export function generateConversationId(): string {
 }
 
 export function convertUsageToStored(
-  usage?: LlmapiChatCompletionUsage
+  usage?: LlmapiResponseUsage
 ): ChatCompletionUsage | undefined {
   if (!usage) return undefined;
   return {

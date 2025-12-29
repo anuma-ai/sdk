@@ -6,9 +6,8 @@ import { useChat } from "./useChat";
 import type {
   LlmapiMessage,
   LlmapiMessageContentPart,
-  LlmapiChatCompletionResponse,
+  LlmapiResponseResponse,
 } from "../client";
-import type { ClientTool, ToolExecutionResult } from "../lib/tools/types";
 import {
   Message,
   Conversation,
@@ -69,51 +68,34 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
 /**
  * Options for useChatStorage hook (React version)
  *
- * Extends base options with React-specific features like local chat and tools.
+ * Uses base options.
  */
-export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
-  /** Chat provider: "api" or "local" */
-  chatProvider?: "api" | "local";
-  /** Model for local chat */
-  localModel?: string;
-  /** Client-side tools */
-  tools?: ClientTool[];
-  /** Tool selector model */
-  toolSelectorModel?: string;
-  /** Callback when tool is executed */
-  onToolExecution?: (result: ToolExecutionResult) => void;
-}
+export type UseChatStorageOptions = BaseUseChatStorageOptions;
 
 /**
  * Arguments for sendMessage with storage (React version)
  *
- * Extends base arguments with React-specific features like tools and headers.
+ * Extends base arguments with headers support.
  */
 export interface SendMessageWithStorageArgs
   extends BaseSendMessageWithStorageArgs {
-  /** Whether to run tool selection */
-  runTools?: boolean;
   /** Custom headers */
   headers?: Record<string, string>;
 }
 
 /**
  * Result from sendMessage with storage (React version)
- *
- * Extends base result with tool execution information.
  */
 export type SendMessageWithStorageResult =
   | {
-      data: import("../client").LlmapiChatCompletionResponse;
+      data: import("../client").LlmapiResponseResponse;
       error: null;
-      toolExecution?: ToolExecutionResult;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
     }
   | {
       data: null;
       error: string;
-      toolExecution?: ToolExecutionResult;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
     };
@@ -133,12 +115,10 @@ export interface SearchMessagesOptions {
 /**
  * Result returned by useChatStorage hook (React version)
  *
- * Extends base result with tool selection state and React-specific sendMessage signature.
+ * Extends base result with React-specific sendMessage signature.
  */
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
-  /** Whether tool selection is in progress */
-  isSelectingTool: boolean;
-  /** Send a message and automatically store it (React version with tool support) */
+  /** Send a message and automatically store it */
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
@@ -231,11 +211,6 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
-    chatProvider,
-    localModel,
-    tools,
-    toolSelectorModel,
-    onToolExecution,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -265,7 +240,6 @@ export function useChatStorage(
   // Use the underlying useChat hook
   const {
     isLoading,
-    isSelectingTool,
     sendMessage: baseSendMessage,
     stop,
   } = useChat({
@@ -274,11 +248,6 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
-    chatProvider,
-    localModel,
-    tools,
-    toolSelectorModel,
-    onToolExecution,
   });
 
   /**
@@ -503,12 +472,22 @@ export function useChatStorage(
         maxHistoryMessages = 50,
         files,
         onData: perRequestOnData,
-        runTools,
         headers,
         memoryContext,
         searchContext,
         sources,
         thoughtProcess,
+        // Responses API options
+        store,
+        previousResponseId,
+        serverConversation,
+        temperature,
+        maxOutputTokens,
+        tools,
+        toolChoice,
+        reasoning,
+        thinking,
+        onThinking,
       } = args;
 
       // Ensure we have a conversation
@@ -598,10 +577,20 @@ export function useChatStorage(
         messages: messagesToSend,
         model,
         onData: perRequestOnData,
-        runTools,
         headers,
         memoryContext,
         searchContext,
+        // Responses API options
+        store,
+        previousResponseId,
+        conversation: serverConversation,
+        temperature,
+        maxOutputTokens,
+        tools,
+        toolChoice,
+        reasoning,
+        thinking,
+        onThinking,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -609,15 +598,14 @@ export function useChatStorage(
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
         const abortedResult = result as {
-          data: LlmapiChatCompletionResponse | null;
+          data: LlmapiResponseResponse | null;
           error: string;
-          toolExecution?: ToolExecutionResult;
         };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
           const assistantContent =
-            abortedResult.data?.choices?.[0]?.message?.content
+            abortedResult.data?.output?.[0]?.content
               ?.map((part: { text?: string }) => part.text || "")
               .join("") || "";
 
@@ -638,30 +626,28 @@ export function useChatStorage(
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             });
 
-            // Build a valid completion response for the return (even if original was null)
-            const completionData: LlmapiChatCompletionResponse =
+            // Build a valid response for the return (even if original was null)
+            const responseData: LlmapiResponseResponse =
               abortedResult.data || {
                 id: `aborted-${Date.now()}`,
                 model: responseModel,
-                choices: [
+                object: "response",
+                output: [
                   {
-                    index: 0,
-                    message: {
-                      role: "assistant" as const,
-                      content: [
-                        { type: "text" as const, text: assistantContent },
-                      ],
-                    },
-                    finish_reason: "stop" as const,
+                    type: "message",
+                    role: "assistant",
+                    content: [
+                      { type: "output_text", text: assistantContent },
+                    ],
+                    status: "completed",
                   },
                 ],
                 usage: undefined,
               };
 
             return {
-              data: completionData,
+              data: responseData,
               error: null, // Treat as success to the caller
-              toolExecution: abortedResult.toolExecution,
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
             };
@@ -672,7 +658,6 @@ export function useChatStorage(
             return {
               data: null,
               error: "Request aborted",
-              toolExecution: abortedResult.toolExecution,
               userMessage: storedUserMessage,
             };
           }
@@ -704,17 +689,30 @@ export function useChatStorage(
         return {
           data: null,
           error: errorMessage,
-          toolExecution: result.toolExecution,
           userMessage: { ...storedUserMessage, error: errorMessage },
         };
       }
 
-      // Extract assistant response content
+      // Extract assistant response content and thinking/reasoning
       const responseData = result.data;
+
+      // Find the message output item (type: "message") for main content
+      const messageOutput = responseData.output?.find(
+        (item) => item.type === "message"
+      );
       const assistantContent =
-        responseData.choices?.[0]?.message?.content
-          ?.map((part) => part.text || "")
+        messageOutput?.content
+          ?.map((part: { text?: string }) => part.text || "")
           .join("") || "";
+
+      // Find the reasoning output item (type: "reasoning") for thinking content
+      const reasoningOutput = responseData.output?.find(
+        (item) => item.type === "reasoning"
+      );
+      const thinkingContent =
+        reasoningOutput?.content
+          ?.map((part: { text?: string }) => part.text || "")
+          .join("") || undefined;
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
       const combinedSources = extractSourcesFromAssistantMessage({
@@ -734,6 +732,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+          thinking: thinkingContent,
         });
       } catch (err) {
         return {
@@ -742,7 +741,6 @@ export function useChatStorage(
             err instanceof Error
               ? err.message
               : "Failed to store assistant message",
-          toolExecution: result.toolExecution,
           userMessage: storedUserMessage,
         };
       }
@@ -750,7 +748,6 @@ export function useChatStorage(
       return {
         data: responseData,
         error: null,
-        toolExecution: result.toolExecution,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
       };
@@ -807,7 +804,6 @@ export function useChatStorage(
 
   return {
     isLoading,
-    isSelectingTool,
     sendMessage,
     stop,
     conversationId: currentConversationId,

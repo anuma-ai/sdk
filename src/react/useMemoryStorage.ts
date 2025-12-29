@@ -41,7 +41,6 @@ import {
 import {
   DEFAULT_API_EMBEDDING_MODEL,
   DEFAULT_COMPLETION_MODEL,
-  DEFAULT_LOCAL_EMBEDDING_MODEL,
 } from "../lib/memory/constants";
 
 /**
@@ -110,7 +109,6 @@ export function useMemoryStorage(
     database,
     completionsModel = DEFAULT_COMPLETION_MODEL,
     embeddingModel: userEmbeddingModel,
-    embeddingProvider = "local",
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,
@@ -120,9 +118,7 @@ export function useMemoryStorage(
   // Resolve default model if undefined, preserve null if set explicitly to disable
   const embeddingModel =
     userEmbeddingModel === undefined
-      ? embeddingProvider === "local"
-        ? DEFAULT_LOCAL_EMBEDDING_MODEL
-        : DEFAULT_API_EMBEDDING_MODEL
+      ? DEFAULT_API_EMBEDDING_MODEL
       : userEmbeddingModel;
 
   const [memories, setMemories] = useState<StoredMemory[]>([]);
@@ -145,23 +141,18 @@ export function useMemoryStorage(
 
   // Get the effective embedding model (used when embeddings are enabled)
   const effectiveEmbeddingModel = useMemo(
-    () =>
-      embeddingModel ??
-      (embeddingProvider === "api"
-        ? DEFAULT_API_EMBEDDING_MODEL
-        : DEFAULT_LOCAL_EMBEDDING_MODEL),
-    [embeddingModel, embeddingProvider]
+    () => embeddingModel ?? DEFAULT_API_EMBEDDING_MODEL,
+    [embeddingModel]
   );
 
   // Embedding options
   const embeddingOptions = useMemo<GenerateEmbeddingOptions>(
     () => ({
       model: effectiveEmbeddingModel,
-      provider: embeddingProvider,
       getToken: getToken || undefined,
       baseUrl,
     }),
-    [effectiveEmbeddingModel, embeddingProvider, getToken, baseUrl]
+    [effectiveEmbeddingModel, getToken, baseUrl]
   );
 
   /**

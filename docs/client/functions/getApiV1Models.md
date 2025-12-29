@@ -2,7 +2,7 @@
 
 > **getApiV1Models**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetApiV1ModelsResponses`](../type-aliases/GetApiV1ModelsResponses.md), [`GetApiV1ModelsErrors`](../type-aliases/GetApiV1ModelsErrors.md), `ThrowOnError`\>
 
-Defined in: [src/client/sdk.gen.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L86)
+Defined in: [src/client/sdk.gen.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L98)
 
 List available models
 

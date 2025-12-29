@@ -4,6 +4,33 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersConfigResponse = {
+    /**
+     * ChainID is the blockchain chain ID
+     */
+    chain_id?: string;
+    /**
+     * CostLimitEscrowAddress is the cost-limit escrow contract address (if configured)
+     */
+    cost_limit_escrow_address?: string;
+    /**
+     * OperatorAddress is the operator wallet address
+     */
+    operator_address?: string;
+    /**
+     * PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configured)
+     */
+    pay_as_you_go_escrow_address?: string;
+    /**
+     * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
+     */
+    payment_model?: string;
+    /**
+     * SettlementRecipient is the address that receives settlement payments
+     */
+    settlement_recipient?: string;
+};
+
 export type HandlersExchangeRequest = {
     code: string;
     /**
@@ -549,7 +576,7 @@ export type LlmapiResponseOutputItem = {
      */
     call_id?: string;
     /**
-     * Content is the content array for message types
+     * Content is the content array for message and reasoning types
      */
     content?: Array<LlmapiResponseOutputContent>;
     /**
@@ -569,9 +596,27 @@ export type LlmapiResponseOutputItem = {
      */
     status?: string;
     /**
-     * Type is the output item type (e.g., "message", "function_call")
+     * Summary is the reasoning summary for reasoning types
+     */
+    summary?: Array<LlmapiResponseOutputContent>;
+    /**
+     * Type is the output item type (e.g., "message", "function_call", "reasoning")
      */
     type?: string;
+};
+
+/**
+ * Reasoning configures reasoning for o-series and other reasoning models
+ */
+export type LlmapiResponseReasoning = {
+    /**
+     * Effort controls reasoning effort: "low", "medium", or "high"
+     */
+    effort?: string;
+    /**
+     * Summary controls reasoning summary: "auto", "concise", or "detailed"
+     */
+    summary?: string;
 };
 
 export type LlmapiResponseRequest = {
@@ -595,14 +640,7 @@ export type LlmapiResponseRequest = {
      * Model is the model identifier in 'provider/model' format
      */
     model: string;
-    /**
-     * PreviousResponseID is the ID of a previous response to continue from
-     */
-    previous_response_id?: string;
-    /**
-     * Store indicates if the response should be stored
-     */
-    store?: boolean;
+    reasoning?: LlmapiResponseReasoning;
     /**
      * Stream indicates if response should be streamed
      */
@@ -611,6 +649,7 @@ export type LlmapiResponseRequest = {
      * Temperature controls randomness (0.0 to 2.0)
      */
     temperature?: number;
+    thinking?: LlmapiThinkingOptions;
     /**
      * ToolChoice controls which tool to use (auto, any, none, required, or tool name)
      */
@@ -752,6 +791,20 @@ export type LlmapiSearchUsage = {
     cost_micro_usd?: number;
 };
 
+/**
+ * Thinking configures extended thinking for Anthropic models
+ */
+export type LlmapiThinkingOptions = {
+    /**
+     * BudgetTokens is the token budget for thinking
+     */
+    budget_tokens?: number;
+    /**
+     * Type indicates if thinking is enabled: "enabled" or "disabled"
+     */
+    type?: string;
+};
+
 export type LlmapiTool = {
     function?: LlmapiToolFunction;
     /**
@@ -837,6 +890,31 @@ export type PostApiV1ChatCompletionsResponses = {
 };
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
+
+export type GetApiV1ConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config';
+};
+
+export type GetApiV1ConfigErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ConfigError = GetApiV1ConfigErrors[keyof GetApiV1ConfigErrors];
+
+export type GetApiV1ConfigResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConfigResponse;
+};
+
+export type GetApiV1ConfigResponse = GetApiV1ConfigResponses[keyof GetApiV1ConfigResponses];
 
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;

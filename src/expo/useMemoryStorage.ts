@@ -42,17 +42,9 @@ import { postApiV1Embeddings } from "../client";
 /**
  * Options for useMemoryStorage hook (Expo version)
  *
- * Uses the base options without local embedding support.
- * In Expo, only "api" embedding provider is supported.
+ * Uses the base options.
  */
-export interface UseMemoryStorageOptions
-  extends Omit<BaseUseMemoryStorageOptions, "embeddingProvider"> {
-  /**
-   * The provider to use for generating embeddings
-   * Note: In Expo, only "api" is supported (local embeddings require web APIs)
-   */
-  embeddingProvider?: "api";
-}
+export type UseMemoryStorageOptions = BaseUseMemoryStorageOptions;
 
 /**
  * Result returned by useMemoryStorage hook (Expo version)
@@ -137,7 +129,6 @@ async function generateEmbeddingForMemoryApi(
  *   } = useMemoryStorage({
  *     database,
  *     getToken: async () => getAuthToken(),
- *     embeddingProvider: 'api', // Only API embeddings supported in Expo
  *   });
  *
  *   const handleExtract = async () => {
@@ -164,7 +155,6 @@ export function useMemoryStorage(
     database,
     completionsModel = DEFAULT_COMPLETION_MODEL,
     embeddingModel: userEmbeddingModel,
-    embeddingProvider = "api", // Default to API for Expo
     generateEmbeddings = true,
     onFactsExtracted,
     getToken,

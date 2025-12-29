@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L95)
+Defined in: [src/client/types.gen.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L122)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)[]
 
-Defined in: [src/client/types.gen.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L99)
+Defined in: [src/client/types.gen.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L126)
 
 Choices contains the completion choices
 
@@ -20,7 +20,7 @@ Choices contains the completion choices
 
 > `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L100)
+Defined in: [src/client/types.gen.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L127)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L104)
+Defined in: [src/client/types.gen.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L131)
 
 ID is the completion ID
 
@@ -38,7 +38,7 @@ ID is the completion ID
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L108)
+Defined in: [src/client/types.gen.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L135)
 
 Model is the model used
 
@@ -48,4 +48,4 @@ Model is the model used
 
 > `optional` **usage**: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md)
 
-Defined in: [src/client/types.gen.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L109)
+Defined in: [src/client/types.gen.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L136)

@@ -5,7 +5,7 @@ import {
 } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: "history",
@@ -26,6 +26,7 @@ export const chatStorageSchema = appSchema({
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
+        { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
       ],
     }),
     tableSchema({
@@ -68,6 +69,17 @@ export const chatStorageMigrations = schemaMigrations({
           table: "history",
           columns: [
             { name: "thought_process", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "thinking", type: "string", isOptional: true },
           ],
         }),
       ],
