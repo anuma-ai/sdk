@@ -125,9 +125,11 @@ export async function storeTokenData(
       const encrypted = await encryptData(jsonData, walletAddress);
       localStorage.setItem(getStorageKey(provider), `${ENCRYPTION_PREFIX}${encrypted}`);
       return;
-    } catch {
-      // Encryption failed - fall back to unencrypted storage
-      // This allows the system to continue working even if encryption fails
+    } catch (error) {
+      // Throw error to prevent sensitive data from being stored unencrypted
+      const message =
+        error instanceof Error ? error.message : "Unknown encryption error";
+      throw new Error(`OAuth token encryption failed: ${message}`);
     }
   }
 
