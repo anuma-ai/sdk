@@ -852,15 +852,6 @@ export function useMemoryStorage(
           }
         }
 
-        // Update local state
-        setMemories((prev) => {
-          const existing = prev.find((m) => m.uniqueId === saved.uniqueId);
-          if (existing) {
-            return prev.map((m) => (m.uniqueId === saved.uniqueId ? saved : m));
-          }
-          return [saved, ...prev];
-        });
-
         // Decrypt saved memory for local state if encryption is enabled
         let savedForState = saved;
         if (isEncryptionEnabled && walletAddress) {
