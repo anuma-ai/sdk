@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo, useRef } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { postApiV1ChatCompletions } from "../client";
 import { BASE_URL } from "../clientConfig";
@@ -244,7 +244,7 @@ export function useMemoryStorage(
   const autoEncryptionRunRef = useRef(false);
 
   // Auto-encrypt unencrypted memories when key becomes ready
-  useMemo(() => {
+  useEffect(() => {
     if (!isEncryptionEnabled || !walletAddress) {
       autoEncryptionRunRef.current = false;
       return;
