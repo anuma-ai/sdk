@@ -223,6 +223,32 @@ export function getRefreshTokenSync(provider: OAuthProvider): string | null {
 }
 
 /**
+ * Check if credentials exist for a provider (works with encrypted or unencrypted data)
+ * This is useful for UI logic that needs to know if credentials exist, even if encrypted
+ * @param provider - The OAuth provider
+ * @returns True if credentials exist (encrypted or not), false otherwise
+ */
+export function hasStoredCredentialsSync(provider: OAuthProvider): boolean {
+  if (typeof window === "undefined") return false;
+
+  const stored = localStorage.getItem(getStorageKey(provider));
+  if (!stored) return false;
+
+  // If encrypted, we can't decrypt synchronously, but we know credentials exist
+  if (isEncrypted(stored)) {
+    return true;
+  }
+
+  // If not encrypted, try to parse and check if it has valid data
+  try {
+    const data = JSON.parse(stored) as StoredTokenData;
+    return !!(data?.accessToken || data?.refreshToken);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Convert API response to StoredTokenData
  */
 export function tokenResponseToStoredData(

@@ -22,6 +22,7 @@ import {
   getStoredTokenDataSync,
   getValidAccessToken,
   getValidAccessTokenSync,
+  hasStoredCredentialsSync,
   storeTokenData,
   tokenResponseToStoredData,
 } from "../oauth/storage";
@@ -298,8 +299,8 @@ export function clearToken(): void {
 
 /**
  * Check if we have any stored credentials (including refresh token)
+ * Works with both encrypted and unencrypted credentials
  */
 export function hasDropboxCredentials(): boolean {
-  const data = getStoredTokenDataSync(PROVIDER);
-  return !!(data?.accessToken || data?.refreshToken);
+  return hasStoredCredentialsSync(PROVIDER);
 }

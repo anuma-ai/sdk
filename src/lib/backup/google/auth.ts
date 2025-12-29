@@ -22,6 +22,7 @@ import {
   getStoredTokenDataSync,
   getValidAccessToken,
   getValidAccessTokenSync,
+  hasStoredCredentialsSync,
   isTokenExpired,
   storeTokenData,
   tokenResponseToStoredData,
@@ -335,8 +336,8 @@ export function clearGoogleDriveToken(): void {
 
 /**
  * Check if we have any stored credentials (including refresh token)
+ * Works with both encrypted and unencrypted credentials
  */
 export function hasGoogleDriveCredentials(): boolean {
-  const data = getStoredTokenDataSync(PROVIDER);
-  return !!(data?.accessToken || data?.refreshToken);
+  return hasStoredCredentialsSync(PROVIDER);
 }
