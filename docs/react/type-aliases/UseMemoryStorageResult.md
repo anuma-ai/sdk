@@ -2,7 +2,7 @@
 
 > **UseMemoryStorageResult** = `BaseUseMemoryStorageResult`
 
-Defined in: [src/react/useMemoryStorage.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L58)
+Defined in: [src/react/useMemoryStorage.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L67)
 
 Result returned by useMemoryStorage hook (React version)
 
