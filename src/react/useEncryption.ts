@@ -110,10 +110,16 @@ function setStoredKeyPair(address: string, keyPair: CryptoKeyPair): void {
 
 /**
  * Derives an ECDH P-256 key pair from a signature using HKDF
- * The key pair is deterministically generated from the signature.
+ * The key pair is deterministically generated from the signature and wallet address.
+ * Uses the wallet address as HKDF salt for deterministic key pair derivation.
+ * 
+ * @param signature - The signature from signing the message
+ * @param walletAddress - The wallet address (used as HKDF salt)
+ * @returns The derived ECDH key pair
  */
 async function deriveKeyPairFromSignature(
-  signature: string
+  signature: string,
+  walletAddress: string
 ): Promise<CryptoKeyPair> {
   // 1. Convert hex signature to bytes
   const sigBytes = hexToBytes(signature);
@@ -125,7 +131,11 @@ async function deriveKeyPairFromSignature(
   );
   const seed = new Uint8Array(seedBuffer);
 
-  // 3. Use HKDF to derive key material for ECDH private key
+  // 3. Convert wallet address to bytes for use as HKDF salt
+  // Remove '0x' prefix if present and convert to bytes
+  const addressBytes = hexToBytes(walletAddress);
+
+  // 4. Use HKDF to derive key material for ECDH private key
   const hkdfKey = await crypto.subtle.importKey(
     "raw",
     seed.buffer as ArrayBuffer,
@@ -134,12 +144,14 @@ async function deriveKeyPairFromSignature(
     ["deriveBits"]
   );
 
-  // 4. Derive 32 bytes for ECDH P-256 private key
+  // 5. Derive 32 bytes for ECDH P-256 private key using wallet address as salt
+  // Create a new Uint8Array to ensure proper type compatibility
+  const saltBytes = new Uint8Array(addressBytes);
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new Uint8Array(0), // No salt for deterministic derivation
+      salt: saltBytes, // Use wallet address as salt for deterministic derivation
       info: new TextEncoder().encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
@@ -408,11 +420,91 @@ export function hasEncryptionKey(address: string): boolean {
 export type SignMessageFn = (message: string) => Promise<string>;
 
 /**
+ * Check if an error is a rate limit error (429) from Privy API
+ */
+function isRateLimitError(error: unknown): boolean {
+  if (!error) return false;
+  
+  // Check for 429 status code in error object
+  if (typeof error === "object") {
+    const err = error as { status?: number; statusCode?: number; code?: string; message?: string };
+    if (err.status === 429 || err.statusCode === 429) return true;
+    if (err.code === "429" || err.code === "RATE_LIMIT_EXCEEDED") return true;
+    if (err.message?.includes("429") || err.message?.toLowerCase().includes("rate limit")) return true;
+  }
+  
+  // Check error message string
+  if (typeof error === "string") {
+    return error.includes("429") || error.toLowerCase().includes("rate limit");
+  }
+  
+  return false;
+}
+
+/**
+ * Retry a signMessage call with exponential backoff for rate limit errors
+ * @param signMessage - Function to sign a message
+ * @param message - Message to sign
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @param initialDelay - Initial delay in ms (default: 1000)
+ * @returns Signature string
+ */
+async function signMessageWithRetry(
+  signMessage: SignMessageFn,
+  message: string,
+  maxRetries = 3,
+  initialDelay = 1000
+): Promise<string> {
+  let lastError: unknown;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await signMessage(message);
+    } catch (error) {
+      lastError = error;
+      
+      // Only retry on rate limit errors
+      if (!isRateLimitError(error)) {
+        throw error; // Don't retry non-rate-limit errors
+      }
+      
+      // If this was the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw new Error(
+          `Rate limit exceeded: Unable to sign message after ${maxRetries + 1} attempts. ` +
+          `Please wait a moment and try again. Privy allows 5 signatures per 60 seconds.`
+        );
+      }
+      
+      // Exponential backoff: delay = initialDelay * 2^attempt
+      // Cap at 60 seconds (Privy's rate limit window)
+      const delay = Math.min(
+        initialDelay * Math.pow(2, attempt),
+        60000 // Max 60 seconds
+      );
+      
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          `[Encryption] Rate limit hit (attempt ${attempt + 1}/${maxRetries + 1}). ` +
+          `Retrying in ${Math.ceil(delay / 1000)}s...`
+        );
+      }
+      
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
+/**
  * Requests the user to sign a message to generate an encryption key.
  * If a key already exists in memory for the given wallet, resolves immediately.
  *
  * Note: Keys are stored in memory only and do not persist across page reloads.
  * This is a security feature - users must sign once per session to derive their key.
+ *
+ * Handles Privy rate limits (429 errors) with automatic retry and exponential backoff.
  *
  * @param walletAddress - The wallet address to generate the key for
  * @param signMessage - Function to sign a message (returns signature hex string)
@@ -428,8 +520,8 @@ export async function requestEncryptionKey(
     return; // Key already exists in memory, no need to sign again
   }
 
-  // Request signature from user
-  const signature = await signMessage(SIGN_MESSAGE);
+  // Request signature from user with retry logic for rate limits
+  const signature = await signMessageWithRetry(signMessage, SIGN_MESSAGE);
 
   // Derive encryption key from signature
   const encryptionKey = await deriveKeyFromSignature(signature);
@@ -472,6 +564,8 @@ async function getKeyPair(
  * Note: Key pairs are stored in memory only and do not persist across page reloads.
  * This is a security feature - users must sign once per session to derive their key pair.
  *
+ * Handles Privy rate limits (429 errors) with automatic retry and exponential backoff.
+ *
  * @param walletAddress - The wallet address to generate the key pair for
  * @param signMessage - Function to sign a message (returns signature hex string)
  * @returns Promise that resolves when the key pair is available
@@ -486,11 +580,11 @@ export async function requestKeyPair(
     return; // Key pair already exists in memory, no need to sign again
   }
 
-  // Request signature from user
-  const signature = await signMessage(SIGN_MESSAGE);
+  // Request signature from user with retry logic for rate limits
+  const signature = await signMessageWithRetry(signMessage, SIGN_MESSAGE);
 
-  // Derive key pair from signature
-  const keyPair = await deriveKeyPairFromSignature(signature);
+  // Derive key pair from signature using wallet address as HKDF salt
+  const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
   // Store the derived key pair in memory
   setStoredKeyPair(walletAddress, keyPair);
