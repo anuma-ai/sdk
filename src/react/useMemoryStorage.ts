@@ -490,15 +490,17 @@ export function useMemoryStorage(
             // Generate embeddings if enabled
             if (generateEmbeddings && embeddingModel) {
               try {
-                for (const saved of savedMemories) {
+                for (let i = 0; i < savedMemories.length; i++) {
+                  const memory = createOptions[i];
+                  const saved = savedMemories[i];
                   const memoryItem: MemoryItem = {
-                    type: saved.type,
-                    namespace: saved.namespace,
-                    key: saved.key,
-                    value: saved.value,
-                    rawEvidence: saved.rawEvidence,
-                    confidence: saved.confidence,
-                    pii: saved.pii,
+                    type: memory.type,
+                    namespace: memory.namespace,
+                    key: memory.key,
+                    value: memory.value,
+                    rawEvidence: memory.rawEvidence,
+                    confidence: memory.confidence,
+                    pii: memory.pii,
                   };
                   const embedding = await generateEmbeddingForMemory(
                     memoryItem,
