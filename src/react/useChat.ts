@@ -11,6 +11,7 @@ import {
   type BaseUseChatResult,
   type StreamingChunk,
   type ProcessChunkResult,
+  type AccumulatedToolCall,
   createStreamAccumulator,
   validateMessages,
   validateModel,
@@ -23,6 +24,9 @@ import {
   isAbortError,
   isDoneMarker,
   messagesToInput,
+  toolsToApiFormat,
+  createToolExecutorMap,
+  executeToolCall,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -130,6 +134,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onThinking: globalOnThinking,
     onFinish,
     onError,
+    onToolCall,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -266,6 +271,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Track SSE errors to surface them after streaming completes
         let sseError: Error | null = null;
 
+        // Convert tools to API format (strip executors)
+        const apiTools = toolsToApiFormat(tools);
+
         const sseResult = await client.sse.post({
           baseUrl,
           url: "/api/v1/responses",
@@ -279,7 +287,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ...(conversation && { conversation }),
             ...(temperature !== undefined && { temperature }),
             ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-            ...(tools && { tools }),
+            ...(apiTools && { tools: apiTools }),
             ...(toolChoice && { tool_choice: toolChoice }),
             ...(reasoning && { reasoning }),
             ...(thinking && { thinking }),
@@ -354,6 +362,207 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Build the final response
         const response = buildResponseResponse(accumulator);
 
+        // Check for tool calls and handle them
+        if (accumulator.toolCalls.size > 0) {
+          console.log("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
+          const executorMap = createToolExecutorMap(tools);
+          const toolCallsToExecute: AccumulatedToolCall[] = [];
+
+          // Determine which tools to execute vs emit as events
+          for (const toolCall of accumulator.toolCalls.values()) {
+            console.log("[Tool Debug] Processing tool call:", toolCall.name);
+            const executorConfig = executorMap.get(toolCall.name);
+
+            if (executorConfig && executorConfig.autoExecute) {
+              // Will execute automatically
+              console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+              toolCallsToExecute.push(toolCall);
+            } else {
+              // Emit event for manual handling
+              console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
+              if (onToolCall) {
+                onToolCall({
+                  id: toolCall.id,
+                  type: toolCall.type,
+                  function: {
+                    name: toolCall.name,
+                    arguments: toolCall.arguments,
+                  },
+                });
+              }
+            }
+          }
+
+          // If we have tools to auto-execute, execute them and continue
+          if (toolCallsToExecute.length > 0) {
+            console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+            // Execute all tools in parallel
+            const executionResults = await Promise.all(
+              toolCallsToExecute.map(async (toolCall) => {
+                const executorConfig = executorMap.get(toolCall.name);
+                if (!executorConfig) {
+                  return {
+                    id: toolCall.id,
+                    error: `No executor found for tool: ${toolCall.name}`,
+                  };
+                }
+
+                // toolCall is already the AccumulatedToolCall from the map, use it directly
+                const { result, error } = await executeToolCall(
+                  toolCall,
+                  executorConfig.executor
+                );
+
+                console.log("[Tool Debug] Tool execution result for", toolCall.name, ":", { result, error });
+
+                return {
+                  id: toolCall.id,
+                  name: toolCall.name,
+                  result,
+                  error,
+                };
+              })
+            );
+
+            console.log("[Tool Debug] All tools executed, results:", executionResults.length);
+
+            // Build tool result messages to send back to the model
+            const toolResultMessages: LlmapiMessage[] = [];
+
+            // Add the assistant's message with tool calls
+            const assistantMessage: LlmapiMessage = {
+              role: "assistant",
+              content: [{ type: "text", text: accumulator.content }],
+              tool_calls: toolCallsToExecute.map((tc) => ({
+                id: tc.id,
+                type: "function",
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              })),
+            };
+            toolResultMessages.push(assistantMessage);
+
+            // Add tool result messages
+            for (const execResult of executionResults) {
+              const resultContent = execResult.error
+                ? `Error: ${execResult.error}`
+                : JSON.stringify(execResult.result);
+
+              toolResultMessages.push({
+                role: "tool",
+                content: [{ type: "text", text: resultContent }],
+                tool_call_id: execResult.id,
+              } as LlmapiMessage);
+            }
+
+            // Continue the conversation with tool results
+            const continuationMessages = [...messagesWithContext, ...toolResultMessages];
+
+            console.log("[Tool Debug] Continuation messages:", JSON.stringify(continuationMessages, null, 2));
+            const continuationInput = messagesToInput(continuationMessages);
+            console.log("[Tool Debug] Continuation input text:", continuationInput);
+
+            // Recursive call to continue with tool results
+            // Use the same parameters but with updated messages
+            const continuationResult = await client.sse.post({
+              baseUrl,
+              url: "/api/v1/responses",
+              body: {
+                input: continuationInput,
+                model,
+                stream: true,
+                ...(store !== undefined && { store }),
+                ...(previousResponseId && { previous_response_id: previousResponseId }),
+                ...(conversation && { conversation }),
+                ...(temperature !== undefined && { temperature }),
+                ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
+                ...(apiTools && { tools: apiTools }),
+                ...(toolChoice && { tool_choice: toolChoice }),
+                ...(reasoning && { reasoning }),
+                ...(thinking && { thinking }),
+              },
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                ...headers,
+              },
+              signal: abortController.signal,
+              sseMaxRetryAttempts: 1,
+              onSseError: (error) => {
+                sseError =
+                  error instanceof Error ? error : new Error(String(error));
+              },
+            });
+
+            // Create a new accumulator for the continuation
+            const continuationAccumulator = createStreamAccumulator();
+
+            try {
+              for await (const chunk of continuationResult.stream) {
+                if (isDoneMarker(chunk)) {
+                  continue;
+                }
+
+                if (chunk && typeof chunk === "object") {
+                  const { content: contentDelta, thinking: thinkingDelta } =
+                    processStreamingChunk(
+                      chunk as StreamingChunk,
+                      continuationAccumulator
+                    );
+                  if (contentDelta) {
+                    if (onData) onData(contentDelta);
+                    if (globalOnData) globalOnData(contentDelta);
+                  }
+                  if (thinkingDelta) {
+                    if (onThinking) onThinking(thinkingDelta);
+                    if (globalOnThinking) globalOnThinking(thinkingDelta);
+                  }
+                }
+              }
+
+              console.log("[Tool Debug] Continuation stream complete - accumulated content:", continuationAccumulator.content);
+              console.log("[Tool Debug] Continuation stream complete - accumulated thinking:", continuationAccumulator.thinking);
+            } catch (streamErr) {
+              if (isAbortError(streamErr) || abortController.signal.aborted) {
+                setIsLoading(false);
+                const partialResponse = buildResponseResponse(continuationAccumulator);
+                return {
+                  data: partialResponse,
+                  error: "Request aborted",
+                };
+              }
+              throw streamErr;
+            }
+
+            if (abortController.signal.aborted) {
+              setIsLoading(false);
+              const partialResponse = buildResponseResponse(continuationAccumulator);
+              return {
+                data: partialResponse,
+                error: "Request aborted",
+              };
+            }
+
+            if (sseError) {
+              throw sseError;
+            }
+
+            // Build final response from continuation
+            const finalResponse = buildResponseResponse(continuationAccumulator);
+
+            setIsLoading(false);
+            if (onFinish) {
+              onFinish(finalResponse);
+            }
+            return {
+              data: finalResponse,
+              error: null,
+            };
+          }
+        }
+
         setIsLoading(false);
         if (onFinish) {
           onFinish(response);
@@ -385,7 +594,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall]
   );
 
   return {

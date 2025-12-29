@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BASE_URL } from "../clientConfig";
+import type { LlmapiMessage } from "../client";
 import {
   type BaseSendMessageArgs,
   type BaseSendMessageResult,
@@ -10,6 +11,7 @@ import {
   type BaseUseChatResult,
   type StreamAccumulator,
   type StreamingChunk,
+  type AccumulatedToolCall,
   createStreamAccumulator,
   validateMessages,
   validateModel,
@@ -20,6 +22,10 @@ import {
   handleError,
   parseSSEDataLine,
   messagesToInput,
+  processStreamingChunk,
+  toolsToApiFormat,
+  createToolExecutorMap,
+  executeToolCall,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -53,89 +59,20 @@ function processSSELines(
     const chunk = parseSSEDataLine(line);
     if (!chunk) continue;
 
-    // Handle response.created event - extract ID and model from response object
-    if (
-      chunk.type === "response.created" &&
-      chunk.response &&
-      typeof chunk.response === "object"
-    ) {
-      const response = chunk.response as {
-        id?: string;
-        model?: string;
-      };
-      if (response.id && !accumulator.responseId) {
-        accumulator.responseId = response.id;
-      }
-      if (response.model && !accumulator.responseModel) {
-        accumulator.responseModel = response.model;
-      }
-      continue;
+    // Use shared processing logic
+    const { content: contentDelta, thinking: thinkingDelta } = processStreamingChunk(
+      chunk,
+      accumulator
+    );
+
+    if (contentDelta) {
+      if (onData) onData(contentDelta);
+      if (globalOnData) globalOnData(contentDelta);
     }
 
-    // Handle response.completed event - extract usage from response object
-    if (
-      chunk.type === "response.completed" &&
-      chunk.response &&
-      typeof chunk.response === "object"
-    ) {
-      const response = chunk.response as {
-        usage?: { input_tokens?: number; output_tokens?: number };
-      };
-      if (response.usage) {
-        accumulator.usage = {
-          ...accumulator.usage,
-          prompt_tokens: response.usage.input_tokens,
-          completion_tokens: response.usage.output_tokens,
-          total_tokens:
-            (response.usage.input_tokens || 0) +
-            (response.usage.output_tokens || 0),
-        };
-      }
-      continue;
-    }
-
-    // Legacy: handle top-level fields
-    if (chunk.id && !accumulator.responseId) {
-      accumulator.responseId = chunk.id;
-    }
-    if (chunk.model && !accumulator.responseModel) {
-      accumulator.responseModel = chunk.model;
-    }
-    if (chunk.usage) {
-      accumulator.usage = { ...accumulator.usage, ...chunk.usage };
-    }
-
-    // Handle thinking/reasoning content deltas
-    if (
-      chunk.type === "response.reasoning.delta" ||
-      chunk.type === "response.reasoning_summary_text.delta" ||
-      chunk.type === "response.thinking.delta"
-    ) {
-      const delta = chunk.delta;
-      if (delta) {
-        const deltaText =
-          typeof delta === "string"
-            ? delta
-            : delta.OfString || delta.OfResponseReasoningSummaryDeltaEventDelta;
-        if (deltaText) {
-          accumulator.thinking += deltaText;
-          if (onThinking) onThinking(deltaText);
-          if (globalOnThinking) globalOnThinking(deltaText);
-        }
-      }
-      continue;
-    }
-
-    // Handle responses API streaming format
-    if (chunk.type === "response.output_text.delta" && chunk.delta) {
-      // Handle both string and object delta formats
-      // The API may return delta as either a string or an object with OfString property
-      const deltaText = typeof chunk.delta === "string" ? chunk.delta : chunk.delta.OfString;
-      if (deltaText) {
-        accumulator.content += deltaText;
-        if (onData) onData(deltaText);
-        if (globalOnData) globalOnData(deltaText);
-      }
+    if (thinkingDelta) {
+      if (onThinking) onThinking(thinkingDelta);
+      if (globalOnThinking) globalOnThinking(thinkingDelta);
     }
   }
 }
@@ -185,6 +122,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onThinking: globalOnThinking,
     onFinish,
     onError,
+    onToolCall,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -258,6 +196,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return createErrorResult(tokenValidation.message, onError);
         }
 
+        // Convert tools to API format (strip executors)
+        const apiTools = toolsToApiFormat(tools);
+
         // Use XMLHttpRequest for streaming in React Native
         // (fetch doesn't support response.body streaming in RN)
         const result = await new Promise<SendMessageResult>((resolve) => {
@@ -301,7 +242,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             processSSELines(lines, accumulator, onData, globalOnData, onThinking, globalOnThinking);
           };
 
-          xhr.onload = () => {
+          xhr.onload = async () => {
             abortController.signal.removeEventListener("abort", abortHandler);
 
             // Process any remaining data in the buffer
@@ -319,6 +260,204 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             if (xhr.status >= 200 && xhr.status < 300) {
               const response = buildResponseResponse(accumulator);
+
+              // Check for tool calls and handle them
+              if (accumulator.toolCalls.size > 0) {
+                console.log("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
+                const executorMap = createToolExecutorMap(tools);
+                const toolCallsToExecute: AccumulatedToolCall[] = [];
+
+                // Determine which tools to execute vs emit as events
+                for (const toolCall of accumulator.toolCalls.values()) {
+                  console.log("[Tool Debug] Processing tool call:", toolCall.name);
+                  const executorConfig = executorMap.get(toolCall.name);
+
+                  if (executorConfig && executorConfig.autoExecute) {
+                    // Will execute automatically
+                    console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+                    toolCallsToExecute.push(toolCall);
+                  } else {
+                    // Emit event for manual handling
+                    console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
+                    if (onToolCall) {
+                      onToolCall({
+                        id: toolCall.id,
+                        type: toolCall.type,
+                        function: {
+                          name: toolCall.name,
+                          arguments: toolCall.arguments,
+                        },
+                      });
+                    }
+                  }
+                }
+
+                // If we have tools to auto-execute, execute them and continue
+                if (toolCallsToExecute.length > 0) {
+                  console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+                  try {
+                    // Execute all tools in parallel
+                    const executionResults = await Promise.all(
+                      toolCallsToExecute.map(async (toolCall) => {
+                        const executorConfig = executorMap.get(toolCall.name);
+                        if (!executorConfig) {
+                          return {
+                            id: toolCall.id,
+                            error: `No executor found for tool: ${toolCall.name}`,
+                          };
+                        }
+
+                        // toolCall is already the AccumulatedToolCall from the map, use it directly
+                        const { result, error } = await executeToolCall(
+                          toolCall,
+                          executorConfig.executor
+                        );
+
+                        console.log("[Tool Debug] Tool execution result for", toolCall.name, ":", { result, error });
+
+                        return {
+                          id: toolCall.id,
+                          name: toolCall.name,
+                          result,
+                          error,
+                        };
+                      })
+                    );
+
+                    console.log("[Tool Debug] All tools executed, results:", executionResults.length);
+
+                    // Build tool result messages
+                    const toolResultMessages: LlmapiMessage[] = [];
+
+                    // Add the assistant's message with tool calls
+                    toolResultMessages.push({
+                      role: "assistant",
+                      content: [{ type: "text", text: accumulator.content }],
+                      tool_calls: toolCallsToExecute.map((tc) => ({
+                        id: tc.id,
+                        type: "function",
+                        function: {
+                          name: tc.name,
+                          arguments: tc.arguments,
+                        },
+                      })),
+                    });
+
+                    // Add tool result messages
+                    for (const execResult of executionResults) {
+                      const resultContent = execResult.error
+                        ? `Error: ${execResult.error}`
+                        : JSON.stringify(execResult.result);
+
+                      toolResultMessages.push({
+                        role: "tool",
+                        content: [{ type: "text", text: resultContent }],
+                        tool_call_id: execResult.id,
+                      } as LlmapiMessage);
+                    }
+
+                    // Continue with tool results - make recursive call
+                    const continuationMessages = [...messages, ...toolResultMessages];
+
+                    // Make continuation request
+                    const continuationResult = await new Promise<SendMessageResult>((continueResolve) => {
+                      const continuationXhr = new XMLHttpRequest();
+                      const continuationAccumulator = createStreamAccumulator();
+                      let contLastProcessedIndex = 0;
+                      let contIncompleteLineBuffer = "";
+
+                      const contAbortHandler = () => {
+                        continuationXhr.abort();
+                      };
+                      abortController.signal.addEventListener("abort", contAbortHandler);
+
+                      continuationXhr.open("POST", url, true);
+                      continuationXhr.setRequestHeader("Content-Type", "application/json");
+                      continuationXhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                      continuationXhr.setRequestHeader("Accept", "text/event-stream");
+
+                      continuationXhr.onprogress = () => {
+                        const newData = continuationXhr.responseText.substring(contLastProcessedIndex);
+                        contLastProcessedIndex = continuationXhr.responseText.length;
+
+                        const dataToProcess = contIncompleteLineBuffer + newData;
+                        contIncompleteLineBuffer = "";
+
+                        const lines = dataToProcess.split("\n");
+                        if (!newData.endsWith("\n") && lines.length > 0) {
+                          contIncompleteLineBuffer = lines.pop() || "";
+                        }
+
+                        processSSELines(lines, continuationAccumulator, onData, globalOnData, onThinking, globalOnThinking);
+                      };
+
+                      continuationXhr.onload = () => {
+                        abortController.signal.removeEventListener("abort", contAbortHandler);
+
+                        if (contIncompleteLineBuffer) {
+                          processSSELines(
+                            [contIncompleteLineBuffer.trim()],
+                            continuationAccumulator,
+                            onData,
+                            globalOnData,
+                            onThinking,
+                            globalOnThinking
+                          );
+                        }
+
+                        if (continuationXhr.status >= 200 && continuationXhr.status < 300) {
+                          const finalResponse = buildResponseResponse(continuationAccumulator);
+                          continueResolve({ data: finalResponse, error: null });
+                        } else {
+                          const errorMsg = `Continuation request failed with status ${continuationXhr.status}`;
+                          continueResolve({ data: null, error: errorMsg });
+                        }
+                      };
+
+                      continuationXhr.onerror = () => {
+                        abortController.signal.removeEventListener("abort", contAbortHandler);
+                        continueResolve({ data: null, error: "Network error in continuation" });
+                      };
+
+                      continuationXhr.onabort = () => {
+                        abortController.signal.removeEventListener("abort", contAbortHandler);
+                        continueResolve({ data: null, error: "Request aborted" });
+                      };
+
+                      continuationXhr.send(
+                        JSON.stringify({
+                          input: messagesToInput(continuationMessages),
+                          model,
+                          stream: true,
+                          ...(store !== undefined && { store }),
+                          ...(previousResponseId && { previous_response_id: previousResponseId }),
+                          ...(conversation && { conversation }),
+                          ...(temperature !== undefined && { temperature }),
+                          ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
+                          ...(apiTools && { tools: apiTools }),
+                          ...(toolChoice && { tool_choice: toolChoice }),
+                          ...(reasoning && { reasoning }),
+                          ...(thinking && { thinking }),
+                        })
+                      );
+                    });
+
+                    setIsLoading(false);
+                    if (continuationResult.data && onFinish) {
+                      onFinish(continuationResult.data);
+                    }
+                    resolve(continuationResult);
+                    return;
+                  } catch (toolError) {
+                    const errorMsg = `Tool execution error: ${toolError instanceof Error ? toolError.message : String(toolError)}`;
+                    setIsLoading(false);
+                    if (onError) onError(new Error(errorMsg));
+                    resolve({ data: null, error: errorMsg });
+                    return;
+                  }
+                }
+              }
+
               setIsLoading(false);
               if (onFinish) onFinish(response);
               resolve({ data: response, error: null });
@@ -355,7 +494,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               ...(conversation && { conversation }),
               ...(temperature !== undefined && { temperature }),
               ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-              ...(tools && { tools }),
+              ...(apiTools && { tools: apiTools }),
               ...(toolChoice && { tool_choice: toolChoice }),
               ...(reasoning && { reasoning }),
               ...(thinking && { thinking }),
@@ -373,7 +512,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall]
   );
 
   return {
