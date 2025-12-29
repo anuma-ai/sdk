@@ -638,7 +638,7 @@ export function useMemoryStorage(
         return [];
       }
     },
-    [embeddingModel, embeddingOptions, storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [embeddingModel, embeddingOptions, storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
@@ -676,7 +676,7 @@ export function useMemoryStorage(
           (error instanceof Error ? error.message : String(error))
       );
     }
-  }, [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady]);
+  }, [storageCtx, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]);
 
   /**
    * Get memories by namespace
@@ -890,7 +890,7 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
@@ -1127,7 +1127,7 @@ export function useMemoryStorage(
 
       return updated;
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady]
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, isEncryptionEnabled, walletAddress, ensureEncryptionReady, getSignMessageForMigration]
   );
 
   /**
