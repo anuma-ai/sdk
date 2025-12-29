@@ -477,6 +477,106 @@ describe("useEncryption - Key Pair Generation", () => {
   });
 
   describe("Error Handling", () => {
+    it("should retry on 429 rate limit errors with exponential backoff", async () => {
+      vi.useFakeTimers();
+      const address = "0x1234567890123456789012345678901234567890";
+      let attemptCount = 0;
+      const maxAttempts = 3;
+
+      // Mock signMessage to throw 429 errors, then succeed
+      const rateLimitedSignMessage: SignMessageFn = vi.fn(async (message: string) => {
+        attemptCount++;
+        if (attemptCount <= maxAttempts) {
+          const error = new Error("Rate limit exceeded") as Error & { status?: number };
+          error.status = 429;
+          throw error;
+        }
+        return createMockSignature(message);
+      });
+
+      // Start the request
+      const requestPromise = requestKeyPair(address, rateLimitedSignMessage);
+
+      // Fast-forward through retries (1s, 2s, 4s delays)
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      await vi.advanceTimersByTimeAsync(2000); // Second retry delay
+      await vi.advanceTimersByTimeAsync(4000); // Third retry delay
+
+      // Await the request within act
+      await act(async () => {
+        await requestPromise;
+      });
+
+      // Should have retried (attemptCount should be maxAttempts + 1)
+      expect(attemptCount).toBe(maxAttempts + 1);
+      
+      // Should have been called multiple times
+      expect(rateLimitedSignMessage).toHaveBeenCalledTimes(maxAttempts + 1);
+      
+      // Key pair should be created successfully after retries
+      expect(hasKeyPair(address)).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it("should not retry non-429 errors", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+      let attemptCount = 0;
+
+      // Mock signMessage to throw a non-429 error
+      const errorSignMessage: SignMessageFn = vi.fn(async (message: string) => {
+        attemptCount++;
+        throw new Error("Network error");
+      });
+
+      await act(async () => {
+        await expect(
+          requestKeyPair(address, errorSignMessage)
+        ).rejects.toThrow("Network error");
+      });
+
+      // Should only be called once (no retries for non-429 errors)
+      expect(attemptCount).toBe(1);
+      expect(errorSignMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it("should throw after max retries on persistent 429 errors", async () => {
+      vi.useFakeTimers();
+      const address = "0x1234567890123456789012345678901234567890";
+      let attemptCount = 0;
+
+      // Mock signMessage to always throw 429
+      const persistentRateLimitedSignMessage: SignMessageFn = vi.fn(async (message: string) => {
+        attemptCount++;
+        const error = new Error("Rate limit exceeded") as Error & { status?: number };
+        error.status = 429;
+        throw error;
+      });
+
+      // Start the request and immediately attach error handler to prevent unhandled rejection
+      const requestPromise = requestKeyPair(address, persistentRateLimitedSignMessage);
+      requestPromise.catch(() => {
+        // Silently catch to prevent unhandled rejection warning
+        // We'll verify the error in the test
+      });
+
+      // Fast-forward through all retries (1s, 2s, 4s delays)
+      await vi.advanceTimersByTimeAsync(1000); // First retry delay
+      await vi.advanceTimersByTimeAsync(2000); // Second retry delay
+      await vi.advanceTimersByTimeAsync(4000); // Third retry delay
+
+      // Await the rejection within act - the promise should reject
+      await act(async () => {
+        await expect(requestPromise).rejects.toThrow(/Rate limit exceeded.*after.*attempts/);
+      });
+
+      // Should have retried maxRetries + 1 times (default is 3 retries = 4 total attempts)
+      expect(attemptCount).toBe(4);
+      expect(persistentRateLimitedSignMessage).toHaveBeenCalledTimes(4);
+
+      vi.useRealTimers();
+    });
+
     it("should handle Web Crypto API errors gracefully", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 
