@@ -9,6 +9,7 @@ import type { SignMessageFn } from "../../../react/useEncryption";
 import {
   migrateEncryptedValue,
   hasMigrationCompleted,
+  markMigrationCompleted,
   isOldEncryption,
 } from "../migration";
 
@@ -145,6 +146,9 @@ export async function decryptField(
         if (onMigrated) {
           await onMigrated(migratedValue);
         }
+        
+        // Mark migration as completed to prevent repeated attempts
+        markMigrationCompleted(address);
         
         // Decrypt the newly migrated value
         const encryptedPayload = migratedValue.slice(ENCRYPTION_PREFIX_V2.length);

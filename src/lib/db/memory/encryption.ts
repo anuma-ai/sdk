@@ -148,6 +148,9 @@ export async function decryptField(
           await onMigrated(migratedValue);
         }
         
+        // Mark migration as completed to prevent repeated attempts
+        markMigrationCompleted(address);
+        
         // Decrypt the newly migrated value
         const encryptedPayload = migratedValue.slice(ENCRYPTION_PREFIX_V2.length);
         return await decryptData(encryptedPayload, address);
