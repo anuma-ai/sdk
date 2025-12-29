@@ -19,6 +19,7 @@ export interface StoredTokenData {
 
 const STORAGE_KEY_PREFIX = "oauth_token_";
 const ENCRYPTION_PREFIX = "enc:";
+const SESSION_KEY_STORAGE_KEY = "oauth_session_encryption_key";
 
 /**
  * Get the storage key for a provider
@@ -32,6 +33,174 @@ function getStorageKey(provider: OAuthProvider): string {
  */
 function isEncrypted(value: string): boolean {
   return value.startsWith(ENCRYPTION_PREFIX);
+}
+
+/**
+ * Generate or retrieve a session-based temporary encryption key
+ * This key is stored in sessionStorage and used to encrypt tokens when wallet address is not available
+ */
+async function getOrCreateSessionKey(): Promise<string> {
+  if (typeof window === "undefined") {
+    throw new Error("Session key generation requires browser environment");
+  }
+
+  // Check if session key already exists in sessionStorage
+  let sessionKey = sessionStorage.getItem(SESSION_KEY_STORAGE_KEY);
+  
+  if (sessionKey) {
+    return sessionKey;
+  }
+
+  // Generate a new random 32-byte key
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  sessionKey = Array.from(keyBytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Store in sessionStorage (cleared when tab closes)
+  sessionStorage.setItem(SESSION_KEY_STORAGE_KEY, sessionKey);
+  
+  return sessionKey;
+}
+
+/**
+ * Encrypt data using a session-based temporary key
+ */
+async function encryptWithSessionKey(plaintext: string): Promise<string> {
+  const sessionKeyHex = await getOrCreateSessionKey();
+  const keyBytes = hexToBytes(sessionKeyHex);
+  
+  // Import key for AES-GCM
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes.buffer as ArrayBuffer,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+
+  // Generate IV
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  // Encrypt
+  const plaintextBytes = new TextEncoder().encode(plaintext);
+  const encryptedData = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    plaintextBytes.buffer as ArrayBuffer
+  );
+
+  // Combine IV + encrypted data
+  const encryptedBytes = new Uint8Array(encryptedData);
+  const combined = new Uint8Array(iv.length + encryptedBytes.length);
+  combined.set(iv, 0);
+  combined.set(encryptedBytes, iv.length);
+
+  // Return as hex string
+  return Array.from(combined)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Decrypt data using a session-based temporary key
+ */
+async function decryptWithSessionKey(encryptedHex: string): Promise<string> {
+  const sessionKeyHex = sessionStorage.getItem(SESSION_KEY_STORAGE_KEY);
+  if (!sessionKeyHex) {
+    throw new Error("Session key not found");
+  }
+
+  const keyBytes = hexToBytes(sessionKeyHex);
+  
+  // Import key
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes.buffer as ArrayBuffer,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"]
+  );
+
+  // Extract IV and encrypted data
+  const combined = hexToBytes(encryptedHex);
+  const iv = combined.slice(0, 12);
+  const encryptedData = combined.slice(12);
+
+  // Decrypt
+  const decryptedData = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    encryptedData
+  );
+
+  return new TextDecoder().decode(decryptedData);
+}
+
+/**
+ * Helper to convert hex string to bytes
+ */
+function hexToBytes(hex: string): Uint8Array {
+  const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const bytes = new Uint8Array(cleanHex.length / 2);
+  for (let i = 0; i < cleanHex.length; i += 2) {
+    bytes[i / 2] = parseInt(cleanHex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+/**
+ * Re-encrypt unencrypted or session-encrypted tokens for all providers when wallet address becomes available
+ * @param walletAddress - Wallet address for encryption
+ */
+export async function reEncryptUnencryptedTokens(
+  walletAddress: string
+): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (!hasEncryptionKey(walletAddress)) return;
+
+  const providers: OAuthProvider[] = ["google-drive", "dropbox"];
+  
+  for (const provider of providers) {
+    try {
+      const stored = localStorage.getItem(getStorageKey(provider));
+      if (!stored) continue;
+
+      // Re-encrypt if:
+      // 1. Not encrypted (plaintext - backward compatibility)
+      // 2. Encrypted with session key (upgrade to wallet encryption)
+      if (!isEncrypted(stored)) {
+        // Plaintext token - re-encrypt with wallet key
+        try {
+          const data = JSON.parse(stored) as StoredTokenData;
+          if (data.accessToken) {
+            await storeTokenData(provider, data, walletAddress);
+          }
+        } catch {
+          // Invalid data - skip
+          continue;
+        }
+      } else {
+        // Encrypted - check if it's session-encrypted (try to decrypt with session key)
+        const encryptedPayload = stored.slice(ENCRYPTION_PREFIX.length);
+        try {
+          // Try to decrypt with session key
+          const decrypted = await decryptWithSessionKey(encryptedPayload);
+          const data = JSON.parse(decrypted) as StoredTokenData;
+          if (data.accessToken) {
+            // Re-encrypt with wallet key
+            await storeTokenData(provider, data, walletAddress);
+          }
+        } catch {
+          // Not session-encrypted or already wallet-encrypted - skip
+          continue;
+        }
+      }
+    } catch {
+      // Error re-encrypting - continue with other providers
+      continue;
+    }
+  }
 }
 
 /**
@@ -52,27 +221,72 @@ export async function getStoredTokenData(
 
     // Check if stored value is encrypted
     if (isEncrypted(stored)) {
-      // Try to decrypt if wallet address is provided
+      const encryptedPayload = stored.slice(ENCRYPTION_PREFIX.length);
+      
+      // Try to decrypt with wallet key if available
       if (walletAddress && hasEncryptionKey(walletAddress)) {
         try {
-          const encryptedPayload = stored.slice(ENCRYPTION_PREFIX.length);
           const decrypted = await decryptData(encryptedPayload, walletAddress);
           const data = JSON.parse(decrypted) as StoredTokenData;
           if (!data.accessToken) return null;
           return data;
         } catch {
-          // Decryption failed - return null
-          return null;
+          // Wallet decryption failed - might be session-encrypted, try that next
         }
-      } else {
-        // Encrypted but no wallet address or key - cannot decrypt
+      }
+      
+      // Try to decrypt with session key (for tokens encrypted without wallet address)
+      try {
+        const decrypted = await decryptWithSessionKey(encryptedPayload);
+        const data = JSON.parse(decrypted) as StoredTokenData;
+        if (!data.accessToken) return null;
+        
+        // If wallet address is available, re-encrypt with wallet key
+        if (walletAddress && hasEncryptionKey(walletAddress)) {
+          try {
+            await storeTokenData(provider, data, walletAddress);
+          } catch {
+            // Re-encryption failed - still return data but log error
+            // eslint-disable-next-line no-console
+            console.error(`Failed to re-encrypt OAuth token for ${provider}`);
+          }
+        }
+        
+        return data;
+      } catch {
+        // Both decryption methods failed
         return null;
       }
     } else {
-      // Not encrypted - parse directly (backward compatibility)
-      const data = JSON.parse(stored) as StoredTokenData;
-      if (!data.accessToken) return null;
-      return data;
+      // Not encrypted - parse directly (backward compatibility for old unencrypted tokens)
+      try {
+        const data = JSON.parse(stored) as StoredTokenData;
+        if (!data.accessToken) return null;
+        
+        // If wallet address is available, automatically re-encrypt
+        if (walletAddress && hasEncryptionKey(walletAddress)) {
+          try {
+            await storeTokenData(provider, data, walletAddress);
+          } catch {
+            // Re-encryption failed - still return data but log error
+            // eslint-disable-next-line no-console
+            console.error(`Failed to re-encrypt OAuth token for ${provider}`);
+          }
+        } else {
+          // No wallet address - encrypt with session key to prevent XSS
+          try {
+            await storeTokenData(provider, data);
+          } catch {
+            // Encryption failed - still return data but log error
+            // eslint-disable-next-line no-console
+            console.error(`Failed to encrypt OAuth token for ${provider}`);
+          }
+        }
+        
+        return data;
+      } catch {
+        return null;
+      }
     }
   } catch {
     return null;
@@ -133,8 +347,32 @@ export async function storeTokenData(
     }
   }
 
-  // Store unencrypted (backward compatibility or encryption not available)
-  localStorage.setItem(getStorageKey(provider), jsonData);
+  // If wallet address not available, encrypt with session key to prevent XSS attacks
+  // Session key is stored in sessionStorage and cleared when tab closes
+  // This ensures tokens are always encrypted, even when wallet address is not available
+  try {
+    const encrypted = await encryptWithSessionKey(jsonData);
+    localStorage.setItem(getStorageKey(provider), `${ENCRYPTION_PREFIX}${encrypted}`);
+  } catch (error) {
+    // If session encryption fails, check if sessionStorage is truly unavailable
+    // (not just an encryption error). If sessionStorage is unavailable, allow
+    // unencrypted storage which will be re-encrypted when wallet address becomes available.
+    // This handles edge cases in test environments where sessionStorage might not work properly.
+    const sessionStorageAvailable = typeof window !== "undefined" && 
+      typeof window.sessionStorage !== "undefined" &&
+      typeof window.sessionStorage.getItem === "function" &&
+      typeof window.sessionStorage.setItem === "function";
+    
+    if (!sessionStorageAvailable) {
+      // SessionStorage truly unavailable - store unencrypted (will be re-encrypted later)
+      localStorage.setItem(getStorageKey(provider), jsonData);
+    } else {
+      // SessionStorage available but encryption failed - this is an error
+      const message =
+        error instanceof Error ? error.message : "Unknown encryption error";
+      throw new Error(`OAuth token encryption failed: ${message}`);
+    }
+  }
 }
 
 /**

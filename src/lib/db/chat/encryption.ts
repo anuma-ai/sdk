@@ -147,11 +147,13 @@ export async function decryptField(
         const encryptedPayload = migratedValue.slice(ENCRYPTION_PREFIX_V2.length);
         return await decryptData(encryptedPayload, address);
       } catch (migrationError) {
-        // Migration failed - try to decrypt with current key as fallback
-        // (same key derivation, so this should work)
-        if (process.env.NODE_ENV === "development") {
-          console.warn("Migration failed, attempting decryption with current key:", migrationError);
-        }
+        // Migration failed - log error for monitoring (all environments)
+        const errorMessage = migrationError instanceof Error ? migrationError.message : "Unknown migration error";
+        // eslint-disable-next-line no-console
+        console.warn("Migration failed, attempting decryption with current key:", {
+          error: errorMessage,
+          address,
+        });
         // Fall through to normal decryption (which handles old prefixes)
         // This ensures old data can still be decrypted even if migration fails
       }
@@ -173,17 +175,18 @@ export async function decryptField(
 
     return await decryptData(encryptedPayload, address);
   } catch (error) {
-    // Log error details in development for debugging
-    if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console
-      console.warn("Decryption failed for field:", {
-        address,
-        valueLength: value.length,
-        error: error instanceof Error ? error.message : error,
-      });
-    }
-    // Return placeholder so UI can render a friendly message instead of gibberish
-    return DECRYPTION_FAILED_PLACEHOLDER;
+    // Log error details for security monitoring (all environments)
+    const errorMessage = error instanceof Error ? error.message : "Unknown decryption error";
+    // eslint-disable-next-line no-console
+    console.error("Decryption failed for field:", {
+      address,
+      valueLength: value.length,
+      error: errorMessage,
+    });
+    
+    // Throw error instead of returning placeholder to enable proper error handling
+    // and security monitoring. UI components should catch and handle these errors.
+    throw new Error(`Decryption failed: ${errorMessage}`);
   }
 }
 

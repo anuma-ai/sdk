@@ -167,20 +167,58 @@ export async function handleGoogleDriveCallback(
       throw new Error("No access token in response");
     }
 
-    // Store tokens (without encryption for now - wallet address not available in OAuth callback)
+    // Store tokens (encrypted with session key if wallet address not available)
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token,
       response.data.scope
     );
-    await storeTokenData(PROVIDER, tokenData);
+    
+    try {
+      await storeTokenData(PROVIDER, tokenData);
+    } catch (error) {
+      // Encryption failure - log error explicitly
+      const errorMessage = error instanceof Error ? error.message : "Unknown encryption error";
+      // eslint-disable-next-line no-console
+      console.error("OAuth token encryption failed in Google Drive callback:", errorMessage);
+      // eslint-disable-next-line no-console
+      console.warn("OAuth token encryption failed - tokens not stored securely");
+      // Return null to indicate failure, but error is logged for monitoring
+      // This allows the caller to handle the failure appropriately
+      return null;
+    }
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
     return response.data.access_token;
-  } catch {
+  } catch (error) {
+    // Log error details for debugging and security monitoring
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorName = error instanceof Error ? error.name : "Error";
+    
+    // eslint-disable-next-line no-console
+    console.error(`Google Drive OAuth callback error: ${errorName}: ${errorMessage}`);
+    // eslint-disable-next-line no-console
+    console.error("Error details:", {
+      name: errorName,
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    
+    // eslint-disable-next-line no-console
+    console.warn(`Google Drive OAuth callback failed: ${errorMessage}`);
+    
+    // Distinguish encryption failures from other errors
+    if (errorMessage.includes("encryption failed") || errorMessage.includes("OAuth token encryption")) {
+      // eslint-disable-next-line no-console
+      console.warn("OAuth callback failed due to encryption error - this is a security issue");
+      // Re-throw encryption failures
+      throw error;
+    }
+    
+    // For other errors, return null but preserve error details in logs
     return null;
   }
 }

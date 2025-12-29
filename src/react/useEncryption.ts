@@ -1,5 +1,7 @@
 "use client";
 
+import { isValidWalletAddress } from "../lib/validation";
+
 const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.";
 
@@ -307,12 +309,18 @@ async function getEncryptionKey(address: string): Promise<CryptoKey> {
 /**
  * Encrypts data using AES-GCM with the stored encryption key
  * @param plaintext - The data to encrypt (string or Uint8Array)
+ * @param address - The wallet address for encryption
  * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
  */
 export async function encryptData(
   plaintext: string | Uint8Array,
   address: string
 ): Promise<string> {
+  // Validate wallet address before encryption
+  if (!isValidWalletAddress(address)) {
+    throw new Error(`Invalid wallet address: ${address}. Wallet address must be a valid Ethereum address (0x followed by 40 hex characters).`);
+  }
+
   const key = await getEncryptionKey(address);
 
   // Convert plaintext to Uint8Array if it's a string
@@ -347,12 +355,18 @@ export async function encryptData(
 /**
  * Decrypts data using AES-GCM with the stored encryption key
  * @param encryptedHex - Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @param address - The wallet address for decryption
  * @returns Decrypted data as string
  */
 export async function decryptData(
   encryptedHex: string,
   address: string
 ): Promise<string> {
+  // Validate wallet address before decryption
+  if (!isValidWalletAddress(address)) {
+    throw new Error(`Invalid wallet address: ${address}. Wallet address must be a valid Ethereum address (0x followed by 40 hex characters).`);
+  }
+
   const key = await getEncryptionKey(address);
 
   // Convert hex to bytes
@@ -514,9 +528,21 @@ export async function requestEncryptionKey(
   walletAddress: string,
   signMessage: SignMessageFn
 ): Promise<void> {
+  // Validate wallet address before use
+  if (!isValidWalletAddress(walletAddress)) {
+    throw new Error(`Invalid wallet address: ${walletAddress}. Wallet address must be a valid Ethereum address (0x followed by 40 hex characters).`);
+  }
+
   // Check if key already exists in memory
   const existingKey = getStoredKey(walletAddress);
   if (existingKey) {
+      // Key exists - re-encrypt any unencrypted OAuth tokens
+      try {
+        const { reEncryptUnencryptedTokens } = await import("../lib/backup/oauth/storage");
+        await reEncryptUnencryptedTokens(walletAddress);
+      } catch {
+        // Ignore errors in re-encryption (non-critical)
+      }
     return; // Key already exists in memory, no need to sign again
   }
 
@@ -528,6 +554,14 @@ export async function requestEncryptionKey(
 
   // Store the derived key in memory
   setStoredKey(walletAddress, encryptionKey);
+
+  // Re-encrypt any unencrypted OAuth tokens now that key is available
+  try {
+    const { reEncryptUnencryptedTokens } = await import("../lib/backup/oauth/storage");
+    await reEncryptUnencryptedTokens(walletAddress);
+  } catch {
+    // Ignore errors in re-encryption (non-critical)
+  }
 }
 
 /**

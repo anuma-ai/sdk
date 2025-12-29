@@ -240,35 +240,68 @@ export function useMemoryStorage(
     [isEncryptionEnabled, storageCtx]
   );
 
-  const encryptionInProgressRef = useRef(false);
+  // Promise-based lock to prevent race conditions in auto-encryption
+  const encryptionLockRef = useRef<Promise<void> | null>(null);
   const autoEncryptionRunRef = useRef(false);
 
   // Auto-encrypt unencrypted memories when key becomes ready
   useEffect(() => {
     if (!isEncryptionEnabled || !walletAddress) {
       autoEncryptionRunRef.current = false;
+      encryptionLockRef.current = null;
       return;
     }
 
-    if (autoEncryptionRunRef.current || encryptionInProgressRef.current) {
-      return;
-    }
-
-    ensureEncryptionReady().then((address) => {
-      if (address && !encryptionInProgressRef.current) {
-        autoEncryptionRunRef.current = true;
-        encryptionInProgressRef.current = true;
-        encryptUnencryptedMemories(address)
-          .catch((err) => {
-            if (process.env.NODE_ENV === "development") {
-              console.error("Failed to automatically encrypt memories:", err);
+    // If encryption is already in progress, wait for it to complete
+    if (encryptionLockRef.current) {
+      encryptionLockRef.current.then(() => {
+        // After lock is released, check if we still need to encrypt
+        if (isEncryptionEnabled && walletAddress && !autoEncryptionRunRef.current) {
+          // Re-trigger encryption check
+          ensureEncryptionReady().then((address) => {
+            if (address) {
+              autoEncryptionRunRef.current = true;
+              const encryptionPromise = encryptUnencryptedMemories(address)
+                .catch((err) => {
+                  if (process.env.NODE_ENV === "development") {
+                    console.error("Failed to automatically encrypt memories:", err);
+                  }
+                })
+                .finally(() => {
+                  encryptionLockRef.current = null;
+                });
+              encryptionLockRef.current = encryptionPromise;
             }
-          })
-          .finally(() => {
-            encryptionInProgressRef.current = false;
           });
-      }
-    });
+        }
+      });
+      return;
+    }
+
+    // If auto-encryption already ran, don't run again
+    if (autoEncryptionRunRef.current) {
+      return;
+    }
+
+    // Acquire lock atomically by creating a promise
+    autoEncryptionRunRef.current = true;
+    const encryptionPromise = ensureEncryptionReady()
+      .then((address) => {
+        if (address) {
+          return encryptUnencryptedMemories(address);
+        }
+      })
+      .catch((err) => {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to automatically encrypt memories:", err);
+        }
+      })
+      .finally(() => {
+        encryptionLockRef.current = null;
+      });
+    
+    // Set lock immediately to prevent concurrent execution
+    encryptionLockRef.current = encryptionPromise;
   }, [isEncryptionEnabled, walletAddress, ensureEncryptionReady, encryptUnencryptedMemories]);
 
   /**
@@ -525,19 +558,20 @@ export function useMemoryStorage(
             await refreshMemories();
 
             // Encrypt unencrypted memories in background if encryption is enabled
-            if (isEncryptionEnabled && walletAddress && !encryptionInProgressRef.current) {
+            // Use lock to prevent concurrent encryption
+            if (isEncryptionEnabled && walletAddress && !encryptionLockRef.current) {
               const address = await ensureEncryptionReady();
               if (address) {
-                encryptionInProgressRef.current = true;
-                encryptUnencryptedMemories(address)
+                const encryptionPromise = encryptUnencryptedMemories(address)
                   .catch((err) => {
                     if (process.env.NODE_ENV === "development") {
                       console.error("Failed to encrypt memories:", err);
                     }
                   })
                   .finally(() => {
-                    encryptionInProgressRef.current = false;
+                    encryptionLockRef.current = null;
                   });
+                encryptionLockRef.current = encryptionPromise;
               }
             }
           } catch (error) {
@@ -1006,41 +1040,51 @@ export function useMemoryStorage(
       updates: UpdateMemoryOptions
     ): Promise<StoredMemory | null> => {
       // Encrypt updates before saving if encryption is enabled
+      // Encrypt all fields atomically - either all succeed or all fail
       let updatesToSave = updates;
       if (isEncryptionEnabled && walletAddress) {
         const address = await ensureEncryptionReady();
         if (address) {
-          // Only encrypt fields that are being updated
-          const encryptedUpdates: UpdateMemoryOptions = { ...updates };
-          if (updates.value !== undefined) {
-            const encrypted = await encryptMemoryFields(
-              { value: updates.value } as MemoryData,
-              address
+          try {
+            // Collect all fields that need encryption
+            const fieldsToEncrypt: MemoryData = {};
+            if (updates.value !== undefined) {
+              fieldsToEncrypt.value = updates.value;
+            }
+            if (updates.rawEvidence !== undefined) {
+              fieldsToEncrypt.rawEvidence = updates.rawEvidence;
+            }
+            if (updates.key !== undefined) {
+              fieldsToEncrypt.key = updates.key;
+            }
+            if (updates.namespace !== undefined) {
+              fieldsToEncrypt.namespace = updates.namespace;
+            }
+
+            // Encrypt all fields atomically
+            const encrypted = await encryptMemoryFields(fieldsToEncrypt, address);
+            
+            // Build encrypted updates object
+            const encryptedUpdates: UpdateMemoryOptions = { ...updates };
+            if (updates.value !== undefined) {
+              encryptedUpdates.value = encrypted.value;
+            }
+            if (updates.rawEvidence !== undefined) {
+              encryptedUpdates.rawEvidence = encrypted.rawEvidence;
+            }
+            if (updates.key !== undefined) {
+              encryptedUpdates.key = encrypted.key;
+            }
+            if (updates.namespace !== undefined) {
+              encryptedUpdates.namespace = encrypted.namespace;
+            }
+            updatesToSave = encryptedUpdates;
+          } catch (error) {
+            // If any encryption fails, throw error to prevent partial encryption
+            throw new Error(
+              `Failed to encrypt memory fields: ${error instanceof Error ? error.message : "Unknown error"}`
             );
-            encryptedUpdates.value = encrypted.value;
           }
-          if (updates.rawEvidence !== undefined) {
-            const encrypted = await encryptMemoryFields(
-              { rawEvidence: updates.rawEvidence } as MemoryData,
-              address
-            );
-            encryptedUpdates.rawEvidence = encrypted.rawEvidence;
-          }
-          if (updates.key !== undefined) {
-            const encrypted = await encryptMemoryFields(
-              { key: updates.key } as MemoryData,
-              address
-            );
-            encryptedUpdates.key = encrypted.key;
-          }
-          if (updates.namespace !== undefined) {
-            const encrypted = await encryptMemoryFields(
-              { namespace: updates.namespace } as MemoryData,
-              address
-            );
-            encryptedUpdates.namespace = encrypted.namespace;
-          }
-          updatesToSave = encryptedUpdates;
         }
       }
 

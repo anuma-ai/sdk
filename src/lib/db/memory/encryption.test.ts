@@ -108,12 +108,12 @@ describe("Memory Encryption", () => {
       expect(decrypted).toBe(plaintext);
     });
 
-    it("should return placeholder on decryption failure", async () => {
+    it("should throw error on decryption failure", async () => {
       // Use a properly formatted but invalid encrypted value
       const invalidEncrypted = "enc:v2:" + "a".repeat(100);
       
-      const decrypted = await decryptField(invalidEncrypted, TEST_ADDRESS);
-      expect(decrypted).toBe("[Decryption Failed]");
+      // Should throw error instead of returning placeholder for security
+      await expect(decryptField(invalidEncrypted, TEST_ADDRESS)).rejects.toThrow();
     });
   });
 
