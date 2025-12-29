@@ -2,7 +2,7 @@
 
 > **useEncryption**(`signMessage`): `object`
 
-Defined in: [src/react/useEncryption.ts:261](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L261)
+Defined in: [src/react/useEncryption.ts:549](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L549)
 
 Hook that provides on-demand encryption key management.
 
@@ -18,11 +18,67 @@ Function to sign a message (from Privy's useSignMessage)
 
 `object`
 
-Functions to request encryption keys
+Functions to request encryption keys and manage key pairs
+
+### clearKeyPair()
+
+> **clearKeyPair**: (`walletAddress`) => `void`
+
+#### Parameters
+
+##### walletAddress
+
+`string`
+
+#### Returns
+
+`void`
+
+### exportPublicKey()
+
+> **exportPublicKey**: (`walletAddress`) => `Promise`\<`string`\>
+
+#### Parameters
+
+##### walletAddress
+
+`string`
+
+#### Returns
+
+`Promise`\<`string`\>
+
+### hasKeyPair()
+
+> **hasKeyPair**: (`walletAddress`) => `boolean`
+
+#### Parameters
+
+##### walletAddress
+
+`string`
+
+#### Returns
+
+`boolean`
 
 ### requestEncryptionKey()
 
 > **requestEncryptionKey**: (`walletAddress`) => `Promise`\<`void`\>
+
+#### Parameters
+
+##### walletAddress
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+### requestKeyPair()
+
+> **requestKeyPair**: (`walletAddress`) => `Promise`\<`void`\>
 
 #### Parameters
 
