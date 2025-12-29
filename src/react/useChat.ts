@@ -396,6 +396,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // If we have tools to auto-execute, execute them and continue
           if (toolCallsToExecute.length > 0) {
             console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+
+            // Output tool execution info to thinking section
+            if (onThinking || globalOnThinking) {
+              const toolInfo = toolCallsToExecute.map(tc => {
+                try {
+                  const args = JSON.parse(tc.arguments);
+                  const argsStr = Object.entries(args).map(([k, v]) => `${k}=${v}`).join(', ');
+                  return `${tc.name}(${argsStr})`;
+                } catch {
+                  return `${tc.name}(${tc.arguments})`;
+                }
+              }).join(', ');
+              const thinkingText = `\nExecuting tool: ${toolInfo}\n`;
+              if (onThinking) onThinking(thinkingText);
+              if (globalOnThinking) globalOnThinking(thinkingText);
+            }
+
             // Execute all tools in parallel
             const executionResults = await Promise.all(
               toolCallsToExecute.map(async (toolCall) => {
@@ -425,6 +442,22 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             );
 
             console.log("[Tool Debug] All tools executed, results:", executionResults.length);
+
+            // Output tool execution results to thinking section
+            if (onThinking || globalOnThinking) {
+              const resultsText = executionResults.map(r => {
+                if (r.error) {
+                  return `${r.name}: Error - ${r.error}`;
+                }
+                const resultStr = typeof r.result === 'object'
+                  ? JSON.stringify(r.result)
+                  : String(r.result);
+                return `${r.name}: ${resultStr}`;
+              }).join('\n');
+              const thinkingText = `${resultsText}\n`;
+              if (onThinking) onThinking(thinkingText);
+              if (globalOnThinking) globalOnThinking(thinkingText);
+            }
 
             // Build tool result messages to send back to the model
             const toolResultMessages: LlmapiMessage[] = [];
