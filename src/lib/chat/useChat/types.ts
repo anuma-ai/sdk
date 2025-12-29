@@ -1,30 +1,86 @@
 import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionUsage,
   LlmapiMessage,
+  LlmapiResponseReasoning,
+  LlmapiResponseResponse,
+  LlmapiResponseUsage,
+  LlmapiThinkingOptions,
+  LlmapiTool,
 } from "../../../client";
 
 /**
- * Streaming chunk structure received from SSE events
+ * Streaming chunk structure received from SSE events (Responses API format)
  */
 export type StreamingChunk = {
   id?: string;
   model?: string;
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      role?: string;
+  type?: string;
+  delta?: string | { OfString?: string; OfResponseReasoningSummaryDeltaEventDelta?: string };
+  usage?: LlmapiResponseUsage;
+  // For response.created and response.completed events
+  response?: {
+    id?: string;
+    model?: string;
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
     };
-    finish_reason?: string;
-    index?: number;
-  }>;
-  usage?: LlmapiChatCompletionResponse["usage"];
+  };
+  // For thinking/reasoning content
+  content_index?: number;
+  output_index?: number;
+};
+
+/**
+ * Responses API options that can be passed to sendMessage
+ */
+export type ResponsesApiOptions = {
+  /**
+   * Whether to store the response server-side.
+   * When true, the response can be retrieved later using the response ID.
+   */
+  store?: boolean;
+  /**
+   * ID of a previous response to continue from.
+   * Enables multi-turn conversations without resending full history.
+   */
+  previousResponseId?: string;
+  /**
+   * Conversation ID for grouping related responses.
+   */
+  conversation?: string;
+  /**
+   * Controls randomness in the response (0.0 to 2.0).
+   * Lower values make output more deterministic.
+   */
+  temperature?: number;
+  /**
+   * Maximum number of tokens to generate in the response.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Array of tool definitions available to the model.
+   */
+  tools?: LlmapiTool[];
+  /**
+   * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
+   */
+  toolChoice?: string;
+  /**
+   * Reasoning configuration for o-series and other reasoning models.
+   * Controls reasoning effort and summary output.
+   */
+  reasoning?: LlmapiResponseReasoning;
+  /**
+   * Extended thinking configuration for Anthropic models (Claude).
+   * Enables the model to think through complex problems step by step.
+   */
+  thinking?: LlmapiThinkingOptions;
 };
 
 /**
  * Base arguments for sending a message
  */
-export type BaseSendMessageArgs = {
+export type BaseSendMessageArgs = ResponsesApiOptions & {
   messages: LlmapiMessage[];
   model?: string;
   /**
@@ -41,7 +97,7 @@ export type BaseSendMessageArgs = {
  */
 export type BaseSendMessageResult =
   | {
-      data: LlmapiChatCompletionResponse;
+      data: LlmapiResponseResponse;
       error: null;
     }
   | { data: null; error: string };
@@ -57,9 +113,14 @@ export type BaseUseChatOptions = {
    */
   onData?: (chunk: string) => void;
   /**
+   * Callback function to be called when thinking/reasoning content is received.
+   * This is called with delta chunks as the model "thinks" through a problem.
+   */
+  onThinking?: (chunk: string) => void;
+  /**
    * Callback function to be called when the chat completion finishes successfully.
    */
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
+  onFinish?: (response: LlmapiResponseResponse) => void;
   /**
    * Callback function to be called when an unexpected error is encountered.
    *
@@ -93,8 +154,8 @@ export type BaseUseChatResult = {
  */
 export type StreamAccumulator = {
   content: string;
-  completionId: string;
-  completionModel: string;
-  usage: Partial<LlmapiChatCompletionUsage>;
-  finishReason: string | undefined;
+  thinking: string;
+  responseId: string;
+  responseModel: string;
+  usage: Partial<LlmapiResponseUsage>;
 };

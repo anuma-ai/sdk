@@ -1,6 +1,6 @@
 # FileMetadata
 
-Defined in: [src/lib/db/chat/types.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L13)
+Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L16)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:13](https://github.com/zeta-chain/ai-sdk/b
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L14)
+Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L17)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:14](https://github.com/zeta-chain/ai-sdk/b
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L15)
+Defined in: [src/lib/db/chat/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L18)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:15](https://github.com/zeta-chain/ai-sdk/b
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L17)
+Defined in: [src/lib/db/chat/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L20)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/b
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L16)
+Defined in: [src/lib/db/chat/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L19)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L18)
+Defined in: [src/lib/db/chat/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L21)

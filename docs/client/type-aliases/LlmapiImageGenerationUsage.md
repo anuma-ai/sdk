@@ -2,7 +2,7 @@
 
 > **LlmapiImageGenerationUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:317](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L317)
+Defined in: [src/client/types.gen.ts:344](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L344)
 
 Usage documents token usage (when available).
 
@@ -12,7 +12,7 @@ Usage documents token usage (when available).
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:321](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L321)
+Defined in: [src/client/types.gen.ts:348](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L348)
 
 CostMicroUSD is the inference cost for this image generation request
 
@@ -22,7 +22,7 @@ CostMicroUSD is the inference cost for this image generation request
 
 > `optional` **input\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:325](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L325)
+Defined in: [src/client/types.gen.ts:352](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L352)
 
 InputTokens is the number of tokens sent in the prompt.
 
@@ -32,7 +32,7 @@ InputTokens is the number of tokens sent in the prompt.
 
 > `optional` **output\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:329](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L329)
+Defined in: [src/client/types.gen.ts:356](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L356)
 
 OutputTokens is the number of tokens returned by the model.
 
@@ -42,6 +42,6 @@ OutputTokens is the number of tokens returned by the model.
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:333](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L333)
+Defined in: [src/client/types.gen.ts:360](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L360)
 
 TotalTokens is the total number of tokens consumed.

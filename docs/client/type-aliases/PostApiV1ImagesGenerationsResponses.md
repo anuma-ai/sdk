@@ -2,7 +2,7 @@
 
 > **PostApiV1ImagesGenerationsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:918](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L918)
+Defined in: [src/client/types.gen.ts:996](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L996)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:918](https://github.com/zeta-chain/ai-sdk/b
 
 > **200**: [`LlmapiImageGenerationResponse`](LlmapiImageGenerationResponse.md)
 
-Defined in: [src/client/types.gen.ts:922](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L922)
+Defined in: [src/client/types.gen.ts:1000](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1000)
 
 OK

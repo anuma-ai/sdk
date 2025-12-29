@@ -19,10 +19,6 @@ production-ready abstractions that handle these complexities out of the box.
   automatic UI updates as content arrives
 - **State management**: Automatic handling of loading states, errors, and
   request lifecycle
-- **Flexible providers**: Choose between API-based inference or local
-  in-browser models for privacy-sensitive use cases
-- **Client-side tools**: Execute tools directly in the browser with automatic
-  context injection into LLM responses
 - **File processing**: Extract text from PDFs and images (OCR) to provide
   document context to your AI
 - **Memory & context**: Extract and retrieve relevant memories using semantic

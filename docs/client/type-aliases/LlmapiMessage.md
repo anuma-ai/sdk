@@ -2,7 +2,7 @@
 
 > **LlmapiMessage** = `object`
 
-Defined in: [src/client/types.gen.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L339)
+Defined in: [src/client/types.gen.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L366)
 
 Message is the generated message
 
@@ -12,7 +12,7 @@ Message is the generated message
 
 > `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]
 
-Defined in: [src/client/types.gen.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L343)
+Defined in: [src/client/types.gen.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L370)
 
 Content is the message content
 
@@ -22,7 +22,7 @@ Content is the message content
 
 > `optional` **role**: [`LlmapiRole`](LlmapiRole.md)
 
-Defined in: [src/client/types.gen.ts:344](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L344)
+Defined in: [src/client/types.gen.ts:371](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L371)
 
 ***
 
@@ -30,6 +30,6 @@ Defined in: [src/client/types.gen.ts:344](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **tool\_calls**: [`LlmapiToolCall`](LlmapiToolCall.md)[]
 
-Defined in: [src/client/types.gen.ts:348](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L348)
+Defined in: [src/client/types.gen.ts:375](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L375)
 
 ToolCalls contains tool/function calls made by the assistant (only for assistant role)

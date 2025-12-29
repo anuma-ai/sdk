@@ -15,13 +15,19 @@ import {
   validateModel,
   validateTokenGetter,
   validateToken,
-  buildCompletionResponse,
+  buildResponseResponse,
   createErrorResult,
   handleError,
   parseSSEDataLine,
+  messagesToInput,
 } from "../lib/chat/useChat";
 
-type SendMessageArgs = BaseSendMessageArgs;
+type SendMessageArgs = BaseSendMessageArgs & {
+  /**
+   * Per-request callback for thinking/reasoning chunks.
+   */
+  onThinking?: (chunk: string) => void;
+};
 
 type SendMessageResult = BaseSendMessageResult;
 
@@ -33,38 +39,102 @@ type UseChatResult = BaseUseChatResult & {
 
 /**
  * Processes SSE lines and updates the accumulator
- * Returns true if any content was processed
+ * Calls appropriate callbacks for content and thinking deltas
  */
 function processSSELines(
   lines: string[],
   accumulator: StreamAccumulator,
   onData?: (chunk: string) => void,
-  globalOnData?: (chunk: string) => void
+  globalOnData?: (chunk: string) => void,
+  onThinking?: (chunk: string) => void,
+  globalOnThinking?: (chunk: string) => void
 ): void {
   for (const line of lines) {
     const chunk = parseSSEDataLine(line);
     if (!chunk) continue;
 
-    if (chunk.id && !accumulator.completionId) {
-      accumulator.completionId = chunk.id;
+    // Handle response.created event - extract ID and model from response object
+    if (
+      chunk.type === "response.created" &&
+      chunk.response &&
+      typeof chunk.response === "object"
+    ) {
+      const response = chunk.response as {
+        id?: string;
+        model?: string;
+      };
+      if (response.id && !accumulator.responseId) {
+        accumulator.responseId = response.id;
+      }
+      if (response.model && !accumulator.responseModel) {
+        accumulator.responseModel = response.model;
+      }
+      continue;
     }
-    if (chunk.model && !accumulator.completionModel) {
-      accumulator.completionModel = chunk.model;
+
+    // Handle response.completed event - extract usage from response object
+    if (
+      chunk.type === "response.completed" &&
+      chunk.response &&
+      typeof chunk.response === "object"
+    ) {
+      const response = chunk.response as {
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      if (response.usage) {
+        accumulator.usage = {
+          ...accumulator.usage,
+          prompt_tokens: response.usage.input_tokens,
+          completion_tokens: response.usage.output_tokens,
+          total_tokens:
+            (response.usage.input_tokens || 0) +
+            (response.usage.output_tokens || 0),
+        };
+      }
+      continue;
+    }
+
+    // Legacy: handle top-level fields
+    if (chunk.id && !accumulator.responseId) {
+      accumulator.responseId = chunk.id;
+    }
+    if (chunk.model && !accumulator.responseModel) {
+      accumulator.responseModel = chunk.model;
     }
     if (chunk.usage) {
       accumulator.usage = { ...accumulator.usage, ...chunk.usage };
     }
 
-    if (chunk.choices?.[0]) {
-      const choice = chunk.choices[0];
-      if (choice.delta?.content) {
-        const content = choice.delta.content;
-        accumulator.content += content;
-        if (onData) onData(content);
-        if (globalOnData) globalOnData(content);
+    // Handle thinking/reasoning content deltas
+    if (
+      chunk.type === "response.reasoning.delta" ||
+      chunk.type === "response.reasoning_summary_text.delta" ||
+      chunk.type === "response.thinking.delta"
+    ) {
+      const delta = chunk.delta;
+      if (delta) {
+        const deltaText =
+          typeof delta === "string"
+            ? delta
+            : delta.OfString || delta.OfResponseReasoningSummaryDeltaEventDelta;
+        if (deltaText) {
+          accumulator.thinking += deltaText;
+          if (onThinking) onThinking(deltaText);
+          if (globalOnThinking) globalOnThinking(deltaText);
+        }
       }
-      if (choice.finish_reason) {
-        accumulator.finishReason = choice.finish_reason;
+      continue;
+    }
+
+    // Handle responses API streaming format
+    if (chunk.type === "response.output_text.delta" && chunk.delta) {
+      // Handle both string and object delta formats
+      // The API may return delta as either a string or an object with OfString property
+      const deltaText = typeof chunk.delta === "string" ? chunk.delta : chunk.delta.OfString;
+      if (deltaText) {
+        accumulator.content += deltaText;
+        if (onData) onData(deltaText);
+        if (globalOnData) globalOnData(deltaText);
       }
     }
   }
@@ -112,6 +182,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     getToken,
     baseUrl = BASE_URL,
     onData: globalOnData,
+    onThinking: globalOnThinking,
     onFinish,
     onError,
   } = options || {};
@@ -140,6 +211,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       messages,
       model,
       onData,
+      onThinking,
+      // Responses API options
+      store,
+      previousResponseId,
+      conversation,
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
+      reasoning,
+      thinking,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Validate inputs
       const messagesValidation = validateMessages(messages);
@@ -180,7 +262,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // (fetch doesn't support response.body streaming in RN)
         const result = await new Promise<SendMessageResult>((resolve) => {
           const xhr = new XMLHttpRequest();
-          const url = `${baseUrl}/api/v1/chat/completions`;
+          const url = `${baseUrl}/api/v1/responses`;
 
           const accumulator = createStreamAccumulator();
           let lastProcessedIndex = 0;
@@ -216,7 +298,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               incompleteLineBuffer = lines.pop() || "";
             }
 
-            processSSELines(lines, accumulator, onData, globalOnData);
+            processSSELines(lines, accumulator, onData, globalOnData, onThinking, globalOnThinking);
           };
 
           xhr.onload = () => {
@@ -228,16 +310,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 [incompleteLineBuffer.trim()],
                 accumulator,
                 onData,
-                globalOnData
+                globalOnData,
+                onThinking,
+                globalOnThinking
               );
               incompleteLineBuffer = "";
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
-              const completion = buildCompletionResponse(accumulator);
+              const response = buildResponseResponse(accumulator);
               setIsLoading(false);
-              if (onFinish) onFinish(completion);
-              resolve({ data: completion, error: null });
+              if (onFinish) onFinish(response);
+              resolve({ data: response, error: null });
             } else {
               const errorMsg = `Request failed with status ${xhr.status}`;
               setIsLoading(false);
@@ -262,9 +346,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.send(
             JSON.stringify({
-              messages,
+              input: messagesToInput(messages),
               model,
               stream: true,
+              // Responses API options (only include if defined)
+              ...(store !== undefined && { store }),
+              ...(previousResponseId && { previous_response_id: previousResponseId }),
+              ...(conversation && { conversation }),
+              ...(temperature !== undefined && { temperature }),
+              ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
+              ...(tools && { tools }),
+              ...(toolChoice && { tool_choice: toolChoice }),
+              ...(reasoning && { reasoning }),
+              ...(thinking && { thinking }),
             })
           );
         });
@@ -279,7 +373,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError]
   );
 
   return {

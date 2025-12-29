@@ -194,6 +194,14 @@ Defined in: [src/lib/db/chat/models.ts:30](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### thinking?
+
+> `optional` **thinking**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L35)
+
+***
+
 ### thoughtProcess?
 
 > `optional` **thoughtProcess**: `ActivityPhase`[]
