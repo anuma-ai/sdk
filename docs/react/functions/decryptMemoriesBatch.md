@@ -2,7 +2,7 @@
 
 > **decryptMemoriesBatch**\<`T`\>(`memories`, `address`, `signMessage?`, `updateMemory?`): `Promise`\<`T`[]\>
 
-Defined in: [src/lib/db/memory/encryption.ts:328](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L328)
+Defined in: [src/lib/db/memory/encryption.ts:331](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L331)
 
 Batch decrypt multiple memory objects.
 Uses parallel processing for performance.

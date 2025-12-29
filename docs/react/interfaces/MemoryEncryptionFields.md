@@ -1,6 +1,6 @@
 # MemoryEncryptionFields
 
-Defined in: [src/lib/db/memory/encryption.ts:365](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L365)
+Defined in: [src/lib/db/memory/encryption.ts:368](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L368)
 
 Memory fields needed for encryption update
 
@@ -18,7 +18,7 @@ Memory fields needed for encryption update
 
 > **confidence**: `number`
 
-Defined in: [src/lib/db/memory/encryption.ts:371](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L371)
+Defined in: [src/lib/db/memory/encryption.ts:374](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L374)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/memory/encryption.ts:371](https://github.com/zeta-chain/
 
 > **key**: `string`
 
-Defined in: [src/lib/db/memory/encryption.ts:368](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L368)
+Defined in: [src/lib/db/memory/encryption.ts:371](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L371)
 
 #### Overrides
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/db/memory/encryption.ts:368](https://github.com/zeta-chain/
 
 > **namespace**: `string`
 
-Defined in: [src/lib/db/memory/encryption.ts:367](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L367)
+Defined in: [src/lib/db/memory/encryption.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L370)
 
 #### Overrides
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/db/memory/encryption.ts:367](https://github.com/zeta-chain/
 
 > **pii**: `boolean`
 
-Defined in: [src/lib/db/memory/encryption.ts:372](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L372)
+Defined in: [src/lib/db/memory/encryption.ts:375](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L375)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/lib/db/memory/encryption.ts:372](https://github.com/zeta-chain/
 
 > **rawEvidence**: `string`
 
-Defined in: [src/lib/db/memory/encryption.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L370)
+Defined in: [src/lib/db/memory/encryption.ts:373](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L373)
 
 #### Overrides
 
@@ -70,7 +70,7 @@ Defined in: [src/lib/db/memory/encryption.ts:370](https://github.com/zeta-chain/
 
 > **type**: `string`
 
-Defined in: [src/lib/db/memory/encryption.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L366)
+Defined in: [src/lib/db/memory/encryption.ts:369](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L369)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: [src/lib/db/memory/encryption.ts:366](https://github.com/zeta-chain/
 
 > **value**: `string`
 
-Defined in: [src/lib/db/memory/encryption.ts:369](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L369)
+Defined in: [src/lib/db/memory/encryption.ts:372](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L372)
 
 #### Overrides
 

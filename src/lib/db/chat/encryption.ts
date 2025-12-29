@@ -8,8 +8,6 @@ import { encryptData, decryptData, hasEncryptionKey } from "../../../react/useEn
 import type { SignMessageFn } from "../../../react/useEncryption";
 import {
   migrateEncryptedValue,
-  hasMigrationCompleted,
-  markMigrationCompleted,
   isOldEncryption,
 } from "../migration";
 
@@ -135,20 +133,15 @@ export async function decryptField(
 
   try {
     // Check if this is old encryption and migration is needed
-    // Note: We can decrypt old data even if migration is marked complete (for backward compatibility)
-    // Migration is just to update the prefix format, not required for decryption
-    if (isOldEncryption(value) && signMessage && !hasMigrationCompleted(address)) {
+    // Always migrate v1 fields when encountered (if signMessage and onMigrated are provided)
+    // The migration status check is removed to allow individual field migrations
+    if (isOldEncryption(value) && signMessage && onMigrated) {
       try {
         // Migrate to new encryption (updates prefix format)
         const migratedValue = await migrateEncryptedValue(value, address, signMessage);
         
         // Callback to update the field in storage
-        if (onMigrated) {
-          await onMigrated(migratedValue);
-        }
-        
-        // Mark migration as completed to prevent repeated attempts
-        markMigrationCompleted(address);
+        await onMigrated(migratedValue);
         
         // Decrypt the newly migrated value
         const encryptedPayload = migratedValue.slice(ENCRYPTION_PREFIX_V2.length);
