@@ -2,7 +2,7 @@
 
 > **useEncryption**(`signMessage`): `object`
 
-Defined in: [src/react/useEncryption.ts:643](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L643)
+Defined in: [src/react/useEncryption.ts:677](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L677)
 
 Hook that provides on-demand encryption key management.
 

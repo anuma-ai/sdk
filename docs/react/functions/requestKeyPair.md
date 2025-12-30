@@ -2,7 +2,7 @@
 
 > **requestKeyPair**(`walletAddress`, `signMessage`): `Promise`\<`void`\>
 
-Defined in: [src/react/useEncryption.ts:573](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L573)
+Defined in: [src/react/useEncryption.ts:607](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L607)
 
 Requests the user to sign a message to generate an ECDH key pair.
 If a key pair already exists in memory for the given wallet, resolves immediately.

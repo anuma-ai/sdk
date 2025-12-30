@@ -2,7 +2,7 @@
 
 > **needsEncryption**(`memory`): `boolean`
 
-Defined in: [src/lib/db/memory/encryption.ts:351](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L351)
+Defined in: [src/lib/db/memory/encryption.ts:371](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/encryption.ts#L371)
 
 Check if a memory needs encryption (has unencrypted sensitive fields).
 
