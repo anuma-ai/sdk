@@ -32,7 +32,8 @@ jobs:
 
       - name: Publish next version
         run: |
-          VERSION="1.0.0-next.$(date +%Y%m%d%H%M%S)"
+          BASE_VERSION=$(jq -r '.version' package.json)
+          VERSION="${BASE_VERSION}-next.$(date +%Y%m%d%H%M%S)"
           npm version $VERSION --no-git-tag-version
 
           npm publish --access public --tag next
