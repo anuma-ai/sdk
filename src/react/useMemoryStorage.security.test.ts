@@ -66,6 +66,7 @@ describe("SECURITY: Memory Storage Race Conditions and Partial Encryption", () =
       uniqueKey: "test-unique-key",
       isDeleted: false,
       update: vi.fn(),
+      _setRaw: vi.fn(),
     }));
   });
 
@@ -91,7 +92,7 @@ describe("SECURITY: Memory Storage Race Conditions and Partial Encryption", () =
     const { result, rerender } = renderHook(
       (props) => {
         hookResult = useMemoryStorage({
-          database: mockDatabase,
+          database: mockDatabase as any,
           walletAddress: props.walletAddress,
           signMessage: TEST_SIGN_MESSAGE,
         });
@@ -139,7 +140,7 @@ describe("SECURITY: Memory Storage Race Conditions and Partial Encryption", () =
   it("should encrypt all fields atomically and rollback on any failure", async () => {
     const { result } = renderHook(() =>
       useMemoryStorage({
-        database: mockDatabase,
+        database: mockDatabase as any,
         walletAddress: TEST_ADDRESS,
         signMessage: TEST_SIGN_MESSAGE,
       })
