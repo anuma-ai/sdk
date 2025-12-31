@@ -12,9 +12,20 @@ import {
   generateUniqueKey,
   cosineSimilarity,
 } from "./types";
+import {
+  encryptMemoryFields,
+  decryptMemoryFields,
+  encryptNamespaceForQuery,
+  encryptKeyForQuery,
+  encryptValueForQuery,
+} from "./encryption";
+import type { SignMessageFn } from "../../../react/useEncryption";
 
-export function memoryToStored(memory: Memory): StoredMemory {
-  return {
+export async function memoryToStored(
+  memory: Memory,
+  walletAddress?: string
+): Promise<StoredMemory> {
+  const baseMemory: StoredMemory = {
     uniqueId: memory.id,
     type: memory.type,
     namespace: memory.namespace,
@@ -31,11 +42,20 @@ export function memoryToStored(memory: Memory): StoredMemory {
     embeddingModel: memory.embeddingModel,
     isDeleted: memory.isDeleted,
   };
+  
+  // Decrypt fields if wallet address provided
+  if (walletAddress) {
+    return (await decryptMemoryFields(baseMemory, walletAddress)) as StoredMemory;
+  }
+  
+  return baseMemory;
 }
 
 export interface MemoryStorageOperationsContext {
   database: Database;
   memoriesCollection: Collection<Memory>;
+  walletAddress?: string;
+  signMessage?: SignMessageFn;
 }
 
 export async function getAllMemoriesOp(
@@ -45,7 +65,9 @@ export async function getAllMemoriesOp(
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
     .fetch();
 
-  return results.map(memoryToStored);
+  return Promise.all(
+    results.map((memory) => memoryToStored(memory, ctx.walletAddress))
+  );
 }
 
 export async function getMemoryByIdOp(
@@ -55,7 +77,7 @@ export async function getMemoryByIdOp(
   try {
     const memory = await ctx.memoriesCollection.find(id);
     if (memory.isDeleted) return null;
-    return memoryToStored(memory);
+    return await memoryToStored(memory, ctx.walletAddress);
   } catch {
     return null;
   }
@@ -65,15 +87,22 @@ export async function getMemoriesByNamespaceOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string
 ): Promise<StoredMemory[]> {
+  // Encrypt namespace for querying if encryption is enabled
+  const queryNamespace = ctx.walletAddress && ctx.signMessage
+    ? await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage)
+    : namespace;
+  
   const results = await ctx.memoriesCollection
     .query(
-      Q.where("namespace", namespace),
+      Q.where("namespace", queryNamespace),
       Q.where("is_deleted", false),
       Q.sortBy("created_at", Q.desc)
     )
     .fetch();
 
-  return results.map(memoryToStored);
+  return Promise.all(
+    results.map((memory) => memoryToStored(memory, ctx.walletAddress))
+  );
 }
 
 export async function getMemoriesByKeyOp(
@@ -81,7 +110,15 @@ export async function getMemoriesByKeyOp(
   namespace: string,
   key: string
 ): Promise<StoredMemory[]> {
-  const compositeKey = generateCompositeKey(namespace, key);
+  // Encrypt namespace and key for querying if encryption is enabled
+  const encryptedNamespace = ctx.walletAddress && ctx.signMessage
+    ? await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage)
+    : namespace;
+  const encryptedKey = ctx.walletAddress && ctx.signMessage
+    ? await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage)
+    : key;
+  
+  const compositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
   const results = await ctx.memoriesCollection
     .query(
       Q.where("composite_key", compositeKey),
@@ -90,7 +127,9 @@ export async function getMemoriesByKeyOp(
     )
     .fetch();
 
-  return results.map(memoryToStored);
+  return Promise.all(
+    results.map((memory) => memoryToStored(memory, ctx.walletAddress))
+  );
 }
 
 export async function getMemoryByUniqueKeyOp(
@@ -99,20 +138,37 @@ export async function getMemoryByUniqueKeyOp(
   key: string,
   value: string
 ): Promise<StoredMemory | null> {
-  const uniqueKey = generateUniqueKey(namespace, key, value);
+  // Encrypt fields for querying if encryption is enabled
+  const encryptedNamespace = ctx.walletAddress && ctx.signMessage
+    ? await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage)
+    : namespace;
+  const encryptedKey = ctx.walletAddress && ctx.signMessage
+    ? await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage)
+    : key;
+  const encryptedValue = ctx.walletAddress && ctx.signMessage
+    ? await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage)
+    : value;
+  
+  const uniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
   const results = await ctx.memoriesCollection
     .query(Q.where("unique_key", uniqueKey), Q.where("is_deleted", false))
     .fetch();
 
-  return results.length > 0 ? memoryToStored(results[0]) : null;
+  if (results.length === 0) return null;
+  return await memoryToStored(results[0], ctx.walletAddress);
 }
 
 export async function saveMemoryOp(
   ctx: MemoryStorageOperationsContext,
   opts: CreateMemoryOptions
 ): Promise<StoredMemory> {
-  const compositeKey = generateCompositeKey(opts.namespace, opts.key);
-  const uniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
+  // Encrypt fields before storing if encryption is enabled
+  const memoryToStore = ctx.walletAddress && ctx.signMessage
+    ? await encryptMemoryFields(opts, ctx.walletAddress, ctx.signMessage)
+    : opts;
+  
+  const compositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
+  const uniqueKey = generateUniqueKey(memoryToStore.namespace, memoryToStore.key, memoryToStore.value);
 
   const result = await ctx.database.write(async () => {
     const existing = await ctx.memoriesCollection
@@ -122,24 +178,25 @@ export async function saveMemoryOp(
     if (existing.length > 0) {
       const existingMemory = existing[0];
 
+      // Compare with encrypted values for embedding preservation check
       const shouldPreserveEmbedding =
-        existingMemory.value === opts.value &&
-        existingMemory.rawEvidence === opts.rawEvidence &&
-        existingMemory.type === opts.type &&
-        existingMemory.namespace === opts.namespace &&
-        existingMemory.key === opts.key &&
+        existingMemory.value === memoryToStore.value &&
+        existingMemory.rawEvidence === memoryToStore.rawEvidence &&
+        existingMemory.type === memoryToStore.type &&
+        existingMemory.namespace === memoryToStore.namespace &&
+        existingMemory.key === memoryToStore.key &&
         existingMemory.embedding !== undefined &&
         existingMemory.embedding.length > 0 &&
         !opts.embedding;
 
       await existingMemory.update((mem) => {
-        mem._setRaw("type", opts.type);
-        mem._setRaw("namespace", opts.namespace);
-        mem._setRaw("key", opts.key);
-        mem._setRaw("value", opts.value);
-        mem._setRaw("raw_evidence", opts.rawEvidence);
-        mem._setRaw("confidence", opts.confidence);
-        mem._setRaw("pii", opts.pii);
+        mem._setRaw("type", memoryToStore.type);
+        mem._setRaw("namespace", memoryToStore.namespace);
+        mem._setRaw("key", memoryToStore.key);
+        mem._setRaw("value", memoryToStore.value);
+        mem._setRaw("raw_evidence", memoryToStore.rawEvidence);
+        mem._setRaw("confidence", memoryToStore.confidence);
+        mem._setRaw("pii", memoryToStore.pii);
         mem._setRaw("composite_key", compositeKey);
         mem._setRaw("unique_key", uniqueKey);
         mem._setRaw("is_deleted", false);
@@ -161,13 +218,13 @@ export async function saveMemoryOp(
     }
 
     return await ctx.memoriesCollection.create((mem) => {
-      mem._setRaw("type", opts.type);
-      mem._setRaw("namespace", opts.namespace);
-      mem._setRaw("key", opts.key);
-      mem._setRaw("value", opts.value);
-      mem._setRaw("raw_evidence", opts.rawEvidence);
-      mem._setRaw("confidence", opts.confidence);
-      mem._setRaw("pii", opts.pii);
+      mem._setRaw("type", memoryToStore.type);
+      mem._setRaw("namespace", memoryToStore.namespace);
+      mem._setRaw("key", memoryToStore.key);
+      mem._setRaw("value", memoryToStore.value);
+      mem._setRaw("raw_evidence", memoryToStore.rawEvidence);
+      mem._setRaw("confidence", memoryToStore.confidence);
+      mem._setRaw("pii", memoryToStore.pii);
       mem._setRaw("composite_key", compositeKey);
       mem._setRaw("unique_key", uniqueKey);
       mem._setRaw("is_deleted", false);
@@ -181,7 +238,7 @@ export async function saveMemoryOp(
     });
   });
 
-  return memoryToStored(result);
+  return await memoryToStored(result, ctx.walletAddress);
 }
 
 export async function saveMemoriesOp(
@@ -212,11 +269,31 @@ export async function updateMemoryOp(
     return { ok: false, reason: "not_found" };
   }
 
-  const newNamespace = updates.namespace ?? memory.namespace;
-  const newKey = updates.key ?? memory.key;
-  const newValue = updates.value ?? memory.value;
-  const newCompositeKey = generateCompositeKey(newNamespace, newKey);
-  const newUniqueKey = generateUniqueKey(newNamespace, newKey, newValue);
+  // Decrypt existing memory to get plaintext values for merging
+  const decryptedMemory = ctx.walletAddress
+    ? ((await decryptMemoryFields(memory, ctx.walletAddress)) as Memory)
+    : memory;
+
+  // Build complete memory with updates merged
+  const completeMemory: CreateMemoryOptions = {
+    type: updates.type ?? decryptedMemory.type,
+    namespace: updates.namespace ?? decryptedMemory.namespace,
+    key: updates.key ?? decryptedMemory.key,
+    value: updates.value ?? decryptedMemory.value,
+    rawEvidence: updates.rawEvidence ?? decryptedMemory.rawEvidence,
+    confidence: updates.confidence ?? decryptedMemory.confidence,
+    pii: updates.pii ?? decryptedMemory.pii,
+    embedding: updates.embedding,
+    embeddingModel: updates.embeddingModel,
+  };
+
+  // Encrypt the complete memory if encryption is enabled
+  const memoryToStore = ctx.walletAddress && ctx.signMessage
+    ? await encryptMemoryFields(completeMemory, ctx.walletAddress, ctx.signMessage)
+    : completeMemory;
+
+  const newCompositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
+  const newUniqueKey = generateUniqueKey(memoryToStore.namespace, memoryToStore.key, memoryToStore.value);
 
   if (newUniqueKey !== memory.uniqueKey) {
     const existing = await ctx.memoriesCollection
@@ -231,16 +308,16 @@ export async function updateMemoryOp(
   try {
     const updated = await ctx.database.write(async () => {
       await memory.update((mem) => {
-        if (updates.type !== undefined) mem._setRaw("type", updates.type);
+        if (updates.type !== undefined) mem._setRaw("type", memoryToStore.type);
         if (updates.namespace !== undefined)
-          mem._setRaw("namespace", updates.namespace);
-        if (updates.key !== undefined) mem._setRaw("key", updates.key);
-        if (updates.value !== undefined) mem._setRaw("value", updates.value);
+          mem._setRaw("namespace", memoryToStore.namespace);
+        if (updates.key !== undefined) mem._setRaw("key", memoryToStore.key);
+        if (updates.value !== undefined) mem._setRaw("value", memoryToStore.value);
         if (updates.rawEvidence !== undefined)
-          mem._setRaw("raw_evidence", updates.rawEvidence);
+          mem._setRaw("raw_evidence", memoryToStore.rawEvidence);
         if (updates.confidence !== undefined)
-          mem._setRaw("confidence", updates.confidence);
-        if (updates.pii !== undefined) mem._setRaw("pii", updates.pii);
+          mem._setRaw("confidence", memoryToStore.confidence);
+        if (updates.pii !== undefined) mem._setRaw("pii", memoryToStore.pii);
 
         if (
           updates.namespace !== undefined ||
@@ -264,7 +341,7 @@ export async function updateMemoryOp(
       return memory;
     });
 
-    return { ok: true, memory: memoryToStored(updated) };
+    return { ok: true, memory: await memoryToStored(updated, ctx.walletAddress) };
   } catch (err) {
     return {
       ok: false,
@@ -296,7 +373,18 @@ export async function deleteMemoryOp(
   key: string,
   value: string
 ): Promise<void> {
-  const uniqueKey = generateUniqueKey(namespace, key, value);
+  // Encrypt fields for querying if encryption is enabled
+  const encryptedNamespace = ctx.walletAddress && ctx.signMessage
+    ? await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage)
+    : namespace;
+  const encryptedKey = ctx.walletAddress && ctx.signMessage
+    ? await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage)
+    : key;
+  const encryptedValue = ctx.walletAddress && ctx.signMessage
+    ? await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage)
+    : value;
+  
+  const uniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
   const results = await ctx.memoriesCollection
     .query(Q.where("unique_key", uniqueKey))
     .fetch();
@@ -315,7 +403,15 @@ export async function deleteMemoriesByKeyOp(
   namespace: string,
   key: string
 ): Promise<void> {
-  const compositeKey = generateCompositeKey(namespace, key);
+  // Encrypt namespace and key for querying if encryption is enabled
+  const encryptedNamespace = ctx.walletAddress && ctx.signMessage
+    ? await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage)
+    : namespace;
+  const encryptedKey = ctx.walletAddress && ctx.signMessage
+    ? await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage)
+    : key;
+  
+  const compositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
   const results = await ctx.memoriesCollection
     .query(Q.where("composite_key", compositeKey), Q.where("is_deleted", false))
     .fetch();
@@ -363,19 +459,21 @@ export async function searchSimilarMemoriesOp(
     return [];
   }
 
-  const results = memoriesWithEmbeddings
-    .map((memory) => {
+  const results = await Promise.all(
+    memoriesWithEmbeddings.map(async (memory) => {
       const similarity = cosineSimilarity(queryEmbedding, memory.embedding!);
+      const stored = await memoryToStored(memory, ctx.walletAddress);
       return {
-        ...memoryToStored(memory),
+        ...stored,
         similarity,
       };
     })
+  );
+
+  return results
     .filter((result) => result.similarity >= minSimilarity)
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
-
-  return results;
 }
 
 export async function updateMemoryEmbeddingOp(

@@ -2,7 +2,7 @@
 
 > **exportPublicKey**(`address`, `signMessage`): `Promise`\<`string`\>
 
-Defined in: [src/react/useEncryption.ts:505](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L505)
+Defined in: [src/react/useEncryption.ts:579](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L579)
 
 Exports the public key for a wallet address as SPKI format (base64)
 

@@ -49,10 +49,10 @@ export function getStoredTokenData(
 /**
  * Store token data for a provider
  */
-export function storeTokenData(
+export async function storeTokenData(
   provider: OAuthProvider,
   data: StoredTokenData
-): void {
+): Promise<void> {
   if (typeof window === "undefined") return;
 
   localStorage.setItem(getStorageKey(provider), JSON.stringify(data));
