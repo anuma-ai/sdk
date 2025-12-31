@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+
+// Type declaration for global in test environment
+declare const global: typeof globalThis;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const Buffer: any;
 import {
   requestKeyPair,
   exportPublicKey,

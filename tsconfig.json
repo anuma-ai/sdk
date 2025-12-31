@@ -18,5 +18,10 @@
   },
   "include": [
     "src/**/*"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.security.test.ts"
   ]
 }
