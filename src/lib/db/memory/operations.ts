@@ -270,8 +270,9 @@ export async function updateMemoryOp(
   }
 
   // Decrypt existing memory to get plaintext values for merging
+  // Pass signMessage so decryption can request key if needed
   const decryptedMemory = ctx.walletAddress
-    ? ((await decryptMemoryFields(memory, ctx.walletAddress)) as Memory)
+    ? ((await decryptMemoryFields(memory, ctx.walletAddress, ctx.signMessage)) as Memory)
     : memory;
 
   // Build complete memory with updates merged

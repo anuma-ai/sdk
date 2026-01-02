@@ -93,11 +93,22 @@ export async function encryptMemoryFields(
  */
 export async function decryptMemoryFields(
   memory: StoredMemory | MemoryItem,
-  address?: string
+  address?: string,
+  signMessage?: SignMessageFn
 ): Promise<StoredMemory | MemoryItem> {
   if (!address) {
     // No decryption if wallet address not provided
     return memory;
+  }
+  
+  // Request encryption key if needed (allows decryption even if key not in memory)
+  if (signMessage) {
+    try {
+      await requestEncryptionKey(address, signMessage);
+    } catch (error) {
+      // If key request fails, continue anyway - decryptField will handle errors gracefully
+      console.warn("Failed to request encryption key for decryption:", error);
+    }
   }
   
   const [decryptedNamespace, decryptedKey, decryptedValue, decryptedRawEvidence] =
@@ -128,6 +139,11 @@ async function encryptFieldDeterministic(
 ): Promise<string> {
   if (!value) return value;
   if (!address || !signMessage) return value;
+  
+  // Skip encryption if already encrypted (prevents double encryption)
+  if (isEncrypted(value)) {
+    return value;
+  }
   
   try {
     await requestEncryptionKey(address, signMessage);

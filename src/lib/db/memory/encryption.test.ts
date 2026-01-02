@@ -328,5 +328,69 @@ describe("Memory Encryption Utilities", () => {
       expect(decrypted.value).toBe("blue");
     });
   });
+
+  describe("Double Encryption Prevention", () => {
+    it("should not double-encrypt already encrypted values", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      const memory: CreateMemoryOptions = {
+        type: "preference",
+        namespace: "user",
+        key: "favorite_color",
+        value: "blue",
+        rawEvidence: "User said blue",
+        confidence: 0.9,
+        pii: false,
+      };
+
+      // Encrypt once
+      const encrypted1 = await encryptMemoryFields(memory, testAddress, mockSignMessage);
+      
+      // Try to encrypt again (simulating the updateMemoryOp scenario)
+      const encrypted2 = await encryptMemoryFields(encrypted1, testAddress, mockSignMessage);
+      
+      // Should be the same (not double-encrypted)
+      expect(encrypted2.namespace).toBe(encrypted1.namespace);
+      expect(encrypted2.key).toBe(encrypted1.key);
+      expect(encrypted2.value).toBe(encrypted1.value);
+      expect(encrypted2.rawEvidence).toBe(encrypted1.rawEvidence);
+      
+      // Should still be decryptable
+      const decrypted = await decryptMemoryFields(encrypted2, testAddress);
+      expect(decrypted.namespace).toBe(memory.namespace);
+      expect(decrypted.key).toBe(memory.key);
+      expect(decrypted.value).toBe(memory.value);
+      expect(decrypted.rawEvidence).toBe(memory.rawEvidence);
+    });
+
+    it("should decrypt with signMessage when key not in memory", async () => {
+      // Clear all keys to simulate key not in memory
+      clearAllEncryptionKeys();
+      
+      const memory: CreateMemoryOptions = {
+        type: "preference",
+        namespace: "user",
+        key: "favorite_color",
+        value: "blue",
+        rawEvidence: "User said blue",
+        confidence: 0.9,
+        pii: false,
+      };
+
+      // Encrypt with signMessage (this will request the key)
+      const encrypted = await encryptMemoryFields(memory, testAddress, mockSignMessage);
+      
+      // Clear keys again
+      clearAllEncryptionKeys();
+      
+      // Decrypt with signMessage (should request key and succeed)
+      const decrypted = await decryptMemoryFields(encrypted, testAddress, mockSignMessage);
+      
+      expect(decrypted.namespace).toBe(memory.namespace);
+      expect(decrypted.key).toBe(memory.key);
+      expect(decrypted.value).toBe(memory.value);
+      expect(decrypted.rawEvidence).toBe(memory.rawEvidence);
+    });
+  });
 });
 
