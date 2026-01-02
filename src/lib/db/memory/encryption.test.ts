@@ -116,6 +116,24 @@ describe("Memory Encryption Utilities", () => {
       // Should return the original value on error
       expect(result).toBe(invalidEncrypted);
     });
+
+    it("should return old enc: prefix unchanged (pass to client)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      const oldEncrypted = "enc:oldformatdata";
+      const result = await decryptField(oldEncrypted, testAddress);
+      // Should return unchanged - client handles old format
+      expect(result).toBe(oldEncrypted);
+    });
+
+    it("should return old enc:v1: prefix unchanged (pass to client)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      const oldEncrypted = "enc:v1:oldformatdata";
+      const result = await decryptField(oldEncrypted, testAddress);
+      // Should return unchanged - client handles old format
+      expect(result).toBe(oldEncrypted);
+    });
   });
 
   describe("encryptMemoryFields", () => {
@@ -215,6 +233,72 @@ describe("Memory Encryption Utilities", () => {
       expect(decrypted.namespace).toBeDefined();
       expect(decrypted.key).toBe("plaintext_key");
       expect(decrypted.rawEvidence).toBe("plaintext_evidence");
+    });
+
+    it("should return old enc: prefix unchanged (pass to client)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      const memory = {
+        type: "preference" as const,
+        namespace: "enc:oldnamespace",
+        key: "enc:oldkey",
+        value: "enc:oldvalue",
+        rawEvidence: "enc:oldevidence",
+        confidence: 0.9,
+        pii: false,
+      };
+
+      const decrypted = await decryptMemoryFields(memory, testAddress);
+      // Old enc: prefixes should be returned unchanged - client handles them
+      expect(decrypted.namespace).toBe("enc:oldnamespace");
+      expect(decrypted.key).toBe("enc:oldkey");
+      expect(decrypted.value).toBe("enc:oldvalue");
+      expect(decrypted.rawEvidence).toBe("enc:oldevidence");
+    });
+
+    it("should return old enc:v1: prefix unchanged (pass to client)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      const memory = {
+        type: "preference" as const,
+        namespace: "enc:v1:oldnamespace",
+        key: "enc:v1:oldkey",
+        value: "enc:v1:oldvalue",
+        rawEvidence: "enc:v1:oldevidence",
+        confidence: 0.9,
+        pii: false,
+      };
+
+      const decrypted = await decryptMemoryFields(memory, testAddress);
+      // Old enc:v1: prefixes should be returned unchanged - client handles them
+      expect(decrypted.namespace).toBe("enc:v1:oldnamespace");
+      expect(decrypted.key).toBe("enc:v1:oldkey");
+      expect(decrypted.value).toBe("enc:v1:oldvalue");
+      expect(decrypted.rawEvidence).toBe("enc:v1:oldevidence");
+    });
+
+    it("should handle mixed old and new encryption formats", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+      
+      // Create a valid enc:v2: encrypted value
+      const encryptedKey = await encryptField("newkey", testAddress, mockSignMessage);
+      
+      const memory = {
+        type: "preference" as const,
+        namespace: "enc:v1:oldnamespace",
+        key: encryptedKey, // Valid enc:v2: encrypted value
+        value: "plaintext_value",
+        rawEvidence: "enc:oldestevidence",
+        confidence: 0.9,
+        pii: false,
+      };
+
+      const decrypted = await decryptMemoryFields(memory, testAddress);
+      // Old prefixes should be unchanged, enc:v2: should be decrypted, plaintext should remain
+      expect(decrypted.namespace).toBe("enc:v1:oldnamespace");
+      expect(decrypted.key).toBe("newkey"); // enc:v2: should be decrypted
+      expect(decrypted.value).toBe("plaintext_value");
+      expect(decrypted.rawEvidence).toBe("enc:oldestevidence");
     });
   });
 
