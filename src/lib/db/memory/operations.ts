@@ -269,11 +269,32 @@ export async function updateMemoryOp(
     return { ok: false, reason: "not_found" };
   }
 
+  // Convert Memory model to plain object before decryption
+  // WatermelonDB decorators define fields as prototype getters, so spread operator
+  // doesn't copy them. Extract fields explicitly like memoryToStored does.
+  const memoryPlain: StoredMemory = {
+    uniqueId: memory.id,
+    type: memory.type,
+    namespace: memory.namespace,
+    key: memory.key,
+    value: memory.value,
+    rawEvidence: memory.rawEvidence,
+    confidence: memory.confidence,
+    pii: memory.pii,
+    compositeKey: memory.compositeKey,
+    uniqueKey: memory.uniqueKey,
+    createdAt: memory.createdAt,
+    updatedAt: memory.updatedAt,
+    embedding: memory.embedding,
+    embeddingModel: memory.embeddingModel,
+    isDeleted: memory.isDeleted,
+  };
+
   // Decrypt existing memory to get plaintext values for merging
   // Pass signMessage so decryption can request key if needed
   const decryptedMemory = ctx.walletAddress
-    ? ((await decryptMemoryFields(memory, ctx.walletAddress, ctx.signMessage)) as Memory)
-    : memory;
+    ? await decryptMemoryFields(memoryPlain, ctx.walletAddress, ctx.signMessage)
+    : memoryPlain;
 
   // Build complete memory with updates merged
   const completeMemory: CreateMemoryOptions = {
