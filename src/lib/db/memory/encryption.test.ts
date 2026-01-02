@@ -14,6 +14,12 @@ import type { CreateMemoryOptions, MemoryItem } from "./types";
 
 // Type declaration for global in test environment
 declare const global: typeof globalThis;
+
+// Node.js globals available in test environment
+// These are deliberately typed as 'any' because:
+// 1. They're Node.js-specific globals not available in browser/TypeScript lib types
+// 2. They're only used in test setup code, not in production logic
+// 3. Using 'any' here is safer than incorrect type assertions that could hide real issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const require: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
