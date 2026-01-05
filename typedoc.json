@@ -8,7 +8,7 @@
     "title.modulePage": "Overview"
   },
   "gitRevision": "main",
-  "readme": "./overview.md",
+  "readme": "./README.md",
   "mergeReadme": true,
   "entryPoints": [
     "src/react/index.ts",

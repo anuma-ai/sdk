@@ -60,6 +60,11 @@ function ChatComponent() {
 - [GoogleDriveAuthProvider](functions/GoogleDriveAuthProvider.md)
 - [ICloudAuthProvider](functions/ICloudAuthProvider.md)
 
+## Encryption
+
+- [decryptData](functions/decryptData.md)
+- [encryptData](functions/encryptData.md)
+
 ## Hooks
 
 - [useBackup](functions/useBackup.md)
