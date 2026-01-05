@@ -67,7 +67,7 @@ describe("useChat", () => {
     expect(client.sse.post).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          input: "user: Hi",
+          messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
           model: "gpt-3.5-turbo",
           stream: true,
         }),
