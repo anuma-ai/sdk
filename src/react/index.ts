@@ -71,7 +71,7 @@ export {
   clearKeyPair,
   clearAllKeyPairs,
 } from "./useEncryption";
-export type { SignMessageFn } from "./useEncryption";
+export type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
 
 export { useChatStorage } from "./useChatStorage";
 export type {

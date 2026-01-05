@@ -19,12 +19,13 @@ import {
   encryptKeyForQuery,
   encryptValueForQuery,
 } from "./encryption";
-import type { SignMessageFn } from "../../../react/useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
 export async function memoryToStored(
   memory: Memory,
   walletAddress?: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<StoredMemory> {
   const baseMemory: StoredMemory = {
     uniqueId: memory.id,
@@ -46,7 +47,7 @@ export async function memoryToStored(
   
   // Decrypt fields if wallet address provided
   if (walletAddress) {
-    return (await decryptMemoryFields(baseMemory, walletAddress, signMessage)) as StoredMemory;
+    return (await decryptMemoryFields(baseMemory, walletAddress, signMessage, embeddedWalletSigner)) as StoredMemory;
   }
   
   return baseMemory;
@@ -57,6 +58,7 @@ export interface MemoryStorageOperationsContext {
   memoriesCollection: Collection<Memory>;
   walletAddress?: string;
   signMessage?: SignMessageFn;
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
 export async function getAllMemoriesOp(
@@ -67,7 +69,7 @@ export async function getAllMemoriesOp(
     .fetch();
 
   return Promise.all(
-    results.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage))
+    results.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
   );
 }
 
@@ -78,7 +80,7 @@ export async function getMemoryByIdOp(
   try {
     const memory = await ctx.memoriesCollection.find(id);
     if (memory.isDeleted) return null;
-    return await memoryToStored(memory, ctx.walletAddress, ctx.signMessage);
+    return await memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
   } catch {
     return null;
   }
@@ -94,7 +96,7 @@ export async function getMemoriesByNamespaceOp(
   
   if (ctx.walletAddress && ctx.signMessage) {
     // Query for encrypted namespace
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage);
+    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
     queries.push(
       ctx.memoriesCollection
         .query(
@@ -134,7 +136,7 @@ export async function getMemoriesByNamespaceOp(
   );
 
   return Promise.all(
-    uniqueResults.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage))
+    uniqueResults.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
   );
 }
 
@@ -149,8 +151,8 @@ export async function getMemoriesByKeyOp(
   
   if (ctx.walletAddress && ctx.signMessage) {
     // Query for encrypted composite key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage);
+    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
     const encryptedCompositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
     queries.push(
       ctx.memoriesCollection
@@ -193,7 +195,7 @@ export async function getMemoriesByKeyOp(
   );
 
   return Promise.all(
-    uniqueResults.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage))
+    uniqueResults.map((memory) => memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
   );
 }
 
@@ -207,9 +209,9 @@ export async function getMemoryByUniqueKeyOp(
   // to maintain backwards compatibility with legacy plaintext data
   if (ctx.walletAddress && ctx.signMessage) {
     // Query for encrypted unique key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage);
-    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage);
+    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
     const encryptedUniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
     
     let results = await ctx.memoriesCollection
@@ -225,7 +227,7 @@ export async function getMemoryByUniqueKeyOp(
     }
 
     if (results.length === 0) return null;
-    return await memoryToStored(results[0], ctx.walletAddress, ctx.signMessage);
+    return await memoryToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
   } else {
     // No encryption - only query plaintext
     const uniqueKey = generateUniqueKey(namespace, key, value);
@@ -234,7 +236,7 @@ export async function getMemoryByUniqueKeyOp(
       .fetch();
 
     if (results.length === 0) return null;
-    return await memoryToStored(results[0], ctx.walletAddress, ctx.signMessage);
+    return await memoryToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
   }
 }
 
@@ -244,7 +246,7 @@ export async function saveMemoryOp(
 ): Promise<StoredMemory> {
   // Encrypt fields before storing if encryption is enabled
   const memoryToStore = ctx.walletAddress && ctx.signMessage
-    ? await encryptMemoryFields(opts, ctx.walletAddress, ctx.signMessage)
+    ? await encryptMemoryFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     : opts;
   
   const compositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
@@ -327,7 +329,7 @@ export async function saveMemoryOp(
     });
   });
 
-  return await memoryToStored(result, ctx.walletAddress, ctx.signMessage);
+  return await memoryToStored(result, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function saveMemoriesOp(
@@ -382,7 +384,7 @@ export async function updateMemoryOp(
   // Decrypt existing memory to get plaintext values for merging
   // Pass signMessage so decryption can request key if needed
   const decryptedMemory = (ctx.walletAddress
-    ? await decryptMemoryFields(memoryPlain, ctx.walletAddress, ctx.signMessage)
+    ? await decryptMemoryFields(memoryPlain, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     : memoryPlain) as StoredMemory;
 
   // Build complete memory with updates merged
@@ -400,7 +402,7 @@ export async function updateMemoryOp(
 
   // Encrypt the complete memory if encryption is enabled
   const memoryToStore = ctx.walletAddress && ctx.signMessage
-    ? await encryptMemoryFields(completeMemory, ctx.walletAddress, ctx.signMessage)
+    ? await encryptMemoryFields(completeMemory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     : completeMemory;
 
   const newCompositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
@@ -469,7 +471,7 @@ export async function updateMemoryOp(
       return memory;
     });
 
-    return { ok: true, memory: await memoryToStored(updated, ctx.walletAddress, ctx.signMessage) };
+    return { ok: true, memory: await memoryToStored(updated, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner) };
   } catch (err) {
     return {
       ok: false,
@@ -507,9 +509,9 @@ export async function deleteMemoryOp(
   
   if (ctx.walletAddress && ctx.signMessage) {
     // Query for encrypted unique key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage);
-    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage);
+    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
     const encryptedUniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
     
     results = await ctx.memoriesCollection
@@ -551,8 +553,8 @@ export async function deleteMemoriesByKeyOp(
   
   if (ctx.walletAddress && ctx.signMessage) {
     // Query for encrypted composite key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage);
+    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
     const encryptedCompositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
     queries.push(
       ctx.memoriesCollection
@@ -628,7 +630,7 @@ export async function searchSimilarMemoriesOp(
   const results = await Promise.all(
     memoriesWithEmbeddings.map(async (memory) => {
       const similarity = cosineSimilarity(queryEmbedding, memory.embedding!);
-      const stored = await memoryToStored(memory, ctx.walletAddress, ctx.signMessage);
+      const stored = await memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
       return {
         ...stored,
         similarity,

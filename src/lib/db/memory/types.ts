@@ -1,6 +1,6 @@
 import type { Database } from "@nozbe/watermelondb";
 import type { MemoryExtractionResult } from "../../memory/service";
-import type { SignMessageFn } from "../../../react/useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
 // Core types
 
@@ -61,6 +61,7 @@ export interface BaseUseMemoryStorageOptions {
   baseUrl?: string;
   walletAddress?: string;
   signMessage?: SignMessageFn;
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
 export interface BaseUseMemoryStorageResult {

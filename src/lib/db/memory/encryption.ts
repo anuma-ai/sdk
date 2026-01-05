@@ -1,5 +1,5 @@
 import { decryptData, requestEncryptionKey, encryptDataDeterministic } from "../../../react/useEncryption";
-import type { SignMessageFn } from "../../../react/useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 import type { CreateMemoryOptions, StoredMemory, MemoryItem } from "./types";
 
 const ENCRYPTION_PREFIX = "enc:v2:";
@@ -21,10 +21,11 @@ export function isEncrypted(value: string): boolean {
 export async function encryptField(
   value: string,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
   // Delegate to deterministic encryption for consistency
-  return await encryptFieldDeterministic(value, address, signMessage);
+  return await encryptFieldDeterministic(value, address, signMessage, embeddedWalletSigner);
 }
 
 /**
@@ -55,7 +56,8 @@ export async function decryptField(
 export async function encryptMemoryFields(
   memory: CreateMemoryOptions | MemoryItem,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<CreateMemoryOptions> {
   if (!address || !signMessage) {
     // No encryption if wallet address not provided
@@ -68,10 +70,10 @@ export async function encryptMemoryFields(
     // content comparison for embedding preservation checks
     const [encryptedNamespace, encryptedKey, encryptedValue, encryptedRawEvidence] =
       await Promise.all([
-        encryptFieldDeterministic(memory.namespace, address, signMessage),
-        encryptFieldDeterministic(memory.key, address, signMessage),
-        encryptFieldDeterministic(memory.value, address, signMessage), // Deterministic for unique key generation
-        encryptFieldDeterministic(memory.rawEvidence, address, signMessage), // Deterministic for embedding preservation checks
+        encryptFieldDeterministic(memory.namespace, address, signMessage, embeddedWalletSigner),
+        encryptFieldDeterministic(memory.key, address, signMessage, embeddedWalletSigner),
+        encryptFieldDeterministic(memory.value, address, signMessage, embeddedWalletSigner), // Deterministic for unique key generation
+        encryptFieldDeterministic(memory.rawEvidence, address, signMessage, embeddedWalletSigner), // Deterministic for embedding preservation checks
       ]);
     
     return {
@@ -94,7 +96,8 @@ export async function encryptMemoryFields(
 export async function decryptMemoryFields(
   memory: StoredMemory | MemoryItem,
   address?: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<StoredMemory | MemoryItem> {
   if (!address) {
     // No decryption if wallet address not provided
@@ -104,7 +107,7 @@ export async function decryptMemoryFields(
   // Request encryption key if needed (allows decryption even if key not in memory)
   if (signMessage) {
     try {
-      await requestEncryptionKey(address, signMessage);
+      await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
       // If key request fails, continue anyway - decryptField will handle errors gracefully
       console.warn("Failed to request encryption key for decryption:", error);
@@ -135,7 +138,8 @@ export async function decryptMemoryFields(
 async function encryptFieldDeterministic(
   value: string,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
   if (!value) return value;
   if (!address || !signMessage) return value;
@@ -146,7 +150,7 @@ async function encryptFieldDeterministic(
   }
   
   try {
-    await requestEncryptionKey(address, signMessage);
+    await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     const encrypted = await encryptDataDeterministic(value, address);
     return `${ENCRYPTION_PREFIX}${encrypted}`;
   } catch (error) {
@@ -162,12 +166,13 @@ async function encryptFieldDeterministic(
 export async function encryptNamespaceForQuery(
   namespace: string,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
   if (!address || !signMessage) {
     return namespace;
   }
-  return await encryptFieldDeterministic(namespace, address, signMessage);
+  return await encryptFieldDeterministic(namespace, address, signMessage, embeddedWalletSigner);
 }
 
 /**
@@ -177,12 +182,13 @@ export async function encryptNamespaceForQuery(
 export async function encryptKeyForQuery(
   key: string,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
   if (!address || !signMessage) {
     return key;
   }
-  return await encryptFieldDeterministic(key, address, signMessage);
+  return await encryptFieldDeterministic(key, address, signMessage, embeddedWalletSigner);
 }
 
 /**
@@ -192,10 +198,11 @@ export async function encryptKeyForQuery(
 export async function encryptValueForQuery(
   value: string,
   address: string,
-  signMessage?: SignMessageFn
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
   if (!address || !signMessage) {
     return value;
   }
-  return await encryptFieldDeterministic(value, address, signMessage);
+  return await encryptFieldDeterministic(value, address, signMessage, embeddedWalletSigner);
 }

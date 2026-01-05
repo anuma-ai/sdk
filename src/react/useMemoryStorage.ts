@@ -137,8 +137,9 @@ export function useMemoryStorage(
       memoriesCollection,
       walletAddress: options.walletAddress,
       signMessage: options.signMessage,
+      embeddedWalletSigner: options.embeddedWalletSigner,
     }),
-    [database, memoriesCollection, options.walletAddress, options.signMessage]
+    [database, memoriesCollection, options.walletAddress, options.signMessage, options.embeddedWalletSigner]
   );
 
   // Get the effective embedding model (used when embeddings are enabled)
