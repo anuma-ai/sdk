@@ -8,6 +8,14 @@ overrides:
   react: '>=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1'
   react-dom: '>=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1'
 
+patchedDependencies:
+  pdfjs-dist@4.10.38:
+    hash: b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb
+    path: patches/pdfjs-dist@4.10.38.patch
+  tesseract.js@6.0.1:
+    hash: 11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9
+    path: patches/tesseract.js@6.0.1.patch
+
 importers:
 
   .:
@@ -20,13 +28,13 @@ importers:
         version: 5.0.93(zod@4.2.1)
       pdfjs-dist:
         specifier: ^4.10.38
-        version: 4.10.38
+        version: 4.10.38(patch_hash=b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb)
       react-native:
         specifier: '>=0.70.0'
         version: 0.82.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(utf-8-validate@5.0.10)
       tesseract.js:
         specifier: ^6.0.1
-        version: 6.0.1
+        version: 6.0.1(patch_hash=11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9)
     devDependencies:
       '@hey-api/openapi-ts':
         specifier: 0.87.2
@@ -10636,7 +10644,7 @@ snapshots:
 
   pathe@2.0.3: {}
 
-  pdfjs-dist@4.10.38:
+  pdfjs-dist@4.10.38(patch_hash=b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb):
     optionalDependencies:
       '@napi-rs/canvas': 0.1.83
 
@@ -11268,7 +11276,7 @@ snapshots:
 
   tesseract.js-core@6.0.0: {}
 
-  tesseract.js@6.0.1:
+  tesseract.js@6.0.1(patch_hash=11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9):
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.2

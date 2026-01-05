@@ -118,6 +118,10 @@
     "overrides": {
       "react": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
       "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1"
+    },
+    "patchedDependencies": {
+      "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",
+      "pdfjs-dist@4.10.38": "patches/pdfjs-dist@4.10.38.patch"
     }
   }
 }
