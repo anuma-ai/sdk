@@ -16,6 +16,7 @@ import {
   clearAllEncryptionKeys,
   requestEncryptionKey,
   hasEncryptionKey,
+  SIGN_MESSAGE,
 } from "./useEncryption";
 import type { SignMessageFn } from "./useEncryption";
 
@@ -75,9 +76,7 @@ describe("useEncryption - Key Pair Generation", () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
-      expect(mockSignMessage).toHaveBeenCalledWith(
-        "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services."
-      );
+      expect(mockSignMessage).toHaveBeenCalledWith(SIGN_MESSAGE);
       expect(hasKeyPair(address)).toBe(true);
     });
 
@@ -109,9 +108,8 @@ describe("useEncryption - Key Pair Generation", () => {
 
       const calls = mockSignMessage.mock.calls;
       expect(calls.length).toBeGreaterThan(0);
-      expect(calls[0][0]).toContain("encryption keys");
+      expect(calls[0][0]).toContain("generate a key");
       expect(calls[0][0]).toContain("encrypt data");
-      expect(calls[0][0]).toContain("cloud services");
     });
   });
 
@@ -458,7 +456,7 @@ describe("useEncryption - Key Pair Generation", () => {
       const address = "0x1234567890123456789012345678901234567890";
       
       // Create a signature once
-      const sharedSignature = await mockSignMessage("The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.");
+      const sharedSignature = await mockSignMessage(SIGN_MESSAGE);
       
       // Clear mocks
       vi.clearAllMocks();

@@ -1,6 +1,6 @@
 "use client";
 
-const SIGN_MESSAGE =
+export const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
 /**
  * In-memory storage for encryption keys.
