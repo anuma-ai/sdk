@@ -23,7 +23,6 @@ import {
   handleError,
   isAbortError,
   isDoneMarker,
-  messagesToInput,
   toolsToApiFormat,
   createToolExecutorMap,
   executeToolCall,
@@ -278,7 +277,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           baseUrl,
           url: "/api/v1/responses",
           body: {
-            input: messagesToInput(messagesWithContext),
+            messages: messagesWithContext,
             model,
             stream: true,
             // Responses API options (only include if defined)
@@ -494,8 +493,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             const continuationMessages = [...messagesWithContext, ...toolResultMessages];
 
             console.log("[Tool Debug] Continuation messages:", JSON.stringify(continuationMessages, null, 2));
-            const continuationInput = messagesToInput(continuationMessages);
-            console.log("[Tool Debug] Continuation input text:", continuationInput);
 
             // Recursive call to continue with tool results
             // Use the same parameters but with updated messages
@@ -503,7 +500,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               baseUrl,
               url: "/api/v1/responses",
               body: {
-                input: continuationInput,
+                messages: continuationMessages,
                 model,
                 stream: true,
                 ...(store !== undefined && { store }),

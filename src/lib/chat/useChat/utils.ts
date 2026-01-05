@@ -111,6 +111,9 @@ function extractTextFromContentPart(part: LlmapiMessageContentPart): string {
 /**
  * Converts a messages array to a string input for the responses API.
  * Format: Each message is prefixed with its role, messages are separated by newlines.
+ *
+ * @deprecated This function is deprecated. The API now accepts messages as an array directly.
+ * This function is kept for backward compatibility but is no longer used internally.
  */
 export function messagesToInput(messages: LlmapiMessage[]): string {
   return messages

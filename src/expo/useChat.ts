@@ -21,7 +21,6 @@ import {
   createErrorResult,
   handleError,
   parseSSEDataLine,
-  messagesToInput,
   processStreamingChunk,
   toolsToApiFormat,
   createToolExecutorMap,
@@ -426,7 +425,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                       continuationXhr.send(
                         JSON.stringify({
-                          input: messagesToInput(continuationMessages),
+                          messages: continuationMessages,
                           model,
                           stream: true,
                           ...(store !== undefined && { store }),
@@ -485,7 +484,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.send(
             JSON.stringify({
-              input: messagesToInput(messages),
+              messages: messages,
               model,
               stream: true,
               // Responses API options (only include if defined)
