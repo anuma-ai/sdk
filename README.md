@@ -34,257 +34,64 @@ import { useIdentityToken } from "@privy-io/react-auth";
 const { identityToken } = useIdentityToken();
 ```
 
-## Usage
+## Quick Start
 
-For an example of how to use this functionality check out [the example
-repo](https://github.com/zeta-chain/ai-examples).
-
-### useChat
-
-The `useChat` hook provides a convenient way to send chat messages to the LLM
-API with automatic token management and loading state handling.
+For React applications, use the hooks from `@reverbia/sdk/react`:
 
 ```typescript
 import { useChat } from "@reverbia/sdk/react";
-```
 
-```typescript
 const { sendMessage, isLoading, stop } = useChat({
   getToken: async () => identityToken || null,
-  onFinish: (response) => {
-    console.log("Chat finished:", response);
-  },
-  onError: (error) => {
-    console.error("Chat error:", error);
-  },
-  onData: (chunk) => {
-    console.log("Received chunk:", chunk);
-  },
+  onFinish: (response) => console.log("Chat finished:", response),
+  onError: (error) => console.error("Chat error:", error),
+  onData: (chunk) => console.log("Received chunk:", chunk),
 });
 
-const handleSend = async () => {
-  const result = await sendMessage({
-    messages: [{ role: "user", content: "Hello!" }],
-    model: "gpt-4o-mini",
-  });
-
-  if (result.error) {
-    console.error("Error:", result.error);
-  } else {
-    console.log("Response:", result.data);
-  }
-};
-```
-
-### useMemory
-
-The `useMemory` hook allows you to extract facts/memories from messages and
-search through stored memories (in IndexedDB) using semantic search.
-
-How it works:
-
-1. **Fact Extraction:** When prompts are sent to the LLM, they are analyzed for
-   relevant facts. If found, these facts are extracted and converted into vector
-   embeddings.
-2. **Storage:** Extracted memories and their embeddings are stored locally in
-   IndexedDB.
-3. **Retrieval:** New prompts are converted into embedding vectors and compared
-   against stored memories. Relevant memories are then retrieved and used as
-   context for the LLM interaction.
-
-```typescript
-import { useMemory } from "@reverbia/sdk/react";
-```
-
-```typescript
-const { extractMemoriesFromMessage, searchMemories } = useMemory({
-  getToken: async () => identityToken || null,
-  embeddingModel: "openai/text-embedding-3-small",
+await sendMessage({
+  messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
+  model: "gpt-4o-mini",
 });
-
-const handleExtract = async () => {
-  await extractMemoriesFromMessage({
-    messages: [
-      { role: "user", content: "My favorite color is blue" },
-      {
-        role: "assistant",
-        content: "I will remember that your favorite color is blue.",
-      },
-    ],
-    model: "gpt-4o",
-  });
-};
-
-const handleSearch = async () => {
-  const memories = await searchMemories("What is my favorite color?");
-  console.log(memories);
-};
 ```
 
-### useEncryption
+For React Native/Expo, use `@reverbia/sdk/expo` instead.
 
-The `useEncryption` hook and utilities help you encrypt and decrypt local data
-using a key derived from a wallet signature (requires `@privy-io/react-auth`).
-
-```typescript
-import { usePrivy } from "@privy-io/react-auth";
-import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
-```
+For direct API access without React hooks, use the functions from this package:
 
 ```typescript
-const { authenticated } = usePrivy();
+import { postApiV1Responses } from "@reverbia/sdk";
 
-// Initialize encryption (requests signature if key not present)
-// Pass true when user is authenticated with wallet
-useEncryption(authenticated);
-
-// Encrypt data
-const saveSecret = async (text: string) => {
-  const encrypted = await encryptData(text);
-  localStorage.setItem("secret", encrypted);
-};
-
-// Decrypt data
-const loadSecret = async () => {
-  const encrypted = localStorage.getItem("secret");
-  if (encrypted) {
-    const decrypted = await decryptData(encrypted);
-    console.log(decrypted);
-  }
-};
-```
-
-### Direct API Access
-
-You can also make requests to SDK functions directly without using the React
-hooks.
-
-```typescript
-import { postApiV1ChatCompletions } from "@reverbia/sdk";
-
-const response = await postApiV1ChatCompletions({
+const response = await postApiV1Responses({
   body: {
-    messages: [{ role: "user", content: "Tell me a joke" }],
+    messages: [
+      { role: "user", content: [{ type: "text", text: "Tell me a joke" }] },
+    ],
     model: "gpt-4o-mini",
   },
   headers: {
     Authorization: `Bearer ${identityToken}`,
   },
 });
-
-if (response.data) {
-  console.log(response.data.choices[0].message.content);
-}
 ```
 
-## React Native (Expo)
+## What's Included
 
-The SDK supports React Native via Expo with streaming support. For a complete
-example, see
-[ai-example-expo](https://github.com/zeta-chain/ai-example-expo).
+The SDK provides everything you need to integrate AI capabilities into your
+applications:
 
-### Installation
+- **Chat completions** with streaming support and tool calling
+- **Image generation** from text prompts
+- **Text embeddings** for semantic search
+- **Web search** integration
+- **PDF and image text extraction** (OCR)
+- **Memory and context management** for conversational AI
+- **Wallet-based encryption** for secure data storage
 
-```bash
-pnpm install @reverbia/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
-```
+## Documentation
 
-### Polyfill Setup
+https://ai-docs.zetachain.app
 
-Create a custom entry point file (e.g., `entrypoint.js`) and update
-`package.json` to use it:
+## Example Usage
 
-```json
-{
-  "main": "entrypoint.js"
-}
-```
-
-```javascript
-// entrypoint.js
-
-// Import polyfills in this exact order
-import "react-native-get-random-values";
-import "@ethersproject/shims";
-import { Buffer } from "buffer";
-global.Buffer = Buffer;
-
-// Web Streams polyfill for SSE streaming
-import { ReadableStream, TransformStream } from "web-streams-polyfill";
-if (typeof globalThis.ReadableStream === "undefined") {
-  globalThis.ReadableStream = ReadableStream;
-}
-if (typeof globalThis.TransformStream === "undefined") {
-  globalThis.TransformStream = TransformStream;
-}
-
-// SDK polyfills (TextDecoderStream for streaming)
-import "@reverbia/sdk/polyfills";
-
-// Then import expo router
-import "expo-router/entry";
-```
-
-### Usage
-
-Import from `@reverbia/sdk/expo` instead of `@reverbia/sdk/react`:
-
-```typescript
-import { useIdentityToken } from "@privy-io/expo";
-import { useChat } from "@reverbia/sdk/expo";
-
-function ChatComponent() {
-  const { getIdentityToken } = useIdentityToken();
-
-  const { isLoading, sendMessage } = useChat({
-    getToken: getIdentityToken,
-    baseUrl: "https://ai-portal-dev.zetachain.com",
-    onData: (chunk) => {
-      // Handle streaming chunks
-      const content =
-        typeof chunk === "string"
-          ? chunk
-          : chunk.choices?.[0]?.delta?.content || "";
-      console.log("Received:", content);
-    },
-    onFinish: () => {
-      console.log("Stream finished");
-    },
-    onError: (error) => {
-      console.error("Error:", error);
-    },
-  });
-
-  const handleSend = async () => {
-    await sendMessage({
-      messages: [{ role: "user", content: "Hello!" }],
-      model: "openai/gpt-4o",
-    });
-  };
-}
-```
-
-### Authentication
-
-Use `@privy-io/expo` for authentication in React Native:
-
-```typescript
-import { PrivyProvider, usePrivy } from "@privy-io/expo";
-import { useIdentityToken } from "@privy-io/expo";
-
-// Wrap your app with PrivyProvider
-<PrivyProvider appId="your-app-id" clientId="your-client-id">
-  <App />
-</PrivyProvider>;
-
-// Get identity token for API calls
-const { getIdentityToken } = useIdentityToken();
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a pull request.
-
-## License
-
-[MIT](LICENSE)
+For a complete example of how to use this SDK, check out [the example
+repo](https://github.com/zeta-chain/ai-examples).
