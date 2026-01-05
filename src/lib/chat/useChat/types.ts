@@ -5,6 +5,7 @@ import type {
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
   LlmapiTool,
+  LlmapiToolCall,
 } from "../../../client";
 
 /**
@@ -28,6 +29,40 @@ export type StreamingChunk = {
   // For thinking/reasoning content
   content_index?: number;
   output_index?: number;
+  // For tool calls
+  item?: {
+    id?: string;
+    type?: string;
+    name?: string;
+    arguments?: string;
+    call_id?: string;
+    status?: string;
+  };
+  item_id?: string;
+  call_id?: string;
+  arguments?: string;
+};
+
+/**
+ * Tool executor function type
+ */
+export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> | unknown;
+
+/**
+ * Tool configuration with optional executor
+ */
+export type ToolConfig = LlmapiTool & {
+  /**
+   * Function to execute when the tool is called.
+   * If provided, the tool will be executed automatically when the LLM calls it.
+   * If not provided, an onToolCall event will be emitted instead.
+   */
+  executor?: ToolExecutor;
+  /**
+   * Whether to execute this tool automatically when called by the LLM.
+   * Default: true if executor is provided, false otherwise.
+   */
+  autoExecute?: boolean;
 };
 
 /**
@@ -59,8 +94,9 @@ export type ResponsesApiOptions = {
   maxOutputTokens?: number;
   /**
    * Array of tool definitions available to the model.
+   * Can include executor functions for automatic tool execution.
    */
-  tools?: LlmapiTool[];
+  tools?: Array<LlmapiTool | ToolConfig>;
   /**
    * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
    */
@@ -132,6 +168,14 @@ export type BaseUseChatOptions = {
    * @param error - The error that occurred (never an AbortError)
    */
   onError?: (error: Error) => void;
+  /**
+   * Callback function to be called when a tool call is requested by the LLM.
+   * This is called for tools that don't have an executor or have autoExecute=false.
+   * The app should execute the tool and send the result back.
+   *
+   * @param toolCall - The tool call requested by the LLM
+   */
+  onToolCall?: (toolCall: LlmapiToolCall) => void;
 };
 
 /**
@@ -150,6 +194,19 @@ export type BaseUseChatResult = {
 };
 
 /**
+ * Tool call being accumulated during streaming
+ */
+export type AccumulatedToolCall = {
+  id: string;
+  type: string;
+  name: string;
+  arguments: string;
+  status: "pending" | "completed" | "error";
+  result?: unknown;
+  error?: string;
+};
+
+/**
  * Accumulated stream state during SSE processing
  */
 export type StreamAccumulator = {
@@ -158,4 +215,5 @@ export type StreamAccumulator = {
   responseId: string;
   responseModel: string;
   usage: Partial<LlmapiResponseUsage>;
+  toolCalls: Map<string, AccumulatedToolCall>;
 };

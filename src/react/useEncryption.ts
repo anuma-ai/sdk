@@ -352,9 +352,30 @@ export async function encryptDataDeterministic(
 }
 
 /**
- * Encrypts data using AES-GCM with the stored encryption key
+ * Encrypts data using AES-GCM with the stored encryption key.
+ *
+ * This function uses the encryption key previously generated via `requestEncryptionKey`
+ * to encrypt data. The key must exist in memory before calling this function, or it
+ * will throw an error prompting the user to sign a message.
+ *
  * @param plaintext - The data to encrypt (string or Uint8Array)
+ * @param address - The wallet address associated with the encryption key
  * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @throws Error if encryption key is not found in memory
+ *
+ * @example
+ * ```tsx
+ * import { encryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+ *
+ * // First, ensure encryption key exists
+ * await requestEncryptionKey(walletAddress);
+ *
+ * // Then encrypt data
+ * const encrypted = await encryptData("my secret data", walletAddress);
+ * localStorage.setItem("mySecret", encrypted);
+ * ```
+ *
+ * @category Encryption
  */
 export async function encryptData(
   plaintext: string | Uint8Array,
@@ -399,9 +420,33 @@ export async function encryptData(
 }
 
 /**
- * Decrypts data using AES-GCM with the stored encryption key
+ * Decrypts data using AES-GCM with the stored encryption key.
+ *
+ * This function uses the encryption key previously generated via `requestEncryptionKey`
+ * to decrypt data. The key must exist in memory before calling this function, or it
+ * will throw an error prompting the user to sign a message.
+ *
  * @param encryptedHex - Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @param address - The wallet address associated with the encryption key
  * @returns Decrypted data as string
+ * @throws Error if encryption key is not found in memory or if decryption fails
+ *
+ * @example
+ * ```tsx
+ * import { decryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+ *
+ * // First, ensure encryption key exists
+ * await requestEncryptionKey(walletAddress);
+ *
+ * // Then decrypt data
+ * const encrypted = localStorage.getItem("mySecret");
+ * if (encrypted) {
+ *   const decrypted = await decryptData(encrypted, walletAddress);
+ *   console.log("Decrypted:", decrypted);
+ * }
+ * ```
+ *
+ * @category Encryption
  */
 export async function decryptData(
   encryptedHex: string,
@@ -614,9 +659,92 @@ export function clearAllKeyPairs(): void {
 }
 
 /**
- * Hook that provides on-demand encryption key management.
- * @param signMessage - Function to sign a message (from Privy's useSignMessage)
+ * Hook that provides encryption key management for securing local data.
+ *
+ * This hook helps you encrypt and decrypt data using a key derived from a wallet
+ * signature. It requires `@privy-io/react-auth` for wallet authentication. Keys are
+ * stored in memory only and do not persist across page reloads for security.
+ *
+ * ## How it works
+ *
+ * 1. User signs a message with their wallet
+ * 2. The signature is used to deterministically derive an encryption key
+ * 3. The key is stored in memory (not localStorage) for the session
+ * 4. Data can be encrypted/decrypted using this key
+ * 5. On page reload, user must sign again to derive the key
+ *
+ * ## Security Features
+ *
+ * - **In-memory only**: Keys never touch disk or localStorage
+ * - **Deterministic**: Same wallet + signature always generates same key
+ * - **Session-scoped**: Keys cleared on page reload
+ * - **XSS-resistant**: Keys not accessible after page reload
+ *
+ * @param signMessage - Function to sign a message (from Privy's useSignMessage hook)
  * @returns Functions to request encryption keys and manage key pairs
+ *
+ * @example
+ * ```tsx
+ * import { usePrivy } from "@privy-io/react-auth";
+ * import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+ *
+ * function SecureComponent() {
+ *   const { user, signMessage } = usePrivy();
+ *   const { requestEncryptionKey } = useEncryption(signMessage);
+ *
+ *   // Request encryption key when user is authenticated
+ *   useEffect(() => {
+ *     if (user?.wallet?.address) {
+ *       // This will prompt user to sign if key doesn't exist
+ *       await requestEncryptionKey(user.wallet.address);
+ *     }
+ *   }, [user]);
+ *
+ *   // Encrypt data
+ *   const saveSecret = async (text: string) => {
+ *     const encrypted = await encryptData(text, user.wallet.address);
+ *     localStorage.setItem("secret", encrypted);
+ *   };
+ *
+ *   // Decrypt data
+ *   const loadSecret = async () => {
+ *     const encrypted = localStorage.getItem("secret");
+ *     if (encrypted) {
+ *       const decrypted = await decryptData(encrypted, user.wallet.address);
+ *       console.log(decrypted);
+ *     }
+ *   };
+ *
+ *   return (
+ *     <div>
+ *       <button onClick={() => saveSecret("my secret data")}>Encrypt & Save</button>
+ *       <button onClick={loadSecret}>Load & Decrypt</button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // ECDH key pair generation for end-to-end encryption
+ * import { usePrivy } from "@privy-io/react-auth";
+ * import { useEncryption } from "@reverbia/sdk/react";
+ *
+ * function E2EEComponent() {
+ *   const { signMessage } = usePrivy();
+ *   const { requestKeyPair, exportPublicKey } = useEncryption(signMessage);
+ *
+ *   const setupEncryption = async (walletAddress: string) => {
+ *     // Generate deterministic ECDH key pair from wallet signature
+ *     await requestKeyPair(walletAddress);
+ *
+ *     // Export public key to share with others
+ *     const publicKey = await exportPublicKey(walletAddress);
+ *     console.log("Share this public key:", publicKey);
+ *   };
+ * }
+ * ```
+ *
  * @category Hooks
  */
 export function useEncryption(signMessage: SignMessageFn) {
