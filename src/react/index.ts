@@ -65,6 +65,11 @@ export {
   decryptDataBytes,
   clearEncryptionKey,
   clearAllEncryptionKeys,
+  requestKeyPair,
+  exportPublicKey,
+  hasKeyPair,
+  clearKeyPair,
+  clearAllKeyPairs,
 } from "./useEncryption";
 export type { SignMessageFn } from "./useEncryption";
 
