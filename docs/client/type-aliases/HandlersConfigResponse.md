@@ -2,7 +2,7 @@
 
 > **HandlersConfigResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L7)
+Defined in: [src/client/types.gen.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L17)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blo
 
 > `optional` **chain\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L11)
+Defined in: [src/client/types.gen.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L21)
 
 ChainID is the blockchain chain ID
 
@@ -20,7 +20,7 @@ ChainID is the blockchain chain ID
 
 > `optional` **cost\_limit\_escrow\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L15)
+Defined in: [src/client/types.gen.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L25)
 
 CostLimitEscrowAddress is the cost-limit escrow contract address (if configured)
 
@@ -30,7 +30,7 @@ CostLimitEscrowAddress is the cost-limit escrow contract address (if configured)
 
 > `optional` **operator\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L19)
+Defined in: [src/client/types.gen.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L29)
 
 OperatorAddress is the operator wallet address
 
@@ -40,7 +40,7 @@ OperatorAddress is the operator wallet address
 
 > `optional` **pay\_as\_you\_go\_escrow\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L23)
+Defined in: [src/client/types.gen.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L33)
 
 PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configured)
 
@@ -50,7 +50,7 @@ PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configu
 
 > `optional` **payment\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L27)
+Defined in: [src/client/types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L37)
 
 PaymentModel is the payment model used (pay_as_you_go or cost_limit)
 
@@ -60,6 +60,6 @@ PaymentModel is the payment model used (pay_as_you_go or cost_limit)
 
 > `optional` **settlement\_recipient**: `string`
 
-Defined in: [src/client/types.gen.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L31)
+Defined in: [src/client/types.gen.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L41)
 
 SettlementRecipient is the address that receives settlement payments

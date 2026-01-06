@@ -277,7 +277,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           baseUrl,
           url: "/api/v1/responses",
           body: {
-            messages: messagesWithContext,
+            input: messagesWithContext,
             model,
             stream: true,
             // Responses API options (only include if defined)
@@ -500,7 +500,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               baseUrl,
               url: "/api/v1/responses",
               body: {
-                messages: continuationMessages,
+                input: continuationMessages,
                 model,
                 stream: true,
                 ...(store !== undefined && { store }),

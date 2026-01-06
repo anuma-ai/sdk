@@ -2,7 +2,7 @@
 
 > **PostApiV1SearchResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1102](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1102)
+Defined in: [src/client/types.gen.ts:1228](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1228)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1102](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`LlmapiSearchResponse`](LlmapiSearchResponse.md)
 
-Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1106)
+Defined in: [src/client/types.gen.ts:1232](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1232)
 
 OK
