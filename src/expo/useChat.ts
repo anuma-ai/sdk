@@ -191,6 +191,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const tokenValidation = validateToken(token);
         if (!tokenValidation.valid) {
+          setIsLoading(false);
           return createErrorResult(tokenValidation.message, onError);
         }
 
@@ -440,6 +441,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                       );
                     });
 
+                    setIsLoading(false);
                     if (continuationResult.data && onFinish) {
                       onFinish(continuationResult.data);
                     }
@@ -447,6 +449,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                     return;
                   } catch (toolError) {
                     const errorMsg = `Tool execution error: ${toolError instanceof Error ? toolError.message : String(toolError)}`;
+                    setIsLoading(false);
                     if (onError) onError(new Error(errorMsg));
                     resolve({ data: null, error: errorMsg });
                     return;
@@ -454,10 +457,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 }
               }
 
+              setIsLoading(false);
               if (onFinish) onFinish(response);
               resolve({ data: response, error: null });
             } else {
               const errorMsg = `Request failed with status ${xhr.status}`;
+              setIsLoading(false);
               if (onError) onError(new Error(errorMsg));
               resolve({ data: null, error: errorMsg });
             }
@@ -466,12 +471,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           xhr.onerror = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
             const errorMsg = "Network error";
+            setIsLoading(false);
             if (onError) onError(new Error(errorMsg));
             resolve({ data: null, error: errorMsg });
           };
 
           xhr.onabort = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+            setIsLoading(false);
             resolve({ data: null, error: "Request aborted" });
           };
 
@@ -496,11 +503,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         return result;
       } catch (err) {
+        setIsLoading(false);
         return handleError(err, onError);
       } finally {
-        // Always reset loading state, regardless of success or failure
-        // This prevents the UI from getting "stuck" in loading state on errors
-        setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
