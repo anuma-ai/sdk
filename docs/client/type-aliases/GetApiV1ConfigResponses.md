@@ -2,7 +2,7 @@
 
 > **GetApiV1ConfigResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:910](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L910)
+Defined in: [src/client/types.gen.ts:986](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L986)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:910](https://github.com/zeta-chain/ai-sdk/b
 
 > **200**: [`HandlersConfigResponse`](HandlersConfigResponse.md)
 
-Defined in: [src/client/types.gen.ts:914](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L914)
+Defined in: [src/client/types.gen.ts:990](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L990)
 
 OK

@@ -2,7 +2,7 @@
 
 > **LlmapiModelTopProvider** = `object`
 
-Defined in: [src/client/types.gen.ts:500](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L500)
+Defined in: [src/client/types.gen.ts:549](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L549)
 
 TopProvider contains configuration details for the primary provider
 
@@ -12,7 +12,7 @@ TopProvider contains configuration details for the primary provider
 
 > `optional` **context\_length**: `number`
 
-Defined in: [src/client/types.gen.ts:501](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L501)
+Defined in: [src/client/types.gen.ts:550](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L550)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:501](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **is\_moderated**: `boolean`
 
-Defined in: [src/client/types.gen.ts:502](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L502)
+Defined in: [src/client/types.gen.ts:551](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L551)
 
 ***
 
@@ -28,4 +28,4 @@ Defined in: [src/client/types.gen.ts:502](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **max\_completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:503](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L503)
+Defined in: [src/client/types.gen.ts:552](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L552)

@@ -2,7 +2,7 @@
 
 > **LlmapiImageGenerationExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:271](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L271)
+Defined in: [src/client/types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L289)
 
 ExtraFields contains additional metadata such as provider/model information.
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata such as provider/model information.
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:275](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L275)
+Defined in: [src/client/types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L293)
 
 ModelRequested is the model identifier that the client asked for.
 
@@ -22,7 +22,7 @@ ModelRequested is the model identifier that the client asked for.
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:279](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L279)
+Defined in: [src/client/types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L297)
 
 Provider is the gateway that serviced this request.
 
@@ -32,6 +32,6 @@ Provider is the gateway that serviced this request.
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:283](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L283)
+Defined in: [src/client/types.gen.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L301)
 
 RequestType is always "image_generation".

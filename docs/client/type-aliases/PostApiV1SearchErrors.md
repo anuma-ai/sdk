@@ -2,7 +2,7 @@
 
 > **PostApiV1SearchErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1089](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1089)
+Defined in: [src/client/types.gen.ts:1177](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1177)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1089](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1093](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1093)
+Defined in: [src/client/types.gen.ts:1181](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1181)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1097](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1097)
+Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
 
 Internal Server Error

@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRefreshResponse** = [`PostAuthOauthByProviderRefreshResponses`](PostAuthOauthByProviderRefreshResponses.md)\[keyof [`PostAuthOauthByProviderRefreshResponses`](PostAuthOauthByProviderRefreshResponses.md)\]
 
-Defined in: [src/client/types.gen.ts:1183](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1183)
+Defined in: [src/client/types.gen.ts:1271](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1271)

@@ -117,6 +117,17 @@ export type LlmapiChatCompletionRequest = {
      * Stream indicates if response should be streamed
      */
     stream?: boolean;
+    /**
+     * ToolChoice controls which tool to use. Can be:
+     * - string: "auto", "none", "required", or a function name
+     * - object: {"type": "function", "function": {"name": "my_function"}}
+     * Using 'any' to match OpenAI's flexible API format.
+     */
+    tool_choice?: unknown;
+    /**
+     * Tools is an array of tool definitions the model can use
+     */
+    tools?: Array<LlmapiTool>;
 };
 
 export type LlmapiChatCompletionResponse = {
@@ -129,6 +140,13 @@ export type LlmapiChatCompletionResponse = {
      * ID is the completion ID
      */
     id?: string;
+    /**
+     * Messages contains the full conversation history when local tools need execution.
+     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+     * The client should execute these tools and send a new request with this message history
+     * plus the tool results appended.
+     */
+    messages?: Array<LlmapiMessage>;
     /**
      * Model is the model used
      */
@@ -370,13 +388,43 @@ export type LlmapiMessage = {
     content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
     /**
+     * ToolCallID is the ID of the tool call this message is responding to (only for tool role)
+     */
+    tool_call_id?: string;
+    /**
      * ToolCalls contains tool/function calls made by the assistant (only for assistant role)
      */
     tool_calls?: Array<LlmapiToolCall>;
+    /**
+     * Type is the message type (for Responses API: "message")
+     */
+    type?: string;
 };
 
 /**
- * ImageURL is used when Type=image_url
+ * File is used when Type=input_file (for Responses API)
+ */
+export type LlmapiMessageContentFile = {
+    /**
+     * FileData is the base64-encoded file content
+     */
+    file_data?: string;
+    /**
+     * FileID is the ID of an uploaded file
+     */
+    file_id?: string;
+    /**
+     * FileURL is the URL to the file
+     */
+    file_url?: string;
+    /**
+     * Filename is the name of the file
+     */
+    filename?: string;
+};
+
+/**
+ * ImageURL is used when Type=image_url or Type=input_image
  */
 export type LlmapiMessageContentImage = {
     /**
@@ -390,13 +438,14 @@ export type LlmapiMessageContentImage = {
 };
 
 export type LlmapiMessageContentPart = {
+    file?: LlmapiMessageContentFile;
     image_url?: LlmapiMessageContentImage;
     /**
-     * Text holds the text content when Type=text
+     * Text holds the text content when Type=text or Type=input_text
      */
     text?: string;
     /**
-     * Type is the block type (`text` or `image_url`)
+     * Type is the block type (`text`, `image_url`, or `input_file`)
      */
     type?: string;
 };
@@ -555,6 +604,21 @@ export type LlmapiResponseExtraFields = {
     request_type?: string;
 };
 
+/**
+ * Input can be a simple text string or an array of messages for multi-turn conversations.
+ * When continuing after client tool calls, pass the messages array from the previous response.
+ */
+export type LlmapiResponseInput = {
+    /**
+     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
+     * Text is set when input is a simple string
+     */
+    text?: string;
+};
+
 export type LlmapiResponseOutputContent = {
     /**
      * Text is the text content
@@ -628,10 +692,7 @@ export type LlmapiResponseRequest = {
      * Conversation is the conversation ID (optional)
      */
     conversation?: string;
-    /**
-     * Input is the simple text input for the response
-     */
-    input: string;
+    input: LlmapiResponseInput;
     /**
      * MaxOutputTokens is the maximum number of tokens to generate
      */
@@ -655,7 +716,7 @@ export type LlmapiResponseRequest = {
      */
     tool_choice?: string;
     /**
-     * Tools is an array of tool definitions (passed through, no MCP loop)
+     * Tools is an array of tool definitions the model can use
      */
     tools?: Array<LlmapiTool>;
 };
@@ -670,6 +731,13 @@ export type LlmapiResponseResponse = {
      * ID is the unique response identifier
      */
     id?: string;
+    /**
+     * Messages contains the full conversation history when local tools need execution.
+     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+     * The client should execute these tools and send a new request with this message history
+     * plus the tool results appended.
+     */
+    messages?: Array<LlmapiMessage>;
     /**
      * Model is the model used for generation
      */
@@ -708,7 +776,7 @@ export type LlmapiResponseUsage = {
 };
 
 /**
- * Role is the message role (system, user, assistant)
+ * Role is the message role (system, user, assistant, tool)
  */
 export type LlmapiRole = string;
 
@@ -850,6 +918,10 @@ export type LlmapiToolFunction = {
         [key: string]: unknown;
     };
     /**
+     * Description is a description of the function (used by the model to decide when to call it)
+     */
+    description?: string;
+    /**
      * Name is the function name
      */
     name?: string;
@@ -874,6 +946,10 @@ export type PostApiV1ChatCompletionsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -949,6 +1025,10 @@ export type PostApiV1EmbeddingsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -1028,6 +1108,10 @@ export type GetApiV1ModelsErrors = {
      */
     400: ResponseErrorResponse;
     /**
+     * Rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -1059,6 +1143,10 @@ export type PostApiV1ResponsesErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
