@@ -1,8 +1,8 @@
 # LlmapiResponseUsage
 
-> **LlmapiResponseUsage** = `object`
+> **LlmapiResponseUsage** = \{ `completion_tokens?`: `number`; `cost_micro_usd?`: `number`; `prompt_tokens?`: `number`; `total_tokens?`: `number`; \}
 
-Defined in: [src/client/types.gen.ts:691](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L691)
+Defined in: [src/client/types.gen.ts:797](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L797)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:695](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L695)
+Defined in: [src/client/types.gen.ts:801](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L801)
 
 CompletionTokens is the number of tokens in the completion
 
@@ -22,7 +22,7 @@ CompletionTokens is the number of tokens in the completion
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:699](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L699)
+Defined in: [src/client/types.gen.ts:805](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L805)
 
 CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
 
@@ -32,7 +32,7 @@ CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:703](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L703)
+Defined in: [src/client/types.gen.ts:809](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L809)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -42,6 +42,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:707](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L707)
+Defined in: [src/client/types.gen.ts:813](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L813)
 
 TotalTokens is the total number of tokens used

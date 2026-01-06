@@ -1,8 +1,8 @@
 # HandlersExchangeRequest
 
-> **HandlersExchangeRequest** = `object`
+> **HandlersExchangeRequest** = \{ `code`: `string`; `redirect_uri?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L34)
+Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L48)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:34](https://github.com/zeta-chain/ai-sdk/bl
 
 > **code**: `string`
 
-Defined in: [src/client/types.gen.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L35)
+Defined in: [src/client/types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L49)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:35](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **redirect\_uri**: `string`
 
-Defined in: [src/client/types.gen.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L39)
+Defined in: [src/client/types.gen.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L53)
 
 Optional - uses config default if not provided

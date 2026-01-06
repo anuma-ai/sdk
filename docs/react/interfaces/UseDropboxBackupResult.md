@@ -8,7 +8,7 @@ Result returned by useDropboxBackup hook
 
 ### backup()
 
-> **backup**: (`options?`) => `Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| \{ `error`: `string`; \}\>
+> **backup**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useDropboxBackup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L46)
 
@@ -16,11 +16,10 @@ Backup all conversations to Dropbox
 
 #### Parameters
 
-##### options?
-
-###### onProgress?
-
-(`current`, `total`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
 #### Returns
 
@@ -50,7 +49,7 @@ Whether Dropbox is configured
 
 ### restore()
 
-> **restore**: (`options?`) => `Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| \{ `error`: `string`; \}\>
+> **restore**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useDropboxBackup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L50)
 
@@ -58,11 +57,10 @@ Restore conversations from Dropbox
 
 #### Parameters
 
-##### options?
-
-###### onProgress?
-
-(`current`, `total`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
 #### Returns
 

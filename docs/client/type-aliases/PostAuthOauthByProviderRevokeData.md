@@ -1,8 +1,8 @@
 # PostAuthOauthByProviderRevokeData
 
-> **PostAuthOauthByProviderRevokeData** = `object`
+> **PostAuthOauthByProviderRevokeData** = \{ `body`: [`HandlersRevokeRequest`](HandlersRevokeRequest.md); `path`: \{ `provider`: `string`; \}; `query?`: `never`; `url`: `"/auth/oauth/{provider}/revoke"`; \}
 
-Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
+Defined in: [src/client/types.gen.ts:1507](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1507)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersRevokeRequest`](HandlersRevokeRequest.md)
 
-Defined in: [src/client/types.gen.ts:1189](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1189)
+Defined in: [src/client/types.gen.ts:1511](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1511)
 
 Revoke request
 
@@ -18,9 +18,9 @@ Revoke request
 
 ### path
 
-> **path**: `object`
+> **path**: \{ `provider`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:1190](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1190)
+Defined in: [src/client/types.gen.ts:1512](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1512)
 
 #### provider
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive, dropbox)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1196](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1196)
+Defined in: [src/client/types.gen.ts:1518](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1518)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:1196](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/auth/oauth/{provider}/revoke"`
 
-Defined in: [src/client/types.gen.ts:1197](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1197)
+Defined in: [src/client/types.gen.ts:1519](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1519)

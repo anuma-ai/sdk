@@ -1,6 +1,6 @@
 # useChatStorage()
 
-> **useChatStorage**(`options`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: \{ `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`\<`string` \| `null`\>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void`; \}): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
 Defined in: [src/react/useChatStorage.ts:201](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L201)
 
@@ -12,11 +12,18 @@ saved when sent and when responses are received.
 
 ## Parameters
 
-### options
-
-`BaseUseChatStorageOptions`
-
-Configuration options
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | \{ `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`\<`string` \| `null`\>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void`; \} | Configuration options |
+| `options.autoCreateConversation?` | `boolean` | - |
+| `options.baseUrl?` | `string` | - |
+| `options.conversationId?` | `string` | - |
+| `options.database` | `Database` | - |
+| `options.defaultConversationTitle?` | `string` | - |
+| `options.getToken?` | () => `Promise`\<`string` \| `null`\> | - |
+| `options.onData?` | (`chunk`: `string`) => `void` | - |
+| `options.onError?` | (`error`: `Error`) => `void` | - |
+| `options.onFinish?` | (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void` | - |
 
 ## Returns
 

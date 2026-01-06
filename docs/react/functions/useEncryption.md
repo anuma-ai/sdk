@@ -1,6 +1,6 @@
 # useEncryption()
 
-> **useEncryption**(`signMessage`, `embeddedWalletSigner?`): `object`
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
 
 Defined in: [src/react/useEncryption.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L835)
 
@@ -33,11 +33,9 @@ deterministic key generation that should happen automatically.
 
 ## Parameters
 
-### signMessage
-
-[`SignMessageFn`](../type-aliases/SignMessageFn.md)
-
-Function to sign a message (from Privy's useSignMessage hook)
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `signMessage` | [`SignMessageFn`](../type-aliases/SignMessageFn.md) | Function to sign a message (from Privy's useSignMessage hook) |
 
 ### embeddedWalletSigner?
 
@@ -47,19 +45,19 @@ Optional function for silent signing with embedded wallets
 
 ## Returns
 
-`object`
+\{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
 
 Functions to request encryption keys and manage key pairs
 
 ### clearKeyPair()
 
-> **clearKeyPair**: (`walletAddress`) => `void`
+> **clearKeyPair**: (`walletAddress`: `string`) => `void`
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -67,13 +65,13 @@ Functions to request encryption keys and manage key pairs
 
 ### exportPublicKey()
 
-> **exportPublicKey**: (`walletAddress`) => `Promise`\<`string`\>
+> **exportPublicKey**: (`walletAddress`: `string`) => `Promise`\<`string`\>
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -81,13 +79,13 @@ Functions to request encryption keys and manage key pairs
 
 ### hasKeyPair()
 
-> **hasKeyPair**: (`walletAddress`) => `boolean`
+> **hasKeyPair**: (`walletAddress`: `string`) => `boolean`
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -95,13 +93,13 @@ Functions to request encryption keys and manage key pairs
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`walletAddress`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`\<`void`\>
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -109,13 +107,13 @@ Functions to request encryption keys and manage key pairs
 
 ### requestKeyPair()
 
-> **requestKeyPair**: (`walletAddress`) => `Promise`\<`void`\>
+> **requestKeyPair**: (`walletAddress`: `string`) => `Promise`\<`void`\>
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 

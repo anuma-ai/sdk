@@ -1,6 +1,6 @@
 # createErrorStream()
 
-> **createErrorStream**(`errorText`): `ReadableStream`\<`AssistantStreamEvent`\>
+> **createErrorStream**(`errorText`: `string`): `ReadableStream`\<`AssistantStreamEvent`\>
 
 Defined in: [src/vercel/streams.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/streams.ts#L56)
 
@@ -10,11 +10,9 @@ surfaced directly in UI components that expect streamed assistant output.
 
 ## Parameters
 
-### errorText
-
-`string`
-
-A human-readable error message to display in the UI.
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `errorText` | `string` | A human-readable error message to display in the UI. |
 
 ## Returns
 

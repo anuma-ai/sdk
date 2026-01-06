@@ -1,8 +1,8 @@
 # LlmapiResponseResponse
 
-> **LlmapiResponseResponse** = `object`
+> **LlmapiResponseResponse** = \{ `created_at?`: `number`; `extra_fields?`: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md); `id?`: `string`; `messages?`: [`LlmapiMessage`](LlmapiMessage.md)[]; `model?`: `string`; `object?`: `string`; `output?`: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)[]; `usage?`: [`LlmapiResponseUsage`](LlmapiResponseUsage.md); \}
 
-Defined in: [src/client/types.gen.ts:663](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L663)
+Defined in: [src/client/types.gen.ts:762](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L762)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:663](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **created\_at**: `number`
 
-Defined in: [src/client/types.gen.ts:667](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L667)
+Defined in: [src/client/types.gen.ts:766](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L766)
 
 Created is the Unix timestamp of creation (created_at in OpenAI format)
 
@@ -20,7 +20,7 @@ Created is the Unix timestamp of creation (created_at in OpenAI format)
 
 > `optional` **extra\_fields**: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:668](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L668)
+Defined in: [src/client/types.gen.ts:767](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L767)
 
 ***
 
@@ -28,9 +28,22 @@ Defined in: [src/client/types.gen.ts:668](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:672](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L672)
+Defined in: [src/client/types.gen.ts:771](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L771)
 
 ID is the unique response identifier
+
+***
+
+### messages?
+
+> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
+
+Defined in: [src/client/types.gen.ts:778](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L778)
+
+Messages contains the full conversation history when local tools need execution.
+This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+The client should execute these tools and send a new request with this message history
+plus the tool results appended.
 
 ***
 
@@ -38,7 +51,7 @@ ID is the unique response identifier
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:676](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L676)
+Defined in: [src/client/types.gen.ts:782](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L782)
 
 Model is the model used for generation
 
@@ -48,7 +61,7 @@ Model is the model used for generation
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:680](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L680)
+Defined in: [src/client/types.gen.ts:786](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L786)
 
 Object is the response type (e.g., "response")
 
@@ -58,7 +71,7 @@ Object is the response type (e.g., "response")
 
 > `optional` **output**: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)[]
 
-Defined in: [src/client/types.gen.ts:684](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L684)
+Defined in: [src/client/types.gen.ts:790](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L790)
 
 Output is the array of output items (OpenAI Responses API format)
 
@@ -68,4 +81,4 @@ Output is the array of output items (OpenAI Responses API format)
 
 > `optional` **usage**: [`LlmapiResponseUsage`](LlmapiResponseUsage.md)
 
-Defined in: [src/client/types.gen.ts:685](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L685)
+Defined in: [src/client/types.gen.ts:791](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L791)

@@ -1,8 +1,8 @@
 # LlmapiSearchExtraFields
 
-> **LlmapiSearchExtraFields** = `object`
+> **LlmapiSearchExtraFields** = \{ `request_type?`: `string`; `search_provider?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:718](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L718)
+Defined in: [src/client/types.gen.ts:824](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L824)
 
 ExtraFields contains additional metadata.
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata.
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:722](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L722)
+Defined in: [src/client/types.gen.ts:828](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L828)
 
 RequestType is always "search".
 
@@ -22,6 +22,6 @@ RequestType is always "search".
 
 > `optional` **search\_provider**: `string`
 
-Defined in: [src/client/types.gen.ts:726](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L726)
+Defined in: [src/client/types.gen.ts:832](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L832)
 
 SearchProvider is the search provider used (e.g., "perplexity", "google-pse").

@@ -10,19 +10,16 @@ Defined in: [src/lib/db/chat/models.ts:12](https://github.com/zeta-chain/ai-sdk/
 
 ### Constructor
 
-> **new ChatMessage**(`collection`, `raw`): `Message`
+> **new ChatMessage**(`collection`: `Collection`\<`Model`\>, `raw`: `_RawRecord`): `Message`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
 
 #### Parameters
 
-##### collection
-
-`Collection`\<`Model`\>
-
-##### raw
-
-`_RawRecord`
+| Parameter | Type |
+| ------ | ------ |
+| `collection` | `Collection`\<`Model`\> |
+| `raw` | `_RawRecord` |
 
 #### Returns
 
@@ -84,7 +81,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_subscribers
 
-> **\_subscribers**: \[(`isDeleted`) => `void`, `any`\][]
+> **\_subscribers**: \[(`isDeleted`: `boolean`) => `void`, `any`\][]
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:125
 
@@ -422,15 +419,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_\_ensureNotDisposable()
 
-> **\_\_ensureNotDisposable**(`debugName`): `void`
+> **\_\_ensureNotDisposable**(`debugName`: `string`): `void`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:143
 
 #### Parameters
 
-##### debugName
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `debugName` | `string` |
 
 #### Returns
 
@@ -444,19 +441,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_dangerouslySetRawWithoutMarkingColumnChange()
 
-> **\_dangerouslySetRawWithoutMarkingColumnChange**(`rawFieldName`, `rawValue`): `void`
+> **\_dangerouslySetRawWithoutMarkingColumnChange**(`rawFieldName`: `string`, `rawValue`: `Value`): `void`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:139
 
 #### Parameters
 
-##### rawFieldName
-
-`string`
-
-##### rawValue
-
-`Value`
+| Parameter | Type |
+| ------ | ------ |
+| `rawFieldName` | `string` |
+| `rawValue` | `Value` |
 
 #### Returns
 
@@ -486,15 +480,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_getRaw()
 
-> **\_getRaw**(`rawFieldName`): `Value`
+> **\_getRaw**(`rawFieldName`: `string`): `Value`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:133
 
 #### Parameters
 
-##### rawFieldName
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `rawFieldName` | `string` |
 
 #### Returns
 
@@ -540,19 +534,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_setRaw()
 
-> **\_setRaw**(`rawFieldName`, `rawValue`): `void`
+> **\_setRaw**(`rawFieldName`: `string`, `rawValue`: `Value`): `void`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:135
 
 #### Parameters
 
-##### rawFieldName
-
-`string`
-
-##### rawValue
-
-`Value`
+| Parameter | Type |
+| ------ | ------ |
+| `rawFieldName` | `string` |
+| `rawValue` | `Value` |
 
 #### Returns
 
@@ -566,15 +557,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### batch()
 
-> **batch**(...`records`): `Promise`\<`void`\>
+> **batch**(...`records`: `$ReadOnlyArray`\<`false` \| `void` \| `Model` \| `null`\>): `Promise`\<`void`\>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:102
 
 #### Parameters
 
-##### records
-
-...`$ReadOnlyArray`\<`false` \| `void` \| `Model` \| `null`\>
+| Parameter | Type |
+| ------ | ------ |
+| ...`records` | `$ReadOnlyArray`\<`false` \| `void` \| `Model` \| `null`\> |
 
 #### Returns
 
@@ -588,21 +579,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### callReader()
 
-> **callReader**\<`T`\>(`action`): `Promise`\<`T`\>
+> **callReader**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:108
 
 #### Type Parameters
 
-##### T
-
-`T`
+| Type Parameter |
+| ------ |
+| `T` |
 
 #### Parameters
 
-##### action
-
-() => `Promise`\<`T`\>
+| Parameter | Type |
+| ------ | ------ |
+| `action` | () => `Promise`\<`T`\> |
 
 #### Returns
 
@@ -616,21 +607,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### callWriter()
 
-> **callWriter**\<`T`\>(`action`): `Promise`\<`T`\>
+> **callWriter**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:105
 
 #### Type Parameters
 
-##### T
-
-`T`
+| Type Parameter |
+| ------ |
+| `T` |
 
 #### Parameters
 
-##### action
-
-() => `Promise`\<`T`\>
+| Parameter | Type |
+| ------ | ------ |
+| `action` | () => `Promise`\<`T`\> |
 
 #### Returns
 
@@ -692,19 +683,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### experimentalSubscribe()
 
-> **experimentalSubscribe**(`subscriber`, `debugInfo?`): `Unsubscribe`
+> **experimentalSubscribe**(`subscriber`: (`isDeleted`: `boolean`) => `void`, `debugInfo?`: `any`): `Unsubscribe`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:127
 
 #### Parameters
 
-##### subscriber
-
-(`isDeleted`) => `void`
-
-##### debugInfo?
-
-`any`
+| Parameter | Type |
+| ------ | ------ |
+| `subscriber` | (`isDeleted`: `boolean`) => `void` |
+| `debugInfo?` | `any` |
 
 #### Returns
 
@@ -782,15 +770,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### prepareUpdate()
 
-> **prepareUpdate**(`recordUpdater?`): `this`
+> **prepareUpdate**(`recordUpdater?`: (`_`: `this`) => `void`): `this`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:62
 
 #### Parameters
 
-##### recordUpdater?
-
-(`_`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `recordUpdater?` | (`_`: `this`) => `void` |
 
 #### Returns
 
@@ -804,21 +792,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### subAction()
 
-> **subAction**\<`T`\>(`action`): `Promise`\<`T`\>
+> **subAction**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:111
 
 #### Type Parameters
 
-##### T
-
-`T`
+| Type Parameter |
+| ------ |
+| `T` |
 
 #### Parameters
 
-##### action
-
-() => `Promise`\<`T`\>
+| Parameter | Type |
+| ------ | ------ |
+| `action` | () => `Promise`\<`T`\> |
 
 #### Returns
 
@@ -832,15 +820,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### update()
 
-> **update**(`recordUpdater?`): `Promise`\<`Message`\>
+> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`\<`Message`\>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
 
 #### Parameters
 
-##### recordUpdater?
-
-(`_`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `recordUpdater?` | (`_`: `this`) => `void` |
 
 #### Returns
 
@@ -854,19 +842,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_disposableFromDirtyRaw()
 
-> `static` **\_disposableFromDirtyRaw**(`collection`, `dirtyRaw`): `Model`
+> `static` **\_disposableFromDirtyRaw**(`collection`: `Collection`\<`Model`\>, `dirtyRaw`: `DirtyRaw`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:123
 
 #### Parameters
 
-##### collection
-
-`Collection`\<`Model`\>
-
-##### dirtyRaw
-
-`DirtyRaw`
+| Parameter | Type |
+| ------ | ------ |
+| `collection` | `Collection`\<`Model`\> |
+| `dirtyRaw` | `DirtyRaw` |
 
 #### Returns
 
@@ -880,19 +865,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_prepareCreate()
 
-> `static` **\_prepareCreate**(`collection`, `recordBuilder`): `Model`
+> `static` **\_prepareCreate**(`collection`: `Collection`\<`Model`\>, `recordBuilder`: (`_`: `Model`) => `void`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:119
 
 #### Parameters
 
-##### collection
-
-`Collection`\<`Model`\>
-
-##### recordBuilder
-
-(`_`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `collection` | `Collection`\<`Model`\> |
+| `recordBuilder` | (`_`: `Model`) => `void` |
 
 #### Returns
 
@@ -906,19 +888,16 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_prepareCreateFromDirtyRaw()
 
-> `static` **\_prepareCreateFromDirtyRaw**(`collection`, `dirtyRaw`): `Model`
+> `static` **\_prepareCreateFromDirtyRaw**(`collection`: `Collection`\<`Model`\>, `dirtyRaw`: `DirtyRaw`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:121
 
 #### Parameters
 
-##### collection
-
-`Collection`\<`Model`\>
-
-##### dirtyRaw
-
-`DirtyRaw`
+| Parameter | Type |
+| ------ | ------ |
+| `collection` | `Collection`\<`Model`\> |
+| `dirtyRaw` | `DirtyRaw` |
 
 #### Returns
 

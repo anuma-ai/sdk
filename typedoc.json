@@ -17,7 +17,11 @@
     "src/vercel/index.ts",
     "src/expo/index.ts"
   ],
+  "indexFormat": "table",
   "entryFileName": "README.md",
+  "parametersFormat": "table",
+  "expandParameters": true,
+  "expandObjects": true,
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter"

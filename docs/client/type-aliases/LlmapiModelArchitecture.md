@@ -1,8 +1,8 @@
 # LlmapiModelArchitecture
 
-> **LlmapiModelArchitecture** = `object`
+> **LlmapiModelArchitecture** = \{ `instruct_type?`: `string`; `modality?`: `string`; `prompt_formatting?`: `string`; `tokenizer?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:472](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L472)
+Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L559)
 
 Architecture describes the model's technical capabilities
 
@@ -12,7 +12,7 @@ Architecture describes the model's technical capabilities
 
 > `optional` **instruct\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:473](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L473)
+Defined in: [src/client/types.gen.ts:560](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L560)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:473](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **modality**: `string`
 
-Defined in: [src/client/types.gen.ts:474](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L474)
+Defined in: [src/client/types.gen.ts:561](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L561)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:474](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **prompt\_formatting**: `string`
 
-Defined in: [src/client/types.gen.ts:475](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L475)
+Defined in: [src/client/types.gen.ts:562](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L562)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:475](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **tokenizer**: `string`
 
-Defined in: [src/client/types.gen.ts:476](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L476)
+Defined in: [src/client/types.gen.ts:563](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L563)

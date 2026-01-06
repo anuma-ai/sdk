@@ -8,7 +8,7 @@ Provider-specific backup state
 
 ### backup()
 
-> **backup**: (`options?`) => `Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| [`GoogleDriveExportResult`](GoogleDriveExportResult.md) \| [`ICloudExportResult`](ICloudExportResult.md) \| \{ `error`: `string`; \}\>
+> **backup**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| [`GoogleDriveExportResult`](GoogleDriveExportResult.md) \| [`ICloudExportResult`](ICloudExportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useBackup.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L86)
 
@@ -16,9 +16,9 @@ Backup all conversations to this provider
 
 #### Parameters
 
-##### options?
-
-[`BackupOperationOptions`](BackupOperationOptions.md)
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | [`BackupOperationOptions`](BackupOperationOptions.md) |
 
 #### Returns
 
@@ -76,7 +76,7 @@ Whether the provider is configured
 
 ### restore()
 
-> **restore**: (`options?`) => `Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| [`GoogleDriveImportResult`](GoogleDriveImportResult.md) \| [`ICloudImportResult`](ICloudImportResult.md) \| \{ `error`: `string`; \}\>
+> **restore**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| [`GoogleDriveImportResult`](GoogleDriveImportResult.md) \| [`ICloudImportResult`](ICloudImportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useBackup.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L90)
 
@@ -84,9 +84,9 @@ Restore conversations from this provider
 
 #### Parameters
 
-##### options?
-
-[`BackupOperationOptions`](BackupOperationOptions.md)
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | [`BackupOperationOptions`](BackupOperationOptions.md) |
 
 #### Returns
 

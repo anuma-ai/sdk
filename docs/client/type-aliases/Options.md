@@ -1,6 +1,6 @@
 # Options\<TData, ThrowOnError\>
 
-> **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & `object`
+> **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & \{ `client?`: `Client`; `meta?`: `Record`\<`string`, `unknown`\>; \}
 
 Defined in: [src/client/sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L7)
 
@@ -23,10 +23,7 @@ used to access values that aren't defined as part of the SDK function.
 
 ## Type Parameters
 
-### TData
-
-`TData` *extends* `TDataShape` = `TDataShape`
-
-### ThrowOnError
-
-`ThrowOnError` *extends* `boolean` = `boolean`
+| Type Parameter | Default type |
+| ------ | ------ |
+| `TData` *extends* `TDataShape` | `TDataShape` |
+| `ThrowOnError` *extends* `boolean` | `boolean` |

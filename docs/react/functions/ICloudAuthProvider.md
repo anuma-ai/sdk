@@ -1,6 +1,6 @@
 # ICloudAuthProvider()
 
-> **ICloudAuthProvider**(`__namedParameters`): `Element`
+> **ICloudAuthProvider**(`__namedParameters`: [`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md)): `Element`
 
 Defined in: [src/react/useICloudAuth.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L83)
 
@@ -11,9 +11,9 @@ CloudKit JS is loaded automatically when needed.
 
 ## Parameters
 
-### \_\_namedParameters
-
-[`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md)
+| Parameter | Type |
+| ------ | ------ |
+| `__namedParameters` | [`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md) |
 
 ## Returns
 

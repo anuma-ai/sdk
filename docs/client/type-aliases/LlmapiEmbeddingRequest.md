@@ -1,8 +1,8 @@
 # LlmapiEmbeddingRequest
 
-> **LlmapiEmbeddingRequest** = `object`
+> **LlmapiEmbeddingRequest** = \{ `dimensions?`: `number`; `encoding_format?`: `string`; `input`: `unknown`; `model`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L214)
+Defined in: [src/client/types.gen.ts:270](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L270)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:214](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **dimensions**: `number`
 
-Defined in: [src/client/types.gen.ts:218](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L218)
+Defined in: [src/client/types.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L274)
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
@@ -20,7 +20,7 @@ Dimensions is the number of dimensions the resulting output embeddings should ha
 
 > `optional` **encoding\_format**: `string`
 
-Defined in: [src/client/types.gen.ts:222](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L222)
+Defined in: [src/client/types.gen.ts:278](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L278)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
@@ -30,7 +30,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 > **input**: `unknown`
 
-Defined in: [src/client/types.gen.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L226)
+Defined in: [src/client/types.gen.ts:282](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L282)
 
 Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
@@ -40,6 +40,6 @@ Input text or tokens to embed (can be string, []string, []int, or [][]int)
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:230](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L230)
+Defined in: [src/client/types.gen.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L286)
 
 Model identifier in 'provider/model' format

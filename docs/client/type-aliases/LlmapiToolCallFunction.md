@@ -1,8 +1,8 @@
 # LlmapiToolCallFunction
 
-> **LlmapiToolCallFunction** = `object`
+> **LlmapiToolCallFunction** = \{ `arguments?`: `string`; `name?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:831](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L831)
+Defined in: [src/client/types.gen.ts:937](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L937)
 
 Function contains the function call details
 
@@ -12,7 +12,7 @@ Function contains the function call details
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L835)
+Defined in: [src/client/types.gen.ts:941](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L941)
 
 Arguments is the JSON string of arguments to pass to the function
 
@@ -22,6 +22,6 @@ Arguments is the JSON string of arguments to pass to the function
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:839](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L839)
+Defined in: [src/client/types.gen.ts:945](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L945)
 
 Name is the name of the function to call

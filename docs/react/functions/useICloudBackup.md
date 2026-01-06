@@ -1,6 +1,6 @@
 # useICloudBackup()
 
-> **useICloudBackup**(`options`): [`UseICloudBackupResult`](../interfaces/UseICloudBackupResult.md)
+> **useICloudBackup**(`options`: [`UseICloudBackupOptions`](../interfaces/UseICloudBackupOptions.md)): [`UseICloudBackupResult`](../interfaces/UseICloudBackupResult.md)
 
 Defined in: [src/react/useICloudBackup.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L105)
 
@@ -14,9 +14,9 @@ Must be used within an ICloudAuthProvider.
 
 ## Parameters
 
-### options
-
-[`UseICloudBackupOptions`](../interfaces/UseICloudBackupOptions.md)
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`UseICloudBackupOptions`](../interfaces/UseICloudBackupOptions.md) |
 
 ## Returns
 

@@ -1,10 +1,10 @@
 # LlmapiMessageContentImage
 
-> **LlmapiMessageContentImage** = `object`
+> **LlmapiMessageContentImage** = \{ `detail?`: `string`; `url?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:381](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L381)
+Defined in: [src/client/types.gen.ts:467](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L467)
 
-ImageURL is used when Type=image_url
+ImageURL is used when Type=image_url or Type=input_image
 
 ## Properties
 
@@ -12,7 +12,7 @@ ImageURL is used when Type=image_url
 
 > `optional` **detail**: `string`
 
-Defined in: [src/client/types.gen.ts:385](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L385)
+Defined in: [src/client/types.gen.ts:471](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L471)
 
 Detail is the OpenAI detail hint (auto|low|high)
 
@@ -22,6 +22,6 @@ Detail is the OpenAI detail hint (auto|low|high)
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:389](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L389)
+Defined in: [src/client/types.gen.ts:475](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L475)
 
 URL is the image URL or data URI

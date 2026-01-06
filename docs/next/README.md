@@ -20,4 +20,6 @@ export default withReverbia(nextConfig);
 
 ## Functions
 
-- [withReverbia](functions/withReverbia.md)
+| Function | Description |
+| ------ | ------ |
+| [withReverbia](functions/withReverbia.md) | - |

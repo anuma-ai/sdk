@@ -1,6 +1,6 @@
 # SignMessageFn()
 
-> **SignMessageFn** = (`message`) => `Promise`\<`string`\>
+> **SignMessageFn** = (`message`: `string`) => `Promise`\<`string`\>
 
 Defined in: [src/react/useEncryption.ts:520](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L520)
 
@@ -9,9 +9,9 @@ This is typically from Privy's useSignMessage hook and may show a confirmation m
 
 ## Parameters
 
-### message
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `message` | `string` |
 
 ## Returns
 

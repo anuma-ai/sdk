@@ -98,8 +98,10 @@ repo](https://github.com/zeta-chain/ai-examples).
 
 ## Modules
 
-- [client](client/README.md)
-- [expo](expo/README.md)
-- [next](next/README.md)
-- [react](react/README.md)
-- [vercel](vercel/README.md)
+| Module | Description |
+| ------ | ------ |
+| [client](client/README.md) | - |
+| [expo](expo/README.md) | React Native hooks for building AI-powered mobile applications. |
+| [next](next/README.md) | Next.js configuration plugin for @reverbia/sdk |
+| [react](react/README.md) | The `@reverbia/sdk/react` package provides a collection of React hooks designed to simplify building AI features in your applications. These hooks abstract away the complexity of managing streaming responses, loading states, authentication, and real-time updates, letting you focus on creating great user experiences. |
+| [vercel](vercel/README.md) | Helper utilities for integrating the `useChat` hook and [Vercel AI Elements](https://ai-sdk.dev/elements). |

@@ -28,7 +28,7 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 ### exportConversation()
 
-> **exportConversation**: (`conversationId`, `userAddress`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
 
 Defined in: [src/react/useBackup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L48)
 
@@ -36,13 +36,10 @@ Export a conversation to an encrypted blob
 
 #### Parameters
 
-##### conversationId
-
-`string`
-
-##### userAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `conversationId` | `string` |
+| `userAddress` | `string` |
 
 #### Returns
 
@@ -72,7 +69,7 @@ Google Drive root folder name (default: 'ai-chat-app')
 
 ### importConversation()
 
-> **importConversation**: (`blob`, `userAddress`) => `Promise`\<\{ `success`: `boolean`; \}\>
+> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`\<\{ `success`: `boolean`; \}\>
 
 Defined in: [src/react/useBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L53)
 
@@ -80,13 +77,10 @@ Import a conversation from an encrypted blob
 
 #### Parameters
 
-##### blob
-
-`Blob`
-
-##### userAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `blob` | `Blob` |
+| `userAddress` | `string` |
 
 #### Returns
 
@@ -96,7 +90,7 @@ Import a conversation from an encrypted blob
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`address`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`address`: `string`) => `Promise`\<`void`\>
 
 Defined in: [src/react/useBackup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L46)
 
@@ -104,9 +98,9 @@ Request encryption key for the user address
 
 #### Parameters
 
-##### address
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `address` | `string` |
 
 #### Returns
 
