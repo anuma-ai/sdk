@@ -1,6 +1,6 @@
 # MemoryItem
 
-Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L14)
+Defined in: [src/lib/db/memory/types.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L13)
 
 ## Extended by
 
@@ -13,7 +13,7 @@ Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk
 
 > **confidence**: `number`
 
-Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
+Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
 
 ***
 
@@ -21,7 +21,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 > **key**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
+Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk
 
 > **namespace**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
+Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk
 
 > **pii**: `boolean`
 
-Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L21)
+Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk
 
 > **rawEvidence**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
+Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
 
 ***
 
@@ -53,7 +53,7 @@ Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk
 
 > **type**: [`MemoryType`](../type-aliases/MemoryType.md)
 
-Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
+Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L14)
 
 ***
 
@@ -61,4 +61,4 @@ Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk
 
 > **value**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
+Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
