@@ -236,7 +236,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Validate model and token
         const modelValidation = validateModel(model);
         if (!modelValidation.valid) {
-          setIsLoading(false);
           if (onError) onError(new Error(modelValidation.message));
           return {
             data: null,
@@ -246,7 +245,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const tokenGetterValidation = validateTokenGetter(getToken);
         if (!tokenGetterValidation.valid) {
-          setIsLoading(false);
           if (onError) onError(new Error(tokenGetterValidation.message));
           return {
             data: null,
@@ -258,7 +256,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         const tokenValidation = validateToken(token);
         if (!tokenValidation.valid) {
-          setIsLoading(false);
           if (onError) onError(new Error(tokenValidation.message));
           return {
             data: null,
@@ -332,7 +329,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         } catch (streamErr) {
           // Check if this was an abort during streaming
           if (isAbortError(streamErr) || abortController.signal.aborted) {
-            setIsLoading(false);
             // Return partial data so far
             const partialResponse = buildResponseResponse(accumulator);
             return {
@@ -345,7 +341,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Check if abort happened during streaming but loop completed before throw
         if (abortController.signal.aborted) {
-          setIsLoading(false);
           const partialResponse = buildResponseResponse(accumulator);
           return {
             data: partialResponse,
@@ -556,7 +551,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               console.log("[Tool Debug] Continuation stream complete - accumulated thinking:", continuationAccumulator.thinking);
             } catch (streamErr) {
               if (isAbortError(streamErr) || abortController.signal.aborted) {
-                setIsLoading(false);
                 const partialResponse = buildResponseResponse(continuationAccumulator);
                 return {
                   data: partialResponse,
@@ -567,7 +561,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (abortController.signal.aborted) {
-              setIsLoading(false);
               const partialResponse = buildResponseResponse(continuationAccumulator);
               return {
                 data: partialResponse,
@@ -582,7 +575,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             // Build final response from continuation
             const finalResponse = buildResponseResponse(continuationAccumulator);
 
-            setIsLoading(false);
             if (onFinish) {
               onFinish(finalResponse);
             }
@@ -593,7 +585,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           }
         }
 
-        setIsLoading(false);
         if (onFinish) {
           onFinish(response);
         }
@@ -605,7 +596,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Handle AbortError specifically - aborts are intentional user actions,
         // not errors, so we don't trigger onError callback
         if (isAbortError(err)) {
-          setIsLoading(false);
           return {
             data: null,
             error: "Request aborted",
@@ -616,9 +606,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           data: null;
           error: string;
         }>(err, onError);
-        setIsLoading(false);
         return errorResult;
       } finally {
+        // Always reset loading state, regardless of success or failure
+        // This prevents the UI from getting "stuck" in loading state on errors
+        setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
