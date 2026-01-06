@@ -1,6 +1,6 @@
 # useChat()
 
-> **useChat**(`options?`): `UseChatResult`
+> **useChat**(`options?`: `BaseUseChatOptions`): `UseChatResult`
 
 Defined in: [src/expo/useChat.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L116)
 
@@ -12,11 +12,9 @@ in React Native.
 
 ## Parameters
 
-### options?
-
-`BaseUseChatOptions`
-
-Optional configuration object
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options?` | `BaseUseChatOptions` | Optional configuration object |
 
 ## Returns
 

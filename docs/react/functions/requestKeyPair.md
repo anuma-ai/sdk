@@ -1,6 +1,6 @@
 # requestKeyPair()
 
-> **requestKeyPair**(`walletAddress`, `signMessage`): `Promise`\<`void`\>
+> **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md)): `Promise`\<`void`\>
 
 Defined in: [src/react/useEncryption.ts:524](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L524)
 
@@ -12,17 +12,10 @@ This is a security feature - users must sign once per session to derive their ke
 
 ## Parameters
 
-### walletAddress
-
-`string`
-
-The wallet address to generate the key pair for
-
-### signMessage
-
-[`SignMessageFn`](../type-aliases/SignMessageFn.md)
-
-Function to sign a message (returns signature hex string)
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `walletAddress` | `string` | The wallet address to generate the key pair for |
+| `signMessage` | [`SignMessageFn`](../type-aliases/SignMessageFn.md) | Function to sign a message (returns signature hex string) |
 
 ## Returns
 

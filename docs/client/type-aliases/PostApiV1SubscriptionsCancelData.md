@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsCancelData
 
-> **PostApiV1SubscriptionsCancelData** = `object`
+> **PostApiV1SubscriptionsCancelData** = \{ `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/cancel"`; \}
 
 Defined in: [src/client/types.gen.ts:1237](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1237)
 

@@ -1,6 +1,6 @@
 # LlmapiSearchExtraFields
 
-> **LlmapiSearchExtraFields** = `object`
+> **LlmapiSearchExtraFields** = \{ `request_type?`: `string`; `search_provider?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:824](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L824)
 

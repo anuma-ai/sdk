@@ -1,6 +1,6 @@
 # useMemoryStorage()
 
-> **useMemoryStorage**(`options`): `BaseUseMemoryStorageResult`
+> **useMemoryStorage**(`options`: `BaseUseMemoryStorageOptions`): `BaseUseMemoryStorageResult`
 
 Defined in: [src/react/useMemoryStorage.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L105)
 
@@ -12,11 +12,9 @@ and can be searched using semantic similarity.
 
 ## Parameters
 
-### options
-
-`BaseUseMemoryStorageOptions`
-
-Configuration options
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | `BaseUseMemoryStorageOptions` | Configuration options |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsRenewErrors
 
-> **PostApiV1SubscriptionsRenewErrors** = `object`
+> **PostApiV1SubscriptionsRenewErrors** = \{ `400`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `401`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `404`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); \}
 
 Defined in: [src/client/types.gen.ts:1339](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1339)
 

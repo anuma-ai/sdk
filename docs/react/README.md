@@ -55,36 +55,42 @@ function ChatComponent() {
 
 ## Components
 
-- [BackupAuthProvider](functions/BackupAuthProvider.md)
-- [DropboxAuthProvider](functions/DropboxAuthProvider.md)
-- [GoogleDriveAuthProvider](functions/GoogleDriveAuthProvider.md)
-- [ICloudAuthProvider](functions/ICloudAuthProvider.md)
+| Function | Description |
+| ------ | ------ |
+| [BackupAuthProvider](functions/BackupAuthProvider.md) | Unified provider component for backup OAuth authentication. |
+| [DropboxAuthProvider](functions/DropboxAuthProvider.md) | Provider component for Dropbox OAuth authentication. |
+| [GoogleDriveAuthProvider](functions/GoogleDriveAuthProvider.md) | Provider component for Google Drive OAuth authentication. |
+| [ICloudAuthProvider](functions/ICloudAuthProvider.md) | Provider component for iCloud authentication. |
 
 ## Encryption
 
-- [decryptData](functions/decryptData.md)
-- [encryptData](functions/encryptData.md)
+| Function | Description |
+| ------ | ------ |
+| [decryptData](functions/decryptData.md) | Decrypts data using AES-GCM with the stored encryption key. |
+| [encryptData](functions/encryptData.md) | Encrypts data using AES-GCM with the stored encryption key. |
 
 ## Hooks
 
-- [useBackup](functions/useBackup.md)
-- [useBackupAuth](functions/useBackupAuth.md)
-- [useChat](functions/useChat.md)
-- [useChatStorage](functions/useChatStorage.md)
-- [useDropboxAuth](functions/useDropboxAuth.md)
-- [useDropboxBackup](functions/useDropboxBackup.md)
-- [useEncryption](functions/useEncryption.md)
-- [useGoogleDriveAuth](functions/useGoogleDriveAuth.md)
-- [useGoogleDriveBackup](functions/useGoogleDriveBackup.md)
-- [useICloudAuth](functions/useICloudAuth.md)
-- [useICloudBackup](functions/useICloudBackup.md)
-- [useImageGeneration](functions/useImageGeneration.md)
-- [useMemoryStorage](functions/useMemoryStorage.md)
-- [useModels](functions/useModels.md)
-- [useOCR](functions/useOCR.md)
-- [usePdf](functions/usePdf.md)
-- [useSearch](functions/useSearch.md)
-- [useSettings](functions/useSettings.md)
+| Function | Description |
+| ------ | ------ |
+| [useBackup](functions/useBackup.md) | Unified React hook for backup and restore functionality. |
+| [useBackupAuth](functions/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
+| [useChat](functions/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useChatStorage](functions/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
+| [useDropboxAuth](functions/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
+| [useDropboxBackup](functions/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
+| [useEncryption](functions/useEncryption.md) | Hook that provides encryption key management for securing local data. |
+| [useGoogleDriveAuth](functions/useGoogleDriveAuth.md) | Hook to access Google Drive authentication state and methods. |
+| [useGoogleDriveBackup](functions/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
+| [useICloudAuth](functions/useICloudAuth.md) | Hook to access iCloud authentication state and methods. |
+| [useICloudBackup](functions/useICloudBackup.md) | React hook for iCloud backup and restore functionality. |
+| [useImageGeneration](functions/useImageGeneration.md) | React hook for generating images using the LLM API. |
+| [useMemoryStorage](functions/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
+| [useModels](functions/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
+| [useOCR](functions/useOCR.md) | React hook for extracting text from images using OCR. |
+| [usePdf](functions/usePdf.md) | React hook for extracting text from PDF files. |
+| [useSearch](functions/useSearch.md) | React hook for performing search operations using the AI SDK. |
+| [useSettings](functions/useSettings.md) | A React hook for managing user settings with automatic persistence using WatermelonDB. |
 
 ## Other
 

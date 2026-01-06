@@ -1,6 +1,6 @@
 # getHealth()
 
-> **getHealth**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`\>
+> **getHealth**\<`ThrowOnError`\>(`options?`: [`Options`](../type-aliases/Options.md)\<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`\>): `RequestResult`\<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`\>
 
 Defined in: [src/client/sdk.gen.ts:266](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L266)
 
@@ -10,15 +10,15 @@ Returns the current health status of the service.
 
 ## Type Parameters
 
-### ThrowOnError
-
-`ThrowOnError` *extends* `boolean` = `false`
+| Type Parameter | Default type |
+| ------ | ------ |
+| `ThrowOnError` *extends* `boolean` | `false` |
 
 ## Parameters
 
-### options?
-
-[`Options`](../type-aliases/Options.md)\<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`\>
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | [`Options`](../type-aliases/Options.md)\<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`\> |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 # useChat()
 
-> **useChat**(`options?`): `UseChatResult`
+> **useChat**(`options?`: `BaseUseChatOptions`): `UseChatResult`
 
 Defined in: [src/react/useChat.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L128)
 
@@ -12,11 +12,9 @@ Streaming is enabled by default for better user experience.
 
 ## Parameters
 
-### options?
-
-`BaseUseChatOptions`
-
-Optional configuration object
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options?` | `BaseUseChatOptions` | Optional configuration object |
 
 ## Returns
 

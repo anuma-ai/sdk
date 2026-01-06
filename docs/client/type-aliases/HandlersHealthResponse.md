@@ -1,6 +1,6 @@
 # HandlersHealthResponse
 
-> **HandlersHealthResponse** = `object`
+> **HandlersHealthResponse** = \{ `status?`: `string`; `timestamp?`: `number`; `version?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L56)
 

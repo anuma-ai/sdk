@@ -1,6 +1,6 @@
 # GetApiV1SubscriptionsStatusErrors
 
-> **GetApiV1SubscriptionsStatusErrors** = `object`
+> **GetApiV1SubscriptionsStatusErrors** = \{ `401`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); \}
 
 Defined in: [src/client/types.gen.ts:1376](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1376)
 

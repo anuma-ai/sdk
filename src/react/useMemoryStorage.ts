@@ -326,7 +326,10 @@ export function useMemoryStorage(
               })
             );
 
-            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
+            const savedMemories = await saveMemoriesOp(
+              storageCtx,
+              createOptions
+            );
             console.log(
               `Saved ${savedMemories.length} memories to WatermelonDB`
             );
@@ -696,9 +699,7 @@ export function useMemoryStorage(
       }
 
       // Update local state
-      setMemories((prev) =>
-        prev.map((m) => (m.uniqueId === id ? updated : m))
-      );
+      setMemories((prev) => prev.map((m) => (m.uniqueId === id ? updated : m)));
 
       return updated;
     },
@@ -719,11 +720,7 @@ export function useMemoryStorage(
         setMemories((prev) =>
           prev.filter(
             (m) =>
-              !(
-                m.namespace === namespace &&
-                m.key === key &&
-                m.value === value
-              )
+              !(m.namespace === namespace && m.key === key && m.value === value)
           )
         );
       } catch (error) {
@@ -767,9 +764,7 @@ export function useMemoryStorage(
         await deleteMemoriesByKeyOp(storageCtx, namespace, key);
         // Update local state
         setMemories((prev) =>
-          prev.filter(
-            (m) => !(m.namespace === namespace && m.key === key)
-          )
+          prev.filter((m) => !(m.namespace === namespace && m.key === key))
         );
       } catch (error) {
         throw new Error(

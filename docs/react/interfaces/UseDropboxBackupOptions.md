@@ -28,7 +28,7 @@ WatermelonDB database instance
 
 ### exportConversation()
 
-> **exportConversation**: (`conversationId`, `userAddress`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
 
 Defined in: [src/react/useDropboxBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L28)
 
@@ -36,13 +36,10 @@ Export a conversation to an encrypted blob
 
 #### Parameters
 
-##### conversationId
-
-`string`
-
-##### userAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `conversationId` | `string` |
+| `userAddress` | `string` |
 
 #### Returns
 
@@ -52,7 +49,7 @@ Export a conversation to an encrypted blob
 
 ### importConversation()
 
-> **importConversation**: (`blob`, `userAddress`) => `Promise`\<\{ `success`: `boolean`; \}\>
+> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`\<\{ `success`: `boolean`; \}\>
 
 Defined in: [src/react/useDropboxBackup.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L33)
 
@@ -60,13 +57,10 @@ Import a conversation from an encrypted blob
 
 #### Parameters
 
-##### blob
-
-`Blob`
-
-##### userAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `blob` | `Blob` |
+| `userAddress` | `string` |
 
 #### Returns
 
@@ -76,7 +70,7 @@ Import a conversation from an encrypted blob
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`address`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`address`: `string`) => `Promise`\<`void`\>
 
 Defined in: [src/react/useDropboxBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L26)
 
@@ -84,9 +78,9 @@ Request encryption key for the user address
 
 #### Parameters
 
-##### address
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `address` | `string` |
 
 #### Returns
 

@@ -1,6 +1,6 @@
 # LlmapiImageGenerationUsage
 
-> **LlmapiImageGenerationUsage** = `object`
+> **LlmapiImageGenerationUsage** = \{ `cost_micro_usd?`: `number`; `input_tokens?`: `number`; `output_tokens?`: `number`; `total_tokens?`: `number`; \}
 
 Defined in: [src/client/types.gen.ts:400](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L400)
 

@@ -1,6 +1,6 @@
 # LlmapiMessageContentPart
 
-> **LlmapiMessageContentPart** = `object`
+> **LlmapiMessageContentPart** = \{ `file?`: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md); `image_url?`: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md); `text?`: `string`; `type?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:478](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L478)
 

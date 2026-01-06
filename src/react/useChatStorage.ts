@@ -627,23 +627,20 @@ export function useChatStorage(
             });
 
             // Build a valid response for the return (even if original was null)
-            const responseData: LlmapiResponseResponse =
-              abortedResult.data || {
-                id: `aborted-${Date.now()}`,
-                model: responseModel,
-                object: "response",
-                output: [
-                  {
-                    type: "message",
-                    role: "assistant",
-                    content: [
-                      { type: "output_text", text: assistantContent },
-                    ],
-                    status: "completed",
-                  },
-                ],
-                usage: undefined,
-              };
+            const responseData: LlmapiResponseResponse = abortedResult.data || {
+              id: `aborted-${Date.now()}`,
+              model: responseModel,
+              object: "response",
+              output: [
+                {
+                  type: "message",
+                  role: "assistant",
+                  content: [{ type: "output_text", text: assistantContent }],
+                  status: "completed",
+                },
+              ],
+              usage: undefined,
+            };
 
             return {
               data: responseData,

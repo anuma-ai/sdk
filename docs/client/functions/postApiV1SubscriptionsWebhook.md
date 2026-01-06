@@ -1,6 +1,6 @@
 # postApiV1SubscriptionsWebhook()
 
-> **postApiV1SubscriptionsWebhook**\<`ThrowOnError`\>(`options`): `RequestResult`\<[`PostApiV1SubscriptionsWebhookResponses`](../type-aliases/PostApiV1SubscriptionsWebhookResponses.md), [`PostApiV1SubscriptionsWebhookErrors`](../type-aliases/PostApiV1SubscriptionsWebhookErrors.md), `ThrowOnError`\>
+> **postApiV1SubscriptionsWebhook**\<`ThrowOnError`\>(`options`: [`Options`](../type-aliases/Options.md)\<[`PostApiV1SubscriptionsWebhookData`](../type-aliases/PostApiV1SubscriptionsWebhookData.md), `ThrowOnError`\>): `RequestResult`\<[`PostApiV1SubscriptionsWebhookResponses`](../type-aliases/PostApiV1SubscriptionsWebhookResponses.md), [`PostApiV1SubscriptionsWebhookErrors`](../type-aliases/PostApiV1SubscriptionsWebhookErrors.md), `ThrowOnError`\>
 
 Defined in: [src/client/sdk.gen.ts:202](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L202)
 
@@ -10,15 +10,15 @@ Receives and processes Stripe webhook events for subscription lifecycle manageme
 
 ## Type Parameters
 
-### ThrowOnError
-
-`ThrowOnError` *extends* `boolean` = `false`
+| Type Parameter | Default type |
+| ------ | ------ |
+| `ThrowOnError` *extends* `boolean` | `false` |
 
 ## Parameters
 
-### options
-
-[`Options`](../type-aliases/Options.md)\<[`PostApiV1SubscriptionsWebhookData`](../type-aliases/PostApiV1SubscriptionsWebhookData.md), `ThrowOnError`\>
+| Parameter | Type |
+| ------ | ------ |
+| `options` | [`Options`](../type-aliases/Options.md)\<[`PostApiV1SubscriptionsWebhookData`](../type-aliases/PostApiV1SubscriptionsWebhookData.md), `ThrowOnError`\> |
 
 ## Returns
 

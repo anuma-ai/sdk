@@ -1,6 +1,6 @@
 # usePdf()
 
-> **usePdf**(): `object`
+> **usePdf**(): \{ `error`: `Error` \| `null`; `extractPdfContext`: (`files`: [`PdfFile`](../interfaces/PdfFile.md)[]) => `Promise`\<`string` \| `null`\>; `isProcessing`: `boolean`; \}
 
 Defined in: [src/react/usePdf.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L17)
 
@@ -8,7 +8,7 @@ React hook for extracting text from PDF files.
 
 ## Returns
 
-`object`
+\{ `error`: `Error` \| `null`; `extractPdfContext`: (`files`: [`PdfFile`](../interfaces/PdfFile.md)[]) => `Promise`\<`string` \| `null`\>; `isProcessing`: `boolean`; \}
 
 ### error
 
@@ -16,13 +16,13 @@ React hook for extracting text from PDF files.
 
 ### extractPdfContext()
 
-> **extractPdfContext**: (`files`) => `Promise`\<`string` \| `null`\>
+> **extractPdfContext**: (`files`: [`PdfFile`](../interfaces/PdfFile.md)[]) => `Promise`\<`string` \| `null`\>
 
 #### Parameters
 
-##### files
-
-[`PdfFile`](../interfaces/PdfFile.md)[]
+| Parameter | Type |
+| ------ | ------ |
+| `files` | [`PdfFile`](../interfaces/PdfFile.md)[] |
 
 #### Returns
 

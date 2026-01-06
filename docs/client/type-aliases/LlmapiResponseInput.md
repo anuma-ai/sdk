@@ -1,6 +1,6 @@
 # LlmapiResponseInput
 
-> **LlmapiResponseInput** = `object`
+> **LlmapiResponseInput** = \{ `messages?`: [`LlmapiMessage`](LlmapiMessage.md)[]; `text?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:649](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L649)
 

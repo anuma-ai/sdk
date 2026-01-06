@@ -1,6 +1,6 @@
 # LlmapiChatCompletionRequest
 
-> **LlmapiChatCompletionRequest** = `object`
+> **LlmapiChatCompletionRequest** = \{ `messages`: [`LlmapiMessage`](LlmapiMessage.md)[]; `model`: `string`; `stream?`: `boolean`; `tool_choice?`: `unknown`; `tools?`: [`LlmapiTool`](LlmapiTool.md)[]; \}
 
 Defined in: [src/client/types.gen.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L145)
 

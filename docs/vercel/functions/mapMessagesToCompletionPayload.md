@@ -1,6 +1,6 @@
 # mapMessagesToCompletionPayload()
 
-> **mapMessagesToCompletionPayload**(`messages`): [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
+> **mapMessagesToCompletionPayload**(`messages`: `UIMessage`\<`unknown`, `UIDataTypes`, `UITools`\>[]): [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)[]
 
 Defined in: [src/vercel/messages.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/messages.ts#L15)
 
@@ -13,11 +13,9 @@ Converts an array of Vercel AI UIMessage objects into the
 
 ## Parameters
 
-### messages
-
-`UIMessage`\<`unknown`, `UIDataTypes`, `UITools`\>[]
-
-The UI layer conversation history received from `createUIMessageStreamResponse`.
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `messages` | `UIMessage`\<`unknown`, `UIDataTypes`, `UITools`\>[] | The UI layer conversation history received from `createUIMessageStreamResponse`. |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 # getApiV1SubscriptionsStatus()
 
-> **getApiV1SubscriptionsStatus**\<`ThrowOnError`\>(`options?`): `RequestResult`\<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`\>
+> **getApiV1SubscriptionsStatus**\<`ThrowOnError`\>(`options?`: [`Options`](../type-aliases/Options.md)\<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`\>): `RequestResult`\<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`\>
 
 Defined in: [src/client/sdk.gen.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L190)
 
@@ -10,15 +10,15 @@ Returns the current subscription status, plan, and billing period info
 
 ## Type Parameters
 
-### ThrowOnError
-
-`ThrowOnError` *extends* `boolean` = `false`
+| Type Parameter | Default type |
+| ------ | ------ |
+| `ThrowOnError` *extends* `boolean` | `false` |
 
 ## Parameters
 
-### options?
-
-[`Options`](../type-aliases/Options.md)\<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`\>
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | [`Options`](../type-aliases/Options.md)\<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`\> |
 
 ## Returns
 

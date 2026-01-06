@@ -120,7 +120,10 @@ export interface UpdateMessageOptions {
 }
 
 // Hook types
-
+/**
+ * Base options for useChatStorage hook
+ * @inline
+ */
 export interface BaseUseChatStorageOptions {
   database: Database;
   conversationId?: string;

@@ -1,6 +1,6 @@
 # LlmapiImageGenerationExtraFields
 
-> **LlmapiImageGenerationExtraFields** = `object`
+> **LlmapiImageGenerationExtraFields** = \{ `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:327](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L327)
 

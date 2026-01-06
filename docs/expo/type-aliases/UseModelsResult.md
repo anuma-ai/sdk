@@ -1,6 +1,6 @@
 # UseModelsResult
 
-> **UseModelsResult** = `object`
+> **UseModelsResult** = \{ `error`: `Error` \| `null`; `isLoading`: `boolean`; `models`: [`LlmapiModel`](../../client/type-aliases/LlmapiModel.md)[]; `refetch`: () => `Promise`\<`void`\>; \}
 
 Defined in: [src/react/useModels.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L27)
 

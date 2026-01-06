@@ -1,6 +1,6 @@
 # HandlersSubscriptionStatusResponse
 
-> **HandlersSubscriptionStatusResponse** = `object`
+> **HandlersSubscriptionStatusResponse** = \{ `cancel_at_period_end?`: `boolean`; `current_period_end?`: `number`; `plan?`: `string`; `status?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L84)
 
