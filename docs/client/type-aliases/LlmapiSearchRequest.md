@@ -2,7 +2,7 @@
 
 > **LlmapiSearchRequest** = \{ `country?`: `string`; `max_results?`: `number`; `max_tokens_per_page?`: `number`; `query`: `string`[]; `search_domain_filter?`: `string`[]; `search_tool_name`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L835)
+Defined in: [src/client/types.gen.ts:729](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L729)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:835](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **country**: `string`
 
-Defined in: [src/client/types.gen.ts:839](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L839)
+Defined in: [src/client/types.gen.ts:733](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L733)
 
 Country code filter (e.g., "US", "GB", "DE").
 
@@ -20,7 +20,7 @@ Country code filter (e.g., "US", "GB", "DE").
 
 > `optional` **max\_results**: `number`
 
-Defined in: [src/client/types.gen.ts:843](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L843)
+Defined in: [src/client/types.gen.ts:737](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L737)
 
 Maximum number of results to return (1-20). Default: 10.
 
@@ -30,7 +30,7 @@ Maximum number of results to return (1-20). Default: 10.
 
 > `optional` **max\_tokens\_per\_page**: `number`
 
-Defined in: [src/client/types.gen.ts:847](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L847)
+Defined in: [src/client/types.gen.ts:741](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L741)
 
 Maximum tokens per page to process. Default: 1024.
 
@@ -40,7 +40,7 @@ Maximum tokens per page to process. Default: 1024.
 
 > **query**: `string`[]
 
-Defined in: [src/client/types.gen.ts:851](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L851)
+Defined in: [src/client/types.gen.ts:745](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L745)
 
 Search query. Can be a single string or array of strings.
 
@@ -50,7 +50,7 @@ Search query. Can be a single string or array of strings.
 
 > `optional` **search\_domain\_filter**: `string`[]
 
-Defined in: [src/client/types.gen.ts:855](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L855)
+Defined in: [src/client/types.gen.ts:749](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L749)
 
 List of domains to filter results (max 20 domains).
 
@@ -60,6 +60,6 @@ List of domains to filter results (max 20 domains).
 
 > **search\_tool\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:859](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L859)
+Defined in: [src/client/types.gen.ts:753](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L753)
 
 The search provider to use.

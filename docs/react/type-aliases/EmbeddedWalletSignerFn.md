@@ -1,6 +1,6 @@
 # EmbeddedWalletSignerFn()
 
-> **EmbeddedWalletSignerFn** = (`message`) => `Promise`\<`string`\>
+> **EmbeddedWalletSignerFn** = (`message`: `string`) => `Promise`\<`string`\>
 
 Defined in: [src/react/useEncryption.ts:527](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L527)
 
@@ -10,9 +10,9 @@ when configured correctly in the Privy dashboard.
 
 ## Parameters
 
-### message
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `message` | `string` |
 
 ## Returns
 

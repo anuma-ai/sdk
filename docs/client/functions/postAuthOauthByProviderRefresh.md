@@ -2,7 +2,7 @@
 
 > **postAuthOauthByProviderRefresh**\<`ThrowOnError`\>(`options`: [`Options`](../type-aliases/Options.md)\<[`PostAuthOauthByProviderRefreshData`](../type-aliases/PostAuthOauthByProviderRefreshData.md), `ThrowOnError`\>): `RequestResult`\<[`PostAuthOauthByProviderRefreshResponses`](../type-aliases/PostAuthOauthByProviderRefreshResponses.md), [`PostAuthOauthByProviderRefreshErrors`](../type-aliases/PostAuthOauthByProviderRefreshErrors.md), `ThrowOnError`\>
 
-Defined in: [src/client/sdk.gen.ts:234](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L234)
+Defined in: [src/client/sdk.gen.ts:158](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L158)
 
 Refresh access token
 

@@ -4,16 +4,6 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type HandlersCancelSubscriptionResponse = {
-    cancel_at?: number;
-    current_period_end?: number;
-    message?: string;
-};
-
-export type HandlersCheckoutSessionResponse = {
-    url?: string;
-};
-
 export type HandlersConfigResponse = {
     /**
      * ChainID is the blockchain chain ID
@@ -39,10 +29,6 @@ export type HandlersConfigResponse = {
      * SettlementRecipient is the address that receives settlement payments
      */
     settlement_recipient?: string;
-};
-
-export type HandlersCustomerPortalResponse = {
-    url?: string;
 };
 
 export type HandlersExchangeRequest = {
@@ -72,32 +58,8 @@ export type HandlersRefreshRequest = {
     refresh_token: string;
 };
 
-export type HandlersRenewSubscriptionResponse = {
-    current_period_end?: number;
-    message?: string;
-};
-
 export type HandlersRevokeRequest = {
     token: string;
-};
-
-export type HandlersSubscriptionStatusResponse = {
-    /**
-     * true if scheduled to cancel
-     */
-    cancel_at_period_end?: boolean;
-    /**
-     * Unix timestamp, only present if subscribed
-     */
-    current_period_end?: number;
-    /**
-     * "free" | "pro"
-     */
-    plan?: string;
-    /**
-     * "none" | "active" | "canceling" | "past_due" | "canceled"
-     */
-    status?: string;
 };
 
 export type HandlersTokenResponse = {
@@ -155,17 +117,6 @@ export type LlmapiChatCompletionRequest = {
      * Stream indicates if response should be streamed
      */
     stream?: boolean;
-    /**
-     * ToolChoice controls which tool to use. Can be:
-     * - string: "auto", "none", "required", or a function name
-     * - object: {"type": "function", "function": {"name": "my_function"}}
-     * Using 'any' to match OpenAI's flexible API format.
-     */
-    tool_choice?: unknown;
-    /**
-     * Tools is an array of tool definitions the model can use
-     */
-    tools?: Array<LlmapiTool>;
 };
 
 export type LlmapiChatCompletionResponse = {
@@ -178,13 +129,6 @@ export type LlmapiChatCompletionResponse = {
      * ID is the completion ID
      */
     id?: string;
-    /**
-     * Messages contains the full conversation history when local tools need execution.
-     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
-     * The client should execute these tools and send a new request with this message history
-     * plus the tool results appended.
-     */
-    messages?: Array<LlmapiMessage>;
     /**
      * Model is the model used
      */
@@ -426,43 +370,13 @@ export type LlmapiMessage = {
     content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
     /**
-     * ToolCallID is the ID of the tool call this message is responding to (only for tool role)
-     */
-    tool_call_id?: string;
-    /**
      * ToolCalls contains tool/function calls made by the assistant (only for assistant role)
      */
     tool_calls?: Array<LlmapiToolCall>;
-    /**
-     * Type is the message type (for Responses API: "message")
-     */
-    type?: string;
 };
 
 /**
- * File is used when Type=input_file (for Responses API)
- */
-export type LlmapiMessageContentFile = {
-    /**
-     * FileData is the base64-encoded file content
-     */
-    file_data?: string;
-    /**
-     * FileID is the ID of an uploaded file
-     */
-    file_id?: string;
-    /**
-     * FileURL is the URL to the file
-     */
-    file_url?: string;
-    /**
-     * Filename is the name of the file
-     */
-    filename?: string;
-};
-
-/**
- * ImageURL is used when Type=image_url or Type=input_image
+ * ImageURL is used when Type=image_url
  */
 export type LlmapiMessageContentImage = {
     /**
@@ -476,14 +390,13 @@ export type LlmapiMessageContentImage = {
 };
 
 export type LlmapiMessageContentPart = {
-    file?: LlmapiMessageContentFile;
     image_url?: LlmapiMessageContentImage;
     /**
-     * Text holds the text content when Type=text or Type=input_text
+     * Text holds the text content when Type=text
      */
     text?: string;
     /**
-     * Type is the block type (`text`, `image_url`, or `input_file`)
+     * Type is the block type (`text` or `image_url`)
      */
     type?: string;
 };
@@ -642,21 +555,6 @@ export type LlmapiResponseExtraFields = {
     request_type?: string;
 };
 
-/**
- * Input can be a simple text string or an array of messages for multi-turn conversations.
- * When continuing after client tool calls, pass the messages array from the previous response.
- */
-export type LlmapiResponseInput = {
-    /**
-     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
-     */
-    messages?: Array<LlmapiMessage>;
-    /**
-     * Text is set when input is a simple string
-     */
-    text?: string;
-};
-
 export type LlmapiResponseOutputContent = {
     /**
      * Text is the text content
@@ -730,7 +628,10 @@ export type LlmapiResponseRequest = {
      * Conversation is the conversation ID (optional)
      */
     conversation?: string;
-    input: LlmapiResponseInput;
+    /**
+     * Input is the simple text input for the response
+     */
+    input: string;
     /**
      * MaxOutputTokens is the maximum number of tokens to generate
      */
@@ -754,7 +655,7 @@ export type LlmapiResponseRequest = {
      */
     tool_choice?: string;
     /**
-     * Tools is an array of tool definitions the model can use
+     * Tools is an array of tool definitions (passed through, no MCP loop)
      */
     tools?: Array<LlmapiTool>;
 };
@@ -769,13 +670,6 @@ export type LlmapiResponseResponse = {
      * ID is the unique response identifier
      */
     id?: string;
-    /**
-     * Messages contains the full conversation history when local tools need execution.
-     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
-     * The client should execute these tools and send a new request with this message history
-     * plus the tool results appended.
-     */
-    messages?: Array<LlmapiMessage>;
     /**
      * Model is the model used for generation
      */
@@ -814,7 +708,7 @@ export type LlmapiResponseUsage = {
 };
 
 /**
- * Role is the message role (system, user, assistant, tool)
+ * Role is the message role (system, user, assistant)
  */
 export type LlmapiRole = string;
 
@@ -956,10 +850,6 @@ export type LlmapiToolFunction = {
         [key: string]: unknown;
     };
     /**
-     * Description is a description of the function (used by the model to decide when to call it)
-     */
-    description?: string;
-    /**
      * Name is the function name
      */
     name?: string;
@@ -984,10 +874,6 @@ export type PostApiV1ChatCompletionsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
-    /**
-     * Model provider rate limit exceeded
-     */
-    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -1063,10 +949,6 @@ export type PostApiV1EmbeddingsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
-    /**
-     * Model provider rate limit exceeded
-     */
-    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -1146,10 +1028,6 @@ export type GetApiV1ModelsErrors = {
      */
     400: ResponseErrorResponse;
     /**
-     * Rate limit exceeded
-     */
-    429: ResponseErrorResponse;
-    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -1181,10 +1059,6 @@ export type PostApiV1ResponsesErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
-    /**
-     * Model provider rate limit exceeded
-     */
-    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -1233,202 +1107,6 @@ export type PostApiV1SearchResponses = {
 };
 
 export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
-
-export type PostApiV1SubscriptionsCancelData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/cancel';
-};
-
-export type PostApiV1SubscriptionsCancelErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsCancelError = PostApiV1SubscriptionsCancelErrors[keyof PostApiV1SubscriptionsCancelErrors];
-
-export type PostApiV1SubscriptionsCancelResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCancelSubscriptionResponse;
-};
-
-export type PostApiV1SubscriptionsCancelResponse = PostApiV1SubscriptionsCancelResponses[keyof PostApiV1SubscriptionsCancelResponses];
-
-export type PostApiV1SubscriptionsCreateCheckoutSessionData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/create-checkout-session';
-};
-
-export type PostApiV1SubscriptionsCreateCheckoutSessionErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsCreateCheckoutSessionError = PostApiV1SubscriptionsCreateCheckoutSessionErrors[keyof PostApiV1SubscriptionsCreateCheckoutSessionErrors];
-
-export type PostApiV1SubscriptionsCreateCheckoutSessionResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCheckoutSessionResponse;
-};
-
-export type PostApiV1SubscriptionsCreateCheckoutSessionResponse = PostApiV1SubscriptionsCreateCheckoutSessionResponses[keyof PostApiV1SubscriptionsCreateCheckoutSessionResponses];
-
-export type PostApiV1SubscriptionsCustomerPortalData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/customer-portal';
-};
-
-export type PostApiV1SubscriptionsCustomerPortalErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsCustomerPortalError = PostApiV1SubscriptionsCustomerPortalErrors[keyof PostApiV1SubscriptionsCustomerPortalErrors];
-
-export type PostApiV1SubscriptionsCustomerPortalResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCustomerPortalResponse;
-};
-
-export type PostApiV1SubscriptionsCustomerPortalResponse = PostApiV1SubscriptionsCustomerPortalResponses[keyof PostApiV1SubscriptionsCustomerPortalResponses];
-
-export type PostApiV1SubscriptionsRenewData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/renew';
-};
-
-export type PostApiV1SubscriptionsRenewErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsRenewError = PostApiV1SubscriptionsRenewErrors[keyof PostApiV1SubscriptionsRenewErrors];
-
-export type PostApiV1SubscriptionsRenewResponses = {
-    /**
-     * OK
-     */
-    200: HandlersRenewSubscriptionResponse;
-};
-
-export type PostApiV1SubscriptionsRenewResponse = PostApiV1SubscriptionsRenewResponses[keyof PostApiV1SubscriptionsRenewResponses];
-
-export type GetApiV1SubscriptionsStatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/status';
-};
-
-export type GetApiV1SubscriptionsStatusErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type GetApiV1SubscriptionsStatusError = GetApiV1SubscriptionsStatusErrors[keyof GetApiV1SubscriptionsStatusErrors];
-
-export type GetApiV1SubscriptionsStatusResponses = {
-    /**
-     * OK
-     */
-    200: HandlersSubscriptionStatusResponse;
-};
-
-export type GetApiV1SubscriptionsStatusResponse = GetApiV1SubscriptionsStatusResponses[keyof GetApiV1SubscriptionsStatusResponses];
-
-export type PostApiV1SubscriptionsWebhookData = {
-    body?: {
-        [key: string]: unknown;
-    };
-    headers: {
-        /**
-         * Stripe webhook signature
-         */
-        'Stripe-Signature': string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/webhook';
-};
-
-export type PostApiV1SubscriptionsWebhookErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsWebhookError = PostApiV1SubscriptionsWebhookErrors[keyof PostApiV1SubscriptionsWebhookErrors];
-
-export type PostApiV1SubscriptionsWebhookResponses = {
-    /**
-     * OK
-     */
-    200: {
-        [key: string]: string;
-    };
-};
-
-export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

@@ -1,6 +1,6 @@
 # useEncryption()
 
-> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
 
 Defined in: [src/react/useEncryption.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L835)
 
@@ -36,12 +36,7 @@ deterministic key generation that should happen automatically.
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `signMessage` | [`SignMessageFn`](../type-aliases/SignMessageFn.md) | Function to sign a message (from Privy's useSignMessage hook) |
-
-### embeddedWalletSigner?
-
-[`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
-
-Optional function for silent signing with embedded wallets
+| `embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md) | Optional function for silent signing with embedded wallets |
 
 ## Returns
 

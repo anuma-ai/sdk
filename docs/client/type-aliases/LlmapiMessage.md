@@ -1,8 +1,8 @@
 # LlmapiMessage
 
-> **LlmapiMessage** = \{ `content?`: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]; `role?`: [`LlmapiRole`](LlmapiRole.md); `tool_call_id?`: `string`; `tool_calls?`: [`LlmapiToolCall`](LlmapiToolCall.md)[]; `type?`: `string`; \}
+> **LlmapiMessage** = \{ `content?`: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]; `role?`: [`LlmapiRole`](LlmapiRole.md); `tool_calls?`: [`LlmapiToolCall`](LlmapiToolCall.md)[]; \}
 
-Defined in: [src/client/types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L422)
+Defined in: [src/client/types.gen.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L366)
 
 Message is the generated message
 
@@ -12,7 +12,7 @@ Message is the generated message
 
 > `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]
 
-Defined in: [src/client/types.gen.ts:426](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L426)
+Defined in: [src/client/types.gen.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L370)
 
 Content is the message content
 
@@ -22,17 +22,7 @@ Content is the message content
 
 > `optional` **role**: [`LlmapiRole`](LlmapiRole.md)
 
-Defined in: [src/client/types.gen.ts:427](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L427)
-
-***
-
-### tool\_call\_id?
-
-> `optional` **tool\_call\_id**: `string`
-
-Defined in: [src/client/types.gen.ts:431](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L431)
-
-ToolCallID is the ID of the tool call this message is responding to (only for tool role)
+Defined in: [src/client/types.gen.ts:371](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L371)
 
 ***
 
@@ -40,16 +30,6 @@ ToolCallID is the ID of the tool call this message is responding to (only for to
 
 > `optional` **tool\_calls**: [`LlmapiToolCall`](LlmapiToolCall.md)[]
 
-Defined in: [src/client/types.gen.ts:435](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L435)
+Defined in: [src/client/types.gen.ts:375](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L375)
 
 ToolCalls contains tool/function calls made by the assistant (only for assistant role)
-
-***
-
-### type?
-
-> `optional` **type**: `string`
-
-Defined in: [src/client/types.gen.ts:439](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L439)
-
-Type is the message type (for Responses API: "message")
