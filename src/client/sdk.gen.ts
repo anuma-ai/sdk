@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
+import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ImagesGenerationsData, PostApiV1ImagesGenerationsErrors, PostApiV1ImagesGenerationsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -126,6 +126,82 @@ export const postApiV1Responses = <ThrowOnError extends boolean = false>(options
 export const postApiV1Search = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SearchData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1SearchResponses, PostApiV1SearchErrors, ThrowOnError>({
         url: '/api/v1/search',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Cancel subscription
+ *
+ * Cancels the user's subscription at the end of the current billing period (cancel_at_period_end)
+ */
+export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/cancel',
+        ...options
+    });
+};
+
+/**
+ * Create checkout session
+ *
+ * Creates a Stripe Checkout Session for Pro subscription and returns the checkout URL
+ */
+export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCreateCheckoutSessionData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCreateCheckoutSessionErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/create-checkout-session',
+        ...options
+    });
+};
+
+/**
+ * Create customer portal session
+ *
+ * Creates a Stripe Customer Portal session for managing subscription and returns the portal URL
+ */
+export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCustomerPortalData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsCustomerPortalErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/customer-portal',
+        ...options
+    });
+};
+
+/**
+ * Renew subscription
+ *
+ * Reactivates a subscription that was scheduled for cancellation (undoes cancel_at_period_end)
+ */
+export const postApiV1SubscriptionsRenew = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsRenewData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsRenewErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/renew',
+        ...options
+    });
+};
+
+/**
+ * Get subscription status
+ *
+ * Returns the current subscription status, plan, and billing period info
+ */
+export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsStatusData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1SubscriptionsStatusResponses, GetApiV1SubscriptionsStatusErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/status',
+        ...options
+    });
+};
+
+/**
+ * Handle Stripe webhook
+ *
+ * Receives and processes Stripe webhook events for subscription lifecycle management
+ */
+export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsWebhookData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsWebhookResponses, PostApiV1SubscriptionsWebhookErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/webhook',
         ...options,
         headers: {
             'Content-Type': 'application/json',
