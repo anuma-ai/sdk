@@ -2,4 +2,4 @@
 
 > **PostApiV1EmbeddingsError** = [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)\[keyof [`PostApiV1EmbeddingsErrors`](PostApiV1EmbeddingsErrors.md)\]
 
-Defined in: [src/client/types.gen.ts:1038](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1038)
+Defined in: [src/client/types.gen.ts:1076](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1076)

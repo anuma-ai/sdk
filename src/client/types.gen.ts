@@ -4,6 +4,16 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersCancelSubscriptionResponse = {
+    cancel_at?: number;
+    current_period_end?: number;
+    message?: string;
+};
+
+export type HandlersCheckoutSessionResponse = {
+    url?: string;
+};
+
 export type HandlersConfigResponse = {
     /**
      * ChainID is the blockchain chain ID
@@ -29,6 +39,10 @@ export type HandlersConfigResponse = {
      * SettlementRecipient is the address that receives settlement payments
      */
     settlement_recipient?: string;
+};
+
+export type HandlersCustomerPortalResponse = {
+    url?: string;
 };
 
 export type HandlersExchangeRequest = {
@@ -58,8 +72,32 @@ export type HandlersRefreshRequest = {
     refresh_token: string;
 };
 
+export type HandlersRenewSubscriptionResponse = {
+    current_period_end?: number;
+    message?: string;
+};
+
 export type HandlersRevokeRequest = {
     token: string;
+};
+
+export type HandlersSubscriptionStatusResponse = {
+    /**
+     * true if scheduled to cancel
+     */
+    cancel_at_period_end?: boolean;
+    /**
+     * Unix timestamp, only present if subscribed
+     */
+    current_period_end?: number;
+    /**
+     * "free" | "pro"
+     */
+    plan?: string;
+    /**
+     * "none" | "active" | "canceling" | "past_due" | "canceled"
+     */
+    status?: string;
 };
 
 export type HandlersTokenResponse = {
@@ -1195,6 +1233,202 @@ export type PostApiV1SearchResponses = {
 };
 
 export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
+
+export type PostApiV1SubscriptionsCancelData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/cancel';
+};
+
+export type PostApiV1SubscriptionsCancelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCancelError = PostApiV1SubscriptionsCancelErrors[keyof PostApiV1SubscriptionsCancelErrors];
+
+export type PostApiV1SubscriptionsCancelResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCancelSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsCancelResponse = PostApiV1SubscriptionsCancelResponses[keyof PostApiV1SubscriptionsCancelResponses];
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/create-checkout-session';
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionError = PostApiV1SubscriptionsCreateCheckoutSessionErrors[keyof PostApiV1SubscriptionsCreateCheckoutSessionErrors];
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionResponse = PostApiV1SubscriptionsCreateCheckoutSessionResponses[keyof PostApiV1SubscriptionsCreateCheckoutSessionResponses];
+
+export type PostApiV1SubscriptionsCustomerPortalData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/customer-portal';
+};
+
+export type PostApiV1SubscriptionsCustomerPortalErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCustomerPortalError = PostApiV1SubscriptionsCustomerPortalErrors[keyof PostApiV1SubscriptionsCustomerPortalErrors];
+
+export type PostApiV1SubscriptionsCustomerPortalResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCustomerPortalResponse;
+};
+
+export type PostApiV1SubscriptionsCustomerPortalResponse = PostApiV1SubscriptionsCustomerPortalResponses[keyof PostApiV1SubscriptionsCustomerPortalResponses];
+
+export type PostApiV1SubscriptionsRenewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/renew';
+};
+
+export type PostApiV1SubscriptionsRenewErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsRenewError = PostApiV1SubscriptionsRenewErrors[keyof PostApiV1SubscriptionsRenewErrors];
+
+export type PostApiV1SubscriptionsRenewResponses = {
+    /**
+     * OK
+     */
+    200: HandlersRenewSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsRenewResponse = PostApiV1SubscriptionsRenewResponses[keyof PostApiV1SubscriptionsRenewResponses];
+
+export type GetApiV1SubscriptionsStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/status';
+};
+
+export type GetApiV1SubscriptionsStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1SubscriptionsStatusError = GetApiV1SubscriptionsStatusErrors[keyof GetApiV1SubscriptionsStatusErrors];
+
+export type GetApiV1SubscriptionsStatusResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSubscriptionStatusResponse;
+};
+
+export type GetApiV1SubscriptionsStatusResponse = GetApiV1SubscriptionsStatusResponses[keyof GetApiV1SubscriptionsStatusResponses];
+
+export type PostApiV1SubscriptionsWebhookData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    headers: {
+        /**
+         * Stripe webhook signature
+         */
+        'Stripe-Signature': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/webhook';
+};
+
+export type PostApiV1SubscriptionsWebhookErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsWebhookError = PostApiV1SubscriptionsWebhookErrors[keyof PostApiV1SubscriptionsWebhookErrors];
+
+export type PostApiV1SubscriptionsWebhookResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

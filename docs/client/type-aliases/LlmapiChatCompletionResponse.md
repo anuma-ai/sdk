@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L133)
+Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L171)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:133](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)[]
 
-Defined in: [src/client/types.gen.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L137)
+Defined in: [src/client/types.gen.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L175)
 
 Choices contains the completion choices
 
@@ -20,7 +20,7 @@ Choices contains the completion choices
 
 > `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L138)
+Defined in: [src/client/types.gen.ts:176](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L176)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:138](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L142)
+Defined in: [src/client/types.gen.ts:180](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L180)
 
 ID is the completion ID
 
@@ -38,7 +38,7 @@ ID is the completion ID
 
 > `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
 
-Defined in: [src/client/types.gen.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L149)
+Defined in: [src/client/types.gen.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L187)
 
 Messages contains the full conversation history when local tools need execution.
 This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -51,7 +51,7 @@ plus the tool results appended.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:153](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L153)
+Defined in: [src/client/types.gen.ts:191](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L191)
 
 Model is the model used
 
@@ -61,4 +61,4 @@ Model is the model used
 
 > `optional` **usage**: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md)
 
-Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L154)
+Defined in: [src/client/types.gen.ts:192](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L192)

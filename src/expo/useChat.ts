@@ -425,7 +425,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                       continuationXhr.send(
                         JSON.stringify({
-                          messages: continuationMessages,
+                          input: continuationMessages,
                           model,
                           stream: true,
                           ...(store !== undefined && { store }),
@@ -484,7 +484,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.send(
             JSON.stringify({
-              messages: messages,
+              input: messages,
               model,
               stream: true,
               // Responses API options (only include if defined)
