@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputItem** = \{ `arguments?`: `string`; `call_id?`: `string`; `content?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `id?`: `string`; `name?`: `string`; `role?`: `string`; `status?`: `string`; `summary?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `type?`: `string`; \}
 
-Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L671)
+Defined in: [src/client/types.gen.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L569)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:675](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L675)
+Defined in: [src/client/types.gen.ts:573](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L573)
 
 Arguments is the function arguments for function_call types
 
@@ -20,7 +20,7 @@ Arguments is the function arguments for function_call types
 
 > `optional` **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
+Defined in: [src/client/types.gen.ts:577](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L577)
 
 CallID is the call ID for function_call types
 
@@ -30,7 +30,7 @@ CallID is the call ID for function_call types
 
 > `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]
 
-Defined in: [src/client/types.gen.ts:683](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L683)
+Defined in: [src/client/types.gen.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L581)
 
 Content is the content array for message and reasoning types
 
@@ -40,7 +40,7 @@ Content is the content array for message and reasoning types
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:687](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L687)
+Defined in: [src/client/types.gen.ts:585](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L585)
 
 ID is the unique identifier for this output item
 
@@ -50,7 +50,7 @@ ID is the unique identifier for this output item
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:691](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L691)
+Defined in: [src/client/types.gen.ts:589](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L589)
 
 Name is the function name for function_call types
 
@@ -60,7 +60,7 @@ Name is the function name for function_call types
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:695](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L695)
+Defined in: [src/client/types.gen.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L593)
 
 Role is the role for message types (e.g., "assistant")
 
@@ -70,7 +70,7 @@ Role is the role for message types (e.g., "assistant")
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:699](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L699)
+Defined in: [src/client/types.gen.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L597)
 
 Status is the status of this output item (e.g., "completed")
 
@@ -80,7 +80,7 @@ Status is the status of this output item (e.g., "completed")
 
 > `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]
 
-Defined in: [src/client/types.gen.ts:703](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L703)
+Defined in: [src/client/types.gen.ts:601](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L601)
 
 Summary is the reasoning summary for reasoning types
 
@@ -90,6 +90,6 @@ Summary is the reasoning summary for reasoning types
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:707](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L707)
+Defined in: [src/client/types.gen.ts:605](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L605)
 
 Type is the output item type (e.g., "message", "function_call", "reasoning")
