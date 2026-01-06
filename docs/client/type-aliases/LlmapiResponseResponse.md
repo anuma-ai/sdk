@@ -1,6 +1,6 @@
 # LlmapiResponseResponse
 
-> **LlmapiResponseResponse** = `object`
+> **LlmapiResponseResponse** = \{ `created_at?`: `number`; `extra_fields?`: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md); `id?`: `string`; `model?`: `string`; `object?`: `string`; `output?`: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)[]; `usage?`: [`LlmapiResponseUsage`](LlmapiResponseUsage.md); \}
 
 Defined in: [src/client/types.gen.ts:663](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L663)
 

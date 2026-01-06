@@ -1,6 +1,6 @@
 # PostAuthOauthByProviderRevokeErrors
 
-> **PostAuthOauthByProviderRevokeErrors** = `object`
+> **PostAuthOauthByProviderRevokeErrors** = \{ `400`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); \}
 
 Defined in: [src/client/types.gen.ts:1200](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1200)
 

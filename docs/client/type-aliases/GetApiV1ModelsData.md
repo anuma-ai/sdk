@@ -1,6 +1,6 @@
 # GetApiV1ModelsData
 
-> **GetApiV1ModelsData** = `object`
+> **GetApiV1ModelsData** = \{ `body?`: `never`; `path?`: `never`; `query?`: \{ `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; \}; `url`: `"/api/v1/models"`; \}
 
 Defined in: [src/client/types.gen.ts:1005](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1005)
 
@@ -24,7 +24,7 @@ Defined in: [src/client/types.gen.ts:1007](https://github.com/zeta-chain/ai-sdk/
 
 ### query?
 
-> `optional` **query**: `object`
+> `optional` **query**: \{ `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:1008](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1008)
 

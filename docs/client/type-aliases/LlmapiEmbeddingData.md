@@ -1,6 +1,6 @@
 # LlmapiEmbeddingData
 
-> **LlmapiEmbeddingData** = `object`
+> **LlmapiEmbeddingData** = \{ `embedding?`: `number`[]; `index?`: `number`; `object?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:173](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L173)
 

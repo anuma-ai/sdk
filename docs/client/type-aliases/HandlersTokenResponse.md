@@ -1,6 +1,6 @@
 # HandlersTokenResponse
 
-> **HandlersTokenResponse** = `object`
+> **HandlersTokenResponse** = \{ `access_token?`: `string`; `expires_in?`: `number`; `refresh_token?`: `string`; `scope?`: `string`; `token_type?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L65)
 

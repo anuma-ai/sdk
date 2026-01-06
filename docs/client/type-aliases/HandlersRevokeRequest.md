@@ -1,6 +1,6 @@
 # HandlersRevokeRequest
 
-> **HandlersRevokeRequest** = `object`
+> **HandlersRevokeRequest** = \{ `token`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L61)
 

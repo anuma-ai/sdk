@@ -1,6 +1,6 @@
 # PostApiV1EmbeddingsErrors
 
-> **PostApiV1EmbeddingsErrors** = `object`
+> **PostApiV1EmbeddingsErrors** = \{ `400`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); \}
 
 Defined in: [src/client/types.gen.ts:947](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L947)
 

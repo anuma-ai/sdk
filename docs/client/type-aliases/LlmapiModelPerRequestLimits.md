@@ -1,6 +1,6 @@
 # LlmapiModelPerRequestLimits
 
-> **LlmapiModelPerRequestLimits** = `object`
+> **LlmapiModelPerRequestLimits** = \{ `completion_tokens?`: `number`; `prompt_tokens?`: `number`; \}
 
 Defined in: [src/client/types.gen.ts:482](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L482)
 

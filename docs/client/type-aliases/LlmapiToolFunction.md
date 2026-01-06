@@ -1,6 +1,6 @@
 # LlmapiToolFunction
 
-> **LlmapiToolFunction** = `object`
+> **LlmapiToolFunction** = \{ `arguments?`: \{\[`key`: `string`\]: `unknown`; \}; `name?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:845](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L845)
 
@@ -10,7 +10,7 @@ Function is the function definition (when Type is "function")
 
 ### arguments?
 
-> `optional` **arguments**: `object`
+> `optional` **arguments**: \{\[`key`: `string`\]: `unknown`; \}
 
 Defined in: [src/client/types.gen.ts:849](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L849)
 

@@ -1,6 +1,6 @@
 # PostAuthOauthByProviderExchangeData
 
-> **PostAuthOauthByProviderExchangeData** = `object`
+> **PostAuthOauthByProviderExchangeData** = \{ `body`: [`HandlersExchangeRequest`](HandlersExchangeRequest.md); `path`: \{ `provider`: `string`; \}; `query?`: `never`; `url`: `"/auth/oauth/{provider}/exchange"`; \}
 
 Defined in: [src/client/types.gen.ts:1111](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1111)
 
@@ -18,7 +18,7 @@ Exchange request
 
 ### path
 
-> **path**: `object`
+> **path**: \{ `provider`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:1116](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1116)
 

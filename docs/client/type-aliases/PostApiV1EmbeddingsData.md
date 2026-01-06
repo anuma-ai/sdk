@@ -1,6 +1,6 @@
 # PostApiV1EmbeddingsData
 
-> **PostApiV1EmbeddingsData** = `object`
+> **PostApiV1EmbeddingsData** = \{ `body`: [`LlmapiEmbeddingRequest`](LlmapiEmbeddingRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/embeddings"`; \}
 
 Defined in: [src/client/types.gen.ts:937](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L937)
 

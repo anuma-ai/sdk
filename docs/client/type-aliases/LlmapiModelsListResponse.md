@@ -1,6 +1,6 @@
 # LlmapiModelsListResponse
 
-> **LlmapiModelsListResponse** = `object`
+> **LlmapiModelsListResponse** = \{ `data?`: [`LlmapiModel`](LlmapiModel.md)[]; `extra_fields?`: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md); `next_page_token?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:524](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L524)
 

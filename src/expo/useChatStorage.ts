@@ -552,13 +552,17 @@ export function useChatStorage(
 
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
-        const abortedResult = result as { data: LlmapiResponseResponse | null; error: string };
+        const abortedResult = result as {
+          data: LlmapiResponseResponse | null;
+          error: string;
+        };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
-          const assistantContent = abortedResult.data?.output?.[0]?.content
-            ?.map((part: { text?: string }) => part.text || "")
-            .join("") || "";
+          const assistantContent =
+            abortedResult.data?.output?.[0]?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || "";
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -582,12 +586,14 @@ export function useChatStorage(
               id: `aborted-${Date.now()}`,
               model: responseModel,
               object: "response",
-              output: [{
-                type: "message",
-                role: "assistant",
-                content: [{ type: "output_text", text: assistantContent }],
-                status: "completed",
-              }],
+              output: [
+                {
+                  type: "message",
+                  role: "assistant",
+                  content: [{ type: "output_text", text: assistantContent }],
+                  status: "completed",
+                },
+              ],
               usage: undefined,
             };
 

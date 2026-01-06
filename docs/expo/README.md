@@ -87,9 +87,11 @@ function ChatScreen() {
 
 ## Hooks
 
-- [useChat](functions/useChat.md)
-- [useChatStorage](functions/useChatStorage.md)
-- [useMemoryStorage](functions/useMemoryStorage.md)
+| Function | Description |
+| ------ | ------ |
+| [useChat](functions/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useChatStorage](functions/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
+| [useMemoryStorage](functions/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
 
 ## Other
 

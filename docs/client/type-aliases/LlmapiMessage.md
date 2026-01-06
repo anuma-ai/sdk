@@ -1,6 +1,6 @@
 # LlmapiMessage
 
-> **LlmapiMessage** = `object`
+> **LlmapiMessage** = \{ `content?`: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]; `role?`: [`LlmapiRole`](LlmapiRole.md); `tool_calls?`: [`LlmapiToolCall`](LlmapiToolCall.md)[]; \}
 
 Defined in: [src/client/types.gen.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L366)
 

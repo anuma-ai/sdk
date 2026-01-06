@@ -1,6 +1,6 @@
 # LlmapiChatCompletionResponse
 
-> **LlmapiChatCompletionResponse** = `object`
+> **LlmapiChatCompletionResponse** = \{ `choices?`: [`LlmapiChoice`](LlmapiChoice.md)[]; `extra_fields?`: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md); `id?`: `string`; `model?`: `string`; `usage?`: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md); \}
 
 Defined in: [src/client/types.gen.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L122)
 

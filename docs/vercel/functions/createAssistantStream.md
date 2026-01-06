@@ -1,6 +1,6 @@
 # createAssistantStream()
 
-> **createAssistantStream**(`text`): `ReadableStream`\<`AssistantStreamEvent`\>
+> **createAssistantStream**(`text`: `string`): `ReadableStream`\<`AssistantStreamEvent`\>
 
 Defined in: [src/vercel/streams.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/streams.ts#L18)
 
@@ -13,11 +13,9 @@ piped directly into UI components that consume the AI SDK stream contract.
 
 ## Parameters
 
-### text
-
-`string`
-
-The assistant response text returned by the Portal API.
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `text` | `string` | The assistant response text returned by the Portal API. |
 
 ## Returns
 

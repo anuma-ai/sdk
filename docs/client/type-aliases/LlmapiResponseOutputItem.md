@@ -1,6 +1,6 @@
 # LlmapiResponseOutputItem
 
-> **LlmapiResponseOutputItem** = `object`
+> **LlmapiResponseOutputItem** = \{ `arguments?`: `string`; `call_id?`: `string`; `content?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `id?`: `string`; `name?`: `string`; `role?`: `string`; `status?`: `string`; `summary?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `type?`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L569)
 

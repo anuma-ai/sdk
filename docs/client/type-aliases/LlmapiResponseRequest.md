@@ -1,6 +1,6 @@
 # LlmapiResponseRequest
 
-> **LlmapiResponseRequest** = `object`
+> **LlmapiResponseRequest** = \{ `background?`: `boolean`; `conversation?`: `string`; `input`: `string`; `max_output_tokens?`: `number`; `model`: `string`; `reasoning?`: [`LlmapiResponseReasoning`](LlmapiResponseReasoning.md); `stream?`: `boolean`; `temperature?`: `number`; `thinking?`: [`LlmapiThinkingOptions`](LlmapiThinkingOptions.md); `tool_choice?`: `string`; `tools?`: [`LlmapiTool`](LlmapiTool.md)[]; \}
 
 Defined in: [src/client/types.gen.ts:622](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L622)
 

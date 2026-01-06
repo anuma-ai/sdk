@@ -1,6 +1,6 @@
 # LlmapiEmbeddingRequest
 
-> **LlmapiEmbeddingRequest** = `object`
+> **LlmapiEmbeddingRequest** = \{ `dimensions?`: `number`; `encoding_format?`: `string`; `input`: `unknown`; `model`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L214)
 

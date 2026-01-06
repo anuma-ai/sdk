@@ -1,6 +1,6 @@
 # useMemoryStorage()
 
-> **useMemoryStorage**(`options`): `BaseUseMemoryStorageResult`
+> **useMemoryStorage**(`options`: `BaseUseMemoryStorageOptions`): `BaseUseMemoryStorageResult`
 
 Defined in: [src/expo/useMemoryStorage.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L151)
 
@@ -11,11 +11,9 @@ API-based embeddings. Local embeddings require web APIs not available in React N
 
 ## Parameters
 
-### options
-
-`BaseUseMemoryStorageOptions`
-
-Configuration options
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | `BaseUseMemoryStorageOptions` | Configuration options |
 
 ## Returns
 

@@ -8,7 +8,7 @@ Result returned by useGoogleDriveBackup hook
 
 ### backup()
 
-> **backup**: (`options?`) => `Promise`\<[`GoogleDriveExportResult`](GoogleDriveExportResult.md) \| \{ `error`: `string`; \}\>
+> **backup**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`GoogleDriveExportResult`](GoogleDriveExportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useGoogleDriveBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L49)
 
@@ -16,11 +16,10 @@ Backup all conversations to Google Drive
 
 #### Parameters
 
-##### options?
-
-###### onProgress?
-
-(`current`, `total`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
 #### Returns
 
@@ -50,7 +49,7 @@ Whether Google Drive is configured
 
 ### restore()
 
-> **restore**: (`options?`) => `Promise`\<[`GoogleDriveImportResult`](GoogleDriveImportResult.md) \| \{ `error`: `string`; \}\>
+> **restore**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`GoogleDriveImportResult`](GoogleDriveImportResult.md) \| \{ `error`: `string`; \}\>
 
 Defined in: [src/react/useGoogleDriveBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L53)
 
@@ -58,11 +57,10 @@ Restore conversations from Google Drive
 
 #### Parameters
 
-##### options?
-
-###### onProgress?
-
-(`current`, `total`) => `void`
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
 #### Returns
 

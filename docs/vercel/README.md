@@ -19,6 +19,8 @@ Vercel stream format, so you can:
 
 ## Functions
 
-- [createAssistantStream](functions/createAssistantStream.md)
-- [createErrorStream](functions/createErrorStream.md)
-- [mapMessagesToCompletionPayload](functions/mapMessagesToCompletionPayload.md)
+| Function | Description |
+| ------ | ------ |
+| [createAssistantStream](functions/createAssistantStream.md) | Creates a `ReadableStream` that emits the sequence of events expected by Vercel's `createUIMessageStreamResponse` helper for a successful assistant reply. |
+| [createErrorStream](functions/createErrorStream.md) | Creates a `ReadableStream` that emits a single `error` event compatible with the Vercel AI stream contract. This allows Portal API errors to be surfaced directly in UI components that expect streamed assistant output. |
+| [mapMessagesToCompletionPayload](functions/mapMessagesToCompletionPayload.md) | Converts an array of Vercel AI UIMessage objects into the `LlmapiMessage` format that the Portal API expects. |

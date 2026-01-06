@@ -1,6 +1,6 @@
 # PostAuthOauthByProviderRefreshData
 
-> **PostAuthOauthByProviderRefreshData** = `object`
+> **PostAuthOauthByProviderRefreshData** = \{ `body`: [`HandlersRefreshRequest`](HandlersRefreshRequest.md); `path`: \{ `provider`: `string`; \}; `query?`: `never`; `url`: `"/auth/oauth/{provider}/refresh"`; \}
 
 Defined in: [src/client/types.gen.ts:1148](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1148)
 
@@ -18,7 +18,7 @@ Refresh request
 
 ### path
 
-> **path**: `object`
+> **path**: \{ `provider`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:1153](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1153)
 

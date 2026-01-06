@@ -1,6 +1,6 @@
 # PostAuthOauthByProviderRevokeData
 
-> **PostAuthOauthByProviderRevokeData** = `object`
+> **PostAuthOauthByProviderRevokeData** = \{ `body`: [`HandlersRevokeRequest`](HandlersRevokeRequest.md); `path`: \{ `provider`: `string`; \}; `query?`: `never`; `url`: `"/auth/oauth/{provider}/revoke"`; \}
 
 Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
 
@@ -18,7 +18,7 @@ Revoke request
 
 ### path
 
-> **path**: `object`
+> **path**: \{ `provider`: `string`; \}
 
 Defined in: [src/client/types.gen.ts:1190](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1190)
 

@@ -1,6 +1,6 @@
 # useSettings()
 
-> **useSettings**(`options`): [`UseSettingsResult`](../interfaces/UseSettingsResult.md)
+> **useSettings**(`options`: [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../interfaces/UseSettingsResult.md)
 
 Defined in: [src/react/useSettings.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L69)
 
@@ -11,11 +11,9 @@ with automatic loading of preferences when a wallet address is provided.
 
 ## Parameters
 
-### options
-
-[`UseSettingsOptions`](../interfaces/UseSettingsOptions.md)
-
-Configuration options
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md) | Configuration options |
 
 ## Returns
 

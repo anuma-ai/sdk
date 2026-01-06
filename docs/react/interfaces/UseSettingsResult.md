@@ -12,15 +12,15 @@ Result returned by useSettings hook (React version)
 
 ### deleteModelPreference()
 
-> **deleteModelPreference**: (`walletAddress`) => `Promise`\<`boolean`\>
+> **deleteModelPreference**: (`walletAddress`: `string`) => `Promise`\<`boolean`\>
 
 Defined in: [src/lib/db/settings/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L37)
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -34,15 +34,15 @@ Defined in: [src/lib/db/settings/types.ts:37](https://github.com/zeta-chain/ai-s
 
 ### getModelPreference()
 
-> **getModelPreference**: (`walletAddress`) => `Promise`\<[`StoredModelPreference`](StoredModelPreference.md) \| `null`\>
+> **getModelPreference**: (`walletAddress`: `string`) => `Promise`\<[`StoredModelPreference`](StoredModelPreference.md) \| `null`\>
 
 Defined in: [src/lib/db/settings/types.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L30)
 
 #### Parameters
 
-##### walletAddress
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
 
 #### Returns
 
@@ -80,19 +80,16 @@ Defined in: [src/lib/db/settings/types.ts:28](https://github.com/zeta-chain/ai-s
 
 ### setModelPreference()
 
-> **setModelPreference**: (`walletAddress`, `models?`) => `Promise`\<[`StoredModelPreference`](StoredModelPreference.md) \| `null`\>
+> **setModelPreference**: (`walletAddress`: `string`, `models?`: `string`) => `Promise`\<[`StoredModelPreference`](StoredModelPreference.md) \| `null`\>
 
 Defined in: [src/lib/db/settings/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L33)
 
 #### Parameters
 
-##### walletAddress
-
-`string`
-
-##### models?
-
-`string`
+| Parameter | Type |
+| ------ | ------ |
+| `walletAddress` | `string` |
+| `models?` | `string` |
 
 #### Returns
 
