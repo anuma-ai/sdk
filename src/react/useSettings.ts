@@ -424,6 +424,35 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     };
   }, [walletAddress, storageCtx, legacyStorageCtx]);
 
+  // Subscribe to userPreferences changes for real-time updates
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    const subscription = userPreferencesCollection
+      .query()
+      .observe()
+      .subscribe((records) => {
+        const record = records.find((r) => r.walletAddress === walletAddress);
+        if (record) {
+          setUserPreferenceState({
+            uniqueId: record.id,
+            walletAddress: record.walletAddress,
+            nickname: record.nickname,
+            occupation: record.occupation,
+            description: record.description,
+            models: record.models,
+            personality: record.personality,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+          });
+        }
+      });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [walletAddress, userPreferencesCollection]);
+
   return {
     // Legacy API (deprecated)
     modelPreference,
