@@ -38,6 +38,7 @@ import {
   updateMessageOp,
   searchMessagesOp,
 } from "../lib/db/chat";
+import type { ApiType } from "../lib/chat/useChat";
 
 /**
  * Convert StoredMessage to LlmapiMessage format
@@ -68,19 +69,32 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
 /**
  * Options for useChatStorage hook (React version)
  *
- * Uses base options.
+ * Extends base options with apiType support.
  */
-export type UseChatStorageOptions = BaseUseChatStorageOptions;
+export type UseChatStorageOptions = BaseUseChatStorageOptions & {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+};
 
 /**
  * Arguments for sendMessage with storage (React version)
  *
- * Extends base arguments with headers support.
+ * Extends base arguments with headers and apiType support.
  */
 export interface SendMessageWithStorageArgs
   extends BaseSendMessageWithStorageArgs {
   /** Custom headers */
   headers?: Record<string, string>;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
 }
 
 /**
@@ -211,6 +225,7 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
+    apiType,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -248,6 +263,7 @@ export function useChatStorage(
     onData,
     onFinish,
     onError,
+    apiType,
   });
 
   /**
@@ -488,6 +504,7 @@ export function useChatStorage(
         reasoning,
         thinking,
         onThinking,
+        apiType: requestApiType,
       } = args;
 
       // Ensure we have a conversation
@@ -591,6 +608,7 @@ export function useChatStorage(
         reasoning,
         thinking,
         onThinking,
+        apiType: requestApiType,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;

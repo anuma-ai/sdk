@@ -9,16 +9,13 @@ import {
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
   type BaseUseChatResult,
-  type StreamingChunk,
-  type ProcessChunkResult,
   type AccumulatedToolCall,
+  type ApiType,
   createStreamAccumulator,
   validateMessages,
   validateModel,
   validateTokenGetter,
   validateToken,
-  buildResponseResponse,
-  processStreamingChunk,
   createErrorResult,
   handleError,
   isAbortError,
@@ -26,6 +23,7 @@ import {
   toolsToApiFormat,
   createToolExecutorMap,
   executeToolCall,
+  getStrategy,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -50,6 +48,12 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * @param chunk - The thinking delta from the current chunk
    */
   onThinking?: (chunk: string) => void;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
 };
 
 type SendMessageResult =
@@ -62,7 +66,14 @@ type SendMessageResult =
       error: string;
     };
 
-type UseChatOptions = BaseUseChatOptions;
+type UseChatOptions = BaseUseChatOptions & {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+};
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
@@ -134,6 +145,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     onToolCall,
+    apiType: defaultApiType = "responses",
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -174,7 +186,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       toolChoice,
       reasoning,
       thinking,
+      apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
+      // Get the effective API type and strategy
+      const effectiveApiType = requestApiType ?? defaultApiType;
+      const strategy = getStrategy(effectiveApiType);
       // Validate messages
       const messagesValidation = validateMessages(messages);
       if (!messagesValidation.valid) {
@@ -270,24 +286,26 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Convert tools to API format (strip executors)
         const apiTools = toolsToApiFormat(tools);
 
+        // Build request body using the strategy
+        const requestBody = strategy.buildRequestBody({
+          messages: messagesWithContext,
+          model: model!,
+          stream: true,
+          temperature,
+          maxOutputTokens,
+          tools: apiTools,
+          toolChoice,
+          store,
+          previousResponseId,
+          conversation,
+          reasoning,
+          thinking,
+        });
+
         const sseResult = await client.sse.post({
           baseUrl,
-          url: "/api/v1/responses",
-          body: {
-            input: messagesWithContext,
-            model,
-            stream: true,
-            // Responses API options (only include if defined)
-            ...(store !== undefined && { store }),
-            ...(previousResponseId && { previous_response_id: previousResponseId }),
-            ...(conversation && { conversation }),
-            ...(temperature !== undefined && { temperature }),
-            ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-            ...(apiTools && { tools: apiTools }),
-            ...(toolChoice && { tool_choice: toolChoice }),
-            ...(reasoning && { reasoning }),
-            ...(thinking && { thinking }),
-          },
+          url: strategy.endpoint,
+          body: requestBody,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -312,8 +330,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const { content: contentDelta, thinking: thinkingDelta } = processStreamingChunk(
-                chunk as StreamingChunk,
+              const { content: contentDelta, thinking: thinkingDelta } = strategy.processStreamChunk(
+                chunk,
                 accumulator
               );
               if (contentDelta) {
@@ -330,7 +348,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Check if this was an abort during streaming
           if (isAbortError(streamErr) || abortController.signal.aborted) {
             // Return partial data so far
-            const partialResponse = buildResponseResponse(accumulator);
+            const partialResponse = strategy.buildFinalResponse(accumulator);
             return {
               data: partialResponse,
               error: "Request aborted",
@@ -341,7 +359,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Check if abort happened during streaming but loop completed before throw
         if (abortController.signal.aborted) {
-          const partialResponse = buildResponseResponse(accumulator);
+          const partialResponse = strategy.buildFinalResponse(accumulator);
           return {
             data: partialResponse,
             error: "Request aborted",
@@ -354,7 +372,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
 
         // Build the final response
-        const response = buildResponseResponse(accumulator);
+        const response = strategy.buildFinalResponse(accumulator);
 
         // Check for tool calls and handle them
         if (accumulator.toolCalls.size > 0) {
@@ -491,23 +509,25 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Recursive call to continue with tool results
             // Use the same parameters but with updated messages
+            const continuationRequestBody = strategy.buildRequestBody({
+              messages: continuationMessages,
+              model: model!,
+              stream: true,
+              temperature,
+              maxOutputTokens,
+              tools: apiTools,
+              toolChoice,
+              store,
+              previousResponseId,
+              conversation,
+              reasoning,
+              thinking,
+            });
+
             const continuationResult = await client.sse.post({
               baseUrl,
-              url: "/api/v1/responses",
-              body: {
-                input: continuationMessages,
-                model,
-                stream: true,
-                ...(store !== undefined && { store }),
-                ...(previousResponseId && { previous_response_id: previousResponseId }),
-                ...(conversation && { conversation }),
-                ...(temperature !== undefined && { temperature }),
-                ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-                ...(apiTools && { tools: apiTools }),
-                ...(toolChoice && { tool_choice: toolChoice }),
-                ...(reasoning && { reasoning }),
-                ...(thinking && { thinking }),
-              },
+              url: strategy.endpoint,
+              body: continuationRequestBody,
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
@@ -532,8 +552,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                 if (chunk && typeof chunk === "object") {
                   const { content: contentDelta, thinking: thinkingDelta } =
-                    processStreamingChunk(
-                      chunk as StreamingChunk,
+                    strategy.processStreamChunk(
+                      chunk,
                       continuationAccumulator
                     );
                   if (contentDelta) {
@@ -551,7 +571,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               console.log("[Tool Debug] Continuation stream complete - accumulated thinking:", continuationAccumulator.thinking);
             } catch (streamErr) {
               if (isAbortError(streamErr) || abortController.signal.aborted) {
-                const partialResponse = buildResponseResponse(continuationAccumulator);
+                const partialResponse = strategy.buildFinalResponse(continuationAccumulator);
                 return {
                   data: partialResponse,
                   error: "Request aborted",
@@ -561,7 +581,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (abortController.signal.aborted) {
-              const partialResponse = buildResponseResponse(continuationAccumulator);
+              const partialResponse = strategy.buildFinalResponse(continuationAccumulator);
               return {
                 data: partialResponse,
                 error: "Request aborted",
@@ -573,7 +593,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             // Build final response from continuation
-            const finalResponse = buildResponseResponse(continuationAccumulator);
+            const finalResponse = strategy.buildFinalResponse(continuationAccumulator);
 
             if (onFinish) {
               onFinish(finalResponse);
@@ -616,7 +636,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall]
+    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall, defaultApiType]
   );
 
   return {

@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L120)
+Defined in: [src/react/useChatStorage.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L134)
 
 Result returned by useChatStorage hook (React version)
 
@@ -94,7 +94,7 @@ Defined in: [src/lib/db/chat/types.ts:228](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: \{ `content`: `string`; `sources?`: [`SearchSource`](SearchSource.md)[]; \}) => [`SearchSource`](SearchSource.md)[]
 
-Defined in: [src/react/useChatStorage.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L137)
+Defined in: [src/react/useChatStorage.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L151)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -210,7 +210,7 @@ Defined in: [src/lib/db/chat/types.ts:218](https://github.com/zeta-chain/ai-sdk/
 
 > **searchMessages**: (`queryVector`: `number`[], `options?`: [`SearchMessagesOptions`](SearchMessagesOptions.md)) => `Promise`\<[`StoredMessageWithSimilarity`](StoredMessageWithSimilarity.md)[]\>
 
-Defined in: [src/react/useChatStorage.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L126)
+Defined in: [src/react/useChatStorage.ts:140](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L140)
 
 Search messages by vector similarity
 
@@ -231,7 +231,7 @@ Search messages by vector similarity
 
 > **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](SendMessageWithStorageArgs.md)) => `Promise`\<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)\>
 
-Defined in: [src/react/useChatStorage.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L122)
+Defined in: [src/react/useChatStorage.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L136)
 
 Send a message and automatically store it
 
@@ -312,7 +312,7 @@ Defined in: [src/lib/db/chat/types.ts:227](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`\<[`StoredMessage`](StoredMessage.md) \| `null`\>
 
-Defined in: [src/react/useChatStorage.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L142)
+Defined in: [src/react/useChatStorage.ts:156](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L156)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 
@@ -333,7 +333,7 @@ Update a message's fields (content, embedding, files, etc). Returns updated mess
 
 > **updateMessageEmbedding**: (`uniqueId`: `string`, `vector`: `number`[], `embeddingModel`: `string`) => `Promise`\<[`StoredMessage`](StoredMessage.md) \| `null`\>
 
-Defined in: [src/react/useChatStorage.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L131)
+Defined in: [src/react/useChatStorage.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L145)
 
 Update a message's embedding vector. Returns updated message or null if not found.
 

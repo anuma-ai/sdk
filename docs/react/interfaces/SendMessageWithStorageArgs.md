@@ -1,16 +1,33 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L80)
+Defined in: [src/react/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L88)
 
 Arguments for sendMessage with storage (React version)
 
-Extends base arguments with headers support.
+Extends base arguments with headers and apiType support.
 
 ## Extends
 
 - `BaseSendMessageWithStorageArgs`
 
 ## Properties
+
+### apiType?
+
+> `optional` **apiType**: `ApiType`
+
+Defined in: [src/react/useChatStorage.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L97)
+
+Override the API type for this request only.
+Useful when different models need different APIs.
+
+#### Default
+
+```ts
+Uses the hook-level apiType or "responses"
+```
+
+***
 
 ### content
 
@@ -40,7 +57,7 @@ Defined in: [src/lib/db/chat/types.ts:145](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [src/react/useChatStorage.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L83)
+Defined in: [src/react/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L91)
 
 Custom headers
 
