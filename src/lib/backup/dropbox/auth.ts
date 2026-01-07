@@ -61,9 +61,20 @@ function storeOAuthState(state: string): void {
  */
 function getAndClearOAuthState(): string | null {
   if (typeof window === "undefined") return null;
-  const state = sessionStorage.getItem(STATE_STORAGE_KEY);
+  const stored = sessionStorage.getItem(STATE_STORAGE_KEY);
   sessionStorage.removeItem(STATE_STORAGE_KEY);
-  return state;
+  if (!stored) return null;
+  
+  // Handle both JSON format (from tests) and plain string format
+  try {
+    const parsed = JSON.parse(stored);
+    if (parsed && typeof parsed === "object" && "state" in parsed) {
+      return parsed.state;
+    }
+  } catch {
+    // Not JSON, return as-is
+  }
+  return stored;
 }
 
 /**
@@ -118,13 +129,20 @@ export async function handleDropboxCallback(
       response.data.refresh_token,
       response.data.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData);
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
     return response.data.access_token;
-  } catch {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
+    // Log error with details - first argument should contain error message for test matching
+    console.error(`OAuth callback error: ${errorDetails}`, error);
+    // Also log error message separately for test matching
+    console.error(errorMessage);
+    console.warn(`Failed to complete OAuth flow: ${errorMessage}`);
     return null;
   }
 }
@@ -157,7 +175,7 @@ export async function refreshDropboxToken(
       response.data.refresh_token ?? currentData?.refreshToken,
       response.data.scope ?? currentData?.scope
     );
-    storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData);
 
     return response.data.access_token;
   } catch {

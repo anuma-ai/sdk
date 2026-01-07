@@ -181,8 +181,17 @@ export function useMemoryStorage(
     () => ({
       database,
       memoriesCollection,
+      walletAddress: options.walletAddress,
+      signMessage: options.signMessage,
+      embeddedWalletSigner: options.embeddedWalletSigner,
     }),
-    [database, memoriesCollection]
+    [
+      database,
+      memoriesCollection,
+      options.walletAddress,
+      options.signMessage,
+      options.embeddedWalletSigner,
+    ]
   );
 
   // Embedding options
@@ -351,6 +360,8 @@ export function useMemoryStorage(
 
         if (result.items && result.items.length > 0) {
           try {
+            // Convert MemoryItem to CreateMemoryOptions
+            // Generate embeddings from plaintext BEFORE saving (encryption happens in saveMemoriesOp)
             const createOptions: CreateMemoryOptions[] = result.items.map(
               (item: MemoryItem) => ({
                 type: item.type,
@@ -363,38 +374,28 @@ export function useMemoryStorage(
               })
             );
 
-            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
-            console.log(`Saved ${savedMemories.length} memories to WatermelonDB`);
-
-            // Generate embeddings if enabled (API only for Expo)
+            // Generate embeddings from plaintext before saving
             if (generateEmbeddings && embeddingModel) {
               try {
-                for (const saved of savedMemories) {
-                  const memoryItem: MemoryItem = {
-                    type: saved.type,
-                    namespace: saved.namespace,
-                    key: saved.key,
-                    value: saved.value,
-                    rawEvidence: saved.rawEvidence,
-                    confidence: saved.confidence,
-                    pii: saved.pii,
-                  };
+                for (let i = 0; i < createOptions.length; i++) {
+                  const memoryItem = createOptions[i];
                   const embedding = await generateEmbeddingForMemoryApi(
                     memoryItem,
                     embeddingOptions
                   );
-                  await updateMemoryEmbeddingOp(
-                    storageCtx,
-                    saved.uniqueId,
-                    embedding,
-                    embeddingOptions.model
-                  );
+                  createOptions[i].embedding = embedding;
+                  createOptions[i].embeddingModel = embeddingOptions.model;
                 }
-                console.log(`Generated embeddings for ${savedMemories.length} memories`);
+                console.log(
+                  `Generated embeddings for ${createOptions.length} memories (from plaintext)`
+                );
               } catch (error) {
                 console.error("Failed to generate embeddings:", error);
               }
             }
+
+            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
+            console.log(`Saved ${savedMemories.length} memories to WatermelonDB`);
 
             await refreshMemories();
           } catch (error) {
@@ -550,8 +551,8 @@ export function useMemoryStorage(
   const saveMemory = useCallback(
     async (memory: CreateMemoryOptions): Promise<StoredMemory> => {
       try {
-        const saved = await saveMemoryOp(storageCtx, memory);
-
+        // Generate embedding from plaintext before saving if not already provided
+        const memoryToSave = { ...memory };
         if (generateEmbeddings && embeddingModel && !memory.embedding) {
           try {
             const memoryItem: MemoryItem = {
@@ -567,16 +568,14 @@ export function useMemoryStorage(
               memoryItem,
               embeddingOptions
             );
-            await updateMemoryEmbeddingOp(
-              storageCtx,
-              saved.uniqueId,
-              embedding,
-              embeddingOptions.model
-            );
+            memoryToSave.embedding = embedding;
+            memoryToSave.embeddingModel = embeddingOptions.model;
           } catch (error) {
             console.error("Failed to generate embedding:", error);
           }
         }
+
+        const saved = await saveMemoryOp(storageCtx, memoryToSave);
 
         setMemories((prev) => {
           const existing = prev.find((m) => m.uniqueId === saved.uniqueId);
@@ -603,12 +602,10 @@ export function useMemoryStorage(
   const saveMemories = useCallback(
     async (memoriesToSave: CreateMemoryOptions[]): Promise<StoredMemory[]> => {
       try {
-        const saved = await saveMemoriesOp(storageCtx, memoriesToSave);
-
-        if (generateEmbeddings && embeddingModel) {
-          for (let i = 0; i < saved.length; i++) {
-            const memory = memoriesToSave[i];
-            if (!memory.embedding) {
+        // Generate embeddings from plaintext before saving
+        const memoriesWithEmbeddings = await Promise.all(
+          memoriesToSave.map(async (memory) => {
+            if (generateEmbeddings && embeddingModel && !memory.embedding) {
               try {
                 const memoryItem: MemoryItem = {
                   type: memory.type,
@@ -623,18 +620,21 @@ export function useMemoryStorage(
                   memoryItem,
                   embeddingOptions
                 );
-                await updateMemoryEmbeddingOp(
-                  storageCtx,
-                  saved[i].uniqueId,
+                return {
+                  ...memory,
                   embedding,
-                  embeddingOptions.model
-                );
+                  embeddingModel: embeddingOptions.model,
+                };
               } catch (error) {
                 console.error("Failed to generate embedding:", error);
+                return memory;
               }
             }
-          }
-        }
+            return memory;
+          })
+        );
+
+        const saved = await saveMemoriesOp(storageCtx, memoriesWithEmbeddings);
 
         await refreshMemories();
         return saved;

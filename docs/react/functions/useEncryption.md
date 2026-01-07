@@ -1,8 +1,8 @@
 # useEncryption()
 
-> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
 
-Defined in: [src/react/useEncryption.ts:677](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L677)
+Defined in: [src/react/useEncryption.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L835)
 
 Hook that provides encryption key management for securing local data.
 
@@ -25,11 +25,18 @@ stored in memory only and do not persist across page reloads for security.
 - **Session-scoped**: Keys cleared on page reload
 - **XSS-resistant**: Keys not accessible after page reload
 
+## Embedded Wallet Support
+
+For Privy embedded wallets, you can provide an `embeddedWalletSigner` function
+to enable silent signing without user confirmation modals. This is useful for
+deterministic key generation that should happen automatically.
+
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `signMessage` | [`SignMessageFn`](../type-aliases/SignMessageFn.md) | Function to sign a message (from Privy's useSignMessage hook) |
+| `embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md) | Optional function for silent signing with embedded wallets |
 
 ## Returns
 
@@ -110,6 +117,59 @@ Functions to request encryption keys and manage key pairs
 ## Examples
 
 ```tsx
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+
+function SecureComponent() {
+  const { user, signMessage } = usePrivy();
+  const { wallets } = useWallets();
+  const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+
+  // Create silent signer for embedded wallets
+  const embeddedSigner = useCallback(async (message: string) => {
+    if (embeddedWallet) {
+      const { signature } = await embeddedWallet.signMessage({ message });
+      return signature;
+    }
+    throw new Error('No embedded wallet');
+  }, [embeddedWallet]);
+
+  const { requestEncryptionKey } = useEncryption(signMessage, embeddedSigner);
+
+  // Request encryption key when user is authenticated
+  useEffect(() => {
+    if (user?.wallet?.address) {
+      // This will use silent signing for embedded wallets
+      await requestEncryptionKey(user.wallet.address);
+    }
+  }, [user]);
+
+  // Encrypt data
+  const saveSecret = async (text: string) => {
+    const encrypted = await encryptData(text, user.wallet.address);
+    localStorage.setItem("mySecret", encrypted);
+  };
+
+  // Decrypt data
+  const loadSecret = async () => {
+    const encrypted = localStorage.getItem("mySecret");
+    if (encrypted) {
+      const decrypted = await decryptData(encrypted, user.wallet.address);
+      console.log(decrypted);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={() => saveSecret("my secret data")}>Encrypt & Save</button>
+      <button onClick={loadSecret}>Load & Decrypt</button>
+    </div>
+  );
+}
+```
+
+```tsx
+// Standard usage with external wallets (shows confirmation modal)
 import { usePrivy } from "@privy-io/react-auth";
 import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
 
@@ -124,28 +184,6 @@ function SecureComponent() {
       await requestEncryptionKey(user.wallet.address);
     }
   }, [user]);
-
-  // Encrypt data
-  const saveSecret = async (text: string) => {
-    const encrypted = await encryptData(text, user.wallet.address);
-    localStorage.setItem("secret", encrypted);
-  };
-
-  // Decrypt data
-  const loadSecret = async () => {
-    const encrypted = localStorage.getItem("secret");
-    if (encrypted) {
-      const decrypted = await decryptData(encrypted, user.wallet.address);
-      console.log(decrypted);
-    }
-  };
-
-  return (
-    <div>
-      <button onClick={() => saveSecret("my secret data")}>Encrypt & Save</button>
-      <button onClick={loadSecret}>Load & Decrypt</button>
-    </div>
-  );
 }
 ```
 

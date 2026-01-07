@@ -32,3 +32,13 @@ export {
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
 } from "./operations";
+export {
+  isEncrypted,
+  encryptField,
+  decryptField,
+  encryptMemoryFields,
+  decryptMemoryFields,
+  encryptNamespaceForQuery,
+  encryptKeyForQuery,
+  encryptValueForQuery,
+} from "./encryption";

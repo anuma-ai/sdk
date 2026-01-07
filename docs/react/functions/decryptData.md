@@ -2,7 +2,7 @@
 
 > **decryptData**(`encryptedHex`: `string`, `address`: `string`): `Promise`\<`string`\>
 
-Defined in: [src/react/useEncryption.ts:385](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L385)
+Defined in: [src/react/useEncryption.ts:451](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L451)
 
 Decrypts data using AES-GCM with the stored encryption key.
 

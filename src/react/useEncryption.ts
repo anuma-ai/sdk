@@ -1,8 +1,7 @@
 "use client";
 
-const SIGN_MESSAGE =
-  "The app is asking you to sign this message to generate encryption keys, which will be used to encrypt data and for encryption with cloud services.";
-
+export const SIGN_MESSAGE =
+  "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
 /**
  * In-memory storage for encryption keys.
  * Keys are stored per wallet address and only persist for the session.
@@ -70,6 +69,16 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/**
+ * Validates a wallet address format
+ * @param address - The wallet address to validate
+ * @returns true if the address is valid (starts with 0x and is 42 characters)
+ */
+function isValidWalletAddress(address: string): boolean {
+  // Must start with 0x and be exactly 42 characters (0x + 40 hex chars)
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
 /**
@@ -293,6 +302,56 @@ async function getEncryptionKey(address: string): Promise<CryptoKey> {
 }
 
 /**
+ * Encrypts data deterministically using AES-GCM with a deterministic IV
+ * Same plaintext + address always produces same ciphertext (for queryable fields)
+ */
+export async function encryptDataDeterministic(
+  plaintext: string | Uint8Array,
+  address: string
+): Promise<string> {
+  // Validate wallet address format
+  if (!isValidWalletAddress(address)) {
+    throw new Error(
+      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
+  const key = await getEncryptionKey(address);
+
+  // Convert plaintext to Uint8Array if it's a string
+  const plaintextBytes =
+    typeof plaintext === "string"
+      ? new TextEncoder().encode(plaintext)
+      : plaintext;
+
+  // Derive deterministic IV from plaintext and address
+  const input = `${address}:${typeof plaintext === "string" ? plaintext : new TextDecoder().decode(plaintext)}`;
+  const inputBytes = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", inputBytes.buffer);
+  const hashBytes = new Uint8Array(hashBuffer);
+  const iv = hashBytes.slice(0, 12); // AES-GCM requires 12-byte IV
+
+  // Encrypt the data
+  const encryptedData = await crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+    },
+    key,
+    plaintextBytes.buffer as ArrayBuffer
+  );
+
+  // Combine IV + encrypted data (which includes auth tag)
+  const encryptedBytes = new Uint8Array(encryptedData);
+  const combined = new Uint8Array(iv.length + encryptedBytes.length);
+  combined.set(iv, 0);
+  combined.set(encryptedBytes, iv.length);
+
+  // Return as hex string
+  return bytesToHex(combined);
+}
+
+/**
  * Encrypts data using AES-GCM with the stored encryption key.
  *
  * This function uses the encryption key previously generated via `requestEncryptionKey`
@@ -322,6 +381,13 @@ export async function encryptData(
   plaintext: string | Uint8Array,
   address: string
 ): Promise<string> {
+  // Validate wallet address format
+  if (!isValidWalletAddress(address)) {
+    throw new Error(
+      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
   const key = await getEncryptionKey(address);
 
   // Convert plaintext to Uint8Array if it's a string
@@ -448,9 +514,17 @@ export function hasEncryptionKey(address: string): boolean {
 }
 
 /**
- * Type for the signMessage function that client must provide
+ * Type for the signMessage function that client must provide.
+ * This is typically from Privy's useSignMessage hook and may show a confirmation modal.
  */
 export type SignMessageFn = (message: string) => Promise<string>;
+
+/**
+ * Type for embedded wallet signer function that enables silent signing.
+ * For Privy embedded wallets, this can sign programmatically without user interaction
+ * when configured correctly in the Privy dashboard.
+ */
+export type EmbeddedWalletSignerFn = (message: string) => Promise<string>;
 
 /**
  * Requests the user to sign a message to generate an encryption key.
@@ -461,20 +535,44 @@ export type SignMessageFn = (message: string) => Promise<string>;
  *
  * @param walletAddress - The wallet address to generate the key for
  * @param signMessage - Function to sign a message (returns signature hex string)
+ * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @returns Promise that resolves when the key is available
  */
 export async function requestEncryptionKey(
   walletAddress: string,
-  signMessage: SignMessageFn
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<void> {
+  // Validate wallet address format
+  if (!isValidWalletAddress(walletAddress)) {
+    throw new Error(
+      `Invalid wallet address: ${walletAddress}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
   // Check if key already exists in memory
   const existingKey = getStoredKey(walletAddress);
   if (existingKey) {
     return; // Key already exists in memory, no need to sign again
   }
 
-  // Request signature from user
-  const signature = await signMessage(SIGN_MESSAGE);
+  // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
+  let signature: string;
+  try {
+    if (embeddedWalletSigner) {
+      signature = await embeddedWalletSigner(SIGN_MESSAGE);
+    } else {
+      signature = await signMessage(SIGN_MESSAGE);
+    }
+  } catch (error) {
+    // If embedded wallet signer fails, fall back to standard signMessage
+    if (embeddedWalletSigner && error instanceof Error) {
+      console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
+      signature = await signMessage(SIGN_MESSAGE);
+    } else {
+      throw error;
+    }
+  }
 
   // Derive encryption key from signature
   const encryptionKey = await deriveKeyFromSignature(signature);
@@ -487,12 +585,14 @@ export async function requestEncryptionKey(
  * Gets the key pair for a wallet address, generating it if needed
  * @param address - The wallet address
  * @param signMessage - Function to sign a message (returns signature hex string)
+ * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @returns The ECDH key pair
  * @throws Error if key pair doesn't exist and signature is required but not available
  */
 async function getKeyPair(
   address: string,
-  signMessage: SignMessageFn
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<CryptoKeyPair> {
   const existingKeyPair = getStoredKeyPair(address);
   if (existingKeyPair) {
@@ -500,7 +600,7 @@ async function getKeyPair(
   }
 
   // Key pair doesn't exist, need to request it
-  await requestKeyPair(address, signMessage);
+  await requestKeyPair(address, signMessage, embeddedWalletSigner);
   const keyPair = getStoredKeyPair(address);
   if (!keyPair) {
     throw new Error(
@@ -519,11 +619,13 @@ async function getKeyPair(
  *
  * @param walletAddress - The wallet address to generate the key pair for
  * @param signMessage - Function to sign a message (returns signature hex string)
+ * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @returns Promise that resolves when the key pair is available
  */
 export async function requestKeyPair(
   walletAddress: string,
-  signMessage: SignMessageFn
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<void> {
   // Check if key pair already exists in memory
   const existingKeyPair = getStoredKeyPair(walletAddress);
@@ -531,8 +633,23 @@ export async function requestKeyPair(
     return; // Key pair already exists in memory, no need to sign again
   }
 
-  // Request signature from user
-  const signature = await signMessage(SIGN_MESSAGE);
+  // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
+  let signature: string;
+  try {
+    if (embeddedWalletSigner) {
+      signature = await embeddedWalletSigner(SIGN_MESSAGE);
+    } else {
+      signature = await signMessage(SIGN_MESSAGE);
+    }
+  } catch (error) {
+    // If embedded wallet signer fails, fall back to standard signMessage
+    if (embeddedWalletSigner && error instanceof Error) {
+      console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
+      signature = await signMessage(SIGN_MESSAGE);
+    } else {
+      throw error;
+    }
+  }
 
   // Derive key pair from signature
   const keyPair = await deriveKeyPairFromSignature(signature);
@@ -545,13 +662,15 @@ export async function requestKeyPair(
  * Exports the public key for a wallet address as SPKI format (base64)
  * @param address - The wallet address
  * @param signMessage - Function to sign a message (returns signature hex string)
+ * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @returns The public key as base64-encoded SPKI string
  */
 export async function exportPublicKey(
   address: string,
-  signMessage: SignMessageFn
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<string> {
-  const keyPair = await getKeyPair(address, signMessage);
+  const keyPair = await getKeyPair(address, signMessage, embeddedWalletSigner);
 
   // Export public key as SPKI format
   const spkiBuffer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
@@ -607,11 +726,72 @@ export function clearAllKeyPairs(): void {
  * - **Session-scoped**: Keys cleared on page reload
  * - **XSS-resistant**: Keys not accessible after page reload
  *
+ * ## Embedded Wallet Support
+ *
+ * For Privy embedded wallets, you can provide an `embeddedWalletSigner` function
+ * to enable silent signing without user confirmation modals. This is useful for
+ * deterministic key generation that should happen automatically.
+ *
  * @param signMessage - Function to sign a message (from Privy's useSignMessage hook)
+ * @param embeddedWalletSigner - Optional function for silent signing with embedded wallets
  * @returns Functions to request encryption keys and manage key pairs
  *
  * @example
  * ```tsx
+ * import { usePrivy, useWallets } from "@privy-io/react-auth";
+ * import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+ *
+ * function SecureComponent() {
+ *   const { user, signMessage } = usePrivy();
+ *   const { wallets } = useWallets();
+ *   const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+ *
+ *   // Create silent signer for embedded wallets
+ *   const embeddedSigner = useCallback(async (message: string) => {
+ *     if (embeddedWallet) {
+ *       const { signature } = await embeddedWallet.signMessage({ message });
+ *       return signature;
+ *     }
+ *     throw new Error('No embedded wallet');
+ *   }, [embeddedWallet]);
+ *
+ *   const { requestEncryptionKey } = useEncryption(signMessage, embeddedSigner);
+ *
+ *   // Request encryption key when user is authenticated
+ *   useEffect(() => {
+ *     if (user?.wallet?.address) {
+ *       // This will use silent signing for embedded wallets
+ *       await requestEncryptionKey(user.wallet.address);
+ *     }
+ *   }, [user]);
+ *
+ *   // Encrypt data
+ *   const saveSecret = async (text: string) => {
+ *     const encrypted = await encryptData(text, user.wallet.address);
+ *     localStorage.setItem("mySecret", encrypted);
+ *   };
+ *
+ *   // Decrypt data
+ *   const loadSecret = async () => {
+ *     const encrypted = localStorage.getItem("mySecret");
+ *     if (encrypted) {
+ *       const decrypted = await decryptData(encrypted, user.wallet.address);
+ *       console.log(decrypted);
+ *     }
+ *   };
+ *
+ *   return (
+ *     <div>
+ *       <button onClick={() => saveSecret("my secret data")}>Encrypt & Save</button>
+ *       <button onClick={loadSecret}>Load & Decrypt</button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Standard usage with external wallets (shows confirmation modal)
  * import { usePrivy } from "@privy-io/react-auth";
  * import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
  *
@@ -626,28 +806,6 @@ export function clearAllKeyPairs(): void {
  *       await requestEncryptionKey(user.wallet.address);
  *     }
  *   }, [user]);
- *
- *   // Encrypt data
- *   const saveSecret = async (text: string) => {
- *     const encrypted = await encryptData(text, user.wallet.address);
- *     localStorage.setItem("secret", encrypted);
- *   };
- *
- *   // Decrypt data
- *   const loadSecret = async () => {
- *     const encrypted = localStorage.getItem("secret");
- *     if (encrypted) {
- *       const decrypted = await decryptData(encrypted, user.wallet.address);
- *       console.log(decrypted);
- *     }
- *   };
- *
- *   return (
- *     <div>
- *       <button onClick={() => saveSecret("my secret data")}>Encrypt & Save</button>
- *       <button onClick={loadSecret}>Load & Decrypt</button>
- *     </div>
- *   );
  * }
  * ```
  *
@@ -674,14 +832,17 @@ export function clearAllKeyPairs(): void {
  *
  * @category Hooks
  */
-export function useEncryption(signMessage: SignMessageFn) {
+export function useEncryption(
+  signMessage: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+) {
   return {
     requestEncryptionKey: (walletAddress: string) =>
-      requestEncryptionKey(walletAddress, signMessage),
+      requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner),
     requestKeyPair: (walletAddress: string) =>
-      requestKeyPair(walletAddress, signMessage),
+      requestKeyPair(walletAddress, signMessage, embeddedWalletSigner),
     exportPublicKey: (walletAddress: string) =>
-      exportPublicKey(walletAddress, signMessage),
+      exportPublicKey(walletAddress, signMessage, embeddedWalletSigner),
     hasKeyPair: (walletAddress: string) => hasKeyPair(walletAddress),
     clearKeyPair: (walletAddress: string) => clearKeyPair(walletAddress),
   };

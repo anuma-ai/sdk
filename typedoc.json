@@ -25,5 +25,10 @@
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.security.test.ts"
   ]
 }
