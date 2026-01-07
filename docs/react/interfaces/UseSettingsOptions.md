@@ -1,6 +1,6 @@
 # UseSettingsOptions
 
-Defined in: [src/react/useSettings.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L19)
+Defined in: [src/react/useSettings.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L35)
 
 Options for useSettings hook (React version)
 

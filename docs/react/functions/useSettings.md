@@ -2,12 +2,16 @@
 
 > **useSettings**(`options`: [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L69)
+Defined in: [src/react/useSettings.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L114)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 
-This hook provides methods to get, set, and delete user model preferences,
-with automatic loading of preferences when a wallet address is provided.
+This hook provides methods to get, set, and delete user preferences,
+with automatic loading and migration when a wallet address is provided.
+
+The hook supports both the legacy `modelPreference` API (deprecated) and
+the new unified `userPreference` API that stores profile data, model preferences,
+and personality settings in a single table.
 
 ## Parameters
 
@@ -29,26 +33,27 @@ import { useSettings } from '@reverbia/sdk/react';
 
 function SettingsComponent({ database }: { database: Database }) {
   const {
-    modelPreference,
+    userPreference,
     isLoading,
-    setModelPreference,
-    getModelPreference,
-    deleteModelPreference,
+    setUserPreference,
+    updateProfile,
+    updatePersonality,
   } = useSettings({
     database,
-    walletAddress: '0x123...', // Optional: auto-loads preference for this wallet
+    walletAddress: '0x123...', // Auto-loads and migrates preference
   });
 
-  const handleModelChange = async (model: string) => {
-    await setModelPreference('0x123...', model);
+  const handleProfileUpdate = async () => {
+    await updateProfile('0x123...', {
+      nickname: 'John',
+      occupation: 'Developer',
+    });
   };
 
   return (
     <div>
-      <p>Current model: {modelPreference?.model ?? 'Not set'}</p>
-      <button onClick={() => handleModelChange('gpt-4o')}>
-        Use GPT-4o
-      </button>
+      <p>Nickname: {userPreference?.nickname ?? 'Not set'}</p>
+      <button onClick={handleProfileUpdate}>Update Profile</button>
     </div>
   );
 }

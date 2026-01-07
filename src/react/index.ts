@@ -136,6 +136,24 @@ export {
   type CreateModelPreferenceOptions,
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";
+
+// User preferences (unified settings storage)
+export {
+  /** @deprecated Use sdkSchema instead */
+  userPreferencesStorageSchema,
+  UserPreference as StoredUserPreferenceModel,
+  // Personality types
+  type PersonalitySliders,
+  type PersonalityStyle,
+  type PersonalitySettings,
+  DEFAULT_PERSONALITY_SETTINGS,
+  SLIDER_CONFIG,
+  // User preference types
+  type StoredUserPreference,
+  type CreateUserPreferenceOptions,
+  type UpdateUserPreferenceOptions,
+  type ProfileUpdate,
+} from "../lib/db/userPreferences";
 export { usePdf } from "./usePdf";
 export type { PdfFile } from "./usePdf";
 export { useOCR } from "./useOCR";
