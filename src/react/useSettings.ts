@@ -1,5 +1,6 @@
 "use client";
 
+import { Q } from "@nozbe/watermelondb";
 import { useCallback, useState, useMemo, useEffect } from "react";
 
 import {
@@ -425,14 +426,22 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   }, [walletAddress, storageCtx, legacyStorageCtx]);
 
   // Subscribe to userPreferences changes for real-time updates
+  // Using observeWithColumns to detect changes to specific columns
   useEffect(() => {
     if (!walletAddress) return;
 
     const subscription = userPreferencesCollection
-      .query()
-      .observe()
+      .query(Q.where("wallet_address", walletAddress))
+      .observeWithColumns([
+        "nickname",
+        "occupation",
+        "description",
+        "models",
+        "personality",
+        "updated_at",
+      ])
       .subscribe((records) => {
-        const record = records.find((r) => r.walletAddress === walletAddress);
+        const record = records[0];
         if (record) {
           setUserPreferenceState({
             uniqueId: record.id,
