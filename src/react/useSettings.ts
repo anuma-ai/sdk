@@ -1,5 +1,6 @@
 "use client";
 
+import { Q } from "@nozbe/watermelondb";
 import { useCallback, useState, useMemo, useEffect } from "react";
 
 import {
@@ -423,6 +424,43 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       cancelled = true;
     };
   }, [walletAddress, storageCtx, legacyStorageCtx]);
+
+  // Subscribe to userPreferences changes for real-time updates
+  // Using observeWithColumns to detect changes to specific columns
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    const subscription = userPreferencesCollection
+      .query(Q.where("wallet_address", walletAddress))
+      .observeWithColumns([
+        "nickname",
+        "occupation",
+        "description",
+        "models",
+        "personality",
+        "updated_at",
+      ])
+      .subscribe((records) => {
+        const record = records[0];
+        if (record) {
+          setUserPreferenceState({
+            uniqueId: record.id,
+            walletAddress: record.walletAddress,
+            nickname: record.nickname,
+            occupation: record.occupation,
+            description: record.description,
+            models: record.models,
+            personality: record.personality,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+          });
+        }
+      });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [walletAddress, userPreferencesCollection]);
 
   return {
     // Legacy API (deprecated)

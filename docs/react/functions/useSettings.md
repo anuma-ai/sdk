@@ -2,7 +2,7 @@
 
 > **useSettings**(`options`: [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L114)
+Defined in: [src/react/useSettings.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L115)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 
