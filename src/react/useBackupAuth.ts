@@ -30,6 +30,7 @@ import {
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
+import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
 import {
   authenticateICloud,
   configureCloudKit,
@@ -65,6 +66,12 @@ export interface BackupAuthProviderProps {
    * Only needed if you have a custom client configuration (e.g., different baseUrl).
    */
   apiClient?: Client;
+  /**
+   * Wallet address for encrypting OAuth tokens at rest.
+   * If provided, tokens will be encrypted before storing in localStorage.
+   * If omitted, tokens are stored temporarily in sessionStorage (cleared on page close).
+   */
+  walletAddress?: string;
   /** Children to render */
   children: ReactNode;
 }
@@ -146,6 +153,7 @@ export function BackupAuthProvider({
   icloudContainerIdentifier = DEFAULT_CONTAINER_ID,
   icloudEnvironment = "production",
   apiClient,
+  walletAddress,
   children,
 }: BackupAuthProviderProps): JSX.Element {
   // Dropbox state
@@ -162,27 +170,35 @@ export function BackupAuthProvider({
   const [isIcloudAvailable, setIsIcloudAvailable] = useState(false);
   const isIcloudConfigured = isIcloudAvailable && !!icloudApiToken;
 
-  // Check for stored tokens on mount
+  // Check for stored tokens on mount and migrate unencrypted tokens
   useEffect(() => {
     const checkStoredTokens = async () => {
+      // Migrate unencrypted tokens if wallet address is available
+      if (walletAddress) {
+        await Promise.all([
+          migrateUnencryptedTokens("dropbox", walletAddress),
+          migrateUnencryptedTokens("google-drive", walletAddress),
+        ]);
+      }
+
       // Check Dropbox
-      if (hasDropboxCredentials()) {
-        const token = await getDropboxAccessToken(apiClient);
+      if (await hasDropboxCredentials(walletAddress)) {
+        const token = await getDropboxAccessToken(apiClient, walletAddress);
         if (token) {
           setDropboxToken(token);
         }
       }
 
       // Check Google Drive
-      if (hasGoogleDriveCredentials()) {
-        const token = await getGoogleDriveAccessToken(apiClient);
+      if (await hasGoogleDriveCredentials(walletAddress)) {
+        const token = await getGoogleDriveAccessToken(apiClient, walletAddress);
         if (token) {
           setGoogleToken(token);
         }
       }
     };
     checkStoredTokens();
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   // Initialize iCloud on mount - load dynamically
   useEffect(() => {
@@ -229,18 +245,21 @@ export function BackupAuthProvider({
 
     const handleCallback = async () => {
       if (isDropboxCallback()) {
-        const token = await handleDropboxCallback(
+        const result = await handleDropboxCallback(
           dropboxCallbackPath,
-          apiClient
+          apiClient,
+          walletAddress
         );
-        if (token) {
-          setDropboxToken(token);
+        if (result.ok) {
+          setDropboxToken(result.data);
+        } else {
+          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
 
     handleCallback();
-  }, [dropboxCallbackPath, isDropboxConfigured, apiClient]);
+  }, [dropboxCallbackPath, isDropboxConfigured, apiClient, walletAddress]);
 
   // Handle Google OAuth callback
   useEffect(() => {
@@ -248,27 +267,30 @@ export function BackupAuthProvider({
 
     const handleCallback = async () => {
       if (isGoogleDriveCallback()) {
-        const token = await handleGoogleDriveCallback(
+        const result = await handleGoogleDriveCallback(
           googleCallbackPath,
-          apiClient
+          apiClient,
+          walletAddress
         );
-        if (token) {
-          setGoogleToken(token);
+        if (result.ok) {
+          setGoogleToken(result.data);
+        } else {
+          console.error(`Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
 
     handleCallback();
-  }, [googleCallbackPath, isGoogleConfigured, apiClient]);
+  }, [googleCallbackPath, isGoogleConfigured, apiClient, walletAddress]);
 
   // Dropbox methods
   const refreshDropboxTokenFn = useCallback(async (): Promise<string | null> => {
-    const token = await getDropboxAccessToken(apiClient);
+    const token = await getDropboxAccessToken(apiClient, walletAddress);
     if (token) {
       setDropboxToken(token);
     }
     return token;
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   const requestDropboxAccess = useCallback(async (): Promise<string> => {
     if (!isDropboxConfigured || !dropboxAppKey) {
@@ -277,7 +299,7 @@ export function BackupAuthProvider({
 
     // Always try to get a valid token from storage (which handles expiration + refresh)
     // Don't short-circuit with cached state token as it may be expired
-    const storedToken = await getDropboxAccessToken(apiClient);
+    const storedToken = await getDropboxAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setDropboxToken(storedToken); // Update state with potentially refreshed token
       return storedToken;
@@ -285,21 +307,21 @@ export function BackupAuthProvider({
 
     // No valid token available - start OAuth flow
     return startDropboxAuth(dropboxAppKey, dropboxCallbackPath);
-  }, [dropboxAppKey, dropboxCallbackPath, isDropboxConfigured, apiClient]);
+  }, [dropboxAppKey, dropboxCallbackPath, isDropboxConfigured, apiClient, walletAddress]);
 
   const logoutDropbox = useCallback(async () => {
-    await revokeDropboxToken(apiClient);
+    await revokeDropboxToken(apiClient, walletAddress);
     setDropboxToken(null);
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   // Google Drive methods
   const refreshGoogleTokenFn = useCallback(async (): Promise<string | null> => {
-    const token = await getGoogleDriveAccessToken(apiClient);
+    const token = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (token) {
       setGoogleToken(token);
     }
     return token;
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   const requestGoogleAccess = useCallback(async (): Promise<string> => {
     if (!isGoogleConfigured || !googleClientId) {
@@ -308,7 +330,7 @@ export function BackupAuthProvider({
 
     // Always try to get a valid token from storage (which handles expiration + refresh)
     // Don't short-circuit with cached state token as it may be expired
-    const storedToken = await getGoogleDriveAccessToken(apiClient);
+    const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setGoogleToken(storedToken); // Update state with potentially refreshed token
       return storedToken;
@@ -316,12 +338,12 @@ export function BackupAuthProvider({
 
     // No valid token available - start OAuth flow
     return startGoogleDriveAuth(googleClientId, googleCallbackPath);
-  }, [googleClientId, googleCallbackPath, isGoogleConfigured, apiClient]);
+  }, [googleClientId, googleCallbackPath, isGoogleConfigured, apiClient, walletAddress]);
 
   const logoutGoogle = useCallback(async () => {
-    await revokeGoogleDriveToken(apiClient);
+    await revokeGoogleDriveToken(apiClient, walletAddress);
     setGoogleToken(null);
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   // iCloud methods
   const refreshIcloudTokenFn = useCallback(async (): Promise<string | null> => {

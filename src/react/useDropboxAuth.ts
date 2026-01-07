@@ -20,6 +20,7 @@ import {
   revokeDropboxToken,
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
+import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
 
 /**
  * Props for DropboxAuthProvider
@@ -34,6 +35,12 @@ export interface DropboxAuthProviderProps {
    * Only needed if you have a custom client configuration (e.g., different baseUrl).
    */
   apiClient?: Client;
+  /**
+   * Wallet address for encrypting OAuth tokens at rest.
+   * If provided, tokens will be encrypted before storing in localStorage.
+   * If omitted, tokens are stored temporarily in sessionStorage (cleared on page close).
+   */
+  walletAddress?: string;
   /** Children to render */
   children: ReactNode;
 }
@@ -86,25 +93,31 @@ export function DropboxAuthProvider({
   appKey,
   callbackPath = "/auth/dropbox/callback",
   apiClient,
+  walletAddress,
   children,
 }: DropboxAuthProviderProps): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const isConfigured = !!appKey;
 
-  // Check for stored token on mount
+  // Check for stored token on mount and migrate unencrypted tokens
   useEffect(() => {
     const checkStoredToken = async () => {
+      // Migrate unencrypted tokens if wallet address is available
+      if (walletAddress) {
+        await migrateUnencryptedTokens("dropbox", walletAddress);
+      }
+
       // First check if we have valid stored credentials
-      if (hasDropboxCredentials()) {
+      if (await hasDropboxCredentials(walletAddress)) {
         // Try to get a valid access token (will refresh if expired)
-        const token = await getDropboxAccessToken(apiClient);
+        const token = await getDropboxAccessToken(apiClient, walletAddress);
         if (token) {
           setAccessToken(token);
         }
       }
     };
     checkStoredToken();
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   // Handle OAuth callback
   useEffect(() => {
@@ -112,23 +125,25 @@ export function DropboxAuthProvider({
 
     const handleCallback = async () => {
       if (isDropboxCallback()) {
-        const token = await handleDropboxCallback(callbackPath, apiClient);
-        if (token) {
-          setAccessToken(token);
+        const result = await handleDropboxCallback(callbackPath, apiClient, walletAddress);
+        if (result.ok) {
+          setAccessToken(result.data);
+        } else {
+          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
 
     handleCallback();
-  }, [callbackPath, isConfigured, apiClient]);
+  }, [callbackPath, isConfigured, apiClient, walletAddress]);
 
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {
-    const token = await getDropboxAccessToken(apiClient);
+    const token = await getDropboxAccessToken(apiClient, walletAddress);
     if (token) {
       setAccessToken(token);
     }
     return token;
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   const requestAccess = useCallback(async (): Promise<string> => {
     if (!isConfigured || !appKey) {
@@ -141,7 +156,7 @@ export function DropboxAuthProvider({
     }
 
     // Try to get a valid token (will refresh if expired)
-    const storedToken = await getDropboxAccessToken(apiClient);
+    const storedToken = await getDropboxAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
@@ -149,12 +164,12 @@ export function DropboxAuthProvider({
 
     // Start OAuth flow (this will redirect)
     return startDropboxAuth(appKey, callbackPath);
-  }, [accessToken, appKey, callbackPath, isConfigured, apiClient]);
+  }, [accessToken, appKey, callbackPath, isConfigured, apiClient, walletAddress]);
 
   const logout = useCallback(async () => {
-    await revokeDropboxToken(apiClient);
+    await revokeDropboxToken(apiClient, walletAddress);
     setAccessToken(null);
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   return createElement(
     DropboxAuthContext.Provider,

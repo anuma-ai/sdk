@@ -21,6 +21,8 @@ import {
   getValidAccessToken,
   storeTokenData,
   tokenResponseToStoredData,
+  type OAuthResult,
+  type OAuthError,
 } from "../oauth/storage";
 
 const PROVIDER = "dropbox";
@@ -94,9 +96,18 @@ export function isDropboxCallback(): boolean {
  */
 export async function handleDropboxCallback(
   callbackPath: string,
-  apiClient?: Client
-): Promise<string | null> {
-  if (typeof window === "undefined") return null;
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<OAuthResult<string>> {
+  if (typeof window === "undefined") {
+    return {
+      ok: false,
+      error: {
+        code: "unknown",
+        message: "OAuth callback can only be handled in browser environment",
+      },
+    };
+  }
 
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
@@ -105,7 +116,13 @@ export async function handleDropboxCallback(
 
   // Validate state to prevent CSRF
   if (!code || !state || state !== storedState) {
-    return null;
+    return {
+      ok: false,
+      error: {
+        code: "csrf",
+        message: "Invalid or missing OAuth state parameter",
+      },
+    };
   }
 
   try {
@@ -119,7 +136,13 @@ export async function handleDropboxCallback(
     });
 
     if (!response.data?.access_token) {
-      throw new Error("No access token in response");
+      return {
+        ok: false,
+        error: {
+          code: "invalid_response",
+          message: "No access token in response",
+        },
+      };
     }
 
     // Store tokens
@@ -129,21 +152,52 @@ export async function handleDropboxCallback(
       response.data.refresh_token,
       response.data.scope
     );
-    await storeTokenData(PROVIDER, tokenData);
+
+    try {
+      await storeTokenData(PROVIDER, tokenData, walletAddress);
+    } catch (encryptionError) {
+      // Encryption failure - return error with details
+      return {
+        ok: false,
+        error: {
+          code: "encryption",
+          message: encryptionError instanceof Error ? encryptionError.message : String(encryptionError),
+          originalError: encryptionError instanceof Error ? encryptionError : undefined,
+        },
+      };
+    }
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
 
-    return response.data.access_token;
+    return {
+      ok: true,
+      data: response.data.access_token,
+    };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
-    // Log error with details - first argument should contain error message for test matching
+    
+    // Log error with details
     console.error(`OAuth callback error: ${errorDetails}`, error);
-    // Also log error message separately for test matching
-    console.error(errorMessage);
     console.warn(`Failed to complete OAuth flow: ${errorMessage}`);
-    return null;
+
+    // Determine error code based on error type
+    let errorCode: OAuthError["code"] = "unknown";
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      errorCode = "network";
+    } else if (error instanceof Error && error.message.includes("encryption")) {
+      errorCode = "encryption";
+    }
+
+    return {
+      ok: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+        originalError: error instanceof Error ? error : undefined,
+      },
+    };
   }
 }
 
@@ -151,9 +205,10 @@ export async function handleDropboxCallback(
  * Refresh the access token using the stored refresh token
  */
 export async function refreshDropboxToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const refreshToken = getRefreshToken(PROVIDER);
+  const refreshToken = await getRefreshToken(PROVIDER, walletAddress);
   if (!refreshToken) return null;
 
   try {
@@ -168,14 +223,14 @@ export async function refreshDropboxToken(
     }
 
     // Update stored tokens (refresh token may or may not be included)
-    const currentData = getStoredTokenData(PROVIDER);
+    const currentData = await getStoredTokenData(PROVIDER, walletAddress);
     const tokenData = tokenResponseToStoredData(
       response.data.access_token,
       response.data.expires_in,
       response.data.refresh_token ?? currentData?.refreshToken,
       response.data.scope ?? currentData?.scope
     );
-    await storeTokenData(PROVIDER, tokenData);
+    await storeTokenData(PROVIDER, tokenData, walletAddress);
 
     return response.data.access_token;
   } catch {
@@ -188,8 +243,11 @@ export async function refreshDropboxToken(
 /**
  * Revoke the OAuth token
  */
-export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
-  const tokenData = getStoredTokenData(PROVIDER);
+export async function revokeDropboxToken(
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<void> {
+  const tokenData = await getStoredTokenData(PROVIDER, walletAddress);
   if (!tokenData) return;
 
   try {
@@ -211,14 +269,15 @@ export async function revokeDropboxToken(apiClient?: Client): Promise<void> {
  * Get a valid access token, refreshing if necessary
  */
 export async function getDropboxAccessToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
   // First check for a valid (non-expired) token
-  const validToken = getValidAccessToken(PROVIDER);
+  const validToken = await getValidAccessToken(PROVIDER, walletAddress);
   if (validToken) return validToken;
 
   // Try to refresh if we have a refresh token
-  return refreshDropboxToken(apiClient);
+  return refreshDropboxToken(apiClient, walletAddress);
 }
 
 /**
@@ -255,7 +314,9 @@ export function clearToken(): void {
 /**
  * Check if we have any stored credentials (including refresh token)
  */
-export function hasDropboxCredentials(): boolean {
-  const data = getStoredTokenData(PROVIDER);
+export async function hasDropboxCredentials(
+  walletAddress?: string
+): Promise<boolean> {
+  const data = await getStoredTokenData(PROVIDER, walletAddress);
   return !!(data?.accessToken || data?.refreshToken);
 }
