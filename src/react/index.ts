@@ -166,6 +166,7 @@ export {
   createMemoryContextSystemMessage,
   extractConversationContext,
 } from "../lib/memory/chat";
+export { DEFAULT_TITLE_MODEL } from "../lib/memory/constants";
 
 export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
 export type {
