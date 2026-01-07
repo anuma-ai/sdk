@@ -119,10 +119,13 @@ function setStoredKeyPair(address: string, keyPair: CryptoKeyPair): void {
 
 /**
  * Derives an ECDH P-256 key pair from a signature using HKDF
- * The key pair is deterministically generated from the signature.
+ * The key pair is deterministically generated from the signature and wallet address.
+ * @param signature - The wallet signature
+ * @param address - The wallet address (used as HKDF salt for domain separation)
  */
 async function deriveKeyPairFromSignature(
-  signature: string
+  signature: string,
+  address: string
 ): Promise<CryptoKeyPair> {
   // 1. Convert hex signature to bytes
   const sigBytes = hexToBytes(signature);
@@ -144,11 +147,12 @@ async function deriveKeyPairFromSignature(
   );
 
   // 4. Derive 32 bytes for ECDH P-256 private key
+  // Use wallet address as salt for domain separation while maintaining determinism
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: new Uint8Array(0), // No salt for deterministic derivation
+      salt: new TextEncoder().encode(address.toLowerCase()), // Wallet address as salt
       info: new TextEncoder().encode("ECDH-P256-KeyPair"), // Context info
     },
     hkdfKey,
@@ -582,6 +586,189 @@ export async function requestEncryptionKey(
 }
 
 /**
+ * Storage key prefix for persisted keypairs
+ */
+const KEYPAIR_STORAGE_PREFIX = "ecdh_keypair_";
+
+/**
+ * Persists an ECDH keypair to localStorage with AES-GCM encryption
+ * The private key is encrypted using the encryption key derived from the wallet signature
+ * @param address - The wallet address
+ * @returns Promise that resolves when keypair is persisted
+ * @throws Error if encryption key is not available or persistence fails
+ */
+async function persistKeyPair(address: string): Promise<void> {
+  if (typeof window === "undefined") {
+    return; // SSR - skip persistence
+  }
+
+  const keyPair = getStoredKeyPair(address);
+  if (!keyPair) {
+    throw new Error("Key pair not found in memory. Cannot persist.");
+  }
+
+  // Ensure encryption key exists (needed to encrypt the private key)
+  const encryptionKeyHex = getStoredKey(address);
+  if (!encryptionKeyHex) {
+    throw new Error(
+      "Encryption key not found. Cannot persist keypair without encryption key."
+    );
+  }
+
+  try {
+    // Get crypto object - prefer globalThis for proper context binding
+    const cryptoApi = (typeof globalThis !== "undefined" && globalThis.crypto) || 
+                      (typeof window !== "undefined" && window.crypto) || 
+                      crypto;
+    
+    // Export private key as JWK (extractable format)
+    const privateKeyJwk = await cryptoApi.subtle.exportKey("jwk", keyPair.privateKey);
+    
+    // Export public key as JWK for reconstruction
+    const publicKeyJwk = await cryptoApi.subtle.exportKey("jwk", keyPair.publicKey);
+
+    // Combine both keys in a JSON structure
+    const keyPairData = {
+      privateKey: privateKeyJwk,
+      publicKey: publicKeyJwk,
+    };
+
+    // Encrypt the keypair data using AES-GCM
+    const key = await getEncryptionKey(address);
+    const plaintextBytes = new TextEncoder().encode(JSON.stringify(keyPairData));
+    
+    // Generate a random IV for encryption
+    const iv = cryptoApi.getRandomValues(new Uint8Array(12));
+    
+    // Encrypt the data
+    const encryptedData = await cryptoApi.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv: iv,
+      },
+      key,
+      plaintextBytes.buffer as ArrayBuffer
+    );
+
+    // Combine IV + encrypted data
+    const encryptedBytes = new Uint8Array(encryptedData);
+    const combined = new Uint8Array(iv.length + encryptedBytes.length);
+    combined.set(iv, 0);
+    combined.set(encryptedBytes, iv.length);
+
+    // Store in localStorage
+    const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
+    const encryptedHex = bytesToHex(combined);
+    localStorage.setItem(storageKey, encryptedHex);
+  } catch (error) {
+    throw new Error(
+      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Loads a persisted ECDH keypair from localStorage and decrypts it
+ * @param address - The wallet address
+ * @returns The decrypted keypair or null if not found
+ * @throws Error if decryption fails or keypair is corrupted
+ */
+async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | null> {
+  if (typeof window === "undefined") {
+    return null; // SSR - no localStorage
+  }
+
+  const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
+  const encryptedHex = localStorage.getItem(storageKey);
+  
+  if (!encryptedHex) {
+    return null;
+  }
+
+  try {
+    // Ensure encryption key exists (needed to decrypt)
+    const encryptionKeyHex = getStoredKey(address);
+    if (!encryptionKeyHex) {
+      // Cannot decrypt without encryption key - return null
+      return null;
+    }
+
+    // Decrypt the keypair data
+    const key = await getEncryptionKey(address);
+    const combined = hexToBytes(encryptedHex);
+    
+    // Extract IV and encrypted data
+    const iv = combined.slice(0, 12);
+    const encryptedData = combined.slice(12);
+
+    // Decrypt
+    const decryptedData = await crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: iv,
+      },
+      key,
+      encryptedData
+    );
+
+    // Parse the JSON structure
+    const decryptedJson = new TextDecoder().decode(decryptedData);
+    const keyPairData = JSON.parse(decryptedJson) as {
+      privateKey: JsonWebKey;
+      publicKey: JsonWebKey;
+    };
+
+    // Reimport the private key
+    const privateKey = await crypto.subtle.importKey(
+      "jwk",
+      keyPairData.privateKey,
+      {
+        name: "ECDH",
+        namedCurve: "P-256",
+      },
+      true, // extractable
+      ["deriveBits", "deriveKey"]
+    );
+
+    // Reimport the public key
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      keyPairData.publicKey,
+      {
+        name: "ECDH",
+        namedCurve: "P-256",
+      },
+      true, // extractable
+      [] // no key usage needed for public key
+    );
+
+    return {
+      privateKey,
+      publicKey,
+    };
+  } catch (error) {
+    // If decryption fails, remove corrupted data and return null
+    localStorage.removeItem(storageKey);
+    console.warn(
+      `Failed to load persisted keypair for ${address}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return null;
+  }
+}
+
+/**
+ * Clears a persisted keypair from localStorage
+ * @param address - The wallet address
+ */
+function clearPersistedKeyPair(address: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
+  localStorage.removeItem(storageKey);
+}
+
+/**
  * Gets the key pair for a wallet address, generating it if needed
  * @param address - The wallet address
  * @param signMessage - Function to sign a message (returns signature hex string)
@@ -627,10 +814,32 @@ export async function requestKeyPair(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<void> {
+  // Validate wallet address format
+  if (!isValidWalletAddress(walletAddress)) {
+    throw new Error(
+      `Invalid wallet address: ${walletAddress}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
   // Check if key pair already exists in memory
   const existingKeyPair = getStoredKeyPair(walletAddress);
   if (existingKeyPair) {
     return; // Key pair already exists in memory, no need to sign again
+  }
+
+  // Try to load from localStorage if encryption key is available
+  try {
+    const persistedKeyPair = await loadPersistedKeyPair(walletAddress);
+    if (persistedKeyPair) {
+      // Store in memory for faster access
+      setStoredKeyPair(walletAddress, persistedKeyPair);
+      return; // Successfully loaded from persistence, no need to sign
+    }
+  } catch (error) {
+    // If loading fails, continue to generate new keypair
+    console.warn(
+      `Failed to load persisted keypair, generating new one: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
@@ -652,10 +861,24 @@ export async function requestKeyPair(
   }
 
   // Derive key pair from signature
-  const keyPair = await deriveKeyPairFromSignature(signature);
+  const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
   // Store the derived key pair in memory
   setStoredKeyPair(walletAddress, keyPair);
+
+  // Persist to localStorage if encryption key is available
+  try {
+    // Ensure encryption key exists before persisting
+    const encryptionKeyHex = getStoredKey(walletAddress);
+    if (encryptionKeyHex) {
+      await persistKeyPair(walletAddress);
+    }
+  } catch (error) {
+    // Persistence is optional - log warning but don't fail
+    console.warn(
+      `Failed to persist keypair (will regenerate on next session): ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 /**
@@ -690,11 +913,12 @@ export function hasKeyPair(address: string): boolean {
 }
 
 /**
- * Clears the key pair for a wallet address from memory
+ * Clears the key pair for a wallet address from memory and localStorage
  * @param address - The wallet address
  */
 export function clearKeyPair(address: string): void {
   keyPairStore.delete(address);
+  clearPersistedKeyPair(address);
 }
 
 /**
