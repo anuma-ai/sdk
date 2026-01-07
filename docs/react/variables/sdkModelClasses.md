@@ -2,7 +2,7 @@
 
 > `const` **sdkModelClasses**: `Class`\<`Model`\>[]
 
-Defined in: [src/lib/db/schema.ts:203](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L203)
+Defined in: [src/lib/db/schema.ts:245](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L245)
 
 Model classes to register with the WatermelonDB database.
 
