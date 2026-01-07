@@ -9,6 +9,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
 import { Memory } from "./memory/models";
 import { ModelPreference } from "./settings/models";
+import { UserPreference } from "./userPreferences/models";
 
 /**
  * Current combined schema version for all SDK storage modules.
@@ -19,8 +20,9 @@ import { ModelPreference } from "./settings/models";
  * - v4: Added modelPreferences table for settings storage
  * - v5: Added error column to history table for error persistence
  * - v6: Added thought_process column to history table for activity tracking
+ * - v7: Added userPreferences table for unified user settings storage
  */
-const SDK_SCHEMA_VERSION = 6;
+const SDK_SCHEMA_VERSION = 7;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -29,7 +31,8 @@ const SDK_SCHEMA_VERSION = 6;
  * - `history`: Chat message storage with embeddings and metadata
  * - `conversations`: Conversation metadata and organization
  * - `memories`: Persistent memory storage with semantic search
- * - `modelPreferences`: User model preferences and settings
+ * - `modelPreferences`: User model preferences (deprecated, use userPreferences)
+ * - `userPreferences`: Unified user preferences (profile, personality, models)
  *
  * @example
  * ```typescript
@@ -106,12 +109,31 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
-    // Settings storage tables
+    // Settings storage tables (deprecated - use userPreferences)
     tableSchema({
       name: "modelPreferences",
       columns: [
         { name: "wallet_address", type: "string", isIndexed: true },
         { name: "models", type: "string", isOptional: true },
+      ],
+    }),
+    // Unified user preferences storage
+    tableSchema({
+      name: "userPreferences",
+      columns: [
+        // Identity
+        { name: "wallet_address", type: "string", isIndexed: true },
+        // Profile fields (top-level for queryability)
+        { name: "nickname", type: "string", isOptional: true },
+        { name: "occupation", type: "string", isOptional: true },
+        { name: "description", type: "string", isOptional: true },
+        // Model preferences (JSON - flexible for model ordering)
+        { name: "models", type: "string", isOptional: true },
+        // Personality settings (JSON - sliders, style, custom instructions)
+        { name: "personality", type: "string", isOptional: true },
+        // Timestamps
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
       ],
     }),
   ],
@@ -132,6 +154,7 @@ export const sdkSchema = appSchema({
  * - v3 → v4: Added `modelPreferences` table for settings storage
  * - v4 → v5: Added `error` column to history table for error persistence
  * - v5 → v6: Added `thought_process` column to history table for activity tracking
+ * - v6 → v7: Added `userPreferences` table for unified user settings storage
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -180,6 +203,25 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v6 -> v7: Added userPreferences table for unified user settings
+    {
+      toVersion: 7,
+      steps: [
+        createTable({
+          name: "userPreferences",
+          columns: [
+            { name: "wallet_address", type: "string", isIndexed: true },
+            { name: "nickname", type: "string", isOptional: true },
+            { name: "occupation", type: "string", isOptional: true },
+            { name: "description", type: "string", isOptional: true },
+            { name: "models", type: "string", isOptional: true },
+            { name: "personality", type: "string", isOptional: true },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -205,4 +247,5 @@ export const sdkModelClasses: Class<Model>[] = [
   Conversation,
   Memory,
   ModelPreference,
+  UserPreference,
 ];
