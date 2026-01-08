@@ -1,73 +1,68 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Type declaration for global in test environment
-declare const global: typeof globalThis;
+vi.mock("../../../react/useEncryption", () => ({
+  encryptData: vi.fn(async (json: string) => `ciphertext:${json}`),
+  decryptData: vi.fn(async () => {
+    throw new Error("decryptData not used in these tests");
+  }),
+}));
 
-import { clearTokenData } from "./storage";
+import { clearTokenData, migrateUnencryptedTokens } from "./storage";
 
-const sessionStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString();
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
+describe("migrateUnencryptedTokens", () => {
+  const provider = "google-drive" as const;
+  const walletAddress = "0x1234567890123456789012345678901234567890";
+  const key = `oauth_token_${provider}`;
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString();
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
-
-const mockWindow = {
-  sessionStorage: sessionStorageMock,
-  localStorage: localStorageMock,
-};
-
-describe("oauth storage", () => {
   beforeEach(() => {
-    sessionStorageMock.clear();
-    localStorageMock.clear();
+    localStorage.clear();
+    sessionStorage.clear();
+  });
 
-    // Mock window
-    if (typeof global.window === "undefined") {
-      Object.defineProperty(global, "window", {
-        value: mockWindow,
-        writable: true,
-        configurable: true,
-      });
-    } else {
-      Object.assign(global.window, mockWindow);
-    }
+  it("migrates from sessionStorage when localStorage is empty", async () => {
+    sessionStorage.setItem(
+      key,
+      JSON.stringify({ accessToken: "token-from-session", refreshToken: "rt" })
+    );
+
+    const migrated = await migrateUnencryptedTokens(provider, walletAddress);
+
+    expect(migrated).toBe(true);
+    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+
+  it("migrates from localStorage when it contains a plaintext token", async () => {
+    localStorage.setItem(
+      key,
+      JSON.stringify({ accessToken: "token-from-local", refreshToken: "rt" })
+    );
+
+    const migrated = await migrateUnencryptedTokens(provider, walletAddress);
+
+    expect(migrated).toBe(true);
+    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
+  });
+
+  it("migrates sessionStorage even if localStorage is already encrypted", async () => {
+    localStorage.setItem(key, "enc:oauth:already-encrypted");
+    sessionStorage.setItem(key, JSON.stringify({ accessToken: "token-from-session" }));
+
+    const migrated = await migrateUnencryptedTokens(provider, walletAddress);
+
+    expect(migrated).toBe(true);
+    expect(localStorage.getItem(key)).toMatch(/^enc:oauth:/);
+    expect(localStorage.getItem(key)).not.toBe("enc:oauth:already-encrypted");
+    expect(sessionStorage.getItem(key)).toBeNull();
   });
 
   it("clearTokenData clears tokens from both localStorage and sessionStorage", () => {
-    const key = "oauth_token_dropbox";
-    localStorageMock.setItem(key, "local");
-    sessionStorageMock.setItem(key, "session");
+    localStorage.setItem(key, "local");
+    sessionStorage.setItem(key, "session");
 
-    clearTokenData("dropbox");
+    clearTokenData(provider);
 
-    expect(localStorageMock.getItem(key)).toBeNull();
-    expect(sessionStorageMock.getItem(key)).toBeNull();
+    expect(localStorage.getItem(key)).toBeNull();
+    expect(sessionStorage.getItem(key)).toBeNull();
   });
 });
-

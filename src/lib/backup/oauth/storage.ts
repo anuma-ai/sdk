@@ -213,18 +213,27 @@ export async function migrateUnencryptedTokens(
   try {
     const key = getStorageKey(provider);
     
-    // Check for unencrypted token in localStorage
-    const stored = localStorage.getItem(key);
-    if (!stored || stored.startsWith(ENCRYPTED_PREFIX)) {
-      // Already encrypted or doesn't exist
-      return false;
-    }
+    const localStored = localStorage.getItem(key);
+    const sessionStored = sessionStorage.getItem(key);
 
-    // Check for temporary token in sessionStorage
-    const tempStored = sessionStorage.getItem(key);
-    const tokenToMigrate = tempStored || stored;
+    const isEncrypted = (value: string | null): boolean =>
+      !!value && value.startsWith(ENCRYPTED_PREFIX);
+
+    // Prefer migrating sessionStorage since that's where we store tokens
+    // when no wallet is available at initial OAuth callback.
+    const tokenToMigrate =
+      sessionStored && !isEncrypted(sessionStored)
+        ? sessionStored
+        : localStored && !isEncrypted(localStored)
+          ? localStored
+          : null;
 
     if (!tokenToMigrate) {
+      // Nothing to migrate. If we already have an encrypted token in localStorage,
+      // clear any leftover plaintext token in sessionStorage.
+      if (isEncrypted(localStored) && sessionStored && !isEncrypted(sessionStored)) {
+        sessionStorage.removeItem(key);
+      }
       return false;
     }
 
@@ -234,8 +243,8 @@ export async function migrateUnencryptedTokens(
       // Encrypt and store in localStorage
       await storeTokenData(provider, data, walletAddress);
       
-      // Clear temporary storage if it was there
-      if (tempStored) {
+      // Clear any temporary plaintext storage after successful migration
+      if (sessionStored && !isEncrypted(sessionStored)) {
         sessionStorage.removeItem(key);
       }
       
