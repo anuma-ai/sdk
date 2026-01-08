@@ -1,6 +1,7 @@
 # Memory Evaluation Framework
 
-SDK integration testing framework for memory retrieval functionality, based on LongMemEval methodology.
+SDK integration testing framework for memory retrieval functionality, based on
+[LongMemEval](https://github.com/xiaowu0162/LongMemEval) methodology.
 
 ## Quick Start
 
@@ -22,6 +23,7 @@ pnpm eval:memory --output results.json
 ```
 
 This tests the complete SDK stack including:
+
 - `searchSimilarMemoriesOp()` function
 - WatermelonDB memory operations (save, search, retrieve)
 - SDK's `cosineSimilarity` calculation
@@ -30,12 +32,14 @@ This tests the complete SDK stack including:
 ## Test Modes
 
 ### Quick Mode (default)
+
 - Uses cached embeddings from `fixtures/embeddings.json`
 - No API calls required
 - Fast, suitable for CI and local development
 - Run on every PR via GitHub Actions
 
 ### Full Mode (`--full`)
+
 - Generates fresh embeddings via Portal API
 - Requires `PORTAL_API_KEY` in `.env`
 - Updates cached embeddings for future quick runs
@@ -63,24 +67,8 @@ The framework uses cached real embeddings to avoid API calls during testing:
 - **Threshold**: 0.2 (optimized for real embeddings)
 - **Cached in**: `fixtures/embeddings.json` (2.3MB, 40 embeddings)
 
-Real embeddings typically have lower similarity scores (0.3-0.5 for relevant items) compared to theoretical maximum of 1.0.
-
-## Architecture
-
-```
-test/memory/
-├── src/
-│   ├── run.ts        # CLI entry point
-│   ├── runner.ts     # Test orchestration
-│   ├── suite.ts      # SDK integration tests
-│   ├── metrics.ts    # Precision@K, Recall@K, MRR, NDCG
-│   ├── reporter.ts   # Console output
-│   └── types.ts      # TypeScript types
-└── fixtures/
-    ├── memories.json     # Test memories
-    ├── queries.json      # Test queries
-    └── embeddings.json   # Cached embeddings
-```
+Real embeddings typically have lower similarity scores (0.3-0.5 for relevant
+items) compared to theoretical maximum of 1.0.
 
 ## Evaluation Metrics
 
@@ -183,6 +171,7 @@ pnpm eval:memory --full
 ```
 
 This will:
+
 - Call Portal API to generate embeddings for all memories and queries
 - Save embeddings to `fixtures/embeddings.json`
 - Run the SDK integration tests with fresh embeddings
@@ -196,14 +185,3 @@ pnpm eval:memory
 # Full mode (regenerates embeddings)
 pnpm eval:memory --full
 ```
-
-## CI Integration
-
-The framework runs automatically on every pull request via GitHub Actions:
-
-- Workflow: [.github/workflows/memory-eval.yml](../../.github/workflows/memory-eval.yml)
-- Uses cached embeddings (no API key required)
-
-## References
-
-- [LongMemEval Paper (ICLR 2025)](https://github.com/xiaowu0162/LongMemEval)

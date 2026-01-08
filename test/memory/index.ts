@@ -12,9 +12,9 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
-import { loadFixtures, runQuickEval, runFullEval } from "./runner.js";
-import { printSummary, printJson } from "./reporter.js";
-import type { EvalOptions, EvaluationSummary } from "./types.js";
+import { loadFixtures, runQuickEval, runFullEval } from "./src/runner.js";
+import { printSummary, printJson } from "./src/reporter.js";
+import type { EvalOptions, EvaluationSummary } from "./src/types.js";
 
 const { values: args } = parseArgs({
   options: {

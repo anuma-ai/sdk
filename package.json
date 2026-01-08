@@ -58,7 +58,7 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx test/memory/src/run.ts"
+    "eval:memory": "tsx test/memory"
   },
   "repository": {
     "type": "git",

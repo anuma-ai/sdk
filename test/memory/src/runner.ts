@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import type { Memory, QueryFixture, Fixtures, EvaluationSummary, EvalOptions, LatencyMetrics } from "./types.js";
 import { runSuite } from "./suite.js";
 import { calculatePercentiles } from "./metrics.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../src/lib/memory/constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(__dirname, "../fixtures");
@@ -39,7 +40,7 @@ export async function generateEmbeddings(
       const response = await fetch(`${baseUrl}/api/v1/embeddings`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-        body: JSON.stringify({ model: "openai/text-embedding-3-small", input: text }),
+        body: JSON.stringify({ model: DEFAULT_API_EMBEDDING_MODEL, input: text }),
       });
 
       if (!response.ok) {

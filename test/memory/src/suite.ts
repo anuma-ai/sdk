@@ -6,6 +6,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../src/lib/db/schema.js";
 import { searchSimilarMemoriesOp, saveMemoryOp, clearAllMemoriesOp } from "../../../src/lib/db/memory/operations.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../src/lib/memory/constants.js";
 import type { Memory, QueryFixture, RetrievalMetrics, EvaluationResult } from "./types.js";
 import { aggregateRetrievalMetrics } from "./metrics.js";
 
@@ -101,7 +102,7 @@ export async function runSuite(
         confidence: memory.confidence,
         pii: memory.pii || false,
         embedding,
-        embeddingModel: "openai/text-embedding-3-small",
+        embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
       });
     }
 
