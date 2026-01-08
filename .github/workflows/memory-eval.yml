@@ -21,11 +21,4 @@ jobs:
         run: pnpm install
 
       - name: Run SDK Tests
-        run: pnpm eval:memory --json > sdk-results.json
-
-      - name: Upload Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-test-results
-          path: sdk-results.json
+        run: pnpm eval:memory

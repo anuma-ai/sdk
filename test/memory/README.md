@@ -205,7 +205,6 @@ The framework runs automatically on every pull request via GitHub Actions:
 
 - Workflow: [.github/workflows/memory-eval.yml](../../.github/workflows/memory-eval.yml)
 - Uses cached embeddings (no API key required)
-- Uploads test results as artifacts
 
 ## References
 
