@@ -21,35 +21,6 @@ export interface Memory {
   embedding?: number[];
 }
 
-export interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-export interface EvaluationInstance {
-  id: string;
-  category: "extraction" | "retrieval" | "update" | "abstention";
-  description: string;
-
-  // Input
-  conversationHistory?: Message[];
-  query?: string;
-  seedMemories?: Memory[];
-
-  // Expected outputs
-  expectedMemories?: Partial<Memory>[];
-  relevantMemoryIds?: string[];
-
-  // Metadata
-  difficulty: "easy" | "medium" | "hard";
-}
-
-export interface RetrievalResult {
-  memoryId: string;
-  similarity: number;
-  rank: number;
-}
-
 export interface RetrievalMetrics {
   precisionAtK: Record<number, number>;
   recallAtK: Record<number, number>;
@@ -58,16 +29,6 @@ export interface RetrievalMetrics {
   avgSimilarity: number;
   similarityStdDev: number;
   belowThresholdCount: number;
-}
-
-export interface ExtractionMetrics {
-  typeAccuracy: number;
-  namespaceAccuracy: number;
-  keyAccuracy: number;
-  valueAccuracy: number;
-  exactMatchRate: number;
-  partialMatchRate: number;
-  confidenceCorrelation: number;
 }
 
 export interface LatencyMetrics {
@@ -89,7 +50,7 @@ export interface EvaluationResult {
   instanceId: string;
   category: string;
   passed: boolean;
-  metrics: Partial<RetrievalMetrics & ExtractionMetrics>;
+  metrics: Partial<RetrievalMetrics>;
   latencyMs: number;
   details?: Record<string, unknown>;
 }
@@ -100,33 +61,10 @@ export interface EvaluationSummary {
   totalInstances: number;
   passedInstances: number;
   failedInstances: number;
-
   retrieval: RetrievalMetrics;
-  extraction?: ExtractionMetrics;
   latency: LatencyMetrics;
-
-  byCategory: Record<
-    string,
-    {
-      total: number;
-      passed: number;
-      metrics: Partial<RetrievalMetrics>;
-    }
-  >;
-
-  byDifficulty: Record<
-    string,
-    {
-      total: number;
-      passed: number;
-    }
-  >;
-}
-
-export interface Baseline {
-  version: string;
-  createdAt: string;
-  summary: EvaluationSummary;
+  byCategory: Record<string, { total: number; passed: number; metrics: Partial<RetrievalMetrics> }>;
+  byDifficulty: Record<string, { total: number; passed: number }>;
 }
 
 export interface ComparisonResult {
@@ -142,7 +80,6 @@ export interface Fixtures {
   memories: Memory[];
   embeddings: Record<string, number[]>;
   queries: QueryFixture[];
-  conversations: ConversationFixture[];
 }
 
 export interface QueryFixture {
@@ -153,22 +90,9 @@ export interface QueryFixture {
   difficulty: "easy" | "medium" | "hard";
 }
 
-export interface ConversationFixture {
-  id: string;
-  messages: Message[];
-  expectedMemories: Partial<Memory>[];
-  difficulty: "easy" | "medium" | "hard";
-}
-
 export interface EvalOptions {
-  quick: boolean;
   full: boolean;
-  sdk: boolean;
-  suite: "all" | "retrieval" | "extraction" | "latency";
-  compareBaseline: boolean;
-  updateBaseline: boolean;
   json: boolean;
-  markdown: boolean;
   verbose: boolean;
   output?: string;
 }

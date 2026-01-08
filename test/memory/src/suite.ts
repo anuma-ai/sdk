@@ -1,56 +1,34 @@
 /**
- * SDK Integration Test Suite for Retrieval
- * Tests the actual SDK implementation (searchSimilarMemoriesOp, cosineSimilarity, etc.)
+ * SDK Integration Test Suite
  */
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import {
-  sdkSchema,
-  sdkMigrations,
-  sdkModelClasses,
-} from "../../../../src/lib/db/schema.js";
-import {
-  searchSimilarMemoriesOp,
-  saveMemoryOp,
-  clearAllMemoriesOp,
-} from "../../../../src/lib/db/memory/operations.js";
-import type {
-  Memory,
-  QueryFixture,
-  RetrievalMetrics,
-  EvaluationResult,
-} from "../types.js";
-import { aggregateRetrievalMetrics } from "../metrics.js";
+import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../src/lib/db/schema.js";
+import { searchSimilarMemoriesOp, saveMemoryOp, clearAllMemoriesOp } from "../../../src/lib/db/memory/operations.js";
+import type { Memory, QueryFixture, RetrievalMetrics, EvaluationResult } from "./types.js";
+import { aggregateRetrievalMetrics } from "./metrics.js";
 
-export interface SDKRetrievalTestOptions {
+interface TestOptions {
   limit: number;
   minSimilarity: number;
   kValues: number[];
   verbose: boolean;
 }
 
-const DEFAULT_OPTIONS: SDKRetrievalTestOptions = {
+const DEFAULT_OPTIONS: TestOptions = {
   limit: 10,
   minSimilarity: 0.2,
   kValues: [1, 3, 5, 10],
   verbose: false,
 };
 
-// Type declaration for global crypto setup
 declare const global: typeof globalThis;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Buffer: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const require: any;
 
-/**
- * Setup in-memory WatermelonDB for testing
- */
 async function setupDatabase(): Promise<Database> {
-  // Setup crypto for Node.js environment
   if (!global.crypto) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { webcrypto } = require("node:crypto");
     Object.defineProperty(global, "crypto", {
       value: webcrypto as Crypto,
@@ -73,21 +51,11 @@ async function setupDatabase(): Promise<Database> {
   });
 }
 
-/**
- * Mock sign message function for tests (encryption not tested here)
- */
-async function mockSignMessage(message: string): Promise<string> {
-  return `0x${Buffer.from(message).toString("hex").padStart(130, "0")}`;
-}
-
-/**
- * Run SDK retrieval evaluation using actual SDK functions
- */
-export async function runSDKRetrievalSuite(
+export async function runSuite(
   memories: Memory[],
   embeddings: Record<string, number[]>,
   queries: QueryFixture[],
-  options: Partial<SDKRetrievalTestOptions> = {}
+  options: Partial<TestOptions> = {}
 ): Promise<{
   metrics: RetrievalMetrics;
   results: EvaluationResult[];
@@ -102,25 +70,19 @@ export async function runSDKRetrievalSuite(
     similarities: number[];
   }> = [];
 
-  // Setup WatermelonDB
   const database = await setupDatabase();
-  const memoriesCollection = database.collections.get("memories");
 
-  // Don't use wallet address for encryption in tests
   const ctx = {
     database,
-    memoriesCollection,
+    memoriesCollection: database.collections.get("memories"),
     walletAddress: undefined,
     signMessage: undefined,
     embeddedWalletSigner: undefined,
-  } as any; // Type assertion needed for test environment
+  } as any;
 
   try {
-    // Clear any existing data
     await clearAllMemoriesOp(ctx);
 
-    // Populate database with test memories and create ID mapping
-    // Map from fixture memory ID to uniqueKey (namespace:key:value)
     const idToUniqueKey = new Map<string, string>();
 
     for (const memory of memories) {
@@ -143,11 +105,9 @@ export async function runSDKRetrievalSuite(
       });
     }
 
-    // Run queries using SDK's searchSimilarMemoriesOp
     for (const query of queries) {
       const startTime = performance.now();
 
-      // Get query embedding
       const queryEmbedding = query.queryEmbedding || embeddings[query.id];
       if (!queryEmbedding) {
         results.push({
@@ -161,19 +121,11 @@ export async function runSDKRetrievalSuite(
         continue;
       }
 
-      // Use SDK's search function
-      const searchResults = await searchSimilarMemoriesOp(
-        ctx,
-        queryEmbedding,
-        opts.limit,
-        opts.minSimilarity
-      );
+      const searchResults = await searchSimilarMemoriesOp(ctx, queryEmbedding, opts.limit, opts.minSimilarity);
 
-      const endTime = performance.now();
-      const elapsed = endTime - startTime;
+      const elapsed = performance.now() - startTime;
       latencyMs.push(elapsed);
 
-      // Map retrieved uniqueKeys back to fixture IDs for comparison
       const retrieved = searchResults.map((r) => r.uniqueKey);
       const relevantUniqueKeys = new Set(
         query.relevantMemoryIds.map((id) => idToUniqueKey.get(id)).filter(Boolean) as string[]
@@ -182,7 +134,6 @@ export async function runSDKRetrievalSuite(
 
       aggregationData.push({ retrieved, relevant: relevantUniqueKeys, similarities });
 
-      // Check if at least one relevant memory was found
       const foundRelevant = retrieved.some((key) => relevantUniqueKeys.has(key));
 
       results.push({
@@ -190,60 +141,33 @@ export async function runSDKRetrievalSuite(
         category: "retrieval",
         passed: foundRelevant,
         metrics: {
-          precisionAtK: Object.fromEntries(
-            opts.kValues.map((k) => [
-              k,
-              precisionAtKSingle(retrieved, relevantUniqueKeys, k),
-            ])
-          ),
-          recallAtK: Object.fromEntries(
-            opts.kValues.map((k) => [k, recallAtKSingle(retrieved, relevantUniqueKeys, k)])
-          ),
+          precisionAtK: Object.fromEntries(opts.kValues.map((k) => [k, precisionAtK(retrieved, relevantUniqueKeys, k)])),
+          recallAtK: Object.fromEntries(opts.kValues.map((k) => [k, recallAtK(retrieved, relevantUniqueKeys, k)])),
         },
         latencyMs: elapsed,
-        details: opts.verbose
-          ? {
-              query: query.query,
-              retrieved,
-              relevant: Array.from(relevantUniqueKeys),
-              similarities,
-            }
-          : undefined,
+        details: opts.verbose ? { query: query.query, retrieved, relevant: Array.from(relevantUniqueKeys), similarities } : undefined,
       });
     }
 
-    const metrics = aggregateRetrievalMetrics(
-      aggregationData,
-      opts.kValues,
-      opts.minSimilarity
-    );
+    const metrics = aggregateRetrievalMetrics(aggregationData, opts.kValues, opts.minSimilarity);
 
     return { metrics, results, latencyMs };
   } finally {
-    // Cleanup database
     try {
       await clearAllMemoriesOp(ctx);
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   }
 }
 
-function precisionAtKSingle(
-  retrieved: string[],
-  relevant: Set<string>,
-  k: number
-): number {
+function precisionAtK(retrieved: string[], relevant: Set<string>, k: number): number {
   const topK = retrieved.slice(0, k);
   const relevantInTopK = topK.filter((id) => relevant.has(id)).length;
   return topK.length > 0 ? relevantInTopK / topK.length : 0;
 }
 
-function recallAtKSingle(
-  retrieved: string[],
-  relevant: Set<string>,
-  k: number
-): number {
+function recallAtK(retrieved: string[], relevant: Set<string>, k: number): number {
   const topK = retrieved.slice(0, k);
   const relevantInTopK = topK.filter((id) => relevant.has(id)).length;
   return relevant.size > 0 ? relevantInTopK / relevant.size : 0;

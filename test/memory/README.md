@@ -69,19 +69,17 @@ Real embeddings typically have lower similarity scores (0.3-0.5 for relevant ite
 
 ```
 test/memory/
-├── eval-memory.ts              # Main CLI entry point
-├── eval/
-│   ├── types.ts               # TypeScript type definitions
-│   ├── metrics.ts             # Precision@K, Recall@K, MRR, NDCG
-│   ├── runner.ts              # Test orchestration
-│   ├── suites/
-│   │   └── sdk-retrieval.ts   # SDK integration tests
-│   └── reporters/
-│       └── console.ts         # Terminal output formatting
+├── src/
+│   ├── run.ts        # CLI entry point
+│   ├── runner.ts     # Test orchestration
+│   ├── suite.ts      # SDK integration tests
+│   ├── metrics.ts    # Precision@K, Recall@K, MRR, NDCG
+│   ├── reporter.ts   # Console output
+│   └── types.ts      # TypeScript types
 └── fixtures/
-    ├── memories.json          # 20 sample memories
-    ├── queries.json           # 20 test queries
-    └── embeddings.json        # Cached embeddings (1536-dim real, 2.3MB)
+    ├── memories.json     # Test memories
+    ├── queries.json      # Test queries
+    └── embeddings.json   # Cached embeddings
 ```
 
 ## Evaluation Metrics
