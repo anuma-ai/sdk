@@ -575,8 +575,10 @@ export function useChatStorage(
           const placeholder = `![MCP_IMAGE:${fileId}]`;
 
           // Replace markdown image syntax: ![alt](url) -> placeholder
+          // This pattern allows for optional whitespace/newlines around the URL
+          // Using [\s\S] to match any character including newlines
           const markdownImagePattern = new RegExp(
-            `!\\[[^\\]]*\\]\\(${escapedUrl}\\)`,
+            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
             "g"
           );
           cleanedContent = cleanedContent.replace(
@@ -584,9 +586,22 @@ export function useChatStorage(
             placeholder
           );
 
-          // Replace raw URLs with placeholder
+          // Replace raw URLs with placeholder (only if not already replaced by markdown pattern)
+          // This handles cases where the URL appears without markdown syntax
           cleanedContent = cleanedContent.replace(
             new RegExp(escapedUrl, "g"),
+            placeholder
+          );
+
+          // Clean up any orphaned markdown image syntax left behind
+          // Pattern: ![alt](\nplaceholder\n) -> placeholder (normalize)
+          // This handles cases where the placeholder ended up inside broken markdown syntax
+          const orphanedMarkdownPattern = new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*\\!\\[MCP_IMAGE:${fileId}\\][\\s]*\\)`,
+            "g"
+          );
+          cleanedContent = cleanedContent.replace(
+            orphanedMarkdownPattern,
             placeholder
           );
         };
