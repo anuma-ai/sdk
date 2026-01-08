@@ -2,7 +2,7 @@
 
 > **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
 
-Defined in: [src/react/useEncryption.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L835)
+Defined in: [src/react/useEncryption.ts:1059](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1059)
 
 Hook that provides encryption key management for securing local data.
 
