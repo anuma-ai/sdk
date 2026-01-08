@@ -538,6 +538,7 @@ export function useChatStorage(
             try {
               const response = await fetch(imageUrl, {
                 signal: controller.signal,
+                cache: "no-store", // Prevent caching issues with CORS
               });
 
               if (!response.ok) {
@@ -566,22 +567,30 @@ export function useChatStorage(
           })
         );
 
-        // Helper to remove URL from content (only used on success)
-        const removeUrlFromContent = (imageUrl: string) => {
+        // Helper to replace URL with placeholder (only used on success)
+        const replaceUrlWithPlaceholder = (imageUrl: string, fileId: string) => {
           const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Placeholder format: ![MCP_IMAGE:fileId]
+          const placeholder = `![MCP_IMAGE:${fileId}]`;
+
+          // Replace markdown image syntax: ![alt](url) -> placeholder
           const markdownImagePattern = new RegExp(
             `!\\[[^\\]]*\\]\\(${escapedUrl}\\)`,
             "g"
           );
-          cleanedContent = cleanedContent.replace(markdownImagePattern, "");
-          // Also remove raw URLs
+          cleanedContent = cleanedContent.replace(
+            markdownImagePattern,
+            placeholder
+          );
+
+          // Replace raw URLs with placeholder
           cleanedContent = cleanedContent.replace(
             new RegExp(escapedUrl, "g"),
-            ""
+            placeholder
           );
         };
 
-        // Process results and clean content
+        // Process results and replace URLs with placeholders
         results.forEach((result, i) => {
           const imageUrl = uniqueUrls[i];
 
@@ -594,10 +603,10 @@ export function useChatStorage(
               size,
             });
 
-            // Only remove URL from content on SUCCESS
-            // Image will be shown via ImageModelContent
+            // Replace URL with placeholder on SUCCESS
+            // MarkdownRenderer will detect ![MCP_IMAGE:fileId] and render from OPFS
             if (imageUrl) {
-              removeUrlFromContent(imageUrl);
+              replaceUrlWithPlaceholder(imageUrl, fileId);
             }
           } else {
             // eslint-disable-next-line no-console
