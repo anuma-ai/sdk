@@ -95,6 +95,15 @@ export interface SendMessageWithStorageArgs
    * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
+  /** Function to write files to storage (for MCP image processing) */
+  writeFile: (
+    fileId: string,
+    blob: Blob,
+    options?: {
+      onProgress?: (progress: number) => void;
+      signal?: AbortSignal;
+    }
+  ) => Promise<string>;
 }
 
 /**
@@ -473,6 +482,151 @@ export function useChatStorage(
     []
   );
 
+  const extractAndStoreMCPImages = useCallback(
+    async (
+      content: string,
+      writeFile: (
+        fileId: string,
+        blob: Blob,
+        options?: {
+          onProgress?: (progress: number) => void;
+          signal?: AbortSignal;
+        }
+      ) => Promise<string>
+    ): Promise<{
+      processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+      }[];
+      cleanedContent: string;
+    }> => {
+      try {
+        // MCP R2 storage domain - matches any image URL from this domain
+        const MCP_R2_DOMAIN =
+          "4cf0e0ea50b97e72386fcf2f92a2d4e8.r2.cloudflarestorage.com";
+        // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
+        const MCP_IMAGE_URL_PATTERN = new RegExp(
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          "g"
+        );
+        // Find all MCP image URLs in the content
+        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
+        if (!urlMatches || urlMatches.length === 0) {
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        // Deduplicate URLs (same image might appear multiple times)
+        const uniqueUrls = [...new Set(urlMatches)];
+
+        const processedFiles: {
+          id: string;
+          name: string;
+          type: string;
+          size: number;
+        }[] = [];
+        let cleanedContent = content;
+
+        // Process all images in parallel
+        const results = await Promise.allSettled(
+          uniqueUrls.map(async (imageUrl) => {
+            // Add timeout to prevent indefinite hangs
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+            try {
+              const response = await fetch(imageUrl, {
+                signal: controller.signal,
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+              }
+
+              const blob = await response.blob();
+              const fileId = crypto.randomUUID();
+              // Infer extension from URL path (before query params) or fallback to png
+              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const mimeType = blob.type || `image/${extension}`;
+              const fileName = `mcp-generated-image-${Date.now()}-${fileId.slice(
+                0,
+                8
+              )}.${extension}`;
+
+              // Store in OPFS
+              await writeFile(fileId, blob);
+
+              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          })
+        );
+
+        // Helper to remove URL from content (only used on success)
+        const removeUrlFromContent = (imageUrl: string) => {
+          const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const markdownImagePattern = new RegExp(
+            `!\\[[^\\]]*\\]\\(${escapedUrl}\\)`,
+            "g"
+          );
+          cleanedContent = cleanedContent.replace(markdownImagePattern, "");
+          // Also remove raw URLs
+          cleanedContent = cleanedContent.replace(
+            new RegExp(escapedUrl, "g"),
+            ""
+          );
+        };
+
+        // Process results and clean content
+        results.forEach((result, i) => {
+          const imageUrl = uniqueUrls[i];
+
+          if (result.status === "fulfilled") {
+            const { fileId, fileName, mimeType, size } = result.value;
+            processedFiles.push({
+              id: fileId,
+              name: fileName,
+              type: mimeType,
+              size,
+            });
+
+            // Only remove URL from content on SUCCESS
+            // Image will be shown via ImageModelContent
+            if (imageUrl) {
+              removeUrlFromContent(imageUrl);
+            }
+          } else {
+            // eslint-disable-next-line no-console
+            console.error(
+              "[handleMcpImageUrl] Failed to process image:",
+              result.reason
+            );
+            // On FAILURE: Keep URL in content so user can still click it
+            // MarkdownRenderer will show it as a clickable link
+          }
+        });
+
+        // Clean up extra newlines
+        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
+
+        return {
+          processedFiles: processedFiles.length > 0 ? processedFiles : [],
+          cleanedContent,
+        };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[handleMcpImageUrl] Unexpected error:", err);
+        // Don't throw - let the original message remain as-is if processing fails completely
+        return { processedFiles: [], cleanedContent: content };
+      }
+    },
+    []
+  );
+
   /**
    * Send a message with automatic storage
    */
@@ -505,6 +659,7 @@ export function useChatStorage(
         thinking,
         onThinking,
         apiType: requestApiType,
+        writeFile,
       } = args;
 
       // Ensure we have a conversation
@@ -735,14 +890,21 @@ export function useChatStorage(
         sources,
       });
 
+      // Extract and store MCP images
+      const { processedFiles, cleanedContent } = await extractAndStoreMCPImages(
+        assistantContent,
+        writeFile
+      );
+
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
-          content: assistantContent,
+          content: cleanedContent,
           model: responseData.model || model,
+          files: processedFiles,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: combinedSources,
