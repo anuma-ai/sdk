@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: \{ `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`\<`string` \| `null`\>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void`; \}): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:158](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L158)
+Defined in: [src/expo/useChatStorage.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L149)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
