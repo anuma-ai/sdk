@@ -91,4 +91,15 @@ export default defineConfig([
       };
     },
   },
+  {
+    entry: ["src/tools/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/tools",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
 ]);

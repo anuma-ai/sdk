@@ -46,6 +46,12 @@
       "import": "./dist/next/index.mjs",
       "require": "./dist/next/index.cjs",
       "default": "./dist/next/index.cjs"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.mjs",
+      "require": "./dist/tools/index.cjs",
+      "default": "./dist/tools/index.cjs"
     }
   },
   "files": [
