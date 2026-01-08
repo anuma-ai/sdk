@@ -143,7 +143,11 @@ export async function storeTokenData(
 export function clearTokenData(provider: OAuthProvider): void {
   if (typeof window === "undefined") return;
 
-  localStorage.removeItem(getStorageKey(provider));
+  const key = getStorageKey(provider);
+  localStorage.removeItem(key);
+  // Tokens may be stored temporarily in sessionStorage when walletAddress is missing
+  // or when encryption fails; logout must clear both.
+  sessionStorage.removeItem(key);
 }
 
 /**
