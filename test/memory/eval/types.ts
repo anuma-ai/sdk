@@ -96,7 +96,7 @@ export interface EvaluationResult {
 
 export interface EvaluationSummary {
   timestamp: string;
-  mode: "quick" | "full" | "sdk";
+  mode: "quick" | "full";
   totalInstances: number;
   passedInstances: number;
   failedInstances: number;

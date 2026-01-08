@@ -16,9 +16,78 @@ import type {
   EvalOptions,
   LatencyMetrics,
 } from "./types.js";
-import { runRetrievalSuite, generateEmbeddings } from "./suites/retrieval.js";
 import { runSDKRetrievalSuite } from "./suites/sdk-retrieval.js";
 import { calculatePercentiles } from "./metrics.js";
+
+/**
+ * Generate embeddings via Portal API
+ */
+export async function generateEmbeddings(
+  memories: Memory[],
+  queries: QueryFixture[],
+  apiKey: string,
+  baseUrl: string
+): Promise<Record<string, number[]>> {
+  const embeddings: Record<string, number[]> = {};
+
+  // Collect all texts that need embeddings
+  const textsToEmbed: Array<{ id: string; text: string }> = [];
+
+  for (const memory of memories) {
+    textsToEmbed.push({
+      id: memory.id,
+      text: memory.rawEvidence || memory.value,
+    });
+  }
+
+  for (const query of queries) {
+    textsToEmbed.push({
+      id: query.id,
+      text: query.query,
+    });
+  }
+
+  console.log(`Generating embeddings for ${textsToEmbed.length} texts...`);
+
+  // Generate embeddings one by one (to avoid rate limits)
+  for (let i = 0; i < textsToEmbed.length; i++) {
+    const { id, text } = textsToEmbed[i];
+
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/embeddings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey,
+        },
+        body: JSON.stringify({
+          model: "openai/text-embedding-3-small",
+          input: text,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error ${response.status}: ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        data: Array<{ embedding: number[] }>;
+      };
+      embeddings[id] = data.data[0].embedding;
+
+      // Progress indicator
+      if ((i + 1) % 10 === 0 || i === textsToEmbed.length - 1) {
+        console.log(`  Progress: ${i + 1}/${textsToEmbed.length}`);
+      }
+    } catch (error) {
+      console.error(`Failed to generate embedding for ${id}:`, error);
+      throw error;
+    }
+  }
+
+  return embeddings;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(__dirname, "../fixtures");
@@ -62,7 +131,7 @@ export async function runQuickEval(
     );
   }
 
-  return runEvaluation(fixtures, options);
+  return runSDKEvaluation(fixtures, { ...options, mode: "quick" });
 }
 
 export async function runFullEval(
@@ -78,11 +147,11 @@ export async function runFullEval(
       "Portal API key required for full evaluation.\n\n" +
         "Add PORTAL_API_KEY to your .env file:\n" +
         "  PORTAL_API_KEY=your-api-key\n\n" +
-        "Or use --quick mode with cached embeddings."
+        "Or use default mode with cached embeddings."
     );
   }
 
-  console.log("Generating embeddings via Reverbia API...");
+  console.log("Generating embeddings via Portal API...");
   console.log(`Base URL: ${baseUrl}`);
 
   const embeddings = await generateEmbeddings(
@@ -98,7 +167,7 @@ export async function runFullEval(
 
   fixtures.embeddings = embeddings;
 
-  return runEvaluation(fixtures, options);
+  return runSDKEvaluation(fixtures, { ...options, mode: "full" });
 }
 
 export async function runSDKEval(
@@ -114,91 +183,13 @@ export async function runSDKEval(
   return runSDKEvaluation(fixtures, options);
 }
 
-async function runEvaluation(
-  fixtures: Fixtures,
-  options: Partial<EvalOptions> = {}
-): Promise<EvaluationSummary> {
-  const suite = options.suite || "all";
-  const verbose = options.verbose || false;
-
-  let retrievalMetrics = null;
-  let retrievalLatency: number[] = [];
-  let retrievalResults = null;
-
-  // Run retrieval suite
-  if (suite === "all" || suite === "retrieval") {
-    const result = await runRetrievalSuite(
-      fixtures.memories,
-      fixtures.embeddings,
-      fixtures.queries,
-      { verbose }
-    );
-    retrievalMetrics = result.metrics;
-    retrievalLatency = result.latencyMs;
-    retrievalResults = result.results;
-  }
-
-  // Calculate latency metrics
-  const latency: LatencyMetrics = {
-    embeddingGenerationMs: { p50: 0, p95: 0, p99: 0, mean: 0, min: 0, max: 0 },
-    searchTimeMs: calculatePercentiles(retrievalLatency),
-    extractionTimeMs: { p50: 0, p95: 0, p99: 0, mean: 0, min: 0, max: 0 },
-  };
-
-  // Aggregate by category and difficulty
-  const byCategory: EvaluationSummary["byCategory"] = {};
-  const byDifficulty: EvaluationSummary["byDifficulty"] = {};
-
-  if (retrievalResults) {
-    byCategory["retrieval"] = {
-      total: retrievalResults.length,
-      passed: retrievalResults.filter((r) => r.passed).length,
-      metrics: retrievalMetrics!,
-    };
-
-    for (const query of fixtures.queries) {
-      const result = retrievalResults.find((r) => r.instanceId === query.id);
-      if (!result) continue;
-
-      const diff = query.difficulty;
-      if (!byDifficulty[diff]) {
-        byDifficulty[diff] = { total: 0, passed: 0 };
-      }
-      byDifficulty[diff].total++;
-      if (result.passed) byDifficulty[diff].passed++;
-    }
-  }
-
-  const totalInstances = retrievalResults?.length || 0;
-  const passedInstances = retrievalResults?.filter((r) => r.passed).length || 0;
-
-  return {
-    timestamp: new Date().toISOString(),
-    mode: options.full ? "full" : "quick",
-    totalInstances,
-    passedInstances,
-    failedInstances: totalInstances - passedInstances,
-    retrieval: retrievalMetrics || {
-      precisionAtK: {},
-      recallAtK: {},
-      mrr: 0,
-      ndcgAtK: {},
-      avgSimilarity: 0,
-      similarityStdDev: 0,
-      belowThresholdCount: 0,
-    },
-    latency,
-    byCategory,
-    byDifficulty,
-  };
-}
-
 async function runSDKEvaluation(
   fixtures: Fixtures,
-  options: Partial<EvalOptions> = {}
+  options: Partial<EvalOptions> & { mode?: "quick" | "full" } = {}
 ): Promise<EvaluationSummary> {
   const suite = options.suite || "all";
   const verbose = options.verbose || false;
+  const mode = options.mode || "quick";
 
   let retrievalMetrics = null;
   let retrievalLatency: number[] = [];
@@ -253,7 +244,7 @@ async function runSDKEvaluation(
 
   return {
     timestamp: new Date().toISOString(),
-    mode: "sdk",
+    mode,
     totalInstances,
     passedInstances,
     failedInstances: totalInstances - passedInstances,

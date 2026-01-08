@@ -58,12 +58,7 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx test/memory/eval-memory.ts",
-    "eval:memory:quick": "tsx test/memory/eval-memory.ts --quick",
-    "eval:memory:full": "tsx test/memory/eval-memory.ts --full",
-    "eval:memory:sdk": "tsx test/memory/eval-memory.ts --sdk",
-    "eval:memory:retrieval": "tsx test/memory/eval-memory.ts --suite retrieval",
-    "eval:memory:baseline": "tsx test/memory/eval-memory.ts --update-baseline"
+    "eval:memory": "tsx test/memory/eval-memory.ts"
   },
   "repository": {
     "type": "git",
