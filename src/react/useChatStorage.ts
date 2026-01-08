@@ -39,6 +39,7 @@ import {
   searchMessagesOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
+import { MCP_R2_DOMAIN } from "../clientConfig";
 
 /**
  * Convert StoredMessage to LlmapiMessage format
@@ -95,8 +96,8 @@ export interface SendMessageWithStorageArgs
    * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
-  /** Function to write files to storage (for MCP image processing) */
-  writeFile: (
+  /** Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed. */
+  writeFile?: (
     fileId: string,
     blob: Blob,
     options?: {
@@ -503,9 +504,6 @@ export function useChatStorage(
       cleanedContent: string;
     }> => {
       try {
-        // MCP R2 storage domain - matches any image URL from this domain
-        const MCP_R2_DOMAIN =
-          "4cf0e0ea50b97e72386fcf2f92a2d4e8.r2.cloudflarestorage.com";
         // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
         const MCP_IMAGE_URL_PATTERN = new RegExp(
           `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
@@ -568,7 +566,10 @@ export function useChatStorage(
         );
 
         // Helper to replace URL with placeholder (only used on success)
-        const replaceUrlWithPlaceholder = (imageUrl: string, fileId: string) => {
+        const replaceUrlWithPlaceholder = (
+          imageUrl: string,
+          fileId: string
+        ) => {
           const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           // Placeholder format: ![MCP_IMAGE:fileId]
           const placeholder = `![MCP_IMAGE:${fileId}]`;
@@ -894,16 +895,28 @@ export function useChatStorage(
           .join("") || undefined;
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Filter out MCP image URLs from sources (they are handled separately as files)
       const combinedSources = extractSourcesFromAssistantMessage({
         content: assistantContent,
         sources,
-      });
+      }).filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
 
-      // Extract and store MCP images
-      const { processedFiles, cleanedContent } = await extractAndStoreMCPImages(
-        assistantContent,
-        writeFile
-      );
+      // Extract and store MCP images (only if writeFile is provided)
+      let processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+      }[] = [];
+      let cleanedContent = assistantContent;
+      if (writeFile) {
+        const result = await extractAndStoreMCPImages(
+          assistantContent,
+          writeFile
+        );
+        processedFiles = result.processedFiles;
+        cleanedContent = result.cleanedContent;
+      }
 
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
@@ -913,7 +926,7 @@ export function useChatStorage(
           role: "assistant",
           content: cleanedContent,
           model: responseData.model || model,
-          files: processedFiles,
+          files: processedFiles.length > 0 ? processedFiles : undefined,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: combinedSources,
