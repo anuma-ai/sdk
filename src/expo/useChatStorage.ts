@@ -69,6 +69,7 @@ export type UseChatStorageOptions = BaseUseChatStorageOptions;
  * Arguments for sendMessage with storage (Expo version)
  *
  * Uses the base arguments without React-specific features (no runTools, no headers).
+
  */
 export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs;
 

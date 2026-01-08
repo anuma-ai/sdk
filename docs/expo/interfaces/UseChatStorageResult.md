@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L87)
+Defined in: [src/expo/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L88)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -94,7 +94,7 @@ Defined in: [src/lib/db/chat/types.ts:228](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: \{ `content`: `string`; `sources?`: [`SearchSource`](../../react/interfaces/SearchSource.md)[]; \}) => [`SearchSource`](../../react/interfaces/SearchSource.md)[]
 
-Defined in: [src/expo/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L93)
+Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -210,7 +210,7 @@ Defined in: [src/lib/db/chat/types.ts:218](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `BaseSendMessageWithStorageArgs`) => `Promise`\<`BaseSendMessageWithStorageResult`\>
 
-Defined in: [src/expo/useChatStorage.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L89)
+Defined in: [src/expo/useChatStorage.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L90)
 
 Send a message and automatically store it (Expo version)
 
@@ -291,7 +291,7 @@ Defined in: [src/lib/db/chat/types.ts:227](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`\<[`StoredMessage`](../../react/interfaces/StoredMessage.md) \| `null`\>
 
-Defined in: [src/expo/useChatStorage.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L98)
+Defined in: [src/expo/useChatStorage.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L99)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

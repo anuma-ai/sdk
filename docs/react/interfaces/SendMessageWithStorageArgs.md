@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L88)
+Defined in: [src/react/useChatStorage.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L89)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L97)
+Defined in: [src/react/useChatStorage.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L98)
 
 Override the API type for this request only.
 Useful when different models need different APIs.
@@ -57,7 +57,7 @@ Defined in: [src/lib/db/chat/types.ts:145](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `Record`\<`string`, `string`\>
 
-Defined in: [src/react/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L91)
+Defined in: [src/react/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L92)
 
 Custom headers
 
@@ -333,3 +333,27 @@ Array of tool definitions available to the model.
 #### Inherited from
 
 `BaseSendMessageWithStorageArgs.tools`
+
+***
+
+### writeFile()?
+
+> `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: \{ `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; \}) => `Promise`\<`string`\>
+
+Defined in: [src/react/useChatStorage.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L100)
+
+Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `fileId` | `string` |
+| `blob` | `Blob` |
+| `options?` | \{ `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; \} |
+| `options.onProgress?` | (`progress`: `number`) => `void` |
+| `options.signal?` | `AbortSignal` |
+
+#### Returns
+
+`Promise`\<`string`\>

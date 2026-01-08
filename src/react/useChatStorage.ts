@@ -39,6 +39,7 @@ import {
   searchMessagesOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
+import { MCP_R2_DOMAIN } from "../clientConfig";
 
 /**
  * Convert StoredMessage to LlmapiMessage format
@@ -95,6 +96,15 @@ export interface SendMessageWithStorageArgs
    * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
+  /** Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed. */
+  writeFile?: (
+    fileId: string,
+    blob: Blob,
+    options?: {
+      onProgress?: (progress: number) => void;
+      signal?: AbortSignal;
+    }
+  ) => Promise<string>;
 }
 
 /**
@@ -473,6 +483,160 @@ export function useChatStorage(
     []
   );
 
+  const extractAndStoreMCPImages = useCallback(
+    async (
+      content: string,
+      writeFile: (
+        fileId: string,
+        blob: Blob,
+        options?: {
+          onProgress?: (progress: number) => void;
+          signal?: AbortSignal;
+        }
+      ) => Promise<string>
+    ): Promise<{
+      processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+      }[];
+      cleanedContent: string;
+    }> => {
+      try {
+        // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
+        const MCP_IMAGE_URL_PATTERN = new RegExp(
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          "g"
+        );
+        // Find all MCP image URLs in the content
+        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
+        if (!urlMatches || urlMatches.length === 0) {
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        // Deduplicate URLs (same image might appear multiple times)
+        const uniqueUrls = [...new Set(urlMatches)];
+
+        const processedFiles: {
+          id: string;
+          name: string;
+          type: string;
+          size: number;
+        }[] = [];
+        let cleanedContent = content;
+
+        // Process all images in parallel
+        const results = await Promise.allSettled(
+          uniqueUrls.map(async (imageUrl) => {
+            // Add timeout to prevent indefinite hangs
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+            try {
+              const response = await fetch(imageUrl, {
+                signal: controller.signal,
+                cache: "no-store", // Prevent caching issues with CORS
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+              }
+
+              const blob = await response.blob();
+              const fileId = crypto.randomUUID();
+              // Infer extension from URL path (before query params) or fallback to png
+              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const mimeType = blob.type || `image/${extension}`;
+              const fileName = `mcp-generated-image-${Date.now()}-${fileId.slice(
+                0,
+                8
+              )}.${extension}`;
+
+              // Store in OPFS
+              await writeFile(fileId, blob);
+
+              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          })
+        );
+
+        // Helper to replace URL with placeholder (only used on success)
+        const replaceUrlWithPlaceholder = (
+          imageUrl: string,
+          fileId: string
+        ) => {
+          const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Placeholder format: ![MCP_IMAGE:fileId]
+          const placeholder = `![MCP_IMAGE:${fileId}]`;
+
+          // Replace markdown image syntax: ![alt](url) -> placeholder
+          const markdownImagePattern = new RegExp(
+            `!\\[[^\\]]*\\]\\(${escapedUrl}\\)`,
+            "g"
+          );
+          cleanedContent = cleanedContent.replace(
+            markdownImagePattern,
+            placeholder
+          );
+
+          // Replace raw URLs with placeholder
+          cleanedContent = cleanedContent.replace(
+            new RegExp(escapedUrl, "g"),
+            placeholder
+          );
+        };
+
+        // Process results and replace URLs with placeholders
+        results.forEach((result, i) => {
+          const imageUrl = uniqueUrls[i];
+
+          if (result.status === "fulfilled") {
+            const { fileId, fileName, mimeType, size } = result.value;
+            processedFiles.push({
+              id: fileId,
+              name: fileName,
+              type: mimeType,
+              size,
+            });
+
+            // Replace URL with placeholder on SUCCESS
+            // MarkdownRenderer will detect ![MCP_IMAGE:fileId] and render from OPFS
+            if (imageUrl) {
+              replaceUrlWithPlaceholder(imageUrl, fileId);
+            }
+          } else {
+            // eslint-disable-next-line no-console
+            console.error(
+              "[handleMcpImageUrl] Failed to process image:",
+              result.reason
+            );
+            // On FAILURE: Keep URL in content so user can still click it
+            // MarkdownRenderer will show it as a clickable link
+          }
+        });
+
+        // Clean up extra newlines
+        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
+
+        return {
+          processedFiles: processedFiles.length > 0 ? processedFiles : [],
+          cleanedContent,
+        };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[handleMcpImageUrl] Unexpected error:", err);
+        // Don't throw - let the original message remain as-is if processing fails completely
+        return { processedFiles: [], cleanedContent: content };
+      }
+    },
+    []
+  );
+
   /**
    * Send a message with automatic storage
    */
@@ -505,6 +669,7 @@ export function useChatStorage(
         thinking,
         onThinking,
         apiType: requestApiType,
+        writeFile,
       } = args;
 
       // Ensure we have a conversation
@@ -730,10 +895,28 @@ export function useChatStorage(
           .join("") || undefined;
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Filter out MCP image URLs from sources (they are handled separately as files)
       const combinedSources = extractSourcesFromAssistantMessage({
         content: assistantContent,
         sources,
-      });
+      }).filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+
+      // Extract and store MCP images (only if writeFile is provided)
+      let processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+      }[] = [];
+      let cleanedContent = assistantContent;
+      if (writeFile) {
+        const result = await extractAndStoreMCPImages(
+          assistantContent,
+          writeFile
+        );
+        processedFiles = result.processedFiles;
+        cleanedContent = result.cleanedContent;
+      }
 
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
@@ -741,8 +924,9 @@ export function useChatStorage(
         storedAssistantMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "assistant",
-          content: assistantContent,
+          content: cleanedContent,
           model: responseData.model || model,
+          files: processedFiles.length > 0 ? processedFiles : undefined,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: combinedSources,
