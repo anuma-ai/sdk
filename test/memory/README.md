@@ -5,32 +5,52 @@ functionality, based on LongMemEval methodology.
 
 ## Quick Start
 
-### 1. Run Algorithm Tests (No API Required)
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# .env
+
+# Required for --full mode (generating fresh embeddings)
+PORTAL_API_KEY=your-api-key
+
+# Optional: Override API URL (defaults to production)
+REVERBIA_API_URL=https://ai-portal-dev.zetachain.com
+```
+
+### Run Algorithm Tests (No API Required)
 
 ```bash
 # Run evaluation with cached embeddings (tests the algorithm)
 pnpm eval:memory
 ```
 
-This uses pre-generated embeddings and tests the retrieval algorithm implementation.
+This uses pre-generated embeddings and tests the retrieval algorithm
+implementation.
 
-### 2. Run SDK Integration Tests
+### Run SDK Integration Tests
 
 ```bash
 # Test the actual SDK implementation (WatermelonDB, searchSimilarMemoriesOp, etc.)
 pnpm eval:memory:sdk
 ```
 
-This tests the complete SDK stack including WatermelonDB operations and the SDK's search functions.
+This tests the complete SDK stack including WatermelonDB operations and the
+SDK's search functions.
 
-### 3. Generate Fresh Embeddings (Requires API Key)
+### Generate Fresh Embeddings (Requires API Key)
 
-Set your Reverbia API key and run:
+Create a `.env` file in the project root (copy from `.env.example`):
 
 ```bash
-# Set API key
-export REVERBIA_API_KEY=your-api-key-here
+# .env
+PORTAL_API_KEY=your-api-key-here
+```
 
+Then run:
+
+```bash
 # Run evaluation with real embeddings
 pnpm eval:memory --full
 ```
@@ -69,16 +89,6 @@ pnpm eval:memory --json
 pnpm eval:memory --markdown
 pnpm eval:memory --verbose
 pnpm eval:memory --output results.md
-```
-
-## Environment Variables
-
-```bash
-# Required for --full mode
-export REVERBIA_API_KEY="your-api-key"
-
-# Optional: Override API URL (defaults to production)
-export REVERBIA_API_URL="https://ai-portal-dev.zetachain.com"
 ```
 
 ## Test Modes
@@ -126,22 +136,23 @@ and real embeddings. Real embeddings typically have lower similarity scores
 ## Architecture
 
 ```
-scripts/
+test/memory/
 ├── eval-memory.ts              # Main CLI entry point
-├── privy-auth.ts              # Token management helper
 ├── generate-mock-embeddings.ts # Generate test embeddings
+├── debug-embeddings.ts         # Debug similarity scores
 ├── eval/
 │   ├── types.ts               # TypeScript type definitions
 │   ├── metrics.ts             # Precision@K, Recall@K, MRR, NDCG
 │   ├── runner.ts              # Test orchestration
 │   ├── suites/
-│   │   └── retrieval.ts       # Retrieval accuracy tests
+│   │   ├── retrieval.ts       # Algorithm tests
+│   │   └── sdk-retrieval.ts   # SDK integration tests
 │   └── reporters/
 │       └── console.ts         # Terminal output formatting
 ├── fixtures/
 │   ├── memories.json          # 20 sample memories
 │   ├── queries.json           # 20 test queries
-│   └── embeddings.json        # Cached embeddings (256-dim mock)
+│   └── embeddings.json        # Cached embeddings (1536-dim real)
 └── baselines/
     └── baseline-YYYY-MM-DD.json  # Historical baselines
 ```
@@ -197,46 +208,6 @@ Comparison with Baseline
   Recall@5:      0.8893 → 0.9000  ↑ (+1.2%)
 
 ✓ All metrics within acceptable range
-```
-
-## CI/CD Integration
-
-### GitHub Actions Example
-
-```yaml
-name: Memory Evaluation
-
-on:
-  pull_request:
-    paths:
-      - "src/lib/memory/**"
-      - "src/lib/db/memory/**"
-  schedule:
-    - cron: "0 0 * * 0" # Weekly full evaluation
-
-jobs:
-  quick-eval:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-      - run: pnpm install
-      - name: Run quick evaluation
-        run: pnpm eval:memory:quick --json > results.json
-      - name: Check regression
-        run: pnpm eval:memory --compare-baseline
-
-  full-eval:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    env:
-      REVERBIA_API_KEY: ${{ secrets.REVERBIA_API_KEY }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v2
-      - run: pnpm install
-      - name: Run full evaluation
-        run: pnpm eval:memory:full
 ```
 
 ## Adding New Test Cases
@@ -315,5 +286,3 @@ pnpm eval:memory --full --verbose
 ## References
 
 - [LongMemEval Paper (ICLR 2025)](https://github.com/xiaowu0162/LongMemEval)
-- [Privy Documentation](https://docs.privy.io)
-- [Memory Evaluation Research](../docs/memory-evaluation-research.md)

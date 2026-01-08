@@ -9,12 +9,12 @@ import {
   sdkSchema,
   sdkMigrations,
   sdkModelClasses,
-} from "../../../src/lib/db/schema.js";
+} from "../../../../src/lib/db/schema.js";
 import {
   searchSimilarMemoriesOp,
   saveMemoryOp,
   clearAllMemoriesOp,
-} from "../../../src/lib/db/memory/operations.js";
+} from "../../../../src/lib/db/memory/operations.js";
 import type {
   Memory,
   QueryFixture,

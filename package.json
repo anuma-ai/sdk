@@ -58,12 +58,12 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx scripts/eval-memory.ts",
-    "eval:memory:quick": "tsx scripts/eval-memory.ts --quick",
-    "eval:memory:full": "tsx scripts/eval-memory.ts --full",
-    "eval:memory:sdk": "tsx scripts/eval-memory.ts --sdk",
-    "eval:memory:retrieval": "tsx scripts/eval-memory.ts --suite retrieval",
-    "eval:memory:baseline": "tsx scripts/eval-memory.ts --update-baseline"
+    "eval:memory": "tsx test/memory/eval-memory.ts",
+    "eval:memory:quick": "tsx test/memory/eval-memory.ts --quick",
+    "eval:memory:full": "tsx test/memory/eval-memory.ts --full",
+    "eval:memory:sdk": "tsx test/memory/eval-memory.ts --sdk",
+    "eval:memory:retrieval": "tsx test/memory/eval-memory.ts --suite retrieval",
+    "eval:memory:baseline": "tsx test/memory/eval-memory.ts --update-baseline"
   },
   "repository": {
     "type": "git",
@@ -89,6 +89,7 @@
     "@testing-library/react": "^16.3.0",
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.6",
+    "dotenv": "^17.2.3",
     "happy-dom": "^20.0.11",
     "playwright": "^1.57.0",
     "react": "^19.2.1",

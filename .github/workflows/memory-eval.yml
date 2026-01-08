@@ -1,0 +1,60 @@
+name: Memory Evaluation
+
+on:
+  pull_request:
+
+jobs:
+  quick-eval:
+    name: Quick Evaluation (Cached Embeddings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Run Algorithm Tests
+        run: pnpm eval:memory --quick --json > results.json
+
+      - name: Check for Regressions
+        run: pnpm eval:memory --compare-baseline
+
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: algorithm-test-results
+          path: results.json
+
+  sdk-eval:
+    name: SDK Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Run SDK Tests
+        run: pnpm eval:memory:sdk --json > sdk-results.json
+
+      - name: Upload Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-test-results
+          path: sdk-results.json

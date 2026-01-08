@@ -69,15 +69,15 @@ export async function runFullEval(
   fixtures: Fixtures,
   options: Partial<EvalOptions> = {}
 ): Promise<EvaluationSummary> {
-  const apiKey = process.env.REVERBIA_API_KEY;
+  const apiKey = process.env.PORTAL_API_KEY;
   const baseUrl =
     process.env.REVERBIA_API_URL || "https://ai-portal-dev.zetachain.com";
 
   if (!apiKey) {
     throw new Error(
-      "Reverbia API key required for full evaluation.\n\n" +
-        "Set the REVERBIA_API_KEY environment variable:\n" +
-        "  export REVERBIA_API_KEY=your-api-key\n\n" +
+      "Portal API key required for full evaluation.\n\n" +
+        "Add PORTAL_API_KEY to your .env file:\n" +
+        "  PORTAL_API_KEY=your-api-key\n\n" +
         "Or use --quick mode with cached embeddings."
     );
   }

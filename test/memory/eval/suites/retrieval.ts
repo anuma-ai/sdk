@@ -178,7 +178,7 @@ function recallAtKSingle(
  * Generate embeddings for memories and queries using Reverbia API
  *
  * Authentication: Requires an API key passed via:
- * - REVERBIA_API_KEY environment variable, or
+ * - PORTAL_API_KEY environment variable, or
  * - apiKey parameter
  *
  * Base URL: Set via REVERBIA_API_URL (defaults to https://ai-portal-dev.zetachain.com)

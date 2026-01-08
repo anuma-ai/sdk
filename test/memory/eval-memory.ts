@@ -10,6 +10,7 @@
  *   pnpm eval:memory --json
  */
 
+import "dotenv/config";
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
 import {
