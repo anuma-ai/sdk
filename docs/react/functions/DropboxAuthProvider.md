@@ -2,7 +2,7 @@
 
 > **DropboxAuthProvider**(`__namedParameters`: [`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useDropboxAuth.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L85)
+Defined in: [src/react/useDropboxAuth.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L92)
 
 Provider component for Dropbox OAuth authentication.
 

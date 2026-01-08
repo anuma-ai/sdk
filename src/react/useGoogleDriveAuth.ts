@@ -22,6 +22,7 @@ import {
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
+import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
 
 /**
  * Props for GoogleDriveAuthProvider
@@ -36,6 +37,12 @@ export interface GoogleDriveAuthProviderProps {
    * Only needed if you have a custom client configuration (e.g., different baseUrl).
    */
   apiClient?: Client;
+  /**
+   * Wallet address for encrypting OAuth tokens at rest.
+   * If provided, tokens will be encrypted before storing in localStorage.
+   * If omitted, tokens are stored temporarily in sessionStorage (cleared on page close).
+   */
+  walletAddress?: string;
   /** Children to render */
   children: ReactNode;
 }
@@ -89,25 +96,31 @@ export function GoogleDriveAuthProvider({
   clientId,
   callbackPath = "/auth/google/callback",
   apiClient,
+  walletAddress,
   children,
 }: GoogleDriveAuthProviderProps): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const isConfigured = !!clientId;
 
-  // Check for stored token on mount
+  // Check for stored token on mount and migrate unencrypted tokens
   useEffect(() => {
     const checkStoredToken = async () => {
+      // Migrate unencrypted tokens if wallet address is available
+      if (walletAddress) {
+        await migrateUnencryptedTokens("google-drive", walletAddress);
+      }
+
       // First check if we have valid stored credentials
-      if (hasGoogleDriveCredentials()) {
+      if (await hasGoogleDriveCredentials(walletAddress)) {
         // Try to get a valid access token (will refresh if expired)
-        const token = await getGoogleDriveAccessToken(apiClient);
+        const token = await getGoogleDriveAccessToken(apiClient, walletAddress);
         if (token) {
           setAccessToken(token);
         }
       }
     };
     checkStoredToken();
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   // Handle OAuth callback
   useEffect(() => {
@@ -115,23 +128,25 @@ export function GoogleDriveAuthProvider({
 
     const handleCallback = async () => {
       if (isGoogleDriveCallback()) {
-        const token = await handleGoogleDriveCallback(callbackPath, apiClient);
-        if (token) {
-          setAccessToken(token);
+        const result = await handleGoogleDriveCallback(callbackPath, apiClient, walletAddress);
+        if (result.ok) {
+          setAccessToken(result.data);
+        } else {
+          console.error(`Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
 
     handleCallback();
-  }, [callbackPath, isConfigured, apiClient]);
+  }, [callbackPath, isConfigured, apiClient, walletAddress]);
 
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {
-    const token = await getGoogleDriveAccessToken(apiClient);
+    const token = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (token) {
       setAccessToken(token);
     }
     return token;
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   const requestAccess = useCallback(async (): Promise<string> => {
     if (!isConfigured || !clientId) {
@@ -144,7 +159,7 @@ export function GoogleDriveAuthProvider({
     }
 
     // Try to get a valid token (will refresh if expired)
-    const storedToken = await getGoogleDriveAccessToken(apiClient);
+    const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
@@ -152,12 +167,12 @@ export function GoogleDriveAuthProvider({
 
     // Start OAuth flow (this will redirect)
     return startGoogleDriveAuth(clientId, callbackPath);
-  }, [accessToken, clientId, callbackPath, isConfigured, apiClient]);
+  }, [accessToken, clientId, callbackPath, isConfigured, apiClient, walletAddress]);
 
   const logout = useCallback(async () => {
-    await revokeGoogleDriveToken(apiClient);
+    await revokeGoogleDriveToken(apiClient, walletAddress);
     setAccessToken(null);
-  }, [apiClient]);
+  }, [apiClient, walletAddress]);
 
   return createElement(
     GoogleDriveAuthContext.Provider,

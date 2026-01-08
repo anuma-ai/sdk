@@ -2,7 +2,7 @@
 
 > **BackupAuthProvider**(`__namedParameters`: [`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useBackupAuth.ts:140](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L140)
+Defined in: [src/react/useBackupAuth.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L147)
 
 Unified provider component for backup OAuth authentication.
 

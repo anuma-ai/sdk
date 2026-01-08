@@ -18,8 +18,24 @@ vi.mock("../../../client/sdk.gen", () => ({
   postAuthOauthByProviderExchange: vi.fn(),
 }));
 
-// Mock window and sessionStorage
+// Mock window, sessionStorage, and localStorage
 const sessionStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+})();
+
+const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
@@ -45,12 +61,14 @@ const mockWindow = {
     replaceState: vi.fn(),
   },
   sessionStorage: sessionStorageMock,
+  localStorage: localStorageMock,
 };
 
 describe("SECURITY: Google Drive OAuth Error Handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorageMock.clear();
+    localStorageMock.clear();
     
     // Setup OAuth state
     sessionStorageMock.setItem(
@@ -79,7 +97,7 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
    * This test verifies that errors in OAuth callbacks are properly logged or thrown,
    * not silently ignored, to enable debugging and security monitoring.
    * 
-   * Currently fails because errors are silently caught. Should pass once fixed.
+   * FIXED: Errors now return OAuthResult with error details.
    */
   it("should log or throw errors in OAuth callbacks instead of silently returning null", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -92,7 +110,11 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
 
     const result = await handleGoogleDriveCallback("/auth/google/callback");
 
-    // Error should be logged or thrown, not silently caught
+    // Error should be logged and returned in result object
+    expect(result.ok).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(result.error.code).toBeDefined();
+    expect(result.error.message).toBeDefined();
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalled();
 
@@ -106,7 +128,7 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
    * This test verifies that encryption failures are handled explicitly and distinguished
    * from other errors, preventing tokens from being stored unencrypted.
    * 
-   * Currently fails because encryption failures are silently ignored. Should pass once fixed.
+   * FIXED: Encryption failures now return error result with encryption error code.
    */
   it("should handle encryption failures explicitly and distinguish them from other errors", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -125,15 +147,12 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     const storeSpy = vi.spyOn(await import("../oauth/storage"), "storeTokenData")
       .mockRejectedValue(new Error("OAuth token encryption failed: Key not available"));
 
-    const result = await handleGoogleDriveCallback("/auth/google/callback");
+    const result = await handleGoogleDriveCallback("/auth/google/callback", undefined, "0x1234567890123456789012345678901234567890");
 
-    // SECURITY ISSUE: Encryption failure is caught and returns null silently
-    // Encryption failures should be handled explicitly, not silently ignored
-    // The result should either:
-    // - Not be null (if error is handled and operation succeeds), OR
-    // - Error should be logged (if operation fails but error is reported)
-    const handledCorrectly = result !== null || consoleErrorSpy.mock.calls.length > 0 || consoleWarnSpy.mock.calls.length > 0;
-    expect(handledCorrectly).toBe(true); // Should either succeed or log error, not return null silently
+    // Encryption failure should be explicitly handled with error code
+    expect(result.ok).toBe(false);
+    expect(result.error.code).toBe("encryption");
+    expect(result.error.message).toContain("encryption");
 
     storeSpy.mockRestore();
     consoleErrorSpy.mockRestore();
