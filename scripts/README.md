@@ -5,16 +5,25 @@ functionality, based on LongMemEval methodology.
 
 ## Quick Start
 
-### 1. Run with Mock Embeddings (No API Required)
+### 1. Run Algorithm Tests (No API Required)
 
 ```bash
-# Run evaluation with cached embeddings
+# Run evaluation with cached embeddings (tests the algorithm)
 pnpm eval:memory
 ```
 
-This uses pre-generated mock embeddings and requires no API authentication.
+This uses pre-generated embeddings and tests the retrieval algorithm implementation.
 
-### 2. Run with Real Embeddings (Requires API Key)
+### 2. Run SDK Integration Tests
+
+```bash
+# Test the actual SDK implementation (WatermelonDB, searchSimilarMemoriesOp, etc.)
+pnpm eval:memory:sdk
+```
+
+This tests the complete SDK stack including WatermelonDB operations and the SDK's search functions.
+
+### 3. Generate Fresh Embeddings (Requires API Key)
 
 Set your Reverbia API key and run:
 
@@ -31,17 +40,21 @@ pnpm eval:memory --full
 ### Evaluation Commands
 
 ```bash
-# Run all tests with cached embeddings
+# Run all tests with cached embeddings (algorithm tests)
 pnpm eval:memory
+
+# Run SDK integration tests
+pnpm eval:memory:sdk
+pnpm eval:memory --sdk
 
 # Run specific test suite
 pnpm eval:memory:retrieval
 pnpm eval:memory --suite retrieval
 
-# Quick mode (uses cached embeddings)
+# Quick mode (uses cached embeddings, algorithm tests)
 pnpm eval:memory:quick
 
-# Full mode (generates embeddings via API)
+# Full mode (generates embeddings via API, algorithm tests)
 pnpm eval:memory:full
 
 # Compare with baseline
@@ -67,6 +80,25 @@ export REVERBIA_API_KEY="your-api-key"
 # Optional: Override API URL (defaults to production)
 export REVERBIA_API_URL="https://ai-portal-dev.zetachain.com"
 ```
+
+## Test Modes
+
+The framework supports two test modes:
+
+### Algorithm Tests (--quick or --full)
+
+- Tests the retrieval algorithm implementation independently
+- Uses custom cosine similarity function
+- Does NOT use the SDK's WatermelonDB or search functions
+- Purpose: Validate the algorithm logic itself
+
+### SDK Integration Tests (--sdk)
+
+- Tests the actual SDK implementation
+- Uses `searchSimilarMemoriesOp` from the SDK
+- Tests WatermelonDB operations (save, search, retrieve)
+- Uses SDK's `cosineSimilarity` function
+- Purpose: Integration testing of the full SDK stack
 
 ## Understanding Embeddings & Thresholds
 

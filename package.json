@@ -61,6 +61,7 @@
     "eval:memory": "tsx scripts/eval-memory.ts",
     "eval:memory:quick": "tsx scripts/eval-memory.ts --quick",
     "eval:memory:full": "tsx scripts/eval-memory.ts --full",
+    "eval:memory:sdk": "tsx scripts/eval-memory.ts --sdk",
     "eval:memory:retrieval": "tsx scripts/eval-memory.ts --suite retrieval",
     "eval:memory:baseline": "tsx scripts/eval-memory.ts --update-baseline"
   },

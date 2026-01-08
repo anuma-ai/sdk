@@ -17,6 +17,7 @@ import type {
   LatencyMetrics,
 } from "./types.js";
 import { runRetrievalSuite, generateEmbeddings } from "./suites/retrieval.js";
+import { runSDKRetrievalSuite } from "./suites/sdk-retrieval.js";
 import { calculatePercentiles } from "./metrics.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -100,6 +101,19 @@ export async function runFullEval(
   return runEvaluation(fixtures, options);
 }
 
+export async function runSDKEval(
+  fixtures: Fixtures,
+  options: Partial<EvalOptions> = {}
+): Promise<EvaluationSummary> {
+  if (Object.keys(fixtures.embeddings).length === 0) {
+    throw new Error(
+      "No cached embeddings found. Run with --full to generate embeddings first."
+    );
+  }
+
+  return runSDKEvaluation(fixtures, options);
+}
+
 async function runEvaluation(
   fixtures: Fixtures,
   options: Partial<EvalOptions> = {}
@@ -161,6 +175,85 @@ async function runEvaluation(
   return {
     timestamp: new Date().toISOString(),
     mode: options.full ? "full" : "quick",
+    totalInstances,
+    passedInstances,
+    failedInstances: totalInstances - passedInstances,
+    retrieval: retrievalMetrics || {
+      precisionAtK: {},
+      recallAtK: {},
+      mrr: 0,
+      ndcgAtK: {},
+      avgSimilarity: 0,
+      similarityStdDev: 0,
+      belowThresholdCount: 0,
+    },
+    latency,
+    byCategory,
+    byDifficulty,
+  };
+}
+
+async function runSDKEvaluation(
+  fixtures: Fixtures,
+  options: Partial<EvalOptions> = {}
+): Promise<EvaluationSummary> {
+  const suite = options.suite || "all";
+  const verbose = options.verbose || false;
+
+  let retrievalMetrics = null;
+  let retrievalLatency: number[] = [];
+  let retrievalResults = null;
+
+  // Run SDK retrieval suite
+  if (suite === "all" || suite === "retrieval") {
+    const result = await runSDKRetrievalSuite(
+      fixtures.memories,
+      fixtures.embeddings,
+      fixtures.queries,
+      { verbose }
+    );
+    retrievalMetrics = result.metrics;
+    retrievalLatency = result.latencyMs;
+    retrievalResults = result.results;
+  }
+
+  // Calculate latency metrics
+  const latency: LatencyMetrics = {
+    embeddingGenerationMs: { p50: 0, p95: 0, p99: 0, mean: 0, min: 0, max: 0 },
+    searchTimeMs: calculatePercentiles(retrievalLatency),
+    extractionTimeMs: { p50: 0, p95: 0, p99: 0, mean: 0, min: 0, max: 0 },
+  };
+
+  // Aggregate by category and difficulty
+  const byCategory: EvaluationSummary["byCategory"] = {};
+  const byDifficulty: EvaluationSummary["byDifficulty"] = {};
+
+  if (retrievalResults) {
+    byCategory["retrieval"] = {
+      total: retrievalResults.length,
+      passed: retrievalResults.filter((r) => r.passed).length,
+      metrics: retrievalMetrics!,
+    };
+
+    for (const query of fixtures.queries) {
+      const result = retrievalResults.find((r) => r.instanceId === query.id);
+      if (!result) continue;
+
+      const diff = query.difficulty;
+      if (!byDifficulty[diff]) {
+        byDifficulty[diff] = { total: 0, passed: 0 };
+      }
+      byDifficulty[diff].total++;
+      if (result.passed) byDifficulty[diff].passed++;
+    }
+  }
+
+  const totalInstances = retrievalResults?.length || 0;
+  const passedInstances = retrievalResults?.filter((r) => r.passed).length || 0;
+
+  return {
+    timestamp: new Date().toISOString(),
+    mode: "sdk",
     totalInstances,
     passedInstances,
     failedInstances: totalInstances - passedInstances,

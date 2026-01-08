@@ -16,6 +16,7 @@ import {
   loadFixtures,
   runQuickEval,
   runFullEval,
+  runSDKEval,
   loadBaseline,
   saveBaseline,
   compareResults,
@@ -32,6 +33,7 @@ const { values: args } = parseArgs({
   options: {
     quick: { type: "boolean", default: false },
     full: { type: "boolean", default: false },
+    sdk: { type: "boolean", default: false },
     suite: { type: "string", default: "all" },
     "compare-baseline": { type: "boolean", default: false },
     "update-baseline": { type: "boolean", default: false },
@@ -51,8 +53,9 @@ Usage:
   pnpm eval:memory [options]
 
 Options:
-  --quick              Use cached embeddings (default if embeddings exist)
-  --full               Regenerate embeddings via Reverbia API
+  --quick              Use cached embeddings (algorithm tests)
+  --full               Regenerate embeddings via Reverbia API (algorithm tests)
+  --sdk                Test the SDK implementation with cached embeddings
   --suite <name>       Run specific suite: all, retrieval, extraction, latency
   --compare-baseline   Compare results against saved baseline
   --update-baseline    Save current results as new baseline
@@ -69,6 +72,7 @@ Environment Variables (for --full mode):
 Examples:
   pnpm eval:memory                    # Quick evaluation (cached embeddings)
   pnpm eval:memory --full             # Full evaluation with API
+  pnpm eval:memory --sdk              # Test SDK implementation
   pnpm eval:memory --compare-baseline # Compare with baseline
   pnpm eval:memory --json > results.json
 
@@ -87,6 +91,7 @@ async function main(): Promise<void> {
   const options: Partial<EvalOptions> = {
     quick: args.quick,
     full: args.full,
+    sdk: args.sdk,
     suite: args.suite as EvalOptions["suite"],
     compareBaseline: args["compare-baseline"],
     updateBaseline: args["update-baseline"],
@@ -105,7 +110,10 @@ async function main(): Promise<void> {
 
     // Determine run mode
     let summary: Awaited<ReturnType<typeof runFullEval>>;
-    if (options.full) {
+    if (options.sdk) {
+      console.log("Running SDK evaluation (testing SDK implementation)...");
+      summary = await runSDKEval(fixtures, options);
+    } else if (options.full) {
       console.log("Running full evaluation (generating embeddings via API)...");
       summary = await runFullEval(fixtures, options);
     } else if (hasEmbeddings) {
@@ -160,6 +168,11 @@ async function main(): Promise<void> {
         : JSON.stringify(summary, null, 2);
       await writeFile(options.output, content);
       console.log(`\nResults written to ${options.output}`);
+    }
+
+    // Force exit for SDK mode (WatermelonDB keeps process alive)
+    if (options.sdk) {
+      process.exit(process.exitCode || 0);
     }
   } catch (error) {
     console.error("Evaluation failed:", error);

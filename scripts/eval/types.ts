@@ -17,6 +17,7 @@ export interface Memory {
   value: string;
   rawEvidence?: string;
   confidence: number;
+  pii?: boolean;
   embedding?: number[];
 }
 
@@ -95,7 +96,7 @@ export interface EvaluationResult {
 
 export interface EvaluationSummary {
   timestamp: string;
-  mode: "quick" | "full";
+  mode: "quick" | "full" | "sdk";
   totalInstances: number;
   passedInstances: number;
   failedInstances: number;
@@ -162,6 +163,7 @@ export interface ConversationFixture {
 export interface EvalOptions {
   quick: boolean;
   full: boolean;
+  sdk: boolean;
   suite: "all" | "retrieval" | "extraction" | "latency";
   compareBaseline: boolean;
   updateBaseline: boolean;
