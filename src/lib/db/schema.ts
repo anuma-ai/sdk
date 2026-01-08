@@ -3,6 +3,7 @@ import {
   schemaMigrations,
   addColumns,
   createTable,
+  unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
 import type Model from "@nozbe/watermelondb/Model";
 import type { Class } from "@nozbe/watermelondb/types";
@@ -21,8 +22,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v5: Added error column to history table for error persistence
  * - v6: Added thought_process column to history table for activity tracking
  * - v7: Added userPreferences table for unified user settings storage
+ * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
  */
-const SDK_SCHEMA_VERSION = 7;
+const SDK_SCHEMA_VERSION = 8;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -155,6 +157,7 @@ export const sdkSchema = appSchema({
  * - v4 → v5: Added `error` column to history table for error persistence
  * - v5 → v6: Added `thought_process` column to history table for activity tracking
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
+ * - v7 → v8: BREAKING - Clear all data (embedding model change)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -220,6 +223,17 @@ export const sdkMigrations = schemaMigrations({
             { name: "updated_at", type: "number" },
           ],
         }),
+      ],
+    },
+    // v7 -> v8: BREAKING - Clear all data due to embedding model change
+    // Switching from OpenAI text-embedding-3-small to Fireworks qwen3-embedding-8b
+    // Old embeddings are incompatible, so we clear all chat and memory data
+    {
+      toVersion: 8,
+      steps: [
+        unsafeExecuteSql("DELETE FROM history;"),
+        unsafeExecuteSql("DELETE FROM conversations;"),
+        unsafeExecuteSql("DELETE FROM memories;"),
       ],
     },
   ],
