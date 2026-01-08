@@ -261,3 +261,40 @@ export type {
   BackupOperationOptions,
   ProgressCallback,
 } from "./useBackup";
+
+// Google Calendar Auth (with calendar scopes for full calendar access)
+export {
+  startCalendarAuth,
+  handleCalendarCallback,
+  isCalendarCallback,
+  getValidCalendarToken,
+  getCalendarAccessToken,
+  refreshCalendarToken,
+  revokeCalendarToken,
+  clearCalendarToken,
+  storeCalendarToken,
+  hasCalendarCredentials,
+  storeCalendarReturnUrl,
+  getAndClearCalendarReturnUrl,
+  storeCalendarPendingMessage,
+  getAndClearCalendarPendingMessage,
+} from "../lib/auth/google-calendar";
+
+// Google Drive Auth (with drive.readonly scope for full read access)
+// Note: This is different from GoogleDriveAuthProvider which uses drive.file scope
+export {
+  startDriveAuth,
+  handleDriveCallback,
+  isDriveCallback,
+  getValidDriveToken,
+  getDriveAccessToken,
+  refreshDriveToken,
+  revokeDriveToken,
+  clearDriveToken,
+  storeDriveToken,
+  hasDriveCredentials,
+  storeDriveReturnUrl,
+  getAndClearDriveReturnUrl,
+  storeDrivePendingMessage,
+  getAndClearDrivePendingMessage,
+} from "../lib/auth/google-drive";
