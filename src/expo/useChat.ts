@@ -59,10 +59,8 @@ function processSSELines(
     if (!chunk) continue;
 
     // Use shared processing logic
-    const { content: contentDelta, thinking: thinkingDelta } = processStreamingChunk(
-      chunk,
-      accumulator
-    );
+    const { content: contentDelta, thinking: thinkingDelta } =
+      processStreamingChunk(chunk, accumulator);
 
     if (contentDelta) {
       if (onData) onData(contentDelta);
@@ -238,7 +236,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               incompleteLineBuffer = lines.pop() || "";
             }
 
-            processSSELines(lines, accumulator, onData, globalOnData, onThinking, globalOnThinking);
+            processSSELines(
+              lines,
+              accumulator,
+              onData,
+              globalOnData,
+              onThinking,
+              globalOnThinking
+            );
           };
 
           xhr.onload = async () => {
@@ -262,22 +267,35 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
               // Check for tool calls and handle them
               if (accumulator.toolCalls.size > 0) {
-                console.log("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
+                console.log(
+                  "[Tool Debug] Found",
+                  accumulator.toolCalls.size,
+                  "tool calls"
+                );
                 const executorMap = createToolExecutorMap(tools);
                 const toolCallsToExecute: AccumulatedToolCall[] = [];
 
                 // Determine which tools to execute vs emit as events
                 for (const toolCall of accumulator.toolCalls.values()) {
-                  console.log("[Tool Debug] Processing tool call:", toolCall.name);
+                  console.log(
+                    "[Tool Debug] Processing tool call:",
+                    toolCall.name
+                  );
                   const executorConfig = executorMap.get(toolCall.name);
 
                   if (executorConfig && executorConfig.autoExecute) {
                     // Will execute automatically
-                    console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+                    console.log(
+                      "[Tool Debug] Will auto-execute:",
+                      toolCall.name
+                    );
                     toolCallsToExecute.push(toolCall);
                   } else {
                     // Emit event for manual handling
-                    console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
+                    console.log(
+                      "[Tool Debug] Emitting onToolCall event for:",
+                      toolCall.name
+                    );
                     if (onToolCall) {
                       onToolCall({
                         id: toolCall.id,
@@ -293,7 +311,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                 // If we have tools to auto-execute, execute them and continue
                 if (toolCallsToExecute.length > 0) {
-                  console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+                  console.log(
+                    "[Tool Debug] Executing",
+                    toolCallsToExecute.length,
+                    "tools"
+                  );
                   try {
                     // Execute all tools in parallel
                     const executionResults = await Promise.all(
@@ -312,7 +334,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           executorConfig.executor
                         );
 
-                        console.log("[Tool Debug] Tool execution result for", toolCall.name, ":", { result, error });
+                        console.log(
+                          "[Tool Debug] Tool execution result for",
+                          toolCall.name,
+                          ":",
+                          { result, error }
+                        );
 
                         return {
                           id: toolCall.id,
@@ -323,7 +350,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                       })
                     );
 
-                    console.log("[Tool Debug] All tools executed, results:", executionResults.length);
+                    console.log(
+                      "[Tool Debug] All tools executed, results:",
+                      executionResults.length
+                    );
 
                     // Build tool result messages
                     const toolResultMessages: LlmapiMessage[] = [];
@@ -356,90 +386,148 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                     }
 
                     // Continue with tool results - make recursive call
-                    const continuationMessages = [...messages, ...toolResultMessages];
+                    const continuationMessages = [
+                      ...messages,
+                      ...toolResultMessages,
+                    ];
 
                     // Make continuation request
-                    const continuationResult = await new Promise<SendMessageResult>((continueResolve) => {
-                      const continuationXhr = new XMLHttpRequest();
-                      const continuationAccumulator = createStreamAccumulator();
-                      let contLastProcessedIndex = 0;
-                      let contIncompleteLineBuffer = "";
+                    const continuationResult =
+                      await new Promise<SendMessageResult>(
+                        (continueResolve) => {
+                          const continuationXhr = new XMLHttpRequest();
+                          const continuationAccumulator =
+                            createStreamAccumulator();
+                          let contLastProcessedIndex = 0;
+                          let contIncompleteLineBuffer = "";
 
-                      const contAbortHandler = () => {
-                        continuationXhr.abort();
-                      };
-                      abortController.signal.addEventListener("abort", contAbortHandler);
+                          const contAbortHandler = () => {
+                            continuationXhr.abort();
+                          };
+                          abortController.signal.addEventListener(
+                            "abort",
+                            contAbortHandler
+                          );
 
-                      continuationXhr.open("POST", url, true);
-                      continuationXhr.setRequestHeader("Content-Type", "application/json");
-                      continuationXhr.setRequestHeader("Authorization", `Bearer ${token}`);
-                      continuationXhr.setRequestHeader("Accept", "text/event-stream");
+                          continuationXhr.open("POST", url, true);
+                          continuationXhr.setRequestHeader(
+                            "Content-Type",
+                            "application/json"
+                          );
+                          continuationXhr.setRequestHeader(
+                            "Authorization",
+                            `Bearer ${token}`
+                          );
+                          continuationXhr.setRequestHeader(
+                            "Accept",
+                            "text/event-stream"
+                          );
 
-                      continuationXhr.onprogress = () => {
-                        const newData = continuationXhr.responseText.substring(contLastProcessedIndex);
-                        contLastProcessedIndex = continuationXhr.responseText.length;
+                          continuationXhr.onprogress = () => {
+                            const newData =
+                              continuationXhr.responseText.substring(
+                                contLastProcessedIndex
+                              );
+                            contLastProcessedIndex =
+                              continuationXhr.responseText.length;
 
-                        const dataToProcess = contIncompleteLineBuffer + newData;
-                        contIncompleteLineBuffer = "";
+                            const dataToProcess =
+                              contIncompleteLineBuffer + newData;
+                            contIncompleteLineBuffer = "";
 
-                        const lines = dataToProcess.split("\n");
-                        if (!newData.endsWith("\n") && lines.length > 0) {
-                          contIncompleteLineBuffer = lines.pop() || "";
-                        }
+                            const lines = dataToProcess.split("\n");
+                            if (!newData.endsWith("\n") && lines.length > 0) {
+                              contIncompleteLineBuffer = lines.pop() || "";
+                            }
 
-                        processSSELines(lines, continuationAccumulator, onData, globalOnData, onThinking, globalOnThinking);
-                      };
+                            processSSELines(
+                              lines,
+                              continuationAccumulator,
+                              onData,
+                              globalOnData,
+                              onThinking,
+                              globalOnThinking
+                            );
+                          };
 
-                      continuationXhr.onload = () => {
-                        abortController.signal.removeEventListener("abort", contAbortHandler);
+                          continuationXhr.onload = () => {
+                            abortController.signal.removeEventListener(
+                              "abort",
+                              contAbortHandler
+                            );
 
-                        if (contIncompleteLineBuffer) {
-                          processSSELines(
-                            [contIncompleteLineBuffer.trim()],
-                            continuationAccumulator,
-                            onData,
-                            globalOnData,
-                            onThinking,
-                            globalOnThinking
+                            if (contIncompleteLineBuffer) {
+                              processSSELines(
+                                [contIncompleteLineBuffer.trim()],
+                                continuationAccumulator,
+                                onData,
+                                globalOnData,
+                                onThinking,
+                                globalOnThinking
+                              );
+                            }
+
+                            if (
+                              continuationXhr.status >= 200 &&
+                              continuationXhr.status < 300
+                            ) {
+                              const finalResponse = buildResponseResponse(
+                                continuationAccumulator
+                              );
+                              continueResolve({
+                                data: finalResponse,
+                                error: null,
+                              });
+                            } else {
+                              const errorMsg = `Continuation request failed with status ${continuationXhr.status}`;
+                              continueResolve({ data: null, error: errorMsg });
+                            }
+                          };
+
+                          continuationXhr.onerror = () => {
+                            abortController.signal.removeEventListener(
+                              "abort",
+                              contAbortHandler
+                            );
+                            continueResolve({
+                              data: null,
+                              error: "Network error in continuation",
+                            });
+                          };
+
+                          continuationXhr.onabort = () => {
+                            abortController.signal.removeEventListener(
+                              "abort",
+                              contAbortHandler
+                            );
+                            continueResolve({
+                              data: null,
+                              error: "Request aborted",
+                            });
+                          };
+
+                          continuationXhr.send(
+                            JSON.stringify({
+                              input: continuationMessages,
+                              model,
+                              stream: true,
+                              ...(store !== undefined && { store }),
+                              ...(previousResponseId && {
+                                previous_response_id: previousResponseId,
+                              }),
+                              ...(conversation && { conversation }),
+                              ...(temperature !== undefined && { temperature }),
+                              ...(maxOutputTokens !== undefined && {
+                                max_output_tokens: maxOutputTokens,
+                              }),
+                              ...(apiTools && { tools: apiTools }),
+                              ...(toolChoice && { tool_choice: toolChoice }),
+                              ...(reasoning && { reasoning }),
+                              ...(thinking && { thinking }),
+                            })
                           );
                         }
-
-                        if (continuationXhr.status >= 200 && continuationXhr.status < 300) {
-                          const finalResponse = buildResponseResponse(continuationAccumulator);
-                          continueResolve({ data: finalResponse, error: null });
-                        } else {
-                          const errorMsg = `Continuation request failed with status ${continuationXhr.status}`;
-                          continueResolve({ data: null, error: errorMsg });
-                        }
-                      };
-
-                      continuationXhr.onerror = () => {
-                        abortController.signal.removeEventListener("abort", contAbortHandler);
-                        continueResolve({ data: null, error: "Network error in continuation" });
-                      };
-
-                      continuationXhr.onabort = () => {
-                        abortController.signal.removeEventListener("abort", contAbortHandler);
-                        continueResolve({ data: null, error: "Request aborted" });
-                      };
-
-                      continuationXhr.send(
-                        JSON.stringify({
-                          input: continuationMessages,
-                          model,
-                          stream: true,
-                          ...(store !== undefined && { store }),
-                          ...(previousResponseId && { previous_response_id: previousResponseId }),
-                          ...(conversation && { conversation }),
-                          ...(temperature !== undefined && { temperature }),
-                          ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-                          ...(apiTools && { tools: apiTools }),
-                          ...(toolChoice && { tool_choice: toolChoice }),
-                          ...(reasoning && { reasoning }),
-                          ...(thinking && { thinking }),
-                        })
                       );
-                    });
 
                     setIsLoading(false);
                     if (continuationResult.data && onFinish) {
@@ -448,7 +536,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                     resolve(continuationResult);
                     return;
                   } catch (toolError) {
-                    const errorMsg = `Tool execution error: ${toolError instanceof Error ? toolError.message : String(toolError)}`;
+                    const errorMsg = `Tool execution error: ${
+                      toolError instanceof Error
+                        ? toolError.message
+                        : String(toolError)
+                    }`;
                     setIsLoading(false);
                     if (onError) onError(new Error(errorMsg));
                     resolve({ data: null, error: errorMsg });
@@ -482,23 +574,33 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             resolve({ data: null, error: "Request aborted" });
           };
 
-          xhr.send(
-            JSON.stringify({
-              input: messages,
-              model,
-              stream: true,
-              // Responses API options (only include if defined)
-              ...(store !== undefined && { store }),
-              ...(previousResponseId && { previous_response_id: previousResponseId }),
-              ...(conversation && { conversation }),
-              ...(temperature !== undefined && { temperature }),
-              ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
-              ...(apiTools && { tools: apiTools }),
-              ...(toolChoice && { tool_choice: toolChoice }),
-              ...(reasoning && { reasoning }),
-              ...(thinking && { thinking }),
-            })
+          const requestBody = {
+            input: messages,
+            model,
+            stream: true,
+            // Responses API options (only include if defined)
+            ...(store !== undefined && { store }),
+            ...(previousResponseId && {
+              previous_response_id: previousResponseId,
+            }),
+            ...(conversation && { conversation }),
+            ...(temperature !== undefined && { temperature }),
+            ...(maxOutputTokens !== undefined && {
+              max_output_tokens: maxOutputTokens,
+            }),
+            ...(apiTools && { tools: apiTools }),
+            ...(toolChoice && { tool_choice: toolChoice }),
+            ...(reasoning && { reasoning }),
+            ...(thinking && { thinking }),
+          };
+
+          // Debug: Log the full request body to see image format
+          console.log(
+            "[useChat] Request body:",
+            JSON.stringify(requestBody, null, 2)
           );
+
+          xhr.send(JSON.stringify(requestBody));
         });
 
         return result;
@@ -511,7 +613,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall]
+    [
+      getToken,
+      baseUrl,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+      onToolCall,
+    ]
   );
 
   return {
