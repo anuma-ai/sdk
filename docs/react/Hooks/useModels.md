@@ -1,6 +1,6 @@
 # useModels
 
-> **useModels**(`options`: `object`): [`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
+> **useModels**(`options`: `object`): [`UseModelsResult`](../Internal/type-aliases/UseModelsResult.md)
 
 Defined in: [src/react/useModels.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L42)
 
@@ -108,4 +108,4 @@ Optional filter for specific provider (e.g. "openai")
 
 ## Returns
 
-[`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
+[`UseModelsResult`](../Internal/type-aliases/UseModelsResult.md)

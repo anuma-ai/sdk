@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L142)
+Defined in: [src/react/useChat.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L137)
 
 A React hook for managing chat completions with authentication.
 
@@ -193,12 +193,6 @@ The app should execute the tool and send the result back.
 ## Returns
 
 `UseChatResult`
-
-An object containing:
-
-* `isLoading`: A boolean indicating whether a request is currently in progress
-* `sendMessage`: An async function to send chat messages
-* `stop`: A function to abort the current request
 
 ## Example
 

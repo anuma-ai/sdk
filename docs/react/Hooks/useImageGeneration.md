@@ -1,6 +1,6 @@
 # useImageGeneration
 
-> **useImageGeneration**(`options`: `object`): `UseImageGenerationResult`
+> **useImageGeneration**(`options`: `object`): [`UseImageGenerationResult`](../Internal/type-aliases/UseImageGenerationResult.md)
 
 Defined in: [src/react/useImageGeneration.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L49)
 
@@ -107,4 +107,4 @@ Callback function to be called when the generation finishes successfully.
 
 ## Returns
 
-`UseImageGenerationResult`
+[`UseImageGenerationResult`](../Internal/type-aliases/UseImageGenerationResult.md)

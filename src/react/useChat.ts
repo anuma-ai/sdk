@@ -102,11 +102,6 @@ type UseChatResult = BaseUseChatResult & {
  *
  * @category Hooks
  *
- * @returns An object containing:
- *   - `isLoading`: A boolean indicating whether a request is currently in progress
- *   - `sendMessage`: An async function to send chat messages
- *   - `stop`: A function to abort the current request
- *
  * @example
  * ```tsx
  * // Basic usage with API
@@ -333,10 +328,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const { content: contentDelta, thinking: thinkingDelta } = strategy.processStreamChunk(
-                chunk,
-                accumulator
-              );
+              const { content: contentDelta, thinking: thinkingDelta } =
+                strategy.processStreamChunk(chunk, accumulator);
               if (contentDelta) {
                 if (onData) onData(contentDelta);
                 if (globalOnData) globalOnData(contentDelta);
@@ -379,7 +372,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Check for tool calls and handle them
         if (accumulator.toolCalls.size > 0) {
-          console.log("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
+          console.log(
+            "[Tool Debug] Found",
+            accumulator.toolCalls.size,
+            "tool calls"
+          );
           const executorMap = createToolExecutorMap(tools);
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
@@ -394,7 +391,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               toolCallsToExecute.push(toolCall);
             } else {
               // Emit event for manual handling
-              console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
+              console.log(
+                "[Tool Debug] Emitting onToolCall event for:",
+                toolCall.name
+              );
               if (onToolCall) {
                 onToolCall({
                   id: toolCall.id,
@@ -410,19 +410,27 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // If we have tools to auto-execute, execute them and continue
           if (toolCallsToExecute.length > 0) {
-            console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+            console.log(
+              "[Tool Debug] Executing",
+              toolCallsToExecute.length,
+              "tools"
+            );
 
             // Output tool execution info to thinking section
             if (onThinking || globalOnThinking) {
-              const toolInfo = toolCallsToExecute.map(tc => {
-                try {
-                  const args = JSON.parse(tc.arguments);
-                  const argsStr = Object.entries(args).map(([k, v]) => `${k}=${v}`).join(', ');
-                  return `${tc.name}(${argsStr})`;
-                } catch {
-                  return `${tc.name}(${tc.arguments})`;
-                }
-              }).join(', ');
+              const toolInfo = toolCallsToExecute
+                .map((tc) => {
+                  try {
+                    const args = JSON.parse(tc.arguments);
+                    const argsStr = Object.entries(args)
+                      .map(([k, v]) => `${k}=${v}`)
+                      .join(", ");
+                    return `${tc.name}(${argsStr})`;
+                  } catch {
+                    return `${tc.name}(${tc.arguments})`;
+                  }
+                })
+                .join(", ");
               const thinkingText = `\nExecuting tool: ${toolInfo}\n`;
               if (onThinking) onThinking(thinkingText);
               if (globalOnThinking) globalOnThinking(thinkingText);
@@ -445,7 +453,12 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   executorConfig.executor
                 );
 
-                console.log("[Tool Debug] Tool execution result for", toolCall.name, ":", { result, error });
+                console.log(
+                  "[Tool Debug] Tool execution result for",
+                  toolCall.name,
+                  ":",
+                  { result, error }
+                );
 
                 return {
                   id: toolCall.id,
@@ -456,19 +469,25 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               })
             );
 
-            console.log("[Tool Debug] All tools executed, results:", executionResults.length);
+            console.log(
+              "[Tool Debug] All tools executed, results:",
+              executionResults.length
+            );
 
             // Output tool execution results to thinking section
             if (onThinking || globalOnThinking) {
-              const resultsText = executionResults.map(r => {
-                if (r.error) {
-                  return `${r.name}: Error - ${r.error}`;
-                }
-                const resultStr = typeof r.result === 'object'
-                  ? JSON.stringify(r.result)
-                  : String(r.result);
-                return `${r.name}: ${resultStr}`;
-              }).join('\n');
+              const resultsText = executionResults
+                .map((r) => {
+                  if (r.error) {
+                    return `${r.name}: Error - ${r.error}`;
+                  }
+                  const resultStr =
+                    typeof r.result === "object"
+                      ? JSON.stringify(r.result)
+                      : String(r.result);
+                  return `${r.name}: ${resultStr}`;
+                })
+                .join("\n");
               const thinkingText = `${resultsText}\n`;
               if (onThinking) onThinking(thinkingText);
               if (globalOnThinking) globalOnThinking(thinkingText);
@@ -506,9 +525,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             // Continue the conversation with tool results
-            const continuationMessages = [...messagesWithContext, ...toolResultMessages];
+            const continuationMessages = [
+              ...messagesWithContext,
+              ...toolResultMessages,
+            ];
 
-            console.log("[Tool Debug] Continuation messages:", JSON.stringify(continuationMessages, null, 2));
+            console.log(
+              "[Tool Debug] Continuation messages:",
+              JSON.stringify(continuationMessages, null, 2)
+            );
 
             // Recursive call to continue with tool results
             // Use the same parameters but with updated messages
@@ -555,10 +580,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                 if (chunk && typeof chunk === "object") {
                   const { content: contentDelta, thinking: thinkingDelta } =
-                    strategy.processStreamChunk(
-                      chunk,
-                      continuationAccumulator
-                    );
+                    strategy.processStreamChunk(chunk, continuationAccumulator);
                   if (contentDelta) {
                     if (onData) onData(contentDelta);
                     if (globalOnData) globalOnData(contentDelta);
@@ -570,11 +592,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 }
               }
 
-              console.log("[Tool Debug] Continuation stream complete - accumulated content:", continuationAccumulator.content);
-              console.log("[Tool Debug] Continuation stream complete - accumulated thinking:", continuationAccumulator.thinking);
+              console.log(
+                "[Tool Debug] Continuation stream complete - accumulated content:",
+                continuationAccumulator.content
+              );
+              console.log(
+                "[Tool Debug] Continuation stream complete - accumulated thinking:",
+                continuationAccumulator.thinking
+              );
             } catch (streamErr) {
               if (isAbortError(streamErr) || abortController.signal.aborted) {
-                const partialResponse = strategy.buildFinalResponse(continuationAccumulator);
+                const partialResponse = strategy.buildFinalResponse(
+                  continuationAccumulator
+                );
                 return {
                   data: partialResponse,
                   error: "Request aborted",
@@ -584,7 +614,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (abortController.signal.aborted) {
-              const partialResponse = strategy.buildFinalResponse(continuationAccumulator);
+              const partialResponse = strategy.buildFinalResponse(
+                continuationAccumulator
+              );
               return {
                 data: partialResponse,
                 error: "Request aborted",
@@ -596,7 +628,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             // Build final response from continuation
-            const finalResponse = strategy.buildFinalResponse(continuationAccumulator);
+            const finalResponse = strategy.buildFinalResponse(
+              continuationAccumulator
+            );
 
             if (onFinish) {
               onFinish(finalResponse);
@@ -639,7 +673,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
       }
     },
-    [getToken, baseUrl, globalOnData, globalOnThinking, onFinish, onError, onToolCall, defaultApiType]
+    [
+      getToken,
+      baseUrl,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+      onToolCall,
+      defaultApiType,
+    ]
   );
 
   return {

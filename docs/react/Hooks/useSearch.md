@@ -1,6 +1,6 @@
 # useSearch
 
-> **useSearch**(`options`: `object`): `UseSearchResult`
+> **useSearch**(`options`: `object`): [`UseSearchResult`](../Internal/type-aliases/UseSearchResult.md)
 
 Defined in: [src/react/useSearch.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L83)
 
@@ -90,7 +90,7 @@ Callback function to be called when an error is encountered.
 
 ## Returns
 
-`UseSearchResult`
+[`UseSearchResult`](../Internal/type-aliases/UseSearchResult.md)
 
 Object containing search function, results, loading state, and error
 

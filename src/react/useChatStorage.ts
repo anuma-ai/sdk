@@ -86,6 +86,7 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
  * Arguments for sendMessage with storage (React version)
  *
  * Extends base arguments with headers and apiType support.
+ * @inline
  */
 export interface SendMessageWithStorageArgs
   extends BaseSendMessageWithStorageArgs {
@@ -143,7 +144,34 @@ export interface SearchMessagesOptions {
  * Extends base result with React-specific sendMessage signature.
  */
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
-  /** Send a message and automatically store it */
+  /**
+   * Sends a message to the AI and automatically persists both the user message
+   * and assistant response to the database.
+   *
+   * This method handles the complete message lifecycle:
+   * 1. Ensures a conversation exists (creates one if `autoCreateConversation` is enabled)
+   * 2. Optionally includes conversation history for context
+   * 3. Stores the user message before sending
+   * 4. Streams the response via the underlying `useChat` hook
+   * 5. Stores the assistant response (including usage stats, sources, and thinking)
+   * 6. Handles abort/error states gracefully
+   *
+   * @example
+   * ```ts
+   * const result = await sendMessage({
+   *   content: "Explain quantum computing",
+   *   model: "gpt-4o",
+   *   includeHistory: true,
+   *   onData: (chunk) => setStreamingText(prev => prev + chunk),
+   * });
+   *
+   * if (result.error) {
+   *   console.error("Failed:", result.error);
+   * } else {
+   *   console.log("Stored message ID:", result.assistantMessage.uniqueId);
+   * }
+   * ```
+   */
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
