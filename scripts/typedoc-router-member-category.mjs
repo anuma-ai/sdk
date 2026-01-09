@@ -43,9 +43,12 @@ function getCategoryFromReflection(reflection) {
 function slugDir(s) {
   return s
     .trim()
-    .replace(/[\\/]/g, "-")
-    .replace(/\s+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/\\/g, "/") // normalize backslashes to forward slashes
+    .replace(/\s+/g, "-") // spaces to dashes
+    .replace(/^\/+|\/+$/g, "") // trim leading/trailing slashes
+    .split("/")
+    .map((part) => part.replace(/^-+|-+$/g, "")) // trim dashes from each part
+    .join("/");
 }
 
 class MemberCategoryRouter extends MemberRouter {
