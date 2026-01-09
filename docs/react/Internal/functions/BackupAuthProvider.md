@@ -12,9 +12,28 @@ refresh tokens for both providers.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `__namedParameters` | [`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`__namedParameters`
+
+</td>
+<td>
+
+[`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

@@ -145,9 +145,28 @@ Defined in: [src/lib/db/chat/types.ts:146](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `chunk` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`chunk`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -170,9 +189,28 @@ Called with delta chunks as the model "thinks" through a problem.
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `chunk` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`chunk`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -346,13 +384,76 @@ Function to write files to storage (for MCP image processing). Optional - if not
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
-| `blob` | `Blob` |
-| `options?` | { `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; } |
-| `options.onProgress?` | (`progress`: `number`) => `void` |
-| `options.signal?` | `AbortSignal` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`fileId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`blob`
+
+</td>
+<td>
+
+`Blob`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+{ `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; }
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onProgress?`
+
+</td>
+<td>
+
+(`progress`: `number`) => `void`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signal?`
+
+</td>
+<td>
+
+`AbortSignal`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

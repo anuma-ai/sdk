@@ -11,9 +11,28 @@ CloudKit JS is loaded automatically when needed.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `__namedParameters` | [`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`__namedParameters`
+
+</td>
+<td>
+
+[`ICloudAuthProviderProps`](../interfaces/ICloudAuthProviderProps.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

@@ -16,10 +16,40 @@ Backup all conversations to iCloud
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
-| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onProgress?`
+
+</td>
+<td>
+
+(`current`: `number`, `total`: `number`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -67,10 +97,40 @@ Restore conversations from iCloud
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
-| `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onProgress?`
+
+</td>
+<td>
+
+(`current`: `number`, `total`: `number`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

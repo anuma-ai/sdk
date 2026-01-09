@@ -8,9 +8,28 @@ Check if we have any stored credentials (including refresh token)
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress?` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

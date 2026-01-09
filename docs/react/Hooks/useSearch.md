@@ -8,12 +8,85 @@ React hook for performing search operations using the AI SDK.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; } | Configuration options for the search hook |
-| `options.baseUrl?` | `string` | Optional base URL for the API requests. |
-| `options.getToken?` | () => `Promise`<`string` | `null`> | Custom function to get auth token for API calls |
-| `options.onError?` | (`error`: `Error`) => `void` | Callback function to be called when an error is encountered. |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+{ `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; }
+
+</td>
+<td>
+
+Configuration options for the search hook
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.baseUrl?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Optional base URL for the API requests.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.getToken?`
+
+</td>
+<td>
+
+() => `Promise`<`string` | `null`>
+
+</td>
+<td>
+
+Custom function to get auth token for API calls
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onError?`
+
+</td>
+<td>
+
+(`error`: `Error`) => `void`
+
+</td>
+<td>
+
+Callback function to be called when an error is encountered.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

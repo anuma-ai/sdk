@@ -10,9 +10,34 @@ surfaced directly in UI components that expect streamed assistant output.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `errorText` | `string` | A human-readable error message to display in the UI. |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`errorText`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+A human-readable error message to display in the UI.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

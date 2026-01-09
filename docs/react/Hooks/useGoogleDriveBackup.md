@@ -14,16 +14,153 @@ Must be used within a GoogleDriveAuthProvider.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | { `conversationsFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `rootFolder?`: `string`; `userAddress`: `string` | `null`; } | - |
-| `options.conversationsFolder?` | `string` | Subfolder for conversations (default: 'conversations') |
-| `options.database` | `Database` | WatermelonDB database instance |
-| `options.exportConversation` | (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }> | Export a conversation to an encrypted blob |
-| `options.importConversation` | (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }> | Import a conversation from an encrypted blob |
-| `options.requestEncryptionKey` | (`address`: `string`) => `Promise`<`void`> | Request encryption key for the user address |
-| `options.rootFolder?` | `string` | Root folder name in Google Drive (default: 'ai-chat-app') |
-| `options.userAddress` | `string` | `null` | Current user address (null if not signed in) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+{ `conversationsFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `rootFolder?`: `string`; `userAddress`: `string` | `null`; }
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.conversationsFolder?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Subfolder for conversations (default: 'conversations')
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.database`
+
+</td>
+<td>
+
+`Database`
+
+</td>
+<td>
+
+WatermelonDB database instance
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.exportConversation`
+
+</td>
+<td>
+
+(`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
+
+</td>
+<td>
+
+Export a conversation to an encrypted blob
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.importConversation`
+
+</td>
+<td>
+
+(`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
+
+</td>
+<td>
+
+Import a conversation from an encrypted blob
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.requestEncryptionKey`
+
+</td>
+<td>
+
+(`address`: `string`) => `Promise`<`void`>
+
+</td>
+<td>
+
+Request encryption key for the user address
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.rootFolder?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Root folder name in Google Drive (default: 'ai-chat-app')
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.userAddress`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+<td>
+
+Current user address (null if not signed in)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

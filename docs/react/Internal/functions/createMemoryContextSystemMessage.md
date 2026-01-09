@@ -8,10 +8,51 @@ Create a system message that includes relevant memories
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `memories` | [`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[] | Array of memories to include |
-| `baseSystemPrompt?` | `string` | Optional base system prompt (memories will be prepended) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`memories`
+
+</td>
+<td>
+
+[`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[]
+
+</td>
+<td>
+
+Array of memories to include
+
+</td>
+</tr>
+<tr>
+<td>
+
+`baseSystemPrompt?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Optional base system prompt (memories will be prepended)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

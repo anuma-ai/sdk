@@ -20,9 +20,28 @@ Defined in: [src/lib/db/chat/types.ts:231](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `conversationId` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -54,9 +73,28 @@ Defined in: [src/lib/db/chat/types.ts:222](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | [`CreateConversationOptions`](CreateConversationOptions.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`CreateConversationOptions`](CreateConversationOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -76,9 +114,28 @@ Defined in: [src/lib/db/chat/types.ts:228](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -100,11 +157,52 @@ Extract all links from assistant message content as SearchSource objects
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `assistantMessage` | { `content`: `string`; `sources?`: [`SearchSource`](SearchSource.md)\[]; } |
-| `assistantMessage.content` | `string` |
-| `assistantMessage.sources?` | [`SearchSource`](SearchSource.md)\[] |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`assistantMessage`
+
+</td>
+<td>
+
+{ `content`: `string`; `sources?`: [`SearchSource`](SearchSource.md)\[]; }
+
+</td>
+</tr>
+<tr>
+<td>
+
+`assistantMessage.content`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`assistantMessage.sources?`
+
+</td>
+<td>
+
+[`SearchSource`](SearchSource.md)\[]
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -120,9 +218,28 @@ Defined in: [src/lib/db/chat/types.ts:225](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -158,9 +275,28 @@ Defined in: [src/lib/db/chat/types.ts:230](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `conversationId` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -180,9 +316,28 @@ Defined in: [src/lib/db/chat/types.ts:229](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `conversationId` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -216,10 +371,40 @@ Search messages by vector similarity
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `queryVector` | `number`\[] |
-| `options?` | [`SearchMessagesOptions`](SearchMessagesOptions.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`queryVector`
+
+</td>
+<td>
+
+`number`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`SearchMessagesOptions`](SearchMessagesOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -237,9 +422,28 @@ Send a message and automatically store it
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | [`SendMessageWithStorageArgs`](SendMessageWithStorageArgs.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`args`
+
+</td>
+<td>
+
+[`SendMessageWithStorageArgs`](SendMessageWithStorageArgs.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -255,9 +459,28 @@ Defined in: [src/lib/db/chat/types.ts:221](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` | `null` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -293,10 +516,40 @@ Defined in: [src/lib/db/chat/types.ts:227](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
-| `title` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`title`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -318,10 +571,40 @@ Update a message's fields (content, embedding, files, etc). Returns updated mess
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `uniqueId` | `string` |
-| `options` | `UpdateMessageOptions` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`uniqueId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+`UpdateMessageOptions`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -339,11 +622,52 @@ Update a message's embedding vector. Returns updated message or null if not foun
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `uniqueId` | `string` |
-| `vector` | `number`\[] |
-| `embeddingModel` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`uniqueId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`vector`
+
+</td>
+<td>
+
+`number`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`embeddingModel`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

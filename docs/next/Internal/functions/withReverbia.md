@@ -6,9 +6,28 @@ Defined in: [src/next/index.ts:21](https://github.com/zeta-chain/ai-sdk/blob/mai
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `nextConfig` | `any` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`nextConfig`
+
+</td>
+<td>
+
+`any`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

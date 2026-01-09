@@ -12,10 +12,51 @@ will throw an error prompting the user to sign a message.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `encryptedHex` | `string` | Encrypted data as hex string (IV + ciphertext + auth tag) |
-| `address` | `string` | The wallet address associated with the encryption key |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`encryptedHex`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Encrypted data as hex string (IV + ciphertext + auth tag)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+The wallet address associated with the encryption key
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

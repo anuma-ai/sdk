@@ -6,11 +6,52 @@ Defined in: [src/lib/db/memory/types.ts:111](https://github.com/zeta-chain/ai-sd
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `namespace` | `string` |
-| `key` | `string` |
-| `value` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`namespace`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`key`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`value`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

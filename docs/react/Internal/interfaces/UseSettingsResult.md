@@ -19,9 +19,28 @@ Defined in: [src/lib/db/settings/types.ts:40](https://github.com/zeta-chain/ai-s
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -41,9 +60,28 @@ Defined in: [src/react/useSettings.ts:65](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -59,9 +97,28 @@ Defined in: [src/lib/db/settings/types.ts:33](https://github.com/zeta-chain/ai-s
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -81,9 +138,28 @@ Defined in: [src/react/useSettings.ts:46](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -123,10 +199,40 @@ Defined in: [src/lib/db/settings/types.ts:36](https://github.com/zeta-chain/ai-s
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-| `models?` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`models?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -146,10 +252,40 @@ Defined in: [src/react/useSettings.ts:49](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-| `options` | [`UpdateUserPreferenceOptions`](UpdateUserPreferenceOptions.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+[`UpdateUserPreferenceOptions`](UpdateUserPreferenceOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -165,10 +301,40 @@ Defined in: [src/react/useSettings.ts:61](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-| `models` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`models`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -184,10 +350,40 @@ Defined in: [src/react/useSettings.ts:57](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-| `personality` | [`PersonalitySettings`](PersonalitySettings.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`personality`
+
+</td>
+<td>
+
+[`PersonalitySettings`](PersonalitySettings.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -203,10 +399,40 @@ Defined in: [src/react/useSettings.ts:53](https://github.com/zeta-chain/ai-sdk/b
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-| `profile` | [`ProfileUpdate`](ProfileUpdate.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`profile`
+
+</td>
+<td>
+
+[`ProfileUpdate`](ProfileUpdate.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

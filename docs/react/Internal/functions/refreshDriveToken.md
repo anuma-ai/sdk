@@ -8,9 +8,28 @@ Refresh the access token using the stored refresh token
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `apiClient?` | `Client` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`apiClient?`
+
+</td>
+<td>
+
+`Client`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

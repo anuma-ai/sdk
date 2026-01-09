@@ -8,10 +8,40 @@ Handle the OAuth callback - exchange code for tokens via backend
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `callbackPath` | `string` |
-| `apiClient?` | `Client` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`callbackPath`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`apiClient?`
+
+</td>
+<td>
+
+`Client`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

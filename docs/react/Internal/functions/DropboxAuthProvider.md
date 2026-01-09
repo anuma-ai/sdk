@@ -11,9 +11,28 @@ It handles the OAuth 2.0 Authorization Code flow with refresh tokens.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `__namedParameters` | [`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`__namedParameters`
+
+</td>
+<td>
+
+[`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

@@ -36,10 +36,40 @@ Export a conversation to an encrypted blob
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `conversationId` | `string` |
-| `userAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`conversationId`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`userAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -57,10 +87,40 @@ Import a conversation from an encrypted blob
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `blob` | `Blob` |
-| `userAddress` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`blob`
+
+</td>
+<td>
+
+`Blob`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`userAddress`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -78,9 +138,28 @@ Request encryption key for the user address
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `address` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

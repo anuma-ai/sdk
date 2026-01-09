@@ -96,9 +96,28 @@ Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `chunk` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`chunk`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -118,9 +137,28 @@ Defined in: [src/lib/db/chat/types.ts:136](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `Error` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`error`
+
+</td>
+<td>
+
+`Error`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -140,9 +178,28 @@ Defined in: [src/lib/db/chat/types.ts:135](https://github.com/zeta-chain/ai-sdk/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `response` | [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`response`
+
+</td>
+<td>
+
+[`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

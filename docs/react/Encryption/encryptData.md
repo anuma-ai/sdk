@@ -12,10 +12,51 @@ will throw an error prompting the user to sign a message.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `plaintext` | `string` | `Uint8Array`<`ArrayBufferLike`> | The data to encrypt (string or Uint8Array) |
-| `address` | `string` | The wallet address associated with the encryption key |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`plaintext`
+
+</td>
+<td>
+
+`string` | `Uint8Array`<`ArrayBufferLike`>
+
+</td>
+<td>
+
+The data to encrypt (string or Uint8Array)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+The wallet address associated with the encryption key
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

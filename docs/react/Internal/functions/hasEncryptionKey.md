@@ -8,9 +8,28 @@ Checks if an encryption key exists in memory for the given wallet address
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `address` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

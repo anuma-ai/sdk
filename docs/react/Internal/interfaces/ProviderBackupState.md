@@ -16,9 +16,28 @@ Backup all conversations to this provider
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | [`BackupOperationOptions`](BackupOperationOptions.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`BackupOperationOptions`](BackupOperationOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -84,9 +103,28 @@ Restore conversations from this provider
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | [`BackupOperationOptions`](BackupOperationOptions.md) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`BackupOperationOptions`](BackupOperationOptions.md)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

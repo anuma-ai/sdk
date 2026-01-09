@@ -929,6 +929,23 @@ export function clearAllKeyPairs(): void {
 }
 
 /**
+ * Result returned by the useEncryption hook.
+ * @category Hooks
+ */
+export interface UseEncryptionResult {
+  /** Request and generate an encryption key for a wallet address */
+  requestEncryptionKey: (walletAddress: string) => Promise<void>;
+  /** Request and generate an ECDH key pair for a wallet address */
+  requestKeyPair: (walletAddress: string) => Promise<void>;
+  /** Export the public key for a wallet address as base64-encoded SPKI */
+  exportPublicKey: (walletAddress: string) => Promise<string>;
+  /** Check if a key pair exists in memory for a wallet address */
+  hasKeyPair: (walletAddress: string) => boolean;
+  /** Clear the key pair for a wallet address from memory */
+  clearKeyPair: (walletAddress: string) => void;
+}
+
+/**
  * Hook that provides encryption key management for securing local data.
  *
  * This hook helps you encrypt and decrypt data using a key derived from a wallet
@@ -1059,7 +1076,7 @@ export function clearAllKeyPairs(): void {
 export function useEncryption(
   signMessage: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
-) {
+): UseEncryptionResult {
   return {
     requestEncryptionKey: (walletAddress: string) =>
       requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner),

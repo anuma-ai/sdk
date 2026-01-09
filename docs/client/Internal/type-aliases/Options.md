@@ -23,7 +23,37 @@ used to access values that aren't defined as part of the SDK function.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `TData` *extends* `TDataShape` | `TDataShape` |
-| `ThrowOnError` *extends* `boolean` | `boolean` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`TData` *extends* `TDataShape`
+
+</td>
+<td>
+
+`TDataShape`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+</tr>
+</tbody>
+</table>

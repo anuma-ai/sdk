@@ -8,10 +8,51 @@ Decrypts data and returns as Uint8Array (for binary data)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `encryptedHex` | `string` | Encrypted data as hex string (IV + ciphertext + auth tag) |
-| `address` | `string` | - |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`encryptedHex`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Encrypted data as hex string (IV + ciphertext + auth tag)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`address`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

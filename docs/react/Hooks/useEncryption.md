@@ -1,8 +1,8 @@
 # useEncryption
 
-> **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): `object`
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): `UseEncryptionResult`
 
-Defined in: [src/react/useEncryption.ts:1059](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1059)
+Defined in: [src/react/useEncryption.ts:1076](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1076)
 
 Hook that provides encryption key management for securing local data.
 
@@ -33,86 +33,57 @@ deterministic key generation that should happen automatically.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `signMessage` | [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md) | Function to sign a message (from Privy's useSignMessage hook) |
-| `embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md) | Optional function for silent signing with embedded wallets |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`signMessage`
+
+</td>
+<td>
+
+[`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md)
+
+</td>
+<td>
+
+Function to sign a message (from Privy's useSignMessage hook)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`embeddedWalletSigner?`
+
+</td>
+<td>
+
+[`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+</td>
+<td>
+
+Optional function for silent signing with embedded wallets
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 
-`object`
+`UseEncryptionResult`
 
 Functions to request encryption keys and manage key pairs
-
-### clearKeyPair()
-
-> **clearKeyPair**: (`walletAddress`: `string`) => `void`
-
-**Parameters**
-
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-
-**Returns**
-
-`void`
-
-### exportPublicKey()
-
-> **exportPublicKey**: (`walletAddress`: `string`) => `Promise`<`string`>
-
-**Parameters**
-
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-
-**Returns**
-
-`Promise`<`string`>
-
-### hasKeyPair()
-
-> **hasKeyPair**: (`walletAddress`: `string`) => `boolean`
-
-**Parameters**
-
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-
-**Returns**
-
-`boolean`
-
-### requestEncryptionKey()
-
-> **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`<`void`>
-
-**Parameters**
-
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-
-**Returns**
-
-`Promise`<`void`>
-
-### requestKeyPair()
-
-> **requestKeyPair**: (`walletAddress`: `string`) => `Promise`<`void`>
-
-**Parameters**
-
-| Parameter | Type |
-| ------ | ------ |
-| `walletAddress` | `string` |
-
-**Returns**
-
-`Promise`<`void`>
 
 ## Examples
 

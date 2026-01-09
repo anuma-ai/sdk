@@ -13,9 +13,34 @@ Converts an array of Vercel AI UIMessage objects into the
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `messages` | `UIMessage`<`unknown`, `UIDataTypes`, `UITools`>\[] | The UI layer conversation history received from `createUIMessageStreamResponse`. |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`messages`
+
+</td>
+<td>
+
+`UIMessage`<`unknown`, `UIDataTypes`, `UITools`>\[]
+
+</td>
+<td>
+
+The UI layer conversation history received from `createUIMessageStreamResponse`.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

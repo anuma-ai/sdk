@@ -8,12 +8,64 @@ Store Drive token data (for external use)
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `accessToken` | `string` |
-| `expiresIn?` | `number` |
-| `refreshToken?` | `string` |
-| `scope?` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`accessToken`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`expiresIn?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`refreshToken?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`scope?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

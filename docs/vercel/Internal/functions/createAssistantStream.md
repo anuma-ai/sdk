@@ -13,9 +13,34 @@ piped directly into UI components that consume the AI SDK stream contract.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `text` | `string` | The assistant response text returned by the Portal API. |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`text`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+The assistant response text returned by the Portal API.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

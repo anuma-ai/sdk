@@ -8,10 +8,40 @@ Progress callback type
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `current` | `number` |
-| `total` | `number` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`current`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`total`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

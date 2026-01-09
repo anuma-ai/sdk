@@ -12,19 +12,204 @@ and can be searched using semantic similarity.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; } | Configuration options |
-| `options.baseUrl?` | `string` | - |
-| `options.completionsModel?` | `string` | - |
-| `options.database` | `Database` | - |
-| `options.embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md) | - |
-| `options.embeddingModel?` | `string` | `null` | - |
-| `options.generateEmbeddings?` | `boolean` | - |
-| `options.getToken?` | () => `Promise`<`string` | `null`> | - |
-| `options.onFactsExtracted?` | (`facts`: `MemoryExtractionResult`) => `void` | - |
-| `options.signMessage?` | [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md) | - |
-| `options.walletAddress?` | `string` | - |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+{ `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }
+
+</td>
+<td>
+
+Configuration options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.baseUrl?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.completionsModel?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.database`
+
+</td>
+<td>
+
+`Database`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.embeddedWalletSigner?`
+
+</td>
+<td>
+
+[`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.embeddingModel?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.generateEmbeddings?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.getToken?`
+
+</td>
+<td>
+
+() => `Promise`<`string` | `null`>
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onFactsExtracted?`
+
+</td>
+<td>
+
+(`facts`: `MemoryExtractionResult`) => `void`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signMessage?`
+
+</td>
+<td>
+
+[`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md)
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

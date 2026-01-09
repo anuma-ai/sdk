@@ -108,9 +108,28 @@ Defined in: [src/lib/db/memory/types.ts:62](https://github.com/zeta-chain/ai-sdk
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `facts` | `MemoryExtractionResult` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`facts`
+
+</td>
+<td>
+
+`MemoryExtractionResult`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

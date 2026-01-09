@@ -10,15 +10,53 @@ Creates a Stripe Checkout Session for Pro subscription and returns the checkout 
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `ThrowOnError` *extends* `boolean` | `false` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCreateCheckoutSessionData`](../type-aliases/PostApiV1SubscriptionsCreateCheckoutSessionData.md), `ThrowOnError`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCreateCheckoutSessionData`](../type-aliases/PostApiV1SubscriptionsCreateCheckoutSessionData.md), `ThrowOnError`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

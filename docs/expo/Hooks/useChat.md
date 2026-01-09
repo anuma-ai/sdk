@@ -12,16 +12,161 @@ in React Native.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options?` | { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; `onThinking?`: (`chunk`: `string`) => `void`; `onToolCall?`: (`toolCall`: [`LlmapiToolCall`](../../client/Internal/type-aliases/LlmapiToolCall.md)) => `void`; } | Optional configuration object |
-| `options.baseUrl?` | `string` | Optional base URL for the API requests. |
-| `options.getToken?` | () => `Promise`<`string` | `null`> | An async function that returns an authentication token. |
-| `options.onData?` | (`chunk`: `string`) => `void` | Callback function to be called when a new data chunk is received. |
-| `options.onError?` | (`error`: `Error`) => `void` | Callback function to be called when an unexpected error is encountered. **Note:** This callback is NOT called for aborted requests (via `stop()` or component unmount). Aborts are intentional actions and are not considered errors. To detect aborts, check the `error` field in the `sendMessage` result: `result.error === "Request aborted"`. |
-| `options.onFinish?` | (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void` | Callback function to be called when the chat completion finishes successfully. |
-| `options.onThinking?` | (`chunk`: `string`) => `void` | Callback function to be called when thinking/reasoning content is received. This is called with delta chunks as the model "thinks" through a problem. |
-| `options.onToolCall?` | (`toolCall`: [`LlmapiToolCall`](../../client/Internal/type-aliases/LlmapiToolCall.md)) => `void` | Callback function to be called when a tool call is requested by the LLM. This is called for tools that don't have an executor or have autoExecute=false. The app should execute the tool and send the result back. |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+{ `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; `onThinking?`: (`chunk`: `string`) => `void`; `onToolCall?`: (`toolCall`: [`LlmapiToolCall`](../../client/Internal/type-aliases/LlmapiToolCall.md)) => `void`; }
+
+</td>
+<td>
+
+Optional configuration object
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.baseUrl?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Optional base URL for the API requests.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.getToken?`
+
+</td>
+<td>
+
+() => `Promise`<`string` | `null`>
+
+</td>
+<td>
+
+An async function that returns an authentication token.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onData?`
+
+</td>
+<td>
+
+(`chunk`: `string`) => `void`
+
+</td>
+<td>
+
+Callback function to be called when a new data chunk is received.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onError?`
+
+</td>
+<td>
+
+(`error`: `Error`) => `void`
+
+</td>
+<td>
+
+Callback function to be called when an unexpected error is encountered.
+
+**Note:** This callback is NOT called for aborted requests (via `stop()` or
+component unmount). Aborts are intentional actions and are not considered
+errors. To detect aborts, check the `error` field in the `sendMessage` result:
+`result.error === "Request aborted"`.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onFinish?`
+
+</td>
+<td>
+
+(`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
+
+</td>
+<td>
+
+Callback function to be called when the chat completion finishes successfully.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onThinking?`
+
+</td>
+<td>
+
+(`chunk`: `string`) => `void`
+
+</td>
+<td>
+
+Callback function to be called when thinking/reasoning content is received.
+This is called with delta chunks as the model "thinks" through a problem.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onToolCall?`
+
+</td>
+<td>
+
+(`toolCall`: [`LlmapiToolCall`](../../client/Internal/type-aliases/LlmapiToolCall.md)) => `void`
+
+</td>
+<td>
+
+Callback function to be called when a tool call is requested by the LLM.
+This is called for tools that don't have an executor or have autoExecute=false.
+The app should execute the tool and send the result back.
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

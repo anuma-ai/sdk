@@ -10,15 +10,53 @@ Returns the current health status of the service.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `ThrowOnError` *extends* `boolean` | `false` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | [`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

@@ -8,10 +8,62 @@ Format memories into a context string that can be included in chat messages
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `memories` | [`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[] | `undefined` | Array of memories with similarity scores |
-| `format` | `"compact"` | `"detailed"` | `"compact"` | Format style: "compact" (key-value pairs) or "detailed" (includes evidence) |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`memories`
+
+</td>
+<td>
+
+[`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[]
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+Array of memories with similarity scores
+
+</td>
+</tr>
+<tr>
+<td>
+
+`format`
+
+</td>
+<td>
+
+`"compact"` | `"detailed"`
+
+</td>
+<td>
+
+`"compact"`
+
+</td>
+<td>
+
+Format style: "compact" (key-value pairs) or "detailed" (includes evidence)
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

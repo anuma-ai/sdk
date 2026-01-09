@@ -15,11 +15,68 @@ and personality settings in a single table.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | { `database`: `Database`; `walletAddress?`: `string`; } | Configuration options |
-| `options.database` | `Database` | - |
-| `options.walletAddress?` | `string` | - |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+{ `database`: `Database`; `walletAddress?`: `string`; }
+
+</td>
+<td>
+
+Configuration options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.database`
+
+</td>
+<td>
+
+`Database`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

@@ -10,15 +10,53 @@ Generates a response using the Responses API format. Supports streaming when str
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `ThrowOnError` *extends* `boolean` | `false` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+<th>Default type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ThrowOnError` *extends* `boolean`
+
+</td>
+<td>
+
+`false`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`Options`](../type-aliases/Options.md)<[`PostApiV1ResponsesData`](../type-aliases/PostApiV1ResponsesData.md), `ThrowOnError`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+[`Options`](../type-aliases/Options.md)<[`PostApiV1ResponsesData`](../type-aliases/PostApiV1ResponsesData.md), `ThrowOnError`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 

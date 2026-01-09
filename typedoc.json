@@ -19,7 +19,7 @@
   ],
   "indexFormat": "table",
   "entryFileName": "README.md",
-  "parametersFormat": "table",
+  "parametersFormat": "htmlTable",
   "expandParameters": true,
   "expandObjects": false,
   "plugin": [

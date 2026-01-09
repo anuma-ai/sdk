@@ -16,10 +16,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `Collection`<`Model`> |
-| `raw` | `_RawRecord` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`collection`
+
+</td>
+<td>
+
+`Collection`<`Model`>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`raw`
+
+</td>
+<td>
+
+`_RawRecord`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -329,9 +359,28 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `debugName` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`debugName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -351,10 +400,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `rawFieldName` | `string` |
-| `rawValue` | `Value` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`rawFieldName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`rawValue`
+
+</td>
+<td>
+
+`Value`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -390,9 +469,28 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `rawFieldName` | `string` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`rawFieldName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -444,10 +542,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `rawFieldName` | `string` |
-| `rawValue` | `Value` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`rawFieldName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`rawValue`
+
+</td>
+<td>
+
+`Value`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -467,9 +595,28 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| ...`records` | `$ReadOnlyArray`<`false` | `void` | `Model` | `null`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+...`records`
+
+</td>
+<td>
+
+`$ReadOnlyArray`<`false` | `void` | `Model` | `null`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -489,15 +636,47 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Type Parameters**
 
-| Type Parameter |
-| ------ |
-| `T` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`T`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `action` | () => `Promise`<`T`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`action`
+
+</td>
+<td>
+
+() => `Promise`<`T`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -517,15 +696,47 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Type Parameters**
 
-| Type Parameter |
-| ------ |
-| `T` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`T`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `action` | () => `Promise`<`T`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`action`
+
+</td>
+<td>
+
+() => `Promise`<`T`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -593,10 +804,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `subscriber` | (`isDeleted`: `boolean`) => `void` |
-| `debugInfo?` | `any` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`subscriber`
+
+</td>
+<td>
+
+(`isDeleted`: `boolean`) => `void`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`debugInfo?`
+
+</td>
+<td>
+
+`any`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -680,9 +921,28 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `recordUpdater?` | (`_`: `this`) => `void` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`recordUpdater?`
+
+</td>
+<td>
+
+(`_`: `this`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -702,15 +962,47 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Type Parameters**
 
-| Type Parameter |
-| ------ |
-| `T` |
+<table>
+<thead>
+<tr>
+<th>Type Parameter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`T`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `action` | () => `Promise`<`T`> |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`action`
+
+</td>
+<td>
+
+() => `Promise`<`T`>
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -730,9 +1022,28 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `recordUpdater?` | (`_`: `this`) => `void` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`recordUpdater?`
+
+</td>
+<td>
+
+(`_`: `this`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -752,10 +1063,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `Collection`<`Model`> |
-| `dirtyRaw` | `DirtyRaw` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`collection`
+
+</td>
+<td>
+
+`Collection`<`Model`>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`dirtyRaw`
+
+</td>
+<td>
+
+`DirtyRaw`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -775,10 +1116,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `Collection`<`Model`> |
-| `recordBuilder` | (`_`: `Model`) => `void` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`collection`
+
+</td>
+<td>
+
+`Collection`<`Model`>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`recordBuilder`
+
+</td>
+<td>
+
+(`_`: `Model`) => `void`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 
@@ -798,10 +1169,40 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Parameters**
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `Collection`<`Model`> |
-| `dirtyRaw` | `DirtyRaw` |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`collection`
+
+</td>
+<td>
+
+`Collection`<`Model`>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`dirtyRaw`
+
+</td>
+<td>
+
+`DirtyRaw`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

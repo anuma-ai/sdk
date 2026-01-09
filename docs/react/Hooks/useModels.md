@@ -9,13 +9,102 @@ Automatically fetches all available models.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | { `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; } | - |
-| `options.autoFetch?` | `boolean` | Whether to fetch models automatically on mount (default: true) |
-| `options.baseUrl?` | `string` | Optional base URL for the API requests. |
-| `options.getToken?` | () => `Promise`<`string` | `null`> | Custom function to get auth token for API calls |
-| `options.provider?` | `string` | Optional filter for specific provider (e.g. "openai") |
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+{ `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.autoFetch?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Whether to fetch models automatically on mount (default: true)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.baseUrl?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Optional base URL for the API requests.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.getToken?`
+
+</td>
+<td>
+
+() => `Promise`<`string` | `null`>
+
+</td>
+<td>
+
+Custom function to get auth token for API calls
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.provider?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Optional filter for specific provider (e.g. "openai")
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 
