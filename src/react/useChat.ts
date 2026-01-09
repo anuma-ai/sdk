@@ -66,14 +66,17 @@ type SendMessageResult =
       error: string;
     };
 
-type UseChatOptions = BaseUseChatOptions & {
+/**
+ * @inline
+ */
+interface UseChatOptions extends BaseUseChatOptions {
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
-};
+}
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;

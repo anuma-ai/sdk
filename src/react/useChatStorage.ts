@@ -71,15 +71,16 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
  * Options for useChatStorage hook (React version)
  *
  * Extends base options with apiType support.
+ * @inline
  */
-export type UseChatStorageOptions = BaseUseChatStorageOptions & {
+export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
-};
+}
 
 /**
  * Arguments for sendMessage with storage (React version)

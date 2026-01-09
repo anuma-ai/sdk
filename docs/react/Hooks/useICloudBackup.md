@@ -1,8 +1,8 @@
 # useICloudBackup()
 
-> **useICloudBackup**(`options`: [`UseICloudBackupOptions`](../Internal/interfaces/UseICloudBackupOptions.md)): [`UseICloudBackupResult`](../Internal/interfaces/UseICloudBackupResult.md)
+> **useICloudBackup**(`options`: { `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseICloudBackupResult`](../Internal/interfaces/UseICloudBackupResult.md)
 
-Defined in: [src/react/useICloudBackup.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L105)
+Defined in: [src/react/useICloudBackup.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L106)
 
 React hook for iCloud backup and restore functionality.
 
@@ -14,9 +14,14 @@ Must be used within an ICloudAuthProvider.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`UseICloudBackupOptions`](../Internal/interfaces/UseICloudBackupOptions.md) |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | { `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; } | - |
+| `options.database` | `Database` | WatermelonDB database instance |
+| `options.exportConversation` | (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }> | Export a conversation to an encrypted blob |
+| `options.importConversation` | (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }> | Import a conversation from an encrypted blob |
+| `options.requestEncryptionKey` | (`address`: `string`) => `Promise`<`void`> | Request encryption key for the user address |
+| `options.userAddress` | `string` | `null` | Current user address (null if not signed in) |
 
 ## Returns
 

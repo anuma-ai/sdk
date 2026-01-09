@@ -17,6 +17,7 @@ export { DEFAULT_ROOT_FOLDER, DEFAULT_CONVERSATIONS_FOLDER };
 
 /**
  * Options for useGoogleDriveBackup hook
+ * @inline
  */
 export interface UseGoogleDriveBackupOptions {
   /** WatermelonDB database instance */

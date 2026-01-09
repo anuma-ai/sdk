@@ -1,8 +1,8 @@
 # useSettings()
 
-> **useSettings**(`options`: [`UseSettingsOptions`](../Internal/interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
+> **useSettings**(`options`: { `database`: `Database`; `walletAddress?`: `string`; }): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L115)
+Defined in: [src/react/useSettings.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L116)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 
@@ -17,7 +17,9 @@ and personality settings in a single table.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`UseSettingsOptions`](../Internal/interfaces/UseSettingsOptions.md) | Configuration options |
+| `options` | { `database`: `Database`; `walletAddress?`: `string`; } | Configuration options |
+| `options.database` | `Database` | - |
+| `options.walletAddress?` | `string` | - |
 
 ## Returns
 

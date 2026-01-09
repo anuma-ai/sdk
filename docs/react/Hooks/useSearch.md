@@ -1,8 +1,8 @@
 # useSearch()
 
-> **useSearch**(`options`: `UseSearchOptions`): `UseSearchResult`
+> **useSearch**(`options`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; }): `UseSearchResult`
 
-Defined in: [src/react/useSearch.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L80)
+Defined in: [src/react/useSearch.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L83)
 
 React hook for performing search operations using the AI SDK.
 
@@ -10,7 +10,10 @@ React hook for performing search operations using the AI SDK.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | `UseSearchOptions` | Configuration options for the search hook |
+| `options` | { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; } | Configuration options for the search hook |
+| `options.baseUrl?` | `string` | Optional base URL for the API requests. |
+| `options.getToken?` | () => `Promise`<`string` | `null`> | Custom function to get auth token for API calls |
+| `options.onError?` | (`error`: `Error`) => `void` | Callback function to be called when an error is encountered. |
 
 ## Returns
 

@@ -1,8 +1,8 @@
 # useMemoryStorage()
 
-> **useMemoryStorage**(`options`: `BaseUseMemoryStorageOptions`): `BaseUseMemoryStorageResult`
+> **useMemoryStorage**(`options`: { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../../react/Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }): `BaseUseMemoryStorageResult`
 
-Defined in: [src/expo/useMemoryStorage.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L151)
+Defined in: [src/expo/useMemoryStorage.ts:152](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L152)
 
 A React hook that wraps useMemory with automatic memory persistence using WatermelonDB.
 
@@ -13,7 +13,17 @@ API-based embeddings. Local embeddings require web APIs not available in React N
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | `BaseUseMemoryStorageOptions` | Configuration options |
+| `options` | { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../../react/Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; } | Configuration options |
+| `options.baseUrl?` | `string` | - |
+| `options.completionsModel?` | `string` | - |
+| `options.database` | `Database` | - |
+| `options.embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md) | - |
+| `options.embeddingModel?` | `string` | `null` | - |
+| `options.generateEmbeddings?` | `boolean` | - |
+| `options.getToken?` | () => `Promise`<`string` | `null`> | - |
+| `options.onFactsExtracted?` | (`facts`: `MemoryExtractionResult`) => `void` | - |
+| `options.signMessage?` | [`SignMessageFn`](../../react/Internal/type-aliases/SignMessageFn.md) | - |
+| `options.walletAddress?` | `string` | - |
 
 ## Returns
 

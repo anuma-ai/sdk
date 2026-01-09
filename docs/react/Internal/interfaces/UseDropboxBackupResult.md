@@ -1,6 +1,6 @@
 # UseDropboxBackupResult
 
-Defined in: [src/react/useDropboxBackup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L44)
+Defined in: [src/react/useDropboxBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L45)
 
 Result returned by useDropboxBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useDropboxBackup hook
 
 > **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L46)
+Defined in: [src/react/useDropboxBackup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L47)
 
 Backup all conversations to Dropbox
 
@@ -31,7 +31,7 @@ Backup all conversations to Dropbox
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useDropboxBackup.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L56)
+Defined in: [src/react/useDropboxBackup.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L57)
 
 Whether user has a Dropbox token
 
@@ -41,7 +41,7 @@ Whether user has a Dropbox token
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useDropboxBackup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L54)
+Defined in: [src/react/useDropboxBackup.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L55)
 
 Whether Dropbox is configured
 
@@ -51,7 +51,7 @@ Whether Dropbox is configured
 
 > **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L50)
+Defined in: [src/react/useDropboxBackup.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L51)
 
 Restore conversations from Dropbox
 

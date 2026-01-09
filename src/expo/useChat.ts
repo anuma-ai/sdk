@@ -36,6 +36,9 @@ type SendMessageArgs = BaseSendMessageArgs & {
 
 type SendMessageResult = BaseSendMessageResult;
 
+/**
+ * @inline
+ */
 type UseChatOptions = BaseUseChatOptions;
 
 type UseChatResult = BaseUseChatResult & {

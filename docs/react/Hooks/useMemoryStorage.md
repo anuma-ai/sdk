@@ -1,8 +1,8 @@
 # useMemoryStorage()
 
-> **useMemoryStorage**(`options`: `BaseUseMemoryStorageOptions`): `BaseUseMemoryStorageResult`
+> **useMemoryStorage**(`options`: { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }): `BaseUseMemoryStorageResult`
 
-Defined in: [src/react/useMemoryStorage.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L105)
+Defined in: [src/react/useMemoryStorage.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L106)
 
 A React hook that wraps useMemory with automatic memory persistence using WatermelonDB.
 
@@ -14,7 +14,17 @@ and can be searched using semantic similarity.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | `BaseUseMemoryStorageOptions` | Configuration options |
+| `options` | { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; } | Configuration options |
+| `options.baseUrl?` | `string` | - |
+| `options.completionsModel?` | `string` | - |
+| `options.database` | `Database` | - |
+| `options.embeddedWalletSigner?` | [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md) | - |
+| `options.embeddingModel?` | `string` | `null` | - |
+| `options.generateEmbeddings?` | `boolean` | - |
+| `options.getToken?` | () => `Promise`<`string` | `null`> | - |
+| `options.onFactsExtracted?` | (`facts`: `MemoryExtractionResult`) => `void` | - |
+| `options.signMessage?` | [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md) | - |
+| `options.walletAddress?` | `string` | - |
 
 ## Returns
 

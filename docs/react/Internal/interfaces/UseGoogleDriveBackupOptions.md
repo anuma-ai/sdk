@@ -1,6 +1,6 @@
 # UseGoogleDriveBackupOptions
 
-Defined in: [src/react/useGoogleDriveBackup.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L21)
+Defined in: [src/react/useGoogleDriveBackup.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L22)
 
 Options for useGoogleDriveBackup hook
 
@@ -10,7 +10,7 @@ Options for useGoogleDriveBackup hook
 
 > `optional` **conversationsFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L41)
+Defined in: [src/react/useGoogleDriveBackup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L42)
 
 Subfolder for conversations (default: 'conversations')
 
@@ -20,7 +20,7 @@ Subfolder for conversations (default: 'conversations')
 
 > **database**: `Database`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L23)
+Defined in: [src/react/useGoogleDriveBackup.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L24)
 
 WatermelonDB database instance
 
@@ -30,7 +30,7 @@ WatermelonDB database instance
 
 > **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L29)
+Defined in: [src/react/useGoogleDriveBackup.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L30)
 
 Export a conversation to an encrypted blob
 
@@ -51,7 +51,7 @@ Export a conversation to an encrypted blob
 
 > **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L34)
+Defined in: [src/react/useGoogleDriveBackup.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L35)
 
 Import a conversation from an encrypted blob
 
@@ -72,7 +72,7 @@ Import a conversation from an encrypted blob
 
 > **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L27)
+Defined in: [src/react/useGoogleDriveBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L28)
 
 Request encryption key for the user address
 
@@ -92,7 +92,7 @@ Request encryption key for the user address
 
 > `optional` **rootFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L39)
+Defined in: [src/react/useGoogleDriveBackup.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L40)
 
 Root folder name in Google Drive (default: 'ai-chat-app')
 
@@ -102,6 +102,6 @@ Root folder name in Google Drive (default: 'ai-chat-app')
 
 > **userAddress**: `string` | `null`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L25)
+Defined in: [src/react/useGoogleDriveBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L26)
 
 Current user address (null if not signed in)

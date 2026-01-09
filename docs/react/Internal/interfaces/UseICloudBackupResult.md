@@ -1,6 +1,6 @@
 # UseICloudBackupResult
 
-Defined in: [src/react/useICloudBackup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L42)
+Defined in: [src/react/useICloudBackup.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L43)
 
 Result returned by useICloudBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useICloudBackup hook
 
 > **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useICloudBackup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L44)
+Defined in: [src/react/useICloudBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L45)
 
 Backup all conversations to iCloud
 
@@ -31,7 +31,7 @@ Backup all conversations to iCloud
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L54)
+Defined in: [src/react/useICloudBackup.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L55)
 
 Whether user has signed in to iCloud
 
@@ -41,7 +41,7 @@ Whether user has signed in to iCloud
 
 > **isAvailable**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L56)
+Defined in: [src/react/useICloudBackup.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L57)
 
 Whether CloudKit JS is available
 
@@ -51,7 +51,7 @@ Whether CloudKit JS is available
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L52)
+Defined in: [src/react/useICloudBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L53)
 
 Whether iCloud is configured
 
@@ -61,7 +61,7 @@ Whether iCloud is configured
 
 > **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useICloudBackup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L48)
+Defined in: [src/react/useICloudBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L49)
 
 Restore conversations from iCloud
 

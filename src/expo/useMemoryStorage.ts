@@ -43,8 +43,9 @@ import { postApiV1Embeddings } from "../client";
  * Options for useMemoryStorage hook (Expo version)
  *
  * Uses the base options.
+ * @inline
  */
-export type UseMemoryStorageOptions = BaseUseMemoryStorageOptions;
+export interface UseMemoryStorageOptions extends BaseUseMemoryStorageOptions {}
 
 /**
  * Result returned by useMemoryStorage hook (Expo version)

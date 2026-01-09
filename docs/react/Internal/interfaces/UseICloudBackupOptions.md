@@ -1,6 +1,6 @@
 # UseICloudBackupOptions
 
-Defined in: [src/react/useICloudBackup.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L20)
+Defined in: [src/react/useICloudBackup.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L21)
 
 Options for useICloudBackup hook
 
@@ -10,7 +10,7 @@ Options for useICloudBackup hook
 
 > **database**: `Database`
 
-Defined in: [src/react/useICloudBackup.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L22)
+Defined in: [src/react/useICloudBackup.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L23)
 
 WatermelonDB database instance
 
@@ -20,7 +20,7 @@ WatermelonDB database instance
 
 > **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
-Defined in: [src/react/useICloudBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L28)
+Defined in: [src/react/useICloudBackup.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L29)
 
 Export a conversation to an encrypted blob
 
@@ -41,7 +41,7 @@ Export a conversation to an encrypted blob
 
 > **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
-Defined in: [src/react/useICloudBackup.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L33)
+Defined in: [src/react/useICloudBackup.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L34)
 
 Import a conversation from an encrypted blob
 
@@ -62,7 +62,7 @@ Import a conversation from an encrypted blob
 
 > **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useICloudBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L26)
+Defined in: [src/react/useICloudBackup.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L27)
 
 Request encryption key for the user address
 
@@ -82,6 +82,6 @@ Request encryption key for the user address
 
 > **userAddress**: `string` | `null`
 
-Defined in: [src/react/useICloudBackup.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L24)
+Defined in: [src/react/useICloudBackup.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L25)
 
 Current user address (null if not signed in)

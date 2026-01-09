@@ -16,6 +16,7 @@ export { DEFAULT_BACKUP_FOLDER as DEFAULT_ICLOUD_BACKUP_FOLDER };
 
 /**
  * Options for useICloudBackup hook
+ * @inline
  */
 export interface UseICloudBackupOptions {
   /** WatermelonDB database instance */

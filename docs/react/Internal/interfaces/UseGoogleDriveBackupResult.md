@@ -1,6 +1,6 @@
 # UseGoogleDriveBackupResult
 
-Defined in: [src/react/useGoogleDriveBackup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L47)
+Defined in: [src/react/useGoogleDriveBackup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L48)
 
 Result returned by useGoogleDriveBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useGoogleDriveBackup hook
 
 > **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`GoogleDriveExportResult`](GoogleDriveExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L49)
+Defined in: [src/react/useGoogleDriveBackup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L50)
 
 Backup all conversations to Google Drive
 
@@ -31,7 +31,7 @@ Backup all conversations to Google Drive
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L59)
+Defined in: [src/react/useGoogleDriveBackup.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L60)
 
 Whether user has a Google Drive token
 
@@ -41,7 +41,7 @@ Whether user has a Google Drive token
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L57)
+Defined in: [src/react/useGoogleDriveBackup.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L58)
 
 Whether Google Drive is configured
 
@@ -51,7 +51,7 @@ Whether Google Drive is configured
 
 > **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`GoogleDriveImportResult`](GoogleDriveImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useGoogleDriveBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L53)
+Defined in: [src/react/useGoogleDriveBackup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L54)
 
 Restore conversations from Google Drive
 

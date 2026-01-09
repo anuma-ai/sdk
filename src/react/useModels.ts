@@ -5,6 +5,9 @@ import { getApiV1Models } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
 import type { LlmapiModel } from "../client";
 
+/**
+ * @inline
+ */
 export type UseModelsOptions = {
   /**
    * Custom function to get auth token for API calls

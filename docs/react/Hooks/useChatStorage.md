@@ -1,6 +1,6 @@
 # useChatStorage()
 
-> **useChatStorage**(`options`: [`UseChatStorageOptions`](../Internal/type-aliases/UseChatStorageOptions.md)): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: { `apiType?`: `ApiType`; `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; }): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 Defined in: [src/react/useChatStorage.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L226)
 
@@ -14,7 +14,17 @@ saved when sent and when responses are received.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`UseChatStorageOptions`](../Internal/type-aliases/UseChatStorageOptions.md) | Configuration options |
+| `options` | { `apiType?`: `ApiType`; `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; } | Configuration options |
+| `options.apiType?` | `ApiType` | Which API endpoint to use. Default: "responses" - "responses": OpenAI Responses API (supports thinking, reasoning, conversations) - "completions": OpenAI Chat Completions API (wider model compatibility) |
+| `options.autoCreateConversation?` | `boolean` | - |
+| `options.baseUrl?` | `string` | - |
+| `options.conversationId?` | `string` | - |
+| `options.database` | `Database` | - |
+| `options.defaultConversationTitle?` | `string` | - |
+| `options.getToken?` | () => `Promise`<`string` | `null`> | - |
+| `options.onData?` | (`chunk`: `string`) => `void` | - |
+| `options.onError?` | (`error`: `Error`) => `void` | - |
+| `options.onFinish?` | (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void` | - |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 # UseDropboxBackupOptions
 
-Defined in: [src/react/useDropboxBackup.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L20)
+Defined in: [src/react/useDropboxBackup.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L21)
 
 Options for useDropboxBackup hook
 
@@ -10,7 +10,7 @@ Options for useDropboxBackup hook
 
 > `optional` **backupFolder**: `string`
 
-Defined in: [src/react/useDropboxBackup.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L38)
+Defined in: [src/react/useDropboxBackup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L39)
 
 Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
@@ -20,7 +20,7 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 > **database**: `Database`
 
-Defined in: [src/react/useDropboxBackup.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L22)
+Defined in: [src/react/useDropboxBackup.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L23)
 
 WatermelonDB database instance
 
@@ -30,7 +30,7 @@ WatermelonDB database instance
 
 > **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L28)
+Defined in: [src/react/useDropboxBackup.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L29)
 
 Export a conversation to an encrypted blob
 
@@ -51,7 +51,7 @@ Export a conversation to an encrypted blob
 
 > **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L33)
+Defined in: [src/react/useDropboxBackup.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L34)
 
 Import a conversation from an encrypted blob
 
@@ -72,7 +72,7 @@ Import a conversation from an encrypted blob
 
 > **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useDropboxBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L26)
+Defined in: [src/react/useDropboxBackup.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L27)
 
 Request encryption key for the user address
 
@@ -92,6 +92,6 @@ Request encryption key for the user address
 
 > **userAddress**: `string` | `null`
 
-Defined in: [src/react/useDropboxBackup.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L24)
+Defined in: [src/react/useDropboxBackup.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L25)
 
 Current user address (null if not signed in)
