@@ -431,7 +431,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                     // Continue with tool results - make recursive call
                     const continuationMessages = [
-                      ...messages,
+                      ...messagesWithContext,
                       ...toolResultMessages,
                     ];
 
