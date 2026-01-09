@@ -32,6 +32,16 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * Per-request callback for thinking/reasoning chunks.
    */
   onThinking?: (chunk: string) => void;
+  /**
+   * Memory context to inject as a system message.
+   * This is typically formatted memories from useMemoryStorage.
+   */
+  memoryContext?: string;
+  /**
+   * Search context to inject as a system message.
+   * This is typically formatted search results from useSearch.
+   */
+  searchContext?: string;
 };
 
 type SendMessageResult = BaseSendMessageResult;
@@ -147,6 +157,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       model,
       onData,
       onThinking,
+      memoryContext,
+      searchContext,
       // Responses API options
       store,
       previousResponseId,
@@ -195,6 +207,38 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Convert tools to API format (strip executors)
         const apiTools = toolsToApiFormat(tools);
+
+        // Inject memory context as a system message at the beginning if provided
+        let messagesWithContext = messages;
+        if (memoryContext) {
+          const memorySystemMessage: LlmapiMessage = {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: memoryContext,
+              },
+            ],
+          };
+          messagesWithContext = [memorySystemMessage, ...messages];
+        }
+
+        if (searchContext) {
+          const searchSystemMessage: LlmapiMessage = {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: "Here are the search results for the user's query. Use this information to respond to the user's request:",
+              },
+              {
+                type: "text",
+                text: searchContext,
+              },
+            ],
+          };
+          messagesWithContext = [searchSystemMessage, ...messagesWithContext];
+        }
 
         // Use XMLHttpRequest for streaming in React Native
         // (fetch doesn't support response.body streaming in RN)
@@ -575,7 +619,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           };
 
           const requestBody = {
-            input: messages,
+            input: messagesWithContext,
             model,
             stream: true,
             // Responses API options (only include if defined)
