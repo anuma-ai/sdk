@@ -1,6 +1,6 @@
 # useDropboxAuth()
 
-> **useDropboxAuth**(): [`DropboxAuthContextValue`](../interfaces/DropboxAuthContextValue.md)
+> **useDropboxAuth**(): [`DropboxAuthContextValue`](../Internal/interfaces/DropboxAuthContextValue.md)
 
 Defined in: [src/react/useDropboxAuth.ts:216](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L216)
 
@@ -10,7 +10,7 @@ Must be used within a DropboxAuthProvider.
 
 ## Returns
 
-[`DropboxAuthContextValue`](../interfaces/DropboxAuthContextValue.md)
+[`DropboxAuthContextValue`](../Internal/interfaces/DropboxAuthContextValue.md)
 
 ## Example
 

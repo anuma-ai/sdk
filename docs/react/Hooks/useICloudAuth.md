@@ -1,6 +1,6 @@
 # useICloudAuth()
 
-> **useICloudAuth**(): [`ICloudAuthContextValue`](../interfaces/ICloudAuthContextValue.md)
+> **useICloudAuth**(): [`ICloudAuthContextValue`](../Internal/interfaces/ICloudAuthContextValue.md)
 
 Defined in: [src/react/useICloudAuth.ts:216](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L216)
 
@@ -10,7 +10,7 @@ Must be used within an ICloudAuthProvider.
 
 ## Returns
 
-[`ICloudAuthContextValue`](../interfaces/ICloudAuthContextValue.md)
+[`ICloudAuthContextValue`](../Internal/interfaces/ICloudAuthContextValue.md)
 
 ## Example
 

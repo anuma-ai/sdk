@@ -97,163 +97,163 @@ function ChatScreen() {
 
 ### ChatConversation
 
-Re-exports [ChatConversation](../react/classes/ChatConversation.md)
+Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
 
 ***
 
 ### ChatMessage
 
-Re-exports [ChatMessage](../react/classes/ChatMessage.md)
+Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
 
 ***
 
 ### ChatRole
 
-Re-exports [ChatRole](../react/type-aliases/ChatRole.md)
+Re-exports [ChatRole](../react/Internal/type-aliases/ChatRole.md)
 
 ***
 
 ### chatStorageMigrations
 
-Re-exports [chatStorageMigrations](../react/variables/chatStorageMigrations.md)
+Re-exports [chatStorageMigrations](../react/Internal/variables/chatStorageMigrations.md)
 
 ***
 
 ### chatStorageSchema
 
-Re-exports [chatStorageSchema](../react/variables/chatStorageSchema.md)
+Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
 
 ***
 
 ### CreateConversationOptions
 
-Re-exports [CreateConversationOptions](../react/interfaces/CreateConversationOptions.md)
+Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
 
 ***
 
 ### CreateMemoryOptions
 
-Re-exports [CreateMemoryOptions](../react/interfaces/CreateMemoryOptions.md)
+Re-exports [CreateMemoryOptions](../react/Internal/interfaces/CreateMemoryOptions.md)
 
 ***
 
 ### CreateMessageOptions
 
-Re-exports [CreateMessageOptions](../react/interfaces/CreateMessageOptions.md)
+Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
 
 ***
 
 ### FileMetadata
 
-Re-exports [FileMetadata](../react/interfaces/FileMetadata.md)
+Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
 
 ***
 
 ### generateCompositeKey
 
-Re-exports [generateCompositeKey](../react/functions/generateCompositeKey.md)
+Re-exports [generateCompositeKey](../react/Internal/functions/generateCompositeKey.md)
 
 ***
 
 ### generateConversationId
 
-Re-exports [generateConversationId](../react/functions/generateConversationId.md)
+Re-exports [generateConversationId](../react/Internal/functions/generateConversationId.md)
 
 ***
 
 ### generateUniqueKey
 
-Re-exports [generateUniqueKey](../react/functions/generateUniqueKey.md)
+Re-exports [generateUniqueKey](../react/Internal/functions/generateUniqueKey.md)
 
 ***
 
 ### MemoryItem
 
-Re-exports [MemoryItem](../react/interfaces/MemoryItem.md)
+Re-exports [MemoryItem](../react/Internal/interfaces/MemoryItem.md)
 
 ***
 
 ### memoryStorageSchema
 
-Re-exports [memoryStorageSchema](../react/variables/memoryStorageSchema.md)
+Re-exports [memoryStorageSchema](../react/Internal/variables/memoryStorageSchema.md)
 
 ***
 
 ### MemoryType
 
-Re-exports [MemoryType](../react/type-aliases/MemoryType.md)
+Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
 
 ***
 
 ### sdkMigrations
 
-Re-exports [sdkMigrations](../react/variables/sdkMigrations.md)
+Re-exports [sdkMigrations](../react/Internal/variables/sdkMigrations.md)
 
 ***
 
 ### sdkModelClasses
 
-Re-exports [sdkModelClasses](../react/variables/sdkModelClasses.md)
+Re-exports [sdkModelClasses](../react/Internal/variables/sdkModelClasses.md)
 
 ***
 
 ### sdkSchema
 
-Re-exports [sdkSchema](../react/variables/sdkSchema.md)
+Re-exports [sdkSchema](../react/Internal/variables/sdkSchema.md)
 
 ***
 
 ### SearchSource
 
-Re-exports [SearchSource](../react/interfaces/SearchSource.md)
+Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
 
 ***
 
 ### StoredChatCompletionUsage
 
-Re-exports [StoredChatCompletionUsage](../react/interfaces/StoredChatCompletionUsage.md)
+Re-exports [StoredChatCompletionUsage](../react/Internal/interfaces/StoredChatCompletionUsage.md)
 
 ***
 
 ### StoredConversation
 
-Re-exports [StoredConversation](../react/interfaces/StoredConversation.md)
+Re-exports [StoredConversation](../react/Internal/interfaces/StoredConversation.md)
 
 ***
 
 ### StoredMemory
 
-Re-exports [StoredMemory](../react/interfaces/StoredMemory.md)
+Re-exports [StoredMemory](../react/Internal/interfaces/StoredMemory.md)
 
 ***
 
 ### StoredMemoryModel
 
-Re-exports [StoredMemoryModel](../react/classes/StoredMemoryModel.md)
+Re-exports [StoredMemoryModel](../react/Internal/classes/StoredMemoryModel.md)
 
 ***
 
 ### StoredMemoryWithSimilarity
 
-Re-exports [StoredMemoryWithSimilarity](../react/interfaces/StoredMemoryWithSimilarity.md)
+Re-exports [StoredMemoryWithSimilarity](../react/Internal/interfaces/StoredMemoryWithSimilarity.md)
 
 ***
 
 ### StoredMessage
 
-Re-exports [StoredMessage](../react/interfaces/StoredMessage.md)
+Re-exports [StoredMessage](../react/Internal/interfaces/StoredMessage.md)
 
 ***
 
 ### StoredMessageWithSimilarity
 
-Re-exports [StoredMessageWithSimilarity](../react/interfaces/StoredMessageWithSimilarity.md)
+Re-exports [StoredMessageWithSimilarity](../react/Internal/interfaces/StoredMessageWithSimilarity.md)
 
 ***
 
 ### UpdateMemoryOptions
 
-Re-exports [UpdateMemoryOptions](../react/type-aliases/UpdateMemoryOptions.md)
+Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOptions.md)
 
 ***
 

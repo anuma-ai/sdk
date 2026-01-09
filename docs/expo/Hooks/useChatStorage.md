@@ -1,6 +1,6 @@
 # useChatStorage()
 
-> **useChatStorage**(`options`: { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void`; }): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; }): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 Defined in: [src/expo/useChatStorage.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L149)
 
@@ -13,7 +13,7 @@ API-based chat completions. Local chat and client-side tools are not available.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void`; } | Configuration options |
+| `options` | { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; } | Configuration options |
 | `options.autoCreateConversation?` | `boolean` | - |
 | `options.baseUrl?` | `string` | - |
 | `options.conversationId?` | `string` | - |
@@ -22,11 +22,11 @@ API-based chat completions. Local chat and client-side tools are not available.
 | `options.getToken?` | () => `Promise`<`string` | `null`> | - |
 | `options.onData?` | (`chunk`: `string`) => `void` | - |
 | `options.onError?` | (`error`: `Error`) => `void` | - |
-| `options.onFinish?` | (`response`: [`LlmapiResponseResponse`](../../client/type-aliases/LlmapiResponseResponse.md)) => `void` | - |
+| `options.onFinish?` | (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void` | - |
 
 ## Returns
 
-[`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+[`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 An object containing chat state, methods, and storage operations
 

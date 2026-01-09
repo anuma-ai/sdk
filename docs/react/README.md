@@ -96,22 +96,22 @@ function ChatComponent() {
 
 ### BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER
 
-Renames and re-exports [DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER](variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
+Renames and re-exports [DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER](Internal/variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
 
 ***
 
 ### BACKUP\_DRIVE\_ROOT\_FOLDER
 
-Renames and re-exports [DEFAULT\_DRIVE\_ROOT\_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
+Renames and re-exports [DEFAULT\_DRIVE\_ROOT\_FOLDER](Internal/variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
 
 ***
 
 ### BACKUP\_ICLOUD\_FOLDER
 
-Renames and re-exports [DEFAULT\_ICLOUD\_BACKUP\_FOLDER](variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
+Renames and re-exports [DEFAULT\_ICLOUD\_BACKUP\_FOLDER](Internal/variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
 
 ***
 
 ### DEFAULT\_DROPBOX\_FOLDER
 
-Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](variables/DEFAULT_BACKUP_FOLDER.md)
+Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](Internal/variables/DEFAULT_BACKUP_FOLDER.md)

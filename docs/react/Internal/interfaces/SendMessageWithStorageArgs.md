@@ -115,7 +115,7 @@ Defined in: [src/lib/db/chat/types.ts:147](https://github.com/zeta-chain/ai-sdk/
 
 ### messages?
 
-> `optional` **messages**: [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)\[]
+> `optional` **messages**: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L142)
 
@@ -201,7 +201,7 @@ Enables multi-turn conversations without resending full history.
 
 ### reasoning?
 
-> `optional` **reasoning**: [`LlmapiResponseReasoning`](../../client/type-aliases/LlmapiResponseReasoning.md)
+> `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
 
 Defined in: [src/lib/db/chat/types.ts:186](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L186)
 
@@ -283,7 +283,7 @@ Controls randomness in the response (0.0 to 2.0).
 
 ### thinking?
 
-> `optional` **thinking**: [`LlmapiThinkingOptions`](../../client/type-aliases/LlmapiThinkingOptions.md)
+> `optional` **thinking**: [`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
 
 Defined in: [src/lib/db/chat/types.ts:191](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L191)
 
@@ -324,7 +324,7 @@ Controls which tool to use: "auto", "any", "none", "required", or a specific too
 
 ### tools?
 
-> `optional` **tools**: [`LlmapiTool`](../../client/type-aliases/LlmapiTool.md)\[]
+> `optional` **tools**: [`LlmapiTool`](../../../client/Internal/type-aliases/LlmapiTool.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:177](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L177)
 

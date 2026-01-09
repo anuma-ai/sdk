@@ -48,7 +48,7 @@ Defined in: [src/lib/db/chat/types.ts:220](https://github.com/zeta-chain/ai-sdk/
 
 ### createConversation()
 
-> **createConversation**: (`options?`: [`CreateConversationOptions`](../../react/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md)>
+> **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
 Defined in: [src/lib/db/chat/types.ts:222](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L222)
 
@@ -56,11 +56,11 @@ Defined in: [src/lib/db/chat/types.ts:222](https://github.com/zeta-chain/ai-sdk/
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | [`CreateConversationOptions`](../../react/interfaces/CreateConversationOptions.md) |
+| `options?` | [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md) |
 
 **Returns**
 
-`Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md)>
+`Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
 **Inherited from**
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/db/chat/types.ts:228](https://github.com/zeta-chain/ai-sdk/
 
 ### extractSourcesFromAssistantMessage()
 
-> **extractSourcesFromAssistantMessage**: (`assistantMessage`: { `content`: `string`; `sources?`: [`SearchSource`](../../react/interfaces/SearchSource.md)\[]; }) => [`SearchSource`](../../react/interfaces/SearchSource.md)\[]
+> **extractSourcesFromAssistantMessage**: (`assistantMessage`: { `content`: `string`; `sources?`: [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]; }) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
 Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
 
@@ -102,19 +102,19 @@ Extract all links from assistant message content as SearchSource objects
 
 | Parameter | Type |
 | ------ | ------ |
-| `assistantMessage` | { `content`: `string`; `sources?`: [`SearchSource`](../../react/interfaces/SearchSource.md)\[]; } |
+| `assistantMessage` | { `content`: `string`; `sources?`: [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]; } |
 | `assistantMessage.content` | `string` |
-| `assistantMessage.sources?` | [`SearchSource`](../../react/interfaces/SearchSource.md)\[] |
+| `assistantMessage.sources?` | [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[] |
 
 **Returns**
 
-[`SearchSource`](../../react/interfaces/SearchSource.md)\[]
+[`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
 ***
 
 ### getConversation()
 
-> **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md) | `null`>
+> **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
 Defined in: [src/lib/db/chat/types.ts:225](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L225)
 
@@ -126,7 +126,7 @@ Defined in: [src/lib/db/chat/types.ts:225](https://github.com/zeta-chain/ai-sdk/
 
 **Returns**
 
-`Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md) | `null`>
+`Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
 **Inherited from**
 
@@ -136,13 +136,13 @@ Defined in: [src/lib/db/chat/types.ts:225](https://github.com/zeta-chain/ai-sdk/
 
 ### getConversations()
 
-> **getConversations**: () => `Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md)\[]>
+> **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
 Defined in: [src/lib/db/chat/types.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L226)
 
 **Returns**
 
-`Promise`<[`StoredConversation`](../../react/interfaces/StoredConversation.md)\[]>
+`Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
 **Inherited from**
 
@@ -174,7 +174,7 @@ Defined in: [src/lib/db/chat/types.ts:230](https://github.com/zeta-chain/ai-sdk/
 
 ### getMessages()
 
-> **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../react/interfaces/StoredMessage.md)\[]>
+> **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
 Defined in: [src/lib/db/chat/types.ts:229](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L229)
 
@@ -186,7 +186,7 @@ Defined in: [src/lib/db/chat/types.ts:229](https://github.com/zeta-chain/ai-sdk/
 
 **Returns**
 
-`Promise`<[`StoredMessage`](../../react/interfaces/StoredMessage.md)\[]>
+`Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
 **Inherited from**
 
@@ -289,7 +289,7 @@ Defined in: [src/lib/db/chat/types.ts:227](https://github.com/zeta-chain/ai-sdk/
 
 ### updateMessage()
 
-> **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../react/interfaces/StoredMessage.md) | `null`>
+> **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
 Defined in: [src/expo/useChatStorage.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L99)
 
@@ -304,4 +304,4 @@ Update a message's fields (content, embedding, files, etc). Returns updated mess
 
 **Returns**
 
-`Promise`<[`StoredMessage`](../../react/interfaces/StoredMessage.md) | `null`>
+`Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>

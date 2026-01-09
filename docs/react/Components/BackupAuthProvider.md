@@ -1,6 +1,6 @@
 # BackupAuthProvider()
 
-> **BackupAuthProvider**(`__namedParameters`: [`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md)): `Element`
+> **BackupAuthProvider**(`__namedParameters`: [`BackupAuthProviderProps`](../Internal/interfaces/BackupAuthProviderProps.md)): `Element`
 
 Defined in: [src/react/useBackupAuth.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L147)
 
@@ -14,7 +14,7 @@ refresh tokens for both providers.
 
 | Parameter | Type |
 | ------ | ------ |
-| `__namedParameters` | [`BackupAuthProviderProps`](../interfaces/BackupAuthProviderProps.md) |
+| `__namedParameters` | [`BackupAuthProviderProps`](../Internal/interfaces/BackupAuthProviderProps.md) |
 
 ## Returns
 

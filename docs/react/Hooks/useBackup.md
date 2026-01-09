@@ -1,6 +1,6 @@
 # useBackup()
 
-> **useBackup**(`options`: [`UseBackupOptions`](../interfaces/UseBackupOptions.md)): [`UseBackupResult`](../interfaces/UseBackupResult.md)
+> **useBackup**(`options`: [`UseBackupOptions`](../Internal/interfaces/UseBackupOptions.md)): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
 Defined in: [src/react/useBackup.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L181)
 
@@ -16,11 +16,11 @@ Must be used within a BackupAuthProvider.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | [`UseBackupOptions`](../interfaces/UseBackupOptions.md) |
+| `options` | [`UseBackupOptions`](../Internal/interfaces/UseBackupOptions.md) |
 
 ## Returns
 
-[`UseBackupResult`](../interfaces/UseBackupResult.md)
+[`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
 ## Example
 

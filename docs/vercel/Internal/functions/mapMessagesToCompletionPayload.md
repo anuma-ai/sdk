@@ -1,6 +1,6 @@
 # mapMessagesToCompletionPayload()
 
-> **mapMessagesToCompletionPayload**(`messages`: `UIMessage`<`unknown`, `UIDataTypes`, `UITools`>\[]): [`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)\[]
+> **mapMessagesToCompletionPayload**(`messages`: `UIMessage`<`unknown`, `UIDataTypes`, `UITools`>\[]): [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
 Defined in: [src/vercel/messages.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/messages.ts#L15)
 
@@ -19,6 +19,6 @@ Converts an array of Vercel AI UIMessage objects into the
 
 ## Returns
 
-[`LlmapiMessage`](../../client/type-aliases/LlmapiMessage.md)\[]
+[`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
 A clean array of Portal-ready messages, filtered to user, assistant, and system roles.

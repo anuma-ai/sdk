@@ -51,9 +51,8 @@ function slugDir(s) {
 class MemberCategoryRouter extends MemberRouter {
   getReflectionDirectory(reflection) {
     const category = getCategoryFromReflection(reflection);
-    const dir = category
-      ? slugDir(category)
-      : this.directories.get(reflection.kind);
+    const kindDir = this.directories.get(reflection.kind);
+    const dir = category ? slugDir(category) : `Internal/${kindDir}`;
 
     if (reflection.parent) {
       if (reflection.parent.kind === ReflectionKind.Namespace) {

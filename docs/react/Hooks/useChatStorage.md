@@ -1,6 +1,6 @@
 # useChatStorage()
 
-> **useChatStorage**(`options`: [`UseChatStorageOptions`](../type-aliases/UseChatStorageOptions.md)): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: [`UseChatStorageOptions`](../Internal/type-aliases/UseChatStorageOptions.md)): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 Defined in: [src/react/useChatStorage.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L226)
 
@@ -14,11 +14,11 @@ saved when sent and when responses are received.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`UseChatStorageOptions`](../type-aliases/UseChatStorageOptions.md) | Configuration options |
+| `options` | [`UseChatStorageOptions`](../Internal/type-aliases/UseChatStorageOptions.md) | Configuration options |
 
 ## Returns
 
-[`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
+[`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 An object containing chat state, methods, and storage operations
 

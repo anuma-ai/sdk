@@ -1,6 +1,6 @@
 # useGoogleDriveAuth()
 
-> **useGoogleDriveAuth**(): [`GoogleDriveAuthContextValue`](../interfaces/GoogleDriveAuthContextValue.md)
+> **useGoogleDriveAuth**(): [`GoogleDriveAuthContextValue`](../Internal/interfaces/GoogleDriveAuthContextValue.md)
 
 Defined in: [src/react/useGoogleDriveAuth.ts:219](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L219)
 
@@ -10,7 +10,7 @@ Must be used within a GoogleDriveAuthProvider.
 
 ## Returns
 
-[`GoogleDriveAuthContextValue`](../interfaces/GoogleDriveAuthContextValue.md)
+[`GoogleDriveAuthContextValue`](../Internal/interfaces/GoogleDriveAuthContextValue.md)
 
 ## Example
 

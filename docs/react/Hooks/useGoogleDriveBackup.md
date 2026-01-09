@@ -1,6 +1,6 @@
 # useGoogleDriveBackup()
 
-> **useGoogleDriveBackup**(`options`: [`UseGoogleDriveBackupOptions`](../interfaces/UseGoogleDriveBackupOptions.md)): [`UseGoogleDriveBackupResult`](../interfaces/UseGoogleDriveBackupResult.md)
+> **useGoogleDriveBackup**(`options`: [`UseGoogleDriveBackupOptions`](../Internal/interfaces/UseGoogleDriveBackupOptions.md)): [`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
 
 Defined in: [src/react/useGoogleDriveBackup.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L104)
 
@@ -16,11 +16,11 @@ Must be used within a GoogleDriveAuthProvider.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | [`UseGoogleDriveBackupOptions`](../interfaces/UseGoogleDriveBackupOptions.md) |
+| `options` | [`UseGoogleDriveBackupOptions`](../Internal/interfaces/UseGoogleDriveBackupOptions.md) |
 
 ## Returns
 
-[`UseGoogleDriveBackupResult`](../interfaces/UseGoogleDriveBackupResult.md)
+[`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
 
 ## Example
 

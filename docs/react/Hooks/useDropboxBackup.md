@@ -1,6 +1,6 @@
 # useDropboxBackup()
 
-> **useDropboxBackup**(`options`: [`UseDropboxBackupOptions`](../interfaces/UseDropboxBackupOptions.md)): [`UseDropboxBackupResult`](../interfaces/UseDropboxBackupResult.md)
+> **useDropboxBackup**(`options`: [`UseDropboxBackupOptions`](../Internal/interfaces/UseDropboxBackupOptions.md)): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 
 Defined in: [src/react/useDropboxBackup.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L101)
 
@@ -16,11 +16,11 @@ Must be used within a DropboxAuthProvider.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | [`UseDropboxBackupOptions`](../interfaces/UseDropboxBackupOptions.md) |
+| `options` | [`UseDropboxBackupOptions`](../Internal/interfaces/UseDropboxBackupOptions.md) |
 
 ## Returns
 
-[`UseDropboxBackupResult`](../interfaces/UseDropboxBackupResult.md)
+[`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 
 ## Example
 

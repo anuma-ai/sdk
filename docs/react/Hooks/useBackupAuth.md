@@ -1,6 +1,6 @@
 # useBackupAuth()
 
-> **useBackupAuth**(): [`BackupAuthContextValue`](../interfaces/BackupAuthContextValue.md)
+> **useBackupAuth**(): [`BackupAuthContextValue`](../Internal/interfaces/BackupAuthContextValue.md)
 
 Defined in: [src/react/useBackupAuth.ts:492](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L492)
 
@@ -10,7 +10,7 @@ Must be used within a BackupAuthProvider.
 
 ## Returns
 
-[`BackupAuthContextValue`](../interfaces/BackupAuthContextValue.md)
+[`BackupAuthContextValue`](../Internal/interfaces/BackupAuthContextValue.md)
 
 ## Example
 

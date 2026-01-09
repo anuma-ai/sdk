@@ -1,6 +1,6 @@
 # useModels()
 
-> **useModels**(`options`: [`UseModelsOptions`](../../expo/type-aliases/UseModelsOptions.md)): [`UseModelsResult`](../../expo/type-aliases/UseModelsResult.md)
+> **useModels**(`options`: [`UseModelsOptions`](../../expo/Internal/type-aliases/UseModelsOptions.md)): [`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
 
 Defined in: [src/react/useModels.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L39)
 
@@ -11,8 +11,8 @@ Automatically fetches all available models.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | [`UseModelsOptions`](../../expo/type-aliases/UseModelsOptions.md) |
+| `options` | [`UseModelsOptions`](../../expo/Internal/type-aliases/UseModelsOptions.md) |
 
 ## Returns
 
-[`UseModelsResult`](../../expo/type-aliases/UseModelsResult.md)
+[`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)

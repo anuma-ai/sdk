@@ -1,6 +1,6 @@
 # useSettings()
 
-> **useSettings**(`options`: [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../interfaces/UseSettingsResult.md)
+> **useSettings**(`options`: [`UseSettingsOptions`](../Internal/interfaces/UseSettingsOptions.md)): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
 Defined in: [src/react/useSettings.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L115)
 
@@ -17,11 +17,11 @@ and personality settings in a single table.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`UseSettingsOptions`](../interfaces/UseSettingsOptions.md) | Configuration options |
+| `options` | [`UseSettingsOptions`](../Internal/interfaces/UseSettingsOptions.md) | Configuration options |
 
 ## Returns
 
-[`UseSettingsResult`](../interfaces/UseSettingsResult.md)
+[`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
 An object containing settings state and methods
 

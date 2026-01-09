@@ -1,6 +1,6 @@
 # UseModelsResult
 
-> **UseModelsResult** = { `error`: `Error` | `null`; `isLoading`: `boolean`; `models`: [`LlmapiModel`](../../client/type-aliases/LlmapiModel.md)\[]; `refetch`: () => `Promise`<`void`>; }
+> **UseModelsResult** = { `error`: `Error` | `null`; `isLoading`: `boolean`; `models`: [`LlmapiModel`](../../../client/Internal/type-aliases/LlmapiModel.md)\[]; `refetch`: () => `Promise`<`void`>; }
 
 Defined in: [src/react/useModels.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L27)
 
@@ -24,7 +24,7 @@ Defined in: [src/react/useModels.ts:29](https://github.com/zeta-chain/ai-sdk/blo
 
 ### models
 
-> **models**: [`LlmapiModel`](../../client/type-aliases/LlmapiModel.md)\[]
+> **models**: [`LlmapiModel`](../../../client/Internal/type-aliases/LlmapiModel.md)\[]
 
 Defined in: [src/react/useModels.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L28)
 
