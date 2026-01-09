@@ -403,9 +403,10 @@ export function useChatStorage(
   ]);
 
   /**
-   * Extracts all links from assistant message content and returns them as SearchSource objects.
-   * Parses both markdown links [text](url) and plain URLs from the message content,
-   * then merges them with any existing sources already attached to the message.
+   * Extracts sources from assistant message content and returns them as SearchSource objects.
+   * First attempts to parse a JSON sources block (```json { "sources": [...] }```),
+   * then falls back to parsing markdown links [text](url) and plain URLs.
+   * Merges extracted sources with any existing sources already attached to the message.
    */
   const extractSourcesFromAssistantMessage = useCallback(
     (assistantMessage: {
@@ -431,6 +432,35 @@ export function useChatStorage(
           return extractedSources;
         }
 
+        // Try to extract JSON sources block first
+        // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
+        const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?"sources"[\s\S]*?\})\s*```/;
+        const jsonMatch = jsonBlockRegex.exec(content);
+
+        if (jsonMatch && jsonMatch[1]) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1]);
+            if (Array.isArray(parsed.sources)) {
+              for (const source of parsed.sources) {
+                if (source.url && !seenUrls.has(source.url)) {
+                  seenUrls.add(source.url);
+                  extractedSources.push({
+                    title: source.title || undefined,
+                    url: source.url,
+                    // Map 'description' from JSON to 'snippet' in SearchSource type
+                    snippet: source.description || source.snippet || undefined,
+                  });
+                }
+              }
+              // If we found JSON sources, return them without parsing markdown links
+              return extractedSources;
+            }
+          } catch {
+            // JSON parsing failed, fall through to markdown/URL extraction
+          }
+        }
+
+        // Fallback: Extract markdown links and plain URLs
         // Regex to match markdown links: [title](url) with support for balanced parentheses
         const markdownLinkRegex =
           /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
@@ -916,6 +946,13 @@ export function useChatStorage(
         sources,
       }).filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
 
+      // Strip JSON sources block from content (if present)
+      // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
+      const jsonSourcesBlockRegex = /```(?:json)?\s*\{[\s\S]*?"sources"[\s\S]*?\}\s*```/g;
+      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      // Clean up extra newlines left after stripping
+      cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
+
       // Extract and store MCP images (only if writeFile is provided)
       let processedFiles: {
         id: string;
@@ -923,10 +960,9 @@ export function useChatStorage(
         type: string;
         size: number;
       }[] = [];
-      let cleanedContent = assistantContent;
       if (writeFile) {
         const result = await extractAndStoreMCPImages(
-          assistantContent,
+          cleanedContent,
           writeFile
         );
         processedFiles = result.processedFiles;
