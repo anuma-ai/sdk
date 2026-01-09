@@ -51,6 +51,9 @@ export type UpdateMemoryResult =
 
 // Hook types
 
+/**
+ * @inline
+ */
 export interface BaseUseMemoryStorageOptions {
   database: Database;
   completionsModel?: string;

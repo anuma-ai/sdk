@@ -71,7 +71,11 @@ export {
   clearKeyPair,
   clearAllKeyPairs,
 } from "./useEncryption";
-export type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
+export type {
+  SignMessageFn,
+  EmbeddedWalletSignerFn,
+  UseEncryptionResult,
+} from "./useEncryption";
 
 export { useChatStorage } from "./useChatStorage";
 export type {
@@ -155,12 +159,15 @@ export {
   type ProfileUpdate,
 } from "../lib/db/userPreferences";
 export { usePdf } from "./usePdf";
-export type { PdfFile } from "./usePdf";
+export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
-export type { OCRFile } from "./useOCR";
+export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useModels } from "./useModels";
+export type { UseModelsResult } from "./useModels";
 export { useSearch } from "./useSearch";
+export type { UseSearchResult } from "./useSearch";
 export { useImageGeneration } from "./useImageGeneration";
+export type { UseImageGenerationResult } from "./useImageGeneration";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,

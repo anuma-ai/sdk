@@ -10,6 +10,9 @@ import type {
   LlmapiSearchResult,
 } from "../client";
 
+/**
+ * @inline
+ */
 export type UseSearchOptions = {
   /**
    * Custom function to get auth token for API calls

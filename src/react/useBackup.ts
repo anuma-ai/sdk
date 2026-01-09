@@ -36,6 +36,7 @@ export {
 
 /**
  * Options for useBackup hook
+ * @inline
  */
 export interface UseBackupOptions {
   /** WatermelonDB database instance */

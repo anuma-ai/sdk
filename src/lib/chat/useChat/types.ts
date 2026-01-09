@@ -140,6 +140,7 @@ export type BaseSendMessageResult =
 
 /**
  * Base options for useChat hook
+ * @inline
  */
 export type BaseUseChatOptions = {
   getToken?: () => Promise<string | null>;

@@ -19,6 +19,9 @@ export interface UpdateModelPreferenceOptions {
 
 // Hook types
 
+/**
+ * @inline
+ */
 export interface BaseUseSettingsOptions {
   database: Database;
   walletAddress?: string;

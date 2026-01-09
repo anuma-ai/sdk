@@ -9,10 +9,23 @@ export interface OCRFile {
 }
 
 /**
+ * Result returned by the useOCR hook.
+ * @category Hooks
+ */
+export interface UseOCRResult {
+  /** Extract text from images using OCR */
+  extractOCRContext: (files: OCRFile[]) => Promise<string | null>;
+  /** Whether OCR processing is in progress */
+  isProcessing: boolean;
+  /** Error from the last OCR extraction attempt */
+  error: Error | null;
+}
+
+/**
  * React hook for extracting text from images using OCR.
  * @category Hooks
  */
-export function useOCR() {
+export function useOCR(): UseOCRResult {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 

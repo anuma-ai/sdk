@@ -62,8 +62,9 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
  * Options for useChatStorage hook (Expo version)
  *
  * Uses the base options without React-specific features (no local chat, no tools).
+ * @inline
  */
-export type UseChatStorageOptions = BaseUseChatStorageOptions;
+export interface UseChatStorageOptions extends BaseUseChatStorageOptions {}
 
 /**
  * Arguments for sendMessage with storage (Expo version)

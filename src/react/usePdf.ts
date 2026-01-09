@@ -11,10 +11,23 @@ export interface PdfFile {
 }
 
 /**
+ * Result returned by the usePdf hook.
+ * @category Hooks
+ */
+export interface UsePdfResult {
+  /** Extract text from PDF files */
+  extractPdfContext: (files: PdfFile[]) => Promise<string | null>;
+  /** Whether PDF processing is in progress */
+  isProcessing: boolean;
+  /** Error from the last PDF extraction attempt */
+  error: Error | null;
+}
+
+/**
  * React hook for extracting text from PDF files.
  * @category Hooks
  */
-export function usePdf() {
+export function usePdf(): UsePdfResult {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 

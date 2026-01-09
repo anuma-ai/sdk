@@ -32,6 +32,7 @@ import {
 
 /**
  * Options for useSettings hook (React version)
+ * @inline
  */
 export interface UseSettingsOptions extends BaseUseSettingsOptions {}
 

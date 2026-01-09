@@ -71,32 +71,53 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
  * Options for useChatStorage hook (React version)
  *
  * Extends base options with apiType support.
+ * @inline
  */
-export type UseChatStorageOptions = BaseUseChatStorageOptions & {
+export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   /**
    * Which API endpoint to use. Default: "responses"
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
-};
+}
 
 /**
  * Arguments for sendMessage with storage (React version)
  *
  * Extends base arguments with headers and apiType support.
+ * @inline
  */
 export interface SendMessageWithStorageArgs
   extends BaseSendMessageWithStorageArgs {
-  /** Custom headers */
-  headers?: Record<string, string>;
   /**
-   * Override the API type for this request only.
-   * Useful when different models need different APIs.
-   * @default Uses the hook-level apiType or "responses"
+   * Custom HTTP headers to include with the API request.
+   * Useful for passing additional authentication, tracking, or feature flags.
+   */
+  headers?: Record<string, string>;
+
+  /**
+   * Override the API type for this specific request.
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   *
+   * Useful when different models need different APIs within the same hook instance.
    */
   apiType?: ApiType;
-  /** Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed. */
+
+  /**
+   * Function to write files to storage (for MCP image processing).
+   * When provided, MCP-generated images in the response are automatically
+   * downloaded and stored locally via this function. The content is updated
+   * with placeholders that can be resolved to the stored files.
+   *
+   * If not provided, MCP images remain as URLs in the response content.
+   *
+   * @param fileId - Unique identifier for the file
+   * @param blob - The file content as a Blob
+   * @param options - Optional progress callback and abort signal
+   * @returns Promise resolving to the stored file URL/path
+   */
   writeFile?: (
     fileId: string,
     blob: Blob,
@@ -142,7 +163,34 @@ export interface SearchMessagesOptions {
  * Extends base result with React-specific sendMessage signature.
  */
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
-  /** Send a message and automatically store it */
+  /**
+   * Sends a message to the AI and automatically persists both the user message
+   * and assistant response to the database.
+   *
+   * This method handles the complete message lifecycle:
+   * 1. Ensures a conversation exists (creates one if `autoCreateConversation` is enabled)
+   * 2. Optionally includes conversation history for context
+   * 3. Stores the user message before sending
+   * 4. Streams the response via the underlying `useChat` hook
+   * 5. Stores the assistant response (including usage stats, sources, and thinking)
+   * 6. Handles abort/error states gracefully
+   *
+   * @example
+   * ```ts
+   * const result = await sendMessage({
+   *   content: "Explain quantum computing",
+   *   model: "gpt-4o",
+   *   includeHistory: true,
+   *   onData: (chunk) => setStreamingText(prev => prev + chunk),
+   * });
+   *
+   * if (result.error) {
+   *   console.error("Failed:", result.error);
+   * } else {
+   *   console.log("Stored message ID:", result.assistantMessage.uniqueId);
+   * }
+   * ```
+   */
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;

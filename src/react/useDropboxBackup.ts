@@ -16,6 +16,7 @@ export { DEFAULT_BACKUP_FOLDER };
 
 /**
  * Options for useDropboxBackup hook
+ * @inline
  */
 export interface UseDropboxBackupOptions {
   /** WatermelonDB database instance */

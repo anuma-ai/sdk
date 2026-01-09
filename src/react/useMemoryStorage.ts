@@ -47,8 +47,9 @@ import {
  * Options for useMemoryStorage hook (React version)
  *
  * Uses the base options. React-specific features can be added here if needed.
+ * @inline
  */
-export type UseMemoryStorageOptions = BaseUseMemoryStorageOptions;
+export interface UseMemoryStorageOptions extends BaseUseMemoryStorageOptions {}
 
 /**
  * Result returned by useMemoryStorage hook (React version)

@@ -8,6 +8,9 @@ import type {
   LlmapiImageGenerationResponse,
 } from "../client";
 
+/**
+ * @inline
+ */
 export type UseImageGenerationOptions = {
   /**
    * Custom function to get auth token for API calls

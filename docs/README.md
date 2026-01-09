@@ -79,13 +79,13 @@ const response = await postApiV1Responses({
 The SDK provides everything you need to integrate AI capabilities into your
 applications:
 
-- **Chat completions** with streaming support and tool calling
-- **Image generation** from text prompts
-- **Text embeddings** for semantic search
-- **Web search** integration
-- **PDF and image text extraction** (OCR)
-- **Memory and context management** for conversational AI
-- **Wallet-based encryption** for secure data storage
+* **Chat completions** with streaming support and tool calling
+* **Image generation** from text prompts
+* **Text embeddings** for semantic search
+* **Web search** integration
+* **PDF and image text extraction** (OCR)
+* **Memory and context management** for conversational AI
+* **Wallet-based encryption** for secure data storage
 
 ## Documentation
 
