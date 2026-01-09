@@ -90,14 +90,34 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
  */
 export interface SendMessageWithStorageArgs
   extends BaseSendMessageWithStorageArgs {
-  /** Custom headers */
-  headers?: Record<string, string>;
   /**
-   * Override the API type for this request only.
-   * Useful when different models need different APIs.
+   * Custom HTTP headers to include with the API request.
+   * Useful for passing additional authentication, tracking, or feature flags.
+   */
+  headers?: Record<string, string>;
+
+  /**
+   * Override the API type for this specific request.
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   *
+   * Useful when different models need different APIs within the same hook instance.
    */
   apiType?: ApiType;
-  /** Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed. */
+
+  /**
+   * Function to write files to storage (for MCP image processing).
+   * When provided, MCP-generated images in the response are automatically
+   * downloaded and stored locally via this function. The content is updated
+   * with placeholders that can be resolved to the stored files.
+   *
+   * If not provided, MCP images remain as URLs in the response content.
+   *
+   * @param fileId - Unique identifier for the file
+   * @param blob - The file content as a Blob
+   * @param options - Optional progress callback and abort signal
+   * @returns Promise resolving to the stored file URL/path
+   */
   writeFile?: (
     fileId: string,
     blob: Blob,

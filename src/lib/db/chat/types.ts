@@ -145,62 +145,150 @@ export interface BaseUseChatStorageOptions {
   onError?: (error: Error) => void;
 }
 
+/**
+ * Base arguments for sending a message with automatic storage.
+ *
+ * These arguments control both the AI request and how the message
+ * is persisted to the local database.
+ * @inline
+ */
 export interface BaseSendMessageWithStorageArgs {
+  /**
+   * The text content of the message to send to the AI.
+   */
   content: string;
+
+  /**
+   * The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
+   * If not specified, uses the default model configured on the server.
+   */
   model?: string;
+
+  /**
+   * Pre-built message array to send instead of using conversation history.
+   * When provided, `includeHistory` is ignored and these messages are used directly.
+   * Useful for custom message construction or when you need full control over context.
+   */
   messages?: LlmapiMessage[];
+
+  /**
+   * Whether to automatically include previous messages from the conversation as context.
+   * When true, fetches stored messages and prepends them to the request.
+   * Ignored if `messages` is provided.
+   * @default true
+   */
   includeHistory?: boolean;
+
+  /**
+   * Maximum number of historical messages to include when `includeHistory` is true.
+   * Only the most recent N messages are included to manage context window size.
+   * @default 50
+   */
   maxHistoryMessages?: number;
+
+  /**
+   * File attachments to include with the message (images, documents, etc.).
+   * Files with image MIME types and URLs are sent as image content parts.
+   * File metadata is stored with the message (URLs are stripped if they're data URIs).
+   */
   files?: FileMetadata[];
+
+  /**
+   * Per-request callback invoked with each streamed response chunk.
+   * Overrides the hook-level `onData` callback for this request only.
+   * Use this to update UI as the response streams in.
+   */
   onData?: (chunk: string) => void;
+
+  /**
+   * Additional context from memory/RAG system to include in the request.
+   * Typically contains retrieved relevant information from past conversations.
+   */
   memoryContext?: string;
+
+  /**
+   * Additional context from search results to include in the request.
+   * Typically contains relevant information from web or document searches.
+   */
   searchContext?: string;
+
+  /**
+   * Search sources to attach to the stored message for citation/reference.
+   * These are combined with any sources extracted from the assistant's response.
+   */
   sources?: SearchSource[];
+
+  /**
+   * Activity phases for tracking the request lifecycle in the UI.
+   * Each phase represents a step like "Searching", "Thinking", "Generating".
+   * The final phase is automatically marked as completed when stored.
+   */
   thoughtProcess?: ActivityPhase[];
+
   // Responses API options
+
   /**
    * Whether to store the response server-side.
    * When true, the response can be retrieved later using the response ID.
    */
   store?: boolean;
+
   /**
    * ID of a previous response to continue from.
    * Enables multi-turn conversations without resending full history.
    */
   previousResponseId?: string;
+
   /**
    * Conversation ID for grouping related responses on the server.
    */
   serverConversation?: string;
+
   /**
    * Controls randomness in the response (0.0 to 2.0).
+   * Lower values make output more deterministic, higher values more creative.
    */
   temperature?: number;
+
   /**
    * Maximum number of tokens to generate in the response.
+   * Use this to limit response length and control costs.
    */
   maxOutputTokens?: number;
+
   /**
    * Array of tool definitions available to the model.
+   * Tools enable the model to call functions, search, execute code, etc.
    */
   tools?: LlmapiTool[];
+
   /**
-   * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
+   * Controls which tool the model should use:
+   * - "auto": Model decides whether to use a tool (default)
+   * - "any": Model must use one of the provided tools
+   * - "none": Model cannot use any tools
+   * - "required": Model must use a tool
+   * - Specific tool name: Model must use that specific tool
    */
   toolChoice?: string;
+
   /**
    * Reasoning configuration for o-series and other reasoning models.
-   * Controls reasoning effort and summary output.
+   * Controls reasoning effort level and whether to include reasoning summary.
    */
   reasoning?: LlmapiResponseReasoning;
+
   /**
    * Extended thinking configuration for Anthropic models (Claude).
-   * Enables the model to think through complex problems step by step.
+   * Enables the model to think through complex problems step by step
+   * before generating the final response.
    */
   thinking?: LlmapiThinkingOptions;
+
   /**
    * Per-request callback for thinking/reasoning chunks.
    * Called with delta chunks as the model "thinks" through a problem.
+   * Use this to display thinking progress in the UI.
    */
   onThinking?: (chunk: string) => void;
 }
