@@ -154,22 +154,50 @@ export interface BaseUseChatStorageOptions {
  */
 export interface BaseSendMessageWithStorageArgs {
   /**
-   * The text content of the message to send to the AI.
+   * The message array to send to the AI.
+   *
+   * Uses the modern array format that supports multimodal content (text, images, files).
+   * The last user message in this array will be extracted and stored in the database.
+   *
+   * When `includeHistory` is true (default), conversation history is prepended.
+   * When `includeHistory` is false, only these messages are sent.
+   *
+   * @example
+   * ```ts
+   * // Simple usage
+   * sendMessage({
+   *   messages: [
+   *     { role: "user", content: [{ type: "text", text: "Hello!" }] }
+   *   ]
+   * })
+   *
+   * // With system prompt and history disabled
+   * sendMessage({
+   *   messages: [
+   *     { role: "system", content: [{ type: "text", text: "You are helpful" }] },
+   *     { role: "user", content: [{ type: "text", text: "Question" }] },
+   *   ],
+   *   includeHistory: false
+   * })
+   *
+   * // With images
+   * sendMessage({
+   *   messages: [
+   *     { role: "user", content: [
+   *       { type: "text", text: "What's in this image?" },
+   *       { type: "image_url", image_url: { url: "data:image/png;base64,..." } }
+   *     ]}
+   *   ]
+   * })
+   * ```
    */
-  content: string;
+  messages: LlmapiMessage[];
 
   /**
    * The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
    * If not specified, uses the default model configured on the server.
    */
   model?: string;
-
-  /**
-   * Pre-built message array to send instead of using conversation history.
-   * When provided, `includeHistory` is ignored and these messages are used directly.
-   * Useful for custom message construction or when you need full control over context.
-   */
-  messages?: LlmapiMessage[];
 
   /**
    * Whether to automatically include previous messages from the conversation as context.
@@ -359,4 +387,63 @@ export function finalizeThoughtProcess(
       ? { ...phase, status: "completed" as const }
       : phase
   );
+}
+
+/**
+ * Result of extracting user message content from a messages array.
+ */
+export interface ExtractedUserMessage {
+  /** The extracted text content */
+  content: string;
+  /** File metadata extracted from image_url parts */
+  files?: FileMetadata[];
+}
+
+/**
+ * Extracts the text content and files from the last user message in a messages array.
+ * Used for storing the user's message when `content` is not provided.
+ *
+ * @param messages - The messages array to extract from
+ * @returns The extracted content and files, or null if no user message found
+ */
+export function extractUserMessageFromMessages(
+  messages?: LlmapiMessage[]
+): ExtractedUserMessage | null {
+  if (!messages || messages.length === 0) {
+    return null;
+  }
+
+  // Find the last user message
+  const userMessages = messages.filter((m) => m.role === "user");
+  const lastUserMessage = userMessages[userMessages.length - 1];
+
+  if (!lastUserMessage || !lastUserMessage.content) {
+    return null;
+  }
+
+  // Extract text parts
+  const textParts: string[] = [];
+  const files: FileMetadata[] = [];
+
+  for (const part of lastUserMessage.content) {
+    if (part.type === "text" && part.text) {
+      textParts.push(part.text);
+    } else if (part.type === "image_url" && part.image_url?.url) {
+      // Generate a file ID for the image
+      files.push({
+        id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        name: "image",
+        type: "image/unknown",
+        size: 0,
+        url: part.image_url.url,
+      });
+    }
+  }
+
+  const content = textParts.join("\n");
+
+  return {
+    content,
+    files: files.length > 0 ? files : undefined,
+  };
 }
