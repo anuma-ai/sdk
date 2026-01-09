@@ -1,0 +1,184 @@
+{
+  "memories": [
+    {
+      "id": "mem-001",
+      "type": "identity",
+      "namespace": "personal",
+      "key": "name",
+      "value": "Alex Chen",
+      "rawEvidence": "My name is Alex Chen",
+      "confidence": 0.95
+    },
+    {
+      "id": "mem-002",
+      "type": "identity",
+      "namespace": "work",
+      "key": "employer",
+      "value": "Acme Technologies",
+      "rawEvidence": "I work at Acme Technologies as a software engineer",
+      "confidence": 0.92
+    },
+    {
+      "id": "mem-003",
+      "type": "identity",
+      "namespace": "work",
+      "key": "role",
+      "value": "software engineer",
+      "rawEvidence": "I work at Acme Technologies as a software engineer",
+      "confidence": 0.90
+    },
+    {
+      "id": "mem-004",
+      "type": "preference",
+      "namespace": "food",
+      "key": "favorite_cuisine",
+      "value": "Italian",
+      "rawEvidence": "I love Italian food, especially pasta and pizza",
+      "confidence": 0.88
+    },
+    {
+      "id": "mem-005",
+      "type": "preference",
+      "namespace": "food",
+      "key": "dietary_restriction",
+      "value": "vegetarian",
+      "rawEvidence": "I've been vegetarian for 5 years now",
+      "confidence": 0.95
+    },
+    {
+      "id": "mem-006",
+      "type": "preference",
+      "namespace": "color",
+      "key": "favorite",
+      "value": "blue",
+      "rawEvidence": "Blue is my favorite color, I wear it all the time",
+      "confidence": 0.85
+    },
+    {
+      "id": "mem-007",
+      "type": "preference",
+      "namespace": "music",
+      "key": "genre",
+      "value": "jazz",
+      "rawEvidence": "I listen to jazz music when I'm working",
+      "confidence": 0.82
+    },
+    {
+      "id": "mem-008",
+      "type": "project",
+      "namespace": "current",
+      "key": "main_project",
+      "value": "AI chatbot",
+      "rawEvidence": "I'm currently building an AI chatbot for customer support",
+      "confidence": 0.91
+    },
+    {
+      "id": "mem-009",
+      "type": "project",
+      "namespace": "current",
+      "key": "tech_stack",
+      "value": "TypeScript, React, Node.js",
+      "rawEvidence": "We're using TypeScript with React on the frontend and Node.js for the backend",
+      "confidence": 0.88
+    },
+    {
+      "id": "mem-010",
+      "type": "skill",
+      "namespace": "programming",
+      "key": "primary_language",
+      "value": "TypeScript",
+      "rawEvidence": "TypeScript is my main programming language",
+      "confidence": 0.93
+    },
+    {
+      "id": "mem-011",
+      "type": "skill",
+      "namespace": "programming",
+      "key": "secondary_language",
+      "value": "Python",
+      "rawEvidence": "I also use Python for data analysis and machine learning projects",
+      "confidence": 0.87
+    },
+    {
+      "id": "mem-012",
+      "type": "skill",
+      "namespace": "tools",
+      "key": "editor",
+      "value": "VS Code",
+      "rawEvidence": "VS Code is my preferred code editor",
+      "confidence": 0.90
+    },
+    {
+      "id": "mem-013",
+      "type": "constraint",
+      "namespace": "availability",
+      "key": "timezone",
+      "value": "PST",
+      "rawEvidence": "I'm based in San Francisco, so PST timezone",
+      "confidence": 0.94
+    },
+    {
+      "id": "mem-014",
+      "type": "constraint",
+      "namespace": "availability",
+      "key": "working_hours",
+      "value": "9am-5pm",
+      "rawEvidence": "I usually work from 9 to 5",
+      "confidence": 0.80
+    },
+    {
+      "id": "mem-015",
+      "type": "identity",
+      "namespace": "location",
+      "key": "city",
+      "value": "San Francisco",
+      "rawEvidence": "I'm based in San Francisco, so PST timezone",
+      "confidence": 0.94
+    },
+    {
+      "id": "mem-016",
+      "type": "preference",
+      "namespace": "communication",
+      "key": "style",
+      "value": "concise",
+      "rawEvidence": "I prefer concise and direct communication",
+      "confidence": 0.86
+    },
+    {
+      "id": "mem-017",
+      "type": "preference",
+      "namespace": "coffee",
+      "key": "type",
+      "value": "espresso",
+      "rawEvidence": "I start every morning with a double espresso",
+      "confidence": 0.89
+    },
+    {
+      "id": "mem-018",
+      "type": "skill",
+      "namespace": "frameworks",
+      "key": "frontend",
+      "value": "React",
+      "rawEvidence": "React is my go-to framework for frontend development",
+      "confidence": 0.92
+    },
+    {
+      "id": "mem-019",
+      "type": "project",
+      "namespace": "past",
+      "key": "notable_project",
+      "value": "E-commerce platform",
+      "rawEvidence": "Last year I built an e-commerce platform that handles millions of transactions",
+      "confidence": 0.85
+    },
+    {
+      "id": "mem-020",
+      "type": "preference",
+      "namespace": "learning",
+      "key": "style",
+      "value": "hands-on",
+      "rawEvidence": "I learn best by doing, not just reading documentation",
+      "confidence": 0.78
+    }
+  ]
+}

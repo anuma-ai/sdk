@@ -1,0 +1,124 @@
+{
+  "queries": [
+    {
+      "id": "query-001",
+      "query": "What is the user's name?",
+      "relevantMemoryIds": ["mem-001"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-002",
+      "query": "Where does the user work?",
+      "relevantMemoryIds": ["mem-002", "mem-003"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-003",
+      "query": "What kind of food does the user like?",
+      "relevantMemoryIds": ["mem-004", "mem-005"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-004",
+      "query": "What programming languages does the user know?",
+      "relevantMemoryIds": ["mem-010", "mem-011"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-005",
+      "query": "What is the user currently working on?",
+      "relevantMemoryIds": ["mem-008", "mem-009"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-006",
+      "query": "When is the user available for meetings?",
+      "relevantMemoryIds": ["mem-013", "mem-014"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-007",
+      "query": "What technology stack does the user use?",
+      "relevantMemoryIds": ["mem-009", "mem-010", "mem-018"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-008",
+      "query": "What are the user's dietary preferences?",
+      "relevantMemoryIds": ["mem-005"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-009",
+      "query": "What city does the user live in?",
+      "relevantMemoryIds": ["mem-015", "mem-013"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-010",
+      "query": "What development tools does the user prefer?",
+      "relevantMemoryIds": ["mem-012", "mem-018"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-011",
+      "query": "What is the user's job title?",
+      "relevantMemoryIds": ["mem-003"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-012",
+      "query": "What projects has the user worked on?",
+      "relevantMemoryIds": ["mem-008", "mem-019"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-013",
+      "query": "How does the user prefer to communicate?",
+      "relevantMemoryIds": ["mem-016"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-014",
+      "query": "What does the user drink in the morning?",
+      "relevantMemoryIds": ["mem-017"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-015",
+      "query": "How does the user learn new things?",
+      "relevantMemoryIds": ["mem-020"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-016",
+      "query": "What music does the user listen to while working?",
+      "relevantMemoryIds": ["mem-007"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-017",
+      "query": "What is the user's favorite color?",
+      "relevantMemoryIds": ["mem-006"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "query-018",
+      "query": "Tell me about the user's professional background",
+      "relevantMemoryIds": ["mem-002", "mem-003", "mem-010", "mem-019"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "query-019",
+      "query": "What frontend technologies is the user experienced with?",
+      "relevantMemoryIds": ["mem-009", "mem-018"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "query-020",
+      "query": "What are the user's personal preferences?",
+      "relevantMemoryIds": ["mem-004", "mem-005", "mem-006", "mem-007", "mem-016", "mem-017", "mem-020"],
+      "difficulty": "hard"
+    }
+  ]
+}
