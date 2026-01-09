@@ -25,7 +25,7 @@ React hook for generating images using the LLM API.
 </td>
 <td>
 
-{ `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiImageGenerationResponse`](../../client/Internal/type-aliases/LlmapiImageGenerationResponse.md)) => `void`; }
+`object`
 
 </td>
 <td>

@@ -29,7 +29,7 @@ and can be searched using semantic similarity.
 </td>
 <td>
 
-{ `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }
+`object`
 
 </td>
 <td>

@@ -32,7 +32,7 @@ and personality settings in a single table.
 </td>
 <td>
 
-{ `database`: `Database`; `walletAddress?`: `string`; }
+`object`
 
 </td>
 <td>

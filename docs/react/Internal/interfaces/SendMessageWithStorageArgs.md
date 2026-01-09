@@ -16,16 +16,10 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L100)
+Defined in: [src/react/useChatStorage.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L99)
 
 Override the API type for this request only.
 Useful when different models need different APIs.
-
-**Default**
-
-```ts
-Uses the hook-level apiType or "responses"
-```
 
 ***
 
@@ -378,7 +372,7 @@ Array of tool definitions available to the model.
 
 > `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: `object`) => `Promise`<`string`>
 
-Defined in: [src/react/useChatStorage.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L102)
+Defined in: [src/react/useChatStorage.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L101)
 
 Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed.
 
@@ -424,7 +418,7 @@ Function to write files to storage (for MCP image processing). Optional - if not
 </td>
 <td>
 
-{ `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; }
+`object`
 
 </td>
 </tr>

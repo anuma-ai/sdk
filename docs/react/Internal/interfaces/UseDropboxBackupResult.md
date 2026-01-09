@@ -32,7 +32,7 @@ Backup all conversations to Dropbox
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>
@@ -103,7 +103,7 @@ Restore conversations from Dropbox
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>

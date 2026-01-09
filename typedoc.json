@@ -26,8 +26,10 @@
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter",
     "typedoc-plugin-remark",
-    "./scripts/typedoc-router-member-category.mjs"
+    "./scripts/typedoc-router-member-category.mjs",
+    "./scripts/typedoc-theme-collapsed-params.mjs"
   ],
+  "theme": "collapsed-params",
   "exclude": [
     "**/*.test.ts",
     "**/*.test.tsx",

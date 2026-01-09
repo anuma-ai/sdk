@@ -26,7 +26,7 @@ Automatically fetches all available models.
 </td>
 <td>
 
-{ `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }
+`object`
 
 </td>
 <td>

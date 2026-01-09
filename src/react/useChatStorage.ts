@@ -95,7 +95,6 @@ export interface SendMessageWithStorageArgs
   /**
    * Override the API type for this request only.
    * Useful when different models need different APIs.
-   * @default Uses the hook-level apiType or "responses"
    */
   apiType?: ApiType;
   /** Function to write files to storage (for MCP image processing). Optional - if not provided, MCP images won't be processed. */

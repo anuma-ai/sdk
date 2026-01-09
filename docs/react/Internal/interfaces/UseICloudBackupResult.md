@@ -32,7 +32,7 @@ Backup all conversations to iCloud
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>
@@ -113,7 +113,7 @@ Restore conversations from iCloud
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>

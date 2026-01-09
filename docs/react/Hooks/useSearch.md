@@ -25,7 +25,7 @@ React hook for performing search operations using the AI SDK.
 </td>
 <td>
 
-{ `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; }
+`object`
 
 </td>
 <td>

@@ -31,7 +31,7 @@ Must be used within a DropboxAuthProvider.
 </td>
 <td>
 
-{ `backupFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }
+`object`
 
 </td>
 <td>

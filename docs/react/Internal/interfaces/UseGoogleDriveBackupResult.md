@@ -32,7 +32,7 @@ Backup all conversations to Google Drive
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>
@@ -103,7 +103,7 @@ Restore conversations from Google Drive
 </td>
 <td>
 
-{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }
+`object`
 
 </td>
 </tr>

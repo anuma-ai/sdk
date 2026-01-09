@@ -173,7 +173,7 @@ Extract all links from assistant message content as SearchSource objects
 </td>
 <td>
 
-{ `content`: `string`; `sources?`: [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]; }
+`object`
 
 </td>
 </tr>
