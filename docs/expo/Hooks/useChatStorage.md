@@ -50,7 +50,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Automatically create a new conversation if none is set (default: true)
 
 </td>
 </tr>
@@ -67,7 +67,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Base URL for the chat API endpoint
 
 </td>
 </tr>
@@ -84,7 +84,7 @@ Configuration options
 </td>
 <td>
 
-‐
+ID of an existing conversation to load and continue
 
 </td>
 </tr>
@@ -101,7 +101,7 @@ Configuration options
 </td>
 <td>
 
-‐
+WatermelonDB database instance for storing conversations and messages
 
 </td>
 </tr>
@@ -118,7 +118,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Title for auto-created conversations (default: "New conversation")
 
 </td>
 </tr>
@@ -135,7 +135,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Function to retrieve the auth token for API requests
 
 </td>
 </tr>
@@ -152,7 +152,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Callback invoked with each streamed response chunk
 
 </td>
 </tr>
@@ -169,7 +169,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Callback invoked when an error occurs during the request
 
 </td>
 </tr>
@@ -186,7 +186,7 @@ Configuration options
 </td>
 <td>
 
-‐
+Callback invoked when the response completes successfully
 
 </td>
 </tr>

@@ -125,14 +125,23 @@ export interface UpdateMessageOptions {
  * @inline
  */
 export interface BaseUseChatStorageOptions {
+  /** WatermelonDB database instance for storing conversations and messages */
   database: Database;
+  /** ID of an existing conversation to load and continue */
   conversationId?: string;
+  /** Automatically create a new conversation if none is set (default: true) */
   autoCreateConversation?: boolean;
+  /** Title for auto-created conversations (default: "New conversation") */
   defaultConversationTitle?: string;
+  /** Function to retrieve the auth token for API requests */
   getToken?: () => Promise<string | null>;
+  /** Base URL for the chat API endpoint */
   baseUrl?: string;
+  /** Callback invoked with each streamed response chunk */
   onData?: (chunk: string) => void;
+  /** Callback invoked when the response completes successfully */
   onFinish?: (response: LlmapiResponseResponse) => void;
+  /** Callback invoked when an error occurs during the request */
   onError?: (error: Error) => void;
 }
 

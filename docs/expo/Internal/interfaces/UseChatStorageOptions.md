@@ -16,7 +16,9 @@ Uses the base options without React-specific features (no local chat, no tools).
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L130)
+Defined in: [src/lib/db/chat/types.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L133)
+
+Automatically create a new conversation if none is set (default: true)
 
 **Inherited from**
 
@@ -28,7 +30,9 @@ Defined in: [src/lib/db/chat/types.ts:130](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L133)
+Defined in: [src/lib/db/chat/types.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L139)
+
+Base URL for the chat API endpoint
 
 **Inherited from**
 
@@ -40,7 +44,9 @@ Defined in: [src/lib/db/chat/types.ts:133](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L129)
+Defined in: [src/lib/db/chat/types.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L131)
+
+ID of an existing conversation to load and continue
 
 **Inherited from**
 
@@ -52,7 +58,9 @@ Defined in: [src/lib/db/chat/types.ts:129](https://github.com/zeta-chain/ai-sdk/
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/types.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L128)
+Defined in: [src/lib/db/chat/types.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L129)
+
+WatermelonDB database instance for storing conversations and messages
 
 **Inherited from**
 
@@ -64,7 +72,9 @@ Defined in: [src/lib/db/chat/types.ts:128](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L131)
+Defined in: [src/lib/db/chat/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L135)
+
+Title for auto-created conversations (default: "New conversation")
 
 **Inherited from**
 
@@ -76,7 +86,9 @@ Defined in: [src/lib/db/chat/types.ts:131](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L132)
+Defined in: [src/lib/db/chat/types.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L137)
+
+Function to retrieve the auth token for API requests
 
 **Returns**
 
@@ -92,7 +104,9 @@ Defined in: [src/lib/db/chat/types.ts:132](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L134)
+Defined in: [src/lib/db/chat/types.ts:141](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L141)
+
+Callback invoked with each streamed response chunk
 
 **Parameters**
 
@@ -133,7 +147,9 @@ Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L136)
+Defined in: [src/lib/db/chat/types.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L145)
+
+Callback invoked when an error occurs during the request
 
 **Parameters**
 
@@ -174,7 +190,9 @@ Defined in: [src/lib/db/chat/types.ts:136](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **onFinish**: (`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L135)
+Defined in: [src/lib/db/chat/types.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L143)
+
+Callback invoked when the response completes successfully
 
 **Parameters**
 

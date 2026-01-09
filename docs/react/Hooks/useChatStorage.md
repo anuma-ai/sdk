@@ -71,7 +71,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Automatically create a new conversation if none is set (default: true)
 
 </td>
 </tr>
@@ -88,7 +88,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Base URL for the chat API endpoint
 
 </td>
 </tr>
@@ -105,7 +105,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+ID of an existing conversation to load and continue
 
 </td>
 </tr>
@@ -122,7 +122,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+WatermelonDB database instance for storing conversations and messages
 
 </td>
 </tr>
@@ -139,7 +139,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Title for auto-created conversations (default: "New conversation")
 
 </td>
 </tr>
@@ -156,7 +156,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Function to retrieve the auth token for API requests
 
 </td>
 </tr>
@@ -173,7 +173,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Callback invoked with each streamed response chunk
 
 </td>
 </tr>
@@ -190,7 +190,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Callback invoked when an error occurs during the request
 
 </td>
 </tr>
@@ -207,7 +207,7 @@ Which API endpoint to use. Default: "responses"
 </td>
 <td>
 
-‐
+Callback invoked when the response completes successfully
 
 </td>
 </tr>
