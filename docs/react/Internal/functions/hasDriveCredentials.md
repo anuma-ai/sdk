@@ -1,4 +1,4 @@
-# hasDriveCredentials()
+# hasDriveCredentials
 
 > **hasDriveCredentials**(): `boolean`
 

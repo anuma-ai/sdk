@@ -1,4 +1,4 @@
-# postAuthOauthByProviderRefresh()
+# postAuthOauthByProviderRefresh
 
 > **postAuthOauthByProviderRefresh**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderRefreshData`](../type-aliases/PostAuthOauthByProviderRefreshData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderRefreshResponses`](../type-aliases/PostAuthOauthByProviderRefreshResponses.md), [`PostAuthOauthByProviderRefreshErrors`](../type-aliases/PostAuthOauthByProviderRefreshErrors.md), `ThrowOnError`>
 

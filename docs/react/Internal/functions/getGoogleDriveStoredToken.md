@@ -1,4 +1,4 @@
-# getGoogleDriveStoredToken()
+# getGoogleDriveStoredToken
 
 > **getGoogleDriveStoredToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 

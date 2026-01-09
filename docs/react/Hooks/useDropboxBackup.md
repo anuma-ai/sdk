@@ -1,4 +1,4 @@
-# useDropboxBackup()
+# useDropboxBackup
 
 > **useDropboxBackup**(`options`: { `backupFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 

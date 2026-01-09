@@ -1,4 +1,4 @@
-# useImageGeneration()
+# useImageGeneration
 
 > **useImageGeneration**(`options`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiImageGenerationResponse`](../../client/Internal/type-aliases/LlmapiImageGenerationResponse.md)) => `void`; }): `UseImageGenerationResult`
 

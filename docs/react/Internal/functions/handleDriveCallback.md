@@ -1,4 +1,4 @@
-# handleDriveCallback()
+# handleDriveCallback
 
 > **handleDriveCallback**(`callbackPath`: `string`, `apiClient?`: `Client`): `Promise`<`string` | `null`>
 

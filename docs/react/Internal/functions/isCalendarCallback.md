@@ -1,4 +1,4 @@
-# isCalendarCallback()
+# isCalendarCallback
 
 > **isCalendarCallback**(`callbackPath`: `string`): `boolean`
 

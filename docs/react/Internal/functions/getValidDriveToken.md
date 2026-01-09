@@ -1,4 +1,4 @@
-# getValidDriveToken()
+# getValidDriveToken
 
 > **getValidDriveToken**(): `string` | `null`
 

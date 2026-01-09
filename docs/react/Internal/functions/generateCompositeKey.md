@@ -1,4 +1,4 @@
-# generateCompositeKey()
+# generateCompositeKey
 
 > **generateCompositeKey**(`namespace`: `string`, `key`: `string`): `string`
 

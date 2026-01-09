@@ -1,4 +1,4 @@
-# generateConversationId()
+# generateConversationId
 
 > **generateConversationId**(): `string`
 

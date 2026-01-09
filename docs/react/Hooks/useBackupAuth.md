@@ -1,8 +1,8 @@
-# useBackupAuth()
+# useBackupAuth
 
 > **useBackupAuth**(): [`BackupAuthContextValue`](../Internal/interfaces/BackupAuthContextValue.md)
 
-Defined in: [src/react/useBackupAuth.ts:492](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L492)
+Defined in: [src/react/useBackupAuth.ts:523](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L523)
 
 Hook to access unified backup authentication state and methods.
 

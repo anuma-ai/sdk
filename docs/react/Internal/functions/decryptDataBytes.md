@@ -1,4 +1,4 @@
-# decryptDataBytes()
+# decryptDataBytes
 
 > **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 

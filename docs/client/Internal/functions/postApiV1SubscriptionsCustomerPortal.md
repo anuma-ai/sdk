@@ -1,4 +1,4 @@
-# postApiV1SubscriptionsCustomerPortal()
+# postApiV1SubscriptionsCustomerPortal
 
 > **postApiV1SubscriptionsCustomerPortal**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCustomerPortalData`](../type-aliases/PostApiV1SubscriptionsCustomerPortalData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCustomerPortalResponses`](../type-aliases/PostApiV1SubscriptionsCustomerPortalResponses.md), [`PostApiV1SubscriptionsCustomerPortalErrors`](../type-aliases/PostApiV1SubscriptionsCustomerPortalErrors.md), `ThrowOnError`>
 

@@ -1,4 +1,4 @@
-# clearAllKeyPairs()
+# clearAllKeyPairs
 
 > **clearAllKeyPairs**(): `void`
 

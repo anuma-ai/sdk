@@ -1,4 +1,4 @@
-# getAndClearCalendarPendingMessage()
+# getAndClearCalendarPendingMessage
 
 > **getAndClearCalendarPendingMessage**(): `string` | `null`
 

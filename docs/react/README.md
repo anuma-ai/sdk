@@ -53,15 +53,6 @@ function ChatComponent() {
 }
 ```
 
-## Components
-
-| Function | Description |
-| ------ | ------ |
-| [BackupAuthProvider](Components/BackupAuthProvider.md) | Unified provider component for backup OAuth authentication. |
-| [DropboxAuthProvider](Components/DropboxAuthProvider.md) | Provider component for Dropbox OAuth authentication. |
-| [GoogleDriveAuthProvider](Components/GoogleDriveAuthProvider.md) | Provider component for Google Drive OAuth authentication. |
-| [ICloudAuthProvider](Components/ICloudAuthProvider.md) | Provider component for iCloud authentication. |
-
 ## Encryption
 
 | Function | Description |

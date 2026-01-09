@@ -1,4 +1,4 @@
-# createAssistantStream()
+# createAssistantStream
 
 > **createAssistantStream**(`text`: `string`): `ReadableStream`<`AssistantStreamEvent`>
 

@@ -1,4 +1,4 @@
-# clearEncryptionKey()
+# clearEncryptionKey
 
 > **clearEncryptionKey**(`address`: `string`): `void`
 

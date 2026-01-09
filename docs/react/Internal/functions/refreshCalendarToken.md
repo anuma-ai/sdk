@@ -1,4 +1,4 @@
-# refreshCalendarToken()
+# refreshCalendarToken
 
 > **refreshCalendarToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
 

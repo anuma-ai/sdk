@@ -1,8 +1,8 @@
-# DropboxAuthProvider()
+# DropboxAuthProvider
 
-> **DropboxAuthProvider**(`__namedParameters`: [`DropboxAuthProviderProps`](../Internal/interfaces/DropboxAuthProviderProps.md)): `Element`
+> **DropboxAuthProvider**(`__namedParameters`: [`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useDropboxAuth.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L92)
+Defined in: [src/react/useDropboxAuth.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L91)
 
 Provider component for Dropbox OAuth authentication.
 
@@ -13,7 +13,7 @@ It handles the OAuth 2.0 Authorization Code flow with refresh tokens.
 
 | Parameter | Type |
 | ------ | ------ |
-| `__namedParameters` | [`DropboxAuthProviderProps`](../Internal/interfaces/DropboxAuthProviderProps.md) |
+| `__namedParameters` | [`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md) |
 
 ## Returns
 

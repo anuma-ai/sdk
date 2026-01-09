@@ -1,4 +1,4 @@
-# getAndClearDriveReturnUrl()
+# getAndClearDriveReturnUrl
 
 > **getAndClearDriveReturnUrl**(): `string` | `null`
 

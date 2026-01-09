@@ -1,4 +1,4 @@
-# withReverbia()
+# withReverbia
 
 > **withReverbia**(`nextConfig`: `any`): `any`
 

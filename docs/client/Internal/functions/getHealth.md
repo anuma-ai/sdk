@@ -1,4 +1,4 @@
-# getHealth()
+# getHealth
 
 > **getHealth**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetHealthData`](../type-aliases/GetHealthData.md), `ThrowOnError`>): `RequestResult`<[`GetHealthResponses`](../type-aliases/GetHealthResponses.md), [`GetHealthErrors`](../type-aliases/GetHealthErrors.md), `ThrowOnError`>
 

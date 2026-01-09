@@ -1,4 +1,4 @@
-# useGoogleDriveBackup()
+# useGoogleDriveBackup
 
 > **useGoogleDriveBackup**(`options`: { `conversationsFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `rootFolder?`: `string`; `userAddress`: `string` | `null`; }): [`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
 

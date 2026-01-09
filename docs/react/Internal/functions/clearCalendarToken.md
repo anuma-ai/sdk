@@ -1,4 +1,4 @@
-# clearCalendarToken()
+# clearCalendarToken
 
 > **clearCalendarToken**(): `void`
 

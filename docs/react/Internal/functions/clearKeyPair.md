@@ -1,4 +1,4 @@
-# clearKeyPair()
+# clearKeyPair
 
 > **clearKeyPair**(`address`: `string`): `void`
 

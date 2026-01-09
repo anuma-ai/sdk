@@ -1,4 +1,4 @@
-# clearDriveToken()
+# clearDriveToken
 
 > **clearDriveToken**(): `void`
 

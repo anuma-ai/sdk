@@ -1,4 +1,4 @@
-# postApiV1SubscriptionsWebhook()
+# postApiV1SubscriptionsWebhook
 
 > **postApiV1SubscriptionsWebhook**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsWebhookData`](../type-aliases/PostApiV1SubscriptionsWebhookData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsWebhookResponses`](../type-aliases/PostApiV1SubscriptionsWebhookResponses.md), [`PostApiV1SubscriptionsWebhookErrors`](../type-aliases/PostApiV1SubscriptionsWebhookErrors.md), `ThrowOnError`>
 

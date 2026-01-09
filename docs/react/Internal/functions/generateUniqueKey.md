@@ -1,4 +1,4 @@
-# generateUniqueKey()
+# generateUniqueKey
 
 > **generateUniqueKey**(`namespace`: `string`, `key`: `string`, `value`: `string`): `string`
 

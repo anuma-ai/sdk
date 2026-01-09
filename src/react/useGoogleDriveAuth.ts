@@ -90,7 +90,6 @@ const GoogleDriveAuthContext =
  * }
  * ```
  *
- * @category Components
  */
 export function GoogleDriveAuthProvider({
   clientId,
@@ -128,11 +127,17 @@ export function GoogleDriveAuthProvider({
 
     const handleCallback = async () => {
       if (isGoogleDriveCallback()) {
-        const result = await handleGoogleDriveCallback(callbackPath, apiClient, walletAddress);
+        const result = await handleGoogleDriveCallback(
+          callbackPath,
+          apiClient,
+          walletAddress
+        );
         if (result.ok) {
           setAccessToken(result.data);
         } else {
-          console.error(`Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`);
+          console.error(
+            `Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`
+          );
         }
       }
     };
@@ -159,7 +164,10 @@ export function GoogleDriveAuthProvider({
     }
 
     // Try to get a valid token (will refresh if expired)
-    const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
+    const storedToken = await getGoogleDriveAccessToken(
+      apiClient,
+      walletAddress
+    );
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
@@ -167,7 +175,14 @@ export function GoogleDriveAuthProvider({
 
     // Start OAuth flow (this will redirect)
     return startGoogleDriveAuth(clientId, callbackPath);
-  }, [accessToken, clientId, callbackPath, isConfigured, apiClient, walletAddress]);
+  }, [
+    accessToken,
+    clientId,
+    callbackPath,
+    isConfigured,
+    apiClient,
+    walletAddress,
+  ]);
 
   const logout = useCallback(async () => {
     await revokeGoogleDriveToken(apiClient, walletAddress);

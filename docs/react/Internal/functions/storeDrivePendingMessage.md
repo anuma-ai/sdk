@@ -1,4 +1,4 @@
-# storeDrivePendingMessage()
+# storeDrivePendingMessage
 
 > **storeDrivePendingMessage**(`message`: `string`): `void`
 

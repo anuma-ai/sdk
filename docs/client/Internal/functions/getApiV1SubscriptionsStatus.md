@@ -1,4 +1,4 @@
-# getApiV1SubscriptionsStatus()
+# getApiV1SubscriptionsStatus
 
 > **getApiV1SubscriptionsStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`>
 

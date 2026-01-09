@@ -1,4 +1,4 @@
-# hasDropboxCredentials()
+# hasDropboxCredentials
 
 > **hasDropboxCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 

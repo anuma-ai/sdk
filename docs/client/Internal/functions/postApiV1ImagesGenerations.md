@@ -1,4 +1,4 @@
-# postApiV1ImagesGenerations()
+# postApiV1ImagesGenerations
 
 > **postApiV1ImagesGenerations**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ImagesGenerationsData`](../type-aliases/PostApiV1ImagesGenerationsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ImagesGenerationsResponses`](../type-aliases/PostApiV1ImagesGenerationsResponses.md), [`PostApiV1ImagesGenerationsErrors`](../type-aliases/PostApiV1ImagesGenerationsErrors.md), `ThrowOnError`>
 

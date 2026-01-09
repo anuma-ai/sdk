@@ -1,4 +1,4 @@
-# storeCalendarToken()
+# storeCalendarToken
 
 > **storeCalendarToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`): `Promise`<`void`>
 

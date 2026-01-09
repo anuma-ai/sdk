@@ -1,4 +1,4 @@
-# extractConversationContext()
+# extractConversationContext
 
 > **extractConversationContext**(`messages`: { `content`: `string`; `role`: `string`; }\[], `maxMessages`: `number`): `string`
 

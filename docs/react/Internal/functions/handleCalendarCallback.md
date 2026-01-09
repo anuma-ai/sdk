@@ -1,4 +1,4 @@
-# handleCalendarCallback()
+# handleCalendarCallback
 
 > **handleCalendarCallback**(`callbackPath`: `string`, `apiClient?`: `Client`): `Promise`<`string` | `null`>
 

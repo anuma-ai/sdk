@@ -1,4 +1,4 @@
-# hasEncryptionKey()
+# hasEncryptionKey
 
 > **hasEncryptionKey**(`address`: `string`): `boolean`
 

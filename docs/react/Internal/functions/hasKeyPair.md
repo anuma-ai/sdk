@@ -1,4 +1,4 @@
-# hasKeyPair()
+# hasKeyPair
 
 > **hasKeyPair**(`address`: `string`): `boolean`
 

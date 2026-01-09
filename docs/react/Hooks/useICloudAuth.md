@@ -1,8 +1,8 @@
-# useICloudAuth()
+# useICloudAuth
 
 > **useICloudAuth**(): [`ICloudAuthContextValue`](../Internal/interfaces/ICloudAuthContextValue.md)
 
-Defined in: [src/react/useICloudAuth.ts:216](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L216)
+Defined in: [src/react/useICloudAuth.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L214)
 
 Hook to access iCloud authentication state and methods.
 

@@ -1,4 +1,4 @@
-# useMemoryStorage()
+# useMemoryStorage
 
 > **useMemoryStorage**(`options`: { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../../react/Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }): `BaseUseMemoryStorageResult`
 

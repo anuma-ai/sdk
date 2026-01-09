@@ -1,4 +1,4 @@
-# getAndClearCalendarReturnUrl()
+# getAndClearCalendarReturnUrl
 
 > **getAndClearCalendarReturnUrl**(): `string` | `null`
 

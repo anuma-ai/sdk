@@ -1,4 +1,4 @@
-# getCalendarAccessToken()
+# getCalendarAccessToken
 
 > **getCalendarAccessToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
 

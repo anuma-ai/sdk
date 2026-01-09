@@ -1,4 +1,4 @@
-# clearAllEncryptionKeys()
+# clearAllEncryptionKeys
 
 > **clearAllEncryptionKeys**(): `void`
 

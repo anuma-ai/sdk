@@ -1,4 +1,4 @@
-# usePdf()
+# usePdf
 
 > **usePdf**(): { `error`: `Error` | `null`; `extractPdfContext`: (`files`: [`PdfFile`](../Internal/interfaces/PdfFile.md)\[]) => `Promise`<`string` | `null`>; `isProcessing`: `boolean`; }
 

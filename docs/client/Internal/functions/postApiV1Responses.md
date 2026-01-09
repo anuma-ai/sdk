@@ -1,4 +1,4 @@
-# postApiV1Responses()
+# postApiV1Responses
 
 > **postApiV1Responses**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ResponsesData`](../type-aliases/PostApiV1ResponsesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ResponsesResponses`](../type-aliases/PostApiV1ResponsesResponses.md), [`PostApiV1ResponsesErrors`](../type-aliases/PostApiV1ResponsesErrors.md), `ThrowOnError`>
 

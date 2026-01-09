@@ -1,4 +1,4 @@
-# storeDriveReturnUrl()
+# storeDriveReturnUrl
 
 > **storeDriveReturnUrl**(): `void`
 

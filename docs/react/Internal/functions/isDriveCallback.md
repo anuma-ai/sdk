@@ -1,4 +1,4 @@
-# isDriveCallback()
+# isDriveCallback
 
 > **isDriveCallback**(`callbackPath`: `string`): `boolean`
 

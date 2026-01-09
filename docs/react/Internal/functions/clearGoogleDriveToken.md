@@ -1,4 +1,4 @@
-# clearGoogleDriveToken()
+# clearGoogleDriveToken
 
 > **clearGoogleDriveToken**(): `void`
 

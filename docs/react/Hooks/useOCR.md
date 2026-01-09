@@ -1,4 +1,4 @@
-# useOCR()
+# useOCR
 
 > **useOCR**(): { `error`: `Error` | `null`; `extractOCRContext`: (`files`: [`OCRFile`](../Internal/interfaces/OCRFile.md)\[]) => `Promise`<`string` | `null`>; `isProcessing`: `boolean`; }
 

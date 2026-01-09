@@ -77,9 +77,6 @@ const ICloudAuthContext = createContext<ICloudAuthContextValue | null>(null);
  *   );
  * }
  * ```
- *
- * @category Components
- * @category Backup
  */
 export function ICloudAuthProvider({
   apiToken,

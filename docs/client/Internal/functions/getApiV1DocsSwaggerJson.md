@@ -1,4 +1,4 @@
-# getApiV1DocsSwaggerJson()
+# getApiV1DocsSwaggerJson
 
 > **getApiV1DocsSwaggerJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DocsSwaggerJsonResponses`](../type-aliases/GetApiV1DocsSwaggerJsonResponses.md), `unknown`, `ThrowOnError`>
 

@@ -1,4 +1,4 @@
-# createErrorStream()
+# createErrorStream
 
 > **createErrorStream**(`errorText`: `string`): `ReadableStream`<`AssistantStreamEvent`>
 

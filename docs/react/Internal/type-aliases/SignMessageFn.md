@@ -1,4 +1,4 @@
-# SignMessageFn()
+# SignMessageFn
 
 > **SignMessageFn** = (`message`: `string`) => `Promise`<`string`>
 

@@ -1,4 +1,4 @@
-# exportPublicKey()
+# exportPublicKey
 
 > **exportPublicKey**(`address`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`string`>
 

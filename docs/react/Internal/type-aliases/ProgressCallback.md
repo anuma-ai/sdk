@@ -1,4 +1,4 @@
-# ProgressCallback()
+# ProgressCallback
 
 > **ProgressCallback** = (`current`: `number`, `total`: `number`) => `void`
 

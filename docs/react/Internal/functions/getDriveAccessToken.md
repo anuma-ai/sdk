@@ -1,4 +1,4 @@
-# getDriveAccessToken()
+# getDriveAccessToken
 
 > **getDriveAccessToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
 

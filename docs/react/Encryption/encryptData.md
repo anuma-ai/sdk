@@ -1,4 +1,4 @@
-# encryptData()
+# encryptData
 
 > **encryptData**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `address`: `string`): `Promise`<`string`>
 

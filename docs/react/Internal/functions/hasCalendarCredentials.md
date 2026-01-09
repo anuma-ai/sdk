@@ -1,4 +1,4 @@
-# hasCalendarCredentials()
+# hasCalendarCredentials
 
 > **hasCalendarCredentials**(): `boolean`
 

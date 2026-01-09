@@ -1,4 +1,4 @@
-# storeDriveToken()
+# storeDriveToken
 
 > **storeDriveToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`): `Promise`<`void`>
 

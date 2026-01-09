@@ -1,4 +1,4 @@
-# getValidCalendarToken()
+# getValidCalendarToken
 
 > **getValidCalendarToken**(): `string` | `null`
 

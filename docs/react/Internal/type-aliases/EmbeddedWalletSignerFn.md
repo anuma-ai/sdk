@@ -1,4 +1,4 @@
-# EmbeddedWalletSignerFn()
+# EmbeddedWalletSignerFn
 
 > **EmbeddedWalletSignerFn** = (`message`: `string`) => `Promise`<`string`>
 

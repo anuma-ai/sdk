@@ -1,4 +1,4 @@
-# revokeDriveToken()
+# revokeDriveToken
 
 > **revokeDriveToken**(`apiClient?`: `Client`): `Promise`<`void`>
 

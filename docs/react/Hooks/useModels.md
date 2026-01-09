@@ -1,4 +1,4 @@
-# useModels()
+# useModels
 
 > **useModels**(`options`: { `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }): [`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
 

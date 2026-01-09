@@ -1,4 +1,4 @@
-# postAuthOauthByProviderExchange()
+# postAuthOauthByProviderExchange
 
 > **postAuthOauthByProviderExchange**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderExchangeData`](../type-aliases/PostAuthOauthByProviderExchangeData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderExchangeResponses`](../type-aliases/PostAuthOauthByProviderExchangeResponses.md), [`PostAuthOauthByProviderExchangeErrors`](../type-aliases/PostAuthOauthByProviderExchangeErrors.md), `ThrowOnError`>
 

@@ -1,4 +1,4 @@
-# mapMessagesToCompletionPayload()
+# mapMessagesToCompletionPayload
 
 > **mapMessagesToCompletionPayload**(`messages`: `UIMessage`<`unknown`, `UIDataTypes`, `UITools`>\[]): [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 

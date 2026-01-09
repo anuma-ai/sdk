@@ -1,4 +1,4 @@
-# createMemoryContextSystemMessage()
+# createMemoryContextSystemMessage
 
 > **createMemoryContextSystemMessage**(`memories`: [`StoredMemory`](../interfaces/StoredMemory.md) & { `similarity?`: `number`; }\[], `baseSystemPrompt?`: `string`): `string`
 

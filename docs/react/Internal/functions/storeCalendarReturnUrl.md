@@ -1,4 +1,4 @@
-# storeCalendarReturnUrl()
+# storeCalendarReturnUrl
 
 > **storeCalendarReturnUrl**(): `void`
 

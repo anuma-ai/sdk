@@ -1,4 +1,4 @@
-# useSettings()
+# useSettings
 
 > **useSettings**(`options`: { `database`: `Database`; `walletAddress?`: `string`; }): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 

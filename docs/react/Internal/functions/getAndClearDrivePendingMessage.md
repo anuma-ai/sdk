@@ -1,4 +1,4 @@
-# getAndClearDrivePendingMessage()
+# getAndClearDrivePendingMessage
 
 > **getAndClearDrivePendingMessage**(): `string` | `null`
 

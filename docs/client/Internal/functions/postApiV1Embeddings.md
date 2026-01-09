@@ -1,4 +1,4 @@
-# postApiV1Embeddings()
+# postApiV1Embeddings
 
 > **postApiV1Embeddings**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1EmbeddingsData`](../type-aliases/PostApiV1EmbeddingsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1EmbeddingsResponses`](../type-aliases/PostApiV1EmbeddingsResponses.md), [`PostApiV1EmbeddingsErrors`](../type-aliases/PostApiV1EmbeddingsErrors.md), `ThrowOnError`>
 

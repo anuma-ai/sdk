@@ -1,4 +1,4 @@
-# useChatStorage()
+# useChatStorage
 
 > **useChatStorage**(`options`: { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; }): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 

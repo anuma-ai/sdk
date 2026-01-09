@@ -1,4 +1,4 @@
-# startCalendarAuth()
+# startCalendarAuth
 
 > **startCalendarAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 

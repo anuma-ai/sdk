@@ -1,4 +1,4 @@
-# storeCalendarPendingMessage()
+# storeCalendarPendingMessage
 
 > **storeCalendarPendingMessage**(`message`: `string`): `void`
 

@@ -1,4 +1,4 @@
-# revokeCalendarToken()
+# revokeCalendarToken
 
 > **revokeCalendarToken**(`apiClient?`: `Client`): `Promise`<`void`>
 

@@ -1,4 +1,4 @@
-# refreshDriveToken()
+# refreshDriveToken
 
 > **refreshDriveToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
 

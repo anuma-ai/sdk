@@ -1,4 +1,4 @@
-# getApiV1Config()
+# getApiV1Config
 
 > **getApiV1Config**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConfigData`](../type-aliases/GetApiV1ConfigData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConfigResponses`](../type-aliases/GetApiV1ConfigResponses.md), [`GetApiV1ConfigErrors`](../type-aliases/GetApiV1ConfigErrors.md), `ThrowOnError`>
 

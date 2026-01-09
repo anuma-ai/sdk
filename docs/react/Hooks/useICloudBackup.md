@@ -1,4 +1,4 @@
-# useICloudBackup()
+# useICloudBackup
 
 > **useICloudBackup**(`options`: { `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseICloudBackupResult`](../Internal/interfaces/UseICloudBackupResult.md)
 

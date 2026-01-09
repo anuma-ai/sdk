@@ -1,4 +1,4 @@
-# useSearch()
+# useSearch
 
 > **useSearch**(`options`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; }): `UseSearchResult`
 

@@ -1,4 +1,4 @@
-# formatMemoriesForChat()
+# formatMemoriesForChat
 
 > **formatMemoriesForChat**(`memories`: [`StoredMemory`](../interfaces/StoredMemory.md) & { `similarity?`: `number`; }\[], `format`: `"compact"` | `"detailed"`): `string`
 

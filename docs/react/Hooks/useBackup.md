@@ -1,4 +1,4 @@
-# useBackup()
+# useBackup
 
 > **useBackup**(`options`: { `database`: `Database`; `dropboxFolder?`: `string`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `googleConversationsFolder?`: `string`; `googleRootFolder?`: `string`; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 

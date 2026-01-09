@@ -1,4 +1,4 @@
-# clearDropboxToken()
+# clearDropboxToken
 
 > **clearDropboxToken**(): `void`
 

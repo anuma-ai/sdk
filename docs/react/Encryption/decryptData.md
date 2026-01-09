@@ -1,4 +1,4 @@
-# decryptData()
+# decryptData
 
 > **decryptData**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`string`>
 

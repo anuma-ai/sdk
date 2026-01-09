@@ -1,4 +1,4 @@
-# useEncryption()
+# useEncryption
 
 > **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): { `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`<`string`>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`<`void`>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`<`void`>; }
 

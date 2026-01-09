@@ -1,4 +1,4 @@
-# startDriveAuth()
+# startDriveAuth
 
 > **startDriveAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 

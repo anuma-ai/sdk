@@ -1,4 +1,4 @@
-# hasGoogleDriveCredentials()
+# hasGoogleDriveCredentials
 
 > **hasGoogleDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
