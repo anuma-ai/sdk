@@ -62,8 +62,9 @@ function ChatComponent() {
 
 ## Hooks
 
-| Function | Description |
+| Name | Description |
 | ------ | ------ |
+| [UseEncryptionResult](Hooks/UseEncryptionResult.md) | Result returned by the useEncryption hook. |
 | [useBackup](Hooks/useBackup.md) | Unified React hook for backup and restore functionality. |
 | [useBackupAuth](Hooks/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
