@@ -436,6 +436,8 @@ export function useChatStorage(
         files,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
+        memoryContext,
+        searchContext,
         sources,
         thoughtProcess,
         // Responses API options
@@ -538,6 +540,8 @@ export function useChatStorage(
         model,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
+        memoryContext,
+        searchContext,
         // Responses API options
         store,
         previousResponseId,
