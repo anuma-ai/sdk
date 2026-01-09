@@ -1,6 +1,6 @@
 # LlmapiTool
 
-> **LlmapiTool** = \{ `function?`: [`LlmapiToolFunction`](LlmapiToolFunction.md); `type?`: `string`; \}
+> **LlmapiTool** = { `function?`: [`LlmapiToolFunction`](LlmapiToolFunction.md); `type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:914](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L914)
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:915](https://github.com/zeta-chain/ai-sdk/b
 
 Defined in: [src/client/types.gen.ts:919](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L919)
 
-Type is the tool type (function, code_interpreter, file_search, web_search)
+Type is the tool type (function, code\_interpreter, file\_search, web\_search)

@@ -1,6 +1,6 @@
 # decryptData()
 
-> **decryptData**(`encryptedHex`: `string`, `address`: `string`): `Promise`\<`string`\>
+> **decryptData**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`string`>
 
 Defined in: [src/react/useEncryption.ts:455](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L455)
 
@@ -19,7 +19,7 @@ will throw an error prompting the user to sign a message.
 
 ## Returns
 
-`Promise`\<`string`\>
+`Promise`<`string`>
 
 Decrypted data as string
 

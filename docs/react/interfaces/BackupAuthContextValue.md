@@ -58,12 +58,12 @@ iCloud authentication state and methods
 
 ### logoutAll()
 
-> **logoutAll**: () => `Promise`\<`void`\>
+> **logoutAll**: () => `Promise`<`void`>
 
 Defined in: [src/react/useBackupAuth.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L112)
 
 Logout from all providers
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>

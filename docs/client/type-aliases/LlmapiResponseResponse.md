@@ -1,6 +1,6 @@
 # LlmapiResponseResponse
 
-> **LlmapiResponseResponse** = \{ `created_at?`: `number`; `extra_fields?`: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md); `id?`: `string`; `messages?`: [`LlmapiMessage`](LlmapiMessage.md)[]; `model?`: `string`; `object?`: `string`; `output?`: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)[]; `usage?`: [`LlmapiResponseUsage`](LlmapiResponseUsage.md); \}
+> **LlmapiResponseResponse** = { `created_at?`: `number`; `extra_fields?`: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md); `id?`: `string`; `messages?`: [`LlmapiMessage`](LlmapiMessage.md)\[]; `model?`: `string`; `object?`: `string`; `output?`: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)\[]; `usage?`: [`LlmapiResponseUsage`](LlmapiResponseUsage.md); }
 
 Defined in: [src/client/types.gen.ts:762](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L762)
 
@@ -12,7 +12,7 @@ Defined in: [src/client/types.gen.ts:762](https://github.com/zeta-chain/ai-sdk/b
 
 Defined in: [src/client/types.gen.ts:766](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L766)
 
-Created is the Unix timestamp of creation (created_at in OpenAI format)
+Created is the Unix timestamp of creation (created\_at in OpenAI format)
 
 ***
 
@@ -36,7 +36,7 @@ ID is the unique response identifier
 
 ### messages?
 
-> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
+> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
 Defined in: [src/client/types.gen.ts:778](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L778)
 
@@ -69,7 +69,7 @@ Object is the response type (e.g., "response")
 
 ### output?
 
-> `optional` **output**: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)[]
+> `optional` **output**: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)\[]
 
 Defined in: [src/client/types.gen.ts:790](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L790)
 

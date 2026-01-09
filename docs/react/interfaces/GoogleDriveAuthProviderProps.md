@@ -39,7 +39,7 @@ Children to render
 
 ### clientId
 
-> **clientId**: `string` \| `undefined`
+> **clientId**: `string` | `undefined`
 
 Defined in: [src/react/useGoogleDriveAuth.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L32)
 

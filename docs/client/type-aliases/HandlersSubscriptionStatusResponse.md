@@ -1,6 +1,6 @@
 # HandlersSubscriptionStatusResponse
 
-> **HandlersSubscriptionStatusResponse** = \{ `cancel_at_period_end?`: `boolean`; `current_period_end?`: `number`; `plan?`: `string`; `status?`: `string`; \}
+> **HandlersSubscriptionStatusResponse** = { `cancel_at_period_end?`: `boolean`; `current_period_end?`: `number`; `plan?`: `string`; `status?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L84)
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:96](https://github.com/zeta-chain/ai-sdk/bl
 
 Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L100)
 
-"none" | "active" | "canceling" | "past_due" | "canceled"
+"none" | "active" | "canceling" | "past\_due" | "canceled"

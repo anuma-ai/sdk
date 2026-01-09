@@ -1,6 +1,6 @@
 # LlmapiImageGenerationExtraFields
 
-> **LlmapiImageGenerationExtraFields** = \{ `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; \}
+> **LlmapiImageGenerationExtraFields** = { `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:327](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L327)
 
@@ -34,4 +34,4 @@ Provider is the gateway that serviced this request.
 
 Defined in: [src/client/types.gen.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L339)
 
-RequestType is always "image_generation".
+RequestType is always "image\_generation".

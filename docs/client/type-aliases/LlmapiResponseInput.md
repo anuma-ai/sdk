@@ -1,6 +1,6 @@
 # LlmapiResponseInput
 
-> **LlmapiResponseInput** = \{ `messages?`: [`LlmapiMessage`](LlmapiMessage.md)[]; `text?`: `string`; \}
+> **LlmapiResponseInput** = { `messages?`: [`LlmapiMessage`](LlmapiMessage.md)\[]; `text?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:649](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L649)
 
@@ -11,7 +11,7 @@ When continuing after client tool calls, pass the messages array from the previo
 
 ### messages?
 
-> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
+> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
 Defined in: [src/client/types.gen.ts:653](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L653)
 

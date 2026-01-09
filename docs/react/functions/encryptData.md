@@ -1,6 +1,6 @@
 # encryptData()
 
-> **encryptData**(`plaintext`: `string` \| `Uint8Array`\<`ArrayBufferLike`\>, `address`: `string`): `Promise`\<`string`\>
+> **encryptData**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `address`: `string`): `Promise`<`string`>
 
 Defined in: [src/react/useEncryption.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L384)
 
@@ -14,12 +14,12 @@ will throw an error prompting the user to sign a message.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `plaintext` | `string` \| `Uint8Array`\<`ArrayBufferLike`\> | The data to encrypt (string or Uint8Array) |
+| `plaintext` | `string` | `Uint8Array`<`ArrayBufferLike`> | The data to encrypt (string or Uint8Array) |
 | `address` | `string` | The wallet address associated with the encryption key |
 
 ## Returns
 
-`Promise`\<`string`\>
+`Promise`<`string`>
 
 Encrypted data as hex string (IV + ciphertext + auth tag)
 

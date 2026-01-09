@@ -1,6 +1,6 @@
 # LlmapiMessageContentPart
 
-> **LlmapiMessageContentPart** = \{ `file?`: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md); `image_url?`: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md); `text?`: `string`; `type?`: `string`; \}
+> **LlmapiMessageContentPart** = { `file?`: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md); `image_url?`: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md); `text?`: `string`; `type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:478](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L478)
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:480](https://github.com/zeta-chain/ai-sdk/b
 
 Defined in: [src/client/types.gen.ts:484](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L484)
 
-Text holds the text content when Type=text or Type=input_text
+Text holds the text content when Type=text or Type=input\_text
 
 ***
 

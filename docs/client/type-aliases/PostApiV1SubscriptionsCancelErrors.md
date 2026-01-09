@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsCancelErrors
 
-> **PostApiV1SubscriptionsCancelErrors** = \{ `401`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `404`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); \}
+> **PostApiV1SubscriptionsCancelErrors** = { `401`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `404`: [`ResponseErrorResponse`](ResponseErrorResponse.md); `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); }
 
 Defined in: [src/client/types.gen.ts:1244](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1244)
 

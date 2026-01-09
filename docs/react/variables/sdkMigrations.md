@@ -1,6 +1,6 @@
 # sdkMigrations
 
-> `const` **sdkMigrations**: `Readonly`\<\{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`\<\{ `steps`: `MigrationStep`[]; `toVersion`: `number`; \}\>[]; `validated`: `true`; \}\>
+> `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
 Defined in: [src/lib/db/schema.ts:162](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L162)
 
@@ -14,9 +14,10 @@ so consumer apps don't need to handle version arithmetic or migration merging.
 Migrations from v1 are not supported. Databases at v1 require a fresh install.
 
 Migration history:
-- v2 → v3: Added `was_stopped` column to history table
-- v3 → v4: Added `modelPreferences` table for settings storage
-- v4 → v5: Added `error` column to history table for error persistence
-- v5 → v6: Added `thought_process` column to history table for activity tracking
-- v6 → v7: Added `userPreferences` table for unified user settings storage
-- v7 → v8: BREAKING - Clear all data (embedding model change)
+
+* v2 → v3: Added `was_stopped` column to history table
+* v3 → v4: Added `modelPreferences` table for settings storage
+* v4 → v5: Added `error` column to history table for error persistence
+* v5 → v6: Added `thought_process` column to history table for activity tracking
+* v6 → v7: Added `userPreferences` table for unified user settings storage
+* v7 → v8: BREAKING - Clear all data (embedding model change)

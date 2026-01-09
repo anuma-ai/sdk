@@ -1,6 +1,6 @@
 # createAssistantStream()
 
-> **createAssistantStream**(`text`: `string`): `ReadableStream`\<`AssistantStreamEvent`\>
+> **createAssistantStream**(`text`: `string`): `ReadableStream`<`AssistantStreamEvent`>
 
 Defined in: [src/vercel/streams.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/streams.ts#L18)
 
@@ -19,6 +19,6 @@ piped directly into UI components that consume the AI SDK stream contract.
 
 ## Returns
 
-`ReadableStream`\<`AssistantStreamEvent`\>
+`ReadableStream`<`AssistantStreamEvent`>
 
 A stream ready to be passed to `createUIMessageStreamResponse`.

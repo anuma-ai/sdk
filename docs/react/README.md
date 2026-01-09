@@ -15,15 +15,15 @@ production-ready abstractions that handle these complexities out of the box.
 
 **Key benefits:**
 
-- **Streaming-first**: Built-in support for real-time streaming with
+* **Streaming-first**: Built-in support for real-time streaming with
   automatic UI updates as content arrives
-- **State management**: Automatic handling of loading states, errors, and
+* **State management**: Automatic handling of loading states, errors, and
   request lifecycle
-- **File processing**: Extract text from PDFs and images (OCR) to provide
+* **File processing**: Extract text from PDFs and images (OCR) to provide
   document context to your AI
-- **Memory & context**: Extract and retrieve relevant memories using semantic
+* **Memory & context**: Extract and retrieve relevant memories using semantic
   search to make your AI context-aware
-- **Wallet-based encryption**: Secure data encryption using wallet signatures
+* **Wallet-based encryption**: Secure data encryption using wallet signatures
   for Web3 applications
 
 ## Quick Start
@@ -96,22 +96,22 @@ function ChatComponent() {
 
 ### BACKUP\_DRIVE\_CONVERSATIONS\_FOLDER
 
-Renames and re-exports [DEFAULT_DRIVE_CONVERSATIONS_FOLDER](variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
+Renames and re-exports [DEFAULT\_DRIVE\_CONVERSATIONS\_FOLDER](variables/DEFAULT_DRIVE_CONVERSATIONS_FOLDER.md)
 
 ***
 
 ### BACKUP\_DRIVE\_ROOT\_FOLDER
 
-Renames and re-exports [DEFAULT_DRIVE_ROOT_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
+Renames and re-exports [DEFAULT\_DRIVE\_ROOT\_FOLDER](variables/DEFAULT_DRIVE_ROOT_FOLDER.md)
 
 ***
 
 ### BACKUP\_ICLOUD\_FOLDER
 
-Renames and re-exports [DEFAULT_ICLOUD_BACKUP_FOLDER](variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
+Renames and re-exports [DEFAULT\_ICLOUD\_BACKUP\_FOLDER](variables/DEFAULT_ICLOUD_BACKUP_FOLDER.md)
 
 ***
 
 ### DEFAULT\_DROPBOX\_FOLDER
 
-Renames and re-exports [DEFAULT_BACKUP_FOLDER](variables/DEFAULT_BACKUP_FOLDER.md)
+Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](variables/DEFAULT_BACKUP_FOLDER.md)

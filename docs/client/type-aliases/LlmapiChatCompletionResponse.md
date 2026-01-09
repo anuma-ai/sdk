@@ -1,6 +1,6 @@
 # LlmapiChatCompletionResponse
 
-> **LlmapiChatCompletionResponse** = \{ `choices?`: [`LlmapiChoice`](LlmapiChoice.md)[]; `extra_fields?`: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md); `id?`: `string`; `messages?`: [`LlmapiMessage`](LlmapiMessage.md)[]; `model?`: `string`; `usage?`: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md); \}
+> **LlmapiChatCompletionResponse** = { `choices?`: [`LlmapiChoice`](LlmapiChoice.md)\[]; `extra_fields?`: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md); `id?`: `string`; `messages?`: [`LlmapiMessage`](LlmapiMessage.md)\[]; `model?`: `string`; `usage?`: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md); }
 
 Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L171)
 
@@ -8,7 +8,7 @@ Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/b
 
 ### choices?
 
-> `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)[]
+> `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)\[]
 
 Defined in: [src/client/types.gen.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L175)
 
@@ -36,7 +36,7 @@ ID is the completion ID
 
 ### messages?
 
-> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
+> `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
 Defined in: [src/client/types.gen.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L187)
 

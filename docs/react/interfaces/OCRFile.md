@@ -22,6 +22,6 @@ Defined in: [src/react/useOCR.ts:8](https://github.com/zeta-chain/ai-sdk/blob/ma
 
 ### url
 
-> **url**: `string` \| `Blob` \| `File`
+> **url**: `string` | `Blob` | `File`
 
 Defined in: [src/react/useOCR.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L6)

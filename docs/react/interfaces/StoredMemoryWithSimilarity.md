@@ -4,7 +4,7 @@ Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk
 
 ## Extends
 
-- [`StoredMemory`](StoredMemory.md)
+* [`StoredMemory`](StoredMemory.md)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L33)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`compositeKey`](StoredMemory.md#compositekey)
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/memory/types.ts:33](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`confidence`](StoredMemory.md#confidence)
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L35)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`createdAt`](StoredMemory.md#createdat)
 
@@ -46,11 +46,11 @@ Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk
 
 ### embedding?
 
-> `optional` **embedding**: `number`[]
+> `optional` **embedding**: `number`\[]
 
 Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L37)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`embedding`](StoredMemory.md#embedding)
 
@@ -62,7 +62,7 @@ Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L38)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`embeddingModel`](StoredMemory.md#embeddingmodel)
 
@@ -74,7 +74,7 @@ Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L39)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`isDeleted`](StoredMemory.md#isdeleted)
 
@@ -86,7 +86,7 @@ Defined in: [src/lib/db/memory/types.ts:39](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`key`](StoredMemory.md#key)
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`namespace`](StoredMemory.md#namespace)
 
@@ -110,7 +110,7 @@ Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L21)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`pii`](StoredMemory.md#pii)
 
@@ -122,7 +122,7 @@ Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`rawEvidence`](StoredMemory.md#rawevidence)
 
@@ -142,7 +142,7 @@ Defined in: [src/lib/db/memory/types.ts:43](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`type`](StoredMemory.md#type)
 
@@ -154,7 +154,7 @@ Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L32)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`uniqueId`](StoredMemory.md#uniqueid)
 
@@ -166,7 +166,7 @@ Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L34)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`uniqueKey`](StoredMemory.md#uniquekey)
 
@@ -178,7 +178,7 @@ Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L36)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`updatedAt`](StoredMemory.md#updatedat)
 
@@ -190,6 +190,6 @@ Defined in: [src/lib/db/memory/types.ts:36](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
 
-#### Inherited from
+**Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`value`](StoredMemory.md#value)

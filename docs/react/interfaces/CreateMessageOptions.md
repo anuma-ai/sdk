@@ -40,7 +40,7 @@ If set, indicates the message failed with this error
 
 ### files?
 
-> `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
+> `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L87)
 
@@ -72,7 +72,7 @@ Defined in: [src/lib/db/chat/types.ts:84](https://github.com/zeta-chain/ai-sdk/b
 
 ### sources?
 
-> `optional` **sources**: [`SearchSource`](SearchSource.md)[]
+> `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L89)
 
@@ -90,7 +90,7 @@ Reasoning/thinking content from models that support extended thinking
 
 ### thoughtProcess?
 
-> `optional` **thoughtProcess**: `ActivityPhase`[]
+> `optional` **thoughtProcess**: `ActivityPhase`\[]
 
 Defined in: [src/lib/db/chat/types.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L96)
 
@@ -106,7 +106,7 @@ Defined in: [src/lib/db/chat/types.ts:88](https://github.com/zeta-chain/ai-sdk/b
 
 ### vector?
 
-> `optional` **vector**: `number`[]
+> `optional` **vector**: `number`\[]
 
 Defined in: [src/lib/db/chat/types.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L91)
 

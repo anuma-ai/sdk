@@ -1,6 +1,6 @@
 # LlmapiEmbeddingResponse
 
-> **LlmapiEmbeddingResponse** = \{ `data?`: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)[]; `extra_fields?`: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md); `model?`: `string`; `object?`: `string`; `usage?`: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md); \}
+> **LlmapiEmbeddingResponse** = { `data?`: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]; `extra_fields?`: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md); `model?`: `string`; `object?`: `string`; `usage?`: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md); }
 
 Defined in: [src/client/types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L289)
 
@@ -8,7 +8,7 @@ Defined in: [src/client/types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/b
 
 ### data?
 
-> `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)[]
+> `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]
 
 Defined in: [src/client/types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L293)
 

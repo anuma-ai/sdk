@@ -25,8 +25,8 @@ working example.
 
 The Expo package is a lightweight subset of `@reverbia/sdk/react`:
 
-- No PDF text extraction (pdfjs-dist is web-only)
-- Uses XMLHttpRequest for streaming (fetch streaming isn't supported in RN)
+* No PDF text extraction (pdfjs-dist is web-only)
+* Uses XMLHttpRequest for streaming (fetch streaming isn't supported in RN)
 
 ## Authentication
 

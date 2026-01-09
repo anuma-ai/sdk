@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsWebhookData
 
-> **PostApiV1SubscriptionsWebhookData** = \{ `body?`: \{\[`key`: `string`\]: `unknown`; \}; `headers`: \{ `Stripe-Signature`: `string`; \}; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/webhook"`; \}
+> **PostApiV1SubscriptionsWebhookData** = { `body?`: {\[`key`: `string`]: `unknown`; }; `headers`: { `Stripe-Signature`: `string`; }; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/webhook"`; }
 
 Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1398)
 
@@ -8,23 +8,23 @@ Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/
 
 ### body?
 
-> `optional` **body**: \{\[`key`: `string`\]: `unknown`; \}
+> `optional` **body**: {\[`key`: `string`]: `unknown`; }
 
 Defined in: [src/client/types.gen.ts:1399](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1399)
 
-#### Index Signature
+**Index Signature**
 
-\[`key`: `string`\]: `unknown`
+\[`key`: `string`]: `unknown`
 
 ***
 
 ### headers
 
-> **headers**: \{ `Stripe-Signature`: `string`; \}
+> **headers**: { `Stripe-Signature`: `string`; }
 
 Defined in: [src/client/types.gen.ts:1402](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1402)
 
-#### Stripe-Signature
+**Stripe-Signature**
 
 > **Stripe-Signature**: `string`
 

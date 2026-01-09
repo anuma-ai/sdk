@@ -8,7 +8,7 @@ Auth state for a single provider
 
 ### accessToken
 
-> **accessToken**: `string` \| `null`
+> **accessToken**: `string` | `null`
 
 Defined in: [src/react/useBackupAuth.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L84)
 
@@ -38,40 +38,40 @@ Whether this provider is configured
 
 ### logout()
 
-> **logout**: () => `Promise`\<`void`\>
+> **logout**: () => `Promise`<`void`>
 
 Defined in: [src/react/useBackupAuth.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L92)
 
 Clear stored token and log out
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 
 ### refreshToken()
 
-> **refreshToken**: () => `Promise`\<`string` \| `null`\>
+> **refreshToken**: () => `Promise`<`string` | `null`>
 
 Defined in: [src/react/useBackupAuth.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L94)
 
 Refresh the access token using the refresh token
 
-#### Returns
+**Returns**
 
-`Promise`\<`string` \| `null`\>
+`Promise`<`string` | `null`>
 
 ***
 
 ### requestAccess()
 
-> **requestAccess**: () => `Promise`\<`string`\>
+> **requestAccess**: () => `Promise`<`string`>
 
 Defined in: [src/react/useBackupAuth.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L90)
 
 Request access - returns token or redirects to OAuth
 
-#### Returns
+**Returns**
 
-`Promise`\<`string`\>
+`Promise`<`string`>

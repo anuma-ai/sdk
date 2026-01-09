@@ -8,22 +8,22 @@ Result returned by useDropboxBackup hook
 
 ### backup()
 
-> **backup**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| \{ `error`: `string`; \}\>
+> **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L46)
 
 Backup all conversations to Dropbox
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
 | `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
-#### Returns
+**Returns**
 
-`Promise`\<[`DropboxExportResult`](DropboxExportResult.md) \| \{ `error`: `string`; \}\>
+`Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
 ***
 
@@ -49,19 +49,19 @@ Whether Dropbox is configured
 
 ### restore()
 
-> **restore**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| \{ `error`: `string`; \}\>
+> **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L50)
 
 Restore conversations from Dropbox
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
 | `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
-#### Returns
+**Returns**
 
-`Promise`\<[`DropboxImportResult`](DropboxImportResult.md) \| \{ `error`: `string`; \}\>
+`Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>

@@ -1,6 +1,6 @@
 # LlmapiModelsListExtraFields
 
-> **LlmapiModelsListExtraFields** = \{ `chunk_index?`: `number`; `latency?`: `number`; `request_type?`: `string`; \}
+> **LlmapiModelsListExtraFields** = { `chunk_index?`: `number`; `latency?`: `number`; `request_type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:596](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L596)
 
@@ -34,4 +34,4 @@ Latency is the request latency in milliseconds
 
 Defined in: [src/client/types.gen.ts:608](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L608)
 
-RequestType is always "list_models"
+RequestType is always "list\_models"

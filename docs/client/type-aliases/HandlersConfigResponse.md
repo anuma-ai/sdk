@@ -1,6 +1,6 @@
 # HandlersConfigResponse
 
-> **HandlersConfigResponse** = \{ `chain_id?`: `string`; `cost_limit_escrow_address?`: `string`; `operator_address?`: `string`; `pay_as_you_go_escrow_address?`: `string`; `payment_model?`: `string`; `settlement_recipient?`: `string`; \}
+> **HandlersConfigResponse** = { `chain_id?`: `string`; `cost_limit_escrow_address?`: `string`; `operator_address?`: `string`; `pay_as_you_go_escrow_address?`: `string`; `payment_model?`: `string`; `settlement_recipient?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L17)
 
@@ -52,7 +52,7 @@ PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configu
 
 Defined in: [src/client/types.gen.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L37)
 
-PaymentModel is the payment model used (pay_as_you_go or cost_limit)
+PaymentModel is the payment model used (pay\_as\_you\_go or cost\_limit)
 
 ***
 

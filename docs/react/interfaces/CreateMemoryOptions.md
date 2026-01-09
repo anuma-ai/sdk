@@ -4,7 +4,7 @@ Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk
 
 ## Extends
 
-- [`MemoryItem`](MemoryItem.md)
+* [`MemoryItem`](MemoryItem.md)
 
 ## Properties
 
@@ -14,7 +14,7 @@ Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`confidence`](MemoryItem.md#confidence)
 
@@ -22,7 +22,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 ### embedding?
 
-> `optional` **embedding**: `number`[]
+> `optional` **embedding**: `number`\[]
 
 Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L25)
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/memory/types.ts:26](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`key`](MemoryItem.md#key)
 
@@ -54,7 +54,7 @@ Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`namespace`](MemoryItem.md#namespace)
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L21)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`pii`](MemoryItem.md#pii)
 
@@ -78,7 +78,7 @@ Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`rawEvidence`](MemoryItem.md#rawevidence)
 
@@ -90,7 +90,7 @@ Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`type`](MemoryItem.md#type)
 
@@ -102,6 +102,6 @@ Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk
 
 Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
 
-#### Inherited from
+**Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`value`](MemoryItem.md#value)

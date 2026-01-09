@@ -1,6 +1,6 @@
 # useEncryption()
 
-> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): \{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): { `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`<`string`>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`<`void`>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`<`void`>; }
 
 Defined in: [src/react/useEncryption.ts:1059](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1059)
 
@@ -20,10 +20,10 @@ stored in memory only and do not persist across page reloads for security.
 
 ## Security Features
 
-- **In-memory only**: Keys never touch disk or localStorage
-- **Deterministic**: Same wallet + signature always generates same key
-- **Session-scoped**: Keys cleared on page reload
-- **XSS-resistant**: Keys not accessible after page reload
+* **In-memory only**: Keys never touch disk or localStorage
+* **Deterministic**: Same wallet + signature always generates same key
+* **Session-scoped**: Keys cleared on page reload
+* **XSS-resistant**: Keys not accessible after page reload
 
 ## Embedded Wallet Support
 
@@ -40,7 +40,7 @@ deterministic key generation that should happen automatically.
 
 ## Returns
 
-\{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`\<`string`\>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`\<`void`\>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`\<`void`\>; \}
+{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`<`string`>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`<`void`>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`<`void`>; }
 
 Functions to request encryption keys and manage key pairs
 
@@ -48,71 +48,71 @@ Functions to request encryption keys and manage key pairs
 
 > **clearKeyPair**: (`walletAddress`: `string`) => `void`
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `walletAddress` | `string` |
 
-#### Returns
+**Returns**
 
 `void`
 
 ### exportPublicKey()
 
-> **exportPublicKey**: (`walletAddress`: `string`) => `Promise`\<`string`\>
+> **exportPublicKey**: (`walletAddress`: `string`) => `Promise`<`string`>
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `walletAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`string`\>
+`Promise`<`string`>
 
 ### hasKeyPair()
 
 > **hasKeyPair**: (`walletAddress`: `string`) => `boolean`
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `walletAddress` | `string` |
 
-#### Returns
+**Returns**
 
 `boolean`
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`<`void`>
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `walletAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ### requestKeyPair()
 
-> **requestKeyPair**: (`walletAddress`: `string`) => `Promise`\<`void`\>
+> **requestKeyPair**: (`walletAddress`: `string`) => `Promise`<`void`>
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `walletAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ## Examples
 

@@ -8,7 +8,7 @@ Context value for Google Drive authentication
 
 ### accessToken
 
-> **accessToken**: `string` \| `null`
+> **accessToken**: `string` | `null`
 
 Defined in: [src/react/useGoogleDriveAuth.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L55)
 
@@ -38,40 +38,40 @@ Whether Google Drive is configured (client ID exists)
 
 ### logout()
 
-> **logout**: () => `Promise`\<`void`\>
+> **logout**: () => `Promise`<`void`>
 
 Defined in: [src/react/useGoogleDriveAuth.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L63)
 
 Clear stored token and log out
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 
 ### refreshToken()
 
-> **refreshToken**: () => `Promise`\<`string` \| `null`\>
+> **refreshToken**: () => `Promise`<`string` | `null`>
 
 Defined in: [src/react/useGoogleDriveAuth.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L65)
 
 Refresh the access token using the refresh token
 
-#### Returns
+**Returns**
 
-`Promise`\<`string` \| `null`\>
+`Promise`<`string` | `null`>
 
 ***
 
 ### requestAccess()
 
-> **requestAccess**: () => `Promise`\<`string`\>
+> **requestAccess**: () => `Promise`<`string`>
 
 Defined in: [src/react/useGoogleDriveAuth.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L61)
 
 Request Google Drive access - returns token or redirects to OAuth
 
-#### Returns
+**Returns**
 
-`Promise`\<`string`\>
+`Promise`<`string`>

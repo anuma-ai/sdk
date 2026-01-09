@@ -1,10 +1,10 @@
 # LlmapiMessageContentFile
 
-> **LlmapiMessageContentFile** = \{ `file_data?`: `string`; `file_id?`: `string`; `file_url?`: `string`; `filename?`: `string`; \}
+> **LlmapiMessageContentFile** = { `file_data?`: `string`; `file_id?`: `string`; `file_url?`: `string`; `filename?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:445](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L445)
 
-File is used when Type=input_file (for Responses API)
+File is used when Type=input\_file (for Responses API)
 
 ## Properties
 

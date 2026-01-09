@@ -1,6 +1,6 @@
 # PostApiV1SearchData
 
-> **PostApiV1SearchData** = \{ `body`: [`LlmapiSearchRequest`](LlmapiSearchRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/search"`; \}
+> **PostApiV1SearchData** = { `body`: [`LlmapiSearchRequest`](LlmapiSearchRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/search"`; }
 
 Defined in: [src/client/types.gen.ts:1205](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1205)
 

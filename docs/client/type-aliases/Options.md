@@ -1,6 +1,6 @@
-# Options\<TData, ThrowOnError\>
+# Options\<TData, ThrowOnError>
 
-> **Options**\<`TData`, `ThrowOnError`\> = `Options2`\<`TData`, `ThrowOnError`\> & \{ `client?`: `Client`; `meta?`: `Record`\<`string`, `unknown`\>; \}
+> **Options**<`TData`, `ThrowOnError`> = `Options2`<`TData`, `ThrowOnError`> & { `client?`: `Client`; `meta?`: `Record`<`string`, `unknown`>; }
 
 Defined in: [src/client/sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L7)
 
@@ -16,7 +16,7 @@ custom client.
 
 ### meta?
 
-> `optional` **meta**: `Record`\<`string`, `unknown`\>
+> `optional` **meta**: `Record`<`string`, `unknown`>
 
 You can pass arbitrary values through the `meta` object. This can be
 used to access values that aren't defined as part of the SDK function.

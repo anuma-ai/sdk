@@ -24,11 +24,20 @@
   "expandObjects": true,
   "plugin": [
     "typedoc-plugin-markdown",
-    "typedoc-plugin-frontmatter"
+    "typedoc-plugin-frontmatter",
+    "typedoc-plugin-remark"
   ],
   "exclude": [
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.security.test.ts"
+  ],
+  "remarkPlugins": [
+    {
+      "applyTo": "*",
+      "plugins": [
+        "./scripts/remark-clamp-headings.mjs"
+      ]
+    }
   ]
 }

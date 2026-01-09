@@ -1,6 +1,6 @@
 # LlmapiSearchResponse
 
-> **LlmapiSearchResponse** = \{ `extra_fields?`: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md); `results?`: [`LlmapiSearchResult`](LlmapiSearchResult.md)[]; `usage?`: [`LlmapiSearchUsage`](LlmapiSearchUsage.md); \}
+> **LlmapiSearchResponse** = { `extra_fields?`: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md); `results?`: [`LlmapiSearchResult`](LlmapiSearchResult.md)\[]; `usage?`: [`LlmapiSearchUsage`](LlmapiSearchUsage.md); }
 
 Defined in: [src/client/types.gen.ts:862](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L862)
 
@@ -16,7 +16,7 @@ Defined in: [src/client/types.gen.ts:863](https://github.com/zeta-chain/ai-sdk/b
 
 ### results?
 
-> `optional` **results**: [`LlmapiSearchResult`](LlmapiSearchResult.md)[]
+> `optional` **results**: [`LlmapiSearchResult`](LlmapiSearchResult.md)\[]
 
 Defined in: [src/client/types.gen.ts:867](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L867)
 

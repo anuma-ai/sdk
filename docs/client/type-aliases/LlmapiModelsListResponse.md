@@ -1,6 +1,6 @@
 # LlmapiModelsListResponse
 
-> **LlmapiModelsListResponse** = \{ `data?`: [`LlmapiModel`](LlmapiModel.md)[]; `extra_fields?`: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md); `next_page_token?`: `string`; \}
+> **LlmapiModelsListResponse** = { `data?`: [`LlmapiModel`](LlmapiModel.md)\[]; `extra_fields?`: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md); `next_page_token?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:611](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L611)
 
@@ -8,7 +8,7 @@ Defined in: [src/client/types.gen.ts:611](https://github.com/zeta-chain/ai-sdk/b
 
 ### data?
 
-> `optional` **data**: [`LlmapiModel`](LlmapiModel.md)[]
+> `optional` **data**: [`LlmapiModel`](LlmapiModel.md)\[]
 
 Defined in: [src/client/types.gen.ts:615](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L615)
 

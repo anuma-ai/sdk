@@ -1,6 +1,6 @@
 # sdkModelClasses
 
-> `const` **sdkModelClasses**: `Class`\<`Model`\>[]
+> `const` **sdkModelClasses**: `Class`<`Model`>\[]
 
 Defined in: [src/lib/db/schema.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L259)
 

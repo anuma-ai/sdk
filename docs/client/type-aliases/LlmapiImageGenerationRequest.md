@@ -1,6 +1,6 @@
 # LlmapiImageGenerationRequest
 
-> **LlmapiImageGenerationRequest** = \{ `model`: `string`; `prompt`: `string`; `quality?`: `string`; `response_format?`: `string`; `size?`: `string`; \}
+> **LlmapiImageGenerationRequest** = { `model`: `string`; `prompt`: `string`; `quality?`: `string`; `response_format?`: `string`; `size?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:353](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L353)
 
@@ -42,7 +42,7 @@ Quality targets a quality preset (e.g., "auto", "high").
 
 Defined in: [src/client/types.gen.ts:369](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L369)
 
-ResponseFormat controls how the generated image is returned (e.g., "url" or "b64_json").
+ResponseFormat controls how the generated image is returned (e.g., "url" or "b64\_json").
 
 ***
 

@@ -28,69 +28,69 @@ WatermelonDB database instance
 
 ### exportConversation()
 
-> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L28)
 
 Export a conversation to an encrypted blob
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `conversationId` | `string` |
 | `userAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+`Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
 ***
 
 ### importConversation()
 
-> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`\<\{ `success`: `boolean`; \}\>
+> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L33)
 
 Import a conversation from an encrypted blob
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `blob` | `Blob` |
 | `userAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<\{ `success`: `boolean`; \}\>
+`Promise`<{ `success`: `boolean`; }>
 
 ***
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`address`: `string`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
 Defined in: [src/react/useDropboxBackup.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L26)
 
 Request encryption key for the user address
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `address` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 
 ### userAddress
 
-> **userAddress**: `string` \| `null`
+> **userAddress**: `string` | `null`
 
 Defined in: [src/react/useDropboxBackup.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L24)
 

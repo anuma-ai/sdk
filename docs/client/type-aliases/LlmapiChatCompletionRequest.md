@@ -1,6 +1,6 @@
 # LlmapiChatCompletionRequest
 
-> **LlmapiChatCompletionRequest** = \{ `messages`: [`LlmapiMessage`](LlmapiMessage.md)[]; `model`: `string`; `stream?`: `boolean`; `tool_choice?`: `unknown`; `tools?`: [`LlmapiTool`](LlmapiTool.md)[]; \}
+> **LlmapiChatCompletionRequest** = { `messages`: [`LlmapiMessage`](LlmapiMessage.md)\[]; `model`: `string`; `stream?`: `boolean`; `tool_choice?`: `unknown`; `tools?`: [`LlmapiTool`](LlmapiTool.md)\[]; }
 
 Defined in: [src/client/types.gen.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L145)
 
@@ -8,7 +8,7 @@ Defined in: [src/client/types.gen.ts:145](https://github.com/zeta-chain/ai-sdk/b
 
 ### messages
 
-> **messages**: [`LlmapiMessage`](LlmapiMessage.md)[]
+> **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
 Defined in: [src/client/types.gen.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L149)
 
@@ -43,15 +43,16 @@ Stream indicates if response should be streamed
 Defined in: [src/client/types.gen.ts:164](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L164)
 
 ToolChoice controls which tool to use. Can be:
-- string: "auto", "none", "required", or a function name
-- object: {"type": "function", "function": {"name": "my_function"}}
-Using 'any' to match OpenAI's flexible API format.
+
+* string: "auto", "none", "required", or a function name
+* object: {"type": "function", "function": {"name": "my\_function"}}
+  Using 'any' to match OpenAI's flexible API format.
 
 ***
 
 ### tools?
 
-> `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)[]
+> `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)\[]
 
 Defined in: [src/client/types.gen.ts:168](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L168)
 

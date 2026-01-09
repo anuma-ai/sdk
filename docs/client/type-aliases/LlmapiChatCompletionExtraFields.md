@@ -1,6 +1,6 @@
 # LlmapiChatCompletionExtraFields
 
-> **LlmapiChatCompletionExtraFields** = \{ `latency?`: `number`; `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; \}
+> **LlmapiChatCompletionExtraFields** = { `latency?`: `number`; `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L126)
 
@@ -44,4 +44,4 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 Defined in: [src/client/types.gen.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L142)
 
-RequestType is always "chat_completion"
+RequestType is always "chat\_completion"

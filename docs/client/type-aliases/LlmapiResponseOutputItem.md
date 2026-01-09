@@ -1,6 +1,6 @@
 # LlmapiResponseOutputItem
 
-> **LlmapiResponseOutputItem** = \{ `arguments?`: `string`; `call_id?`: `string`; `content?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `id?`: `string`; `name?`: `string`; `role?`: `string`; `status?`: `string`; `summary?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]; `type?`: `string`; \}
+> **LlmapiResponseOutputItem** = { `arguments?`: `string`; `call_id?`: `string`; `content?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]; `id?`: `string`; `name?`: `string`; `role?`: `string`; `status?`: `string`; `summary?`: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]; `type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L671)
 
@@ -12,7 +12,7 @@ Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/b
 
 Defined in: [src/client/types.gen.ts:675](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L675)
 
-Arguments is the function arguments for function_call types
+Arguments is the function arguments for function\_call types
 
 ***
 
@@ -22,13 +22,13 @@ Arguments is the function arguments for function_call types
 
 Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
 
-CallID is the call ID for function_call types
+CallID is the call ID for function\_call types
 
 ***
 
 ### content?
 
-> `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]
+> `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
 Defined in: [src/client/types.gen.ts:683](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L683)
 
@@ -52,7 +52,7 @@ ID is the unique identifier for this output item
 
 Defined in: [src/client/types.gen.ts:691](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L691)
 
-Name is the function name for function_call types
+Name is the function name for function\_call types
 
 ***
 
@@ -78,7 +78,7 @@ Status is the status of this output item (e.g., "completed")
 
 ### summary?
 
-> `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)[]
+> `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
 Defined in: [src/client/types.gen.ts:703](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L703)
 
@@ -92,4 +92,4 @@ Summary is the reasoning summary for reasoning types
 
 Defined in: [src/client/types.gen.ts:707](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L707)
 
-Type is the output item type (e.g., "message", "function_call", "reasoning")
+Type is the output item type (e.g., "message", "function\_call", "reasoning")

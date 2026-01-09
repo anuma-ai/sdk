@@ -4,8 +4,8 @@ Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk
 
 ## Extended by
 
-- [`StoredMemory`](StoredMemory.md)
-- [`CreateMemoryOptions`](CreateMemoryOptions.md)
+* [`StoredMemory`](StoredMemory.md)
+* [`CreateMemoryOptions`](CreateMemoryOptions.md)
 
 ## Properties
 

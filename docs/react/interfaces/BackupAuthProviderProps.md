@@ -92,7 +92,7 @@ CloudKit container identifier (default: "iCloud.Memoryless")
 
 ### icloudEnvironment?
 
-> `optional` **icloudEnvironment**: `"development"` \| `"production"`
+> `optional` **icloudEnvironment**: `"development"` | `"production"`
 
 Defined in: [src/react/useBackupAuth.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L63)
 

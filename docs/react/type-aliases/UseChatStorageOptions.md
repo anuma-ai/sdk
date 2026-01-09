@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-> **UseChatStorageOptions** = `BaseUseChatStorageOptions` & \{ `apiType?`: `ApiType`; \}
+> **UseChatStorageOptions** = `BaseUseChatStorageOptions` & { `apiType?`: `ApiType`; }
 
 Defined in: [src/react/useChatStorage.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L75)
 
@@ -15,5 +15,6 @@ Extends base options with apiType support.
 > `optional` **apiType**: `ApiType`
 
 Which API endpoint to use. Default: "responses"
-- "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
-- "completions": OpenAI Chat Completions API (wider model compatibility)
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)

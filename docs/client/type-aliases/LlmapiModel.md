@@ -1,6 +1,6 @@
 # LlmapiModel
 
-> **LlmapiModel** = \{ `architecture?`: [`LlmapiModelArchitecture`](LlmapiModelArchitecture.md); `canonical_slug?`: `string`; `context_length?`: `number`; `created?`: `number`; `default_parameters?`: \{\[`key`: `string`\]: `unknown`; \}; `description?`: `string`; `hugging_face_id?`: `string`; `id?`: `string`; `max_input_tokens?`: `number`; `max_output_tokens?`: `number`; `modalities?`: `string`[]; `name?`: `string`; `owned_by?`: `string`; `per_request_limits?`: [`LlmapiModelPerRequestLimits`](LlmapiModelPerRequestLimits.md); `pricing?`: [`LlmapiModelPricing`](LlmapiModelPricing.md); `supported_methods?`: `string`[]; `supported_parameters?`: `string`[]; `top_provider?`: [`LlmapiModelTopProvider`](LlmapiModelTopProvider.md); \}
+> **LlmapiModel** = { `architecture?`: [`LlmapiModelArchitecture`](LlmapiModelArchitecture.md); `canonical_slug?`: `string`; `context_length?`: `number`; `created?`: `number`; `default_parameters?`: {\[`key`: `string`]: `unknown`; }; `description?`: `string`; `hugging_face_id?`: `string`; `id?`: `string`; `max_input_tokens?`: `number`; `max_output_tokens?`: `number`; `modalities?`: `string`\[]; `name?`: `string`; `owned_by?`: `string`; `per_request_limits?`: [`LlmapiModelPerRequestLimits`](LlmapiModelPerRequestLimits.md); `pricing?`: [`LlmapiModelPricing`](LlmapiModelPricing.md); `supported_methods?`: `string`\[]; `supported_parameters?`: `string`\[]; `top_provider?`: [`LlmapiModelTopProvider`](LlmapiModelTopProvider.md); }
 
 Defined in: [src/client/types.gen.ts:491](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L491)
 
@@ -46,15 +46,15 @@ Created is the Unix timestamp of when the model was created
 
 ### default\_parameters?
 
-> `optional` **default\_parameters**: \{\[`key`: `string`\]: `unknown`; \}
+> `optional` **default\_parameters**: {\[`key`: `string`]: `unknown`; }
 
 Defined in: [src/client/types.gen.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L508)
 
 DefaultParameters contains default parameter values
 
-#### Index Signature
+**Index Signature**
 
-\[`key`: `string`\]: `unknown`
+\[`key`: `string`]: `unknown`
 
 ***
 
@@ -110,11 +110,11 @@ MaxOutputTokens is the maximum output tokens
 
 ### modalities?
 
-> `optional` **modalities**: `string`[]
+> `optional` **modalities**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:534](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L534)
 
-Modalities is a list of supported modalities (e.g., ["llm", "vision"])
+Modalities is a list of supported modalities (e.g., \["llm", "vision"])
 
 ***
 
@@ -156,7 +156,7 @@ Defined in: [src/client/types.gen.ts:544](https://github.com/zeta-chain/ai-sdk/b
 
 ### supported\_methods?
 
-> `optional` **supported\_methods**: `string`[]
+> `optional` **supported\_methods**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:548](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L548)
 
@@ -166,7 +166,7 @@ SupportedMethods is a list of supported API methods
 
 ### supported\_parameters?
 
-> `optional` **supported\_parameters**: `string`[]
+> `optional` **supported\_parameters**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:552](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L552)
 

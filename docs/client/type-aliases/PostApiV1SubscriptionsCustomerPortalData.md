@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsCustomerPortalData
 
-> **PostApiV1SubscriptionsCustomerPortalData** = \{ `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/customer-portal"`; \}
+> **PostApiV1SubscriptionsCustomerPortalData** = { `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/customer-portal"`; }
 
 Defined in: [src/client/types.gen.ts:1299](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1299)
 

@@ -8,15 +8,15 @@ Result returned by useBackup hook
 
 ### disconnectAll()
 
-> **disconnectAll**: () => `Promise`\<`void`\>
+> **disconnectAll**: () => `Promise`<`void`>
 
 Defined in: [src/react/useBackup.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L114)
 
 Disconnect from all providers
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 

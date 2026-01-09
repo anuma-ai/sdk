@@ -55,8 +55,8 @@
 | [LlmapiImageGenerationResponse](type-aliases/LlmapiImageGenerationResponse.md) | - |
 | [LlmapiImageGenerationUsage](type-aliases/LlmapiImageGenerationUsage.md) | Usage documents token usage (when available). |
 | [LlmapiMessage](type-aliases/LlmapiMessage.md) | Message is the generated message |
-| [LlmapiMessageContentFile](type-aliases/LlmapiMessageContentFile.md) | File is used when Type=input_file (for Responses API) |
-| [LlmapiMessageContentImage](type-aliases/LlmapiMessageContentImage.md) | ImageURL is used when Type=image_url or Type=input_image |
+| [LlmapiMessageContentFile](type-aliases/LlmapiMessageContentFile.md) | File is used when Type=input\_file (for Responses API) |
+| [LlmapiMessageContentImage](type-aliases/LlmapiMessageContentImage.md) | ImageURL is used when Type=image\_url or Type=input\_image |
 | [LlmapiMessageContentPart](type-aliases/LlmapiMessageContentPart.md) | - |
 | [LlmapiModel](type-aliases/LlmapiModel.md) | - |
 | [LlmapiModelArchitecture](type-aliases/LlmapiModelArchitecture.md) | Architecture describes the model's technical capabilities |

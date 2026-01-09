@@ -1,6 +1,6 @@
 # GetApiV1ModelsData
 
-> **GetApiV1ModelsData** = \{ `body?`: `never`; `path?`: `never`; `query?`: \{ `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; \}; `url`: `"/api/v1/models"`; \}
+> **GetApiV1ModelsData** = { `body?`: `never`; `path?`: `never`; `query?`: { `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; }; `url`: `"/api/v1/models"`; }
 
 Defined in: [src/client/types.gen.ts:1123](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1123)
 
@@ -24,23 +24,23 @@ Defined in: [src/client/types.gen.ts:1125](https://github.com/zeta-chain/ai-sdk/
 
 ### query?
 
-> `optional` **query**: \{ `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; \}
+> `optional` **query**: { `page_size?`: `number`; `page_token?`: `string`; `provider?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:1126](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1126)
 
-#### page\_size?
+**page\_size?**
 
 > `optional` **page\_size**: `number`
 
 Number of models to return per page
 
-#### page\_token?
+**page\_token?**
 
 > `optional` **page\_token**: `string`
 
 Token to get next page of results
 
-#### provider?
+**provider?**
 
 > `optional` **provider**: `string`
 

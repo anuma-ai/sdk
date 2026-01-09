@@ -1,6 +1,6 @@
 # LlmapiImageGenerationResponse
 
-> **LlmapiImageGenerationResponse** = \{ `created?`: `number`; `extra_fields?`: [`LlmapiImageGenerationExtraFields`](LlmapiImageGenerationExtraFields.md); `images?`: [`LlmapiImageGenerationImage`](LlmapiImageGenerationImage.md)[]; `model?`: `string`; `provider?`: `string`; `usage?`: [`LlmapiImageGenerationUsage`](LlmapiImageGenerationUsage.md); \}
+> **LlmapiImageGenerationResponse** = { `created?`: `number`; `extra_fields?`: [`LlmapiImageGenerationExtraFields`](LlmapiImageGenerationExtraFields.md); `images?`: [`LlmapiImageGenerationImage`](LlmapiImageGenerationImage.md)\[]; `model?`: `string`; `provider?`: `string`; `usage?`: [`LlmapiImageGenerationUsage`](LlmapiImageGenerationUsage.md); }
 
 Defined in: [src/client/types.gen.ts:376](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L376)
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:381](https://github.com/zeta-chain/ai-sdk/b
 
 ### images?
 
-> `optional` **images**: [`LlmapiImageGenerationImage`](LlmapiImageGenerationImage.md)[]
+> `optional` **images**: [`LlmapiImageGenerationImage`](LlmapiImageGenerationImage.md)\[]
 
 Defined in: [src/client/types.gen.ts:385](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L385)
 

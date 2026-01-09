@@ -1,6 +1,6 @@
 # hasGoogleDriveCredentials()
 
-> **hasGoogleDriveCredentials**(`walletAddress?`: `string`): `Promise`\<`boolean`\>
+> **hasGoogleDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
 Defined in: [src/lib/backup/google/auth.ts:356](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/auth.ts#L356)
 
@@ -14,4 +14,4 @@ Check if we have any stored credentials (including refresh token)
 
 ## Returns
 
-`Promise`\<`boolean`\>
+`Promise`<`boolean`>

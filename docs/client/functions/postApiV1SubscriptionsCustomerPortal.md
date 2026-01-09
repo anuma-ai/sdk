@@ -1,6 +1,6 @@
 # postApiV1SubscriptionsCustomerPortal()
 
-> **postApiV1SubscriptionsCustomerPortal**\<`ThrowOnError`\>(`options?`: [`Options`](../type-aliases/Options.md)\<[`PostApiV1SubscriptionsCustomerPortalData`](../type-aliases/PostApiV1SubscriptionsCustomerPortalData.md), `ThrowOnError`\>): `RequestResult`\<[`PostApiV1SubscriptionsCustomerPortalResponses`](../type-aliases/PostApiV1SubscriptionsCustomerPortalResponses.md), [`PostApiV1SubscriptionsCustomerPortalErrors`](../type-aliases/PostApiV1SubscriptionsCustomerPortalErrors.md), `ThrowOnError`\>
+> **postApiV1SubscriptionsCustomerPortal**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCustomerPortalData`](../type-aliases/PostApiV1SubscriptionsCustomerPortalData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCustomerPortalResponses`](../type-aliases/PostApiV1SubscriptionsCustomerPortalResponses.md), [`PostApiV1SubscriptionsCustomerPortalErrors`](../type-aliases/PostApiV1SubscriptionsCustomerPortalErrors.md), `ThrowOnError`>
 
 Defined in: [src/client/sdk.gen.ts:166](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L166)
 
@@ -18,8 +18,8 @@ Creates a Stripe Customer Portal session for managing subscription and returns t
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | [`Options`](../type-aliases/Options.md)\<[`PostApiV1SubscriptionsCustomerPortalData`](../type-aliases/PostApiV1SubscriptionsCustomerPortalData.md), `ThrowOnError`\> |
+| `options?` | [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCustomerPortalData`](../type-aliases/PostApiV1SubscriptionsCustomerPortalData.md), `ThrowOnError`> |
 
 ## Returns
 
-`RequestResult`\<[`PostApiV1SubscriptionsCustomerPortalResponses`](../type-aliases/PostApiV1SubscriptionsCustomerPortalResponses.md), [`PostApiV1SubscriptionsCustomerPortalErrors`](../type-aliases/PostApiV1SubscriptionsCustomerPortalErrors.md), `ThrowOnError`\>
+`RequestResult`<[`PostApiV1SubscriptionsCustomerPortalResponses`](../type-aliases/PostApiV1SubscriptionsCustomerPortalResponses.md), [`PostApiV1SubscriptionsCustomerPortalErrors`](../type-aliases/PostApiV1SubscriptionsCustomerPortalErrors.md), `ThrowOnError`>

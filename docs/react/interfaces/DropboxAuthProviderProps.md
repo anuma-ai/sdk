@@ -19,7 +19,7 @@ Only needed if you have a custom client configuration (e.g., different baseUrl).
 
 ### appKey
 
-> **appKey**: `string` \| `undefined`
+> **appKey**: `string` | `undefined`
 
 Defined in: [src/react/useDropboxAuth.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L30)
 

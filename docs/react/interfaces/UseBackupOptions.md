@@ -28,22 +28,22 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 ### exportConversation()
 
-> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+> **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
 Defined in: [src/react/useBackup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L48)
 
 Export a conversation to an encrypted blob
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `conversationId` | `string` |
 | `userAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<\{ `blob?`: `Blob`; `success`: `boolean`; \}\>
+`Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
 ***
 
@@ -69,48 +69,48 @@ Google Drive root folder name (default: 'ai-chat-app')
 
 ### importConversation()
 
-> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`\<\{ `success`: `boolean`; \}\>
+> **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
 Defined in: [src/react/useBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L53)
 
 Import a conversation from an encrypted blob
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `blob` | `Blob` |
 | `userAddress` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<\{ `success`: `boolean`; \}\>
+`Promise`<{ `success`: `boolean`; }>
 
 ***
 
 ### requestEncryptionKey()
 
-> **requestEncryptionKey**: (`address`: `string`) => `Promise`\<`void`\>
+> **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
 Defined in: [src/react/useBackup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L46)
 
 Request encryption key for the user address
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `address` | `string` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 
 ### userAddress
 
-> **userAddress**: `string` \| `null`
+> **userAddress**: `string` | `null`
 
 Defined in: [src/react/useBackup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L44)
 

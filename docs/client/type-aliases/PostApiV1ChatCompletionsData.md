@@ -1,6 +1,6 @@
 # PostApiV1ChatCompletionsData
 
-> **PostApiV1ChatCompletionsData** = \{ `body`: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/chat/completions"`; \}
+> **PostApiV1ChatCompletionsData** = { `body`: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/chat/completions"`; }
 
 Defined in: [src/client/types.gen.ts:972](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L972)
 

@@ -1,6 +1,6 @@
 # LlmapiSearchRequest
 
-> **LlmapiSearchRequest** = \{ `country?`: `string`; `max_results?`: `number`; `max_tokens_per_page?`: `number`; `query`: `string`[]; `search_domain_filter?`: `string`[]; `search_tool_name`: `string`; \}
+> **LlmapiSearchRequest** = { `country?`: `string`; `max_results?`: `number`; `max_tokens_per_page?`: `number`; `query`: `string`\[]; `search_domain_filter?`: `string`\[]; `search_tool_name`: `string`; }
 
 Defined in: [src/client/types.gen.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L835)
 
@@ -38,7 +38,7 @@ Maximum tokens per page to process. Default: 1024.
 
 ### query
 
-> **query**: `string`[]
+> **query**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:851](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L851)
 
@@ -48,7 +48,7 @@ Search query. Can be a single string or array of strings.
 
 ### search\_domain\_filter?
 
-> `optional` **search\_domain\_filter**: `string`[]
+> `optional` **search\_domain\_filter**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:855](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L855)
 

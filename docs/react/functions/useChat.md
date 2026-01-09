@@ -21,9 +21,10 @@ Streaming is enabled by default for better user experience.
 `UseChatResult`
 
 An object containing:
-  - `isLoading`: A boolean indicating whether a request is currently in progress
-  - `sendMessage`: An async function to send chat messages
-  - `stop`: A function to abort the current request
+
+* `isLoading`: A boolean indicating whether a request is currently in progress
+* `sendMessage`: An async function to send chat messages
+* `stop`: A function to abort the current request
 
 ## Example
 

@@ -1,6 +1,6 @@
 # UseModelsOptions
 
-> **UseModelsOptions** = \{ `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`\<`string` \| `null`\>; `provider?`: `string`; \}
+> **UseModelsOptions** = { `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }
 
 Defined in: [src/react/useModels.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L8)
 
@@ -28,15 +28,15 @@ Optional base URL for the API requests.
 
 ### getToken()?
 
-> `optional` **getToken**: () => `Promise`\<`string` \| `null`\>
+> `optional` **getToken**: () => `Promise`<`string` | `null`>
 
 Defined in: [src/react/useModels.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L12)
 
 Custom function to get auth token for API calls
 
-#### Returns
+**Returns**
 
-`Promise`\<`string` \| `null`\>
+`Promise`<`string` | `null`>
 
 ***
 

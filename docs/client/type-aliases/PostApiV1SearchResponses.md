@@ -1,6 +1,6 @@
 # PostApiV1SearchResponses
 
-> **PostApiV1SearchResponses** = \{ `200`: [`LlmapiSearchResponse`](LlmapiSearchResponse.md); \}
+> **PostApiV1SearchResponses** = { `200`: [`LlmapiSearchResponse`](LlmapiSearchResponse.md); }
 
 Defined in: [src/client/types.gen.ts:1228](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1228)
 

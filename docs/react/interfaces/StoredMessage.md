@@ -4,7 +4,7 @@ Defined in: [src/lib/db/chat/types.ts:38](https://github.com/zeta-chain/ai-sdk/b
 
 ## Extended by
 
-- [`StoredMessageWithSimilarity`](StoredMessageWithSimilarity.md)
+* [`StoredMessageWithSimilarity`](StoredMessageWithSimilarity.md)
 
 ## Properties
 
@@ -52,7 +52,7 @@ If set, indicates the message failed with this error
 
 ### files?
 
-> `optional` **files**: [`FileMetadata`](FileMetadata.md)[]
+> `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L45)
 
@@ -92,7 +92,7 @@ Defined in: [src/lib/db/chat/types.ts:42](https://github.com/zeta-chain/ai-sdk/b
 
 ### sources?
 
-> `optional` **sources**: [`SearchSource`](SearchSource.md)[]
+> `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L51)
 
@@ -110,7 +110,7 @@ Reasoning/thinking content from models that support extended thinking
 
 ### thoughtProcess?
 
-> `optional` **thoughtProcess**: `ActivityPhase`[]
+> `optional` **thoughtProcess**: `ActivityPhase`\[]
 
 Defined in: [src/lib/db/chat/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L56)
 
@@ -142,7 +142,7 @@ Defined in: [src/lib/db/chat/types.ts:50](https://github.com/zeta-chain/ai-sdk/b
 
 ### vector?
 
-> `optional` **vector**: `number`[]
+> `optional` **vector**: `number`\[]
 
 Defined in: [src/lib/db/chat/types.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L48)
 

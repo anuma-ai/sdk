@@ -1,6 +1,6 @@
 # LlmapiEmbeddingExtraFields
 
-> **LlmapiEmbeddingExtraFields** = \{ `chunk_index?`: `number`; `latency?`: `number`; `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; \}
+> **LlmapiEmbeddingExtraFields** = { `chunk_index?`: `number`; `latency?`: `number`; `model_requested?`: `string`; `provider?`: `string`; `request_type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:247](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L247)
 

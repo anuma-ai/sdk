@@ -1,6 +1,6 @@
 # LlmapiMessage
 
-> **LlmapiMessage** = \{ `content?`: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]; `role?`: [`LlmapiRole`](LlmapiRole.md); `tool_call_id?`: `string`; `tool_calls?`: [`LlmapiToolCall`](LlmapiToolCall.md)[]; `type?`: `string`; \}
+> **LlmapiMessage** = { `content?`: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)\[]; `role?`: [`LlmapiRole`](LlmapiRole.md); `tool_call_id?`: `string`; `tool_calls?`: [`LlmapiToolCall`](LlmapiToolCall.md)\[]; `type?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L422)
 
@@ -10,7 +10,7 @@ Message is the generated message
 
 ### content?
 
-> `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)[]
+> `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)\[]
 
 Defined in: [src/client/types.gen.ts:426](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L426)
 
@@ -38,7 +38,7 @@ ToolCallID is the ID of the tool call this message is responding to (only for to
 
 ### tool\_calls?
 
-> `optional` **tool\_calls**: [`LlmapiToolCall`](LlmapiToolCall.md)[]
+> `optional` **tool\_calls**: [`LlmapiToolCall`](LlmapiToolCall.md)\[]
 
 Defined in: [src/client/types.gen.ts:435](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L435)
 

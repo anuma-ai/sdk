@@ -1,6 +1,6 @@
 # LlmapiResponseRequest
 
-> **LlmapiResponseRequest** = \{ `background?`: `boolean`; `conversation?`: `string`; `input`: [`LlmapiResponseInput`](LlmapiResponseInput.md); `max_output_tokens?`: `number`; `model`: `string`; `reasoning?`: [`LlmapiResponseReasoning`](LlmapiResponseReasoning.md); `stream?`: `boolean`; `temperature?`: `number`; `thinking?`: [`LlmapiThinkingOptions`](LlmapiThinkingOptions.md); `tool_choice?`: `string`; `tools?`: [`LlmapiTool`](LlmapiTool.md)[]; \}
+> **LlmapiResponseRequest** = { `background?`: `boolean`; `conversation?`: `string`; `input`: [`LlmapiResponseInput`](LlmapiResponseInput.md); `max_output_tokens?`: `number`; `model`: `string`; `reasoning?`: [`LlmapiResponseReasoning`](LlmapiResponseReasoning.md); `stream?`: `boolean`; `temperature?`: `number`; `thinking?`: [`LlmapiThinkingOptions`](LlmapiThinkingOptions.md); `tool_choice?`: `string`; `tools?`: [`LlmapiTool`](LlmapiTool.md)\[]; }
 
 Defined in: [src/client/types.gen.ts:724](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L724)
 
@@ -102,7 +102,7 @@ ToolChoice controls which tool to use (auto, any, none, required, or tool name)
 
 ### tools?
 
-> `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)[]
+> `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)\[]
 
 Defined in: [src/client/types.gen.ts:759](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L759)
 

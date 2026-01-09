@@ -1,6 +1,6 @@
 # LlmapiEmbeddingRequest
 
-> **LlmapiEmbeddingRequest** = \{ `dimensions?`: `number`; `encoding_format?`: `string`; `input`: `unknown`; `model`: `string`; \}
+> **LlmapiEmbeddingRequest** = { `dimensions?`: `number`; `encoding_format?`: `string`; `input`: `unknown`; `model`: `string`; }
 
 Defined in: [src/client/types.gen.ts:270](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L270)
 
@@ -32,7 +32,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 Defined in: [src/client/types.gen.ts:282](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L282)
 
-Input text or tokens to embed (can be string, []string, []int, or [][]int)
+Input text or tokens to embed (can be string, \[]string, \[]int, or \[]\[]int)
 
 ***
 

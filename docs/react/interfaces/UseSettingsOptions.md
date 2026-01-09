@@ -6,7 +6,7 @@ Options for useSettings hook (React version)
 
 ## Extends
 
-- `BaseUseSettingsOptions`
+* `BaseUseSettingsOptions`
 
 ## Properties
 
@@ -16,7 +16,7 @@ Options for useSettings hook (React version)
 
 Defined in: [src/lib/db/settings/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L23)
 
-#### Inherited from
+**Inherited from**
 
 `BaseUseSettingsOptions.database`
 
@@ -28,6 +28,6 @@ Defined in: [src/lib/db/settings/types.ts:23](https://github.com/zeta-chain/ai-s
 
 Defined in: [src/lib/db/settings/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L24)
 
-#### Inherited from
+**Inherited from**
 
 `BaseUseSettingsOptions.walletAddress`

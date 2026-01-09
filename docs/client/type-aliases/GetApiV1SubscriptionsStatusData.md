@@ -1,6 +1,6 @@
 # GetApiV1SubscriptionsStatusData
 
-> **GetApiV1SubscriptionsStatusData** = \{ `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/status"`; \}
+> **GetApiV1SubscriptionsStatusData** = { `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/status"`; }
 
 Defined in: [src/client/types.gen.ts:1369](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1369)
 

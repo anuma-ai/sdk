@@ -4,28 +4,28 @@ Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk
 
 ## Extends
 
-- `default`
+* `default`
 
 ## Constructors
 
 ### Constructor
 
-> **new StoredMemoryModel**(`collection`: `Collection`\<`Model`\>, `raw`: `_RawRecord`): `Memory`
+> **new StoredMemoryModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `Memory`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `collection` | `Collection`\<`Model`\> |
+| `collection` | `Collection`<`Model`> |
 | `raw` | `_RawRecord` |
 
-#### Returns
+**Returns**
 
 `Memory`
 
-#### Inherited from
+**Inherited from**
 
 `Model.constructor`
 
@@ -33,11 +33,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_\_changes?
 
-> `optional` **\_\_changes**: `BehaviorSubject`\<`any`\>
+> `optional` **\_\_changes**: `BehaviorSubject`<`any`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:40
 
-#### Inherited from
+**Inherited from**
 
 `Model.__changes`
 
@@ -49,7 +49,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:36
 
-#### Inherited from
+**Inherited from**
 
 `Model._isEditing`
 
@@ -57,11 +57,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_preparedState
 
-> **\_preparedState**: `"create"` \| `"update"` \| `"markAsDeleted"` \| `"destroyPermanently"` \| `null`
+> **\_preparedState**: `"create"` | `"update"` | `"markAsDeleted"` | `"destroyPermanently"` | `null`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:38
 
-#### Inherited from
+**Inherited from**
 
 `Model._preparedState`
 
@@ -73,7 +73,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:34
 
-#### Inherited from
+**Inherited from**
 
 `Model._raw`
 
@@ -81,11 +81,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_subscribers
 
-> **\_subscribers**: \[(`isDeleted`: `boolean`) => `void`, `any`\][]
+> **\_subscribers**: \[(`isDeleted`: `boolean`) => `void`, `any`]\[]
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:125
 
-#### Inherited from
+**Inherited from**
 
 `Model._subscribers`
 
@@ -93,11 +93,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### collection
 
-> **collection**: `Collection`\<`Model`\>
+> **collection**: `Collection`<`Model`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:88
 
-#### Inherited from
+**Inherited from**
 
 `Model.collection`
 
@@ -129,7 +129,7 @@ Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sd
 
 ### embedding?
 
-> `optional` **embedding**: `number`[]
+> `optional` **embedding**: `number`\[]
 
 Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
 
@@ -221,7 +221,7 @@ Defined in: [src/lib/db/memory/models.ts:11](https://github.com/zeta-chain/ai-sd
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:32
 
-#### Inherited from
+**Inherited from**
 
 `Model._wmelonTag`
 
@@ -233,7 +233,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:29
 
-#### Inherited from
+**Inherited from**
 
 `Model.associations`
 
@@ -245,7 +245,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: [src/lib/db/memory/models.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L6)
 
-#### Overrides
+**Overrides**
 
 `Model.table`
 
@@ -253,17 +253,17 @@ Defined in: [src/lib/db/memory/models.ts:6](https://github.com/zeta-chain/ai-sdk
 
 ### asModel
 
-#### Get Signature
+**Get Signature**
 
 > **get** **asModel**(): `this`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:97
 
-##### Returns
+**Returns**
 
 `this`
 
-#### Inherited from
+**Inherited from**
 
 `Model.asModel`
 
@@ -271,17 +271,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### collections
 
-#### Get Signature
+**Get Signature**
 
 > **get** **collections**(): `CollectionMap`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:91
 
-##### Returns
+**Returns**
 
 `CollectionMap`
 
-#### Inherited from
+**Inherited from**
 
 `Model.collections`
 
@@ -289,17 +289,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### database
 
-#### Get Signature
+**Get Signature**
 
 > **get** **database**(): `Database`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:93
 
-##### Returns
+**Returns**
 
 `Database`
 
-#### Inherited from
+**Inherited from**
 
 `Model.database`
 
@@ -307,17 +307,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### db
 
-#### Get Signature
+**Get Signature**
 
 > **get** **db**(): `Database`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:95
 
-##### Returns
+**Returns**
 
 `Database`
 
-#### Inherited from
+**Inherited from**
 
 `Model.db`
 
@@ -325,17 +325,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### id
 
-#### Get Signature
+**Get Signature**
 
 > **get** **id**(): `string`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:44
 
-##### Returns
+**Returns**
 
 `string`
 
-#### Inherited from
+**Inherited from**
 
 `Model.id`
 
@@ -343,17 +343,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### syncStatus
 
-#### Get Signature
+**Get Signature**
 
 > **get** **syncStatus**(): `SyncStatus`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:46
 
-##### Returns
+**Returns**
 
 `SyncStatus`
 
-#### Inherited from
+**Inherited from**
 
 `Model.syncStatus`
 
@@ -361,17 +361,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### table
 
-#### Get Signature
+**Get Signature**
 
 > **get** **table**(): `string`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:113
 
-##### Returns
+**Returns**
 
 `string`
 
-#### Inherited from
+**Inherited from**
 
 `Model.table`
 
@@ -383,11 +383,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:141
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model.__ensureCanSetRaw`
 
@@ -399,17 +399,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:143
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `debugName` | `string` |
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model.__ensureNotDisposable`
 
@@ -421,18 +421,18 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:139
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `rawFieldName` | `string` |
 | `rawValue` | `Value` |
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model._dangerouslySetRawWithoutMarkingColumnChange`
 
@@ -440,15 +440,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_getChanges()
 
-> **\_getChanges**(): `BehaviorSubject`\<`any`\>
+> **\_getChanges**(): `BehaviorSubject`<`any`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:42
 
-#### Returns
+**Returns**
 
-`BehaviorSubject`\<`any`\>
+`BehaviorSubject`<`any`>
 
-#### Inherited from
+**Inherited from**
 
 `Model._getChanges`
 
@@ -460,17 +460,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:133
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `rawFieldName` | `string` |
 
-#### Returns
+**Returns**
 
 `Value`
 
-#### Inherited from
+**Inherited from**
 
 `Model._getRaw`
 
@@ -482,11 +482,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:129
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model._notifyChanged`
 
@@ -498,11 +498,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:131
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model._notifyDestroyed`
 
@@ -514,18 +514,18 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:135
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `rawFieldName` | `string` |
 | `rawValue` | `Value` |
 
-#### Returns
+**Returns**
 
 `void`
 
-#### Inherited from
+**Inherited from**
 
 `Model._setRaw`
 
@@ -533,21 +533,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### batch()
 
-> **batch**(...`records`: `$ReadOnlyArray`\<`false` \| `void` \| `Model` \| `null`\>): `Promise`\<`void`\>
+> **batch**(...`records`: `$ReadOnlyArray`<`false` | `void` | `Model` | `null`>): `Promise`<`void`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:102
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| ...`records` | `$ReadOnlyArray`\<`false` \| `void` \| `Model` \| `null`\> |
+| ...`records` | `$ReadOnlyArray`<`false` | `void` | `Model` | `null`> |
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.batch`
 
@@ -555,27 +555,27 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### callReader()
 
-> **callReader**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
+> **callReader**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:108
 
-#### Type Parameters
+**Type Parameters**
 
 | Type Parameter |
 | ------ |
 | `T` |
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `action` | () => `Promise`\<`T`\> |
+| `action` | () => `Promise`<`T`> |
 
-#### Returns
+**Returns**
 
-`Promise`\<`T`\>
+`Promise`<`T`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.callReader`
 
@@ -583,27 +583,27 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### callWriter()
 
-> **callWriter**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
+> **callWriter**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:105
 
-#### Type Parameters
+**Type Parameters**
 
 | Type Parameter |
 | ------ |
 | `T` |
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `action` | () => `Promise`\<`T`\> |
+| `action` | () => `Promise`<`T`> |
 
-#### Returns
+**Returns**
 
-`Promise`\<`T`\>
+`Promise`<`T`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.callWriter`
 
@@ -611,15 +611,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### destroyPermanently()
 
-> **destroyPermanently**(): `Promise`\<`void`\>
+> **destroyPermanently**(): `Promise`<`void`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:74
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.destroyPermanently`
 
@@ -627,15 +627,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### experimentalDestroyPermanently()
 
-> **experimentalDestroyPermanently**(): `Promise`\<`void`\>
+> **experimentalDestroyPermanently**(): `Promise`<`void`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:78
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.experimentalDestroyPermanently`
 
@@ -643,15 +643,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### experimentalMarkAsDeleted()
 
-> **experimentalMarkAsDeleted**(): `Promise`\<`void`\>
+> **experimentalMarkAsDeleted**(): `Promise`<`void`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:76
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.experimentalMarkAsDeleted`
 
@@ -663,18 +663,18 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:127
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `subscriber` | (`isDeleted`: `boolean`) => `void` |
 | `debugInfo?` | `any` |
 
-#### Returns
+**Returns**
 
 `Unsubscribe`
 
-#### Inherited from
+**Inherited from**
 
 `Model.experimentalSubscribe`
 
@@ -682,15 +682,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### markAsDeleted()
 
-> **markAsDeleted**(): `Promise`\<`void`\>
+> **markAsDeleted**(): `Promise`<`void`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:70
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.markAsDeleted`
 
@@ -698,15 +698,15 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### observe()
 
-> **observe**(): `Observable`\<`Memory`\>
+> **observe**(): `Observable`<`Memory`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:84
 
-#### Returns
+**Returns**
 
-`Observable`\<`Memory`\>
+`Observable`<`Memory`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.observe`
 
@@ -718,11 +718,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:66
 
-#### Returns
+**Returns**
 
 `this`
 
-#### Inherited from
+**Inherited from**
 
 `Model.prepareDestroyPermanently`
 
@@ -734,11 +734,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:64
 
-#### Returns
+**Returns**
 
 `this`
 
-#### Inherited from
+**Inherited from**
 
 `Model.prepareMarkAsDeleted`
 
@@ -750,17 +750,17 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:62
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `recordUpdater?` | (`_`: `this`) => `void` |
 
-#### Returns
+**Returns**
 
 `this`
 
-#### Inherited from
+**Inherited from**
 
 `Model.prepareUpdate`
 
@@ -768,27 +768,27 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### subAction()
 
-> **subAction**\<`T`\>(`action`: () => `Promise`\<`T`\>): `Promise`\<`T`\>
+> **subAction**<`T`>(`action`: () => `Promise`<`T`>): `Promise`<`T`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:111
 
-#### Type Parameters
+**Type Parameters**
 
 | Type Parameter |
 | ------ |
 | `T` |
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `action` | () => `Promise`\<`T`\> |
+| `action` | () => `Promise`<`T`> |
 
-#### Returns
+**Returns**
 
-`Promise`\<`T`\>
+`Promise`<`T`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.subAction`
 
@@ -796,21 +796,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### update()
 
-> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`\<`Memory`\>
+> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`Memory`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
 | `recordUpdater?` | (`_`: `this`) => `void` |
 
-#### Returns
+**Returns**
 
-`Promise`\<`Memory`\>
+`Promise`<`Memory`>
 
-#### Inherited from
+**Inherited from**
 
 `Model.update`
 
@@ -818,22 +818,22 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_disposableFromDirtyRaw()
 
-> `static` **\_disposableFromDirtyRaw**(`collection`: `Collection`\<`Model`\>, `dirtyRaw`: `DirtyRaw`): `Model`
+> `static` **\_disposableFromDirtyRaw**(`collection`: `Collection`<`Model`>, `dirtyRaw`: `DirtyRaw`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:123
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `collection` | `Collection`\<`Model`\> |
+| `collection` | `Collection`<`Model`> |
 | `dirtyRaw` | `DirtyRaw` |
 
-#### Returns
+**Returns**
 
 `Model`
 
-#### Inherited from
+**Inherited from**
 
 `Model._disposableFromDirtyRaw`
 
@@ -841,22 +841,22 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_prepareCreate()
 
-> `static` **\_prepareCreate**(`collection`: `Collection`\<`Model`\>, `recordBuilder`: (`_`: `Model`) => `void`): `Model`
+> `static` **\_prepareCreate**(`collection`: `Collection`<`Model`>, `recordBuilder`: (`_`: `Model`) => `void`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:119
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `collection` | `Collection`\<`Model`\> |
+| `collection` | `Collection`<`Model`> |
 | `recordBuilder` | (`_`: `Model`) => `void` |
 
-#### Returns
+**Returns**
 
 `Model`
 
-#### Inherited from
+**Inherited from**
 
 `Model._prepareCreate`
 
@@ -864,21 +864,21 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### \_prepareCreateFromDirtyRaw()
 
-> `static` **\_prepareCreateFromDirtyRaw**(`collection`: `Collection`\<`Model`\>, `dirtyRaw`: `DirtyRaw`): `Model`
+> `static` **\_prepareCreateFromDirtyRaw**(`collection`: `Collection`<`Model`>, `dirtyRaw`: `DirtyRaw`): `Model`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:121
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `collection` | `Collection`\<`Model`\> |
+| `collection` | `Collection`<`Model`> |
 | `dirtyRaw` | `DirtyRaw` |
 
-#### Returns
+**Returns**
 
 `Model`
 
-#### Inherited from
+**Inherited from**
 
 `Model._prepareCreateFromDirtyRaw`

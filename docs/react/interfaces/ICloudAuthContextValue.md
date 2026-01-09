@@ -44,7 +44,7 @@ Defined in: [src/react/useICloudAuth.ts:53](https://github.com/zeta-chain/ai-sdk
 
 Sign out from iCloud
 
-#### Returns
+**Returns**
 
 `void`
 
@@ -52,21 +52,21 @@ Sign out from iCloud
 
 ### requestAccess()
 
-> **requestAccess**: () => `Promise`\<`void`\>
+> **requestAccess**: () => `Promise`<`void`>
 
 Defined in: [src/react/useICloudAuth.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L51)
 
 Request access - triggers iCloud sign-in if needed
 
-#### Returns
+**Returns**
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 ***
 
 ### userRecordName
 
-> **userRecordName**: `string` \| `null`
+> **userRecordName**: `string` | `null`
 
 Defined in: [src/react/useICloudAuth.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L49)
 

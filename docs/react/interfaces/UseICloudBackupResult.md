@@ -8,22 +8,22 @@ Result returned by useICloudBackup hook
 
 ### backup()
 
-> **backup**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`ICloudExportResult`](ICloudExportResult.md) \| \{ `error`: `string`; \}\>
+> **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useICloudBackup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L44)
 
 Backup all conversations to iCloud
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
 | `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
-#### Returns
+**Returns**
 
-`Promise`\<[`ICloudExportResult`](ICloudExportResult.md) \| \{ `error`: `string`; \}\>
+`Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
 ***
 
@@ -59,19 +59,19 @@ Whether iCloud is configured
 
 ### restore()
 
-> **restore**: (`options?`: \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \}) => `Promise`\<[`ICloudImportResult`](ICloudImportResult.md) \| \{ `error`: `string`; \}\>
+> **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useICloudBackup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L48)
 
 Restore conversations from iCloud
 
-#### Parameters
+**Parameters**
 
 | Parameter | Type |
 | ------ | ------ |
-| `options?` | \{ `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; \} |
+| `options?` | { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; } |
 | `options.onProgress?` | (`current`: `number`, `total`: `number`) => `void` |
 
-#### Returns
+**Returns**
 
-`Promise`\<[`ICloudImportResult`](ICloudImportResult.md) \| \{ `error`: `string`; \}\>
+`Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>

@@ -1,6 +1,6 @@
 # requestKeyPair()
 
-> **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`\<`void`\>
+> **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
 
 Defined in: [src/react/useEncryption.ts:812](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L812)
 
@@ -20,6 +20,6 @@ This is a security feature - users must sign once per session to derive their ke
 
 ## Returns
 
-`Promise`\<`void`\>
+`Promise`<`void`>
 
 Promise that resolves when the key pair is available

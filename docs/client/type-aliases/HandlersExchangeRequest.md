@@ -1,6 +1,6 @@
 # HandlersExchangeRequest
 
-> **HandlersExchangeRequest** = \{ `code`: `string`; `redirect_uri?`: `string`; \}
+> **HandlersExchangeRequest** = { `code`: `string`; `redirect_uri?`: `string`; }
 
 Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L48)
 
