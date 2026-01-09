@@ -250,6 +250,7 @@ export function useMemoryStorage(
               })),
             ],
             model: model || completionsModel,
+            tool_choice: "none",
           },
           headers: {
             Authorization: `Bearer ${token}`,
