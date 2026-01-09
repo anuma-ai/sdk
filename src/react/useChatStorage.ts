@@ -221,6 +221,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * ```
  *
  * @category Hooks
+ * @group Hooks
  */
 export function useChatStorage(
   options: UseChatStorageOptions

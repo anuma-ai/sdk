@@ -89,9 +89,9 @@ function ChatScreen() {
 
 | Function | Description |
 | ------ | ------ |
-| [useChat](functions/useChat.md) | A React hook for managing chat completions with authentication. |
-| [useChatStorage](functions/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
-| [useMemoryStorage](functions/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
+| [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useChatStorage](Hooks/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
+| [useMemoryStorage](Hooks/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
 
 ## Other
 
@@ -259,10 +259,10 @@ Re-exports [UpdateMemoryOptions](../react/type-aliases/UpdateMemoryOptions.md)
 
 ### useImageGeneration
 
-Re-exports [useImageGeneration](../react/functions/useImageGeneration.md)
+Re-exports [useImageGeneration](../react/Hooks/useImageGeneration.md)
 
 ***
 
 ### useModels
 
-Re-exports [useModels](../react/functions/useModels.md)
+Re-exports [useModels](../react/Hooks/useModels.md)

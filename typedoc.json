@@ -25,7 +25,8 @@
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter",
-    "typedoc-plugin-remark"
+    "typedoc-plugin-remark",
+    "./scripts/typedoc-router-member-category.mjs"
   ],
   "exclude": [
     "**/*.test.ts",
@@ -39,5 +40,6 @@
         "./scripts/remark-clamp-headings.mjs"
       ]
     }
-  ]
+  ],
+  "router": "member-category"
 }
