@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsRenewData
 
-> **PostApiV1SubscriptionsRenewData** = { `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/renew"`; }
+> **PostApiV1SubscriptionsRenewData** = `object`
 
 Defined in: [src/client/types.gen.ts:1332](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1332)
 

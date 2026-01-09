@@ -1,6 +1,6 @@
 # GetHealthErrors
 
-> **GetHealthErrors** = { `500`: [`ResponseErrorResponse`](ResponseErrorResponse.md); }
+> **GetHealthErrors** = `object`
 
 Defined in: [src/client/types.gen.ts:1553](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1553)
 

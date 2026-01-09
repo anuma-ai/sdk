@@ -1,6 +1,6 @@
 # LlmapiModelTopProvider
 
-> **LlmapiModelTopProvider** = { `context_length?`: `number`; `is_moderated?`: `boolean`; `max_completion_tokens?`: `number`; }
+> **LlmapiModelTopProvider** = `object`
 
 Defined in: [src/client/types.gen.ts:587](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L587)
 

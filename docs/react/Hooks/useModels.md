@@ -1,6 +1,6 @@
 # useModels
 
-> **useModels**(`options`: { `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }): [`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
+> **useModels**(`options`: `object`): [`UseModelsResult`](../../expo/Internal/type-aliases/UseModelsResult.md)
 
 Defined in: [src/react/useModels.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L42)
 

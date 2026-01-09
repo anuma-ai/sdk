@@ -1,6 +1,6 @@
 # SLIDER\_CONFIG
 
-> `const` **SLIDER\_CONFIG**: { `key`: keyof [`PersonalitySliders`](../interfaces/PersonalitySliders.md); `label`: `string`; `leftLabel`: `string`; `rightLabel`: `string`; }\[]
+> `const` **SLIDER\_CONFIG**: `object`\[]
 
 Defined in: [src/lib/db/userPreferences/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L58)
 

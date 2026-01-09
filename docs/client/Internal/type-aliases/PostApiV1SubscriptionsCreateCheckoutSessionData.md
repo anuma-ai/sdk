@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsCreateCheckoutSessionData
 
-> **PostApiV1SubscriptionsCreateCheckoutSessionData** = { `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/create-checkout-session"`; }
+> **PostApiV1SubscriptionsCreateCheckoutSessionData** = `object`
 
 Defined in: [src/client/types.gen.ts:1270](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1270)
 

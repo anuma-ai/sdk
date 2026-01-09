@@ -1,6 +1,6 @@
 # useImageGeneration
 
-> **useImageGeneration**(`options`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiImageGenerationResponse`](../../client/Internal/type-aliases/LlmapiImageGenerationResponse.md)) => `void`; }): `UseImageGenerationResult`
+> **useImageGeneration**(`options`: `object`): `UseImageGenerationResult`
 
 Defined in: [src/react/useImageGeneration.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L49)
 

@@ -1,6 +1,6 @@
 # LlmapiSearchResult
 
-> **LlmapiSearchResult** = { `date?`: `string`; `snippet?`: `string`; `title?`: `string`; `url?`: `string`; }
+> **LlmapiSearchResult** = `object`
 
 Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
 

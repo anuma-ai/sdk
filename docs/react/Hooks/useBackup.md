@@ -1,6 +1,6 @@
 # useBackup
 
-> **useBackup**(`options`: { `database`: `Database`; `dropboxFolder?`: `string`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `googleConversationsFolder?`: `string`; `googleRootFolder?`: `string`; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
+> **useBackup**(`options`: `object`): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
 Defined in: [src/react/useBackup.ts:182](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L182)
 

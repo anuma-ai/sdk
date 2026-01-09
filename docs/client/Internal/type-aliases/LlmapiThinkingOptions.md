@@ -1,6 +1,6 @@
 # LlmapiThinkingOptions
 
-> **LlmapiThinkingOptions** = { `budget_tokens?`: `number`; `type?`: `string`; }
+> **LlmapiThinkingOptions** = `object`
 
 Defined in: [src/client/types.gen.ts:903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L903)
 

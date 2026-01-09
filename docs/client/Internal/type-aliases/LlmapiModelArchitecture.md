@@ -1,6 +1,6 @@
 # LlmapiModelArchitecture
 
-> **LlmapiModelArchitecture** = { `instruct_type?`: `string`; `modality?`: `string`; `prompt_formatting?`: `string`; `tokenizer?`: `string`; }
+> **LlmapiModelArchitecture** = `object`
 
 Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L559)
 

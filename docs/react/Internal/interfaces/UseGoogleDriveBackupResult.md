@@ -8,7 +8,7 @@ Result returned by useGoogleDriveBackup hook
 
 ### backup()
 
-> **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`GoogleDriveExportResult`](GoogleDriveExportResult.md) | { `error`: `string`; }>
+> **backup**: (`options?`: `object`) => `Promise`<[`GoogleDriveExportResult`](GoogleDriveExportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useGoogleDriveBackup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L50)
 
@@ -49,7 +49,7 @@ Whether Google Drive is configured
 
 ### restore()
 
-> **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`GoogleDriveImportResult`](GoogleDriveImportResult.md) | { `error`: `string`; }>
+> **restore**: (`options?`: `object`) => `Promise`<[`GoogleDriveImportResult`](GoogleDriveImportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useGoogleDriveBackup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L54)
 

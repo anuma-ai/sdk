@@ -1,6 +1,6 @@
 # useDropboxBackup
 
-> **useDropboxBackup**(`options`: { `backupFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `userAddress`: `string` | `null`; }): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
+> **useDropboxBackup**(`options`: `object`): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 
 Defined in: [src/react/useDropboxBackup.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L102)
 

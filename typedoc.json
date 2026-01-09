@@ -21,7 +21,7 @@
   "entryFileName": "README.md",
   "parametersFormat": "table",
   "expandParameters": true,
-  "expandObjects": true,
+  "expandObjects": false,
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter",

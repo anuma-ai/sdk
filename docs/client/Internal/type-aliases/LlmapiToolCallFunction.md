@@ -1,6 +1,6 @@
 # LlmapiToolCallFunction
 
-> **LlmapiToolCallFunction** = { `arguments?`: `string`; `name?`: `string`; }
+> **LlmapiToolCallFunction** = `object`
 
 Defined in: [src/client/types.gen.ts:937](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L937)
 

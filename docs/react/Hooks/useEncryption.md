@@ -1,6 +1,6 @@
 # useEncryption
 
-> **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): { `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`<`string`>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`<`void`>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`<`void`>; }
+> **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): `object`
 
 Defined in: [src/react/useEncryption.ts:1059](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1059)
 
@@ -40,7 +40,7 @@ deterministic key generation that should happen automatically.
 
 ## Returns
 
-{ `clearKeyPair`: (`walletAddress`: `string`) => `void`; `exportPublicKey`: (`walletAddress`: `string`) => `Promise`<`string`>; `hasKeyPair`: (`walletAddress`: `string`) => `boolean`; `requestEncryptionKey`: (`walletAddress`: `string`) => `Promise`<`void`>; `requestKeyPair`: (`walletAddress`: `string`) => `Promise`<`void`>; }
+`object`
 
 Functions to request encryption keys and manage key pairs
 

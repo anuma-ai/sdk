@@ -1,6 +1,6 @@
 # useOCR
 
-> **useOCR**(): { `error`: `Error` | `null`; `extractOCRContext`: (`files`: [`OCRFile`](../Internal/interfaces/OCRFile.md)\[]) => `Promise`<`string` | `null`>; `isProcessing`: `boolean`; }
+> **useOCR**(): `object`
 
 Defined in: [src/react/useOCR.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L15)
 
@@ -8,7 +8,7 @@ React hook for extracting text from images using OCR.
 
 ## Returns
 
-{ `error`: `Error` | `null`; `extractOCRContext`: (`files`: [`OCRFile`](../Internal/interfaces/OCRFile.md)\[]) => `Promise`<`string` | `null`>; `isProcessing`: `boolean`; }
+`object`
 
 ### error
 

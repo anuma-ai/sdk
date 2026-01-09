@@ -1,6 +1,6 @@
 # useGoogleDriveBackup
 
-> **useGoogleDriveBackup**(`options`: { `conversationsFolder?`: `string`; `database`: `Database`; `exportConversation`: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>; `importConversation`: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>; `requestEncryptionKey`: (`address`: `string`) => `Promise`<`void`>; `rootFolder?`: `string`; `userAddress`: `string` | `null`; }): [`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
+> **useGoogleDriveBackup**(`options`: `object`): [`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
 
 Defined in: [src/react/useGoogleDriveBackup.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L105)
 

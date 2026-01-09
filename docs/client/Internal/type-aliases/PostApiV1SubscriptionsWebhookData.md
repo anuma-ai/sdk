@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsWebhookData
 
-> **PostApiV1SubscriptionsWebhookData** = { `body?`: {\[`key`: `string`]: `unknown`; }; `headers`: { `Stripe-Signature`: `string`; }; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/subscriptions/webhook"`; }
+> **PostApiV1SubscriptionsWebhookData** = `object`
 
 Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1398)
 
@@ -8,7 +8,7 @@ Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/
 
 ### body?
 
-> `optional` **body**: {\[`key`: `string`]: `unknown`; }
+> `optional` **body**: `object`
 
 Defined in: [src/client/types.gen.ts:1399](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1399)
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:1399](https://github.com/zeta-chain/ai-sdk/
 
 ### headers
 
-> **headers**: { `Stripe-Signature`: `string`; }
+> **headers**: `object`
 
 Defined in: [src/client/types.gen.ts:1402](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1402)
 

@@ -1,6 +1,6 @@
 # Options\<TData, ThrowOnError>
 
-> **Options**<`TData`, `ThrowOnError`> = `Options2`<`TData`, `ThrowOnError`> & { `client?`: `Client`; `meta?`: `Record`<`string`, `unknown`>; }
+> **Options**<`TData`, `ThrowOnError`> = `Options2`<`TData`, `ThrowOnError`> & `object`
 
 Defined in: [src/client/sdk.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L7)
 

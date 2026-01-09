@@ -1,6 +1,6 @@
 # UseModelsOptions
 
-> **UseModelsOptions** = { `autoFetch?`: `boolean`; `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `provider?`: `string`; }
+> **UseModelsOptions** = `object`
 
 Defined in: [src/react/useModels.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L11)
 

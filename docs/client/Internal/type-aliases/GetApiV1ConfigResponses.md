@@ -1,6 +1,6 @@
 # GetApiV1ConfigResponses
 
-> **GetApiV1ConfigResponses** = { `200`: [`HandlersConfigResponse`](HandlersConfigResponse.md); }
+> **GetApiV1ConfigResponses** = `object`
 
 Defined in: [src/client/types.gen.ts:1024](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1024)
 

@@ -1,6 +1,6 @@
 # useChat
 
-> **useChat**(`options?`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; `onThinking?`: (`chunk`: `string`) => `void`; `onToolCall?`: (`toolCall`: [`LlmapiToolCall`](../../client/Internal/type-aliases/LlmapiToolCall.md)) => `void`; }): `UseChatResult`
+> **useChat**(`options?`: `object`): `UseChatResult`
 
 Defined in: [src/expo/useChat.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L117)
 

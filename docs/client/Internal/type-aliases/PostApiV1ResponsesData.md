@@ -1,6 +1,6 @@
 # PostApiV1ResponsesData
 
-> **PostApiV1ResponsesData** = { `body`: [`LlmapiResponseRequest`](LlmapiResponseRequest.md); `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/responses"`; }
+> **PostApiV1ResponsesData** = `object`
 
 Defined in: [src/client/types.gen.ts:1169](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1169)
 

@@ -1,6 +1,6 @@
 # LlmapiSearchRequest
 
-> **LlmapiSearchRequest** = { `country?`: `string`; `max_results?`: `number`; `max_tokens_per_page?`: `number`; `query`: `string`\[]; `search_domain_filter?`: `string`\[]; `search_tool_name`: `string`; }
+> **LlmapiSearchRequest** = `object`
 
 Defined in: [src/client/types.gen.ts:835](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L835)
 

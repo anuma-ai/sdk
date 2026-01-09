@@ -1,6 +1,6 @@
 # LlmapiResponseUsage
 
-> **LlmapiResponseUsage** = { `completion_tokens?`: `number`; `cost_micro_usd?`: `number`; `prompt_tokens?`: `number`; `total_tokens?`: `number`; }
+> **LlmapiResponseUsage** = `object`
 
 Defined in: [src/client/types.gen.ts:797](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L797)
 

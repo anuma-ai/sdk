@@ -1,6 +1,6 @@
 # useMemoryStorage
 
-> **useMemoryStorage**(`options`: { `baseUrl?`: `string`; `completionsModel?`: `string`; `database`: `Database`; `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md); `embeddingModel?`: `string` | `null`; `generateEmbeddings?`: `boolean`; `getToken?`: () => `Promise`<`string` | `null`>; `onFactsExtracted?`: (`facts`: `MemoryExtractionResult`) => `void`; `signMessage?`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md); `walletAddress?`: `string`; }): `BaseUseMemoryStorageResult`
+> **useMemoryStorage**(`options`: `object`): `BaseUseMemoryStorageResult`
 
 Defined in: [src/react/useMemoryStorage.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L106)
 

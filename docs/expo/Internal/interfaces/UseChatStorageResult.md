@@ -92,7 +92,7 @@ Defined in: [src/lib/db/chat/types.ts:228](https://github.com/zeta-chain/ai-sdk/
 
 ### extractSourcesFromAssistantMessage()
 
-> **extractSourcesFromAssistantMessage**: (`assistantMessage`: { `content`: `string`; `sources?`: [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]; }) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
+> **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
 Defined in: [src/expo/useChatStorage.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L95)
 

@@ -1,6 +1,6 @@
 # useSettings
 
-> **useSettings**(`options`: { `database`: `Database`; `walletAddress?`: `string`; }): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
+> **useSettings**(`options`: `object`): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
 Defined in: [src/react/useSettings.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L116)
 

@@ -1,6 +1,6 @@
 # LlmapiEmbeddingResponse
 
-> **LlmapiEmbeddingResponse** = { `data?`: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]; `extra_fields?`: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md); `model?`: `string`; `object?`: `string`; `usage?`: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md); }
+> **LlmapiEmbeddingResponse** = `object`
 
 Defined in: [src/client/types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L289)
 

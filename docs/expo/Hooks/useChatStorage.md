@@ -1,6 +1,6 @@
 # useChatStorage
 
-> **useChatStorage**(`options`: { `autoCreateConversation?`: `boolean`; `baseUrl?`: `string`; `conversationId?`: `string`; `database`: `Database`; `defaultConversationTitle?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onData?`: (`chunk`: `string`) => `void`; `onError?`: (`error`: `Error`) => `void`; `onFinish?`: (`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`; }): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
+> **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
 Defined in: [src/expo/useChatStorage.ts:150](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L150)
 

@@ -1,6 +1,6 @@
 # PostApiV1SubscriptionsRenewResponses
 
-> **PostApiV1SubscriptionsRenewResponses** = { `200`: [`HandlersRenewSubscriptionResponse`](HandlersRenewSubscriptionResponse.md); }
+> **PostApiV1SubscriptionsRenewResponses** = `object`
 
 Defined in: [src/client/types.gen.ts:1360](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1360)
 

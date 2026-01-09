@@ -1,6 +1,6 @@
 # useSearch
 
-> **useSearch**(`options`: { `baseUrl?`: `string`; `getToken?`: () => `Promise`<`string` | `null`>; `onError?`: (`error`: `Error`) => `void`; }): `UseSearchResult`
+> **useSearch**(`options`: `object`): `UseSearchResult`
 
 Defined in: [src/react/useSearch.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L83)
 

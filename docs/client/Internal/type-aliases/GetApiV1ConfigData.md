@@ -1,6 +1,6 @@
 # GetApiV1ConfigData
 
-> **GetApiV1ConfigData** = { `body?`: `never`; `path?`: `never`; `query?`: `never`; `url`: `"/api/v1/config"`; }
+> **GetApiV1ConfigData** = `object`
 
 Defined in: [src/client/types.gen.ts:1008](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1008)
 

@@ -1,6 +1,6 @@
 # LlmapiModel
 
-> **LlmapiModel** = { `architecture?`: [`LlmapiModelArchitecture`](LlmapiModelArchitecture.md); `canonical_slug?`: `string`; `context_length?`: `number`; `created?`: `number`; `default_parameters?`: {\[`key`: `string`]: `unknown`; }; `description?`: `string`; `hugging_face_id?`: `string`; `id?`: `string`; `max_input_tokens?`: `number`; `max_output_tokens?`: `number`; `modalities?`: `string`\[]; `name?`: `string`; `owned_by?`: `string`; `per_request_limits?`: [`LlmapiModelPerRequestLimits`](LlmapiModelPerRequestLimits.md); `pricing?`: [`LlmapiModelPricing`](LlmapiModelPricing.md); `supported_methods?`: `string`\[]; `supported_parameters?`: `string`\[]; `top_provider?`: [`LlmapiModelTopProvider`](LlmapiModelTopProvider.md); }
+> **LlmapiModel** = `object`
 
 Defined in: [src/client/types.gen.ts:491](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L491)
 
@@ -46,7 +46,7 @@ Created is the Unix timestamp of when the model was created
 
 ### default\_parameters?
 
-> `optional` **default\_parameters**: {\[`key`: `string`]: `unknown`; }
+> `optional` **default\_parameters**: `object`
 
 Defined in: [src/client/types.gen.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L508)
 

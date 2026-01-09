@@ -1,6 +1,6 @@
 # HandlersConfigResponse
 
-> **HandlersConfigResponse** = { `chain_id?`: `string`; `cost_limit_escrow_address?`: `string`; `operator_address?`: `string`; `pay_as_you_go_escrow_address?`: `string`; `payment_model?`: `string`; `settlement_recipient?`: `string`; }
+> **HandlersConfigResponse** = `object`
 
 Defined in: [src/client/types.gen.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L17)
 

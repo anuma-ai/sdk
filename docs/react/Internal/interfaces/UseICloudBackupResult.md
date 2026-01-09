@@ -8,7 +8,7 @@ Result returned by useICloudBackup hook
 
 ### backup()
 
-> **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
+> **backup**: (`options?`: `object`) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useICloudBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L45)
 
@@ -59,7 +59,7 @@ Whether iCloud is configured
 
 ### restore()
 
-> **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
+> **restore**: (`options?`: `object`) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useICloudBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L49)
 

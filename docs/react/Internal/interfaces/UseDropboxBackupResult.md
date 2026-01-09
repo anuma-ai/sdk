@@ -8,7 +8,7 @@ Result returned by useDropboxBackup hook
 
 ### backup()
 
-> **backup**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
+> **backup**: (`options?`: `object`) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L47)
 
@@ -49,7 +49,7 @@ Whether Dropbox is configured
 
 ### restore()
 
-> **restore**: (`options?`: { `onProgress?`: (`current`: `number`, `total`: `number`) => `void`; }) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
+> **restore**: (`options?`: `object`) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
 
 Defined in: [src/react/useDropboxBackup.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L51)
 

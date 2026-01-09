@@ -338,7 +338,7 @@ Array of tool definitions available to the model.
 
 ### writeFile()?
 
-> `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: { `onProgress?`: (`progress`: `number`) => `void`; `signal?`: `AbortSignal`; }) => `Promise`<`string`>
+> `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: `object`) => `Promise`<`string`>
 
 Defined in: [src/react/useChatStorage.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L101)
 

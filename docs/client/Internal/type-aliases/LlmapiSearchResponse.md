@@ -1,6 +1,6 @@
 # LlmapiSearchResponse
 
-> **LlmapiSearchResponse** = { `extra_fields?`: [`LlmapiSearchExtraFields`](LlmapiSearchExtraFields.md); `results?`: [`LlmapiSearchResult`](LlmapiSearchResult.md)\[]; `usage?`: [`LlmapiSearchUsage`](LlmapiSearchUsage.md); }
+> **LlmapiSearchResponse** = `object`
 
 Defined in: [src/client/types.gen.ts:862](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L862)
 
