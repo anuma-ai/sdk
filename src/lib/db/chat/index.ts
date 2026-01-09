@@ -18,9 +18,11 @@ export {
   type BaseSendMessageErrorResult,
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
+  type ExtractedUserMessage,
   convertUsageToStored,
   generateConversationId,
   finalizeThoughtProcess,
+  extractUserMessageFromMessages,
 } from "./types";
 export {
   type StorageOperationsContext,

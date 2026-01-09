@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L76)
+Defined in: [src/react/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L73)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L82)
+Defined in: [src/react/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L79)
 
 Which API endpoint to use. Default: "responses"
 

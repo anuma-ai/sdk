@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L67)
+Defined in: [src/expo/useChatStorage.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L69)
 
 Options for useChatStorage hook (Expo version)
 

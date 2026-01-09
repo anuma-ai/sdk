@@ -16,8 +16,10 @@ import {
   type BaseSendMessageWithStorageResult,
   type BaseUseChatStorageResult,
   type SearchSource,
+  type FileMetadata,
   convertUsageToStored,
   finalizeThoughtProcess,
+  extractUserMessageFromMessages,
   type StorageOperationsContext,
   createConversationOp,
   getConversationOp,
@@ -428,9 +430,8 @@ export function useChatStorage(
       args: SendMessageWithStorageArgs
     ): Promise<SendMessageWithStorageResult> => {
       const {
-        content,
+        messages,
         model,
-        messages: providedMessages,
         includeHistory = true,
         maxHistoryMessages = 50,
         files,
@@ -452,6 +453,18 @@ export function useChatStorage(
         thinking,
       } = args;
 
+      // Extract user message content for storage
+      const extracted = extractUserMessageFromMessages(messages);
+      if (!extracted || !extracted.content) {
+        return {
+          data: null,
+          error: "No user message found in messages array",
+        };
+      }
+      const contentForStorage = extracted.content;
+      // Use provided files, or fall back to files extracted from the message
+      const filesForStorage = files ?? extracted.files;
+
       // Ensure we have a conversation
       let convId: string;
       try {
@@ -470,42 +483,23 @@ export function useChatStorage(
       let messagesToSend: LlmapiMessage[] = [];
 
       // Include history if requested
-      if (includeHistory && !providedMessages) {
+      if (includeHistory) {
         const storedMessages = await getMessages(convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = limitedMessages.map(storedToLlmapiMessage);
-      } else if (providedMessages) {
-        messagesToSend = providedMessages;
+        messagesToSend = [
+          ...limitedMessages.map(storedToLlmapiMessage),
+          ...messages,
+        ];
+      } else {
+        // Use provided messages directly
+        messagesToSend = [...messages];
       }
-
-      // Add the user's new message
-      const userMessageContent: LlmapiMessage["content"] = [
-        { type: "text", text: content },
-      ];
-
-      // Add file image parts if present
-      if (files?.length) {
-        for (const file of files) {
-          if (file.url) {
-            userMessageContent.push({
-              type: "image_url",
-              image_url: { url: file.url },
-            });
-          }
-        }
-      }
-
-      const userMessage: LlmapiMessage = {
-        role: "user",
-        content: userMessageContent,
-      };
-      messagesToSend.push(userMessage);
 
       // Store the user message
       // Sanitize files for storage: remove large data URIs to avoid bloating the database
-      const sanitizedFiles = files?.map((file) => ({
+      const sanitizedFiles = filesForStorage?.map((file) => ({
         id: file.id,
         name: file.name,
         type: file.type,
@@ -519,7 +513,7 @@ export function useChatStorage(
         storedUserMessage = await createMessageOp(storageCtx, {
           conversationId: convId,
           role: "user",
-          content,
+          content: contentForStorage,
           files: sanitizedFiles,
           model,
         });
