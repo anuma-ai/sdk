@@ -74,6 +74,7 @@ export {
 } from "./useEncryption";
 export type {
   SignMessageFn,
+  SignMessageOptions,
   EmbeddedWalletSignerFn,
   UseEncryptionResult,
 } from "./useEncryption";
