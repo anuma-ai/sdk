@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: src/react/useChatStorage.ts:137
+Defined in: src/react/useChatStorage.ts:176
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: src/react/useChatStorage.ts:143
+Defined in: src/react/useChatStorage.ts:182
 
 Which API endpoint to use. Default: "responses"
 
