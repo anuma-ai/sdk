@@ -103,9 +103,36 @@ export function findFileIdBySourceUrl(
 }
 
 /**
- * Convert StoredMessage to LlmapiMessage format
+ * Check if a URL is still valid/accessible.
+ * Uses GET with Range header (bytes=0-0) instead of HEAD because
+ * HEAD requests don't work with R2 pre-signed URLs.
  */
-function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
+async function isUrlValid(url: string, timeoutMs = 5000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    // 200 OK or 206 Partial Content both indicate the URL is valid
+    return response.ok || response.status === 206;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Convert StoredMessage to LlmapiMessage format.
+ * If a file has a sourceUrl, validates it and includes it as an image_url part.
+ */
+async function storedToLlmapiMessage(
+  stored: StoredMessage
+): Promise<LlmapiMessage> {
   const content: LlmapiMessage["content"] = [
     { type: "text", text: stored.content },
   ];
@@ -113,11 +140,23 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
   // Add file image parts if present
   if (stored.files?.length) {
     for (const file of stored.files) {
+      // First check if there's a direct url (user uploads with data URIs)
       if (file.url) {
         content.push({
           type: "image_url",
           image_url: { url: file.url },
         });
+      } else if (file.sourceUrl) {
+        // For MCP-cached files, check if sourceUrl is still valid
+        const isValid = await isUrlValid(file.sourceUrl);
+        if (isValid) {
+          content.push({
+            type: "image_url",
+            image_url: { url: file.sourceUrl },
+          });
+        }
+        // If sourceUrl is invalid (404), don't include it - the content
+        // already has the ![MCP_IMAGE:fileId] placeholder for local rendering
       }
     }
   }
@@ -877,10 +916,11 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = [
-          ...limitedMessages.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        // Convert stored messages to API format (validates sourceUrls in parallel)
+        const historyMessages = await Promise.all(
+          limitedMessages.map(storedToLlmapiMessage)
+        );
+        messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
