@@ -979,8 +979,9 @@ export function useChatStorage(
         }
 
         // Pattern to match any URL from the MCP R2 domain
+        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
         const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
           "g"
         );
 
@@ -989,7 +990,9 @@ export function useChatStorage(
           return { processedFiles: [], cleanedContent: content };
         }
 
-        const uniqueUrls = [...new Set(urlMatches)];
+        // Clean URLs by removing any trailing quotes or invalid characters
+        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
+        const uniqueUrls = [...new Set(cleanedUrls)];
         const encryptionKey = await getEncryptionKey(address);
 
         const processedFiles: {
@@ -1055,6 +1058,20 @@ export function useChatStorage(
             const placeholder = createFilePlaceholder(fileId);
             const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+            // Replace HTML img tags with double-quoted src
+            const htmlImgPatternDouble = new RegExp(
+              `<img[^>]*src="${escapedUrl}"[^>]*>`,
+              "gi"
+            );
+            cleanedContent = cleanedContent.replace(htmlImgPatternDouble, placeholder);
+
+            // Replace HTML img tags with single-quoted src
+            const htmlImgPatternSingle = new RegExp(
+              `<img[^>]*src='${escapedUrl}'[^>]*>`,
+              "gi"
+            );
+            cleanedContent = cleanedContent.replace(htmlImgPatternSingle, placeholder);
+
             // Replace markdown image syntax
             const markdownImagePattern = new RegExp(
               `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
@@ -1062,7 +1079,7 @@ export function useChatStorage(
             );
             cleanedContent = cleanedContent.replace(markdownImagePattern, placeholder);
 
-            // Replace raw URLs
+            // Replace raw URLs (only if not already replaced)
             cleanedContent = cleanedContent.replace(new RegExp(escapedUrl, "g"), placeholder);
           } else {
             // eslint-disable-next-line no-console
