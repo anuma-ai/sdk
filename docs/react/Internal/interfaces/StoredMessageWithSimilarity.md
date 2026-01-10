@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: src/lib/db/chat/types.ts:81
+Defined in: src/lib/db/chat/types.ts:104
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: src/lib/db/chat/types.ts:81
 
 > **content**: `string`
 
-Defined in: src/lib/db/chat/types.ts:46
+Defined in: src/lib/db/chat/types.ts:69
 
 **Inherited from**
 
@@ -24,7 +24,7 @@ Defined in: src/lib/db/chat/types.ts:46
 
 > **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:44
+Defined in: src/lib/db/chat/types.ts:67
 
 **Inherited from**
 
@@ -36,7 +36,7 @@ Defined in: src/lib/db/chat/types.ts:44
 
 > **createdAt**: `Date`
 
-Defined in: src/lib/db/chat/types.ts:49
+Defined in: src/lib/db/chat/types.ts:72
 
 **Inherited from**
 
@@ -48,7 +48,7 @@ Defined in: src/lib/db/chat/types.ts:49
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: src/lib/db/chat/types.ts:52
+Defined in: src/lib/db/chat/types.ts:75
 
 **Inherited from**
 
@@ -60,7 +60,7 @@ Defined in: src/lib/db/chat/types.ts:52
 
 > `optional` **error**: `string`
 
-Defined in: src/lib/db/chat/types.ts:58
+Defined in: src/lib/db/chat/types.ts:81
 
 If set, indicates the message failed with this error
 
@@ -74,7 +74,7 @@ If set, indicates the message failed with this error
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: src/lib/db/chat/types.ts:48
+Defined in: src/lib/db/chat/types.ts:71
 
 **Inherited from**
 
@@ -86,7 +86,7 @@ Defined in: src/lib/db/chat/types.ts:48
 
 > **messageId**: `number`
 
-Defined in: src/lib/db/chat/types.ts:43
+Defined in: src/lib/db/chat/types.ts:66
 
 **Inherited from**
 
@@ -98,7 +98,7 @@ Defined in: src/lib/db/chat/types.ts:43
 
 > `optional` **model**: `string`
 
-Defined in: src/lib/db/chat/types.ts:47
+Defined in: src/lib/db/chat/types.ts:70
 
 **Inherited from**
 
@@ -110,7 +110,7 @@ Defined in: src/lib/db/chat/types.ts:47
 
 > `optional` **responseDuration**: `number`
 
-Defined in: src/lib/db/chat/types.ts:55
+Defined in: src/lib/db/chat/types.ts:78
 
 **Inherited from**
 
@@ -122,7 +122,7 @@ Defined in: src/lib/db/chat/types.ts:55
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: src/lib/db/chat/types.ts:45
+Defined in: src/lib/db/chat/types.ts:68
 
 **Inherited from**
 
@@ -134,7 +134,7 @@ Defined in: src/lib/db/chat/types.ts:45
 
 > **similarity**: `number`
 
-Defined in: src/lib/db/chat/types.ts:82
+Defined in: src/lib/db/chat/types.ts:105
 
 ***
 
@@ -142,7 +142,7 @@ Defined in: src/lib/db/chat/types.ts:82
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: src/lib/db/chat/types.ts:54
+Defined in: src/lib/db/chat/types.ts:77
 
 **Inherited from**
 
@@ -154,7 +154,7 @@ Defined in: src/lib/db/chat/types.ts:54
 
 > `optional` **thinking**: `string`
 
-Defined in: src/lib/db/chat/types.ts:61
+Defined in: src/lib/db/chat/types.ts:84
 
 Reasoning/thinking content from models that support extended thinking
 
@@ -168,7 +168,7 @@ Reasoning/thinking content from models that support extended thinking
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: src/lib/db/chat/types.ts:59
+Defined in: src/lib/db/chat/types.ts:82
 
 **Inherited from**
 
@@ -180,7 +180,7 @@ Defined in: src/lib/db/chat/types.ts:59
 
 > **uniqueId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:42
+Defined in: src/lib/db/chat/types.ts:65
 
 **Inherited from**
 
@@ -192,7 +192,7 @@ Defined in: src/lib/db/chat/types.ts:42
 
 > **updatedAt**: `Date`
 
-Defined in: src/lib/db/chat/types.ts:50
+Defined in: src/lib/db/chat/types.ts:73
 
 **Inherited from**
 
@@ -204,7 +204,7 @@ Defined in: src/lib/db/chat/types.ts:50
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: src/lib/db/chat/types.ts:53
+Defined in: src/lib/db/chat/types.ts:76
 
 **Inherited from**
 
@@ -216,7 +216,7 @@ Defined in: src/lib/db/chat/types.ts:53
 
 > `optional` **vector**: `number`\[]
 
-Defined in: src/lib/db/chat/types.ts:51
+Defined in: src/lib/db/chat/types.ts:74
 
 **Inherited from**
 
@@ -228,7 +228,7 @@ Defined in: src/lib/db/chat/types.ts:51
 
 > `optional` **wasStopped**: `boolean`
 
-Defined in: src/lib/db/chat/types.ts:56
+Defined in: src/lib/db/chat/types.ts:79
 
 **Inherited from**
 

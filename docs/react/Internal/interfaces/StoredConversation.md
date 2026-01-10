@@ -1,6 +1,6 @@
 # StoredConversation
 
-Defined in: src/lib/db/chat/types.ts:72
+Defined in: src/lib/db/chat/types.ts:95
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/chat/types.ts:72
 
 > **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:74
+Defined in: src/lib/db/chat/types.ts:97
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/db/chat/types.ts:74
 
 > **createdAt**: `Date`
 
-Defined in: src/lib/db/chat/types.ts:76
+Defined in: src/lib/db/chat/types.ts:99
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/db/chat/types.ts:76
 
 > **isDeleted**: `boolean`
 
-Defined in: src/lib/db/chat/types.ts:78
+Defined in: src/lib/db/chat/types.ts:101
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: src/lib/db/chat/types.ts:78
 
 > **title**: `string`
 
-Defined in: src/lib/db/chat/types.ts:75
+Defined in: src/lib/db/chat/types.ts:98
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: src/lib/db/chat/types.ts:75
 
 > **uniqueId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:73
+Defined in: src/lib/db/chat/types.ts:96
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: src/lib/db/chat/types.ts:73
 
 > **updatedAt**: `Date`
 
-Defined in: src/lib/db/chat/types.ts:77
+Defined in: src/lib/db/chat/types.ts:100

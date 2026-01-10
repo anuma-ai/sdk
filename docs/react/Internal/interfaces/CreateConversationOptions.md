@@ -1,6 +1,6 @@
 # CreateConversationOptions
 
-Defined in: src/lib/db/chat/types.ts:104
+Defined in: src/lib/db/chat/types.ts:127
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/chat/types.ts:104
 
 > `optional` **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:105
+Defined in: src/lib/db/chat/types.ts:128
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: src/lib/db/chat/types.ts:105
 
 > `optional` **title**: `string`
 
-Defined in: src/lib/db/chat/types.ts:106
+Defined in: src/lib/db/chat/types.ts:129

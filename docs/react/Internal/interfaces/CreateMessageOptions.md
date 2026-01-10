@@ -1,6 +1,6 @@
 # CreateMessageOptions
 
-Defined in: src/lib/db/chat/types.ts:85
+Defined in: src/lib/db/chat/types.ts:108
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/chat/types.ts:85
 
 > **content**: `string`
 
-Defined in: src/lib/db/chat/types.ts:88
+Defined in: src/lib/db/chat/types.ts:111
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/db/chat/types.ts:88
 
 > **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:86
+Defined in: src/lib/db/chat/types.ts:109
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/db/chat/types.ts:86
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: src/lib/db/chat/types.ts:95
+Defined in: src/lib/db/chat/types.ts:118
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: src/lib/db/chat/types.ts:95
 
 > `optional` **error**: `string`
 
-Defined in: src/lib/db/chat/types.ts:98
+Defined in: src/lib/db/chat/types.ts:121
 
 If set, indicates the message failed with this error
 
@@ -42,7 +42,7 @@ If set, indicates the message failed with this error
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: src/lib/db/chat/types.ts:90
+Defined in: src/lib/db/chat/types.ts:113
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: src/lib/db/chat/types.ts:90
 
 > `optional` **model**: `string`
 
-Defined in: src/lib/db/chat/types.ts:89
+Defined in: src/lib/db/chat/types.ts:112
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: src/lib/db/chat/types.ts:89
 
 > `optional` **responseDuration**: `number`
 
-Defined in: src/lib/db/chat/types.ts:93
+Defined in: src/lib/db/chat/types.ts:116
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: src/lib/db/chat/types.ts:93
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: src/lib/db/chat/types.ts:87
+Defined in: src/lib/db/chat/types.ts:110
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: src/lib/db/chat/types.ts:87
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: src/lib/db/chat/types.ts:92
+Defined in: src/lib/db/chat/types.ts:115
 
 ***
 
@@ -82,7 +82,7 @@ Defined in: src/lib/db/chat/types.ts:92
 
 > `optional` **thinking**: `string`
 
-Defined in: src/lib/db/chat/types.ts:101
+Defined in: src/lib/db/chat/types.ts:124
 
 Reasoning/thinking content from models that support extended thinking
 
@@ -92,7 +92,7 @@ Reasoning/thinking content from models that support extended thinking
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: src/lib/db/chat/types.ts:99
+Defined in: src/lib/db/chat/types.ts:122
 
 ***
 
@@ -100,7 +100,7 @@ Defined in: src/lib/db/chat/types.ts:99
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: src/lib/db/chat/types.ts:91
+Defined in: src/lib/db/chat/types.ts:114
 
 ***
 
@@ -108,7 +108,7 @@ Defined in: src/lib/db/chat/types.ts:91
 
 > `optional` **vector**: `number`\[]
 
-Defined in: src/lib/db/chat/types.ts:94
+Defined in: src/lib/db/chat/types.ts:117
 
 ***
 
@@ -116,4 +116,4 @@ Defined in: src/lib/db/chat/types.ts:94
 
 > `optional` **wasStopped**: `boolean`
 
-Defined in: src/lib/db/chat/types.ts:96
+Defined in: src/lib/db/chat/types.ts:119

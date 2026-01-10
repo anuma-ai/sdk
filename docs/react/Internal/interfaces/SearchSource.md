@@ -1,6 +1,6 @@
 # SearchSource
 
-Defined in: src/lib/db/chat/types.ts:34
+Defined in: src/lib/db/chat/types.ts:57
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/chat/types.ts:34
 
 > `optional` **date**: `string`
 
-Defined in: src/lib/db/chat/types.ts:38
+Defined in: src/lib/db/chat/types.ts:61
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/db/chat/types.ts:38
 
 > `optional` **snippet**: `string`
 
-Defined in: src/lib/db/chat/types.ts:37
+Defined in: src/lib/db/chat/types.ts:60
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/db/chat/types.ts:37
 
 > `optional` **title**: `string`
 
-Defined in: src/lib/db/chat/types.ts:35
+Defined in: src/lib/db/chat/types.ts:58
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: src/lib/db/chat/types.ts:35
 
 > `optional` **url**: `string`
 
-Defined in: src/lib/db/chat/types.ts:36
+Defined in: src/lib/db/chat/types.ts:59

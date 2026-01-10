@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearMessages**: (`conversationId`: `string`) => `Promise`<`void`>
 
-Defined in: src/lib/db/chat/types.ts:359
+Defined in: src/lib/db/chat/types.ts:382
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: src/lib/db/chat/types.ts:359
 
 > **conversationId**: `string` | `null`
 
-Defined in: src/lib/db/chat/types.ts:348
+Defined in: src/lib/db/chat/types.ts:371
 
 **Inherited from**
 
@@ -69,7 +69,7 @@ Defined in: src/lib/db/chat/types.ts:348
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: src/lib/db/chat/types.ts:350
+Defined in: src/lib/db/chat/types.ts:373
 
 **Parameters**
 
@@ -110,7 +110,7 @@ Defined in: src/lib/db/chat/types.ts:350
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: src/lib/db/chat/types.ts:356
+Defined in: src/lib/db/chat/types.ts:379
 
 **Parameters**
 
@@ -214,7 +214,7 @@ Extract all links from assistant message content as SearchSource objects
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: src/lib/db/chat/types.ts:353
+Defined in: src/lib/db/chat/types.ts:376
 
 **Parameters**
 
@@ -255,7 +255,7 @@ Defined in: src/lib/db/chat/types.ts:353
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: src/lib/db/chat/types.ts:354
+Defined in: src/lib/db/chat/types.ts:377
 
 **Returns**
 
@@ -271,7 +271,7 @@ Defined in: src/lib/db/chat/types.ts:354
 
 > **getMessageCount**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: src/lib/db/chat/types.ts:358
+Defined in: src/lib/db/chat/types.ts:381
 
 **Parameters**
 
@@ -312,7 +312,7 @@ Defined in: src/lib/db/chat/types.ts:358
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: src/lib/db/chat/types.ts:357
+Defined in: src/lib/db/chat/types.ts:380
 
 **Parameters**
 
@@ -353,7 +353,7 @@ Defined in: src/lib/db/chat/types.ts:357
 
 > **isLoading**: `boolean`
 
-Defined in: src/lib/db/chat/types.ts:346
+Defined in: src/lib/db/chat/types.ts:369
 
 **Inherited from**
 
@@ -967,7 +967,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: src/lib/db/chat/types.ts:349
+Defined in: src/lib/db/chat/types.ts:372
 
 **Parameters**
 
@@ -1008,7 +1008,7 @@ Defined in: src/lib/db/chat/types.ts:349
 
 > **stop**: () => `void`
 
-Defined in: src/lib/db/chat/types.ts:347
+Defined in: src/lib/db/chat/types.ts:370
 
 **Returns**
 
@@ -1024,7 +1024,7 @@ Defined in: src/lib/db/chat/types.ts:347
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: src/lib/db/chat/types.ts:355
+Defined in: src/lib/db/chat/types.ts:378
 
 **Parameters**
 
