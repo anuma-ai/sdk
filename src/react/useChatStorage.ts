@@ -138,20 +138,23 @@ async function isUrlValid(url: string, timeoutMs = 5000): Promise<boolean> {
 /**
  * Convert StoredMessage to LlmapiMessage format.
  * If a file has a sourceUrl, validates it and includes it as an image_url part.
+ * Internal placeholders are replaced with valid sourceUrls or removed.
  */
 async function storedToLlmapiMessage(
   stored: StoredMessage
 ): Promise<LlmapiMessage> {
-  const content: LlmapiMessage["content"] = [
-    { type: "text", text: stored.content },
-  ];
+  let textContent = stored.content;
+
+  // Build a map of fileId -> valid sourceUrl for replacement
+  const fileUrlMap = new Map<string, string>();
 
   // Add file image parts if present
+  const imageParts: LlmapiMessage["content"] = [];
   if (stored.files?.length) {
     for (const file of stored.files) {
       // First check if there's a direct url (user uploads with data URIs)
       if (file.url) {
-        content.push({
+        imageParts.push({
           type: "image_url",
           image_url: { url: file.url },
         });
@@ -159,16 +162,51 @@ async function storedToLlmapiMessage(
         // For MCP-cached files, check if sourceUrl is still valid
         const isValid = await isUrlValid(file.sourceUrl);
         if (isValid) {
-          content.push({
+          imageParts.push({
             type: "image_url",
             image_url: { url: file.sourceUrl },
           });
+          // Track valid sourceUrl for placeholder replacement
+          fileUrlMap.set(file.id, file.sourceUrl);
         }
-        // If sourceUrl is invalid (404), don't include it - the content
-        // already has the ![MCP_IMAGE:fileId] placeholder for local rendering
+        // If sourceUrl is invalid, we'll just remove the placeholder
       }
     }
   }
+
+  // Replace internal __SDKFILE__ placeholders with valid sourceUrls or remove them
+  textContent = textContent.replace(
+    /__SDKFILE__([a-f0-9-]+)__/g,
+    (match, fileId) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        // Replace with markdown image pointing to valid sourceUrl
+        return `![image](${sourceUrl})`;
+      }
+      // Remove placeholder if no valid URL (image is included via image_url part or unavailable)
+      return "";
+    }
+  );
+
+  // Also handle legacy ![MCP_IMAGE:fileId] placeholders
+  textContent = textContent.replace(
+    /!\[MCP_IMAGE:([a-f0-9-]+)\]/g,
+    (match, fileId) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        return `![image](${sourceUrl})`;
+      }
+      return "";
+    }
+  );
+
+  // Clean up extra whitespace from removed placeholders
+  textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
+
+  const content: LlmapiMessage["content"] = [
+    { type: "text", text: textContent },
+    ...imageParts,
+  ];
 
   return {
     role: stored.role,
