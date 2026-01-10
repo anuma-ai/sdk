@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
@@ -37,6 +37,15 @@ import {
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  createFilePlaceholder,
+  extractFileIds,
+  BlobUrlManager,
+} from "../lib/storage";
 
 /**
  * Replace a URL in content with an MCP_IMAGE placeholder.
@@ -180,6 +189,19 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
+
+  /**
+   * Wallet address for encrypted file storage.
+   * When provided, MCP-generated images are automatically encrypted and stored
+   * in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+   *
+   * Requires:
+   * - OPFS browser support
+   * - Encryption key to be requested via `requestEncryptionKey` first
+   *
+   * When not provided, falls back to the `writeFile` callback in sendMessage args.
+   */
+  walletAddress?: string;
 }
 
 /**
@@ -384,11 +406,23 @@ export function useChatStorage(
     onFinish,
     onError,
     apiType,
+    walletAddress,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(initialConversationId || null);
+
+  // Blob URL manager for encrypted file storage
+  const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
+
+  // Clean up blob URLs on unmount
+  useEffect(() => {
+    const manager = blobManagerRef.current;
+    return () => {
+      manager.revokeAll();
+    };
+  }, []);
 
   // Get collections
   const messagesCollection = useMemo(
@@ -490,9 +524,65 @@ export function useChatStorage(
    */
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
-      return getMessagesOp(storageCtx, convId);
+      const messages = await getMessagesOp(storageCtx, convId);
+
+      // If wallet address is provided, resolve file placeholders to blob URLs
+      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+        try {
+          const encryptionKey = await getEncryptionKey(walletAddress);
+          const blobManager = blobManagerRef.current;
+
+          // Resolve placeholders in all messages in parallel
+          const resolvedMessages = await Promise.all(
+            messages.map(async (msg) => {
+              const fileIds = extractFileIds(msg.content);
+              if (fileIds.length === 0) {
+                return msg;
+              }
+
+              // Resolve each file to a blob URL
+              let resolvedContent = msg.content;
+              for (const fileId of fileIds) {
+                // Check if we already have a URL for this file
+                let url = blobManager.getUrl(fileId);
+
+                if (!url) {
+                  // Read and decrypt the file
+                  const result = await readEncryptedFile(fileId, encryptionKey);
+                  if (result) {
+                    url = blobManager.createUrl(fileId, result.blob);
+                  }
+                }
+
+                if (url) {
+                  const placeholder = createFilePlaceholder(fileId);
+                  // Replace placeholder with markdown image
+                  resolvedContent = resolvedContent.replace(
+                    new RegExp(
+                      placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                      "g"
+                    ),
+                    `![image](${url})`
+                  );
+                }
+              }
+
+              return { ...msg, content: resolvedContent };
+            })
+          );
+
+          return resolvedMessages;
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error("[useChatStorage] Failed to resolve file placeholders:", error);
+          // Return messages without resolving placeholders
+          return messages;
+        }
+      }
+
+      return messages;
     },
-    [storageCtx]
+    [storageCtx, walletAddress]
   );
 
   /**
@@ -848,6 +938,142 @@ export function useChatStorage(
   );
 
   /**
+   * Extract and store MCP images using encrypted OPFS storage.
+   * Uses wallet-derived encryption keys and internal placeholders.
+   */
+  const extractAndStoreEncryptedMCPImages = useCallback(
+    async (
+      content: string,
+      address: string
+    ): Promise<{
+      processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+        sourceUrl: string;
+      }[];
+      cleanedContent: string;
+    }> => {
+      try {
+        // Check prerequisites
+        if (!isOPFSSupported()) {
+          // eslint-disable-next-line no-console
+          console.warn("[extractAndStoreEncryptedMCPImages] OPFS not supported");
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        if (!hasEncryptionKey(address)) {
+          // eslint-disable-next-line no-console
+          console.warn("[extractAndStoreEncryptedMCPImages] Encryption key not available");
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        // Pattern to match any URL from the MCP R2 domain
+        const MCP_IMAGE_URL_PATTERN = new RegExp(
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          "g"
+        );
+
+        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
+        if (!urlMatches || urlMatches.length === 0) {
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        const uniqueUrls = [...new Set(urlMatches)];
+        const encryptionKey = await getEncryptionKey(address);
+
+        const processedFiles: {
+          id: string;
+          name: string;
+          type: string;
+          size: number;
+          sourceUrl: string;
+        }[] = [];
+        let cleanedContent = content;
+
+        // Process all images in parallel
+        const results = await Promise.allSettled(
+          uniqueUrls.map(async (imageUrl) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            try {
+              const response = await fetch(imageUrl, {
+                signal: controller.signal,
+                cache: "no-store",
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+              }
+
+              const blob = await response.blob();
+              const fileId = crypto.randomUUID();
+              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
+              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const mimeType = blob.type || `image/${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${fileId.slice(0, 8)}.${extension}`;
+
+              // Encrypt and store in OPFS
+              await writeEncryptedFile(fileId, blob, encryptionKey, {
+                name: fileName,
+                sourceUrl: imageUrl,
+              });
+
+              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          })
+        );
+
+        // Replace URLs with internal placeholders
+        results.forEach((result, i) => {
+          const imageUrl = uniqueUrls[i];
+
+          if (result.status === "fulfilled") {
+            const { fileId, fileName, mimeType, size } = result.value;
+            processedFiles.push({
+              id: fileId,
+              name: fileName,
+              type: mimeType,
+              size,
+              sourceUrl: imageUrl,
+            });
+
+            // Create internal placeholder (never shown to clients)
+            const placeholder = createFilePlaceholder(fileId);
+            const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            // Replace markdown image syntax
+            const markdownImagePattern = new RegExp(
+              `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+              "g"
+            );
+            cleanedContent = cleanedContent.replace(markdownImagePattern, placeholder);
+
+            // Replace raw URLs
+            cleanedContent = cleanedContent.replace(new RegExp(escapedUrl, "g"), placeholder);
+          } else {
+            // eslint-disable-next-line no-console
+            console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
+          }
+        });
+
+        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
+
+        return { processedFiles, cleanedContent };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[extractAndStoreEncryptedMCPImages] Unexpected error:", err);
+        return { processedFiles: [], cleanedContent: content };
+      }
+    },
+    []
+  );
+
+  /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
@@ -1112,14 +1338,26 @@ export function useChatStorage(
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
-      // Extract and store MCP images (only if writeFile is provided)
+      // Extract and store MCP images
+      // Priority: walletAddress (encrypted OPFS) > writeFile callback > skip
       let processedFiles: {
         id: string;
         name: string;
         type: string;
         size: number;
+        sourceUrl?: string;
       }[] = [];
-      if (writeFile) {
+
+      if (walletAddress) {
+        // Use encrypted OPFS storage with internal placeholders
+        const result = await extractAndStoreEncryptedMCPImages(
+          cleanedContent,
+          walletAddress
+        );
+        processedFiles = result.processedFiles;
+        cleanedContent = result.cleanedContent;
+      } else if (writeFile) {
+        // Fall back to writeFile callback with MCP_IMAGE placeholders
         const result = await extractAndStoreMCPImages(
           cleanedContent,
           writeFile
@@ -1161,7 +1399,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, walletAddress, extractAndStoreEncryptedMCPImages]
   );
 
   /**

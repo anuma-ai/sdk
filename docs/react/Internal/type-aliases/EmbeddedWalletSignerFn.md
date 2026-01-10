@@ -2,7 +2,7 @@
 
 > **EmbeddedWalletSignerFn** = (`message`: `string`) => `Promise`<`string`>
 
-Defined in: src/react/useEncryption.ts:531
+Defined in: src/react/useEncryption.ts:536
 
 Type for embedded wallet signer function that enables silent signing.
 For Privy embedded wallets, this can sign programmatically without user interaction

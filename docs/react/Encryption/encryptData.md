@@ -2,7 +2,7 @@
 
 > **encryptData**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `address`: `string`): `Promise`<`string`>
 
-Defined in: src/react/useEncryption.ts:384
+Defined in: src/react/useEncryption.ts:389
 
 Encrypts data using AES-GCM with the stored encryption key.
 

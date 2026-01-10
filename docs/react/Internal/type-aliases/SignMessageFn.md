@@ -2,7 +2,7 @@
 
 > **SignMessageFn** = (`message`: `string`) => `Promise`<`string`>
 
-Defined in: src/react/useEncryption.ts:524
+Defined in: src/react/useEncryption.ts:529
 
 Type for the signMessage function that client must provide.
 This is typically from Privy's useSignMessage hook and may show a confirmation modal.

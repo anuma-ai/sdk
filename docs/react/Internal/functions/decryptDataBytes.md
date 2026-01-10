@@ -2,7 +2,7 @@
 
 > **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: src/react/useEncryption.ts:487
+Defined in: src/react/useEncryption.ts:492
 
 Decrypts data and returns as Uint8Array (for binary data)
 

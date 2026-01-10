@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: src/react/useChatStorage.ts:176
+Defined in: src/react/useChatStorage.ts:185
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: src/react/useChatStorage.ts:182
+Defined in: src/react/useChatStorage.ts:191
 
 Which API endpoint to use. Default: "responses"
 
@@ -239,3 +239,22 @@ Callback invoked when the response completes successfully
 **Inherited from**
 
 `BaseUseChatStorageOptions.onFinish`
+
+***
+
+### walletAddress?
+
+> `optional` **walletAddress**: `string`
+
+Defined in: src/react/useChatStorage.ts:204
+
+Wallet address for encrypted file storage.
+When provided, MCP-generated images are automatically encrypted and stored
+in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+
+Requires:
+
+* OPFS browser support
+* Encryption key to be requested via `requestEncryptionKey` first
+
+When not provided, falls back to the `writeFile` callback in sendMessage args.

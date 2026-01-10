@@ -59,6 +59,7 @@ export { useChat } from "./useChat";
 export {
   useEncryption,
   requestEncryptionKey,
+  getEncryptionKey,
   hasEncryptionKey,
   encryptData,
   decryptData,
@@ -89,6 +90,16 @@ export type {
   SendMessageWithStorageResult,
   SearchMessagesOptions,
 } from "./useChatStorage";
+
+// OPFS encrypted storage utilities
+export {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  deleteEncryptedFile,
+  fileExists,
+  BlobUrlManager,
+} from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
 export {

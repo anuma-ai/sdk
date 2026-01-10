@@ -283,9 +283,14 @@ async function createPKCS8PrivateKey(
 
 
 /**
- * Gets the encryption key from in-memory storage and imports it as a CryptoKey
+ * Gets the encryption key from in-memory storage and imports it as a CryptoKey.
+ * The key must have been previously requested via requestEncryptionKey.
+ *
+ * @param address - The wallet address
+ * @returns The CryptoKey for AES-GCM encryption/decryption
+ * @throws Error if the key hasn't been requested yet
  */
-async function getEncryptionKey(address: string): Promise<CryptoKey> {
+export async function getEncryptionKey(address: string): Promise<CryptoKey> {
   const keyHex = getStoredKey(address);
   if (!keyHex) {
     throw new Error(
