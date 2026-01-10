@@ -1,6 +1,6 @@
 # ProviderBackupState
 
-Defined in: [src/react/useBackup.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L81)
+Defined in: src/react/useBackup.ts:81
 
 Provider-specific backup state
 
@@ -10,7 +10,7 @@ Provider-specific backup state
 
 > **backup**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | [`GoogleDriveExportResult`](GoogleDriveExportResult.md) | [`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useBackup.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L87)
+Defined in: src/react/useBackup.ts:87
 
 Backup all conversations to this provider
 
@@ -49,7 +49,7 @@ Backup all conversations to this provider
 
 > **connect**: () => `Promise`<`string`>
 
-Defined in: [src/react/useBackup.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L95)
+Defined in: src/react/useBackup.ts:95
 
 Request access to this provider (triggers OAuth if needed)
 
@@ -63,7 +63,7 @@ Request access to this provider (triggers OAuth if needed)
 
 > **disconnect**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackup.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L97)
+Defined in: src/react/useBackup.ts:97
 
 Disconnect from this provider
 
@@ -77,7 +77,7 @@ Disconnect from this provider
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useBackup.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L85)
+Defined in: src/react/useBackup.ts:85
 
 Whether user has authenticated with this provider
 
@@ -87,7 +87,7 @@ Whether user has authenticated with this provider
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useBackup.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L83)
+Defined in: src/react/useBackup.ts:83
 
 Whether the provider is configured
 
@@ -97,7 +97,7 @@ Whether the provider is configured
 
 > **restore**: (`options?`: [`BackupOperationOptions`](BackupOperationOptions.md)) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | [`GoogleDriveImportResult`](GoogleDriveImportResult.md) | [`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useBackup.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L91)
+Defined in: src/react/useBackup.ts:91
 
 Restore conversations from this provider
 

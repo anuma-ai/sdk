@@ -2,7 +2,7 @@
 
 > **createAssistantStream**(`text`: `string`): `ReadableStream`<`AssistantStreamEvent`>
 
-Defined in: [src/vercel/streams.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/vercel/streams.ts#L18)
+Defined in: src/vercel/streams.ts:18
 
 Creates a `ReadableStream` that emits the sequence of events expected by
 Vercel's `createUIMessageStreamResponse` helper for a successful assistant reply.

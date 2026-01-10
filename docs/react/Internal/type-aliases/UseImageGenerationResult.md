@@ -2,7 +2,7 @@
 
 > **UseImageGenerationResult** = `object`
 
-Defined in: [src/react/useImageGeneration.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L39)
+Defined in: src/react/useImageGeneration.ts:39
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useImageGeneration.ts:39](https://github.com/zeta-chain/a
 
 > **generateImage**: (`args`: `GenerateImageArgs`) => `Promise`<`GenerateImageResult`>
 
-Defined in: [src/react/useImageGeneration.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L41)
+Defined in: src/react/useImageGeneration.ts:41
 
 **Parameters**
 
@@ -47,7 +47,7 @@ Defined in: [src/react/useImageGeneration.ts:41](https://github.com/zeta-chain/a
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useImageGeneration.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L40)
+Defined in: src/react/useImageGeneration.ts:40
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [src/react/useImageGeneration.ts:40](https://github.com/zeta-chain/a
 
 > **stop**: () => `void`
 
-Defined in: [src/react/useImageGeneration.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L42)
+Defined in: src/react/useImageGeneration.ts:42
 
 **Returns**
 

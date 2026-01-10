@@ -2,7 +2,7 @@
 
 > **GoogleDriveAuthProvider**(`__namedParameters`: [`GoogleDriveAuthProviderProps`](../interfaces/GoogleDriveAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useGoogleDriveAuth.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L94)
+Defined in: src/react/useGoogleDriveAuth.ts:94
 
 Provider component for Google Drive OAuth authentication.
 

@@ -2,7 +2,7 @@
 
 > **getApiV1DocsSwaggerJson**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DocsSwaggerJsonData`](../type-aliases/GetApiV1DocsSwaggerJsonData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DocsSwaggerJsonResponses`](../type-aliases/GetApiV1DocsSwaggerJsonResponses.md), `unknown`, `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L54)
+Defined in: src/client/sdk.gen.ts:54
 
 Get OpenAPI specification
 

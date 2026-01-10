@@ -2,7 +2,7 @@
 
 > **HandlersSubscriptionStatusResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L84)
+Defined in: src/client/types.gen.ts:84
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:84](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **cancel\_at\_period\_end**: `boolean`
 
-Defined in: [src/client/types.gen.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L88)
+Defined in: src/client/types.gen.ts:88
 
 true if scheduled to cancel
 
@@ -20,7 +20,7 @@ true if scheduled to cancel
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L92)
+Defined in: src/client/types.gen.ts:92
 
 Unix timestamp, only present if subscribed
 
@@ -30,7 +30,7 @@ Unix timestamp, only present if subscribed
 
 > `optional` **plan**: `string`
 
-Defined in: [src/client/types.gen.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L96)
+Defined in: src/client/types.gen.ts:96
 
 "free" | "pro"
 
@@ -40,6 +40,6 @@ Defined in: [src/client/types.gen.ts:96](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L100)
+Defined in: src/client/types.gen.ts:100
 
 "none" | "active" | "canceling" | "past\_due" | "canceled"

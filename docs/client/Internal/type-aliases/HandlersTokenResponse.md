@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L103)
+Defined in: src/client/types.gen.ts:103
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:103](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L104)
+Defined in: src/client/types.gen.ts:104
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:104](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L108)
+Defined in: src/client/types.gen.ts:108
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L112)
+Defined in: src/client/types.gen.ts:112
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L116)
+Defined in: src/client/types.gen.ts:116
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > `optional` **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L120)
+Defined in: src/client/types.gen.ts:120
 
 Usually "Bearer"

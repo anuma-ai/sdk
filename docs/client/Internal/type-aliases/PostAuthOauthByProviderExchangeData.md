@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderExchangeData** = `object`
 
-Defined in: [src/client/types.gen.ts:1433](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1433)
+Defined in: src/client/types.gen.ts:1433
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1433](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersExchangeRequest`](HandlersExchangeRequest.md)
 
-Defined in: [src/client/types.gen.ts:1437](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1437)
+Defined in: src/client/types.gen.ts:1437
 
 Exchange request
 
@@ -20,7 +20,7 @@ Exchange request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:1438](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1438)
+Defined in: src/client/types.gen.ts:1438
 
 **provider**
 
@@ -34,7 +34,7 @@ OAuth provider (google-drive, dropbox)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1444](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1444)
+Defined in: src/client/types.gen.ts:1444
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:1444](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/auth/oauth/{provider}/exchange"`
 
-Defined in: [src/client/types.gen.ts:1445](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1445)
+Defined in: src/client/types.gen.ts:1445

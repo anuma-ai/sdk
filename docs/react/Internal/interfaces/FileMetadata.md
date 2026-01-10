@@ -1,6 +1,6 @@
 # FileMetadata
 
-Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L16)
+Defined in: src/lib/db/chat/types.ts:16
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:16](https://github.com/zeta-chain/ai-sdk/b
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L17)
+Defined in: src/lib/db/chat/types.ts:17
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:17](https://github.com/zeta-chain/ai-sdk/b
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L18)
+Defined in: src/lib/db/chat/types.ts:18
 
 ***
 
@@ -24,7 +24,18 @@ Defined in: [src/lib/db/chat/types.ts:18](https://github.com/zeta-chain/ai-sdk/b
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L20)
+Defined in: src/lib/db/chat/types.ts:20
+
+***
+
+### sourceUrl?
+
+> `optional` **sourceUrl**: `string`
+
+Defined in: src/lib/db/chat/types.ts:24
+
+Original source URL for files downloaded from external sources (e.g., MCP R2).
+Used for URL→OPFS mapping to enable fallback when source returns 404.
 
 ***
 
@@ -32,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:20](https://github.com/zeta-chain/ai-sdk/b
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L19)
+Defined in: src/lib/db/chat/types.ts:19
 
 ***
 
@@ -40,4 +51,4 @@ Defined in: [src/lib/db/chat/types.ts:19](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L21)
+Defined in: src/lib/db/chat/types.ts:21

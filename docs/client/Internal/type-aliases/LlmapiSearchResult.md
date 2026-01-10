@@ -2,7 +2,7 @@
 
 > **LlmapiSearchResult** = `object`
 
-Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
+Defined in: src/client/types.gen.ts:871
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **date**: `string`
 
-Defined in: [src/client/types.gen.ts:875](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L875)
+Defined in: src/client/types.gen.ts:875
 
 Optional publication or last updated date.
 
@@ -20,7 +20,7 @@ Optional publication or last updated date.
 
 > `optional` **snippet**: `string`
 
-Defined in: [src/client/types.gen.ts:879](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L879)
+Defined in: src/client/types.gen.ts:879
 
 Text snippet from the result.
 
@@ -30,7 +30,7 @@ Text snippet from the result.
 
 > `optional` **title**: `string`
 
-Defined in: [src/client/types.gen.ts:883](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L883)
+Defined in: src/client/types.gen.ts:883
 
 Title of the search result.
 
@@ -40,6 +40,6 @@ Title of the search result.
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:887](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L887)
+Defined in: src/client/types.gen.ts:887
 
 URL of the search result.

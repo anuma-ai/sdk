@@ -2,7 +2,7 @@
 
 > **UseSearchResult** = `object`
 
-Defined in: [src/react/useSearch.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L54)
+Defined in: src/react/useSearch.ts:54
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useSearch.ts:54](https://github.com/zeta-chain/ai-sdk/blo
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useSearch.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L62)
+Defined in: src/react/useSearch.ts:62
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/react/useSearch.ts:62](https://github.com/zeta-chain/ai-sdk/blo
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useSearch.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L55)
+Defined in: src/react/useSearch.ts:55
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/react/useSearch.ts:55](https://github.com/zeta-chain/ai-sdk/blo
 
 > **response**: [`LlmapiSearchResponse`](../../../client/Internal/type-aliases/LlmapiSearchResponse.md) | `null`
 
-Defined in: [src/react/useSearch.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L61)
+Defined in: src/react/useSearch.ts:61
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/react/useSearch.ts:61](https://github.com/zeta-chain/ai-sdk/blo
 
 > **results**: [`LlmapiSearchResult`](../../../client/Internal/type-aliases/LlmapiSearchResult.md)\[] | `null`
 
-Defined in: [src/react/useSearch.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L60)
+Defined in: src/react/useSearch.ts:60
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/react/useSearch.ts:60](https://github.com/zeta-chain/ai-sdk/blo
 
 > **search**: (`query`: `string` | `string`\[], `options?`: `SearchOptions`) => `Promise`<[`LlmapiSearchResponse`](../../../client/Internal/type-aliases/LlmapiSearchResponse.md) | `null`>
 
-Defined in: [src/react/useSearch.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSearch.ts#L56)
+Defined in: src/react/useSearch.ts:56
 
 **Parameters**
 

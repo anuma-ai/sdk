@@ -1,6 +1,6 @@
 # StoredModelPreferenceModel
 
-Defined in: [src/lib/db/settings/models.ts:4](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/models.ts#L4)
+Defined in: src/lib/db/settings/models.ts:4
 
 ## Extends
 
@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/settings/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/models.ts#L8)
+Defined in: src/lib/db/settings/models.ts:8
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/settings/models.ts:8](https://github.com/zeta-chain/ai-s
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/settings/models.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/models.ts#L7)
+Defined in: src/lib/db/settings/models.ts:7
 
 ***
 
@@ -177,7 +177,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **table**: `string` = `"modelPreferences"`
 
-Defined in: [src/lib/db/settings/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/models.ts#L5)
+Defined in: src/lib/db/settings/models.ts:5
 
 **Overrides**
 

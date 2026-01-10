@@ -2,7 +2,7 @@
 
 > **useImageGeneration**(`options`: `object`): [`UseImageGenerationResult`](../Internal/type-aliases/UseImageGenerationResult.md)
 
-Defined in: [src/react/useImageGeneration.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useImageGeneration.ts#L49)
+Defined in: src/react/useImageGeneration.ts:49
 
 React hook for generating images using the LLM API.
 
