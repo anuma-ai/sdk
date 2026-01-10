@@ -1176,7 +1176,9 @@ export function useChatStorage(
 
       // Include history if requested
       if (includeHistory) {
-        const storedMessages = await getMessages(convId);
+        // Get raw messages from database (not transformed for client display)
+        // This ensures we have the original placeholders, not blob URLs
+        const storedMessages = await getMessagesOp(storageCtx, convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
