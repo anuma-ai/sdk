@@ -39,6 +39,70 @@ import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 
 /**
+ * Replace a URL in content with an MCP_IMAGE placeholder.
+ * This is used to swap external URLs with locally-stored file references.
+ *
+ * @param content - The message content containing the URL
+ * @param url - The URL to replace
+ * @param fileId - The OPFS file ID to reference
+ * @returns The content with the URL replaced by ![MCP_IMAGE:fileId]
+ *
+ * @example
+ * ```ts
+ * // Replace a URL that returned 404 with local file reference
+ * const newContent = replaceUrlWithMCPPlaceholder(
+ *   message.content,
+ *   "https://example.com/image.png",
+ *   "abc-123-def"
+ * );
+ * await updateMessage(message.uniqueId, { content: newContent });
+ * ```
+ */
+export function replaceUrlWithMCPPlaceholder(
+  content: string,
+  url: string,
+  fileId: string
+): string {
+  const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const placeholder = `![MCP_IMAGE:${fileId}]`;
+  let result = content;
+
+  // Replace markdown image syntax: ![alt](url) -> placeholder
+  const markdownImagePattern = new RegExp(
+    `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+    "g"
+  );
+  result = result.replace(markdownImagePattern, placeholder);
+
+  // Replace raw URLs with placeholder (only if not already replaced by markdown pattern)
+  result = result.replace(new RegExp(escapedUrl, "g"), placeholder);
+
+  // Clean up any orphaned markdown image syntax left behind
+  const orphanedMarkdownPattern = new RegExp(
+    `!\\[[^\\]]*\\]\\([\\s]*\\!\\[MCP_IMAGE:${fileId}\\][\\s]*\\)`,
+    "g"
+  );
+  result = result.replace(orphanedMarkdownPattern, placeholder);
+
+  return result;
+}
+
+/**
+ * Find the OPFS file ID for a given source URL from a message's files.
+ * Used to look up local file storage when an external URL fails (e.g., 404).
+ *
+ * @param files - Array of FileMetadata from a stored message
+ * @param sourceUrl - The original URL to look up
+ * @returns The file ID if found, or undefined
+ */
+export function findFileIdBySourceUrl(
+  files: { id: string; sourceUrl?: string }[] | undefined,
+  sourceUrl: string
+): string | undefined {
+  return files?.find((f) => f.sourceUrl === sourceUrl)?.id;
+}
+
+/**
  * Convert StoredMessage to LlmapiMessage format
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
@@ -576,16 +640,23 @@ export function useChatStorage(
           onProgress?: (progress: number) => void;
           signal?: AbortSignal;
         }
-      ) => Promise<string>
+      ) => Promise<string>,
+      options?: {
+        /** Whether to replace URLs with placeholders in the content. Default: true */
+        replaceUrls?: boolean;
+      }
     ): Promise<{
       processedFiles: {
         id: string;
         name: string;
         type: string;
         size: number;
+        /** Original source URL for URL→OPFS mapping */
+        sourceUrl: string;
       }[];
       cleanedContent: string;
     }> => {
+      const { replaceUrls = true } = options ?? {};
       try {
         // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
         const MCP_IMAGE_URL_PATTERN = new RegExp(
@@ -606,6 +677,7 @@ export function useChatStorage(
           name: string;
           type: string;
           size: number;
+          sourceUrl: string;
         }[] = [];
         let cleanedContent = content;
 
@@ -689,7 +761,7 @@ export function useChatStorage(
           );
         };
 
-        // Process results and replace URLs with placeholders
+        // Process results and optionally replace URLs with placeholders
         results.forEach((result, i) => {
           const imageUrl = uniqueUrls[i];
 
@@ -700,11 +772,12 @@ export function useChatStorage(
               name: fileName,
               type: mimeType,
               size,
+              sourceUrl: imageUrl,
             });
 
-            // Replace URL with placeholder on SUCCESS
+            // Replace URL with placeholder on SUCCESS (only if replaceUrls is enabled)
             // MarkdownRenderer will detect ![MCP_IMAGE:fileId] and render from OPFS
-            if (imageUrl) {
+            if (replaceUrls && imageUrl) {
               replaceUrlWithPlaceholder(imageUrl, fileId);
             }
           } else {

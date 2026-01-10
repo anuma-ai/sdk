@@ -19,6 +19,9 @@ export interface FileMetadata {
   type: string;
   size: number;
   url?: string;
+  /** Original source URL for files downloaded from external sources (e.g., MCP R2).
+   * Used for URL→OPFS mapping to enable fallback when source returns 404. */
+  sourceUrl?: string;
 }
 
 export interface ChatCompletionUsage {
