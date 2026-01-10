@@ -432,32 +432,40 @@ export function useChatStorage(
           return extractedSources;
         }
 
-        // Try to extract JSON sources block first
+        // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-        const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?"sources"[\s\S]*?\})\s*```/;
-        const jsonMatch = jsonBlockRegex.exec(content);
+        // Uses negative lookahead to avoid crossing triple-backtick boundaries
+        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        let jsonMatch: RegExpExecArray | null;
+        let foundJsonSources = false;
 
-        if (jsonMatch && jsonMatch[1]) {
-          try {
-            const parsed = JSON.parse(jsonMatch[1]);
-            if (Array.isArray(parsed.sources)) {
-              for (const source of parsed.sources) {
-                if (source.url && !seenUrls.has(source.url)) {
-                  seenUrls.add(source.url);
-                  extractedSources.push({
-                    title: source.title || undefined,
-                    url: source.url,
-                    // Map 'description' from JSON to 'snippet' in SearchSource type
-                    snippet: source.description || source.snippet || undefined,
-                  });
+        while ((jsonMatch = jsonBlockRegex.exec(content)) !== null) {
+          if (jsonMatch[1]) {
+            try {
+              const parsed = JSON.parse(jsonMatch[1]);
+              if (Array.isArray(parsed.sources)) {
+                foundJsonSources = true;
+                for (const source of parsed.sources) {
+                  if (source.url && !seenUrls.has(source.url)) {
+                    seenUrls.add(source.url);
+                    extractedSources.push({
+                      title: source.title || undefined,
+                      url: source.url,
+                      // Map 'description' from JSON to 'snippet' in SearchSource type
+                      snippet: source.description || source.snippet || undefined,
+                    });
+                  }
                 }
               }
-              // If we found JSON sources, return them without parsing markdown links
-              return extractedSources;
+            } catch {
+              // JSON parsing failed for this block, continue to next
             }
-          } catch {
-            // JSON parsing failed, fall through to markdown/URL extraction
           }
+        }
+
+        // If we found any JSON sources, return them without parsing markdown links
+        if (foundJsonSources) {
+          return extractedSources;
         }
 
         // Fallback: Extract markdown links and plain URLs
@@ -948,7 +956,8 @@ export function useChatStorage(
 
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{[\s\S]*?"sources"[\s\S]*?\}\s*```/g;
+      // Uses negative lookahead to avoid crossing triple-backtick boundaries
+      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
       let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
