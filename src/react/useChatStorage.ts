@@ -112,40 +112,14 @@ export function findFileIdBySourceUrl(
 }
 
 /**
- * Check if a URL is still valid/accessible.
- * Uses GET with Range header (bytes=0-0) instead of HEAD because
- * HEAD requests don't work with R2 pre-signed URLs.
- */
-async function isUrlValid(url: string, timeoutMs = 5000): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Range: "bytes=0-0" },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    // 200 OK or 206 Partial Content both indicate the URL is valid
-    return response.ok || response.status === 206;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Convert StoredMessage to LlmapiMessage format.
- * If a file has a sourceUrl, validates it and includes it as an image_url part.
- * Internal placeholders are replaced with valid sourceUrls or removed.
+ * If a file has a sourceUrl, includes it as an image_url part.
+ * Internal placeholders are replaced with sourceUrls or removed.
  */
-async function storedToLlmapiMessage(
-  stored: StoredMessage
-): Promise<LlmapiMessage> {
+function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
   let textContent = stored.content;
 
-  // Build a map of fileId -> valid sourceUrl for replacement
+  // Build a map of fileId -> sourceUrl for replacement
   const fileUrlMap = new Map<string, string>();
 
   // Add file image parts if present
@@ -159,31 +133,28 @@ async function storedToLlmapiMessage(
           image_url: { url: file.url },
         });
       } else if (file.sourceUrl) {
-        // For MCP-cached files, check if sourceUrl is still valid
-        const isValid = await isUrlValid(file.sourceUrl);
-        if (isValid) {
-          imageParts.push({
-            type: "image_url",
-            image_url: { url: file.sourceUrl },
-          });
-          // Track valid sourceUrl for placeholder replacement
-          fileUrlMap.set(file.id, file.sourceUrl);
-        }
-        // If sourceUrl is invalid, we'll just remove the placeholder
+        // For MCP-cached files, include the sourceUrl
+        // If expired, AI simply won't see the image (local OPFS copy is for display only)
+        imageParts.push({
+          type: "image_url",
+          image_url: { url: file.sourceUrl },
+        });
+        // Track sourceUrl for placeholder replacement
+        fileUrlMap.set(file.id, file.sourceUrl);
       }
     }
   }
 
-  // Replace internal __SDKFILE__ placeholders with valid sourceUrls or remove them
+  // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   textContent = textContent.replace(
     /__SDKFILE__([a-f0-9-]+)__/g,
     (match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
-        // Replace with markdown image pointing to valid sourceUrl
+        // Replace with markdown image pointing to sourceUrl
         return `![image](${sourceUrl})`;
       }
-      // Remove placeholder if no valid URL (image is included via image_url part or unavailable)
+      // Remove placeholder if no URL available
       return "";
     }
   );
@@ -1182,10 +1153,8 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        // Convert stored messages to API format (validates sourceUrls in parallel)
-        const historyMessages = await Promise.all(
-          limitedMessages.map(storedToLlmapiMessage)
-        );
+        // Convert stored messages to API format
+        const historyMessages = limitedMessages.map(storedToLlmapiMessage);
         messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly

@@ -1,6 +1,6 @@
 # SearchMessagesOptions
 
-Defined in: src/react/useChatStorage.ts:311
+Defined in: src/react/useChatStorage.ts:282
 
 Options for searching messages
 
@@ -10,7 +10,7 @@ Options for searching messages
 
 > `optional` **conversationId**: `string`
 
-Defined in: src/react/useChatStorage.ts:317
+Defined in: src/react/useChatStorage.ts:288
 
 Filter by conversation ID
 
@@ -20,7 +20,7 @@ Filter by conversation ID
 
 > `optional` **limit**: `number`
 
-Defined in: src/react/useChatStorage.ts:313
+Defined in: src/react/useChatStorage.ts:284
 
 Limit the number of results (default: 10)
 
@@ -30,6 +30,6 @@ Limit the number of results (default: 10)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: src/react/useChatStorage.ts:315
+Defined in: src/react/useChatStorage.ts:286
 
 Minimum similarity threshold (default: 0.5)

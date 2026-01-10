@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: src/react/useChatStorage.ts:325
+Defined in: src/react/useChatStorage.ts:296
 
 Result returned by useChatStorage hook (React version)
 
@@ -151,7 +151,7 @@ Defined in: src/lib/db/chat/types.ts:379
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](SearchSource.md)\[]
 
-Defined in: src/react/useChatStorage.ts:369
+Defined in: src/react/useChatStorage.ts:340
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -365,7 +365,7 @@ Defined in: src/lib/db/chat/types.ts:369
 
 > **searchMessages**: (`queryVector`: `number`\[], `options?`: [`SearchMessagesOptions`](SearchMessagesOptions.md)) => `Promise`<[`StoredMessageWithSimilarity`](StoredMessageWithSimilarity.md)\[]>
 
-Defined in: src/react/useChatStorage.ts:358
+Defined in: src/react/useChatStorage.ts:329
 
 Search messages by vector similarity
 
@@ -416,7 +416,7 @@ Search messages by vector similarity
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: src/react/useChatStorage.ts:354
+Defined in: src/react/useChatStorage.ts:325
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.
@@ -1077,7 +1077,7 @@ Defined in: src/lib/db/chat/types.ts:378
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: src/react/useChatStorage.ts:374
+Defined in: src/react/useChatStorage.ts:345
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 
@@ -1128,7 +1128,7 @@ Update a message's fields (content, embedding, files, etc). Returns updated mess
 
 > **updateMessageEmbedding**: (`uniqueId`: `string`, `vector`: `number`\[], `embeddingModel`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md) | `null`>
 
-Defined in: src/react/useChatStorage.ts:363
+Defined in: src/react/useChatStorage.ts:334
 
 Update a message's embedding vector. Returns updated message or null if not found.
 

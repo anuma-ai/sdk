@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: src/react/useChatStorage.ts:223
+Defined in: src/react/useChatStorage.ts:194
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: src/react/useChatStorage.ts:229
+Defined in: src/react/useChatStorage.ts:200
 
 Which API endpoint to use. Default: "responses"
 
@@ -246,7 +246,7 @@ Callback invoked when the response completes successfully
 
 > `optional` **walletAddress**: `string`
 
-Defined in: src/react/useChatStorage.ts:242
+Defined in: src/react/useChatStorage.ts:213
 
 Wallet address for encrypted file storage.
 When provided, MCP-generated images are automatically encrypted and stored
