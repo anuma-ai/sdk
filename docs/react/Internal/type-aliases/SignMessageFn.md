@@ -1,11 +1,11 @@
 # SignMessageFn
 
-> **SignMessageFn** = (`message`: `string`) => `Promise`<`string`>
+> **SignMessageFn** = (`message`: `string`, `options?`: [`SignMessageOptions`](../interfaces/SignMessageOptions.md)) => `Promise`<`string`>
 
-Defined in: src/react/useEncryption.ts:529
+Defined in: src/react/useEncryption.ts:537
 
 Type for the signMessage function that client must provide.
-This is typically from Privy's useSignMessage hook and may show a confirmation modal.
+This is typically from Privy's useSignMessage hook.
 
 ## Parameters
 
@@ -26,6 +26,18 @@ This is typically from Privy's useSignMessage hook and may show a confirmation m
 <td>
 
 `string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`SignMessageOptions`](../interfaces/SignMessageOptions.md)
 
 </td>
 </tr>

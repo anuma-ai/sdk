@@ -2,7 +2,7 @@
 
 > **clearKeyPair**(`address`: `string`): `void`
 
-Defined in: src/react/useEncryption.ts:924
+Defined in: src/react/useEncryption.ts:942
 
 Clears the key pair for a wallet address from memory and localStorage
 

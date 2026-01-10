@@ -2,7 +2,7 @@
 
 > **requestKeyPair**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
 
-Defined in: src/react/useEncryption.ts:817
+Defined in: src/react/useEncryption.ts:833
 
 Requests the user to sign a message to generate an ECDH key pair.
 If a key pair already exists in memory for the given wallet, resolves immediately.
