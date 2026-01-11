@@ -342,7 +342,7 @@ export async function resolveFilePlaceholders(
     return content;
   }
 
-  // Resolve all files in parallel
+  // Resolve all files in parallel and build a map
   const results = await Promise.all(
     fileIds.map(async (fileId) => {
       // Check if we already have a URL for this file
@@ -360,18 +360,28 @@ export async function resolveFilePlaceholders(
     })
   );
 
-  // Replace placeholders with URLs
-  let resolvedContent = content;
+  // Build a map of fileId -> url for efficient lookup
+  const fileIdToUrlMap = new Map<string, string>();
   for (const { fileId, url } of results) {
     if (url) {
-      const placeholder = createFilePlaceholder(fileId);
-      // Replace with markdown image syntax
-      resolvedContent = resolvedContent.replace(
-        new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
-        `![image](${url})`
-      );
+      fileIdToUrlMap.set(fileId, url);
     }
   }
 
+  // Replace all placeholders in a single atomic pass using a callback function
+  // This ensures each placeholder is replaced with its correct URL without interference
+  const resolvedContent = content.replace(
+    FILE_PLACEHOLDER_REGEX,
+    (match, fileId) => {
+      const url = fileIdToUrlMap.get(fileId);
+      if (url) {
+        return `![image](${url})`;
+      }
+      // Return original placeholder if no URL found
+      return match;
+    }
+  );
+
   return resolvedContent;
 }
+

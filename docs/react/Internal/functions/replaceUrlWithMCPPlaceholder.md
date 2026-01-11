@@ -2,7 +2,7 @@
 
 > **replaceUrlWithMCPPlaceholder**(`content`: `string`, `url`: `string`, `fileId`: `string`): `string`
 
-Defined in: [src/react/useChatStorage.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L70)
+Defined in: [src/react/useChatStorage.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L71)
 
 Replace a URL in content with an internal file placeholder.
 This is used to swap external URLs with locally-stored file references.

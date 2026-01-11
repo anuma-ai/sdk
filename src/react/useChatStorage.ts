@@ -44,6 +44,7 @@ import {
   readEncryptedFile,
   createFilePlaceholder,
   extractFileIds,
+  FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
 
@@ -626,8 +627,8 @@ export function useChatStorage(
                 fileIds
               );
 
-              // Resolve each file to a blob URL
-              let resolvedContent = msg.content;
+              // Resolve all files to blob URLs and build a map
+              const fileIdToUrlMap = new Map<string, string>();
               for (const fileId of fileIds) {
                 const placeholder = createFilePlaceholder(fileId);
                 // eslint-disable-next-line no-console
@@ -667,22 +668,7 @@ export function useChatStorage(
                 }
 
                 if (url) {
-                  const placeholderRegex = new RegExp(
-                    placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-                    "g"
-                  );
-                  const matches = resolvedContent.match(placeholderRegex);
-                  const replacement = `![image](${url})`;
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[getMessages] Replacing ${matches?.length || 0} instance(s) of ${placeholder} with:`,
-                    replacement
-                  );
-                  // Replace placeholder with markdown image
-                  resolvedContent = resolvedContent.replace(
-                    placeholderRegex,
-                    replacement
-                  );
+                  fileIdToUrlMap.set(fileId, url);
                 } else {
                   // eslint-disable-next-line no-console
                   console.warn(
@@ -690,6 +676,28 @@ export function useChatStorage(
                   );
                 }
               }
+
+              // Replace all placeholders in a single atomic pass using a callback function
+              // This ensures each placeholder is replaced with its correct URL without interference
+              const resolvedContent = msg.content.replace(
+                FILE_PLACEHOLDER_REGEX,
+                (match, fileId) => {
+                  const url = fileIdToUrlMap.get(fileId);
+                  if (url) {
+                    // eslint-disable-next-line no-console
+                    console.log(
+                      `[getMessages] Replacing ${match} with: ![image](${url})`
+                    );
+                    return `![image](${url})`;
+                  }
+                  // eslint-disable-next-line no-console
+                  console.warn(
+                    `[getMessages] No URL available for ${fileId}, placeholder ${match} will remain in content`
+                  );
+                  // Return original placeholder if no URL found
+                  return match;
+                }
+              );
 
               // eslint-disable-next-line no-console
               console.log(
