@@ -336,7 +336,7 @@ export async function resolveFilePlaceholders(
   encryptionKey: CryptoKey,
   blobManager: BlobUrlManager
 ): Promise<string> {
-  const fileIds = extractFileIds(content);
+  const fileIds = [...new Set(extractFileIds(content))];
 
   if (fileIds.length === 0) {
     return content;

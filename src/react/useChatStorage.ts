@@ -615,7 +615,7 @@ export function useChatStorage(
           // Resolve placeholders in all messages in parallel
           const resolvedMessages = await Promise.all(
             messages.map(async (msg) => {
-              const fileIds = extractFileIds(msg.content);
+              const fileIds = [...new Set(extractFileIds(msg.content))];
               if (fileIds.length === 0) {
                 return msg;
               }
