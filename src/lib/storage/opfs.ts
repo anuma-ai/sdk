@@ -370,8 +370,13 @@ export async function resolveFilePlaceholders(
 
   // Replace all placeholders in a single atomic pass using a callback function
   // This ensures each placeholder is replaced with its correct URL without interference
+  // Create a new regex instance to avoid shared state issues with the global flag
+  const placeholderRegex = new RegExp(
+    FILE_PLACEHOLDER_REGEX.source,
+    FILE_PLACEHOLDER_REGEX.flags
+  );
   const resolvedContent = content.replace(
-    FILE_PLACEHOLDER_REGEX,
+    placeholderRegex,
     (match, fileId) => {
       const url = fileIdToUrlMap.get(fileId);
       if (url) {
