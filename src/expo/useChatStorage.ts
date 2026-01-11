@@ -35,15 +35,18 @@ import {
 } from "../lib/db/chat";
 
 /**
- * Convert StoredMessage to LlmapiMessage format
+ * Convert StoredMessage to LlmapiMessage format.
+ * Only adds image_url parts for non-assistant messages.
+ * ai-portal doesn't support image_url in assistant messages for /chat/completions.
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
   const content: LlmapiMessage["content"] = [
     { type: "text", text: stored.content },
   ];
 
-  // Add file image parts if present
-  if (stored.files?.length) {
+  // Add file image parts if present (only for non-assistant messages)
+  // ai-portal doesn't support image_url in assistant messages for /chat/completions
+  if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
       if (file.url) {
         content.push({

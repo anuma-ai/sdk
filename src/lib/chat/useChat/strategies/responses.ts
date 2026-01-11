@@ -129,7 +129,8 @@ export class ResponsesStrategy implements ApiStrategy {
       const delta = typedChunk.delta;
       if (delta) {
         const deltaText = typeof delta === "string" ? delta : delta.OfString;
-        if (deltaText) {
+        // Only emit non-empty content to avoid false error detection
+        if (deltaText && deltaText.trim().length > 0) {
           accumulator.content += deltaText;
           result.content = deltaText;
         }

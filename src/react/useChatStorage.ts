@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
@@ -37,26 +37,219 @@ import {
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  createFilePlaceholder,
+  extractFileIds,
+  FILE_PLACEHOLDER_REGEX,
+  BlobUrlManager,
+} from "../lib/storage";
 
 /**
- * Convert StoredMessage to LlmapiMessage format
+ * Replace a URL in content with an internal file placeholder.
+ * This is used to swap external URLs with locally-stored file references.
+ *
+ * @param content - The message content containing the URL
+ * @param url - The URL to replace
+ * @param fileId - The OPFS file ID to reference
+ * @returns The content with the URL replaced by __SDKFILE__fileId__
+ *
+ * @example
+ * ```ts
+ * // Replace a URL that returned 404 with local file reference
+ * const newContent = replaceUrlWithMCPPlaceholder(
+ *   message.content,
+ *   "https://example.com/image.png",
+ *   "abc-123-def"
+ * );
+ * await updateMessage(message.uniqueId, { content: newContent });
+ * ```
+ */
+export function replaceUrlWithMCPPlaceholder(
+  content: string,
+  url: string,
+  fileId: string
+): string {
+  const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const placeholder = createFilePlaceholder(fileId);
+  let result = content;
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[replaceUrlWithMCPPlaceholder] Replacing URL with placeholder:`,
+    url,
+    "->",
+    placeholder
+  );
+
+  // Replace HTML img tags with double-quoted src
+  const htmlImgPatternDouble = new RegExp(
+    `<img[^>]*src="${escapedUrl}"[^>]*>`,
+    "gi"
+  );
+  const doubleMatches = result.match(htmlImgPatternDouble);
+  if (doubleMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+      doubleMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(htmlImgPatternDouble, placeholder);
+
+  // Replace HTML img tags with single-quoted src
+  const htmlImgPatternSingle = new RegExp(
+    `<img[^>]*src='${escapedUrl}'[^>]*>`,
+    "gi"
+  );
+  const singleMatches = result.match(htmlImgPatternSingle);
+  if (singleMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+      singleMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(htmlImgPatternSingle, placeholder);
+
+  // Replace markdown image syntax: ![alt](url) -> placeholder
+  const markdownImagePattern = new RegExp(
+    `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+    "g"
+  );
+  const markdownMatches = result.match(markdownImagePattern);
+  if (markdownMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${markdownMatches.length} markdown image(s):`,
+      markdownMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(markdownImagePattern, placeholder);
+
+  // Replace raw URLs with placeholder (only if not already replaced by markdown pattern or HTML tags)
+  const rawUrlPattern = new RegExp(escapedUrl, "g");
+  const rawMatches = result.match(rawUrlPattern);
+  if (rawMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${rawMatches.length} raw URL(s):`,
+      rawMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(rawUrlPattern, placeholder);
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[replaceUrlWithMCPPlaceholder] Final result length: ${result.length}, original length: ${content.length}`
+  );
+
+  return result;
+}
+
+/**
+ * Find the OPFS file ID for a given source URL from a message's files.
+ * Used to look up local file storage when an external URL fails (e.g., 404).
+ *
+ * @param files - Array of FileMetadata from a stored message
+ * @param sourceUrl - The original URL to look up
+ * @returns The file ID if found, or undefined
+ */
+export function findFileIdBySourceUrl(
+  files: { id: string; sourceUrl?: string }[] | undefined,
+  sourceUrl: string
+): string | undefined {
+  return files?.find((f) => f.sourceUrl === sourceUrl)?.id;
+}
+
+/**
+ * Convert StoredMessage to LlmapiMessage format.
+ * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
+ * Internal placeholders are replaced with sourceUrls or removed.
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
-  const content: LlmapiMessage["content"] = [
-    { type: "text", text: stored.content },
-  ];
+  let textContent = stored.content;
 
-  // Add file image parts if present
-  if (stored.files?.length) {
+  // Build a map of fileId -> sourceUrl for replacement
+  const fileUrlMap = new Map<string, string>();
+
+  // Add file image parts if present (only for non-assistant messages)
+  // ai-portal doesn't support image_url in assistant messages for /chat/completions
+  const imageParts: LlmapiMessage["content"] = [];
+  if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
+      // First check if there's a direct url (user uploads with data URIs)
       if (file.url) {
-        content.push({
+        imageParts.push({
           type: "image_url",
           image_url: { url: file.url },
         });
+      } else if (file.sourceUrl) {
+        // For MCP-cached files, include the sourceUrl
+        // If expired, AI simply won't see the image (local OPFS copy is for display only)
+        imageParts.push({
+          type: "image_url",
+          image_url: { url: file.sourceUrl },
+        });
+        // Track sourceUrl for placeholder replacement
+        fileUrlMap.set(file.id, file.sourceUrl);
+      }
+    }
+  } else if (stored.role === "assistant" && stored.files?.length) {
+    // For assistant messages, track sourceUrls for placeholder replacement only
+    // URLs are already in text as markdown images, so model can get them from context
+    for (const file of stored.files) {
+      if (file.sourceUrl) {
+        fileUrlMap.set(file.id, file.sourceUrl);
       }
     }
   }
+
+  // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
+  textContent = textContent.replace(
+    /__SDKFILE__([a-f0-9-]+)__/g,
+    (match, fileId) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        // Replace with markdown image pointing to sourceUrl
+        return `![image](${sourceUrl})`;
+      }
+      // Remove placeholder if no URL available
+      return "";
+    }
+  );
+
+  // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
+  // This supports old messages that may still contain MCP_IMAGE placeholders
+  textContent = textContent.replace(
+    /!\[MCP_IMAGE:([a-f0-9-]+)\]/g,
+    (match, fileId) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        return `![image](${sourceUrl})`;
+      }
+      return "";
+    }
+  );
+
+  // Clean up extra whitespace from removed placeholders
+  textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
+
+  const content: LlmapiMessage["content"] = [
+    { type: "text", text: textContent },
+    ...imageParts,
+  ];
 
   return {
     role: stored.role,
@@ -77,6 +270,19 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
   apiType?: ApiType;
+
+  /**
+   * Wallet address for encrypted file storage.
+   * When provided, MCP-generated images are automatically encrypted and stored
+   * in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+   *
+   * Requires:
+   * - OPFS browser support
+   * - Encryption key to be requested via `requestEncryptionKey` first
+   *
+   * When not provided, falls back to the `writeFile` callback in sendMessage args.
+   */
+  walletAddress?: string;
 }
 
 /**
@@ -281,11 +487,23 @@ export function useChatStorage(
     onFinish,
     onError,
     apiType,
+    walletAddress,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(initialConversationId || null);
+
+  // Blob URL manager for encrypted file storage
+  const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
+
+  // Clean up blob URLs on unmount
+  useEffect(() => {
+    const manager = blobManagerRef.current;
+    return () => {
+      manager.revokeAll();
+    };
+  }, []);
 
   // Get collections
   const messagesCollection = useMemo(
@@ -387,9 +605,119 @@ export function useChatStorage(
    */
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
-      return getMessagesOp(storageCtx, convId);
+      const messages = await getMessagesOp(storageCtx, convId);
+
+      // If wallet address is provided, resolve file placeholders to blob URLs
+      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+        try {
+          const encryptionKey = await getEncryptionKey(walletAddress);
+          const blobManager = blobManagerRef.current;
+
+          // Resolve placeholders in all messages in parallel
+          const resolvedMessages = await Promise.all(
+            messages.map(async (msg) => {
+              const fileIds = [...new Set(extractFileIds(msg.content))];
+              if (fileIds.length === 0) {
+                return msg;
+              }
+
+              // eslint-disable-next-line no-console
+              console.log(
+                `[getMessages] Found ${fileIds.length} placeholder(s) in message ${msg.uniqueId}:`,
+                fileIds
+              );
+
+              // Resolve all files to blob URLs and build a map
+              const fileIdToUrlMap = new Map<string, string>();
+              for (const fileId of fileIds) {
+                const placeholder = createFilePlaceholder(fileId);
+                // eslint-disable-next-line no-console
+                console.log(
+                  `[getMessages] Resolving placeholder: ${placeholder} (fileId: ${fileId})`
+                );
+
+                // Check if we already have a URL for this file
+                let url = blobManager.getUrl(fileId);
+
+                if (!url) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[getMessages] No cached URL for ${fileId}, reading from OPFS...`
+                  );
+                  // Read and decrypt the file
+                  const result = await readEncryptedFile(fileId, encryptionKey);
+                  if (result) {
+                    url = blobManager.createUrl(fileId, result.blob);
+                    // eslint-disable-next-line no-console
+                    console.log(
+                      `[getMessages] Created blob URL for ${fileId}:`,
+                      url
+                    );
+                  } else {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                      `[getMessages] Failed to read file ${fileId} from OPFS`
+                    );
+                  }
+                } else {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[getMessages] Using cached blob URL for ${fileId}:`,
+                    url
+                  );
+                }
+
+                if (url) {
+                  fileIdToUrlMap.set(fileId, url);
+                } else {
+                  // eslint-disable-next-line no-console
+                  console.warn(
+                    `[getMessages] No URL available for ${fileId}, placeholder ${placeholder} will remain in content`
+                  );
+                }
+              }
+
+              // Replace placeholders one at a time in order to ensure correct mapping
+              // This avoids any potential issues with regex callback processing order
+              let resolvedContent = msg.content;
+              for (const [fileId, url] of fileIdToUrlMap) {
+                const placeholder = createFilePlaceholder(fileId);
+                // Escape the placeholder for use in regex
+                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                // Create a non-global regex for this specific placeholder
+                const placeholderRegex = new RegExp(escapedPlaceholder, "g");
+                // Use unique alt text with fileId to prevent UI blobUrlMap collisions
+                const replacement = `![image-${fileId}](${url})`;
+                
+                // eslint-disable-next-line no-console
+                console.log(
+                  `[getMessages] Replacing ${placeholder} with: ${replacement}`
+                );
+                
+                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+              }
+
+              // eslint-disable-next-line no-console
+              console.log(
+                `[getMessages] Resolved content length: ${resolvedContent.length}, original length: ${msg.content.length}`
+              );
+
+              return { ...msg, content: resolvedContent };
+            })
+          );
+
+          return resolvedMessages;
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error("[useChatStorage] Failed to resolve file placeholders:", error);
+          // Return messages without resolving placeholders
+          return messages;
+        }
+      }
+
+      return messages;
     },
-    [storageCtx]
+    [storageCtx, walletAddress]
   );
 
   /**
@@ -576,20 +904,28 @@ export function useChatStorage(
           onProgress?: (progress: number) => void;
           signal?: AbortSignal;
         }
-      ) => Promise<string>
+      ) => Promise<string>,
+      options?: {
+        /** Whether to replace URLs with placeholders in the content. Default: true */
+        replaceUrls?: boolean;
+      }
     ): Promise<{
       processedFiles: {
         id: string;
         name: string;
         type: string;
         size: number;
+        /** Original source URL for URL→OPFS mapping */
+        sourceUrl: string;
       }[];
       cleanedContent: string;
     }> => {
+      const { replaceUrls = true } = options ?? {};
       try {
-        // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
+        // Pattern to match any URL from the MCP R2 domain
+        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
         const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
           "g"
         );
         // Find all MCP image URLs in the content
@@ -598,16 +934,54 @@ export function useChatStorage(
           return { processedFiles: [], cleanedContent: content };
         }
 
+        // Clean URLs by removing any trailing quotes or invalid characters
+        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
         // Deduplicate URLs (same image might appear multiple times)
-        const uniqueUrls = [...new Set(urlMatches)];
+        const uniqueUrls = [...new Set(cleanedUrls)];
 
         const processedFiles: {
           id: string;
           name: string;
           type: string;
           size: number;
+          sourceUrl: string;
         }[] = [];
         let cleanedContent = content;
+
+        // Track expected URL occurrences for verification
+        const urlOccurrenceCounts = new Map<string, number>();
+        uniqueUrls.forEach((url) => {
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Count all occurrences: HTML img tags, markdown images, and raw URLs
+          const htmlDoublePattern = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const htmlSinglePattern = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const markdownPattern = new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+            "g"
+          );
+          const rawPattern = new RegExp(escapedUrl, "g");
+
+          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const markdownMatches = content.match(markdownPattern)?.length || 0;
+          // For raw URLs, subtract already counted ones to avoid double counting
+          const rawMatches =
+            (content.match(rawPattern)?.length || 0) -
+            htmlDoubleMatches -
+            htmlSingleMatches -
+            markdownMatches;
+
+          urlOccurrenceCounts.set(
+            url,
+            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
+          );
+        });
 
         // Process all images in parallel
         const results = await Promise.allSettled(
@@ -649,47 +1023,114 @@ export function useChatStorage(
         );
 
         // Helper to replace URL with placeholder (only used on success)
+        // Returns the number of replacements made for verification
         const replaceUrlWithPlaceholder = (
           imageUrl: string,
           fileId: string
-        ) => {
+        ): number => {
           const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Placeholder format: ![MCP_IMAGE:fileId]
-          const placeholder = `![MCP_IMAGE:${fileId}]`;
+          // Create internal placeholder (never shown to clients)
+          const placeholder = createFilePlaceholder(fileId);
+          let replacementCount = 0;
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[extractAndStoreMCPImages] Replacing URL with placeholder:`,
+            imageUrl,
+            "->",
+            placeholder
+          );
+
+          // Replace HTML img tags with double-quoted src
+          const htmlImgPatternDouble = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
+          if (doubleMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+              doubleMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += doubleMatches.length;
+            cleanedContent = cleanedContent.replace(
+              htmlImgPatternDouble,
+              placeholder
+            );
+          }
+
+          // Replace HTML img tags with single-quoted src
+          const htmlImgPatternSingle = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const singleMatches = cleanedContent.match(htmlImgPatternSingle);
+          if (singleMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+              singleMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += singleMatches.length;
+            cleanedContent = cleanedContent.replace(
+              htmlImgPatternSingle,
+              placeholder
+            );
+          }
 
           // Replace markdown image syntax: ![alt](url) -> placeholder
           // This pattern allows for optional whitespace/newlines around the URL
-          // Using [\s\S] to match any character including newlines
           const markdownImagePattern = new RegExp(
             `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
             "g"
           );
-          cleanedContent = cleanedContent.replace(
-            markdownImagePattern,
-            placeholder
+          const markdownMatches = cleanedContent.match(markdownImagePattern);
+          if (markdownMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
+              markdownMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += markdownMatches.length;
+            cleanedContent = cleanedContent.replace(
+              markdownImagePattern,
+              placeholder
+            );
+          }
+
+          // Replace raw URLs with placeholder (only if not already replaced)
+          // This handles cases where the URL appears without markdown syntax or HTML tags
+          const rawUrlPattern = new RegExp(escapedUrl, "g");
+          const rawMatches = cleanedContent.match(rawUrlPattern);
+          if (rawMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
+              rawMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += rawMatches.length;
+            cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+          }
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[extractAndStoreMCPImages] Total replacements made: ${replacementCount} for URL:`,
+            imageUrl
           );
 
-          // Replace raw URLs with placeholder (only if not already replaced by markdown pattern)
-          // This handles cases where the URL appears without markdown syntax
-          cleanedContent = cleanedContent.replace(
-            new RegExp(escapedUrl, "g"),
-            placeholder
-          );
-
-          // Clean up any orphaned markdown image syntax left behind
-          // Pattern: ![alt](\nplaceholder\n) -> placeholder (normalize)
-          // This handles cases where the placeholder ended up inside broken markdown syntax
-          const orphanedMarkdownPattern = new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*\\!\\[MCP_IMAGE:${fileId}\\][\\s]*\\)`,
-            "g"
-          );
-          cleanedContent = cleanedContent.replace(
-            orphanedMarkdownPattern,
-            placeholder
-          );
+          return replacementCount;
         };
 
-        // Process results and replace URLs with placeholders
+        // Process results and optionally replace URLs with placeholders
         results.forEach((result, i) => {
           const imageUrl = uniqueUrls[i];
 
@@ -700,12 +1141,41 @@ export function useChatStorage(
               name: fileName,
               type: mimeType,
               size,
+              sourceUrl: imageUrl,
             });
 
-            // Replace URL with placeholder on SUCCESS
-            // MarkdownRenderer will detect ![MCP_IMAGE:fileId] and render from OPFS
-            if (imageUrl) {
-              replaceUrlWithPlaceholder(imageUrl, fileId);
+            // Replace URL with placeholder on SUCCESS (only if replaceUrls is enabled)
+            // Placeholders will be resolved to blob URLs when messages are retrieved
+            if (replaceUrls && imageUrl) {
+              const replacementCount = replaceUrlWithPlaceholder(
+                imageUrl,
+                fileId
+              );
+              const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
+
+              // Verify all instances were replaced
+              if (replacementCount < expectedCount) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
+                  imageUrl
+                );
+              }
+
+              // Double-check: verify no remaining instances of the URL
+              const escapedUrl = imageUrl.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+              );
+              const remainingPattern = new RegExp(escapedUrl, "g");
+              const remainingMatches = cleanedContent.match(remainingPattern);
+              if (remainingMatches && remainingMatches.length > 0) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
+                  imageUrl
+                );
+              }
             }
           } else {
             // eslint-disable-next-line no-console
@@ -729,6 +1199,284 @@ export function useChatStorage(
         // eslint-disable-next-line no-console
         console.error("[handleMcpImageUrl] Unexpected error:", err);
         // Don't throw - let the original message remain as-is if processing fails completely
+        return { processedFiles: [], cleanedContent: content };
+      }
+    },
+    []
+  );
+
+  /**
+   * Extract and store MCP images using encrypted OPFS storage.
+   * Uses wallet-derived encryption keys and internal placeholders.
+   */
+  const extractAndStoreEncryptedMCPImages = useCallback(
+    async (
+      content: string,
+      address: string
+    ): Promise<{
+      processedFiles: {
+        id: string;
+        name: string;
+        type: string;
+        size: number;
+        sourceUrl: string;
+      }[];
+      cleanedContent: string;
+    }> => {
+      try {
+        // Check prerequisites
+        if (!isOPFSSupported()) {
+          // eslint-disable-next-line no-console
+          console.warn("[extractAndStoreEncryptedMCPImages] OPFS not supported");
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        if (!hasEncryptionKey(address)) {
+          // eslint-disable-next-line no-console
+          console.warn("[extractAndStoreEncryptedMCPImages] Encryption key not available");
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        // Pattern to match any URL from the MCP R2 domain
+        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
+        const MCP_IMAGE_URL_PATTERN = new RegExp(
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
+          "g"
+        );
+
+        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
+        if (!urlMatches || urlMatches.length === 0) {
+          return { processedFiles: [], cleanedContent: content };
+        }
+
+        // Clean URLs by removing any trailing quotes or invalid characters
+        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
+        const uniqueUrls = [...new Set(cleanedUrls)];
+        const encryptionKey = await getEncryptionKey(address);
+
+        const processedFiles: {
+          id: string;
+          name: string;
+          type: string;
+          size: number;
+          sourceUrl: string;
+        }[] = [];
+        let cleanedContent = content;
+
+        // Track expected URL occurrences for verification
+        const urlOccurrenceCounts = new Map<string, number>();
+        uniqueUrls.forEach((url) => {
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Count all occurrences: HTML img tags, markdown images, and raw URLs
+          const htmlDoublePattern = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const htmlSinglePattern = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const markdownPattern = new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+            "g"
+          );
+          const rawPattern = new RegExp(escapedUrl, "g");
+
+          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const markdownMatches = content.match(markdownPattern)?.length || 0;
+          // For raw URLs, subtract already counted ones to avoid double counting
+          const rawMatches =
+            (content.match(rawPattern)?.length || 0) -
+            htmlDoubleMatches -
+            htmlSingleMatches -
+            markdownMatches;
+
+          urlOccurrenceCounts.set(
+            url,
+            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
+          );
+        });
+
+        // Process all images in parallel
+        const results = await Promise.allSettled(
+          uniqueUrls.map(async (imageUrl) => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            try {
+              const response = await fetch(imageUrl, {
+                signal: controller.signal,
+                cache: "no-store",
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status}`);
+              }
+
+              const blob = await response.blob();
+              const fileId = crypto.randomUUID();
+              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
+              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const mimeType = blob.type || `image/${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${fileId.slice(0, 8)}.${extension}`;
+
+              // Encrypt and store in OPFS
+              await writeEncryptedFile(fileId, blob, encryptionKey, {
+                name: fileName,
+                sourceUrl: imageUrl,
+              });
+
+              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
+            } finally {
+              clearTimeout(timeoutId);
+            }
+          })
+        );
+
+        // Replace URLs with internal placeholders
+        results.forEach((result, i) => {
+          const imageUrl = uniqueUrls[i];
+
+          if (result.status === "fulfilled") {
+            const { fileId, fileName, mimeType, size } = result.value;
+            processedFiles.push({
+              id: fileId,
+              name: fileName,
+              type: mimeType,
+              size,
+              sourceUrl: imageUrl,
+            });
+
+            // Create internal placeholder (never shown to clients)
+            const placeholder = createFilePlaceholder(fileId);
+            const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            let replacementCount = 0;
+
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] Replacing URL with placeholder:`,
+              imageUrl,
+              "->",
+              placeholder
+            );
+
+            // Replace HTML img tags with double-quoted src
+            const htmlImgPatternDouble = new RegExp(
+              `<img[^>]*src="${escapedUrl}"[^>]*>`,
+              "gi"
+            );
+            const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
+            if (doubleMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+                doubleMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += doubleMatches.length;
+              cleanedContent = cleanedContent.replace(
+                htmlImgPatternDouble,
+                placeholder
+              );
+            }
+
+            // Replace HTML img tags with single-quoted src
+            const htmlImgPatternSingle = new RegExp(
+              `<img[^>]*src='${escapedUrl}'[^>]*>`,
+              "gi"
+            );
+            const singleMatches = cleanedContent.match(htmlImgPatternSingle);
+            if (singleMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+                singleMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += singleMatches.length;
+              cleanedContent = cleanedContent.replace(
+                htmlImgPatternSingle,
+                placeholder
+              );
+            }
+
+            // Replace markdown image syntax
+            const markdownImagePattern = new RegExp(
+              `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+              "g"
+            );
+            const markdownMatches = cleanedContent.match(markdownImagePattern);
+            if (markdownMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
+                markdownMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += markdownMatches.length;
+              cleanedContent = cleanedContent.replace(
+                markdownImagePattern,
+                placeholder
+              );
+            }
+
+            // Replace raw URLs (only if not already replaced)
+            const rawUrlPattern = new RegExp(escapedUrl, "g");
+            const rawMatches = cleanedContent.match(rawUrlPattern);
+            if (rawMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
+                rawMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += rawMatches.length;
+              cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+            }
+
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] Total replacements made: ${replacementCount} for URL:`,
+              imageUrl
+            );
+
+            // Verify all instances were replaced
+            const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
+            if (replacementCount < expectedCount) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[extractAndStoreEncryptedMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
+                imageUrl
+              );
+            }
+
+            // Double-check: verify no remaining instances of the URL
+            const remainingPattern = new RegExp(escapedUrl, "g");
+            const remainingMatches = cleanedContent.match(remainingPattern);
+            if (remainingMatches && remainingMatches.length > 0) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[extractAndStoreEncryptedMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
+                imageUrl
+              );
+            }
+          } else {
+            // eslint-disable-next-line no-console
+            console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
+          }
+        });
+
+        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
+
+        return { processedFiles, cleanedContent };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[extractAndStoreEncryptedMCPImages] Unexpected error:", err);
         return { processedFiles: [], cleanedContent: content };
       }
     },
@@ -800,14 +1548,15 @@ export function useChatStorage(
 
       // Include history if requested
       if (includeHistory) {
-        const storedMessages = await getMessages(convId);
+        // Get raw messages from database (not transformed for client display)
+        // This ensures we have the original placeholders, not blob URLs
+        const storedMessages = await getMessagesOp(storageCtx, convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = [
-          ...limitedMessages.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        // Convert stored messages to API format
+        const historyMessages = limitedMessages.map(storedToLlmapiMessage);
+        messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
@@ -999,14 +1748,26 @@ export function useChatStorage(
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
-      // Extract and store MCP images (only if writeFile is provided)
+      // Extract and store MCP images
+      // Priority: walletAddress (encrypted OPFS) > writeFile callback > skip
       let processedFiles: {
         id: string;
         name: string;
         type: string;
         size: number;
+        sourceUrl?: string;
       }[] = [];
-      if (writeFile) {
+
+      if (walletAddress) {
+        // Use encrypted OPFS storage with internal placeholders
+        const result = await extractAndStoreEncryptedMCPImages(
+          cleanedContent,
+          walletAddress
+        );
+        processedFiles = result.processedFiles;
+        cleanedContent = result.cleanedContent;
+      } else if (writeFile) {
+        // Fall back to writeFile callback with __SDKFILE__ placeholders
         const result = await extractAndStoreMCPImages(
           cleanedContent,
           writeFile
@@ -1048,7 +1809,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, walletAddress, extractAndStoreEncryptedMCPImages]
   );
 
   /**

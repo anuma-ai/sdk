@@ -13,12 +13,38 @@ import type { StoredMemory } from "../memory/types";
 
 export type ChatRole = "user" | "assistant" | "system";
 
+/**
+ * Metadata for files attached to messages.
+ *
+ * Note the distinction between `url` and `sourceUrl`:
+ * - `url`: Content URL that gets sent to the AI as part of the message (e.g., data URIs for user uploads)
+ * - `sourceUrl`: Original external URL for locally-cached files (for lookup only, never sent to AI)
+ */
 export interface FileMetadata {
+  /** Unique identifier for the file (used as OPFS key for cached files) */
   id: string;
+  /** Display name of the file */
   name: string;
+  /** MIME type (e.g., "image/png") */
   type: string;
+  /** File size in bytes */
   size: number;
+  /**
+   * Content URL to include when sending this message to the AI.
+   * When present, this URL is added as an `image_url` content part.
+   * Typically used for user-uploaded files (data URIs) that should be sent with the message.
+   *
+   * NOT used for MCP-cached files - those use `sourceUrl` for lookup and render from OPFS.
+   */
   url?: string;
+  /**
+   * Original external URL for files downloaded and cached locally (e.g., from MCP R2).
+   * Used purely for URL→OPFS mapping to enable fallback when the source returns 404.
+   *
+   * This is metadata for local lookup only - it is NOT sent to the AI or rendered directly.
+   * The file content is served from OPFS using the `id` field.
+   */
+  sourceUrl?: string;
 }
 
 export interface ChatCompletionUsage {

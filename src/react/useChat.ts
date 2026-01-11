@@ -317,7 +317,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           },
         });
 
-        const accumulator = createStreamAccumulator();
+        // Initialize accumulator with model name from request for early Qwen detection
+        const accumulator = createStreamAccumulator(model || undefined);
 
         try {
           for await (const chunk of sseResult.stream) {
@@ -570,7 +571,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             });
 
             // Create a new accumulator for the continuation
-            const continuationAccumulator = createStreamAccumulator();
+            const continuationAccumulator = createStreamAccumulator(model || undefined);
 
             try {
               for await (const chunk of continuationResult.stream) {

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:270](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L270)
+Defined in: [src/react/useChatStorage.ts:476](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L476)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -208,6 +208,32 @@ Callback invoked when an error occurs during the request
 <td>
 
 Callback invoked when the response completes successfully
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Wallet address for encrypted file storage.
+When provided, MCP-generated images are automatically encrypted and stored
+in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+
+Requires:
+
+* OPFS browser support
+* Encryption key to be requested via `requestEncryptionKey` first
+
+When not provided, falls back to the `writeFile` callback in sendMessage args.
 
 </td>
 </tr>

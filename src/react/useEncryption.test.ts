@@ -76,7 +76,7 @@ describe("useEncryption - Key Pair Generation", () => {
         await requestKeyPair(address, mockSignMessage);
       });
 
-      expect(mockSignMessage).toHaveBeenCalledWith(SIGN_MESSAGE);
+      expect(mockSignMessage).toHaveBeenCalledWith(SIGN_MESSAGE, { showWalletUIs: false });
       expect(hasKeyPair(address)).toBe(true);
     });
 

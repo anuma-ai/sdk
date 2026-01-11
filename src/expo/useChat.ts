@@ -249,7 +249,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           const xhr = new XMLHttpRequest();
           const url = `${baseUrl}/api/v1/responses`;
 
-          const accumulator = createStreamAccumulator();
+          // Initialize accumulator with model name from request for early Qwen detection
+          const accumulator = createStreamAccumulator(model || undefined);
           let lastProcessedIndex = 0;
           // Buffer for incomplete lines that span across XHR progress events
           let incompleteLineBuffer = "";
@@ -444,7 +445,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                         (continueResolve) => {
                           const continuationXhr = new XMLHttpRequest();
                           const continuationAccumulator =
-                            createStreamAccumulator();
+                            createStreamAccumulator(model || undefined);
                           let contLastProcessedIndex = 0;
                           let contIncompleteLineBuffer = "";
 

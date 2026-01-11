@@ -149,16 +149,187 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
 }
 
 /**
- * Creates an initial stream accumulator
+ * Result from parsing reasoning tags from content
  */
-export function createStreamAccumulator(): StreamAccumulator {
+export type ReasoningParseResult = {
+  /** Content with reasoning tags removed */
+  messageContent: string;
+  /** Extracted reasoning content */
+  reasoningContent: string;
+  /** Incomplete tag at the end (for next chunk) */
+  partialTag: string;
+};
+
+/**
+ * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
+ * Extracts content within <think></think> tags and removes them from the message.
+ */
+export function parseReasoningTags(
+  content: string,
+  previousPartialTag: string = ""
+): ReasoningParseResult {
+  const OPENING_TAG = "<think>";
+  const CLOSING_TAG = "</think>";
+  const OPENING_TAG_LEN = OPENING_TAG.length;
+  const CLOSING_TAG_LEN = CLOSING_TAG.length;
+
+  // Combine previous partial with new content
+  const fullContent = previousPartialTag + content;
+  let messageContent = "";
+  let reasoningContent = "";
+  let partialTag = "";
+  let i = 0;
+  let insideReasoning = false;
+
+  // Check if previous partial indicates we're already inside reasoning
+  if (previousPartialTag) {
+    if (previousPartialTag === OPENING_TAG) {
+      insideReasoning = true;
+      i = OPENING_TAG_LEN; // Start processing after the opening tag
+    } else if (OPENING_TAG.startsWith(previousPartialTag)) {
+      // Previous partial is start of opening tag
+      if (fullContent.startsWith(OPENING_TAG)) {
+        // Now complete
+        insideReasoning = true;
+        i = OPENING_TAG_LEN;
+      } else if (OPENING_TAG.startsWith(fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)))) {
+        // Still incomplete
+        return { 
+          messageContent: "", 
+          reasoningContent: "", 
+          partialTag: fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)),
+        };
+      } else {
+        // Not part of tag - treat as message content
+        messageContent = previousPartialTag;
+        i = previousPartialTag.length;
+      }
+    } else if (CLOSING_TAG.startsWith(previousPartialTag)) {
+      // Previous partial is start of closing tag
+      if (fullContent.startsWith(CLOSING_TAG)) {
+        // Complete closing tag
+        i = CLOSING_TAG_LEN;
+        insideReasoning = false;
+      } else if (CLOSING_TAG.startsWith(fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)))) {
+        // Still incomplete
+        return { 
+          messageContent: "", 
+          reasoningContent: "", 
+          partialTag: fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)),
+        };
+      } else {
+        // Not part of closing tag - must be reasoning content
+        reasoningContent = previousPartialTag;
+        i = previousPartialTag.length;
+        insideReasoning = true;
+      }
+    } else {
+      // Previous partial was content (could be reasoning or message)
+      if (insideReasoning) {
+        reasoningContent = previousPartialTag;
+      } else {
+        messageContent = previousPartialTag;
+      }
+      i = previousPartialTag.length;
+    }
+  }
+
+  // Process the rest of the content
+  while (i < fullContent.length) {
+    if (insideReasoning) {
+      // Look for closing tag
+      const closeIndex = fullContent.indexOf(CLOSING_TAG, i);
+      
+      if (closeIndex === -1) {
+        // No closing tag found
+        const remaining = fullContent.slice(i);
+        // Check if end could be start of closing tag
+        if (remaining.length < CLOSING_TAG_LEN) {
+          const potentialClose = remaining;
+          if (CLOSING_TAG.startsWith(potentialClose)) {
+            partialTag = potentialClose;
+          } else {
+            reasoningContent += remaining;
+          }
+        } else {
+          reasoningContent += remaining;
+        }
+        break;
+      }
+
+      // Found closing tag
+      // Extract content before the closing tag (reasoning content)
+      const contentBeforeClose = fullContent.slice(i, closeIndex);
+      if (contentBeforeClose) {
+        reasoningContent += contentBeforeClose;
+      }
+      // Skip over the closing tag itself
+      i = closeIndex + CLOSING_TAG_LEN;
+      // Exit reasoning mode - any content after this will be message content
+      insideReasoning = false;
+    } else {
+      // Look for opening tag
+      const openIndex = fullContent.indexOf(OPENING_TAG, i);
+      
+      if (openIndex === -1) {
+        // No opening tag found
+        const remaining = fullContent.slice(i);
+        // Check if end could be start of opening tag
+        if (remaining.length < OPENING_TAG_LEN) {
+          const potentialOpen = remaining;
+          if (OPENING_TAG.startsWith(potentialOpen)) {
+            partialTag = potentialOpen;
+          } else {
+            messageContent += remaining;
+          }
+        } else {
+          messageContent += remaining;
+        }
+        break;
+      }
+
+      // Found opening tag
+      messageContent += fullContent.slice(i, openIndex);
+      i = openIndex + OPENING_TAG_LEN;
+      insideReasoning = true;
+    }
+  }
+
+
+  // Defensive check: ensure tags are never included in output
+  // This should never happen, but adding as a safety measure
+  if (messageContent.includes(OPENING_TAG) || messageContent.includes(CLOSING_TAG)) {
+    console.warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
+    messageContent = messageContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+    messageContent = messageContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+  }
+  if (reasoningContent.includes(OPENING_TAG) || reasoningContent.includes(CLOSING_TAG)) {
+    console.warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
+    reasoningContent = reasoningContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+    reasoningContent = reasoningContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+  }
+
+
+  return {
+    messageContent,
+    reasoningContent,
+    partialTag,
+  };
+}
+
+/**
+ * Creates an initial stream accumulator
+ * @param initialModel - Optional model name to initialize with (from request)
+ */
+export function createStreamAccumulator(initialModel?: string): StreamAccumulator {
   return {
     content: "",
     thinking: "",
     responseId: "",
-    responseModel: "",
+    responseModel: initialModel || "",
     usage: {},
     toolCalls: new Map(),
+    partialReasoningTag: "",
   };
 }
 

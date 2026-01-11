@@ -283,9 +283,14 @@ async function createPKCS8PrivateKey(
 
 
 /**
- * Gets the encryption key from in-memory storage and imports it as a CryptoKey
+ * Gets the encryption key from in-memory storage and imports it as a CryptoKey.
+ * The key must have been previously requested via requestEncryptionKey.
+ *
+ * @param address - The wallet address
+ * @returns The CryptoKey for AES-GCM encryption/decryption
+ * @throws Error if the key hasn't been requested yet
  */
-async function getEncryptionKey(address: string): Promise<CryptoKey> {
+export async function getEncryptionKey(address: string): Promise<CryptoKey> {
   const keyHex = getStoredKey(address);
   if (!keyHex) {
     throw new Error(
@@ -518,17 +523,31 @@ export function hasEncryptionKey(address: string): boolean {
 }
 
 /**
- * Type for the signMessage function that client must provide.
- * This is typically from Privy's useSignMessage hook and may show a confirmation modal.
+ * Options for signing messages.
  */
-export type SignMessageFn = (message: string) => Promise<string>;
+export interface SignMessageOptions {
+  /** Whether to show wallet UI during signing. Default: true */
+  showWalletUIs?: boolean;
+}
+
+/**
+ * Type for the signMessage function that client must provide.
+ * This is typically from Privy's useSignMessage hook.
+ */
+export type SignMessageFn = (
+  message: string,
+  options?: SignMessageOptions
+) => Promise<string>;
 
 /**
  * Type for embedded wallet signer function that enables silent signing.
  * For Privy embedded wallets, this can sign programmatically without user interaction
  * when configured correctly in the Privy dashboard.
  */
-export type EmbeddedWalletSignerFn = (message: string) => Promise<string>;
+export type EmbeddedWalletSignerFn = (
+  message: string,
+  options?: SignMessageOptions
+) => Promise<string>;
 
 /**
  * Requests the user to sign a message to generate an encryption key.
@@ -561,18 +580,20 @@ export async function requestEncryptionKey(
   }
 
   // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
+  // Always disable wallet UIs for a seamless experience
+  const signOptions: SignMessageOptions = { showWalletUIs: false };
   let signature: string;
   try {
     if (embeddedWalletSigner) {
-      signature = await embeddedWalletSigner(SIGN_MESSAGE);
+      signature = await embeddedWalletSigner(SIGN_MESSAGE, signOptions);
     } else {
-      signature = await signMessage(SIGN_MESSAGE);
+      signature = await signMessage(SIGN_MESSAGE, signOptions);
     }
   } catch (error) {
     // If embedded wallet signer fails, fall back to standard signMessage
     if (embeddedWalletSigner && error instanceof Error) {
       console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
-      signature = await signMessage(SIGN_MESSAGE);
+      signature = await signMessage(SIGN_MESSAGE, signOptions);
     } else {
       throw error;
     }
@@ -843,18 +864,20 @@ export async function requestKeyPair(
   }
 
   // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
+  // Always disable wallet UIs for a seamless experience
+  const signOptions: SignMessageOptions = { showWalletUIs: false };
   let signature: string;
   try {
     if (embeddedWalletSigner) {
-      signature = await embeddedWalletSigner(SIGN_MESSAGE);
+      signature = await embeddedWalletSigner(SIGN_MESSAGE, signOptions);
     } else {
-      signature = await signMessage(SIGN_MESSAGE);
+      signature = await signMessage(SIGN_MESSAGE, signOptions);
     }
   } catch (error) {
     // If embedded wallet signer fails, fall back to standard signMessage
     if (embeddedWalletSigner && error instanceof Error) {
       console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
-      signature = await signMessage(SIGN_MESSAGE);
+      signature = await signMessage(SIGN_MESSAGE, signOptions);
     } else {
       throw error;
     }

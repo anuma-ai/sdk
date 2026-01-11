@@ -59,6 +59,7 @@ export { useChat } from "./useChat";
 export {
   useEncryption,
   requestEncryptionKey,
+  getEncryptionKey,
   hasEncryptionKey,
   encryptData,
   decryptData,
@@ -73,11 +74,16 @@ export {
 } from "./useEncryption";
 export type {
   SignMessageFn,
+  SignMessageOptions,
   EmbeddedWalletSignerFn,
   UseEncryptionResult,
 } from "./useEncryption";
 
-export { useChatStorage } from "./useChatStorage";
+export {
+  useChatStorage,
+  replaceUrlWithMCPPlaceholder,
+  findFileIdBySourceUrl,
+} from "./useChatStorage";
 export type {
   UseChatStorageOptions,
   UseChatStorageResult,
@@ -85,6 +91,16 @@ export type {
   SendMessageWithStorageResult,
   SearchMessagesOptions,
 } from "./useChatStorage";
+
+// OPFS encrypted storage utilities
+export {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  deleteEncryptedFile,
+  fileExists,
+  BlobUrlManager,
+} from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
 export {

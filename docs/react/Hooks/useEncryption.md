@@ -2,7 +2,7 @@
 
 > **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): [`UseEncryptionResult`](UseEncryptionResult.md)
 
-Defined in: [src/react/useEncryption.ts:1076](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1076)
+Defined in: [src/react/useEncryption.ts:1099](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1099)
 
 Hook that provides encryption key management for securing local data.
 
