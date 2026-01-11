@@ -48,13 +48,13 @@ import {
 } from "../lib/storage";
 
 /**
- * Replace a URL in content with an MCP_IMAGE placeholder.
+ * Replace a URL in content with an internal file placeholder.
  * This is used to swap external URLs with locally-stored file references.
  *
  * @param content - The message content containing the URL
  * @param url - The URL to replace
  * @param fileId - The OPFS file ID to reference
- * @returns The content with the URL replaced by ![MCP_IMAGE:fileId]
+ * @returns The content with the URL replaced by __SDKFILE__fileId__
  *
  * @example
  * ```ts
@@ -73,25 +73,86 @@ export function replaceUrlWithMCPPlaceholder(
   fileId: string
 ): string {
   const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const placeholder = `![MCP_IMAGE:${fileId}]`;
+  const placeholder = createFilePlaceholder(fileId);
   let result = content;
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[replaceUrlWithMCPPlaceholder] Replacing URL with placeholder:`,
+    url,
+    "->",
+    placeholder
+  );
+
+  // Replace HTML img tags with double-quoted src
+  const htmlImgPatternDouble = new RegExp(
+    `<img[^>]*src="${escapedUrl}"[^>]*>`,
+    "gi"
+  );
+  const doubleMatches = result.match(htmlImgPatternDouble);
+  if (doubleMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+      doubleMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(htmlImgPatternDouble, placeholder);
+
+  // Replace HTML img tags with single-quoted src
+  const htmlImgPatternSingle = new RegExp(
+    `<img[^>]*src='${escapedUrl}'[^>]*>`,
+    "gi"
+  );
+  const singleMatches = result.match(htmlImgPatternSingle);
+  if (singleMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+      singleMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(htmlImgPatternSingle, placeholder);
 
   // Replace markdown image syntax: ![alt](url) -> placeholder
   const markdownImagePattern = new RegExp(
     `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
     "g"
   );
+  const markdownMatches = result.match(markdownImagePattern);
+  if (markdownMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${markdownMatches.length} markdown image(s):`,
+      markdownMatches,
+      "->",
+      placeholder
+    );
+  }
   result = result.replace(markdownImagePattern, placeholder);
 
-  // Replace raw URLs with placeholder (only if not already replaced by markdown pattern)
-  result = result.replace(new RegExp(escapedUrl, "g"), placeholder);
+  // Replace raw URLs with placeholder (only if not already replaced by markdown pattern or HTML tags)
+  const rawUrlPattern = new RegExp(escapedUrl, "g");
+  const rawMatches = result.match(rawUrlPattern);
+  if (rawMatches) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[replaceUrlWithMCPPlaceholder] Replacing ${rawMatches.length} raw URL(s):`,
+      rawMatches,
+      "->",
+      placeholder
+    );
+  }
+  result = result.replace(rawUrlPattern, placeholder);
 
-  // Clean up any orphaned markdown image syntax left behind
-  const orphanedMarkdownPattern = new RegExp(
-    `!\\[[^\\]]*\\]\\([\\s]*\\!\\[MCP_IMAGE:${fileId}\\][\\s]*\\)`,
-    "g"
+  // eslint-disable-next-line no-console
+  console.log(
+    `[replaceUrlWithMCPPlaceholder] Final result length: ${result.length}, original length: ${content.length}`
   );
-  result = result.replace(orphanedMarkdownPattern, placeholder);
 
   return result;
 }
@@ -113,7 +174,7 @@ export function findFileIdBySourceUrl(
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
- * If a file has a sourceUrl, includes it as an image_url part.
+ * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
  * Internal placeholders are replaced with sourceUrls or removed.
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
@@ -122,9 +183,10 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
   // Build a map of fileId -> sourceUrl for replacement
   const fileUrlMap = new Map<string, string>();
 
-  // Add file image parts if present
+  // Add file image parts if present (only for non-assistant messages)
+  // ai-portal doesn't support image_url in assistant messages for /chat/completions
   const imageParts: LlmapiMessage["content"] = [];
-  if (stored.files?.length) {
+  if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
       // First check if there's a direct url (user uploads with data URIs)
       if (file.url) {
@@ -140,6 +202,14 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
           image_url: { url: file.sourceUrl },
         });
         // Track sourceUrl for placeholder replacement
+        fileUrlMap.set(file.id, file.sourceUrl);
+      }
+    }
+  } else if (stored.role === "assistant" && stored.files?.length) {
+    // For assistant messages, track sourceUrls for placeholder replacement only
+    // URLs are already in text as markdown images, so model can get them from context
+    for (const file of stored.files) {
+      if (file.sourceUrl) {
         fileUrlMap.set(file.id, file.sourceUrl);
       }
     }
@@ -159,7 +229,8 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
     }
   );
 
-  // Also handle legacy ![MCP_IMAGE:fileId] placeholders
+  // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
+  // This supports old messages that may still contain MCP_IMAGE placeholders
   textContent = textContent.replace(
     /!\[MCP_IMAGE:([a-f0-9-]+)\]/g,
     (match, fileId) => {
@@ -549,32 +620,81 @@ export function useChatStorage(
                 return msg;
               }
 
+              // eslint-disable-next-line no-console
+              console.log(
+                `[getMessages] Found ${fileIds.length} placeholder(s) in message ${msg.uniqueId}:`,
+                fileIds
+              );
+
               // Resolve each file to a blob URL
               let resolvedContent = msg.content;
               for (const fileId of fileIds) {
+                const placeholder = createFilePlaceholder(fileId);
+                // eslint-disable-next-line no-console
+                console.log(
+                  `[getMessages] Resolving placeholder: ${placeholder} (fileId: ${fileId})`
+                );
+
                 // Check if we already have a URL for this file
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[getMessages] No cached URL for ${fileId}, reading from OPFS...`
+                  );
                   // Read and decrypt the file
                   const result = await readEncryptedFile(fileId, encryptionKey);
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
+                    // eslint-disable-next-line no-console
+                    console.log(
+                      `[getMessages] Created blob URL for ${fileId}:`,
+                      url
+                    );
+                  } else {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                      `[getMessages] Failed to read file ${fileId} from OPFS`
+                    );
                   }
+                } else {
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[getMessages] Using cached blob URL for ${fileId}:`,
+                    url
+                  );
                 }
 
                 if (url) {
-                  const placeholder = createFilePlaceholder(fileId);
+                  const placeholderRegex = new RegExp(
+                    placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                    "g"
+                  );
+                  const matches = resolvedContent.match(placeholderRegex);
+                  const replacement = `![image](${url})`;
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[getMessages] Replacing ${matches?.length || 0} instance(s) of ${placeholder} with:`,
+                    replacement
+                  );
                   // Replace placeholder with markdown image
                   resolvedContent = resolvedContent.replace(
-                    new RegExp(
-                      placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-                      "g"
-                    ),
-                    `![image](${url})`
+                    placeholderRegex,
+                    replacement
+                  );
+                } else {
+                  // eslint-disable-next-line no-console
+                  console.warn(
+                    `[getMessages] No URL available for ${fileId}, placeholder ${placeholder} will remain in content`
                   );
                 }
               }
+
+              // eslint-disable-next-line no-console
+              console.log(
+                `[getMessages] Resolved content length: ${resolvedContent.length}, original length: ${msg.content.length}`
+              );
 
               return { ...msg, content: resolvedContent };
             })
@@ -796,9 +916,10 @@ export function useChatStorage(
     }> => {
       const { replaceUrls = true } = options ?? {};
       try {
-        // Pattern to match any URL from the MCP R2 domain (with optional query params for signed URLs)
+        // Pattern to match any URL from the MCP R2 domain
+        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
         const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s)]*`,
+          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
           "g"
         );
         // Find all MCP image URLs in the content
@@ -807,8 +928,10 @@ export function useChatStorage(
           return { processedFiles: [], cleanedContent: content };
         }
 
+        // Clean URLs by removing any trailing quotes or invalid characters
+        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
         // Deduplicate URLs (same image might appear multiple times)
-        const uniqueUrls = [...new Set(urlMatches)];
+        const uniqueUrls = [...new Set(cleanedUrls)];
 
         const processedFiles: {
           id: string;
@@ -818,6 +941,41 @@ export function useChatStorage(
           sourceUrl: string;
         }[] = [];
         let cleanedContent = content;
+
+        // Track expected URL occurrences for verification
+        const urlOccurrenceCounts = new Map<string, number>();
+        uniqueUrls.forEach((url) => {
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Count all occurrences: HTML img tags, markdown images, and raw URLs
+          const htmlDoublePattern = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const htmlSinglePattern = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const markdownPattern = new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+            "g"
+          );
+          const rawPattern = new RegExp(escapedUrl, "g");
+
+          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const markdownMatches = content.match(markdownPattern)?.length || 0;
+          // For raw URLs, subtract already counted ones to avoid double counting
+          const rawMatches =
+            (content.match(rawPattern)?.length || 0) -
+            htmlDoubleMatches -
+            htmlSingleMatches -
+            markdownMatches;
+
+          urlOccurrenceCounts.set(
+            url,
+            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
+          );
+        });
 
         // Process all images in parallel
         const results = await Promise.allSettled(
@@ -859,44 +1017,111 @@ export function useChatStorage(
         );
 
         // Helper to replace URL with placeholder (only used on success)
+        // Returns the number of replacements made for verification
         const replaceUrlWithPlaceholder = (
           imageUrl: string,
           fileId: string
-        ) => {
+        ): number => {
           const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Placeholder format: ![MCP_IMAGE:fileId]
-          const placeholder = `![MCP_IMAGE:${fileId}]`;
+          // Create internal placeholder (never shown to clients)
+          const placeholder = createFilePlaceholder(fileId);
+          let replacementCount = 0;
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[extractAndStoreMCPImages] Replacing URL with placeholder:`,
+            imageUrl,
+            "->",
+            placeholder
+          );
+
+          // Replace HTML img tags with double-quoted src
+          const htmlImgPatternDouble = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
+          if (doubleMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+              doubleMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += doubleMatches.length;
+            cleanedContent = cleanedContent.replace(
+              htmlImgPatternDouble,
+              placeholder
+            );
+          }
+
+          // Replace HTML img tags with single-quoted src
+          const htmlImgPatternSingle = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const singleMatches = cleanedContent.match(htmlImgPatternSingle);
+          if (singleMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+              singleMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += singleMatches.length;
+            cleanedContent = cleanedContent.replace(
+              htmlImgPatternSingle,
+              placeholder
+            );
+          }
 
           // Replace markdown image syntax: ![alt](url) -> placeholder
           // This pattern allows for optional whitespace/newlines around the URL
-          // Using [\s\S] to match any character including newlines
           const markdownImagePattern = new RegExp(
             `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
             "g"
           );
-          cleanedContent = cleanedContent.replace(
-            markdownImagePattern,
-            placeholder
+          const markdownMatches = cleanedContent.match(markdownImagePattern);
+          if (markdownMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
+              markdownMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += markdownMatches.length;
+            cleanedContent = cleanedContent.replace(
+              markdownImagePattern,
+              placeholder
+            );
+          }
+
+          // Replace raw URLs with placeholder (only if not already replaced)
+          // This handles cases where the URL appears without markdown syntax or HTML tags
+          const rawUrlPattern = new RegExp(escapedUrl, "g");
+          const rawMatches = cleanedContent.match(rawUrlPattern);
+          if (rawMatches) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
+              rawMatches,
+              "->",
+              placeholder
+            );
+            replacementCount += rawMatches.length;
+            cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+          }
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `[extractAndStoreMCPImages] Total replacements made: ${replacementCount} for URL:`,
+            imageUrl
           );
 
-          // Replace raw URLs with placeholder (only if not already replaced by markdown pattern)
-          // This handles cases where the URL appears without markdown syntax
-          cleanedContent = cleanedContent.replace(
-            new RegExp(escapedUrl, "g"),
-            placeholder
-          );
-
-          // Clean up any orphaned markdown image syntax left behind
-          // Pattern: ![alt](\nplaceholder\n) -> placeholder (normalize)
-          // This handles cases where the placeholder ended up inside broken markdown syntax
-          const orphanedMarkdownPattern = new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*\\!\\[MCP_IMAGE:${fileId}\\][\\s]*\\)`,
-            "g"
-          );
-          cleanedContent = cleanedContent.replace(
-            orphanedMarkdownPattern,
-            placeholder
-          );
+          return replacementCount;
         };
 
         // Process results and optionally replace URLs with placeholders
@@ -914,9 +1139,37 @@ export function useChatStorage(
             });
 
             // Replace URL with placeholder on SUCCESS (only if replaceUrls is enabled)
-            // MarkdownRenderer will detect ![MCP_IMAGE:fileId] and render from OPFS
+            // Placeholders will be resolved to blob URLs when messages are retrieved
             if (replaceUrls && imageUrl) {
-              replaceUrlWithPlaceholder(imageUrl, fileId);
+              const replacementCount = replaceUrlWithPlaceholder(
+                imageUrl,
+                fileId
+              );
+              const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
+
+              // Verify all instances were replaced
+              if (replacementCount < expectedCount) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
+                  imageUrl
+                );
+              }
+
+              // Double-check: verify no remaining instances of the URL
+              const escapedUrl = imageUrl.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+              );
+              const remainingPattern = new RegExp(escapedUrl, "g");
+              const remainingMatches = cleanedContent.match(remainingPattern);
+              if (remainingMatches && remainingMatches.length > 0) {
+                // eslint-disable-next-line no-console
+                console.warn(
+                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
+                  imageUrl
+                );
+              }
             }
           } else {
             // eslint-disable-next-line no-console
@@ -1004,6 +1257,41 @@ export function useChatStorage(
         }[] = [];
         let cleanedContent = content;
 
+        // Track expected URL occurrences for verification
+        const urlOccurrenceCounts = new Map<string, number>();
+        uniqueUrls.forEach((url) => {
+          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          // Count all occurrences: HTML img tags, markdown images, and raw URLs
+          const htmlDoublePattern = new RegExp(
+            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+            "gi"
+          );
+          const htmlSinglePattern = new RegExp(
+            `<img[^>]*src='${escapedUrl}'[^>]*>`,
+            "gi"
+          );
+          const markdownPattern = new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+            "g"
+          );
+          const rawPattern = new RegExp(escapedUrl, "g");
+
+          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const markdownMatches = content.match(markdownPattern)?.length || 0;
+          // For raw URLs, subtract already counted ones to avoid double counting
+          const rawMatches =
+            (content.match(rawPattern)?.length || 0) -
+            htmlDoubleMatches -
+            htmlSingleMatches -
+            markdownMatches;
+
+          urlOccurrenceCounts.set(
+            url,
+            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
+          );
+        });
+
         // Process all images in parallel
         const results = await Promise.allSettled(
           uniqueUrls.map(async (imageUrl) => {
@@ -1057,30 +1345,120 @@ export function useChatStorage(
             // Create internal placeholder (never shown to clients)
             const placeholder = createFilePlaceholder(fileId);
             const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            let replacementCount = 0;
+
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] Replacing URL with placeholder:`,
+              imageUrl,
+              "->",
+              placeholder
+            );
 
             // Replace HTML img tags with double-quoted src
             const htmlImgPatternDouble = new RegExp(
               `<img[^>]*src="${escapedUrl}"[^>]*>`,
               "gi"
             );
-            cleanedContent = cleanedContent.replace(htmlImgPatternDouble, placeholder);
+            const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
+            if (doubleMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
+                doubleMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += doubleMatches.length;
+              cleanedContent = cleanedContent.replace(
+                htmlImgPatternDouble,
+                placeholder
+              );
+            }
 
             // Replace HTML img tags with single-quoted src
             const htmlImgPatternSingle = new RegExp(
               `<img[^>]*src='${escapedUrl}'[^>]*>`,
               "gi"
             );
-            cleanedContent = cleanedContent.replace(htmlImgPatternSingle, placeholder);
+            const singleMatches = cleanedContent.match(htmlImgPatternSingle);
+            if (singleMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
+                singleMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += singleMatches.length;
+              cleanedContent = cleanedContent.replace(
+                htmlImgPatternSingle,
+                placeholder
+              );
+            }
 
             // Replace markdown image syntax
             const markdownImagePattern = new RegExp(
               `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
               "g"
             );
-            cleanedContent = cleanedContent.replace(markdownImagePattern, placeholder);
+            const markdownMatches = cleanedContent.match(markdownImagePattern);
+            if (markdownMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
+                markdownMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += markdownMatches.length;
+              cleanedContent = cleanedContent.replace(
+                markdownImagePattern,
+                placeholder
+              );
+            }
 
             // Replace raw URLs (only if not already replaced)
-            cleanedContent = cleanedContent.replace(new RegExp(escapedUrl, "g"), placeholder);
+            const rawUrlPattern = new RegExp(escapedUrl, "g");
+            const rawMatches = cleanedContent.match(rawUrlPattern);
+            if (rawMatches) {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[extractAndStoreEncryptedMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
+                rawMatches,
+                "->",
+                placeholder
+              );
+              replacementCount += rawMatches.length;
+              cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+            }
+
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] Total replacements made: ${replacementCount} for URL:`,
+              imageUrl
+            );
+
+            // Verify all instances were replaced
+            const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
+            if (replacementCount < expectedCount) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[extractAndStoreEncryptedMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
+                imageUrl
+              );
+            }
+
+            // Double-check: verify no remaining instances of the URL
+            const remainingPattern = new RegExp(escapedUrl, "g");
+            const remainingMatches = cleanedContent.match(remainingPattern);
+            if (remainingMatches && remainingMatches.length > 0) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[extractAndStoreEncryptedMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
+                imageUrl
+              );
+            }
           } else {
             // eslint-disable-next-line no-console
             console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
@@ -1383,7 +1761,7 @@ export function useChatStorage(
         processedFiles = result.processedFiles;
         cleanedContent = result.cleanedContent;
       } else if (writeFile) {
-        // Fall back to writeFile callback with MCP_IMAGE placeholders
+        // Fall back to writeFile callback with __SDKFILE__ placeholders
         const result = await extractAndStoreMCPImages(
           cleanedContent,
           writeFile
