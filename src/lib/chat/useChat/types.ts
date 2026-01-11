@@ -217,4 +217,6 @@ export type StreamAccumulator = {
   responseModel: string;
   usage: Partial<LlmapiResponseUsage>;
   toolCalls: Map<string, AccumulatedToolCall>;
+  /** Track incomplete reasoning tags across chunks */
+  partialReasoningTag?: string;
 };

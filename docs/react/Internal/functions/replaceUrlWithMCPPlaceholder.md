@@ -4,7 +4,7 @@
 
 Defined in: [src/react/useChatStorage.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L70)
 
-Replace a URL in content with an MCP\_IMAGE placeholder.
+Replace a URL in content with an internal file placeholder.
 This is used to swap external URLs with locally-stored file references.
 
 ## Parameters
@@ -76,7 +76,7 @@ The OPFS file ID to reference
 
 `string`
 
-The content with the URL replaced by !\[MCP\_IMAGE:fileId]
+The content with the URL replaced by **SDKFILE\_\_fileId**
 
 ## Example
 

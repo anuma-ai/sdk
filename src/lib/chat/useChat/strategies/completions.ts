@@ -1,6 +1,7 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
+import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 
 /**
@@ -118,8 +119,28 @@ export class CompletionsStrategy implements ApiStrategy {
       if (choice.delta) {
         // Content delta
         if (choice.delta.content) {
-          accumulator.content += choice.delta.content;
-          result.content = choice.delta.content;
+          // Parse reasoning tags from content
+          const parseResult = parseReasoningTags(
+            choice.delta.content,
+            accumulator.partialReasoningTag || ""
+          );
+
+          // Update accumulator with parsed content
+          accumulator.content += parseResult.messageContent;
+          accumulator.thinking += parseResult.reasoningContent;
+          accumulator.partialReasoningTag = parseResult.partialTag;
+
+          // Emit deltas
+          // Only emit non-empty content to avoid false error detection
+          const willEmitMessage = parseResult.messageContent && parseResult.messageContent.trim().length > 0;
+          const willEmitReasoning = parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
+          
+          if (willEmitMessage) {
+            result.content = parseResult.messageContent;
+          }
+          if (willEmitReasoning) {
+            result.thinking = parseResult.reasoningContent;
+          }
         }
 
         // Tool calls delta
@@ -157,8 +178,24 @@ export class CompletionsStrategy implements ApiStrategy {
       // Handle non-streaming message format (final response)
       if (choice.message) {
         if (choice.message.content) {
-          accumulator.content = choice.message.content;
-          result.content = choice.message.content;
+          // Parse reasoning tags from final message content
+          const parseResult = parseReasoningTags(
+            choice.message.content,
+            accumulator.partialReasoningTag || ""
+          );
+
+          accumulator.content = parseResult.messageContent;
+          accumulator.thinking += parseResult.reasoningContent;
+          accumulator.partialReasoningTag = parseResult.partialTag;
+
+          // For non-streaming, we always emit the final content (reasoning is already separated)
+          // Only emit non-empty content to avoid false error detection
+          if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+            result.content = parseResult.messageContent;
+          }
+          if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
+            result.thinking = parseResult.reasoningContent;
+          }
         }
 
         if (choice.message.tool_calls) {
@@ -192,6 +229,29 @@ export class CompletionsStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
     const output: LlmapiResponseResponse["output"] = [];
 
+    // Final cleanup: handle any remaining partial tag
+    let finalContent = accumulator.content;
+    let finalThinking = accumulator.thinking;
+    
+    if (accumulator.partialReasoningTag) {
+      // Final cleanup: if we have a partial tag, try to parse it one more time
+      const finalParse = parseReasoningTags("", accumulator.partialReasoningTag);
+      finalContent += finalParse.messageContent;
+      if (finalParse.reasoningContent) {
+        finalThinking += finalParse.reasoningContent;
+      }
+    }
+
+    // Add thinking/reasoning output if present
+    if (finalThinking) {
+      output.push({
+        type: "reasoning",
+        role: "assistant",
+        content: [{ type: "output_text", text: finalThinking }],
+        status: "completed",
+      });
+    }
+
     // Add tool calls if present
     if (accumulator.toolCalls.size > 0) {
       for (const toolCall of accumulator.toolCalls.values()) {
@@ -209,7 +269,7 @@ export class CompletionsStrategy implements ApiStrategy {
     output.push({
       type: "message",
       role: "assistant",
-      content: [{ type: "output_text", text: accumulator.content }],
+      content: [{ type: "output_text", text: finalContent }],
       status: "completed",
     });
 

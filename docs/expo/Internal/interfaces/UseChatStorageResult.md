@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L91)
+Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -151,7 +151,7 @@ Defined in: [src/lib/db/chat/types.ts:379](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
-Defined in: [src/expo/useChatStorage.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L97)
+Defined in: [src/expo/useChatStorage.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L100)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -365,7 +365,7 @@ Defined in: [src/lib/db/chat/types.ts:369](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `object`) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L93)
+Defined in: [src/expo/useChatStorage.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L96)
 
 Send a message and automatically store it (Expo version)
 
@@ -937,7 +937,7 @@ Defined in: [src/lib/db/chat/types.ts:378](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L102)
+Defined in: [src/expo/useChatStorage.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L105)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 
