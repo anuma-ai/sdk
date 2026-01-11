@@ -677,32 +677,25 @@ export function useChatStorage(
                 }
               }
 
-              // Replace all placeholders in a single atomic pass using a callback function
-              // This ensures each placeholder is replaced with its correct URL without interference
-              // Create a new regex instance to avoid shared state issues with the global flag
-              const placeholderRegex = new RegExp(
-                FILE_PLACEHOLDER_REGEX.source,
-                FILE_PLACEHOLDER_REGEX.flags
-              );
-              const resolvedContent = msg.content.replace(
-                placeholderRegex,
-                (match, fileId) => {
-                  const url = fileIdToUrlMap.get(fileId);
-                  if (url) {
-                    // eslint-disable-next-line no-console
-                    console.log(
-                      `[getMessages] Replacing ${match} with: ![image](${url})`
-                    );
-                    return `![image](${url})`;
-                  }
-                  // eslint-disable-next-line no-console
-                  console.warn(
-                    `[getMessages] No URL available for ${fileId}, placeholder ${match} will remain in content`
-                  );
-                  // Return original placeholder if no URL found
-                  return match;
-                }
-              );
+              // Replace placeholders one at a time in order to ensure correct mapping
+              // This avoids any potential issues with regex callback processing order
+              let resolvedContent = msg.content;
+              for (const [fileId, url] of fileIdToUrlMap) {
+                const placeholder = createFilePlaceholder(fileId);
+                // Escape the placeholder for use in regex
+                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                // Create a non-global regex for this specific placeholder
+                const placeholderRegex = new RegExp(escapedPlaceholder, "g");
+                // Use unique alt text with fileId to prevent UI blobUrlMap collisions
+                const replacement = `![image-${fileId}](${url})`;
+                
+                // eslint-disable-next-line no-console
+                console.log(
+                  `[getMessages] Replacing ${placeholder} with: ${replacement}`
+                );
+                
+                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+              }
 
               // eslint-disable-next-line no-console
               console.log(
