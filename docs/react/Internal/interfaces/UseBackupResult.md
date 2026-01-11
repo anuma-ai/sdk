@@ -1,6 +1,6 @@
 # UseBackupResult
 
-Defined in: src/react/useBackup.ts:103
+Defined in: [src/react/useBackup.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L103)
 
 Result returned by useBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useBackup hook
 
 > **disconnectAll**: () => `Promise`<`void`>
 
-Defined in: src/react/useBackup.ts:115
+Defined in: [src/react/useBackup.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L115)
 
 Disconnect from all providers
 
@@ -24,7 +24,7 @@ Disconnect from all providers
 
 > **dropbox**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: src/react/useBackup.ts:105
+Defined in: [src/react/useBackup.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L105)
 
 Dropbox backup state and methods
 
@@ -34,7 +34,7 @@ Dropbox backup state and methods
 
 > **googleDrive**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: src/react/useBackup.ts:107
+Defined in: [src/react/useBackup.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L107)
 
 Google Drive backup state and methods
 
@@ -44,7 +44,7 @@ Google Drive backup state and methods
 
 > **hasAnyAuthentication**: `boolean`
 
-Defined in: src/react/useBackup.ts:113
+Defined in: [src/react/useBackup.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L113)
 
 Whether any backup provider is authenticated
 
@@ -54,7 +54,7 @@ Whether any backup provider is authenticated
 
 > **hasAnyProvider**: `boolean`
 
-Defined in: src/react/useBackup.ts:111
+Defined in: [src/react/useBackup.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L111)
 
 Whether any backup provider is configured
 
@@ -64,6 +64,6 @@ Whether any backup provider is configured
 
 > **icloud**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: src/react/useBackup.ts:109
+Defined in: [src/react/useBackup.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L109)
 
 iCloud backup state and methods

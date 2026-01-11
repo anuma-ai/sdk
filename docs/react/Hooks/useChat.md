@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: src/react/useChat.ts:137
+Defined in: [src/react/useChat.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L137)
 
 A React hook for managing chat completions with authentication.
 

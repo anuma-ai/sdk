@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: src/react/useChatStorage.ts:194
+Defined in: [src/react/useChatStorage.ts:194](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L194)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: src/react/useChatStorage.ts:200
+Defined in: [src/react/useChatStorage.ts:200](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L200)
 
 Which API endpoint to use. Default: "responses"
 
@@ -29,7 +29,7 @@ Which API endpoint to use. Default: "responses"
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: src/lib/db/chat/types.ts:159
+Defined in: [src/lib/db/chat/types.ts:159](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L159)
 
 Automatically create a new conversation if none is set (default: true)
 
@@ -43,7 +43,7 @@ Automatically create a new conversation if none is set (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: src/lib/db/chat/types.ts:165
+Defined in: [src/lib/db/chat/types.ts:165](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L165)
 
 Base URL for the chat API endpoint
 
@@ -57,7 +57,7 @@ Base URL for the chat API endpoint
 
 > `optional` **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:157
+Defined in: [src/lib/db/chat/types.ts:157](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L157)
 
 ID of an existing conversation to load and continue
 
@@ -71,7 +71,7 @@ ID of an existing conversation to load and continue
 
 > **database**: `Database`
 
-Defined in: src/lib/db/chat/types.ts:155
+Defined in: [src/lib/db/chat/types.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L155)
 
 WatermelonDB database instance for storing conversations and messages
 
@@ -85,7 +85,7 @@ WatermelonDB database instance for storing conversations and messages
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: src/lib/db/chat/types.ts:161
+Defined in: [src/lib/db/chat/types.ts:161](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L161)
 
 Title for auto-created conversations (default: "New conversation")
 
@@ -99,7 +99,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: src/lib/db/chat/types.ts:163
+Defined in: [src/lib/db/chat/types.ts:163](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L163)
 
 Function to retrieve the auth token for API requests
 
@@ -117,7 +117,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: src/lib/db/chat/types.ts:167
+Defined in: [src/lib/db/chat/types.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L167)
 
 Callback invoked with each streamed response chunk
 
@@ -160,7 +160,7 @@ Callback invoked with each streamed response chunk
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: src/lib/db/chat/types.ts:171
+Defined in: [src/lib/db/chat/types.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L171)
 
 Callback invoked when an error occurs during the request
 
@@ -203,7 +203,7 @@ Callback invoked when an error occurs during the request
 
 > `optional` **onFinish**: (`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
-Defined in: src/lib/db/chat/types.ts:169
+Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L169)
 
 Callback invoked when the response completes successfully
 
@@ -246,7 +246,7 @@ Callback invoked when the response completes successfully
 
 > `optional` **walletAddress**: `string`
 
-Defined in: src/react/useChatStorage.ts:213
+Defined in: [src/react/useChatStorage.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L213)
 
 Wallet address for encrypted file storage.
 When provided, MCP-generated images are automatically encrypted and stored

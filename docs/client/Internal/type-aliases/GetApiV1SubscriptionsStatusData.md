@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsStatusData** = `object`
 
-Defined in: src/client/types.gen.ts:1369
+Defined in: [src/client/types.gen.ts:1369](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1369)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/client/types.gen.ts:1369
 
 > `optional` **body**: `never`
 
-Defined in: src/client/types.gen.ts:1370
+Defined in: [src/client/types.gen.ts:1370](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1370)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/client/types.gen.ts:1370
 
 > `optional` **path**: `never`
 
-Defined in: src/client/types.gen.ts:1371
+Defined in: [src/client/types.gen.ts:1371](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1371)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/client/types.gen.ts:1371
 
 > `optional` **query**: `never`
 
-Defined in: src/client/types.gen.ts:1372
+Defined in: [src/client/types.gen.ts:1372](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1372)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: src/client/types.gen.ts:1372
 
 > **url**: `"/api/v1/subscriptions/status"`
 
-Defined in: src/client/types.gen.ts:1373
+Defined in: [src/client/types.gen.ts:1373](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1373)

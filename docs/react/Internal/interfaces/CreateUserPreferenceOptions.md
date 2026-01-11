@@ -1,6 +1,6 @@
 # CreateUserPreferenceOptions
 
-Defined in: src/lib/db/userPreferences/types.ts:113
+Defined in: [src/lib/db/userPreferences/types.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L113)
 
 Options for creating a new user preference record
 
@@ -10,7 +10,7 @@ Options for creating a new user preference record
 
 > `optional` **description**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:117
+Defined in: [src/lib/db/userPreferences/types.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L117)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/lib/db/userPreferences/types.ts:117
 
 > `optional` **models**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:118
+Defined in: [src/lib/db/userPreferences/types.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L118)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/lib/db/userPreferences/types.ts:118
 
 > `optional` **nickname**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:115
+Defined in: [src/lib/db/userPreferences/types.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L115)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: src/lib/db/userPreferences/types.ts:115
 
 > `optional` **occupation**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:116
+Defined in: [src/lib/db/userPreferences/types.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L116)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: src/lib/db/userPreferences/types.ts:116
 
 > `optional` **personality**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:119
+Defined in: [src/lib/db/userPreferences/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L119)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: src/lib/db/userPreferences/types.ts:119
 
 > **walletAddress**: `string`
 
-Defined in: src/lib/db/userPreferences/types.ts:114
+Defined in: [src/lib/db/userPreferences/types.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L114)

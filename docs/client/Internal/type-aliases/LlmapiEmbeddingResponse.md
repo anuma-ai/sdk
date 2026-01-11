@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingResponse** = `object`
 
-Defined in: src/client/types.gen.ts:289
+Defined in: [src/client/types.gen.ts:289](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L289)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/client/types.gen.ts:289
 
 > `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]
 
-Defined in: src/client/types.gen.ts:293
+Defined in: [src/client/types.gen.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L293)
 
 Data contains the embeddings
 
@@ -20,7 +20,7 @@ Data contains the embeddings
 
 > `optional` **extra\_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
 
-Defined in: src/client/types.gen.ts:294
+Defined in: [src/client/types.gen.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L294)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: src/client/types.gen.ts:294
 
 > `optional` **model**: `string`
 
-Defined in: src/client/types.gen.ts:298
+Defined in: [src/client/types.gen.ts:298](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L298)
 
 Model is the model used
 
@@ -38,7 +38,7 @@ Model is the model used
 
 > `optional` **object**: `string`
 
-Defined in: src/client/types.gen.ts:302
+Defined in: [src/client/types.gen.ts:302](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L302)
 
 Object is always "list"
 
@@ -48,4 +48,4 @@ Object is always "list"
 
 > `optional` **usage**: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md)
 
-Defined in: src/client/types.gen.ts:303
+Defined in: [src/client/types.gen.ts:303](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L303)

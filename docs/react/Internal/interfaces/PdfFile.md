@@ -1,6 +1,6 @@
 # PdfFile
 
-Defined in: src/react/usePdf.ts:7
+Defined in: [src/react/usePdf.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L7)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/react/usePdf.ts:7
 
 > `optional` **filename**: `string`
 
-Defined in: src/react/usePdf.ts:10
+Defined in: [src/react/usePdf.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L10)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/react/usePdf.ts:10
 
 > `optional` **mediaType**: `string`
 
-Defined in: src/react/usePdf.ts:9
+Defined in: [src/react/usePdf.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L9)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: src/react/usePdf.ts:9
 
 > **url**: `string`
 
-Defined in: src/react/usePdf.ts:8
+Defined in: [src/react/usePdf.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/usePdf.ts#L8)

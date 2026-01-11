@@ -1,6 +1,6 @@
 # UseEncryptionResult
 
-Defined in: src/react/useEncryption.ts:958
+Defined in: [src/react/useEncryption.ts:958](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L958)
 
 Result returned by the useEncryption hook.
 
@@ -10,7 +10,7 @@ Result returned by the useEncryption hook.
 
 > **clearKeyPair**: (`walletAddress`: `string`) => `void`
 
-Defined in: src/react/useEncryption.ts:968
+Defined in: [src/react/useEncryption.ts:968](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L968)
 
 Clear the key pair for a wallet address from memory
 
@@ -49,7 +49,7 @@ Clear the key pair for a wallet address from memory
 
 > **exportPublicKey**: (`walletAddress`: `string`) => `Promise`<`string`>
 
-Defined in: src/react/useEncryption.ts:964
+Defined in: [src/react/useEncryption.ts:964](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L964)
 
 Export the public key for a wallet address as base64-encoded SPKI
 
@@ -88,7 +88,7 @@ Export the public key for a wallet address as base64-encoded SPKI
 
 > **hasKeyPair**: (`walletAddress`: `string`) => `boolean`
 
-Defined in: src/react/useEncryption.ts:966
+Defined in: [src/react/useEncryption.ts:966](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L966)
 
 Check if a key pair exists in memory for a wallet address
 
@@ -127,7 +127,7 @@ Check if a key pair exists in memory for a wallet address
 
 > **requestEncryptionKey**: (`walletAddress`: `string`) => `Promise`<`void`>
 
-Defined in: src/react/useEncryption.ts:960
+Defined in: [src/react/useEncryption.ts:960](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L960)
 
 Request and generate an encryption key for a wallet address
 
@@ -166,7 +166,7 @@ Request and generate an encryption key for a wallet address
 
 > **requestKeyPair**: (`walletAddress`: `string`) => `Promise`<`void`>
 
-Defined in: src/react/useEncryption.ts:962
+Defined in: [src/react/useEncryption.ts:962](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L962)
 
 Request and generate an ECDH key pair for a wallet address
 

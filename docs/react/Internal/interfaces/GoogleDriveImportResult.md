@@ -1,6 +1,6 @@
 # GoogleDriveImportResult
 
-Defined in: src/lib/backup/google/backup.ts:52
+Defined in: [src/lib/backup/google/backup.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L52)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/backup/google/backup.ts:52
 
 > **failed**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:55
+Defined in: [src/lib/backup/google/backup.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L55)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/backup/google/backup.ts:55
 
 > `optional` **noBackupsFound**: `boolean`
 
-Defined in: src/lib/backup/google/backup.ts:58
+Defined in: [src/lib/backup/google/backup.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L58)
 
 True if no backups were found in Google Drive
 
@@ -26,7 +26,7 @@ True if no backups were found in Google Drive
 
 > **restored**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:54
+Defined in: [src/lib/backup/google/backup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L54)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: src/lib/backup/google/backup.ts:54
 
 > **success**: `boolean`
 
-Defined in: src/lib/backup/google/backup.ts:53
+Defined in: [src/lib/backup/google/backup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L53)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: src/lib/backup/google/backup.ts:53
 
 > **total**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:56
+Defined in: [src/lib/backup/google/backup.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L56)

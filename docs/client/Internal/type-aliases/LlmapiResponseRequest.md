@@ -2,7 +2,7 @@
 
 > **LlmapiResponseRequest** = `object`
 
-Defined in: src/client/types.gen.ts:724
+Defined in: [src/client/types.gen.ts:724](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L724)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/client/types.gen.ts:724
 
 > `optional` **background**: `boolean`
 
-Defined in: src/client/types.gen.ts:728
+Defined in: [src/client/types.gen.ts:728](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L728)
 
 Background indicates if request should be processed in background
 
@@ -20,7 +20,7 @@ Background indicates if request should be processed in background
 
 > `optional` **conversation**: `string`
 
-Defined in: src/client/types.gen.ts:732
+Defined in: [src/client/types.gen.ts:732](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L732)
 
 Conversation is the conversation ID (optional)
 
@@ -30,7 +30,7 @@ Conversation is the conversation ID (optional)
 
 > **input**: [`LlmapiResponseInput`](LlmapiResponseInput.md)
 
-Defined in: src/client/types.gen.ts:733
+Defined in: [src/client/types.gen.ts:733](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L733)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: src/client/types.gen.ts:733
 
 > `optional` **max\_output\_tokens**: `number`
 
-Defined in: src/client/types.gen.ts:737
+Defined in: [src/client/types.gen.ts:737](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L737)
 
 MaxOutputTokens is the maximum number of tokens to generate
 
@@ -48,7 +48,7 @@ MaxOutputTokens is the maximum number of tokens to generate
 
 > **model**: `string`
 
-Defined in: src/client/types.gen.ts:741
+Defined in: [src/client/types.gen.ts:741](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L741)
 
 Model is the model identifier in 'provider/model' format
 
@@ -58,7 +58,7 @@ Model is the model identifier in 'provider/model' format
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](LlmapiResponseReasoning.md)
 
-Defined in: src/client/types.gen.ts:742
+Defined in: [src/client/types.gen.ts:742](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L742)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: src/client/types.gen.ts:742
 
 > `optional` **stream**: `boolean`
 
-Defined in: src/client/types.gen.ts:746
+Defined in: [src/client/types.gen.ts:746](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L746)
 
 Stream indicates if response should be streamed
 
@@ -76,7 +76,7 @@ Stream indicates if response should be streamed
 
 > `optional` **temperature**: `number`
 
-Defined in: src/client/types.gen.ts:750
+Defined in: [src/client/types.gen.ts:750](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L750)
 
 Temperature controls randomness (0.0 to 2.0)
 
@@ -86,7 +86,7 @@ Temperature controls randomness (0.0 to 2.0)
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](LlmapiThinkingOptions.md)
 
-Defined in: src/client/types.gen.ts:751
+Defined in: [src/client/types.gen.ts:751](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L751)
 
 ***
 
@@ -94,7 +94,7 @@ Defined in: src/client/types.gen.ts:751
 
 > `optional` **tool\_choice**: `string`
 
-Defined in: src/client/types.gen.ts:755
+Defined in: [src/client/types.gen.ts:755](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L755)
 
 ToolChoice controls which tool to use (auto, any, none, required, or tool name)
 
@@ -104,6 +104,6 @@ ToolChoice controls which tool to use (auto, any, none, required, or tool name)
 
 > `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)\[]
 
-Defined in: src/client/types.gen.ts:759
+Defined in: [src/client/types.gen.ts:759](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L759)
 
 Tools is an array of tool definitions the model can use

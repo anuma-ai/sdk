@@ -1,6 +1,6 @@
 # UseICloudBackupResult
 
-Defined in: src/react/useICloudBackup.ts:43
+Defined in: [src/react/useICloudBackup.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L43)
 
 Result returned by useICloudBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useICloudBackup hook
 
 > **backup**: (`options?`: `object`) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
-Defined in: src/react/useICloudBackup.ts:45
+Defined in: [src/react/useICloudBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L45)
 
 Backup all conversations to iCloud
 
@@ -61,7 +61,7 @@ Backup all conversations to iCloud
 
 > **isAuthenticated**: `boolean`
 
-Defined in: src/react/useICloudBackup.ts:55
+Defined in: [src/react/useICloudBackup.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L55)
 
 Whether user has signed in to iCloud
 
@@ -71,7 +71,7 @@ Whether user has signed in to iCloud
 
 > **isAvailable**: `boolean`
 
-Defined in: src/react/useICloudBackup.ts:57
+Defined in: [src/react/useICloudBackup.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L57)
 
 Whether CloudKit JS is available
 
@@ -81,7 +81,7 @@ Whether CloudKit JS is available
 
 > **isConfigured**: `boolean`
 
-Defined in: src/react/useICloudBackup.ts:53
+Defined in: [src/react/useICloudBackup.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L53)
 
 Whether iCloud is configured
 
@@ -91,7 +91,7 @@ Whether iCloud is configured
 
 > **restore**: (`options?`: `object`) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
-Defined in: src/react/useICloudBackup.ts:49
+Defined in: [src/react/useICloudBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudBackup.ts#L49)
 
 Restore conversations from iCloud
 

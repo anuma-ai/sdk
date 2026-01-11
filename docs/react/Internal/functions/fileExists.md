@@ -2,7 +2,7 @@
 
 > **fileExists**(`fileId`: `string`): `Promise`<`boolean`>
 
-Defined in: src/lib/storage/opfs.ts:256
+Defined in: [src/lib/storage/opfs.ts:256](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L256)
 
 Checks if a file exists in OPFS.
 

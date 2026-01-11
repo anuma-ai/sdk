@@ -1,6 +1,6 @@
 # ICloudAuthProviderProps
 
-Defined in: src/react/useICloudAuth.ts:27
+Defined in: [src/react/useICloudAuth.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L27)
 
 Props for ICloudAuthProvider
 
@@ -10,7 +10,7 @@ Props for ICloudAuthProvider
 
 > **apiToken**: `string`
 
-Defined in: src/react/useICloudAuth.ts:29
+Defined in: [src/react/useICloudAuth.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L29)
 
 CloudKit API token (from Apple Developer Console)
 
@@ -20,7 +20,7 @@ CloudKit API token (from Apple Developer Console)
 
 > **children**: `ReactNode`
 
-Defined in: src/react/useICloudAuth.ts:35
+Defined in: [src/react/useICloudAuth.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L35)
 
 Children to render
 
@@ -30,7 +30,7 @@ Children to render
 
 > `optional` **containerIdentifier**: `string`
 
-Defined in: src/react/useICloudAuth.ts:31
+Defined in: [src/react/useICloudAuth.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L31)
 
 CloudKit container identifier (default: "iCloud.Memoryless")
 
@@ -40,6 +40,6 @@ CloudKit container identifier (default: "iCloud.Memoryless")
 
 > `optional` **environment**: `"development"` | `"production"`
 
-Defined in: src/react/useICloudAuth.ts:33
+Defined in: [src/react/useICloudAuth.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L33)
 
 CloudKit environment (default: "production")

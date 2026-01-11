@@ -1,6 +1,6 @@
 # OCRFile
 
-Defined in: src/react/useOCR.ts:5
+Defined in: [src/react/useOCR.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L5)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/react/useOCR.ts:5
 
 > `optional` **filename**: `string`
 
-Defined in: src/react/useOCR.ts:7
+Defined in: [src/react/useOCR.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L7)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/react/useOCR.ts:7
 
 > `optional` **language**: `string`
 
-Defined in: src/react/useOCR.ts:8
+Defined in: [src/react/useOCR.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L8)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: src/react/useOCR.ts:8
 
 > **url**: `string` | `Blob` | `File`
 
-Defined in: src/react/useOCR.ts:6
+Defined in: [src/react/useOCR.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useOCR.ts#L6)

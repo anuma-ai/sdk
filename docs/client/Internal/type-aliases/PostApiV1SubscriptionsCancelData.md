@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelData** = `object`
 
-Defined in: src/client/types.gen.ts:1237
+Defined in: [src/client/types.gen.ts:1237](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1237)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/client/types.gen.ts:1237
 
 > `optional` **body**: `never`
 
-Defined in: src/client/types.gen.ts:1238
+Defined in: [src/client/types.gen.ts:1238](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1238)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/client/types.gen.ts:1238
 
 > `optional` **path**: `never`
 
-Defined in: src/client/types.gen.ts:1239
+Defined in: [src/client/types.gen.ts:1239](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1239)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/client/types.gen.ts:1239
 
 > `optional` **query**: `never`
 
-Defined in: src/client/types.gen.ts:1240
+Defined in: [src/client/types.gen.ts:1240](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1240)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: src/client/types.gen.ts:1240
 
 > **url**: `"/api/v1/subscriptions/cancel"`
 
-Defined in: src/client/types.gen.ts:1241
+Defined in: [src/client/types.gen.ts:1241](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1241)

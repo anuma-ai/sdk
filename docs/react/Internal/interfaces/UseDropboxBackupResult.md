@@ -1,6 +1,6 @@
 # UseDropboxBackupResult
 
-Defined in: src/react/useDropboxBackup.ts:45
+Defined in: [src/react/useDropboxBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L45)
 
 Result returned by useDropboxBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useDropboxBackup hook
 
 > **backup**: (`options?`: `object`) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
-Defined in: src/react/useDropboxBackup.ts:47
+Defined in: [src/react/useDropboxBackup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L47)
 
 Backup all conversations to Dropbox
 
@@ -61,7 +61,7 @@ Backup all conversations to Dropbox
 
 > **isAuthenticated**: `boolean`
 
-Defined in: src/react/useDropboxBackup.ts:57
+Defined in: [src/react/useDropboxBackup.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L57)
 
 Whether user has a Dropbox token
 
@@ -71,7 +71,7 @@ Whether user has a Dropbox token
 
 > **isConfigured**: `boolean`
 
-Defined in: src/react/useDropboxBackup.ts:55
+Defined in: [src/react/useDropboxBackup.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L55)
 
 Whether Dropbox is configured
 
@@ -81,7 +81,7 @@ Whether Dropbox is configured
 
 > **restore**: (`options?`: `object`) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
 
-Defined in: src/react/useDropboxBackup.ts:51
+Defined in: [src/react/useDropboxBackup.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L51)
 
 Restore conversations from Dropbox
 

@@ -1,6 +1,6 @@
 # DropboxExportResult
 
-Defined in: src/lib/backup/dropbox/backup.ts:42
+Defined in: [src/lib/backup/dropbox/backup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L42)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/backup/dropbox/backup.ts:42
 
 > **skipped**: `number`
 
-Defined in: src/lib/backup/dropbox/backup.ts:45
+Defined in: [src/lib/backup/dropbox/backup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L45)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/backup/dropbox/backup.ts:45
 
 > **success**: `boolean`
 
-Defined in: src/lib/backup/dropbox/backup.ts:43
+Defined in: [src/lib/backup/dropbox/backup.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L43)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/backup/dropbox/backup.ts:43
 
 > **total**: `number`
 
-Defined in: src/lib/backup/dropbox/backup.ts:46
+Defined in: [src/lib/backup/dropbox/backup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L46)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: src/lib/backup/dropbox/backup.ts:46
 
 > **uploaded**: `number`
 
-Defined in: src/lib/backup/dropbox/backup.ts:44
+Defined in: [src/lib/backup/dropbox/backup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L44)

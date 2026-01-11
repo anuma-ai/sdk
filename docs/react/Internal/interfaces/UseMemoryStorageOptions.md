@@ -1,6 +1,6 @@
 # UseMemoryStorageOptions
 
-Defined in: src/react/useMemoryStorage.ts:52
+Defined in: [src/react/useMemoryStorage.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMemoryStorage.ts#L52)
 
 Options for useMemoryStorage hook (React version)
 
@@ -16,7 +16,7 @@ Uses the base options. React-specific features can be added here if needed.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: src/lib/db/memory/types.ts:64
+Defined in: [src/lib/db/memory/types.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L64)
 
 **Inherited from**
 
@@ -28,7 +28,7 @@ Defined in: src/lib/db/memory/types.ts:64
 
 > `optional` **completionsModel**: `string`
 
-Defined in: src/lib/db/memory/types.ts:59
+Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L59)
 
 **Inherited from**
 
@@ -40,7 +40,7 @@ Defined in: src/lib/db/memory/types.ts:59
 
 > **database**: `Database`
 
-Defined in: src/lib/db/memory/types.ts:58
+Defined in: [src/lib/db/memory/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L58)
 
 **Inherited from**
 
@@ -52,7 +52,7 @@ Defined in: src/lib/db/memory/types.ts:58
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: src/lib/db/memory/types.ts:67
+Defined in: [src/lib/db/memory/types.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L67)
 
 **Inherited from**
 
@@ -64,7 +64,7 @@ Defined in: src/lib/db/memory/types.ts:67
 
 > `optional` **embeddingModel**: `string` | `null`
 
-Defined in: src/lib/db/memory/types.ts:60
+Defined in: [src/lib/db/memory/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L60)
 
 **Inherited from**
 
@@ -76,7 +76,7 @@ Defined in: src/lib/db/memory/types.ts:60
 
 > `optional` **generateEmbeddings**: `boolean`
 
-Defined in: src/lib/db/memory/types.ts:61
+Defined in: [src/lib/db/memory/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L61)
 
 **Inherited from**
 
@@ -88,7 +88,7 @@ Defined in: src/lib/db/memory/types.ts:61
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: src/lib/db/memory/types.ts:63
+Defined in: [src/lib/db/memory/types.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L63)
 
 **Returns**
 
@@ -104,7 +104,7 @@ Defined in: src/lib/db/memory/types.ts:63
 
 > `optional` **onFactsExtracted**: (`facts`: `MemoryExtractionResult`) => `void`
 
-Defined in: src/lib/db/memory/types.ts:62
+Defined in: [src/lib/db/memory/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L62)
 
 **Parameters**
 
@@ -145,7 +145,7 @@ Defined in: src/lib/db/memory/types.ts:62
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: src/lib/db/memory/types.ts:66
+Defined in: [src/lib/db/memory/types.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L66)
 
 **Inherited from**
 
@@ -157,7 +157,7 @@ Defined in: src/lib/db/memory/types.ts:66
 
 > `optional` **walletAddress**: `string`
 
-Defined in: src/lib/db/memory/types.ts:65
+Defined in: [src/lib/db/memory/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L65)
 
 **Inherited from**
 

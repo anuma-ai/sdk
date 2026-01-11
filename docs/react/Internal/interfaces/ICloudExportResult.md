@@ -1,6 +1,6 @@
 # ICloudExportResult
 
-Defined in: src/lib/backup/icloud/backup.ts:44
+Defined in: [src/lib/backup/icloud/backup.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L44)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/backup/icloud/backup.ts:44
 
 > **skipped**: `number`
 
-Defined in: src/lib/backup/icloud/backup.ts:47
+Defined in: [src/lib/backup/icloud/backup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L47)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/backup/icloud/backup.ts:47
 
 > **success**: `boolean`
 
-Defined in: src/lib/backup/icloud/backup.ts:45
+Defined in: [src/lib/backup/icloud/backup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L45)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/backup/icloud/backup.ts:45
 
 > **total**: `number`
 
-Defined in: src/lib/backup/icloud/backup.ts:48
+Defined in: [src/lib/backup/icloud/backup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L48)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: src/lib/backup/icloud/backup.ts:48
 
 > **uploaded**: `number`
 
-Defined in: src/lib/backup/icloud/backup.ts:46
+Defined in: [src/lib/backup/icloud/backup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L46)

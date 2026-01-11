@@ -1,6 +1,6 @@
 # UseSettingsResult
 
-Defined in: src/react/useSettings.ts:43
+Defined in: [src/react/useSettings.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L43)
 
 Extended result returned by useSettings hook (React version)
 Includes both legacy modelPreference API and new userPreference API
@@ -15,7 +15,7 @@ Includes both legacy modelPreference API and new userPreference API
 
 > **deleteModelPreference**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: src/lib/db/settings/types.ts:40
+Defined in: [src/lib/db/settings/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L40)
 
 **Parameters**
 
@@ -56,7 +56,7 @@ Defined in: src/lib/db/settings/types.ts:40
 
 > **deleteUserPreference**: (`walletAddress`: `string`) => `Promise`<`boolean`>
 
-Defined in: src/react/useSettings.ts:65
+Defined in: [src/react/useSettings.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L65)
 
 **Parameters**
 
@@ -93,7 +93,7 @@ Defined in: src/react/useSettings.ts:65
 
 > **getModelPreference**: (`walletAddress`: `string`) => `Promise`<[`StoredModelPreference`](StoredModelPreference.md) | `null`>
 
-Defined in: src/lib/db/settings/types.ts:33
+Defined in: [src/lib/db/settings/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L33)
 
 **Parameters**
 
@@ -134,7 +134,7 @@ Defined in: src/lib/db/settings/types.ts:33
 
 > **getUserPreference**: (`walletAddress`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: src/react/useSettings.ts:46
+Defined in: [src/react/useSettings.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L46)
 
 **Parameters**
 
@@ -171,7 +171,7 @@ Defined in: src/react/useSettings.ts:46
 
 > **isLoading**: `boolean`
 
-Defined in: src/lib/db/settings/types.ts:32
+Defined in: [src/lib/db/settings/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L32)
 
 **Inherited from**
 
@@ -183,7 +183,7 @@ Defined in: src/lib/db/settings/types.ts:32
 
 > **modelPreference**: [`StoredModelPreference`](StoredModelPreference.md) | `null`
 
-Defined in: src/lib/db/settings/types.ts:31
+Defined in: [src/lib/db/settings/types.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L31)
 
 **Inherited from**
 
@@ -195,7 +195,7 @@ Defined in: src/lib/db/settings/types.ts:31
 
 > **setModelPreference**: (`walletAddress`: `string`, `models?`: `string`) => `Promise`<[`StoredModelPreference`](StoredModelPreference.md) | `null`>
 
-Defined in: src/lib/db/settings/types.ts:36
+Defined in: [src/lib/db/settings/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L36)
 
 **Parameters**
 
@@ -248,7 +248,7 @@ Defined in: src/lib/db/settings/types.ts:36
 
 > **setUserPreference**: (`walletAddress`: `string`, `options`: [`UpdateUserPreferenceOptions`](UpdateUserPreferenceOptions.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md)>
 
-Defined in: src/react/useSettings.ts:49
+Defined in: [src/react/useSettings.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L49)
 
 **Parameters**
 
@@ -297,7 +297,7 @@ Defined in: src/react/useSettings.ts:49
 
 > **updateModels**: (`walletAddress`: `string`, `models`: `string`) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: src/react/useSettings.ts:61
+Defined in: [src/react/useSettings.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L61)
 
 **Parameters**
 
@@ -346,7 +346,7 @@ Defined in: src/react/useSettings.ts:61
 
 > **updatePersonality**: (`walletAddress`: `string`, `personality`: [`PersonalitySettings`](PersonalitySettings.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: src/react/useSettings.ts:57
+Defined in: [src/react/useSettings.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L57)
 
 **Parameters**
 
@@ -395,7 +395,7 @@ Defined in: src/react/useSettings.ts:57
 
 > **updateProfile**: (`walletAddress`: `string`, `profile`: [`ProfileUpdate`](ProfileUpdate.md)) => `Promise`<[`StoredUserPreference`](StoredUserPreference.md) | `null`>
 
-Defined in: src/react/useSettings.ts:53
+Defined in: [src/react/useSettings.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L53)
 
 **Parameters**
 
@@ -444,4 +444,4 @@ Defined in: src/react/useSettings.ts:53
 
 > **userPreference**: [`StoredUserPreference`](StoredUserPreference.md) | `null`
 
-Defined in: src/react/useSettings.ts:45
+Defined in: [src/react/useSettings.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSettings.ts#L45)

@@ -2,7 +2,7 @@
 
 > **GetHealthData** = `object`
 
-Defined in: src/client/types.gen.ts:1546
+Defined in: [src/client/types.gen.ts:1546](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1546)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/client/types.gen.ts:1546
 
 > `optional` **body**: `never`
 
-Defined in: src/client/types.gen.ts:1547
+Defined in: [src/client/types.gen.ts:1547](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1547)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/client/types.gen.ts:1547
 
 > `optional` **path**: `never`
 
-Defined in: src/client/types.gen.ts:1548
+Defined in: [src/client/types.gen.ts:1548](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1548)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/client/types.gen.ts:1548
 
 > `optional` **query**: `never`
 
-Defined in: src/client/types.gen.ts:1549
+Defined in: [src/client/types.gen.ts:1549](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1549)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: src/client/types.gen.ts:1549
 
 > **url**: `"/health"`
 
-Defined in: src/client/types.gen.ts:1550
+Defined in: [src/client/types.gen.ts:1550](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1550)

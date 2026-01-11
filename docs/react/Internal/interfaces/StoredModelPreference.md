@@ -1,6 +1,6 @@
 # StoredModelPreference
 
-Defined in: src/lib/db/settings/types.ts:5
+Defined in: [src/lib/db/settings/types.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L5)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/settings/types.ts:5
 
 > `optional` **models**: `string`
 
-Defined in: src/lib/db/settings/types.ts:8
+Defined in: [src/lib/db/settings/types.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L8)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/db/settings/types.ts:8
 
 > **uniqueId**: `string`
 
-Defined in: src/lib/db/settings/types.ts:6
+Defined in: [src/lib/db/settings/types.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L6)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: src/lib/db/settings/types.ts:6
 
 > **walletAddress**: `string`
 
-Defined in: src/lib/db/settings/types.ts:7
+Defined in: [src/lib/db/settings/types.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L7)

@@ -1,6 +1,6 @@
 # BackupAuthProviderProps
 
-Defined in: src/react/useBackupAuth.ts:49
+Defined in: [src/react/useBackupAuth.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L49)
 
 Props for BackupAuthProvider
 
@@ -13,7 +13,7 @@ for the provider to be useful. All are optional to allow using just one backup p
 
 > `optional` **apiClient**: `Client`
 
-Defined in: src/react/useBackupAuth.ts:68
+Defined in: [src/react/useBackupAuth.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L68)
 
 API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
 Only needed if you have a custom client configuration (e.g., different baseUrl).
@@ -24,7 +24,7 @@ Only needed if you have a custom client configuration (e.g., different baseUrl).
 
 > **children**: `ReactNode`
 
-Defined in: src/react/useBackupAuth.ts:76
+Defined in: [src/react/useBackupAuth.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L76)
 
 Children to render
 
@@ -34,7 +34,7 @@ Children to render
 
 > `optional` **dropboxAppKey**: `string`
 
-Defined in: src/react/useBackupAuth.ts:51
+Defined in: [src/react/useBackupAuth.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L51)
 
 Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dropbox.
 
@@ -44,7 +44,7 @@ Dropbox App Key (from Dropbox Developer Console). Optional - omit to disable Dro
 
 > `optional` **dropboxCallbackPath**: `string`
 
-Defined in: src/react/useBackupAuth.ts:53
+Defined in: [src/react/useBackupAuth.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L53)
 
 Dropbox OAuth callback path (default: "/auth/dropbox/callback")
 
@@ -54,7 +54,7 @@ Dropbox OAuth callback path (default: "/auth/dropbox/callback")
 
 > `optional` **googleCallbackPath**: `string`
 
-Defined in: src/react/useBackupAuth.ts:57
+Defined in: [src/react/useBackupAuth.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L57)
 
 Google OAuth callback path (default: "/auth/google/callback")
 
@@ -64,7 +64,7 @@ Google OAuth callback path (default: "/auth/google/callback")
 
 > `optional` **googleClientId**: `string`
 
-Defined in: src/react/useBackupAuth.ts:55
+Defined in: [src/react/useBackupAuth.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L55)
 
 Google OAuth Client ID (from Google Cloud Console). Optional - omit to disable Google Drive.
 
@@ -74,7 +74,7 @@ Google OAuth Client ID (from Google Cloud Console). Optional - omit to disable G
 
 > `optional` **icloudApiToken**: `string`
 
-Defined in: src/react/useBackupAuth.ts:59
+Defined in: [src/react/useBackupAuth.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L59)
 
 CloudKit API token (from Apple Developer Console). Optional - omit to disable iCloud.
 
@@ -84,7 +84,7 @@ CloudKit API token (from Apple Developer Console). Optional - omit to disable iC
 
 > `optional` **icloudContainerIdentifier**: `string`
 
-Defined in: src/react/useBackupAuth.ts:61
+Defined in: [src/react/useBackupAuth.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L61)
 
 CloudKit container identifier (default: "iCloud.Memoryless")
 
@@ -94,7 +94,7 @@ CloudKit container identifier (default: "iCloud.Memoryless")
 
 > `optional` **icloudEnvironment**: `"development"` | `"production"`
 
-Defined in: src/react/useBackupAuth.ts:63
+Defined in: [src/react/useBackupAuth.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L63)
 
 CloudKit environment (default: "production")
 
@@ -104,7 +104,7 @@ CloudKit environment (default: "production")
 
 > `optional` **walletAddress**: `string`
 
-Defined in: src/react/useBackupAuth.ts:74
+Defined in: [src/react/useBackupAuth.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackupAuth.ts#L74)
 
 Wallet address for encrypting OAuth tokens at rest.
 If provided, tokens will be encrypted before storing in localStorage.

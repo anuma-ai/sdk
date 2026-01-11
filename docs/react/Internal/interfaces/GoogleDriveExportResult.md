@@ -1,6 +1,6 @@
 # GoogleDriveExportResult
 
-Defined in: src/lib/backup/google/backup.ts:45
+Defined in: [src/lib/backup/google/backup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L45)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/backup/google/backup.ts:45
 
 > **skipped**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:48
+Defined in: [src/lib/backup/google/backup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L48)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/lib/backup/google/backup.ts:48
 
 > **success**: `boolean`
 
-Defined in: src/lib/backup/google/backup.ts:46
+Defined in: [src/lib/backup/google/backup.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L46)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: src/lib/backup/google/backup.ts:46
 
 > **total**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:49
+Defined in: [src/lib/backup/google/backup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L49)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: src/lib/backup/google/backup.ts:49
 
 > **uploaded**: `number`
 
-Defined in: src/lib/backup/google/backup.ts:47
+Defined in: [src/lib/backup/google/backup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/backup.ts#L47)

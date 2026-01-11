@@ -2,7 +2,7 @@
 
 > **UseModelsResult** = `object`
 
-Defined in: src/react/useModels.ts:30
+Defined in: [src/react/useModels.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L30)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: src/react/useModels.ts:30
 
 > **error**: `Error` | `null`
 
-Defined in: src/react/useModels.ts:33
+Defined in: [src/react/useModels.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L33)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: src/react/useModels.ts:33
 
 > **isLoading**: `boolean`
 
-Defined in: src/react/useModels.ts:32
+Defined in: [src/react/useModels.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L32)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: src/react/useModels.ts:32
 
 > **models**: [`LlmapiModel`](../../../client/Internal/type-aliases/LlmapiModel.md)\[]
 
-Defined in: src/react/useModels.ts:31
+Defined in: [src/react/useModels.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L31)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: src/react/useModels.ts:31
 
 > **refetch**: () => `Promise`<`void`>
 
-Defined in: src/react/useModels.ts:34
+Defined in: [src/react/useModels.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L34)
 
 **Returns**
 

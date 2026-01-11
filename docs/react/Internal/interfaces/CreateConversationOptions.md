@@ -1,6 +1,6 @@
 # CreateConversationOptions
 
-Defined in: src/lib/db/chat/types.ts:127
+Defined in: [src/lib/db/chat/types.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L127)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/lib/db/chat/types.ts:127
 
 > `optional` **conversationId**: `string`
 
-Defined in: src/lib/db/chat/types.ts:128
+Defined in: [src/lib/db/chat/types.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L128)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: src/lib/db/chat/types.ts:128
 
 > `optional` **title**: `string`
 
-Defined in: src/lib/db/chat/types.ts:129
+Defined in: [src/lib/db/chat/types.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L129)
