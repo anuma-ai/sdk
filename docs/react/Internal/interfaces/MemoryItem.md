@@ -49,6 +49,16 @@ Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk
 
 ***
 
+### singular?
+
+> `optional` **singular**: `boolean`
+
+Defined in: [src/lib/db/memory/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L23)
+
+Whether only one value is allowed for this key. If true, new values supersede old ones. If false/undefined, multiple values can coexist.
+
+***
+
 ### type
 
 > **type**: [`MemoryType`](../type-aliases/MemoryType.md)

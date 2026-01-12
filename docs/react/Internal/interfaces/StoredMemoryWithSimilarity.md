@@ -1,6 +1,6 @@
 # StoredMemoryWithSimilarity
 
-Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L42)
+Defined in: [src/lib/db/memory/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L49)
 
 ## Extends
 
@@ -8,11 +8,23 @@ Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk
 
 ## Properties
 
+### accessedAt
+
+> **accessedAt**: `Date`
+
+Defined in: [src/lib/db/memory/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L39)
+
+**Inherited from**
+
+[`StoredMemory`](StoredMemory.md).[`accessedAt`](StoredMemory.md#accessedat)
+
+***
+
 ### compositeKey
 
 > **compositeKey**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L33)
+Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L35)
 
 **Inherited from**
 
@@ -36,7 +48,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L35)
+Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L37)
 
 **Inherited from**
 
@@ -48,7 +60,7 @@ Defined in: [src/lib/db/memory/types.ts:35](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L37)
+Defined in: [src/lib/db/memory/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L40)
 
 **Inherited from**
 
@@ -60,7 +72,7 @@ Defined in: [src/lib/db/memory/types.ts:37](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L38)
+Defined in: [src/lib/db/memory/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L41)
 
 **Inherited from**
 
@@ -72,7 +84,7 @@ Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memory/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L39)
+Defined in: [src/lib/db/memory/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L42)
 
 **Inherited from**
 
@@ -116,6 +128,20 @@ Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk
 
 ***
 
+### previousValue?
+
+> `optional` **previousValue**: `string`
+
+Defined in: [src/lib/db/memory/types.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L46)
+
+The previous value before this memory replaced it
+
+**Inherited from**
+
+[`StoredMemory`](StoredMemory.md).[`previousValue`](StoredMemory.md#previousvalue)
+
+***
+
 ### rawEvidence
 
 > **rawEvidence**: `string`
@@ -132,7 +158,35 @@ Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/memory/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L43)
+Defined in: [src/lib/db/memory/types.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L50)
+
+***
+
+### singular?
+
+> `optional` **singular**: `boolean`
+
+Defined in: [src/lib/db/memory/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L23)
+
+Whether only one value is allowed for this key. If true, new values supersede old ones. If false/undefined, multiple values can coexist.
+
+**Inherited from**
+
+[`StoredMemory`](StoredMemory.md).[`singular`](StoredMemory.md#singular)
+
+***
+
+### supersedes?
+
+> `optional` **supersedes**: `string`
+
+Defined in: [src/lib/db/memory/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L44)
+
+ID of the memory this one superseded (replaced)
+
+**Inherited from**
+
+[`StoredMemory`](StoredMemory.md).[`supersedes`](StoredMemory.md#supersedes)
 
 ***
 
@@ -152,7 +206,7 @@ Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L32)
+Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L34)
 
 **Inherited from**
 
@@ -164,7 +218,7 @@ Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk
 
 > **uniqueKey**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L34)
+Defined in: [src/lib/db/memory/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L36)
 
 **Inherited from**
 
@@ -176,7 +230,7 @@ Defined in: [src/lib/db/memory/types.ts:34](https://github.com/zeta-chain/ai-sdk
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memory/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L36)
+Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L38)
 
 **Inherited from**
 

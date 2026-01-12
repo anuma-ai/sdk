@@ -185,6 +185,12 @@ Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
 
 ***
 
+### SaveMemoryResult
+
+Re-exports [SaveMemoryResult](../react/Internal/type-aliases/SaveMemoryResult.md)
+
+***
+
 ### sdkMigrations
 
 Re-exports [sdkMigrations](../react/Internal/variables/sdkMigrations.md)

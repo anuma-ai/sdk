@@ -1,6 +1,6 @@
 # CreateMemoryOptions
 
-Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L24)
+Defined in: [src/lib/db/memory/types.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L26)
 
 ## Extends
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L25)
+Defined in: [src/lib/db/memory/types.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L27)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L26)
+Defined in: [src/lib/db/memory/types.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L28)
 
 ***
 
@@ -81,6 +81,20 @@ Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk
 **Inherited from**
 
 [`MemoryItem`](MemoryItem.md).[`rawEvidence`](MemoryItem.md#rawevidence)
+
+***
+
+### singular?
+
+> `optional` **singular**: `boolean`
+
+Defined in: [src/lib/db/memory/types.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L23)
+
+Whether only one value is allowed for this key. If true, new values supersede old ones. If false/undefined, multiple values can coexist.
+
+**Inherited from**
+
+[`MemoryItem`](MemoryItem.md).[`singular`](MemoryItem.md#singular)
 
 ***
 

@@ -121,6 +121,14 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### accessedAt
+
+> **accessedAt**: `Date`
+
+Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
+
+***
+
 ### collection
 
 > **collection**: `Collection`<`Model`>
@@ -161,7 +169,7 @@ Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sd
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
+Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L20)
 
 ***
 
@@ -169,7 +177,7 @@ Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sd
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L20)
+Defined in: [src/lib/db/memory/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L21)
 
 ***
 
@@ -177,7 +185,7 @@ Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sd
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memory/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L21)
+Defined in: [src/lib/db/memory/models.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L22)
 
 ***
 
@@ -205,11 +213,31 @@ Defined in: [src/lib/db/memory/models.ts:14](https://github.com/zeta-chain/ai-sd
 
 ***
 
+### previousValue?
+
+> `optional` **previousValue**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L26)
+
+The previous value before this memory replaced it
+
+***
+
 ### rawEvidence
 
 > **rawEvidence**: `string`
 
 Defined in: [src/lib/db/memory/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L12)
+
+***
+
+### supersedes?
+
+> `optional` **supersedes**: `string`
+
+Defined in: [src/lib/db/memory/models.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L24)
+
+ID of the memory this one superseded (replaced)
 
 ***
 
