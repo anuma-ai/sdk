@@ -8,6 +8,7 @@ import {
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
   type UpdateMemoryResult,
+  type SaveMemoryResult,
   generateCompositeKey,
   generateUniqueKey,
   cosineSimilarity,
@@ -40,16 +41,19 @@ export async function memoryToStored(
     uniqueKey: memory.uniqueKey,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
+    accessedAt: memory.accessedAt || memory.createdAt, // Fallback for migrated records
     embedding: memory.embedding,
     embeddingModel: memory.embeddingModel,
     isDeleted: memory.isDeleted,
+    supersedes: memory.supersedes,
+    previousValue: memory.previousValue,
   };
-  
+
   // Decrypt fields if wallet address provided
   if (walletAddress) {
     return (await decryptMemoryFields(baseMemory, walletAddress, signMessage, embeddedWalletSigner)) as StoredMemory;
   }
-  
+
   return baseMemory;
 }
 
@@ -240,36 +244,48 @@ export async function getMemoryByUniqueKeyOp(
   }
 }
 
+/**
+ * Save a memory with conflict resolution.
+ *
+ * When saving a memory, this function:
+ * 1. Checks if an exact match exists (same namespace:key:value) - updates if found
+ * 2. Checks if a conflicting memory exists (same namespace:key but different value)
+ *    - If found, marks the old memory as deleted and creates a new one that supersedes it
+ * 3. Creates a new memory if no match found
+ *
+ * @returns SaveMemoryResult with the action taken (created, updated, or superseded)
+ */
 export async function saveMemoryOp(
   ctx: MemoryStorageOperationsContext,
   opts: CreateMemoryOptions
-): Promise<StoredMemory> {
+): Promise<SaveMemoryResult> {
   // Encrypt fields before storing if encryption is enabled
   const memoryToStore = ctx.walletAddress && ctx.signMessage
     ? await encryptMemoryFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     : opts;
-  
+
   const compositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
   const uniqueKey = generateUniqueKey(memoryToStore.namespace, memoryToStore.key, memoryToStore.value);
+  const now = Date.now();
 
   const result = await ctx.database.write(async () => {
-    // Check for existing memory with encrypted unique key
-    let existing = await ctx.memoriesCollection
-      .query(Q.where("unique_key", uniqueKey))
+    // Step 1: Check for exact match by unique key (same namespace:key:value)
+    let exactMatch = await ctx.memoriesCollection
+      .query(Q.where("unique_key", uniqueKey), Q.where("is_deleted", false))
       .fetch();
 
     // If encryption enabled and no encrypted match, also check plaintext unique key (legacy data)
-    if (existing.length === 0 && ctx.walletAddress && ctx.signMessage) {
+    if (exactMatch.length === 0 && ctx.walletAddress && ctx.signMessage) {
       const plaintextUniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
-      existing = await ctx.memoriesCollection
-        .query(Q.where("unique_key", plaintextUniqueKey))
+      exactMatch = await ctx.memoriesCollection
+        .query(Q.where("unique_key", plaintextUniqueKey), Q.where("is_deleted", false))
         .fetch();
     }
 
-    if (existing.length > 0) {
-      const existingMemory = existing[0];
+    // If exact match found, update it (same value, maybe different metadata)
+    if (exactMatch.length > 0) {
+      const existingMemory = exactMatch[0];
 
-      // Compare with encrypted values for embedding preservation check
       const shouldPreserveEmbedding =
         existingMemory.value === memoryToStore.value &&
         existingMemory.rawEvidence === memoryToStore.rawEvidence &&
@@ -290,6 +306,7 @@ export async function saveMemoryOp(
         mem._setRaw("pii", memoryToStore.pii);
         mem._setRaw("composite_key", compositeKey);
         mem._setRaw("unique_key", uniqueKey);
+        mem._setRaw("accessed_at", now);
         mem._setRaw("is_deleted", false);
 
         if (shouldPreserveEmbedding) {
@@ -305,10 +322,66 @@ export async function saveMemoryOp(
         }
       });
 
-      return existingMemory;
+      return { memory: existingMemory, action: "updated" as const, supersededMemory: undefined };
     }
 
-    return await ctx.memoriesCollection.create((mem) => {
+    // Step 2: Check for conflicting memory by composite key (same namespace:key, different value)
+    // Only check for conflicts if memory is singular (opts.singular !== false)
+    // Non-singular memories (likes, preferences) should accumulate, not replace
+    if (opts.singular !== false) {
+      let conflicting = await ctx.memoriesCollection
+        .query(Q.where("composite_key", compositeKey), Q.where("is_deleted", false))
+        .fetch();
+
+      // If encryption enabled and no encrypted match, also check plaintext composite key (legacy data)
+      if (conflicting.length === 0 && ctx.walletAddress && ctx.signMessage) {
+        const plaintextCompositeKey = generateCompositeKey(opts.namespace, opts.key);
+        conflicting = await ctx.memoriesCollection
+          .query(Q.where("composite_key", plaintextCompositeKey), Q.where("is_deleted", false))
+          .fetch();
+      }
+
+      // If conflicting memory found (same key, different value), supersede it
+      if (conflicting.length > 0) {
+        const oldMemory = conflicting[0];
+        const oldValue = oldMemory.value;
+        const oldMemoryId = oldMemory.id;
+
+        // Mark the old memory as deleted (soft delete)
+        await oldMemory.update((mem) => {
+          mem._setRaw("is_deleted", true);
+        });
+
+        // Create new memory that supersedes the old one
+        const newMemory = await ctx.memoriesCollection.create((mem) => {
+          mem._setRaw("type", memoryToStore.type);
+          mem._setRaw("namespace", memoryToStore.namespace);
+          mem._setRaw("key", memoryToStore.key);
+          mem._setRaw("value", memoryToStore.value);
+          mem._setRaw("raw_evidence", memoryToStore.rawEvidence);
+          mem._setRaw("confidence", memoryToStore.confidence);
+          mem._setRaw("pii", memoryToStore.pii);
+          mem._setRaw("composite_key", compositeKey);
+          mem._setRaw("unique_key", uniqueKey);
+          mem._setRaw("accessed_at", now);
+          mem._setRaw("is_deleted", false);
+          mem._setRaw("supersedes", oldMemoryId);
+          mem._setRaw("previous_value", oldValue);
+
+          if (opts.embedding) {
+            mem._setRaw("embedding", JSON.stringify(opts.embedding));
+            if (opts.embeddingModel) {
+              mem._setRaw("embedding_model", opts.embeddingModel);
+            }
+          }
+        });
+
+        return { memory: newMemory, action: "superseded" as const, supersededMemoryModel: oldMemory };
+      }
+    }
+
+    // Step 3: No match found (or non-singular memory), create new memory
+    const newMemory = await ctx.memoriesCollection.create((mem) => {
       mem._setRaw("type", memoryToStore.type);
       mem._setRaw("namespace", memoryToStore.namespace);
       mem._setRaw("key", memoryToStore.key);
@@ -318,6 +391,7 @@ export async function saveMemoryOp(
       mem._setRaw("pii", memoryToStore.pii);
       mem._setRaw("composite_key", compositeKey);
       mem._setRaw("unique_key", uniqueKey);
+      mem._setRaw("accessed_at", now);
       mem._setRaw("is_deleted", false);
 
       if (opts.embedding) {
@@ -327,16 +401,36 @@ export async function saveMemoryOp(
         }
       }
     });
+
+    return { memory: newMemory, action: "created" as const, supersededMemory: undefined };
   });
 
-  return await memoryToStored(result, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  // Convert to StoredMemory format
+  const storedMemory = await memoryToStored(result.memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+
+  // If we superseded a memory, also convert that
+  let supersededMemory: StoredMemory | undefined;
+  if (result.action === "superseded" && "supersededMemoryModel" in result) {
+    supersededMemory = await memoryToStored(
+      result.supersededMemoryModel as Memory,
+      ctx.walletAddress,
+      ctx.signMessage,
+      ctx.embeddedWalletSigner
+    );
+  }
+
+  return {
+    memory: storedMemory,
+    action: result.action,
+    supersededMemory,
+  };
 }
 
 export async function saveMemoriesOp(
   ctx: MemoryStorageOperationsContext,
   memories: CreateMemoryOptions[]
-): Promise<StoredMemory[]> {
-  const results: StoredMemory[] = [];
+): Promise<SaveMemoryResult[]> {
+  const results: SaveMemoryResult[] = [];
   for (const memory of memories) {
     const saved = await saveMemoryOp(ctx, memory);
     results.push(saved);
@@ -376,9 +470,12 @@ export async function updateMemoryOp(
     uniqueKey: memory.uniqueKey,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
+    accessedAt: memory.accessedAt || memory.createdAt, // Fallback for migrated records
     embedding: memory.embedding,
     embeddingModel: memory.embeddingModel,
     isDeleted: memory.isDeleted,
+    supersedes: memory.supersedes,
+    previousValue: memory.previousValue,
   };
 
   // Decrypt existing memory to get plaintext values for merging
@@ -656,6 +753,95 @@ export async function updateMemoryEmbeddingOp(
       await memory.update((mem) => {
         mem._setRaw("embedding", JSON.stringify(embedding));
         mem._setRaw("embedding_model", embeddingModel);
+      });
+    });
+  } catch {
+    // Memory not found
+  }
+}
+
+/**
+ * Get the history of a memory by following the supersedes chain.
+ * Returns the current memory and all previous versions in reverse chronological order.
+ *
+ * @param id - The ID of the current memory to get history for
+ * @returns Array of memories, starting with the current and following the supersedes chain
+ */
+export async function getMemoryHistoryOp(
+  ctx: MemoryStorageOperationsContext,
+  id: string
+): Promise<StoredMemory[]> {
+  const history: StoredMemory[] = [];
+  let currentId: string | undefined = id;
+
+  while (currentId) {
+    try {
+      const memory = await ctx.memoriesCollection.find(currentId);
+      const stored = await memoryToStored(
+        memory,
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      history.push(stored);
+      currentId = memory.supersedes;
+    } catch {
+      // Memory not found, end of chain
+      break;
+    }
+  }
+
+  return history;
+}
+
+/**
+ * Get all memories that have been superseded (historical versions).
+ * Useful for viewing the audit trail of memory changes.
+ *
+ * @returns Array of all superseded (soft-deleted) memories that have a supersedes reference
+ */
+export async function getSupersededMemoriesOp(
+  ctx: MemoryStorageOperationsContext
+): Promise<StoredMemory[]> {
+  // Find all memories that were superseded (deleted but referenced by another memory's supersedes field)
+  const allMemories = await ctx.memoriesCollection
+    .query(Q.where("is_deleted", true))
+    .fetch();
+
+  // Filter to only those that are referenced by a supersedes field
+  const supersededIds = new Set<string>();
+  const activeMemories = await ctx.memoriesCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+
+  for (const memory of activeMemories) {
+    if (memory.supersedes) {
+      supersededIds.add(memory.supersedes);
+    }
+  }
+
+  const supersededMemories = allMemories.filter((m) => supersededIds.has(m.id));
+
+  return Promise.all(
+    supersededMemories.map((memory) =>
+      memoryToStored(memory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
+  );
+}
+
+/**
+ * Update the accessedAt timestamp for a memory.
+ * Call this when a memory is read/accessed.
+ */
+export async function touchMemoryOp(
+  ctx: MemoryStorageOperationsContext,
+  id: string
+): Promise<void> {
+  try {
+    const memory = await ctx.memoriesCollection.find(id);
+    await ctx.database.write(async () => {
+      await memory.update((mem) => {
+        mem._setRaw("accessed_at", Date.now());
       });
     });
   } catch {

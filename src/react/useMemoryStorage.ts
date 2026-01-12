@@ -14,6 +14,7 @@ import {
   type BaseUseMemoryStorageResult,
   type MemoryItem,
   type MemoryStorageOperationsContext,
+  type SaveMemoryResult,
   getAllMemoriesOp,
   getMemoryByIdOp,
   getMemoriesByNamespaceOp,
@@ -27,6 +28,9 @@ import {
   clearAllMemoriesOp,
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
+  getMemoryHistoryOp,
+  getSupersededMemoriesOp,
+  touchMemoryOp,
 } from "../lib/db/memory";
 import {
   FACT_EXTRACTION_PROMPT,
@@ -328,6 +332,7 @@ export function useMemoryStorage(
                 rawEvidence: item.rawEvidence,
                 confidence: item.confidence,
                 pii: item.pii,
+                singular: item.singular,
               })
             );
 
@@ -511,10 +516,12 @@ export function useMemoryStorage(
   );
 
   /**
-   * Save a single memory
+   * Save a single memory with conflict resolution.
+   * If a memory with the same namespace:key exists but different value,
+   * the old memory will be superseded (soft-deleted) and the new one will reference it.
    */
   const saveMemory = useCallback(
-    async (memory: CreateMemoryOptions): Promise<StoredMemory> => {
+    async (memory: CreateMemoryOptions): Promise<SaveMemoryResult> => {
       try {
         // Generate embedding from plaintext before saving if not already provided
         const memoryToSave = { ...memory };
@@ -540,18 +547,37 @@ export function useMemoryStorage(
           }
         }
 
-        const saved = await saveMemoryOp(storageCtx, memoryToSave);
+        const result = await saveMemoryOp(storageCtx, memoryToSave);
 
-        // Update local state
+        // Update local state based on action
         setMemories((prev) => {
-          const existing = prev.find((m) => m.uniqueId === saved.uniqueId);
-          if (existing) {
-            return prev.map((m) => (m.uniqueId === saved.uniqueId ? saved : m));
+          if (result.action === "superseded" && result.supersededMemory) {
+            // Remove the superseded memory and add the new one
+            return [
+              result.memory,
+              ...prev.filter((m) => m.uniqueId !== result.supersededMemory!.uniqueId),
+            ];
+          } else if (result.action === "updated") {
+            // Update the existing memory in place
+            const existing = prev.find((m) => m.uniqueId === result.memory.uniqueId);
+            if (existing) {
+              return prev.map((m) =>
+                m.uniqueId === result.memory.uniqueId ? result.memory : m
+              );
+            }
           }
-          return [saved, ...prev];
+          // For "created" action, add to the beginning
+          return [result.memory, ...prev];
         });
 
-        return saved;
+        // Log action for debugging
+        if (result.action === "superseded") {
+          console.log(
+            `Memory superseded: "${result.supersededMemory?.value}" → "${result.memory.value}" (${result.memory.compositeKey})`
+          );
+        }
+
+        return result;
       } catch (error) {
         throw new Error(
           "Failed to save memory: " +
@@ -559,14 +585,16 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
+    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, effectiveEmbeddingModel]
   );
 
   /**
-   * Save multiple memories
+   * Save multiple memories with conflict resolution.
+   * For each memory, if one with the same namespace:key exists but different value,
+   * it will be superseded.
    */
   const saveMemories = useCallback(
-    async (memoriesToSave: CreateMemoryOptions[]): Promise<StoredMemory[]> => {
+    async (memoriesToSave: CreateMemoryOptions[]): Promise<SaveMemoryResult[]> => {
       try {
         // Generate embeddings from plaintext before saving
         const memoriesWithEmbeddings = await Promise.all(
@@ -600,12 +628,18 @@ export function useMemoryStorage(
           })
         );
 
-        const saved = await saveMemoriesOp(storageCtx, memoriesWithEmbeddings);
+        const results = await saveMemoriesOp(storageCtx, memoriesWithEmbeddings);
+
+        // Log superseded memories
+        const supersededCount = results.filter((r) => r.action === "superseded").length;
+        if (supersededCount > 0) {
+          console.log(`${supersededCount} memories were superseded during batch save`);
+        }
 
         // Refresh state
         await refreshMemories();
 
-        return saved;
+        return results;
       } catch (error) {
         throw new Error(
           "Failed to save memories: " +
@@ -618,6 +652,7 @@ export function useMemoryStorage(
       generateEmbeddings,
       embeddingModel,
       embeddingOptions,
+      effectiveEmbeddingModel,
       refreshMemories,
     ]
   );
@@ -781,6 +816,57 @@ export function useMemoryStorage(
     }
   }, [storageCtx]);
 
+  /**
+   * Get the history of a memory by following the supersedes chain.
+   * Returns the current memory and all previous versions in reverse chronological order.
+   */
+  const getMemoryHistory = useCallback(
+    async (id: string): Promise<StoredMemory[]> => {
+      try {
+        return await getMemoryHistoryOp(storageCtx, id);
+      } catch (error) {
+        throw new Error(
+          `Failed to get memory history for ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
+  /**
+   * Get all memories that have been superseded (historical versions).
+   * Useful for viewing the audit trail of memory changes.
+   */
+  const getSupersededMemories = useCallback(async (): Promise<StoredMemory[]> => {
+    try {
+      return await getSupersededMemoriesOp(storageCtx);
+    } catch (error) {
+      throw new Error(
+        "Failed to get superseded memories: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    }
+  }, [storageCtx]);
+
+  /**
+   * Update the accessedAt timestamp for a memory.
+   * Call this when a memory is read/accessed to track usage.
+   */
+  const touchMemory = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await touchMemoryOp(storageCtx, id);
+      } catch (error) {
+        throw new Error(
+          `Failed to touch memory ${id}: ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    },
+    [storageCtx]
+  );
+
   return {
     memories,
     refreshMemories,
@@ -797,5 +883,8 @@ export function useMemoryStorage(
     removeMemoryById,
     removeMemories,
     clearMemories,
+    getMemoryHistory,
+    getSupersededMemories,
+    touchMemory,
   };
 }

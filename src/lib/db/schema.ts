@@ -23,8 +23,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v6: Added thought_process column to history table for activity tracking
  * - v7: Added userPreferences table for unified user settings storage
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
+ * - v9: Added accessed_at, supersedes, previous_value columns to memories table for conflict resolution
  */
-const SDK_SCHEMA_VERSION = 8;
+const SDK_SCHEMA_VERSION = 9;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -106,9 +107,12 @@ export const sdkSchema = appSchema({
         { name: "unique_key", type: "string", isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
+        { name: "accessed_at", type: "number", isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
         { name: "embedding_model", type: "string", isOptional: true },
         { name: "is_deleted", type: "boolean", isIndexed: true },
+        { name: "supersedes", type: "string", isOptional: true, isIndexed: true },
+        { name: "previous_value", type: "string", isOptional: true },
       ],
     }),
     // Settings storage tables (deprecated - use userPreferences)
@@ -158,6 +162,7 @@ export const sdkSchema = appSchema({
  * - v5 → v6: Added `thought_process` column to history table for activity tracking
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
+ * - v8 → v9: Added accessed_at, supersedes, previous_value to memories for conflict resolution
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -234,6 +239,20 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM history;"),
         unsafeExecuteSql("DELETE FROM conversations;"),
         unsafeExecuteSql("DELETE FROM memories;"),
+      ],
+    },
+    // v8 -> v9: Added columns for memory conflict resolution and access tracking
+    {
+      toVersion: 9,
+      steps: [
+        addColumns({
+          table: "memories",
+          columns: [
+            { name: "accessed_at", type: "number" },
+            { name: "supersedes", type: "string", isOptional: true },
+            { name: "previous_value", type: "string", isOptional: true },
+          ],
+        }),
       ],
     },
   ],

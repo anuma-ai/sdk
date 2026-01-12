@@ -1,4 +1,4 @@
-export { memoryStorageSchema } from "./schema";
+export { memoryStorageSchema, memoryStorageMigrations } from "./schema";
 export { Memory } from "./models";
 export {
   type MemoryType,
@@ -8,6 +8,7 @@ export {
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
   type UpdateMemoryResult,
+  type SaveMemoryResult,
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
   generateCompositeKey,
@@ -31,6 +32,9 @@ export {
   clearAllMemoriesOp,
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
+  getMemoryHistoryOp,
+  getSupersededMemoriesOp,
+  touchMemoryOp,
 } from "./operations";
 export {
   isEncrypted,

@@ -143,6 +143,7 @@ export {
   type StoredMemoryWithSimilarity,
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
+  type SaveMemoryResult,
   generateCompositeKey,
   generateUniqueKey,
 } from "../lib/db/memory";

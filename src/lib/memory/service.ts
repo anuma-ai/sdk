@@ -6,6 +6,8 @@ export interface MemoryItem {
   rawEvidence: string;
   confidence: number;
   pii: boolean;
+  /** Whether only one value is allowed for this key. If true, new values supersede old ones. If false/undefined, multiple values can coexist. */
+  singular?: boolean;
 }
 
 export interface MemoryExtractionResult {
@@ -20,7 +22,12 @@ Only store clear, factual statements that might be relevant for future context o
 
 Do not extract sensitive attributes, temporary things, or single-use instructions.
 
-You must also extract stable personal preferences, including food likes/dislikes, hobbies, favorite items, favorite genres, or other enduring tastes. 
+You must also extract stable personal preferences, including food likes/dislikes, hobbies, favorite items, favorite genres, or other enduring tastes.
+
+IMPORTANT - Singular vs Plural memories:
+For each memory, you MUST determine if it is "singular" (only one value makes sense) or not:
+- singular: true - Facts where only ONE value is correct at a time. Examples: name, employer, age, city of residence, timezone, marital status
+- singular: false - Facts where MULTIPLE values can coexist. Examples: food likes, hobbies, skills, interests, favorite movies, languages spoken
 
 If there are no memories to extract, return: {"items": []}
 
@@ -35,7 +42,8 @@ Response format (JSON only, no other text):
       "value": "Charlie",
       "rawEvidence": "I'm Charlie",
       "confidence": 0.98,
-      "pii": true
+      "pii": true,
+      "singular": true
     },
     {
       "type": "identity",
@@ -44,7 +52,8 @@ Response format (JSON only, no other text):
       "value": "ZetaChain",
       "rawEvidence": "called ZetaChain",
       "confidence": 0.99,
-      "pii": false
+      "pii": false,
+      "singular": true
     },
     {
       "type": "identity",
@@ -53,16 +62,18 @@ Response format (JSON only, no other text):
       "value": "San Francisco",
       "rawEvidence": "I live in San Francisco",
       "confidence": 0.99,
-      "pii": false
+      "pii": false,
+      "singular": true
     },
     {
       "type": "preference",
-      "namespace": "location",
-      "key": "country",
+      "namespace": "travel",
+      "key": "destinations",
       "value": "Japan",
       "rawEvidence": "I like to travel to the Japan",
       "confidence": 0.94,
-      "pii": false
+      "pii": false,
+      "singular": false
     },
     {
       "type": "preference",
@@ -71,7 +82,8 @@ Response format (JSON only, no other text):
       "value": "concise_direct",
       "rawEvidence": "I prefer concise, direct answers",
       "confidence": 0.96,
-      "pii": false
+      "pii": false,
+      "singular": true
     },
     {
       "type": "identity",
@@ -80,16 +92,18 @@ Response format (JSON only, no other text):
       "value": "America/Los_Angeles",
       "rawEvidence": "I'm in PST",
       "confidence": 0.9,
-      "pii": false
+      "pii": false,
+      "singular": true
     },
     {
       "type": "preference",
       "namespace": "food",
-      "key": "likes_ice_cream",
+      "key": "likes",
       "value": "ice cream",
       "rawEvidence": "I like ice cream",
       "confidence": 0.95,
-      "pii": false
+      "pii": false,
+      "singular": false
     }
   ]
 }`;

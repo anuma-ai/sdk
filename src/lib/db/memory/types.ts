@@ -19,6 +19,8 @@ export interface MemoryItem {
   rawEvidence: string;
   confidence: number;
   pii: boolean;
+  /** Whether only one value is allowed for this key. If true, new values supersede old ones. If false/undefined, multiple values can coexist. */
+  singular?: boolean;
 }
 
 export interface CreateMemoryOptions extends MemoryItem {
@@ -34,9 +36,14 @@ export interface StoredMemory extends MemoryItem {
   uniqueKey: string;
   createdAt: Date;
   updatedAt: Date;
+  accessedAt: Date;
   embedding?: number[];
   embeddingModel?: string;
   isDeleted: boolean;
+  /** ID of the memory this one superseded (replaced) */
+  supersedes?: string;
+  /** The previous value before this memory replaced it */
+  previousValue?: string;
 }
 
 export interface StoredMemoryWithSimilarity extends StoredMemory {
@@ -48,6 +55,15 @@ export type UpdateMemoryResult =
   | { ok: false; reason: "not_found" }
   | { ok: false; reason: "conflict"; conflictingKey: string }
   | { ok: false; reason: "error"; error: Error };
+
+/** Result of a save operation indicating what action was taken */
+export type SaveMemoryResult = {
+  memory: StoredMemory;
+  /** Whether this was a new memory, an update to existing, or superseded an old value */
+  action: "created" | "updated" | "superseded";
+  /** The memory that was superseded, if action is "superseded" */
+  supersededMemory?: StoredMemory;
+};
 
 // Hook types
 
@@ -86,8 +102,10 @@ export interface BaseUseMemoryStorageResult {
     key: string
   ) => Promise<StoredMemory[]>;
   getMemoryById: (id: string) => Promise<StoredMemory | null>;
-  saveMemory: (memory: CreateMemoryOptions) => Promise<StoredMemory>;
-  saveMemories: (memories: CreateMemoryOptions[]) => Promise<StoredMemory[]>;
+  /** Save a memory with conflict resolution. Returns the action taken (created, updated, or superseded). */
+  saveMemory: (memory: CreateMemoryOptions) => Promise<SaveMemoryResult>;
+  /** Save multiple memories with conflict resolution. */
+  saveMemories: (memories: CreateMemoryOptions[]) => Promise<SaveMemoryResult[]>;
   updateMemory: (
     id: string,
     updates: UpdateMemoryOptions
@@ -100,6 +118,12 @@ export interface BaseUseMemoryStorageResult {
   removeMemoryById: (id: string) => Promise<void>;
   removeMemories: (namespace: string, key: string) => Promise<void>;
   clearMemories: () => Promise<void>;
+  /** Get the history of a memory by following the supersedes chain. */
+  getMemoryHistory: (id: string) => Promise<StoredMemory[]>;
+  /** Get all memories that have been superseded (historical versions). */
+  getSupersededMemories: () => Promise<StoredMemory[]>;
+  /** Update the accessedAt timestamp for a memory. */
+  touchMemory: (id: string) => Promise<void>;
 }
 
 // Utility functions
