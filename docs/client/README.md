@@ -31,6 +31,8 @@
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
+| [HandlersCreateCheckoutSessionRequest](Internal/type-aliases/HandlersCreateCheckoutSessionRequest.md) | - |
+| [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
 | [HandlersHealthResponse](Internal/type-aliases/HandlersHealthResponse.md) | - |
@@ -49,11 +51,6 @@
 | [LlmapiEmbeddingRequest](Internal/type-aliases/LlmapiEmbeddingRequest.md) | - |
 | [LlmapiEmbeddingResponse](Internal/type-aliases/LlmapiEmbeddingResponse.md) | - |
 | [LlmapiEmbeddingUsage](Internal/type-aliases/LlmapiEmbeddingUsage.md) | Usage contains token usage information |
-| [LlmapiImageGenerationExtraFields](Internal/type-aliases/LlmapiImageGenerationExtraFields.md) | ExtraFields contains additional metadata such as provider/model information. |
-| [LlmapiImageGenerationImage](Internal/type-aliases/LlmapiImageGenerationImage.md) | - |
-| [LlmapiImageGenerationRequest](Internal/type-aliases/LlmapiImageGenerationRequest.md) | - |
-| [LlmapiImageGenerationResponse](Internal/type-aliases/LlmapiImageGenerationResponse.md) | - |
-| [LlmapiImageGenerationUsage](Internal/type-aliases/LlmapiImageGenerationUsage.md) | Usage documents token usage (when available). |
 | [LlmapiMessage](Internal/type-aliases/LlmapiMessage.md) | Message is the generated message |
 | [LlmapiMessageContentFile](Internal/type-aliases/LlmapiMessageContentFile.md) | File is used when Type=input\_file (for Responses API) |
 | [LlmapiMessageContentImage](Internal/type-aliases/LlmapiMessageContentImage.md) | ImageURL is used when Type=image\_url or Type=input\_image |
@@ -74,15 +71,14 @@
 | [LlmapiResponseResponse](Internal/type-aliases/LlmapiResponseResponse.md) | - |
 | [LlmapiResponseUsage](Internal/type-aliases/LlmapiResponseUsage.md) | Usage contains token usage information |
 | [LlmapiRole](Internal/type-aliases/LlmapiRole.md) | Role is the message role (system, user, assistant, tool) |
-| [LlmapiSearchExtraFields](Internal/type-aliases/LlmapiSearchExtraFields.md) | ExtraFields contains additional metadata. |
-| [LlmapiSearchRequest](Internal/type-aliases/LlmapiSearchRequest.md) | - |
-| [LlmapiSearchResponse](Internal/type-aliases/LlmapiSearchResponse.md) | - |
-| [LlmapiSearchResult](Internal/type-aliases/LlmapiSearchResult.md) | - |
-| [LlmapiSearchUsage](Internal/type-aliases/LlmapiSearchUsage.md) | Usage contains usage information. |
 | [LlmapiThinkingOptions](Internal/type-aliases/LlmapiThinkingOptions.md) | Thinking configures extended thinking for Anthropic models |
 | [LlmapiTool](Internal/type-aliases/LlmapiTool.md) | - |
 | [LlmapiToolCall](Internal/type-aliases/LlmapiToolCall.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
+| [LlmapiToolChoice](Internal/type-aliases/LlmapiToolChoice.md) | ToolChoice controls which tool to use. Can be: - string: "auto", "none", "required" - object: {"name": "my\_function"} |
+| [LlmapiToolChoiceFunction](Internal/type-aliases/LlmapiToolChoiceFunction.md) | Function forces the model to call a specific tool function. |
+| [LlmapiToolChoiceMode](Internal/type-aliases/LlmapiToolChoiceMode.md) | Mode controls which (if any) tool is called by the model. - "none" means the model will not call any tool and instead generates a message. - "auto" means the model can pick between generating a message or calling one or more tools. - "required" means the model must call one or more tools. |
+| [LlmapiToolChoiceTag](Internal/type-aliases/LlmapiToolChoiceTag.md) | - |
 | [LlmapiToolFunction](Internal/type-aliases/LlmapiToolFunction.md) | Function is the function definition (when Type is "function") |
 | [Options](Internal/type-aliases/Options.md) | - |
 | [PostApiV1ChatCompletionsData](Internal/type-aliases/PostApiV1ChatCompletionsData.md) | - |
@@ -95,21 +91,11 @@
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
 | [PostApiV1EmbeddingsResponse](Internal/type-aliases/PostApiV1EmbeddingsResponse.md) | - |
 | [PostApiV1EmbeddingsResponses](Internal/type-aliases/PostApiV1EmbeddingsResponses.md) | - |
-| [PostApiV1ImagesGenerationsData](Internal/type-aliases/PostApiV1ImagesGenerationsData.md) | - |
-| [PostApiV1ImagesGenerationsError](Internal/type-aliases/PostApiV1ImagesGenerationsError.md) | - |
-| [PostApiV1ImagesGenerationsErrors](Internal/type-aliases/PostApiV1ImagesGenerationsErrors.md) | - |
-| [PostApiV1ImagesGenerationsResponse](Internal/type-aliases/PostApiV1ImagesGenerationsResponse.md) | - |
-| [PostApiV1ImagesGenerationsResponses](Internal/type-aliases/PostApiV1ImagesGenerationsResponses.md) | - |
 | [PostApiV1ResponsesData](Internal/type-aliases/PostApiV1ResponsesData.md) | - |
 | [PostApiV1ResponsesError](Internal/type-aliases/PostApiV1ResponsesError.md) | - |
 | [PostApiV1ResponsesErrors](Internal/type-aliases/PostApiV1ResponsesErrors.md) | - |
 | [PostApiV1ResponsesResponse](Internal/type-aliases/PostApiV1ResponsesResponse.md) | - |
 | [PostApiV1ResponsesResponses](Internal/type-aliases/PostApiV1ResponsesResponses.md) | - |
-| [PostApiV1SearchData](Internal/type-aliases/PostApiV1SearchData.md) | - |
-| [PostApiV1SearchError](Internal/type-aliases/PostApiV1SearchError.md) | - |
-| [PostApiV1SearchErrors](Internal/type-aliases/PostApiV1SearchErrors.md) | - |
-| [PostApiV1SearchResponse](Internal/type-aliases/PostApiV1SearchResponse.md) | - |
-| [PostApiV1SearchResponses](Internal/type-aliases/PostApiV1SearchResponses.md) | - |
 | [PostApiV1SubscriptionsCancelData](Internal/type-aliases/PostApiV1SubscriptionsCancelData.md) | - |
 | [PostApiV1SubscriptionsCancelError](Internal/type-aliases/PostApiV1SubscriptionsCancelError.md) | - |
 | [PostApiV1SubscriptionsCancelErrors](Internal/type-aliases/PostApiV1SubscriptionsCancelErrors.md) | - |
@@ -163,9 +149,7 @@
 | [getHealth](Internal/functions/getHealth.md) | Health check |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
-| [postApiV1ImagesGenerations](Internal/functions/postApiV1ImagesGenerations.md) | Generate images |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
-| [postApiV1Search](Internal/functions/postApiV1Search.md) | Create search |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
 | [postApiV1SubscriptionsCreateCheckoutSession](Internal/functions/postApiV1SubscriptionsCreateCheckoutSession.md) | Create checkout session |
 | [postApiV1SubscriptionsCustomerPortal](Internal/functions/postApiV1SubscriptionsCustomerPortal.md) | Create customer portal session |

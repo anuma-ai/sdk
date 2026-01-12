@@ -257,18 +257,6 @@ Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOpti
 
 ***
 
-### useImageGeneration
-
-Re-exports [useImageGeneration](../react/Hooks/useImageGeneration.md)
-
-***
-
-### UseImageGenerationResult
-
-Re-exports [UseImageGenerationResult](../react/Internal/type-aliases/UseImageGenerationResult.md)
-
-***
-
 ### useModels
 
 Re-exports [useModels](../react/Hooks/useModels.md)

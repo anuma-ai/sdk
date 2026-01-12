@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputItem** = `object`
 
-Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L671)
+Defined in: [src/client/types.gen.ts:579](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L579)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:671](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:675](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L675)
+Defined in: [src/client/types.gen.ts:583](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L583)
 
 Arguments is the function arguments for function\_call types
 
@@ -20,7 +20,7 @@ Arguments is the function arguments for function\_call types
 
 > `optional` **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
+Defined in: [src/client/types.gen.ts:587](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L587)
 
 CallID is the call ID for function\_call types
 
@@ -30,7 +30,7 @@ CallID is the call ID for function\_call types
 
 > `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:683](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L683)
+Defined in: [src/client/types.gen.ts:591](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L591)
 
 Content is the content array for message and reasoning types
 
@@ -40,7 +40,7 @@ Content is the content array for message and reasoning types
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:687](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L687)
+Defined in: [src/client/types.gen.ts:595](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L595)
 
 ID is the unique identifier for this output item
 
@@ -50,7 +50,7 @@ ID is the unique identifier for this output item
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:691](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L691)
+Defined in: [src/client/types.gen.ts:599](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L599)
 
 Name is the function name for function\_call types
 
@@ -60,7 +60,7 @@ Name is the function name for function\_call types
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:695](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L695)
+Defined in: [src/client/types.gen.ts:603](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L603)
 
 Role is the role for message types (e.g., "assistant")
 
@@ -70,7 +70,7 @@ Role is the role for message types (e.g., "assistant")
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:699](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L699)
+Defined in: [src/client/types.gen.ts:607](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L607)
 
 Status is the status of this output item (e.g., "completed")
 
@@ -80,7 +80,7 @@ Status is the status of this output item (e.g., "completed")
 
 > `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:703](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L703)
+Defined in: [src/client/types.gen.ts:611](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L611)
 
 Summary is the reasoning summary for reasoning types
 
@@ -90,6 +90,6 @@ Summary is the reasoning summary for reasoning types
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:707](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L707)
+Defined in: [src/client/types.gen.ts:615](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L615)
 
 Type is the output item type (e.g., "message", "function\_call", "reasoning")

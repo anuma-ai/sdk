@@ -95,8 +95,6 @@ export type {
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
 } from "./useChatStorage";
-export { useImageGeneration } from "../react/useImageGeneration";
-export type { UseImageGenerationResult } from "../react/useImageGeneration";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 
