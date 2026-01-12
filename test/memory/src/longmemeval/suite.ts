@@ -353,6 +353,43 @@ function clearProgress(): void {
 }
 
 /**
+ * Select sessions to process, prioritizing answer sessions when limiting
+ */
+function selectSessions(
+  entry: LongMemEvalEntry,
+  maxSessions?: number
+): { indices: number[]; limited: boolean } {
+  const totalAvailable = entry.haystack_sessions.length;
+
+  if (!maxSessions || maxSessions >= totalAvailable) {
+    return {
+      indices: Array.from({ length: totalAvailable }, (_, i) => i),
+      limited: false,
+    };
+  }
+
+  // Find indices of answer sessions
+  const answerSessionIndices = new Set<number>();
+  for (const answerId of entry.answer_session_ids) {
+    const idx = entry.haystack_session_ids.indexOf(answerId);
+    if (idx !== -1) {
+      answerSessionIndices.add(idx);
+    }
+  }
+
+  // Always include answer sessions, fill rest with other sessions
+  const selected = new Set<number>(answerSessionIndices);
+  for (let i = 0; i < totalAvailable && selected.size < maxSessions; i++) {
+    selected.add(i);
+  }
+
+  return {
+    indices: Array.from(selected).sort((a, b) => a - b),
+    limited: true,
+  };
+}
+
+/**
  * Process a single LongMemEval entry
  */
 async function processEntry(
@@ -362,17 +399,16 @@ async function processEntry(
   maxSessions?: number
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
-  const totalSessions = maxSessions
-    ? Math.min(entry.haystack_sessions.length, maxSessions)
-    : entry.haystack_sessions.length;
+
+  const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
+  const totalSessions = sessionIndices.length;
 
   if (verbose) {
     console.log(`\n  Processing: ${entry.question_id}`);
     console.log(`  Type: ${entry.question_type}`);
-    const sessionInfo =
-      maxSessions && maxSessions < entry.haystack_sessions.length
-        ? `${totalSessions}/${entry.haystack_sessions.length} (limited)`
-        : `${totalSessions}`;
+    const sessionInfo = limited
+      ? `${totalSessions}/${entry.haystack_sessions.length} (limited, includes answer sessions)`
+      : `${totalSessions}`;
     console.log(`  Sessions: ${sessionInfo}`);
   }
 
@@ -390,18 +426,19 @@ async function processEntry(
   try {
     await clearAllMemoriesOp(ctx);
 
-    // Extract memories from all sessions
+    // Extract memories from selected sessions
     const allMemories: ExtractedMemory[] = [];
 
-    for (let i = 0; i < totalSessions; i++) {
-      const session = entry.haystack_sessions[i];
-      const sessionId = entry.haystack_session_ids[i];
+    for (let i = 0; i < sessionIndices.length; i++) {
+      const sessionIdx = sessionIndices[i];
+      const session = entry.haystack_sessions[sessionIdx];
+      const sessionId = entry.haystack_session_ids[sessionIdx];
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
       const sessionMemories = await extractMemoriesFromSession(
         session,
-        i,
+        sessionIdx,
         sessionId,
         api
       );
@@ -409,7 +446,7 @@ async function processEntry(
 
       if (verbose && sessionMemories.length > 0) {
         clearProgress();
-        console.log(`    Session ${i}: ${sessionMemories.length} memories`);
+        console.log(`    Session ${sessionIdx}: ${sessionMemories.length} memories`);
       }
     }
 
