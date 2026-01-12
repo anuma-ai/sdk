@@ -99,14 +99,14 @@ describe("useMemoryStorage with Encryption", () => {
 
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.uniqueId).toBeDefined();
-        expect(saved.namespace).toBe("user"); // Should be decrypted
-        expect(saved.value).toBe("blue"); // Should be decrypted
+        expect(saved.memory.uniqueId).toBeDefined();
+        expect(saved.memory.namespace).toBe("user"); // Should be decrypted
+        expect(saved.memory.value).toBe("blue"); // Should be decrypted
       });
 
       await act(async () => {
         const retrieved = await result.current.getMemoryById(
-          (await result.current.saveMemory(memory)).uniqueId
+          (await result.current.saveMemory(memory)).memory.uniqueId
         );
         expect(retrieved).toBeDefined();
         expect(retrieved?.namespace).toBe("user");
@@ -135,8 +135,8 @@ describe("useMemoryStorage with Encryption", () => {
 
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.namespace).toBe("user");
-        expect(saved.value).toBe("blue");
+        expect(saved.memory.namespace).toBe("user");
+        expect(saved.memory.value).toBe("blue");
       });
     });
 
@@ -229,7 +229,7 @@ describe("useMemoryStorage with Encryption", () => {
       let savedId: string;
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        savedId = saved.uniqueId;
+        savedId = saved.memory.uniqueId;
       });
 
       await act(async () => {
@@ -269,7 +269,7 @@ describe("useMemoryStorage with Encryption", () => {
       // For now, we just verify the structure
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.uniqueId).toBeDefined();
+        expect(saved.memory.uniqueId).toBeDefined();
       });
     });
   });
