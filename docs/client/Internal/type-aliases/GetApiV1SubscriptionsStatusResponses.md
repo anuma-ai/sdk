@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsStatusResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1389](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1389)
+Defined in: [src/client/types.gen.ts:1187](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1187)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1389](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersSubscriptionStatusResponse`](HandlersSubscriptionStatusResponse.md)
 
-Defined in: [src/client/types.gen.ts:1393](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1393)
+Defined in: [src/client/types.gen.ts:1191](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1191)
 
 OK

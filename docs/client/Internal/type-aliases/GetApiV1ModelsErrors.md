@@ -2,7 +2,7 @@
 
 > **GetApiV1ModelsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1143](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1143)
+Defined in: [src/client/types.gen.ts:959](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L959)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1143](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1147](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1147)
+Defined in: [src/client/types.gen.ts:963](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L963)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1151](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1151)
+Defined in: [src/client/types.gen.ts:967](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L967)
 
 Rate limit exceeded
 
@@ -30,6 +30,6 @@ Rate limit exceeded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1155](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1155)
+Defined in: [src/client/types.gen.ts:971](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L971)
 
 Internal Server Error

@@ -2,7 +2,7 @@
 
 > **LlmapiModelsListExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:596](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L596)
+Defined in: [src/client/types.gen.ts:504](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L504)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **chunk\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:600](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L600)
+Defined in: [src/client/types.gen.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L508)
 
 ChunkIndex is the chunk index (0 for single requests)
 
@@ -22,7 +22,7 @@ ChunkIndex is the chunk index (0 for single requests)
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:604](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L604)
+Defined in: [src/client/types.gen.ts:512](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L512)
 
 Latency is the request latency in milliseconds
 
@@ -32,6 +32,6 @@ Latency is the request latency in milliseconds
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:608](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L608)
+Defined in: [src/client/types.gen.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L516)
 
 RequestType is always "list\_models"

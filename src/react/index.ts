@@ -180,10 +180,6 @@ export { useOCR } from "./useOCR";
 export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
-export { useSearch } from "./useSearch";
-export type { UseSearchResult } from "./useSearch";
-export { useImageGeneration } from "./useImageGeneration";
-export type { UseImageGenerationResult } from "./useImageGeneration";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,
