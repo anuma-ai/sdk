@@ -605,7 +605,22 @@ export function useChatStorage(
    */
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
+      // eslint-disable-next-line no-console
+      console.log("[SDK useChatStorage] getMessages called for:", convId);
+
       const messages = await getMessagesOp(storageCtx, convId);
+
+      // eslint-disable-next-line no-console
+      console.log("[SDK useChatStorage] getMessages result:", {
+        conversationId: convId,
+        count: messages.length,
+        messages: messages.map((m) => ({
+          uniqueId: m.uniqueId,
+          role: m.role,
+          contentLength: m.content?.length,
+          contentPreview: m.content?.slice(0, 50),
+        })),
+      });
 
       // If wallet address is provided, resolve file placeholders to blob URLs
       if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
@@ -1573,6 +1588,13 @@ export function useChatStorage(
         url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
       }));
 
+      // eslint-disable-next-line no-console
+      console.log("[SDK useChatStorage] Storing user message", {
+        conversationId: convId,
+        contentLength: contentForStorage.length,
+        contentPreview: contentForStorage.slice(0, 100),
+      });
+
       let storedUserMessage: StoredMessage;
       try {
         storedUserMessage = await createMessageOp(storageCtx, {
@@ -1582,7 +1604,14 @@ export function useChatStorage(
           files: sanitizedFiles,
           model,
         });
+        // eslint-disable-next-line no-console
+        console.log("[SDK useChatStorage] User message stored successfully", {
+          uniqueId: storedUserMessage.uniqueId,
+          conversationId: storedUserMessage.conversationId,
+        });
       } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[SDK useChatStorage] Failed to store user message", err);
         return {
           data: null,
           error:
@@ -1777,6 +1806,14 @@ export function useChatStorage(
       }
 
       // Store the assistant message
+      // eslint-disable-next-line no-console
+      console.log("[SDK useChatStorage] Storing assistant message", {
+        conversationId: convId,
+        contentLength: cleanedContent.length,
+        contentPreview: cleanedContent.slice(0, 100),
+        hasThinking: !!thinkingContent,
+      });
+
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {
@@ -1791,7 +1828,15 @@ export function useChatStorage(
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
           thinking: thinkingContent,
         });
+        // eslint-disable-next-line no-console
+        console.log("[SDK useChatStorage] Assistant message stored successfully", {
+          uniqueId: storedAssistantMessage.uniqueId,
+          conversationId: storedAssistantMessage.conversationId,
+          contentLength: storedAssistantMessage.content.length,
+        });
       } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[SDK useChatStorage] Failed to store assistant message", err);
         return {
           data: null,
           error:
@@ -1801,6 +1846,9 @@ export function useChatStorage(
           userMessage: storedUserMessage,
         };
       }
+
+      // eslint-disable-next-line no-console
+      console.log("[SDK useChatStorage] sendMessage complete - both messages stored");
 
       return {
         data: responseData,

@@ -23,7 +23,7 @@ import { UserPreference } from "./userPreferences/models";
  * - v6: Added thought_process column to history table for activity tracking
  * - v7: Added userPreferences table for unified user settings storage
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
- * - v9: Added accessed_at, supersedes, previous_value columns to memories table for conflict resolution
+ * - v9: Added memory conflict resolution (accessed_at, supersedes, previous_value) and thinking column
  */
 const SDK_SCHEMA_VERSION = 9;
 
@@ -80,6 +80,7 @@ export const sdkSchema = appSchema({
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
+        { name: "thinking", type: "string", isOptional: true }, // Extended thinking/reasoning content
       ],
     }),
     tableSchema({
@@ -162,7 +163,7 @@ export const sdkSchema = appSchema({
  * - v5 → v6: Added `thought_process` column to history table for activity tracking
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
- * - v8 → v9: Added accessed_at, supersedes, previous_value to memories for conflict resolution
+ * - v8 → v9: Added memory conflict resolution (accessed_at, supersedes, previous_value) and thinking column
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -241,7 +242,7 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM memories;"),
       ],
     },
-    // v8 -> v9: Added columns for memory conflict resolution and access tracking
+    // v8 -> v9: Added memory conflict resolution columns and thinking column
     {
       toVersion: 9,
       steps: [
@@ -252,6 +253,10 @@ export const sdkMigrations = schemaMigrations({
             { name: "supersedes", type: "string", isOptional: true },
             { name: "previous_value", type: "string", isOptional: true },
           ],
+        }),
+        addColumns({
+          table: "history",
+          columns: [{ name: "thinking", type: "string", isOptional: true }],
         }),
       ],
     },
