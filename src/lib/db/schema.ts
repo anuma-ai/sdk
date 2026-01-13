@@ -23,8 +23,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v6: Added thought_process column to history table for activity tracking
  * - v7: Added userPreferences table for unified user settings storage
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
+ * - v9: Added thinking column to history table for reasoning/thinking content
  */
-const SDK_SCHEMA_VERSION = 8;
+const SDK_SCHEMA_VERSION = 9;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -79,6 +80,7 @@ export const sdkSchema = appSchema({
         { name: "was_stopped", type: "boolean", isOptional: true },
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
+        { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
       ],
     }),
     tableSchema({
@@ -158,6 +160,7 @@ export const sdkSchema = appSchema({
  * - v5 → v6: Added `thought_process` column to history table for activity tracking
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
+ * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -234,6 +237,16 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql("DELETE FROM history;"),
         unsafeExecuteSql("DELETE FROM conversations;"),
         unsafeExecuteSql("DELETE FROM memories;"),
+      ],
+    },
+    // v8 -> v9: Added thinking column to history for reasoning/thinking content
+    {
+      toVersion: 9,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "thinking", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

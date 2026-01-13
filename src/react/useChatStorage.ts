@@ -1830,7 +1830,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-          // thinking: thinkingContent,
+          thinking: thinkingContent,
         });
       } catch (err) {
         return {
