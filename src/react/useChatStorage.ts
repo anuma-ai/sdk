@@ -484,6 +484,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
@@ -534,6 +535,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
@@ -608,7 +610,11 @@ export function useChatStorage(
       const messages = await getMessagesOp(storageCtx, convId);
 
       // If wallet address is provided, resolve file placeholders to blob URLs
-      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+      if (
+        walletAddress &&
+        hasEncryptionKey(walletAddress) &&
+        isOPFSSupported()
+      ) {
         try {
           const encryptionKey = await getEncryptionKey(walletAddress);
           const blobManager = blobManagerRef.current;
@@ -683,18 +689,24 @@ export function useChatStorage(
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
                 // Escape the placeholder for use in regex
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const escapedPlaceholder = placeholder.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                );
                 // Create a non-global regex for this specific placeholder
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
                 // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
-                
+
                 // eslint-disable-next-line no-console
                 console.log(
                   `[getMessages] Replacing ${placeholder} with: ${replacement}`
                 );
-                
-                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+
+                resolvedContent = resolvedContent.replace(
+                  placeholderRegex,
+                  replacement
+                );
               }
 
               // eslint-disable-next-line no-console
@@ -709,7 +721,10 @@ export function useChatStorage(
           return resolvedMessages;
         } catch (error) {
           // eslint-disable-next-line no-console
-          console.error("[useChatStorage] Failed to resolve file placeholders:", error);
+          console.error(
+            "[useChatStorage] Failed to resolve file placeholders:",
+            error
+          );
           // Return messages without resolving placeholders
           return messages;
         }
@@ -808,7 +823,8 @@ export function useChatStorage(
         // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
         // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        const jsonBlockRegex =
+          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
         let jsonMatch: RegExpExecArray | null;
         let foundJsonSources = false;
 
@@ -825,7 +841,8 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet: source.description || source.snippet || undefined,
+                      snippet:
+                        source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -967,8 +984,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1227,13 +1246,17 @@ export function useChatStorage(
         // Check prerequisites
         if (!isOPFSSupported()) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] OPFS not supported");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] OPFS not supported"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] Encryption key not available");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] Encryption key not available"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
@@ -1282,8 +1305,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1317,9 +1342,13 @@ export function useChatStorage(
               const blob = await response.blob();
               const fileId = crypto.randomUUID();
               const urlPath = imageUrl.split("?")[0] ?? imageUrl;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${fileId.slice(0, 8)}.${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${fileId.slice(
+                0,
+                8
+              )}.${extension}`;
 
               // Encrypt and store in OPFS
               await writeEncryptedFile(fileId, blob, encryptionKey, {
@@ -1436,7 +1465,10 @@ export function useChatStorage(
                 placeholder
               );
               replacementCount += rawMatches.length;
-              cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+              cleanedContent = cleanedContent.replace(
+                rawUrlPattern,
+                placeholder
+              );
             }
 
             // eslint-disable-next-line no-console
@@ -1467,7 +1499,10 @@ export function useChatStorage(
             }
           } else {
             // eslint-disable-next-line no-console
-            console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
+            console.error(
+              "[extractAndStoreEncryptedMCPImages] Failed:",
+              result.reason
+            );
           }
         });
 
@@ -1476,7 +1511,10 @@ export function useChatStorage(
         return { processedFiles, cleanedContent };
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[extractAndStoreEncryptedMCPImages] Unexpected error:", err);
+        console.error(
+          "[extractAndStoreEncryptedMCPImages] Unexpected error:",
+          err
+        );
         return { processedFiles: [], cleanedContent: content };
       }
     },
@@ -1743,8 +1781,11 @@ export function useChatStorage(
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      const jsonSourcesBlockRegex =
+        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
+      let cleanedContent = assistantContent
+        .replace(jsonSourcesBlockRegex, "")
+        .trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
@@ -1789,7 +1830,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-          thinking: thinkingContent,
+          // thinking: thinkingContent,
         });
       } catch (err) {
         return {
@@ -1809,7 +1850,14 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, walletAddress, extractAndStoreEncryptedMCPImages]
+    [
+      ensureConversation,
+      getMessages,
+      storageCtx,
+      baseSendMessage,
+      walletAddress,
+      extractAndStoreEncryptedMCPImages,
+    ]
   );
 
   /**
