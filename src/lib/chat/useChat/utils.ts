@@ -192,6 +192,40 @@ export function parseReasoningTags(
     if (previousPartialTag === OPENING_TAG) {
       insideReasoning = true;
       i = OPENING_TAG_LEN; // Start processing after the opening tag
+    } else if (previousPartialTag === CLOSING_TAG) {
+      // Complete closing tag from previous partial
+      i = CLOSING_TAG_LEN;
+      insideReasoning = false;
+    } else if (
+      wasInsideReasoning &&
+      CLOSING_TAG.startsWith(previousPartialTag)
+    ) {
+      // Inside reasoning and partial could be start of closing tag - check closing tag first
+      if (fullContent.startsWith(CLOSING_TAG)) {
+        // Complete closing tag
+        i = CLOSING_TAG_LEN;
+        insideReasoning = false;
+      } else if (
+        CLOSING_TAG.startsWith(
+          fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length))
+        )
+      ) {
+        // Still incomplete - we're inside reasoning waiting for close
+        return {
+          messageContent: "",
+          reasoningContent: "",
+          partialTag: fullContent.slice(
+            0,
+            Math.min(CLOSING_TAG_LEN, fullContent.length)
+          ),
+          insideReasoning: true,
+        };
+      } else {
+        // Not part of closing tag - must be reasoning content
+        reasoningContent = previousPartialTag;
+        i = previousPartialTag.length;
+        insideReasoning = true;
+      }
     } else if (OPENING_TAG.startsWith(previousPartialTag)) {
       // Previous partial is start of opening tag
       if (fullContent.startsWith(OPENING_TAG)) {
@@ -221,33 +255,6 @@ export function parseReasoningTags(
           messageContent = previousPartialTag;
         }
         i = previousPartialTag.length;
-      }
-    } else if (CLOSING_TAG.startsWith(previousPartialTag)) {
-      // Previous partial is start of closing tag (we must be inside reasoning)
-      if (fullContent.startsWith(CLOSING_TAG)) {
-        // Complete closing tag
-        i = CLOSING_TAG_LEN;
-        insideReasoning = false;
-      } else if (
-        CLOSING_TAG.startsWith(
-          fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length))
-        )
-      ) {
-        // Still incomplete - we're inside reasoning waiting for close
-        return {
-          messageContent: "",
-          reasoningContent: "",
-          partialTag: fullContent.slice(
-            0,
-            Math.min(CLOSING_TAG_LEN, fullContent.length)
-          ),
-          insideReasoning: true,
-        };
-      } else {
-        // Not part of closing tag - must be reasoning content
-        reasoningContent = previousPartialTag;
-        i = previousPartialTag.length;
-        insideReasoning = true;
       }
     } else {
       // Previous partial was content (could be reasoning or message based on state)
