@@ -166,16 +166,60 @@ export type ReasoningParseResult = {
 };
 
 /**
+ * Supported reasoning tag formats
+ */
+const REASONING_TAG_FORMATS = [
+  { open: "<reasoning>", close: "</reasoning>" },
+  { open: "<think>", close: "</think>" },
+] as const;
+
+/**
+ * Detects which tag format is being used based on content or partial tag
+ */
+function detectTagFormat(
+  content: string,
+  partialTag: string
+): (typeof REASONING_TAG_FORMATS)[number] | null {
+  const combined = partialTag + content;
+
+  for (const format of REASONING_TAG_FORMATS) {
+    // Check if content contains or starts with this format's tags
+    if (
+      combined.includes(format.open) ||
+      combined.includes(format.close) ||
+      format.open.startsWith(combined.slice(0, format.open.length)) ||
+      format.close.startsWith(combined.slice(0, format.close.length))
+    ) {
+      return format;
+    }
+  }
+
+  // Default to first format if starting with '<'
+  if (combined.startsWith("<")) {
+    return REASONING_TAG_FORMATS[0];
+  }
+
+  return null;
+}
+
+/**
  * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
- * Extracts content within <reasoning></reasoning> tags and removes them from the message.
+ * Supports both <reasoning></reasoning> and <think></think> tag formats.
  */
 export function parseReasoningTags(
   content: string,
   previousPartialTag: string = "",
-  wasInsideReasoning: boolean = false
+  wasInsideReasoning: boolean = false,
+  detectedFormat?: { open: string; close: string }
 ): ReasoningParseResult {
-  const OPENING_TAG = "<reasoning>";
-  const CLOSING_TAG = "</reasoning>";
+  // Detect or use provided tag format
+  const format =
+    detectedFormat ||
+    detectTagFormat(content, previousPartialTag) ||
+    REASONING_TAG_FORMATS[0];
+
+  const OPENING_TAG = format.open;
+  const CLOSING_TAG = format.close;
   const OPENING_TAG_LEN = OPENING_TAG.length;
   const CLOSING_TAG_LEN = CLOSING_TAG.length;
 
@@ -330,37 +374,40 @@ export function parseReasoningTags(
 
   // Defensive check: ensure tags are never included in output
   // This should never happen, but adding as a safety measure
-  if (
-    messageContent.includes(OPENING_TAG) ||
-    messageContent.includes(CLOSING_TAG)
-  ) {
-    console.warn(
-      "[parseReasoningTags] Warning: Tag found in messageContent, removing"
-    );
-    messageContent = messageContent.replace(
-      new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"),
-      ""
-    );
-    messageContent = messageContent.replace(
-      new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"),
-      ""
-    );
-  }
-  if (
-    reasoningContent.includes(OPENING_TAG) ||
-    reasoningContent.includes(CLOSING_TAG)
-  ) {
-    console.warn(
-      "[parseReasoningTags] Warning: Tag found in reasoningContent, removing"
-    );
-    reasoningContent = reasoningContent.replace(
-      new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"),
-      ""
-    );
-    reasoningContent = reasoningContent.replace(
-      new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"),
-      ""
-    );
+  // Check for all supported tag formats
+  for (const tagFormat of REASONING_TAG_FORMATS) {
+    if (
+      messageContent.includes(tagFormat.open) ||
+      messageContent.includes(tagFormat.close)
+    ) {
+      console.warn(
+        "[parseReasoningTags] Warning: Tag found in messageContent, removing"
+      );
+      messageContent = messageContent.replace(
+        new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+      messageContent = messageContent.replace(
+        new RegExp(tagFormat.close.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+    }
+    if (
+      reasoningContent.includes(tagFormat.open) ||
+      reasoningContent.includes(tagFormat.close)
+    ) {
+      console.warn(
+        "[parseReasoningTags] Warning: Tag found in reasoningContent, removing"
+      );
+      reasoningContent = reasoningContent.replace(
+        new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+      reasoningContent = reasoningContent.replace(
+        new RegExp(tagFormat.close.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+    }
   }
 
   return {
