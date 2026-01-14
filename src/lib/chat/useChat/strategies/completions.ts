@@ -3,6 +3,7 @@ import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import { transformToCompletionsFormat } from "./completions-transformers";
 
 /**
  * Streaming chunk format for Chat Completions API (OpenAI-compatible)
@@ -74,15 +75,20 @@ export class CompletionsStrategy implements ApiStrategy {
       // store, previousResponseId, conversation, reasoning, thinking
     } = args;
 
-    return {
+    // Transform from Responses API format to Chat Completions API format
+    // This handles:
+    // 1. Message content: Array → String
+    // 2. Built-in tools: Shorthand → Full function definitions
+    // 3. Function schema: "arguments" → "parameters"
+    return transformToCompletionsFormat({
       messages,
       model,
       stream,
-      ...(temperature !== undefined && { temperature }),
-      ...(maxOutputTokens !== undefined && { max_tokens: maxOutputTokens }),
-      ...(tools && { tools }),
-      ...(toolChoice && { tool_choice: toolChoice }),
-    };
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
+    });
   }
 
   processStreamChunk(
