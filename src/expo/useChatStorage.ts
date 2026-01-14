@@ -163,6 +163,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
   } = options;
@@ -200,6 +201,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
   });
@@ -342,7 +344,8 @@ export function useChatStorage(
         // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
         // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        const jsonBlockRegex =
+          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
         let jsonMatch: RegExpExecArray | null;
         let foundJsonSources = false;
 
@@ -359,7 +362,8 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet: source.description || source.snippet || undefined,
+                      snippet:
+                        source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -716,8 +720,11 @@ export function useChatStorage(
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      const jsonSourcesBlockRegex =
+        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
+      let cleanedContent = assistantContent
+        .replace(jsonSourcesBlockRegex, "")
+        .trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
@@ -733,7 +740,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-          thinking: thinkingContent,
+          // thinking: thinkingContent,
         });
       } catch (err) {
         return {

@@ -132,9 +132,13 @@ export class CompletionsStrategy implements ApiStrategy {
 
           // Emit deltas
           // Only emit non-empty content to avoid false error detection
-          const willEmitMessage = parseResult.messageContent && parseResult.messageContent.trim().length > 0;
-          const willEmitReasoning = parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
-          
+          const willEmitMessage =
+            parseResult.messageContent &&
+            parseResult.messageContent.trim().length > 0;
+          const willEmitReasoning =
+            parseResult.reasoningContent &&
+            parseResult.reasoningContent.trim().length > 0;
+
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
           }
@@ -190,10 +194,16 @@ export class CompletionsStrategy implements ApiStrategy {
 
           // For non-streaming, we always emit the final content (reasoning is already separated)
           // Only emit non-empty content to avoid false error detection
-          if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+          if (
+            parseResult.messageContent &&
+            parseResult.messageContent.trim().length > 0
+          ) {
             result.content = parseResult.messageContent;
           }
-          if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
+          if (
+            parseResult.reasoningContent &&
+            parseResult.reasoningContent.trim().length > 0
+          ) {
             result.thinking = parseResult.reasoningContent;
           }
         }
@@ -214,7 +224,10 @@ export class CompletionsStrategy implements ApiStrategy {
       }
 
       // Mark tool calls as completed when finish_reason is set
-      if (choice.finish_reason === "tool_calls" || choice.finish_reason === "stop") {
+      if (
+        choice.finish_reason === "tool_calls" ||
+        choice.finish_reason === "stop"
+      ) {
         for (const toolCall of accumulator.toolCalls.values()) {
           if (toolCall.status === "pending") {
             toolCall.status = "completed";
@@ -232,10 +245,13 @@ export class CompletionsStrategy implements ApiStrategy {
     // Final cleanup: handle any remaining partial tag
     let finalContent = accumulator.content;
     let finalThinking = accumulator.thinking;
-    
+
     if (accumulator.partialReasoningTag) {
       // Final cleanup: if we have a partial tag, try to parse it one more time
-      const finalParse = parseReasoningTags("", accumulator.partialReasoningTag);
+      const finalParse = parseReasoningTags(
+        "",
+        accumulator.partialReasoningTag
+      );
       finalContent += finalParse.messageContent;
       if (finalParse.reasoningContent) {
         finalThinking += finalParse.reasoningContent;
