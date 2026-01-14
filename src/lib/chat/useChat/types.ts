@@ -219,4 +219,6 @@ export type StreamAccumulator = {
   toolCalls: Map<string, AccumulatedToolCall>;
   /** Track incomplete reasoning tags across chunks */
   partialReasoningTag?: string;
+  /** Track whether we're currently inside a reasoning block */
+  insideReasoning?: boolean;
 };

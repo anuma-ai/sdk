@@ -123,7 +123,10 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
       // Handle tool result messages - format them as system messages with tool results
       if (role === "tool") {
         const content = Array.isArray(msg.content)
-          ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
+          ? msg.content
+              .map(extractTextFromContentPart)
+              .filter(Boolean)
+              .join("\n")
           : String(msg.content || "");
         return `system: Tool result: ${content}`;
       }
@@ -158,18 +161,21 @@ export type ReasoningParseResult = {
   reasoningContent: string;
   /** Incomplete tag at the end (for next chunk) */
   partialTag: string;
+  /** Whether we're currently inside a reasoning block (for next chunk) */
+  insideReasoning: boolean;
 };
 
 /**
  * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
- * Extracts content within <think></think> tags and removes them from the message.
+ * Extracts content within <reasoning></reasoning> tags and removes them from the message.
  */
 export function parseReasoningTags(
   content: string,
-  previousPartialTag: string = ""
+  previousPartialTag: string = "",
+  wasInsideReasoning: boolean = false
 ): ReasoningParseResult {
-  const OPENING_TAG = "<think>";
-  const CLOSING_TAG = "</think>";
+  const OPENING_TAG = "<reasoning>";
+  const CLOSING_TAG = "</reasoning>";
   const OPENING_TAG_LEN = OPENING_TAG.length;
   const CLOSING_TAG_LEN = CLOSING_TAG.length;
 
@@ -179,7 +185,7 @@ export function parseReasoningTags(
   let reasoningContent = "";
   let partialTag = "";
   let i = 0;
-  let insideReasoning = false;
+  let insideReasoning = wasInsideReasoning;
 
   // Check if previous partial indicates we're already inside reasoning
   if (previousPartialTag) {
@@ -192,30 +198,50 @@ export function parseReasoningTags(
         // Now complete
         insideReasoning = true;
         i = OPENING_TAG_LEN;
-      } else if (OPENING_TAG.startsWith(fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)))) {
-        // Still incomplete
-        return { 
-          messageContent: "", 
-          reasoningContent: "", 
-          partialTag: fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)),
+      } else if (
+        OPENING_TAG.startsWith(
+          fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length))
+        )
+      ) {
+        // Still incomplete - preserve wasInsideReasoning state
+        return {
+          messageContent: "",
+          reasoningContent: "",
+          partialTag: fullContent.slice(
+            0,
+            Math.min(OPENING_TAG_LEN, fullContent.length)
+          ),
+          insideReasoning: wasInsideReasoning,
         };
       } else {
-        // Not part of tag - treat as message content
-        messageContent = previousPartialTag;
+        // Not part of tag - treat as message content or reasoning based on state
+        if (wasInsideReasoning) {
+          reasoningContent = previousPartialTag;
+        } else {
+          messageContent = previousPartialTag;
+        }
         i = previousPartialTag.length;
       }
     } else if (CLOSING_TAG.startsWith(previousPartialTag)) {
-      // Previous partial is start of closing tag
+      // Previous partial is start of closing tag (we must be inside reasoning)
       if (fullContent.startsWith(CLOSING_TAG)) {
         // Complete closing tag
         i = CLOSING_TAG_LEN;
         insideReasoning = false;
-      } else if (CLOSING_TAG.startsWith(fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)))) {
-        // Still incomplete
-        return { 
-          messageContent: "", 
-          reasoningContent: "", 
-          partialTag: fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)),
+      } else if (
+        CLOSING_TAG.startsWith(
+          fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length))
+        )
+      ) {
+        // Still incomplete - we're inside reasoning waiting for close
+        return {
+          messageContent: "",
+          reasoningContent: "",
+          partialTag: fullContent.slice(
+            0,
+            Math.min(CLOSING_TAG_LEN, fullContent.length)
+          ),
+          insideReasoning: true,
         };
       } else {
         // Not part of closing tag - must be reasoning content
@@ -224,8 +250,8 @@ export function parseReasoningTags(
         insideReasoning = true;
       }
     } else {
-      // Previous partial was content (could be reasoning or message)
-      if (insideReasoning) {
+      // Previous partial was content (could be reasoning or message based on state)
+      if (wasInsideReasoning) {
         reasoningContent = previousPartialTag;
       } else {
         messageContent = previousPartialTag;
@@ -239,7 +265,7 @@ export function parseReasoningTags(
     if (insideReasoning) {
       // Look for closing tag
       const closeIndex = fullContent.indexOf(CLOSING_TAG, i);
-      
+
       if (closeIndex === -1) {
         // No closing tag found
         const remaining = fullContent.slice(i);
@@ -270,7 +296,7 @@ export function parseReasoningTags(
     } else {
       // Look for opening tag
       const openIndex = fullContent.indexOf(OPENING_TAG, i);
-      
+
       if (openIndex === -1) {
         // No opening tag found
         const remaining = fullContent.slice(i);
@@ -295,25 +321,46 @@ export function parseReasoningTags(
     }
   }
 
-
   // Defensive check: ensure tags are never included in output
   // This should never happen, but adding as a safety measure
-  if (messageContent.includes(OPENING_TAG) || messageContent.includes(CLOSING_TAG)) {
-    console.warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
-    messageContent = messageContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
-    messageContent = messageContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+  if (
+    messageContent.includes(OPENING_TAG) ||
+    messageContent.includes(CLOSING_TAG)
+  ) {
+    console.warn(
+      "[parseReasoningTags] Warning: Tag found in messageContent, removing"
+    );
+    messageContent = messageContent.replace(
+      new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"),
+      ""
+    );
+    messageContent = messageContent.replace(
+      new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"),
+      ""
+    );
   }
-  if (reasoningContent.includes(OPENING_TAG) || reasoningContent.includes(CLOSING_TAG)) {
-    console.warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
-    reasoningContent = reasoningContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
-    reasoningContent = reasoningContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+  if (
+    reasoningContent.includes(OPENING_TAG) ||
+    reasoningContent.includes(CLOSING_TAG)
+  ) {
+    console.warn(
+      "[parseReasoningTags] Warning: Tag found in reasoningContent, removing"
+    );
+    reasoningContent = reasoningContent.replace(
+      new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"),
+      ""
+    );
+    reasoningContent = reasoningContent.replace(
+      new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"),
+      ""
+    );
   }
-
 
   return {
     messageContent,
     reasoningContent,
     partialTag,
+    insideReasoning,
   };
 }
 
@@ -321,7 +368,9 @@ export function parseReasoningTags(
  * Creates an initial stream accumulator
  * @param initialModel - Optional model name to initialize with (from request)
  */
-export function createStreamAccumulator(initialModel?: string): StreamAccumulator {
+export function createStreamAccumulator(
+  initialModel?: string
+): StreamAccumulator {
   return {
     content: "",
     thinking: "",
@@ -430,7 +479,10 @@ export function processStreamingChunk(
       // The API may return delta as either a string or an object with OfString property
       const deltaText = typeof delta === "string" ? delta : delta.OfString;
       if (deltaText) {
-        console.log("[Tool Debug] output_text.delta - adding text:", deltaText.substring(0, 50));
+        console.log(
+          "[Tool Debug] output_text.delta - adding text:",
+          deltaText.substring(0, 50)
+        );
         accumulator.content += deltaText;
         result.content = deltaText;
       }
@@ -441,10 +493,15 @@ export function processStreamingChunk(
   // Event: response.output_item.added with type "function_call"
   if (chunk.type === "response.output_item.added" && chunk.item) {
     // Debug logging
-    console.log("[Tool Debug] output_item.added:", JSON.stringify(chunk.item, null, 2));
+    console.log(
+      "[Tool Debug] output_item.added:",
+      JSON.stringify(chunk.item, null, 2)
+    );
 
     if (chunk.item.type === "message") {
-      console.log("[Tool Debug] Message output item added - ready to receive text deltas");
+      console.log(
+        "[Tool Debug] Message output item added - ready to receive text deltas"
+      );
     }
 
     if (chunk.item.type === "function_call") {
@@ -453,7 +510,14 @@ export function processStreamingChunk(
       const callId = chunk.item.call_id || "";
 
       if (itemId && chunk.item.name) {
-        console.log("[Tool Debug] Detected tool call:", chunk.item.name, "item ID:", itemId, "call ID:", callId);
+        console.log(
+          "[Tool Debug] Detected tool call:",
+          chunk.item.name,
+          "item ID:",
+          itemId,
+          "call ID:",
+          callId
+        );
         accumulator.toolCalls.set(itemId, {
           id: callId || itemId, // Use call_id for the tool call ID
           type: "function",
@@ -467,7 +531,14 @@ export function processStreamingChunk(
 
   // Event: response.function_call_arguments.delta - streaming arguments (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.delta") {
-    console.log("[Tool Debug] Arguments delta event - item_id:", chunk.item_id, "call_id:", chunk.call_id, "args length:", chunk.arguments?.length);
+    console.log(
+      "[Tool Debug] Arguments delta event - item_id:",
+      chunk.item_id,
+      "call_id:",
+      chunk.call_id,
+      "args length:",
+      chunk.arguments?.length
+    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
@@ -475,23 +546,43 @@ export function processStreamingChunk(
       if (existing) {
         existing.arguments += chunk.arguments;
       } else {
-        console.log("[Tool Debug] WARNING: Tool call not found for item ID:", itemId, "Available keys:", Array.from(accumulator.toolCalls.keys()));
+        console.log(
+          "[Tool Debug] WARNING: Tool call not found for item ID:",
+          itemId,
+          "Available keys:",
+          Array.from(accumulator.toolCalls.keys())
+        );
       }
     }
   }
 
   // Event: response.function_call_arguments.done - arguments complete (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.done") {
-    console.log("[Tool Debug] Arguments done event - item_id:", chunk.item_id, "call_id:", chunk.call_id, "args:", chunk.arguments);
+    console.log(
+      "[Tool Debug] Arguments done event - item_id:",
+      chunk.item_id,
+      "call_id:",
+      chunk.call_id,
+      "args:",
+      chunk.arguments
+    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
       const existing = accumulator.toolCalls.get(itemId);
       if (existing) {
         existing.arguments = chunk.arguments;
-        console.log("[Tool Debug] Successfully updated arguments:", existing.arguments);
+        console.log(
+          "[Tool Debug] Successfully updated arguments:",
+          existing.arguments
+        );
       } else {
-        console.log("[Tool Debug] WARNING: Tool call not found for item ID:", itemId, "Available keys:", Array.from(accumulator.toolCalls.keys()));
+        console.log(
+          "[Tool Debug] WARNING: Tool call not found for item ID:",
+          itemId,
+          "Available keys:",
+          Array.from(accumulator.toolCalls.keys())
+        );
       }
     }
   }
@@ -544,9 +635,7 @@ export function buildResponseResponse(
     object: "response",
     output,
     usage:
-      Object.keys(accumulator.usage).length > 0
-        ? accumulator.usage
-        : undefined,
+      Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
   };
 }
 
@@ -624,7 +713,10 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
 export function createToolExecutorMap(
   tools?: Array<LlmapiTool | ToolConfig>
 ): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
-  const map = new Map<string, { executor: ToolExecutor; autoExecute: boolean }>();
+  const map = new Map<
+    string,
+    { executor: ToolExecutor; autoExecute: boolean }
+  >();
 
   if (!tools) {
     return map;
@@ -656,7 +748,10 @@ export async function executeToolCall(
 ): Promise<{ result?: unknown; error?: string }> {
   try {
     // Parse arguments
-    console.log("[Tool Debug] executeToolCall - raw arguments:", toolCall.arguments);
+    console.log(
+      "[Tool Debug] executeToolCall - raw arguments:",
+      toolCall.arguments
+    );
     let args: Record<string, unknown> = {};
     if (toolCall.arguments) {
       try {
@@ -664,7 +759,9 @@ export async function executeToolCall(
         console.log("[Tool Debug] executeToolCall - parsed arguments:", args);
       } catch (e) {
         return {
-          error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
+          error: `Failed to parse tool arguments: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
         };
       }
     } else {
@@ -676,7 +773,9 @@ export async function executeToolCall(
     return { result };
   } catch (e) {
     return {
-      error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Tool execution failed: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
     };
   }
 }
