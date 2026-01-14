@@ -122,13 +122,15 @@ export class CompletionsStrategy implements ApiStrategy {
           // Parse reasoning tags from content
           const parseResult = parseReasoningTags(
             choice.delta.content,
-            accumulator.partialReasoningTag || ""
+            accumulator.partialReasoningTag || "",
+            accumulator.insideReasoning || false
           );
 
           // Update accumulator with parsed content
           accumulator.content += parseResult.messageContent;
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
+          accumulator.insideReasoning = parseResult.insideReasoning;
 
           // Emit deltas
           // Only emit non-empty content to avoid false error detection
@@ -185,12 +187,14 @@ export class CompletionsStrategy implements ApiStrategy {
           // Parse reasoning tags from final message content
           const parseResult = parseReasoningTags(
             choice.message.content,
-            accumulator.partialReasoningTag || ""
+            accumulator.partialReasoningTag || "",
+            accumulator.insideReasoning || false
           );
 
           accumulator.content = parseResult.messageContent;
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
+          accumulator.insideReasoning = parseResult.insideReasoning;
 
           // For non-streaming, we always emit the final content (reasoning is already separated)
           // Only emit non-empty content to avoid false error detection
@@ -250,7 +254,8 @@ export class CompletionsStrategy implements ApiStrategy {
       // Final cleanup: if we have a partial tag, try to parse it one more time
       const finalParse = parseReasoningTags(
         "",
-        accumulator.partialReasoningTag
+        accumulator.partialReasoningTag,
+        accumulator.insideReasoning || false
       );
       finalContent += finalParse.messageContent;
       if (finalParse.reasoningContent) {
