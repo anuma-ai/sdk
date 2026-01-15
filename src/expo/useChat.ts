@@ -163,9 +163,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       memoryContext,
       searchContext,
       // Responses API options
-      store,
-      previousResponseId,
-      conversation,
       temperature,
       maxOutputTokens,
       tools,
@@ -559,11 +556,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               input: continuationMessages,
                               model,
                               stream: true,
-                              ...(store !== undefined && { store }),
-                              ...(previousResponseId && {
-                                previous_response_id: previousResponseId,
-                              }),
-                              ...(conversation && { conversation }),
                               ...(temperature !== undefined && { temperature }),
                               ...(maxOutputTokens !== undefined && {
                                 max_output_tokens: maxOutputTokens,
@@ -627,11 +619,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             model,
             stream: true,
             // Responses API options (only include if defined)
-            ...(store !== undefined && { store }),
-            ...(previousResponseId && {
-              previous_response_id: previousResponseId,
-            }),
-            ...(conversation && { conversation }),
             ...(temperature !== undefined && { temperature }),
             ...(maxOutputTokens !== undefined && {
               max_output_tokens: maxOutputTokens,

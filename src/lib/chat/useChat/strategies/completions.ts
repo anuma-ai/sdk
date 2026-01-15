@@ -70,8 +70,6 @@ export class CompletionsStrategy implements ApiStrategy {
       maxOutputTokens,
       tools,
       toolChoice,
-      // These are intentionally ignored for completions API:
-      // store, previousResponseId, conversation, reasoning, thinking
     } = args;
 
     return {

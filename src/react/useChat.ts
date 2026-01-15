@@ -175,9 +175,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       memoryContext,
       searchContext,
       // Responses API options
-      store,
-      previousResponseId,
-      conversation,
       temperature,
       maxOutputTokens,
       tools,
@@ -293,9 +290,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           maxOutputTokens,
           tools: apiTools,
           toolChoice,
-          store,
-          previousResponseId,
-          conversation,
           reasoning,
           thinking,
         });
@@ -546,9 +540,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               maxOutputTokens,
               tools: apiTools,
               toolChoice,
-              store,
-              previousResponseId,
-              conversation,
               reasoning,
               thinking,
             });
