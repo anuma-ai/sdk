@@ -1563,7 +1563,8 @@ export function useChatStorage(
           error: "No user message found in messages array",
         };
       }
-      let contentForStorage = extracted.content;
+      const contentForStorage = extracted.content; // Original content for DB storage
+      let contentForApi = extracted.content; // Content with extracted text for API
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
@@ -1589,11 +1590,10 @@ export function useChatStorage(
             metadata: preprocessingResult.metadata,
           });
 
-          // Prepend extracted content to user message
+          // Prepend extracted content to API message only (not stored in DB)
           if (preprocessingResult.extractedContent) {
-            const originalContent = contentForStorage;
-            contentForStorage = `${preprocessingResult.extractedContent}\n\n---\n\n${contentForStorage}`;
-            console.log("[useChatStorage] Prepended extracted content. Original length:", originalContent.length, "New length:", contentForStorage.length);
+            contentForApi = `${preprocessingResult.extractedContent}\n\n---\n\n${contentForStorage}`;
+            console.log("[useChatStorage] Prepended extracted content for API. Original length:", contentForStorage.length, "API content length:", contentForApi.length);
           } else {
             console.log("[useChatStorage] No extracted content to prepend");
           }
@@ -1638,9 +1638,9 @@ export function useChatStorage(
 
       // If we preprocessed files and have extracted content, update the last user message
       // to include the extracted content and remove the file attachments (since we're sending text instead)
-      if (filesForStorage && filesForStorage.length > 0 && contentForStorage !== extracted.content) {
+      if (filesForStorage && filesForStorage.length > 0 && contentForApi !== extracted.content) {
         console.log("[useChatStorage] Updating message with preprocessed content");
-        console.log("[useChatStorage] contentForStorage length:", contentForStorage.length);
+        console.log("[useChatStorage] contentForApi length:", contentForApi.length);
         console.log("[useChatStorage] extracted.content length:", extracted.content.length);
 
         // Find the last user message in messagesToSend (search from end)
@@ -1658,17 +1658,18 @@ export function useChatStorage(
           const lastUserMessage = messagesToSend[lastUserMessageIndex];
           console.log("[useChatStorage] Last user message before update:", lastUserMessage);
 
-          // Update the message: replace text content and remove file content parts
+          // Update the message: replace text content with extracted content for API
+          // but keep original content for DB storage
           if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
             messagesToSend[lastUserMessageIndex] = {
               ...lastUserMessage,
               content: lastUserMessage.content
                 .map((part) => {
                   if (part.type === "text") {
-                    // Update text with preprocessed content
+                    // Update text with preprocessed content for API call
                     return {
                       ...part,
-                      text: contentForStorage,
+                      text: contentForApi,
                     };
                   }
                   // Remove file content parts (input_file, image_url) for preprocessed files
@@ -1686,7 +1687,7 @@ export function useChatStorage(
           }
         }
       } else {
-        console.log("[useChatStorage] NOT updating message. filesForStorage:", !!filesForStorage, "length:", filesForStorage?.length, "contentForStorage !== extracted.content:", contentForStorage !== extracted.content);
+        console.log("[useChatStorage] NOT updating message. filesForStorage:", !!filesForStorage, "length:", filesForStorage?.length, "contentForApi !== extracted.content:", contentForApi !== extracted.content);
       }
 
       // Store the user message
