@@ -123,7 +123,9 @@ export class CompletionsStrategy implements ApiStrategy {
           const parseResult = parseReasoningTags(
             choice.delta.content,
             accumulator.partialReasoningTag || "",
-            accumulator.insideReasoning || false
+            accumulator.insideReasoning || false,
+            undefined,
+            accumulator.implicitReasoningStart
           );
 
           // Update accumulator with parsed content
@@ -131,6 +133,9 @@ export class CompletionsStrategy implements ApiStrategy {
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
+          if (parseResult.implicitReasoningStart !== undefined) {
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+          }
 
           // Emit deltas
           // Only emit non-empty content to avoid false error detection
@@ -188,13 +193,18 @@ export class CompletionsStrategy implements ApiStrategy {
           const parseResult = parseReasoningTags(
             choice.message.content,
             accumulator.partialReasoningTag || "",
-            accumulator.insideReasoning || false
+            accumulator.insideReasoning || false,
+            undefined,
+            accumulator.implicitReasoningStart
           );
 
           accumulator.content = parseResult.messageContent;
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
+          if (parseResult.implicitReasoningStart !== undefined) {
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+          }
 
           // For non-streaming, we always emit the final content (reasoning is already separated)
           // Only emit non-empty content to avoid false error detection

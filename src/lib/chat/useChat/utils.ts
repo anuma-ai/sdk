@@ -163,6 +163,8 @@ export type ReasoningParseResult = {
   partialTag: string;
   /** Whether we're currently inside a reasoning block (for next chunk) */
   insideReasoning: boolean;
+  /** Whether this model uses implicit reasoning start (no opening tag) */
+  implicitReasoningStart?: boolean;
 };
 
 /**
@@ -205,12 +207,15 @@ function detectTagFormat(
 /**
  * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
  * Supports both <reasoning></reasoning> and <think></think> tag formats.
+ * Also supports models that start with reasoning content immediately (no opening tag)
+ * and only use a closing tag to mark the end of reasoning.
  */
 export function parseReasoningTags(
   content: string,
   previousPartialTag: string = "",
   wasInsideReasoning: boolean = false,
-  detectedFormat?: { open: string; close: string }
+  detectedFormat?: { open: string; close: string },
+  wasImplicitReasoningStart?: boolean
 ): ReasoningParseResult {
   // Detect or use provided tag format
   const format =
@@ -230,6 +235,30 @@ export function parseReasoningTags(
   let partialTag = "";
   let i = 0;
   let insideReasoning = wasInsideReasoning;
+  let implicitReasoningStart = wasImplicitReasoningStart;
+
+  // Detect implicit reasoning start: model that doesn't use opening tag
+  // We detect this when we see a closing tag without having seen an opening tag
+  // This serves as a fallback for models not detected by name
+  if (implicitReasoningStart === undefined) {
+    // Check if there's a closing tag in current content
+    const hasClosingTag = REASONING_TAG_FORMATS.some((fmt) =>
+      fullContent.includes(fmt.close)
+    );
+    const hasOpeningTag = REASONING_TAG_FORMATS.some((fmt) =>
+      fullContent.includes(fmt.open)
+    );
+
+    if (hasClosingTag && !hasOpeningTag) {
+      // Model uses implicit reasoning start - treat everything before closing tag as reasoning
+      implicitReasoningStart = true;
+      insideReasoning = true;
+    } else if (hasOpeningTag) {
+      // Model uses explicit tags
+      implicitReasoningStart = false;
+    }
+    // If neither tag found yet, keep implicitReasoningStart as undefined
+  }
 
   // Check if previous partial indicates we're already inside reasoning
   if (previousPartialTag) {
@@ -263,6 +292,7 @@ export function parseReasoningTags(
             Math.min(CLOSING_TAG_LEN, fullContent.length)
           ),
           insideReasoning: true,
+          implicitReasoningStart,
         };
       } else {
         // Not part of closing tag - must be reasoning content
@@ -290,6 +320,7 @@ export function parseReasoningTags(
             Math.min(OPENING_TAG_LEN, fullContent.length)
           ),
           insideReasoning: wasInsideReasoning,
+          implicitReasoningStart,
         };
       } else {
         // Not part of tag - treat as message content or reasoning based on state
@@ -415,7 +446,19 @@ export function parseReasoningTags(
     reasoningContent,
     partialTag,
     insideReasoning,
+    implicitReasoningStart,
   };
+}
+
+/**
+ * Check if a model uses implicit reasoning start (no opening tag, only closing tag)
+ * Models like Qwen thinking models start reasoning immediately without <think> tag
+ */
+function isImplicitReasoningModel(modelName?: string): boolean {
+  if (!modelName) return false;
+  const lowerModel = modelName.toLowerCase();
+  // Qwen thinking models use implicit reasoning (no <think> tag, only </think>)
+  return lowerModel.includes("qwen") && lowerModel.includes("thinking");
 }
 
 /**
@@ -425,6 +468,10 @@ export function parseReasoningTags(
 export function createStreamAccumulator(
   initialModel?: string
 ): StreamAccumulator {
+  // Check if this model uses implicit reasoning start
+  // For these models, we assume we're inside reasoning until we see </think>
+  const implicitReasoning = isImplicitReasoningModel(initialModel);
+
   return {
     content: "",
     thinking: "",
@@ -433,6 +480,10 @@ export function createStreamAccumulator(
     usage: {},
     toolCalls: new Map(),
     partialReasoningTag: "",
+    // For implicit reasoning models, start inside reasoning mode
+    // If they send <think> first, parseReasoningTags will handle it correctly
+    insideReasoning: implicitReasoning,
+    implicitReasoningStart: implicitReasoning ? true : undefined,
   };
 }
 
