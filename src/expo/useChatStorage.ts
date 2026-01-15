@@ -487,9 +487,6 @@ export function useChatStorage(
         sources,
         thoughtProcess,
         // Responses API options
-        store,
-        previousResponseId,
-        serverConversation,
         temperature,
         maxOutputTokens,
         tools,
@@ -582,9 +579,6 @@ export function useChatStorage(
         memoryContext,
         searchContext,
         // Responses API options
-        store,
-        previousResponseId,
-        conversation: serverConversation,
         temperature,
         maxOutputTokens,
         tools,
