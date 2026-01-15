@@ -101,7 +101,7 @@ Only the most recent N messages are included to manage context window size.
 
 > `optional` **maxOutputTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:313](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L313)
+Defined in: [src/lib/db/chat/types.ts:296](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L296)
 
 Maximum number of tokens to generate in the response.
 Use this to limit response length and control costs.
@@ -241,7 +241,7 @@ Use this to update UI as the response streams in.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:349](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L349)
+Defined in: [src/lib/db/chat/types.ts:332](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L332)
 
 Per-request callback for thinking/reasoning chunks.
 Called with delta chunks as the model "thinks" through a problem.
@@ -282,26 +282,11 @@ Use this to display thinking progress in the UI.
 
 ***
 
-### previousResponseId?
-
-> `optional` **previousResponseId**: `string`
-
-Defined in: [src/lib/db/chat/types.ts:296](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L296)
-
-ID of a previous response to continue from.
-Enables multi-turn conversations without resending full history.
-
-**Inherited from**
-
-`BaseSendMessageWithStorageArgs.previousResponseId`
-
-***
-
 ### reasoning?
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
 
-Defined in: [src/lib/db/chat/types.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L335)
+Defined in: [src/lib/db/chat/types.ts:318](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L318)
 
 Reasoning configuration for o-series and other reasoning models.
 Controls reasoning effort level and whether to include reasoning summary.
@@ -327,20 +312,6 @@ Typically contains relevant information from web or document searches.
 
 ***
 
-### serverConversation?
-
-> `optional` **serverConversation**: `string`
-
-Defined in: [src/lib/db/chat/types.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L301)
-
-Conversation ID for grouping related responses on the server.
-
-**Inherited from**
-
-`BaseSendMessageWithStorageArgs.serverConversation`
-
-***
-
 ### sources?
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
@@ -356,26 +327,11 @@ These are combined with any sources extracted from the assistant's response.
 
 ***
 
-### store?
-
-> `optional` **store**: `boolean`
-
-Defined in: [src/lib/db/chat/types.ts:290](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L290)
-
-Whether to store the response server-side.
-When true, the response can be retrieved later using the response ID.
-
-**Inherited from**
-
-`BaseSendMessageWithStorageArgs.store`
-
-***
-
 ### temperature?
 
 > `optional` **temperature**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:307](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L307)
+Defined in: [src/lib/db/chat/types.ts:290](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L290)
 
 Controls randomness in the response (0.0 to 2.0).
 Lower values make output more deterministic, higher values more creative.
@@ -390,7 +346,7 @@ Lower values make output more deterministic, higher values more creative.
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
 
-Defined in: [src/lib/db/chat/types.ts:342](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L342)
+Defined in: [src/lib/db/chat/types.ts:325](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L325)
 
 Extended thinking configuration for Anthropic models (Claude).
 Enables the model to think through complex problems step by step
@@ -422,7 +378,7 @@ The final phase is automatically marked as completed when stored.
 
 > `optional` **toolChoice**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:329](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L329)
+Defined in: [src/lib/db/chat/types.ts:312](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L312)
 
 Controls which tool the model should use:
 
@@ -442,7 +398,7 @@ Controls which tool the model should use:
 
 > `optional` **tools**: [`LlmapiTool`](../../../client/Internal/type-aliases/LlmapiTool.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:319](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L319)
+Defined in: [src/lib/db/chat/types.ts:302](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L302)
 
 Array of tool definitions available to the model.
 Tools enable the model to call functions, search, execute code, etc.
