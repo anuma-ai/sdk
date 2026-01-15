@@ -171,6 +171,26 @@ export interface BaseUseChatStorageOptions {
   onFinish?: (response: LlmapiResponseResponse) => void;
   /** Callback invoked when an error occurs during the request */
   onError?: (error: Error) => void;
+  /**
+   * File preprocessors to use for automatic text extraction.
+   * - undefined (default): Use all built-in processors (PDF, Excel, Word)
+   * - null or []: Disable preprocessing
+   * - FileProcessor[]: Use specific processors
+   */
+  fileProcessors?: any[] | null;
+  /**
+   * Options for file preprocessing behavior
+   */
+  fileProcessingOptions?: {
+    /** Whether to keep original file attachments (default: true) */
+    keepOriginalFiles?: boolean;
+    /** Max file size to process in bytes (default: 10MB) */
+    maxFileSizeBytes?: number;
+    /** Callback for progress updates */
+    onProgress?: (current: number, total: number, fileName: string) => void;
+    /** Callback for errors (non-fatal) */
+    onError?: (fileName: string, error: Error) => void;
+  };
 }
 
 /**
@@ -448,6 +468,18 @@ export function extractUserMessageFromMessages(
         size: 0,
         url: part.image_url.url,
       });
+    } else if (part.type === "input_file" && part.file) {
+      // Extract input_file parts (Word, Excel, etc.)
+      const fileUrl = part.file.file_url || part.file.file_data;
+      if (fileUrl) {
+        files.push({
+          id: part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          name: part.file.filename || "file",
+          type: "application/octet-stream", // Will be determined by processor
+          size: 0,
+          url: fileUrl,
+        });
+      }
     }
   }
 

@@ -47,6 +47,7 @@ import {
   FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
+import { preprocessFiles } from "../lib/processors";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -489,6 +490,8 @@ export function useChatStorage(
     onError,
     apiType,
     walletAddress,
+    fileProcessors,
+    fileProcessingOptions,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -1560,9 +1563,45 @@ export function useChatStorage(
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content;
+      let contentForStorage = extracted.content;
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
+
+      // Preprocess files if present
+      if (filesForStorage && filesForStorage.length > 0) {
+        try {
+          console.log("[useChatStorage] Preprocessing files:", filesForStorage.map(f => ({
+            name: f.name,
+            type: f.type,
+            size: f.size,
+            hasUrl: !!f.url,
+            urlPreview: f.url?.substring(0, 50),
+          })));
+          const preprocessingResult = await preprocessFiles(filesForStorage, {
+            processors: fileProcessors,
+            ...fileProcessingOptions,
+          });
+
+          console.log("[useChatStorage] Preprocessing result:", {
+            hasExtractedContent: !!preprocessingResult.extractedContent,
+            extractedContentLength: preprocessingResult.extractedContent?.length,
+            extractedContentPreview: preprocessingResult.extractedContent?.substring(0, 200),
+            metadata: preprocessingResult.metadata,
+          });
+
+          // Prepend extracted content to user message
+          if (preprocessingResult.extractedContent) {
+            const originalContent = contentForStorage;
+            contentForStorage = `${preprocessingResult.extractedContent}\n\n---\n\n${contentForStorage}`;
+            console.log("[useChatStorage] Prepended extracted content. Original length:", originalContent.length, "New length:", contentForStorage.length);
+          } else {
+            console.log("[useChatStorage] No extracted content to prepend");
+          }
+        } catch (error) {
+          // Non-fatal error - log and continue without preprocessing
+          console.error("File preprocessing error:", error);
+        }
+      }
 
       // Ensure we have a conversation
       let convId: string;
@@ -1595,6 +1634,59 @@ export function useChatStorage(
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
+      }
+
+      // If we preprocessed files and have extracted content, update the last user message
+      // to include the extracted content and remove the file attachments (since we're sending text instead)
+      if (filesForStorage && filesForStorage.length > 0 && contentForStorage !== extracted.content) {
+        console.log("[useChatStorage] Updating message with preprocessed content");
+        console.log("[useChatStorage] contentForStorage length:", contentForStorage.length);
+        console.log("[useChatStorage] extracted.content length:", extracted.content.length);
+
+        // Find the last user message in messagesToSend (search from end)
+        let lastUserMessageIndex = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserMessageIndex = i;
+            break;
+          }
+        }
+
+        console.log("[useChatStorage] Last user message index:", lastUserMessageIndex);
+
+        if (lastUserMessageIndex !== -1) {
+          const lastUserMessage = messagesToSend[lastUserMessageIndex];
+          console.log("[useChatStorage] Last user message before update:", lastUserMessage);
+
+          // Update the message: replace text content and remove file content parts
+          if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
+            messagesToSend[lastUserMessageIndex] = {
+              ...lastUserMessage,
+              content: lastUserMessage.content
+                .map((part) => {
+                  if (part.type === "text") {
+                    // Update text with preprocessed content
+                    return {
+                      ...part,
+                      text: contentForStorage,
+                    };
+                  }
+                  // Remove file content parts (input_file, image_url) for preprocessed files
+                  // Keep other content types (e.g., images that weren't preprocessed)
+                  if (part.type === "input_file" || part.type === "image_url") {
+                    console.log("[useChatStorage] Removing file content part:", part.type);
+                    return null; // Will be filtered out
+                  }
+                  return part;
+                })
+                .filter((part): part is NonNullable<typeof part> => part !== null),
+            };
+
+            console.log("[useChatStorage] Last user message after update:", messagesToSend[lastUserMessageIndex]);
+          }
+        }
+      } else {
+        console.log("[useChatStorage] NOT updating message. filesForStorage:", !!filesForStorage, "length:", filesForStorage?.length, "contentForStorage !== extracted.content:", contentForStorage !== extracted.content);
       }
 
       // Store the user message
