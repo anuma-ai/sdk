@@ -221,4 +221,13 @@ export type StreamAccumulator = {
   partialReasoningTag?: string;
   /** Track whether we're currently inside a reasoning block */
   insideReasoning?: boolean;
+  /**
+   * Track if this model uses implicit reasoning start (no opening tag).
+   * Some models like Qwen start reasoning immediately without <think> tag
+   * and only use </think> to mark the end.
+   * - undefined: not yet determined
+   * - true: model uses implicit reasoning (assume inside reasoning until </think>)
+   * - false: model uses explicit tags or no reasoning
+   */
+  implicitReasoningStart?: boolean;
 };
