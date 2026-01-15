@@ -52,6 +52,7 @@ export async function preprocessFiles(
     return {
       extractedContent: null,
       originalFiles: files,
+      preprocessedFileIds: [],
       metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
     };
   }
@@ -61,6 +62,7 @@ export async function preprocessFiles(
     return {
       extractedContent: null,
       originalFiles: files,
+      preprocessedFileIds: [],
       metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
     };
   }
@@ -70,6 +72,7 @@ export async function preprocessFiles(
     return {
       extractedContent: null,
       originalFiles: files,
+      preprocessedFileIds: [],
       metadata: { processedCount: 0, skippedCount: 0, errorCount: 0 },
     };
   }
@@ -87,6 +90,7 @@ export async function preprocessFiles(
   }
 
   const extractedTexts: string[] = [];
+  const preprocessedFileIds: string[] = [];
   let processedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
@@ -132,6 +136,7 @@ export async function preprocessFiles(
           result.format
         );
         extractedTexts.push(formattedContent);
+        preprocessedFileIds.push(file.id); // Track which files were preprocessed
         processedCount++;
       } else {
         skippedCount++;
@@ -151,6 +156,7 @@ export async function preprocessFiles(
   return {
     extractedContent,
     originalFiles: keepOriginalFiles ? files : undefined,
+    preprocessedFileIds,
     metadata: { processedCount, skippedCount, errorCount },
   };
 }

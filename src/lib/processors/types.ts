@@ -84,6 +84,9 @@ export interface PreprocessingResult {
   /** Original files (if keepOriginalFiles = true) */
   originalFiles?: FileMetadata[];
 
+  /** IDs of files that were successfully preprocessed (used to remove from message) */
+  preprocessedFileIds: string[];
+
   /** Processing metadata */
   metadata: {
     processedCount: number;

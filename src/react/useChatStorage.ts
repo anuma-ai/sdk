@@ -1569,6 +1569,7 @@ export function useChatStorage(
 
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
+      let preprocessedFileIds: string[] = [];
       if (filesForStorage && filesForStorage.length > 0) {
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
@@ -1579,6 +1580,7 @@ export function useChatStorage(
           // Store extracted content as file context (will be injected as system message)
           if (preprocessingResult.extractedContent) {
             fileContextForRequest = preprocessingResult.extractedContent;
+            preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
         } catch (error) {
           // Non-fatal error - log and continue without preprocessing
@@ -1646,12 +1648,33 @@ export function useChatStorage(
         if (lastUserMessageIndex !== -1) {
           const lastUserMessage = messagesToSend[lastUserMessageIndex];
           if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
-            // Remove input_file and image_url parts (files that were preprocessed)
+            // Remove only the files that were actually preprocessed
+            // Keep images and other files that weren't processed (e.g., for vision)
             messagesToSend[lastUserMessageIndex] = {
               ...lastUserMessage,
-              content: lastUserMessage.content.filter(
-                (part) => part.type !== "input_file" && part.type !== "image_url"
-              ),
+              content: lastUserMessage.content.filter((part) => {
+                // Keep text parts
+                if (part.type === "text") return true;
+
+                // For input_file parts, check if this specific file was preprocessed
+                if (part.type === "input_file" && part.file) {
+                  const fileId = part.file.file_id;
+                  return !fileId || !preprocessedFileIds.includes(fileId);
+                }
+
+                // For image_url parts, check if the URL matches a preprocessed file
+                if (part.type === "image_url" && part.image_url?.url) {
+                  // Only remove if this specific image was preprocessed
+                  // Images without matching IDs are kept for vision
+                  const matchesPreprocessed = filesForStorage?.some(
+                    (f) => preprocessedFileIds.includes(f.id) && f.url === part.image_url?.url
+                  );
+                  return !matchesPreprocessed;
+                }
+
+                // Keep all other content types
+                return true;
+              }),
             };
           }
         }
