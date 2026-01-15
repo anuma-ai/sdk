@@ -1581,6 +1581,8 @@ export function useChatStorage(
           if (preprocessingResult.extractedContent) {
             fileContextForRequest = preprocessingResult.extractedContent;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
+            console.log('[Preprocessing] Preprocessed file IDs:', preprocessedFileIds);
+            console.log('[Preprocessing] Extracted content length:', fileContextForRequest.length);
           }
         } catch (error) {
           // Non-fatal error - log and continue without preprocessing
@@ -1636,6 +1638,7 @@ export function useChatStorage(
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
       if (fileContextForRequest) {
+        console.log('[Preprocessing] File context exists, filtering files from message');
         // Find the last user message in messagesToSend
         let lastUserMessageIndex = -1;
         for (let i = messagesToSend.length - 1; i >= 0; i--) {
@@ -1647,6 +1650,7 @@ export function useChatStorage(
 
         if (lastUserMessageIndex !== -1) {
           const lastUserMessage = messagesToSend[lastUserMessageIndex];
+          console.log('[Preprocessing] Last user message content parts:', lastUserMessage.content?.length);
           if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
             // Remove only the files that were actually preprocessed
             // Keep images and other files that weren't processed (e.g., for vision)
@@ -1659,7 +1663,9 @@ export function useChatStorage(
                 // For input_file parts, check if this specific file was preprocessed
                 if (part.type === "input_file" && part.file) {
                   const fileId = part.file.file_id;
-                  return !fileId || !preprocessedFileIds.includes(fileId);
+                  const shouldKeep = !fileId || !preprocessedFileIds.includes(fileId);
+                  console.log('[Preprocessing] input_file part, file_id:', fileId, 'shouldKeep:', shouldKeep);
+                  return shouldKeep;
                 }
 
                 // For image_url parts, check if the URL matches a preprocessed file
