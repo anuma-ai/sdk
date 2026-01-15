@@ -1564,38 +1564,21 @@ export function useChatStorage(
         };
       }
       const contentForStorage = extracted.content; // Original content for DB storage
-      let contentForApi = extracted.content; // Content with extracted text for API
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
-      // Preprocess files if present
+      // Preprocess files if present to generate file context
+      let fileContextForRequest: string | undefined;
       if (filesForStorage && filesForStorage.length > 0) {
         try {
-          console.log("[useChatStorage] Preprocessing files:", filesForStorage.map(f => ({
-            name: f.name,
-            type: f.type,
-            size: f.size,
-            hasUrl: !!f.url,
-            urlPreview: f.url?.substring(0, 50),
-          })));
           const preprocessingResult = await preprocessFiles(filesForStorage, {
             processors: fileProcessors,
             ...fileProcessingOptions,
           });
 
-          console.log("[useChatStorage] Preprocessing result:", {
-            hasExtractedContent: !!preprocessingResult.extractedContent,
-            extractedContentLength: preprocessingResult.extractedContent?.length,
-            extractedContentPreview: preprocessingResult.extractedContent?.substring(0, 200),
-            metadata: preprocessingResult.metadata,
-          });
-
-          // Prepend extracted content to API message only (not stored in DB)
+          // Store extracted content as file context (will be injected as system message)
           if (preprocessingResult.extractedContent) {
-            contentForApi = `${preprocessingResult.extractedContent}\n\n---\n\n${contentForStorage}`;
-            console.log("[useChatStorage] Prepended extracted content for API. Original length:", contentForStorage.length, "API content length:", contentForApi.length);
-          } else {
-            console.log("[useChatStorage] No extracted content to prepend");
+            fileContextForRequest = preprocessingResult.extractedContent;
           }
         } catch (error) {
           // Non-fatal error - log and continue without preprocessing
@@ -1628,6 +1611,19 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // Collect file context from conversation history if we don't have it from current message
+        // Look for the most recent message with extracted file content (stored in thinking field)
+        if (!fileContextForRequest) {
+          for (let i = limitedMessages.length - 1; i >= 0; i--) {
+            const msg = limitedMessages[i];
+            if (msg.thinking && msg.thinking.startsWith("[Extracted content from ")) {
+              fileContextForRequest = msg.thinking;
+              break;
+            }
+          }
+        }
+
         // Convert stored messages to API format
         const historyMessages = limitedMessages.map(storedToLlmapiMessage);
         messagesToSend = [...historyMessages, ...messages];
@@ -1636,14 +1632,9 @@ export function useChatStorage(
         messagesToSend = [...messages];
       }
 
-      // If we preprocessed files and have extracted content, update the last user message
-      // to include the extracted content and remove the file attachments (since we're sending text instead)
-      if (filesForStorage && filesForStorage.length > 0 && contentForApi !== extracted.content) {
-        console.log("[useChatStorage] Updating message with preprocessed content");
-        console.log("[useChatStorage] contentForApi length:", contentForApi.length);
-        console.log("[useChatStorage] extracted.content length:", extracted.content.length);
-
-        // Find the last user message in messagesToSend (search from end)
+      // If we have file context, remove file attachments from the user message to avoid sending large base64 data
+      if (fileContextForRequest) {
+        // Find the last user message in messagesToSend
         let lastUserMessageIndex = -1;
         for (let i = messagesToSend.length - 1; i >= 0; i--) {
           if (messagesToSend[i].role === "user") {
@@ -1652,42 +1643,18 @@ export function useChatStorage(
           }
         }
 
-        console.log("[useChatStorage] Last user message index:", lastUserMessageIndex);
-
         if (lastUserMessageIndex !== -1) {
           const lastUserMessage = messagesToSend[lastUserMessageIndex];
-          console.log("[useChatStorage] Last user message before update:", lastUserMessage);
-
-          // Update the message: replace text content with extracted content for API
-          // but keep original content for DB storage
           if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
+            // Remove input_file and image_url parts (files that were preprocessed)
             messagesToSend[lastUserMessageIndex] = {
               ...lastUserMessage,
-              content: lastUserMessage.content
-                .map((part) => {
-                  if (part.type === "text") {
-                    // Update text with preprocessed content for API call
-                    return {
-                      ...part,
-                      text: contentForApi,
-                    };
-                  }
-                  // Remove file content parts (input_file, image_url) for preprocessed files
-                  // Keep other content types (e.g., images that weren't preprocessed)
-                  if (part.type === "input_file" || part.type === "image_url") {
-                    console.log("[useChatStorage] Removing file content part:", part.type);
-                    return null; // Will be filtered out
-                  }
-                  return part;
-                })
-                .filter((part): part is NonNullable<typeof part> => part !== null),
+              content: lastUserMessage.content.filter(
+                (part) => part.type !== "input_file" && part.type !== "image_url"
+              ),
             };
-
-            console.log("[useChatStorage] Last user message after update:", messagesToSend[lastUserMessageIndex]);
           }
         }
-      } else {
-        console.log("[useChatStorage] NOT updating message. filesForStorage:", !!filesForStorage, "length:", filesForStorage?.length, "contentForApi !== extracted.content:", contentForApi !== extracted.content);
       }
 
       // Store the user message
@@ -1709,6 +1676,8 @@ export function useChatStorage(
           content: contentForStorage,
           files: sanitizedFiles,
           model,
+          // Store extracted file content in thinking field for retrieval in follow-up messages
+          thinking: fileContextForRequest,
         });
       } catch (err) {
         return {
@@ -1729,6 +1698,7 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
+        fileContext: fileContextForRequest,
         // Responses API options
         temperature,
         maxOutputTokens,

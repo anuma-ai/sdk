@@ -289,6 +289,13 @@ export interface BaseSendMessageWithStorageArgs {
   searchContext?: string;
 
   /**
+   * Additional context from preprocessed file attachments.
+   * Contains extracted text from Excel, Word, PDF, and other document files.
+   * Injected as a system message so it's available throughout the conversation.
+   */
+  fileContext?: string;
+
+  /**
    * Search sources to attach to the stored message for citation/reference.
    * These are combined with any sources extracted from the assistant's response.
    */
