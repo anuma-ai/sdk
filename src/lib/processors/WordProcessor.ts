@@ -41,8 +41,8 @@ export class WordProcessor implements FileProcessor {
    * Convert data URL to ArrayBuffer
    */
   private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    // Handle both data URLs and blob URLs
-    if (dataUrl.startsWith("blob:")) {
+    // Handle blob URLs and HTTPS URLs via fetch
+    if (dataUrl.startsWith("blob:") || dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) {
       const response = await fetch(dataUrl);
       return response.arrayBuffer();
     }
