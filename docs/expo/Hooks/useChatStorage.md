@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L155)
+Defined in: [src/expo/useChatStorage.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L170)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -34,6 +34,26 @@ API-based chat completions. Local chat and client-side tools are not available.
 <td>
 
 Configuration options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.apiType?`
+
+</td>
+<td>
+
+`ApiType`
+
+</td>
+<td>
+
+Which API endpoint to use. Default: "responses"
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)
 
 </td>
 </tr>

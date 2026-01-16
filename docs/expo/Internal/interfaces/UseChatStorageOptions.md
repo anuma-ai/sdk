@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L72)
+Defined in: [src/expo/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L73)
 
 Options for useChatStorage hook (Expo version)
 
@@ -11,6 +11,19 @@ Uses the base options without React-specific features (no local chat, no tools).
 * `BaseUseChatStorageOptions`
 
 ## Properties
+
+### apiType?
+
+> `optional` **apiType**: `ApiType`
+
+Defined in: [src/expo/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L79)
+
+Which API endpoint to use. Default: "responses"
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)
+
+***
 
 ### autoCreateConversation?
 
