@@ -1,4 +1,18 @@
 import type { StoredMemory } from "../db/memory";
+import { isEncrypted } from "../db/memory/encryption";
+
+/**
+ * Checks if a memory still has encrypted fields after decryption attempts.
+ * If any key field is still encrypted, the memory belongs to another user
+ * and should be filtered out from context.
+ */
+function isMemoryEncrypted(memory: StoredMemory): boolean {
+  return (
+    isEncrypted(memory.namespace) ||
+    isEncrypted(memory.key) ||
+    isEncrypted(memory.value)
+  );
+}
 
 /**
  * Format memories into a context string that can be included in chat messages
@@ -10,14 +24,17 @@ export const formatMemoriesForChat = (
   memories: Array<StoredMemory & { similarity?: number }>,
   format: "compact" | "detailed" = "compact"
 ): string => {
-  if (memories.length === 0) {
+  // Filter out memories that couldn't be decrypted (belong to other users)
+  const decryptedMemories = memories.filter(m => !isMemoryEncrypted(m));
+  
+  if (decryptedMemories.length === 0) {
     return "";
   }
 
   const sections: string[] = [];
 
-  const byNamespace = new Map<string, typeof memories>();
-  for (const memory of memories) {
+  const byNamespace = new Map<string, typeof decryptedMemories>();
+  for (const memory of decryptedMemories) {
     if (!byNamespace.has(memory.namespace)) {
       byNamespace.set(memory.namespace, []);
     }
