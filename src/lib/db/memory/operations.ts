@@ -326,9 +326,9 @@ export async function saveMemoryOp(
     }
 
     // Step 2: Check for conflicting memory by composite key (same namespace:key, different value)
-    // Only check for conflicts if memory is singular (opts.singular !== false)
+    // Only check for conflicts if memory is explicitly singular (opts.singular === true)
     // Non-singular memories (likes, preferences) should accumulate, not replace
-    if (opts.singular !== false) {
+    if (opts.singular === true) {
       let conflicting = await ctx.memoriesCollection
         .query(Q.where("composite_key", compositeKey), Q.where("is_deleted", false))
         .fetch();
