@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:337](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L337)
+Defined in: [src/react/useChatStorage.ts:338](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L338)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:352](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L352)
+Defined in: [src/react/useChatStorage.ts:353](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L353)
 
 Override the API type for this specific request.
 
@@ -63,7 +63,7 @@ File metadata is stored with the message (URLs are stripped if they're data URIs
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L343)
+Defined in: [src/react/useChatStorage.ts:344](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L344)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -429,7 +429,7 @@ Tools enable the model to call functions, search, execute code, etc.
 
 > `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: `object`) => `Promise`<`string`>
 
-Defined in: [src/react/useChatStorage.ts:367](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L367)
+Defined in: [src/react/useChatStorage.ts:368](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L368)
 
 Function to write files to storage (for MCP image processing).
 When provided, MCP-generated images in the response are automatically
