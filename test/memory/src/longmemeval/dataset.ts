@@ -157,7 +157,7 @@ export function getDatasetStats(dataset: LongMemEvalDataset): {
   return {
     totalEntries: dataset.length,
     questionTypes,
-    avgSessionsPerEntry: totalSessions / dataset.length,
-    avgMessagesPerSession: totalMessages / totalSessions,
+    avgSessionsPerEntry: dataset.length > 0 ? totalSessions / dataset.length : 0,
+    avgMessagesPerSession: totalSessions > 0 ? totalMessages / totalSessions : 0,
   };
 }
