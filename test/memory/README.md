@@ -61,7 +61,7 @@ PORTAL_API_KEY=your-api-key-here
 
 The framework uses cached real embeddings to avoid API calls during testing:
 
-- **Model**: `openai/text-embedding-3-small`
+- **Model**: `fireworks/accounts/fireworks/models/qwen3-embedding-8b`
 - **Dimension**: 1536
 - **Similarity range**: 0.02 - 0.58 (realistic)
 - **Threshold**: 0.2 (optimized for real embeddings)

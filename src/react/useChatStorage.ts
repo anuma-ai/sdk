@@ -47,6 +47,7 @@ import {
   FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
+import { preprocessFiles } from "../lib/processors";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -484,10 +485,13 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
     walletAddress,
+    fileProcessors,
+    fileProcessingOptions,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -534,6 +538,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
@@ -623,7 +628,11 @@ export function useChatStorage(
       });
 
       // If wallet address is provided, resolve file placeholders to blob URLs
-      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+      if (
+        walletAddress &&
+        hasEncryptionKey(walletAddress) &&
+        isOPFSSupported()
+      ) {
         try {
           const encryptionKey = await getEncryptionKey(walletAddress);
           const blobManager = blobManagerRef.current;
@@ -698,18 +707,24 @@ export function useChatStorage(
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
                 // Escape the placeholder for use in regex
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const escapedPlaceholder = placeholder.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                );
                 // Create a non-global regex for this specific placeholder
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
                 // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
-                
+
                 // eslint-disable-next-line no-console
                 console.log(
                   `[getMessages] Replacing ${placeholder} with: ${replacement}`
                 );
-                
-                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+
+                resolvedContent = resolvedContent.replace(
+                  placeholderRegex,
+                  replacement
+                );
               }
 
               // eslint-disable-next-line no-console
@@ -724,7 +739,10 @@ export function useChatStorage(
           return resolvedMessages;
         } catch (error) {
           // eslint-disable-next-line no-console
-          console.error("[useChatStorage] Failed to resolve file placeholders:", error);
+          console.error(
+            "[useChatStorage] Failed to resolve file placeholders:",
+            error
+          );
           // Return messages without resolving placeholders
           return messages;
         }
@@ -823,7 +841,8 @@ export function useChatStorage(
         // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
         // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        const jsonBlockRegex =
+          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
         let jsonMatch: RegExpExecArray | null;
         let foundJsonSources = false;
 
@@ -840,7 +859,8 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet: source.description || source.snippet || undefined,
+                      snippet:
+                        source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -982,8 +1002,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1242,13 +1264,17 @@ export function useChatStorage(
         // Check prerequisites
         if (!isOPFSSupported()) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] OPFS not supported");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] OPFS not supported"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] Encryption key not available");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] Encryption key not available"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
@@ -1297,8 +1323,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1332,9 +1360,13 @@ export function useChatStorage(
               const blob = await response.blob();
               const fileId = crypto.randomUUID();
               const urlPath = imageUrl.split("?")[0] ?? imageUrl;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${fileId.slice(0, 8)}.${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${fileId.slice(
+                0,
+                8
+              )}.${extension}`;
 
               // Encrypt and store in OPFS
               await writeEncryptedFile(fileId, blob, encryptionKey, {
@@ -1451,7 +1483,10 @@ export function useChatStorage(
                 placeholder
               );
               replacementCount += rawMatches.length;
-              cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+              cleanedContent = cleanedContent.replace(
+                rawUrlPattern,
+                placeholder
+              );
             }
 
             // eslint-disable-next-line no-console
@@ -1482,7 +1517,10 @@ export function useChatStorage(
             }
           } else {
             // eslint-disable-next-line no-console
-            console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
+            console.error(
+              "[extractAndStoreEncryptedMCPImages] Failed:",
+              result.reason
+            );
           }
         });
 
@@ -1491,7 +1529,10 @@ export function useChatStorage(
         return { processedFiles, cleanedContent };
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[extractAndStoreEncryptedMCPImages] Unexpected error:", err);
+        console.error(
+          "[extractAndStoreEncryptedMCPImages] Unexpected error:",
+          err
+        );
         return { processedFiles: [], cleanedContent: content };
       }
     },
@@ -1518,9 +1559,6 @@ export function useChatStorage(
         sources,
         thoughtProcess,
         // Responses API options
-        store,
-        previousResponseId,
-        serverConversation,
         temperature,
         maxOutputTokens,
         tools,
@@ -1540,9 +1578,32 @@ export function useChatStorage(
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content;
+      const contentForStorage = extracted.content; // Original content for DB storage
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
+
+      // Preprocess files if present to generate file context
+      let fileContextForRequest: string | undefined;
+      let preprocessedFileIds: string[] = [];
+      if (filesForStorage && filesForStorage.length > 0) {
+        try {
+          const preprocessingResult = await preprocessFiles(filesForStorage, {
+            processors: fileProcessors,
+            ...fileProcessingOptions,
+          });
+
+          // Store extracted content as file context (will be injected as system message)
+          if (preprocessingResult.extractedContent) {
+            fileContextForRequest = preprocessingResult.extractedContent;
+            preprocessedFileIds = preprocessingResult.preprocessedFileIds;
+            console.log('[Preprocessing] Preprocessed file IDs:', preprocessedFileIds);
+            console.log('[Preprocessing] Extracted content length:', fileContextForRequest.length);
+          }
+        } catch (error) {
+          // Non-fatal error - log and continue without preprocessing
+          console.error("File preprocessing error:", error);
+        }
+      }
 
       // Ensure we have a conversation
       let convId: string;
@@ -1569,12 +1630,75 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // Collect file context from conversation history if we don't have it from current message
+        // Look for the most recent message with extracted file content (stored in thinking field)
+        if (!fileContextForRequest) {
+          for (let i = limitedMessages.length - 1; i >= 0; i--) {
+            const msg = limitedMessages[i];
+            if (msg.thinking && msg.thinking.startsWith("[Extracted content from ")) {
+              fileContextForRequest = msg.thinking;
+              break;
+            }
+          }
+        }
+
         // Convert stored messages to API format
         const historyMessages = limitedMessages.map(storedToLlmapiMessage);
         messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
+      }
+
+      // If we have file context, remove file attachments from the user message to avoid sending large base64 data
+      if (fileContextForRequest) {
+        console.log('[Preprocessing] File context exists, filtering files from message');
+        // Find the last user message in messagesToSend
+        let lastUserMessageIndex = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserMessageIndex = i;
+            break;
+          }
+        }
+
+        if (lastUserMessageIndex !== -1) {
+          const lastUserMessage = messagesToSend[lastUserMessageIndex];
+          console.log('[Preprocessing] Last user message content parts:', lastUserMessage.content?.length);
+          if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
+            // Remove only the files that were actually preprocessed
+            // Keep images and other files that weren't processed (e.g., for vision)
+            messagesToSend[lastUserMessageIndex] = {
+              ...lastUserMessage,
+              content: lastUserMessage.content.filter((part) => {
+                // Keep text parts
+                if (part.type === "text") return true;
+
+                // For input_file parts, check if this specific file was preprocessed
+                if (part.type === "input_file" && part.file) {
+                  const fileId = part.file.file_id;
+                  const shouldKeep = !fileId || !preprocessedFileIds.includes(fileId);
+                  console.log('[Preprocessing] input_file part, file_id:', fileId, 'shouldKeep:', shouldKeep);
+                  return shouldKeep;
+                }
+
+                // For image_url parts, check if the URL matches a preprocessed file
+                if (part.type === "image_url" && part.image_url?.url) {
+                  // Only remove if this specific image was preprocessed
+                  // Images without matching IDs are kept for vision
+                  const matchesPreprocessed = filesForStorage?.some(
+                    (f) => preprocessedFileIds.includes(f.id) && f.url === part.image_url?.url
+                  );
+                  return !matchesPreprocessed;
+                }
+
+                // Keep all other content types
+                return true;
+              }),
+            };
+          }
+        }
       }
 
       // Store the user message
@@ -1603,6 +1727,8 @@ export function useChatStorage(
           content: contentForStorage,
           files: sanitizedFiles,
           model,
+          // Store extracted file content in thinking field for retrieval in follow-up messages
+          thinking: fileContextForRequest,
         });
         // eslint-disable-next-line no-console
         console.log("[SDK useChatStorage] User message stored successfully", {
@@ -1630,10 +1756,8 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
+        fileContext: fileContextForRequest,
         // Responses API options
-        store,
-        previousResponseId,
-        conversation: serverConversation,
         temperature,
         maxOutputTokens,
         tools,
@@ -1772,8 +1896,11 @@ export function useChatStorage(
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      const jsonSourcesBlockRegex =
+        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
+      let cleanedContent = assistantContent
+        .replace(jsonSourcesBlockRegex, "")
+        .trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
@@ -1857,7 +1984,14 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, walletAddress, extractAndStoreEncryptedMCPImages]
+    [
+      ensureConversation,
+      getMessages,
+      storageCtx,
+      baseSendMessage,
+      walletAddress,
+      extractAndStoreEncryptedMCPImages,
+    ]
   );
 
   /**

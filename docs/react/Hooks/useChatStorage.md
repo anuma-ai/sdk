@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:476](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L476)
+Defined in: [src/react/useChatStorage.ts:477](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L477)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -146,6 +146,112 @@ Title for auto-created conversations (default: "New conversation")
 <tr>
 <td>
 
+`options.fileProcessingOptions?`
+
+</td>
+<td>
+
+{ `keepOriginalFiles?`: `boolean`; `maxFileSizeBytes?`: `number`; `onError?`: (`fileName`: `string`, `error`: `Error`) => `void`; `onProgress?`: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`; }
+
+</td>
+<td>
+
+Options for file preprocessing behavior
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.keepOriginalFiles?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Whether to keep original file attachments (default: true)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.maxFileSizeBytes?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Max file size to process in bytes (default: 10MB)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.onError?`
+
+</td>
+<td>
+
+(`fileName`: `string`, `error`: `Error`) => `void`
+
+</td>
+<td>
+
+Callback for errors (non-fatal)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.onProgress?`
+
+</td>
+<td>
+
+(`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
+
+</td>
+<td>
+
+Callback for progress updates
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessors?`
+
+</td>
+<td>
+
+`any`\[] | `null`
+
+</td>
+<td>
+
+File preprocessors to use for automatic text extraction.
+
+* undefined (default): Use all built-in processors (PDF, Excel, Word)
+* null or \[]: Disable preprocessing
+* FileProcessor\[]: Use specific processors
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.getToken?`
 
 </td>
@@ -208,6 +314,23 @@ Callback invoked when an error occurs during the request
 <td>
 
 Callback invoked when the response completes successfully
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onThinking?`
+
+</td>
+<td>
+
+(`chunk`: `string`) => `void`
+
+</td>
+<td>
+
+Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
 
 </td>
 </tr>

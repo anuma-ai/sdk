@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:266](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L266)
+Defined in: [src/react/useChatStorage.ts:267](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L267)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:272](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L272)
+Defined in: [src/react/useChatStorage.ts:273](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L273)
 
 Which API endpoint to use. Default: "responses"
 
@@ -95,6 +95,156 @@ Title for auto-created conversations (default: "New conversation")
 
 ***
 
+### fileProcessingOptions?
+
+> `optional` **fileProcessingOptions**: `object`
+
+Defined in: [src/lib/db/chat/types.ts:184](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L184)
+
+Options for file preprocessing behavior
+
+**keepOriginalFiles?**
+
+> `optional` **keepOriginalFiles**: `boolean`
+
+Whether to keep original file attachments (default: true)
+
+**maxFileSizeBytes?**
+
+> `optional` **maxFileSizeBytes**: `number`
+
+Max file size to process in bytes (default: 10MB)
+
+**onError()?**
+
+> `optional` **onError**: (`fileName`: `string`, `error`: `Error`) => `void`
+
+Callback for errors (non-fatal)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`fileName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`error`
+
+</td>
+<td>
+
+`Error`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**onProgress()?**
+
+> `optional` **onProgress**: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
+
+Callback for progress updates
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`current`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`total`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`fileName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.fileProcessingOptions`
+
+***
+
+### fileProcessors?
+
+> `optional` **fileProcessors**: `any`\[] | `null`
+
+Defined in: [src/lib/db/chat/types.ts:180](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L180)
+
+File preprocessors to use for automatic text extraction.
+
+* undefined (default): Use all built-in processors (PDF, Excel, Word)
+* null or \[]: Disable preprocessing
+* FileProcessor\[]: Use specific processors
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.fileProcessors`
+
+***
+
 ### getToken()?
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
@@ -160,7 +310,7 @@ Callback invoked with each streamed response chunk
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L171)
+Defined in: [src/lib/db/chat/types.ts:173](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L173)
 
 Callback invoked when an error occurs during the request
 
@@ -203,7 +353,7 @@ Callback invoked when an error occurs during the request
 
 > `optional` **onFinish**: (`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L169)
+Defined in: [src/lib/db/chat/types.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L171)
 
 Callback invoked when the response completes successfully
 
@@ -242,11 +392,54 @@ Callback invoked when the response completes successfully
 
 ***
 
+### onThinking()?
+
+> `optional` **onThinking**: (`chunk`: `string`) => `void`
+
+Defined in: [src/lib/db/chat/types.ts:169](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L169)
+
+Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`chunk`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.onThinking`
+
+***
+
 ### walletAddress?
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:285](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L285)
+Defined in: [src/react/useChatStorage.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L286)
 
 Wallet address for encrypted file storage.
 When provided, MCP-generated images are automatically encrypted and stored

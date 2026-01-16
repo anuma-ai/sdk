@@ -42,6 +42,11 @@ type SendMessageArgs = BaseSendMessageArgs & {
    */
   searchContext?: string;
   /**
+   * File context to inject as a system message.
+   * This is typically extracted text from preprocessed file attachments.
+   */
+  fileContext?: string;
+  /**
    * Per-request callback for thinking/reasoning chunks. Called in addition to the global
    * `onThinking` callback if provided in `useChat` options.
    *
@@ -174,10 +179,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       headers,
       memoryContext,
       searchContext,
+      fileContext,
       // Responses API options
-      store,
-      previousResponseId,
-      conversation,
       temperature,
       maxOutputTokens,
       tools,
@@ -237,6 +240,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         messagesWithContext = [searchSystemMessage, ...messagesWithContext];
       }
 
+      if (fileContext) {
+        const fileSystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: "IMPORTANT: The user has attached files to this conversation. The extracted file contents are shown below. When the user asks about \"the file\", \"this file\", or \"what's in the file\", refer to this content:\n\n" + fileContext,
+            },
+          ],
+        };
+        messagesWithContext = [fileSystemMessage, ...messagesWithContext];
+      }
+
       // Check if aborted before proceeding to chat
       if (abortController.signal.aborted) {
         setIsLoading(false);
@@ -293,9 +309,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           maxOutputTokens,
           tools: apiTools,
           toolChoice,
-          store,
-          previousResponseId,
-          conversation,
           reasoning,
           thinking,
         });
@@ -546,9 +559,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               maxOutputTokens,
               tools: apiTools,
               toolChoice,
-              store,
-              previousResponseId,
-              conversation,
               reasoning,
               thinking,
             });
