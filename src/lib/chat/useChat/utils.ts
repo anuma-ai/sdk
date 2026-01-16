@@ -257,7 +257,12 @@ export function parseReasoningTags(
       // Model uses explicit tags
       implicitReasoningStart = false;
     }
-    // If neither tag found yet, keep implicitReasoningStart as undefined
+  } else if (implicitReasoningStart === true) {
+    // For known implicit reasoning models (like Qwen), trust the wasInsideReasoning state.
+    // This handles both initial requests and continuation requests after tool calls.
+    // Each new accumulator starts with insideReasoning=true, meaning we expect thinking
+    // content until we see </think>
+    insideReasoning = wasInsideReasoning;
   }
 
   // Check if previous partial indicates we're already inside reasoning
@@ -470,6 +475,8 @@ export function createStreamAccumulator(
 ): StreamAccumulator {
   // Check if this model uses implicit reasoning start
   // For these models, we assume we're inside reasoning until we see </think>
+  // This applies to both initial requests AND continuation requests (after tool calls),
+  // since models like Qwen continue thinking in each response without <think> tags
   const implicitReasoning = isImplicitReasoningModel(initialModel);
 
   return {

@@ -38,6 +38,17 @@ type CompletionsStreamingChunk = {
         };
       }>;
     };
+    // Some APIs use "messages" instead of "message" for tool calls
+    messages?: {
+      tool_calls?: Array<{
+        id?: string;
+        type?: string;
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }>;
+    };
     finish_reason?: string | null;
   }>;
   usage?: {
@@ -132,7 +143,8 @@ export class CompletionsStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart =
+              parseResult.implicitReasoningStart;
           }
 
           // Emit deltas
@@ -184,14 +196,45 @@ export class CompletionsStrategy implements ApiStrategy {
         }
       }
 
+      // Handle tool calls from alternate "messages" format (some APIs use this instead of "message")
+      if (choice.messages?.tool_calls) {
+        for (let i = 0; i < choice.messages.tool_calls.length; i++) {
+          const toolCall = choice.messages.tool_calls[i];
+          const toolKey = `tool_${i}`;
+          accumulator.toolCalls.set(toolKey, {
+            id: toolCall.id || `tool_${i}`,
+            type: toolCall.type || "function",
+            name: toolCall.function?.name || "",
+            arguments: toolCall.function?.arguments || "",
+            status: "completed",
+          });
+        }
+
+        // For implicit reasoning models (like Qwen), tool calls trigger a new
+        // reasoning phase. Only re-enable reasoning mode if this model was
+        // already detected as using implicit reasoning (no opening <think> tag).
+        if (accumulator.implicitReasoningStart === true) {
+          accumulator.insideReasoning = true;
+        }
+      }
+
       // Handle non-streaming message format (final response)
       if (choice.message) {
         if (choice.message.content) {
+          // For final message with full content, if this is an implicit reasoning model,
+          // we should parse from the beginning assuming we're inside reasoning.
+          // This is because:
+          // 1. The final message contains the COMPLETE response (not a delta)
+          // 2. Streaming deltas may have already modified accumulator.insideReasoning
+          // 3. For implicit reasoning models, the full content starts with thinking
+          const shouldStartInsideReasoning =
+            accumulator.implicitReasoningStart === true;
+
           // Parse reasoning tags from final message content
           const parseResult = parseReasoningTags(
             choice.message.content,
-            accumulator.partialReasoningTag || "",
-            accumulator.insideReasoning || false,
+            "", // Reset partial tag since this is the full message
+            shouldStartInsideReasoning,
             undefined,
             accumulator.implicitReasoningStart
           );
@@ -201,7 +244,8 @@ export class CompletionsStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart =
+              parseResult.implicitReasoningStart;
           }
 
           // For non-streaming, we always emit the final content (reasoning is already separated)
@@ -263,7 +307,9 @@ export class CompletionsStrategy implements ApiStrategy {
       const finalParse = parseReasoningTags(
         "",
         accumulator.partialReasoningTag,
-        accumulator.insideReasoning || false
+        accumulator.insideReasoning || false,
+        undefined,
+        accumulator.implicitReasoningStart
       );
       finalContent += finalParse.messageContent;
       if (finalParse.reasoningContent) {
