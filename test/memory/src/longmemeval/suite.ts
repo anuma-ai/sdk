@@ -745,10 +745,15 @@ export async function runLongMemEval(
     byQuestionType,
     retrieval: {
       avgPrecision:
-        results.reduce((sum, r) => sum + r.retrievalPrecision, 0) /
-        results.length,
+        results.length > 0
+          ? results.reduce((sum, r) => sum + r.retrievalPrecision, 0) /
+            results.length
+          : 0,
       avgRecall:
-        results.reduce((sum, r) => sum + r.retrievalRecall, 0) / results.length,
+        results.length > 0
+          ? results.reduce((sum, r) => sum + r.retrievalRecall, 0) /
+            results.length
+          : 0,
     },
     latency: {
       p50: latencyStats.p50,
