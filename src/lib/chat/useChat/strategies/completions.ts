@@ -196,9 +196,26 @@ export class CompletionsStrategy implements ApiStrategy {
         }
       }
 
+      // Handle tool calls from alternate "messages" format (some APIs use this instead of "message")
       if (choice.messages?.tool_calls) {
-        accumulator.implicitReasoningStart = true;
-        accumulator.insideReasoning = true;
+        for (let i = 0; i < choice.messages.tool_calls.length; i++) {
+          const toolCall = choice.messages.tool_calls[i];
+          const toolKey = `tool_${i}`;
+          accumulator.toolCalls.set(toolKey, {
+            id: toolCall.id || `tool_${i}`,
+            type: toolCall.type || "function",
+            name: toolCall.function?.name || "",
+            arguments: toolCall.function?.arguments || "",
+            status: "completed",
+          });
+        }
+
+        // For implicit reasoning models (like Qwen), tool calls trigger a new
+        // reasoning phase. Only re-enable reasoning mode if this model was
+        // already detected as using implicit reasoning (no opening <think> tag).
+        if (accumulator.implicitReasoningStart === true) {
+          accumulator.insideReasoning = true;
+        }
       }
 
       // Handle non-streaming message format (final response)
