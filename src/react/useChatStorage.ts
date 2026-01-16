@@ -34,6 +34,7 @@ import {
   updateMessageErrorOp,
   updateMessageOp,
   searchMessagesOp,
+  claimOrphanDataOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -545,6 +546,23 @@ export function useChatStorage(
     }),
     [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
+
+  // Claim orphan data (data with empty wallet_address) when encryption context is available
+  useEffect(() => {
+    if (walletAddress && signMessage) {
+      claimOrphanDataOp(storageCtx, walletAddress).then((result) => {
+        if (result.conversations > 0 || result.messages > 0) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[useChatStorage] Migrated ${result.conversations} conversations, ${result.messages} messages to wallet ${walletAddress}`
+          );
+        }
+      }).catch((error) => {
+        // eslint-disable-next-line no-console
+        console.warn("[useChatStorage] Failed to claim orphan data:", error);
+      });
+    }
+  }, [storageCtx, walletAddress, signMessage]);
 
   // Use the underlying useChat hook
   const {

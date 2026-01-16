@@ -164,7 +164,7 @@ export const sdkSchema = appSchema({
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
  * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
- * - v9 → v10: Added `wallet_address` columns to history and conversations tables (BREAKING - clears existing chat data)
+ * - v9 → v10: Added `wallet_address` columns to history and conversations tables (existing data preserved with empty wallet_address, claimed by first user)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -253,12 +253,15 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v9 -> v10: Added wallet_address columns to history and conversations (BREAKING - clears existing chat data)
+    // v9 -> v10: Added wallet_address columns to history and conversations
+    // Existing data is preserved with empty wallet_address, to be claimed by first user who logs in
     {
       toVersion: 10,
       steps: [
-        unsafeExecuteSql("DELETE FROM history;"),
-        unsafeExecuteSql("DELETE FROM conversations;"),
+        // Set existing records to empty string (orphan marker) - this is a safeguard
+        // New columns added via addColumns will default to empty string for existing rows
+        unsafeExecuteSql("UPDATE history SET wallet_address = '' WHERE wallet_address IS NULL;"),
+        unsafeExecuteSql("UPDATE conversations SET wallet_address = '' WHERE wallet_address IS NULL;"),
         addColumns({
           table: "history",
           columns: [{ name: "wallet_address", type: "string", isIndexed: true }],

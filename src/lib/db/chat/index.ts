@@ -42,4 +42,5 @@ export {
   updateMessageOp,
   searchMessagesOp,
   getMessagesWithEmbeddingsOp,
+  claimOrphanDataOp,
 } from "./operations";

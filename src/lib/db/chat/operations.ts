@@ -620,3 +620,118 @@ export async function getMessagesWithEmbeddingsOp(
 
   return Promise.all(filteredMessages.map(msg => messageToStored(msg, ctx)));
 }
+
+/**
+ * Claims orphan data (data with empty wallet_address) and assigns it to the given wallet address.
+ * Encrypts all sensitive fields during the claiming process.
+ * 
+ * This is used during migration from pre-wallet versions to assign existing data
+ * to the first user who logs in after the migration.
+ * 
+ * @param ctx - Storage operations context
+ * @param walletAddress - The wallet address to assign orphan data to
+ * @returns Object with counts of claimed conversations and messages
+ */
+export async function claimOrphanDataOp(
+  ctx: StorageOperationsContext,
+  walletAddress: string
+): Promise<{ conversations: number; messages: number }> {
+  if (!ctx.walletAddress || !ctx.signMessage) {
+    // Cannot claim orphan data without encryption context
+    return { conversations: 0, messages: 0 };
+  }
+
+  // Find orphan conversations (wallet_address = "")
+  const orphanConvs = await ctx.conversationsCollection
+    .query(Q.where("wallet_address", ""))
+    .fetch();
+  
+  // Find orphan messages
+  const orphanMsgs = await ctx.messagesCollection
+    .query(Q.where("wallet_address", ""))
+    .fetch();
+  
+  if (orphanConvs.length === 0 && orphanMsgs.length === 0) {
+    return { conversations: 0, messages: 0 };
+  }
+
+  await ctx.database.write(async () => {
+    // Claim and encrypt conversations
+    for (const conv of orphanConvs) {
+      const encrypted = await encryptConversationFields(
+        { conversationId: conv.conversationId, title: conv.title },
+        walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+      await conv.update((c) => {
+        c._setRaw("wallet_address", walletAddress);
+        c._setRaw("title", encrypted.title ?? conv.title);
+      });
+    }
+    
+    // Claim and encrypt messages
+    for (const msg of orphanMsgs) {
+      // Prepare message data for encryption
+      const messageData: CreateMessageOptions = {
+        conversationId: msg.conversationId,
+        role: msg.role,
+        content: msg.content,
+        model: msg.model,
+        files: msg.files,
+        error: msg.error,
+        thinking: msg.thinking,
+        thoughtProcess: msg.thoughtProcess,
+      };
+
+      const encrypted = await encryptMessageFields(
+        messageData,
+        walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      );
+
+      // Encrypt JSON fields (files and thoughtProcess) as strings
+      let encryptedFilesJson: string | undefined;
+      if (encrypted.files) {
+        const filesJson = JSON.stringify(encrypted.files);
+        encryptedFilesJson = await encryptJsonString(
+          filesJson,
+          walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        );
+      }
+
+      let encryptedThoughtProcessJson: string | undefined;
+      if (encrypted.thoughtProcess) {
+        const thoughtProcessJson = JSON.stringify(encrypted.thoughtProcess);
+        encryptedThoughtProcessJson = await encryptJsonString(
+          thoughtProcessJson,
+          walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        );
+      }
+
+      await msg.update((m) => {
+        m._setRaw("wallet_address", walletAddress);
+        m._setRaw("content", encrypted.content);
+        if (encryptedFilesJson !== undefined) {
+          m._setRaw("files", encryptedFilesJson);
+        }
+        if (encrypted.error !== undefined) {
+          m._setRaw("error", encrypted.error ?? "");
+        }
+        if (encrypted.thinking !== undefined) {
+          m._setRaw("thinking", encrypted.thinking ?? "");
+        }
+        if (encryptedThoughtProcessJson !== undefined) {
+          m._setRaw("thought_process", encryptedThoughtProcessJson);
+        }
+      });
+    }
+  });
+
+  return { conversations: orphanConvs.length, messages: orphanMsgs.length };
+}

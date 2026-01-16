@@ -90,8 +90,10 @@ export const chatStorageMigrations = schemaMigrations({
     {
       toVersion: 6,
       steps: [
-        unsafeExecuteSql("DELETE FROM history;"),
-        unsafeExecuteSql("DELETE FROM conversations;"),
+        // Set existing records to empty string (orphan marker) - this is a safeguard
+        // New columns added via addColumns will default to empty string for existing rows
+        unsafeExecuteSql("UPDATE history SET wallet_address = '' WHERE wallet_address IS NULL;"),
+        unsafeExecuteSql("UPDATE conversations SET wallet_address = '' WHERE wallet_address IS NULL;"),
         addColumns({
           table: "history",
           columns: [{ name: "wallet_address", type: "string", isIndexed: true }],

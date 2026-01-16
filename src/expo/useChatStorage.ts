@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
@@ -32,6 +32,7 @@ import {
   createMessageOp,
   updateMessageErrorOp,
   updateMessageOp,
+  claimOrphanDataOp,
 } from "../lib/db/chat";
 
 /**
@@ -218,6 +219,23 @@ export function useChatStorage(
     }),
     [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
+
+  // Claim orphan data (data with empty wallet_address) when encryption context is available
+  useEffect(() => {
+    if (walletAddress && signMessage) {
+      claimOrphanDataOp(storageCtx, walletAddress).then((result) => {
+        if (result.conversations > 0 || result.messages > 0) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[useChatStorage] Migrated ${result.conversations} conversations, ${result.messages} messages to wallet ${walletAddress}`
+          );
+        }
+      }).catch((error) => {
+        // eslint-disable-next-line no-console
+        console.warn("[useChatStorage] Failed to claim orphan data:", error);
+      });
+    }
+  }, [storageCtx, walletAddress, signMessage]);
 
   // Use the underlying useChat hook (Expo version - no tools, no local chat)
   const {
