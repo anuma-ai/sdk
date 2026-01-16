@@ -10,6 +10,7 @@ import {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateConversationOptions,
   type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
@@ -34,6 +35,7 @@ import {
   updateMessageErrorOp,
   updateMessageOp,
   searchMessagesOp,
+  getAllFilesOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -459,6 +461,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     uniqueId: string,
     options: UpdateMessageOptions
   ) => Promise<StoredMessage | null>;
+  /**
+   * Get all files from all conversations, sorted by creation date (newest first).
+   * Returns files with conversation context for building file browser UIs.
+   */
+  getAllFiles: (options?: {
+    conversationId?: string;
+    limit?: number;
+  }) => Promise<StoredFileWithContext[]>;
 }
 
 /**
@@ -2173,6 +2183,20 @@ export function useChatStorage(
     [storageCtx]
   );
 
+  /**
+   * Get all files from all conversations, sorted by creation date (newest first).
+   * Returns files with conversation context for building file browser UIs.
+   */
+  const getAllFiles = useCallback(
+    async (options?: {
+      conversationId?: string;
+      limit?: number;
+    }): Promise<StoredFileWithContext[]> => {
+      return getAllFilesOp(storageCtx, options);
+    },
+    [storageCtx]
+  );
+
   return {
     isLoading,
     sendMessage,
@@ -2191,5 +2215,6 @@ export function useChatStorage(
     updateMessageEmbedding,
     extractSourcesFromAssistantMessage,
     updateMessage,
+    getAllFiles,
   };
 }

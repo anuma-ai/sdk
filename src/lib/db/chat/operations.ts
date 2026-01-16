@@ -6,6 +6,7 @@ import {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
@@ -379,4 +380,67 @@ export async function getMessagesWithEmbeddingsOp(
         activeConversationIds.has(m.conversationId)
     )
     .map(messageToStored);
+}
+
+/**
+ * Get all files from all conversations, sorted by creation date (newest first).
+ * Returns files with conversation context for building file browser UIs.
+ */
+export async function getAllFilesOp(
+  ctx: StorageOperationsContext,
+  options?: {
+    /** Filter files by conversation ID */
+    conversationId?: string;
+    /** Maximum number of files to return */
+    limit?: number;
+  }
+): Promise<StoredFileWithContext[]> {
+  const { conversationId, limit } = options || {};
+
+  // Get active conversations
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => c.conversationId)
+  );
+
+  // Build query conditions
+  const queryConditions = conversationId
+    ? [Q.where("conversation_id", conversationId)]
+    : [];
+
+  // Fetch all messages, sorted by creation date descending
+  const messages = await ctx.messagesCollection
+    .query(...queryConditions, Q.sortBy("created_at", Q.desc))
+    .fetch();
+
+  // Extract files from messages
+  const filesWithContext: StoredFileWithContext[] = [];
+
+  for (const message of messages) {
+    // Skip messages from deleted conversations
+    if (!activeConversationIds.has(message.conversationId)) continue;
+
+    // Skip messages without files
+    const files = message.files;
+    if (!files || files.length === 0) continue;
+
+    // Add each file with conversation context
+    for (const file of files) {
+      filesWithContext.push({
+        ...file,
+        conversationId: message.conversationId,
+        createdAt: message.createdAt,
+        messageRole: message.role,
+      });
+    }
+
+    // Check limit
+    if (limit && filesWithContext.length >= limit) {
+      return filesWithContext.slice(0, limit);
+    }
+  }
+
+  return filesWithContext;
 }

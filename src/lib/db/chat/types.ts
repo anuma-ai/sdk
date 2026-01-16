@@ -105,6 +105,19 @@ export interface StoredMessageWithSimilarity extends StoredMessage {
   similarity: number;
 }
 
+/**
+ * File metadata with conversation context for file browsing.
+ * Extends FileMetadata with information about where the file was used.
+ */
+export interface StoredFileWithContext extends FileMetadata {
+  /** ID of the conversation where this file was attached */
+  conversationId: string;
+  /** Timestamp when the file was stored (from the message) */
+  createdAt: Date;
+  /** Role of the message that contains this file */
+  messageRole: ChatRole;
+}
+
 export interface CreateMessageOptions {
   conversationId: string;
   role: ChatRole;
