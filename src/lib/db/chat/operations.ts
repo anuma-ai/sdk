@@ -463,24 +463,20 @@ export async function updateMessageOp(
       );
       encryptedThinking = encrypted.thinking;
     }
-    if (opts.files !== undefined) {
-      const filesJson = JSON.stringify(opts.files);
-      encryptedFilesJson = await encryptJsonString(
-        filesJson,
-        ctx.walletAddress,
-        ctx.signMessage,
-        ctx.embeddedWalletSigner
-      );
-    }
-    if (opts.thoughtProcess !== undefined) {
-      const thoughtProcessJson = JSON.stringify(opts.thoughtProcess);
-      encryptedThoughtProcessJson = await encryptJsonString(
-        thoughtProcessJson,
-        ctx.walletAddress,
-        ctx.signMessage,
-        ctx.embeddedWalletSigner
-      );
-    }
+  }
+
+  // Handle JSON fields (files and thoughtProcess) - always process, encrypt if available
+  if (opts.files !== undefined) {
+    const filesJson = JSON.stringify(opts.files);
+    encryptedFilesJson = ctx.walletAddress && ctx.signMessage
+      ? await encryptJsonString(filesJson, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      : filesJson;
+  }
+  if (opts.thoughtProcess !== undefined) {
+    const thoughtProcessJson = JSON.stringify(opts.thoughtProcess);
+    encryptedThoughtProcessJson = ctx.walletAddress && ctx.signMessage
+      ? await encryptJsonString(thoughtProcessJson, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      : thoughtProcessJson;
   }
 
   await ctx.database.write(async () => {
