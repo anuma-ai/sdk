@@ -92,10 +92,13 @@ export async function loadLongMemEvalDataset(
 
   const data = await downloadDataset(variant);
 
+  // Parse before caching to avoid persisting invalid data
+  const parsed = JSON.parse(data) as LongMemEvalDataset;
+
   await writeFile(cachePath, data);
   console.log(`  Cached to: ${cachePath}`);
 
-  return JSON.parse(data) as LongMemEvalDataset;
+  return parsed;
 }
 
 /**
