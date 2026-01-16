@@ -798,29 +798,50 @@ export async function getMemoryHistoryOp(
  * Get all memories that have been superseded (historical versions).
  * Useful for viewing the audit trail of memory changes.
  *
- * @returns Array of all superseded (soft-deleted) memories that have a supersedes reference
+ * This function follows the complete supersedes chain, including chains longer
+ * than one level (e.g., A → B → C where C superseded B and B superseded A).
+ *
+ * @returns Array of all superseded (soft-deleted) memories
  */
 export async function getSupersededMemoriesOp(
   ctx: MemoryStorageOperationsContext
 ): Promise<StoredMemory[]> {
-  // Find all memories that were superseded (deleted but referenced by another memory's supersedes field)
-  const allMemories = await ctx.memoriesCollection
+  // Get all deleted memories (potential superseded candidates)
+  const deletedMemories = await ctx.memoriesCollection
     .query(Q.where("is_deleted", true))
     .fetch();
 
-  // Filter to only those that are referenced by a supersedes field
-  const supersededIds = new Set<string>();
-  const activeMemories = await ctx.memoriesCollection
-    .query(Q.where("is_deleted", false))
-    .fetch();
+  if (deletedMemories.length === 0) {
+    return [];
+  }
 
-  for (const memory of activeMemories) {
+  // Build a map of deleted memories by ID for quick lookup
+  const deletedMemoriesById = new Map<string, Memory>();
+  for (const memory of deletedMemories) {
+    deletedMemoriesById.set(memory.id, memory);
+  }
+
+  // Collect all superseded IDs by following chains from all memories with supersedes references
+  const supersededIds = new Set<string>();
+
+  // Get all memories (both active and deleted) that have a supersedes field
+  const allMemories = await ctx.memoriesCollection.query().fetch();
+
+  for (const memory of allMemories) {
     if (memory.supersedes) {
-      supersededIds.add(memory.supersedes);
+      // Follow the chain of supersedes references
+      let currentId: string | undefined = memory.supersedes;
+      while (currentId) {
+        supersededIds.add(currentId);
+        // Check if this superseded memory also supersedes another
+        const supersededMemory = deletedMemoriesById.get(currentId);
+        currentId = supersededMemory?.supersedes;
+      }
     }
   }
 
-  const supersededMemories = allMemories.filter((m) => supersededIds.has(m.id));
+  // Filter deleted memories to only those in the superseded set
+  const supersededMemories = deletedMemories.filter((m) => supersededIds.has(m.id));
 
   return Promise.all(
     supersededMemories.map((memory) =>
