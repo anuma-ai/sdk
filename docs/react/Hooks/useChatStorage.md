@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:476](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L476)
+Defined in: [src/react/useChatStorage.ts:491](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L491)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -146,6 +146,24 @@ Title for auto-created conversations (default: "New conversation")
 <tr>
 <td>
 
+`options.embeddedWalletSigner?`
+
+</td>
+<td>
+
+[`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+</td>
+<td>
+
+Optional function for silent signing with embedded wallets.
+When provided, enables automatic encryption key generation without user confirmation modals.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.getToken?`
 
 </td>
@@ -231,6 +249,25 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 <tr>
 <td>
 
+`options.signMessage?`
+
+</td>
+<td>
+
+[`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md)
+
+</td>
+<td>
+
+Function to sign a message for encryption key derivation.
+Required when walletAddress is provided for encryption.
+Typically from Privy's useSignMessage hook.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.walletAddress?`
 
 </td>
@@ -241,13 +278,14 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 </td>
 <td>
 
-Wallet address for encrypted file storage.
+Wallet address for encrypted file storage and data isolation.
 When provided, MCP-generated images are automatically encrypted and stored
 in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+Also enables wallet-based data isolation - users can only see their own conversations/messages.
 
 Requires:
 
-* OPFS browser support
+* OPFS browser support (for file storage)
 * Encryption key to be requested via `requestEncryptionKey` first
 
 When not provided, falls back to the `writeFile` callback in sendMessage args.

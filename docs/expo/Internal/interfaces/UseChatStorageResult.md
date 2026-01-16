@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
+Defined in: [src/expo/useChatStorage.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L115)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -151,7 +151,7 @@ Defined in: [src/lib/db/chat/types.ts:364](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
-Defined in: [src/expo/useChatStorage.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L100)
+Defined in: [src/expo/useChatStorage.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L121)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -365,7 +365,7 @@ Defined in: [src/lib/db/chat/types.ts:354](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `object`) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L96)
+Defined in: [src/expo/useChatStorage.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L117)
 
 Send a message and automatically store it (Expo version)
 
@@ -884,7 +884,7 @@ Defined in: [src/lib/db/chat/types.ts:363](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L105)
+Defined in: [src/expo/useChatStorage.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L126)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

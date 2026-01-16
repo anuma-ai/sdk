@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L155)
+Defined in: [src/expo/useChatStorage.ts:176](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L176)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -125,6 +125,24 @@ Title for auto-created conversations (default: "New conversation")
 <tr>
 <td>
 
+`options.embeddedWalletSigner?`
+
+</td>
+<td>
+
+[`EmbeddedWalletSignerFn`](../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+</td>
+<td>
+
+Optional function for silent signing with embedded wallets.
+When provided, enables automatic encryption key generation without user confirmation modals.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.getToken?`
 
 </td>
@@ -204,6 +222,46 @@ Callback invoked when the response completes successfully
 <td>
 
 Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.signMessage?`
+
+</td>
+<td>
+
+[`SignMessageFn`](../../react/Internal/type-aliases/SignMessageFn.md)
+
+</td>
+<td>
+
+Function to sign a message for encryption key derivation.
+Required when walletAddress is provided for encryption.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Wallet address for encrypted file storage and data isolation.
+When provided, enables wallet-based data isolation - users can only see their own conversations/messages.
+
+Requires:
+
+* Encryption key to be requested via `requestEncryptionKey` first
 
 </td>
 </tr>

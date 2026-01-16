@@ -82,6 +82,17 @@ Title for auto-created conversations (default: "New conversation")
 
 ***
 
+### embeddedWalletSigner?
+
+> `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+Defined in: [src/expo/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L92)
+
+Optional function for silent signing with embedded wallets.
+When provided, enables automatic encryption key generation without user confirmation modals.
+
+***
+
 ### getToken()?
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
@@ -269,3 +280,29 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 **Inherited from**
 
 `BaseUseChatStorageOptions.onThinking`
+
+***
+
+### signMessage?
+
+> `optional` **signMessage**: [`SignMessageFn`](../../../react/Internal/type-aliases/SignMessageFn.md)
+
+Defined in: [src/expo/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L86)
+
+Function to sign a message for encryption key derivation.
+Required when walletAddress is provided for encryption.
+
+***
+
+### walletAddress?
+
+> `optional` **walletAddress**: `string`
+
+Defined in: [src/expo/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L80)
+
+Wallet address for encrypted file storage and data isolation.
+When provided, enables wallet-based data isolation - users can only see their own conversations/messages.
+
+Requires:
+
+* Encryption key to be requested via `requestEncryptionKey` first
