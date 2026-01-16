@@ -22,4 +22,4 @@ Migration history:
 * v6 → v7: Added `userPreferences` table for unified user settings storage
 * v7 → v8: BREAKING - Clear all data (embedding model change)
 * v8 → v9: Added `thinking` column to history table for reasoning/thinking content
-* v9 → v10: Added `wallet_address` columns to history and conversations tables (BREAKING - clears existing chat data)
+* v9 → v10: Added `wallet_address` columns to history and conversations tables (existing data preserved with empty wallet\_address, claimed by first user)

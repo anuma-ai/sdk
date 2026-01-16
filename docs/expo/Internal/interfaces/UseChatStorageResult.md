@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L115)
+Defined in: [src/expo/useChatStorage.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L116)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -151,7 +151,7 @@ Defined in: [src/lib/db/chat/types.ts:364](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
-Defined in: [src/expo/useChatStorage.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L121)
+Defined in: [src/expo/useChatStorage.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L122)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -365,7 +365,7 @@ Defined in: [src/lib/db/chat/types.ts:354](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `object`) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L117)
+Defined in: [src/expo/useChatStorage.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L118)
 
 Send a message and automatically store it (Expo version)
 
@@ -884,7 +884,7 @@ Defined in: [src/lib/db/chat/types.ts:363](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L126)
+Defined in: [src/expo/useChatStorage.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L127)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

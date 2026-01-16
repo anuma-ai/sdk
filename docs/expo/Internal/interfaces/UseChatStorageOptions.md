@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L72)
+Defined in: [src/expo/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L73)
 
 Options for useChatStorage hook (Expo version)
 
@@ -86,7 +86,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/expo/useChatStorage.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L92)
+Defined in: [src/expo/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L93)
 
 Optional function for silent signing with embedded wallets.
 When provided, enables automatic encryption key generation without user confirmation modals.
@@ -287,7 +287,7 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 
 > `optional` **signMessage**: [`SignMessageFn`](../../../react/Internal/type-aliases/SignMessageFn.md)
 
-Defined in: [src/expo/useChatStorage.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L86)
+Defined in: [src/expo/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L87)
 
 Function to sign a message for encryption key derivation.
 Required when walletAddress is provided for encryption.
@@ -298,7 +298,7 @@ Required when walletAddress is provided for encryption.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/expo/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L80)
+Defined in: [src/expo/useChatStorage.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L81)
 
 Wallet address for encrypted file storage and data isolation.
 When provided, enables wallet-based data isolation - users can only see their own conversations/messages.

@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:267](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L267)
+Defined in: [src/react/useChatStorage.ts:268](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L268)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:273](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L273)
+Defined in: [src/react/useChatStorage.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L274)
 
 Which API endpoint to use. Default: "responses"
 
@@ -99,7 +99,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/react/useChatStorage.ts:300](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L300)
+Defined in: [src/react/useChatStorage.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L301)
 
 Optional function for silent signing with embedded wallets.
 When provided, enables automatic encryption key generation without user confirmation modals.
@@ -300,7 +300,7 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/react/useChatStorage.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L294)
+Defined in: [src/react/useChatStorage.ts:295](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L295)
 
 Function to sign a message for encryption key derivation.
 Required when walletAddress is provided for encryption.
@@ -312,7 +312,7 @@ Typically from Privy's useSignMessage hook.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:287](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L287)
+Defined in: [src/react/useChatStorage.ts:288](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L288)
 
 Wallet address for encrypted file storage and data isolation.
 When provided, MCP-generated images are automatically encrypted and stored
