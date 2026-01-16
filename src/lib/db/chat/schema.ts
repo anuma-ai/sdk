@@ -2,16 +2,18 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 import {
   schemaMigrations,
   addColumns,
+  unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: "history",
       columns: [
         { name: "message_id", type: "number" },
         { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "wallet_address", type: "string", isIndexed: true },
         { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
@@ -33,6 +35,7 @@ export const chatStorageSchema = appSchema({
       name: "conversations",
       columns: [
         { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "wallet_address", type: "string", isIndexed: true },
         { name: "title", type: "string" },
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
@@ -81,6 +84,21 @@ export const chatStorageMigrations = schemaMigrations({
           columns: [
             { name: "thinking", type: "string", isOptional: true },
           ],
+        }),
+      ],
+    },
+    {
+      toVersion: 6,
+      steps: [
+        unsafeExecuteSql("DELETE FROM history;"),
+        unsafeExecuteSql("DELETE FROM conversations;"),
+        addColumns({
+          table: "history",
+          columns: [{ name: "wallet_address", type: "string", isIndexed: true }],
+        }),
+        addColumns({
+          table: "conversations",
+          columns: [{ name: "wallet_address", type: "string", isIndexed: true }],
         }),
       ],
     },

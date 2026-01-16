@@ -8,7 +8,7 @@
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
-import { conversationToStored } from "../../db/chat/operations";
+import { conversationToStored, type StorageOperationsContext } from "../../db/chat/operations";
 import {
   DEFAULT_CONVERSATIONS_FOLDER,
   DEFAULT_ROOT_FOLDER,
@@ -112,11 +112,20 @@ export async function pushConversationToDrive(
       const conversationsCollection =
         database.get<Conversation>("conversations");
       const records = await conversationsCollection
-        .query(Q.where("conversation_id", conversationId))
+        .query(
+          Q.where("wallet_address", userAddress),
+          Q.where("conversation_id", conversationId)
+        )
         .fetch();
 
       if (records.length > 0) {
-        const conversation = conversationToStored(records[0]);
+        const ctx: StorageOperationsContext = {
+          database,
+          messagesCollection: database.get("history"),
+          conversationsCollection,
+          walletAddress: userAddress,
+        };
+        const conversation = await conversationToStored(records[0], ctx);
         const localUpdated = conversation.updatedAt.getTime();
         const remoteModified = new Date(existingFile.modifiedTime).getTime();
         if (localUpdated <= remoteModified) {
@@ -193,10 +202,19 @@ export async function performGoogleDriveExport(
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
   const records = await conversationsCollection
-    .query(Q.where("is_deleted", false))
+    .query(
+      Q.where("wallet_address", userAddress),
+      Q.where("is_deleted", false)
+    )
     .fetch();
 
-  const conversations = records.map(conversationToStored);
+  const ctx: StorageOperationsContext = {
+    database,
+    messagesCollection: database.get("history"),
+    conversationsCollection,
+    walletAddress: userAddress,
+  };
+  const conversations = await Promise.all(records.map(conv => conversationToStored(conv, ctx)));
   const total = conversations.length;
 
   if (total === 0) {

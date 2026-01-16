@@ -18,6 +18,7 @@ export class Message extends Model {
 
   @field("message_id") messageId!: number;
   @text("conversation_id") conversationId!: string;
+  @text("wallet_address") walletAddress!: string;
   @text("role") role!: ChatRole;
   @text("content") content!: string;
   @text("model") model?: string;
@@ -43,6 +44,7 @@ export class Conversation extends Model {
   };
 
   @text("conversation_id") conversationId!: string;
+  @text("wallet_address") walletAddress!: string;
   @text("title") title!: string;
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;

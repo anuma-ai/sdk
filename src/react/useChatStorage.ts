@@ -37,7 +37,8 @@ import {
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
-import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
 import {
   isOPFSSupported,
   writeEncryptedFile,
@@ -272,17 +273,31 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   apiType?: ApiType;
 
   /**
-   * Wallet address for encrypted file storage.
+   * Wallet address for encrypted file storage and data isolation.
    * When provided, MCP-generated images are automatically encrypted and stored
    * in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+   * Also enables wallet-based data isolation - users can only see their own conversations/messages.
    *
    * Requires:
-   * - OPFS browser support
+   * - OPFS browser support (for file storage)
    * - Encryption key to be requested via `requestEncryptionKey` first
    *
    * When not provided, falls back to the `writeFile` callback in sendMessage args.
    */
   walletAddress?: string;
+
+  /**
+   * Function to sign a message for encryption key derivation.
+   * Required when walletAddress is provided for encryption.
+   * Typically from Privy's useSignMessage hook.
+   */
+  signMessage?: SignMessageFn;
+
+  /**
+   * Optional function for silent signing with embedded wallets.
+   * When provided, enables automatic encryption key generation without user confirmation modals.
+   */
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
 /**
@@ -489,6 +504,8 @@ export function useChatStorage(
     onError,
     apiType,
     walletAddress,
+    signMessage,
+    embeddedWalletSigner,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -522,8 +539,11 @@ export function useChatStorage(
       database,
       messagesCollection,
       conversationsCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
     }),
-    [database, messagesCollection, conversationsCollection]
+    [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   // Use the underlying useChat hook
@@ -546,15 +566,23 @@ export function useChatStorage(
    */
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for createConversation");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
       const created = await createConversationOp(
         storageCtx,
+        walletAddress,
         opts,
         defaultConversationTitle
       );
       setCurrentConversationId(created.conversationId);
       return created;
     },
-    [storageCtx, defaultConversationTitle]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner, defaultConversationTitle]
   );
 
   /**
@@ -562,9 +590,16 @@ export function useChatStorage(
    */
   const getConversation = useCallback(
     async (id: string): Promise<StoredConversation | null> => {
-      return getConversationOp(storageCtx, id);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for getConversation");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
+      return getConversationOp(storageCtx, walletAddress, id);
     },
-    [storageCtx]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   /**
@@ -573,8 +608,15 @@ export function useChatStorage(
   const getConversations = useCallback(async (): Promise<
     StoredConversation[]
   > => {
-    return getConversationsOp(storageCtx);
-  }, [storageCtx]);
+    if (!walletAddress) {
+      throw new Error("walletAddress is required for getConversations");
+    }
+    // Request encryption key if needed
+    if (signMessage) {
+      await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+    }
+    return getConversationsOp(storageCtx, walletAddress);
+  }, [storageCtx, walletAddress, signMessage, embeddedWalletSigner]);
 
   /**
    * Update conversation title
@@ -582,9 +624,16 @@ export function useChatStorage(
    */
   const updateConversationTitle = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      return updateConversationTitleOp(storageCtx, id, title);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for updateConversationTitle");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
+      return updateConversationTitleOp(storageCtx, walletAddress, id, title);
     },
-    [storageCtx]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   /**
@@ -593,13 +642,16 @@ export function useChatStorage(
    */
   const deleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
-      const deleted = await deleteConversationOp(storageCtx, id);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for deleteConversation");
+      }
+      const deleted = await deleteConversationOp(storageCtx, walletAddress, id);
       if (deleted && currentConversationId === id) {
         setCurrentConversationId(null);
       }
       return deleted;
     },
-    [storageCtx, currentConversationId]
+    [storageCtx, walletAddress, currentConversationId]
   );
 
   /**
@@ -607,7 +659,14 @@ export function useChatStorage(
    */
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
-      const messages = await getMessagesOp(storageCtx, convId);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for getMessages");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
+      const messages = await getMessagesOp(storageCtx, walletAddress, convId);
 
       // If wallet address is provided, resolve file placeholders to blob URLs
       if (
@@ -732,7 +791,7 @@ export function useChatStorage(
 
       return messages;
     },
-    [storageCtx, walletAddress]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   /**
@@ -740,9 +799,12 @@ export function useChatStorage(
    */
   const getMessageCount = useCallback(
     async (convId: string): Promise<number> => {
-      return getMessageCountOp(storageCtx, convId);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for getMessageCount");
+      }
+      return getMessageCountOp(storageCtx, walletAddress, convId);
     },
-    [storageCtx]
+    [storageCtx, walletAddress]
   );
 
   /**
@@ -750,9 +812,12 @@ export function useChatStorage(
    */
   const clearMessages = useCallback(
     async (convId: string): Promise<void> => {
-      return clearMessagesOp(storageCtx, convId);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for clearMessages");
+      }
+      return clearMessagesOp(storageCtx, walletAddress, convId);
     },
-    [storageCtx]
+    [storageCtx, walletAddress]
   );
 
   /**
@@ -1585,7 +1650,10 @@ export function useChatStorage(
       if (includeHistory) {
         // Get raw messages from database (not transformed for client display)
         // This ensures we have the original placeholders, not blob URLs
-        const storedMessages = await getMessagesOp(storageCtx, convId);
+        if (!walletAddress) {
+          throw new Error("walletAddress is required for getMessages");
+        }
+        const storedMessages = await getMessagesOp(storageCtx, walletAddress, convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
@@ -1610,7 +1678,14 @@ export function useChatStorage(
 
       let storedUserMessage: StoredMessage;
       try {
-        storedUserMessage = await createMessageOp(storageCtx, {
+        if (!walletAddress) {
+          throw new Error("walletAddress is required for createMessage");
+        }
+        // Request encryption key if needed
+        if (signMessage) {
+          await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+        }
+        storedUserMessage = await createMessageOp(storageCtx, walletAddress, {
           conversationId: convId,
           role: "user",
           content: contentForStorage,
@@ -1668,7 +1743,10 @@ export function useChatStorage(
           // Store the assistant message as stopped
           let storedAssistantMessage: StoredMessage;
           try {
-            storedAssistantMessage = await createMessageOp(storageCtx, {
+            if (!walletAddress) {
+              throw new Error("walletAddress is required for createMessage");
+            }
+            storedAssistantMessage = await createMessageOp(storageCtx, walletAddress, {
               conversationId: convId,
               role: "assistant",
               content: assistantContent,
@@ -1718,21 +1796,24 @@ export function useChatStorage(
         // Also update the user message with the error so both are filtered from history
         const errorMessage = result.error || "No response data received";
         try {
-          await updateMessageErrorOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            errorMessage
-          );
-          await createMessageOp(storageCtx, {
-            conversationId: convId,
-            role: "assistant",
-            content: "",
-            model: model || "",
-            responseDuration,
-            sources,
-            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-            error: errorMessage,
-          });
+          if (walletAddress) {
+            await updateMessageErrorOp(
+              storageCtx,
+              walletAddress,
+              storedUserMessage.uniqueId,
+              errorMessage
+            );
+            await createMessageOp(storageCtx, walletAddress, {
+              conversationId: convId,
+              role: "assistant",
+              content: "",
+              model: model || "",
+              responseDuration,
+              sources,
+              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              error: errorMessage,
+            });
+          }
         } catch {
           // Ignore storage failure for error message
         }
@@ -1814,7 +1895,10 @@ export function useChatStorage(
       // Store the assistant message
       let storedAssistantMessage: StoredMessage;
       try {
-        storedAssistantMessage = await createMessageOp(storageCtx, {
+        if (!walletAddress) {
+          throw new Error("walletAddress is required for createMessage");
+        }
+        storedAssistantMessage = await createMessageOp(storageCtx, walletAddress, {
           conversationId: convId,
           role: "assistant",
           content: cleanedContent,
@@ -1862,9 +1946,16 @@ export function useChatStorage(
       queryVector: number[],
       options?: SearchMessagesOptions
     ): Promise<StoredMessageWithSimilarity[]> => {
-      return searchMessagesOp(storageCtx, queryVector, options);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for searchMessages");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
+      return searchMessagesOp(storageCtx, walletAddress, queryVector, options);
     },
-    [storageCtx]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   /**
@@ -1877,14 +1968,18 @@ export function useChatStorage(
       vector: number[],
       embeddingModel: string
     ): Promise<StoredMessage | null> => {
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for updateMessageEmbedding");
+      }
       return updateMessageEmbeddingOp(
         storageCtx,
+        walletAddress,
         uniqueId,
         vector,
         embeddingModel
       );
     },
-    [storageCtx]
+    [storageCtx, walletAddress]
   );
 
   /**
@@ -1896,9 +1991,16 @@ export function useChatStorage(
       uniqueId: string,
       options: UpdateMessageOptions
     ): Promise<StoredMessage | null> => {
-      return updateMessageOp(storageCtx, uniqueId, options);
+      if (!walletAddress) {
+        throw new Error("walletAddress is required for updateMessage");
+      }
+      // Request encryption key if needed
+      if (signMessage) {
+        await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+      }
+      return updateMessageOp(storageCtx, walletAddress, uniqueId, options);
     },
-    [storageCtx]
+    [storageCtx, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   return {
