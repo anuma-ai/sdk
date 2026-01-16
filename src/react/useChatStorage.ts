@@ -47,6 +47,7 @@ import {
   FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
+import { preprocessFiles } from "../lib/processors";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -489,6 +490,8 @@ export function useChatStorage(
     onError,
     apiType,
     walletAddress,
+    fileProcessors,
+    fileProcessingOptions,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -1560,9 +1563,32 @@ export function useChatStorage(
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content;
+      const contentForStorage = extracted.content; // Original content for DB storage
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
+
+      // Preprocess files if present to generate file context
+      let fileContextForRequest: string | undefined;
+      let preprocessedFileIds: string[] = [];
+      if (filesForStorage && filesForStorage.length > 0) {
+        try {
+          const preprocessingResult = await preprocessFiles(filesForStorage, {
+            processors: fileProcessors,
+            ...fileProcessingOptions,
+          });
+
+          // Store extracted content as file context (will be injected as system message)
+          if (preprocessingResult.extractedContent) {
+            fileContextForRequest = preprocessingResult.extractedContent;
+            preprocessedFileIds = preprocessingResult.preprocessedFileIds;
+            console.log('[Preprocessing] Preprocessed file IDs:', preprocessedFileIds);
+            console.log('[Preprocessing] Extracted content length:', fileContextForRequest.length);
+          }
+        } catch (error) {
+          // Non-fatal error - log and continue without preprocessing
+          console.error("File preprocessing error:", error);
+        }
+      }
 
       // Ensure we have a conversation
       let convId: string;
@@ -1589,12 +1615,75 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // Collect file context from conversation history if we don't have it from current message
+        // Look for the most recent message with extracted file content (stored in thinking field)
+        if (!fileContextForRequest) {
+          for (let i = limitedMessages.length - 1; i >= 0; i--) {
+            const msg = limitedMessages[i];
+            if (msg.thinking && msg.thinking.startsWith("[Extracted content from ")) {
+              fileContextForRequest = msg.thinking;
+              break;
+            }
+          }
+        }
+
         // Convert stored messages to API format
         const historyMessages = limitedMessages.map(storedToLlmapiMessage);
         messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
+      }
+
+      // If we have file context, remove file attachments from the user message to avoid sending large base64 data
+      if (fileContextForRequest) {
+        console.log('[Preprocessing] File context exists, filtering files from message');
+        // Find the last user message in messagesToSend
+        let lastUserMessageIndex = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserMessageIndex = i;
+            break;
+          }
+        }
+
+        if (lastUserMessageIndex !== -1) {
+          const lastUserMessage = messagesToSend[lastUserMessageIndex];
+          console.log('[Preprocessing] Last user message content parts:', lastUserMessage.content?.length);
+          if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
+            // Remove only the files that were actually preprocessed
+            // Keep images and other files that weren't processed (e.g., for vision)
+            messagesToSend[lastUserMessageIndex] = {
+              ...lastUserMessage,
+              content: lastUserMessage.content.filter((part) => {
+                // Keep text parts
+                if (part.type === "text") return true;
+
+                // For input_file parts, check if this specific file was preprocessed
+                if (part.type === "input_file" && part.file) {
+                  const fileId = part.file.file_id;
+                  const shouldKeep = !fileId || !preprocessedFileIds.includes(fileId);
+                  console.log('[Preprocessing] input_file part, file_id:', fileId, 'shouldKeep:', shouldKeep);
+                  return shouldKeep;
+                }
+
+                // For image_url parts, check if the URL matches a preprocessed file
+                if (part.type === "image_url" && part.image_url?.url) {
+                  // Only remove if this specific image was preprocessed
+                  // Images without matching IDs are kept for vision
+                  const matchesPreprocessed = filesForStorage?.some(
+                    (f) => preprocessedFileIds.includes(f.id) && f.url === part.image_url?.url
+                  );
+                  return !matchesPreprocessed;
+                }
+
+                // Keep all other content types
+                return true;
+              }),
+            };
+          }
+        }
       }
 
       // Store the user message
@@ -1616,6 +1705,8 @@ export function useChatStorage(
           content: contentForStorage,
           files: sanitizedFiles,
           model,
+          // Store extracted file content in thinking field for retrieval in follow-up messages
+          thinking: fileContextForRequest,
         });
       } catch (err) {
         return {
@@ -1636,6 +1727,7 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
+        fileContext: fileContextForRequest,
         // Responses API options
         temperature,
         maxOutputTokens,

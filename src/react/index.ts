@@ -178,6 +178,22 @@ export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
 export type { OCRFile, UseOCRResult } from "./useOCR";
+
+// File processors for preprocessing attachments
+export {
+  PdfProcessor,
+  ExcelProcessor,
+  WordProcessor,
+  ProcessorRegistry,
+  preprocessFiles,
+} from "../lib/processors";
+export type {
+  FileProcessor,
+  FileWithData,
+  ProcessedFileResult,
+  PreprocessingOptions,
+  PreprocessingResult,
+} from "../lib/processors";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
 export {
