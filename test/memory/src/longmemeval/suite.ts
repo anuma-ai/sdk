@@ -473,6 +473,7 @@ async function processEntry(
 
       // Store memories in database
       const memoryToSession = new Map<string, string>();
+      const answerSessionIdSet = new Set(entry.answer_session_ids);
       logProgress(`Storing ${allMemories.length} memories...`);
 
       for (let i = 0; i < allMemories.length; i++) {
@@ -482,7 +483,11 @@ async function processEntry(
         if (!embedding || embedding.length === 0) continue;
 
         const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
-        memoryToSession.set(uniqueKey, memory.sessionId);
+        // Preserve answer session attribution for duplicate memories
+        const existingSessionId = memoryToSession.get(uniqueKey);
+        if (!existingSessionId || answerSessionIdSet.has(memory.sessionId)) {
+          memoryToSession.set(uniqueKey, memory.sessionId);
+        }
 
         await saveMemoryOp(ctx, {
           type: memory.type,
