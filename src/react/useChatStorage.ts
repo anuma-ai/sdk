@@ -44,6 +44,7 @@ import {
   isOPFSSupported,
   writeEncryptedFile,
   readEncryptedFile,
+  deleteEncryptedFile,
   createFilePlaceholder,
   extractFileIds,
   FILE_PLACEHOLDER_REGEX,
@@ -1899,6 +1900,20 @@ export function useChatStorage(
           thinking: fileContextForRequest,
         });
       } catch (err) {
+        // Clean up OPFS files if message creation failed to avoid orphaned files
+        if (filesToStore && filesToStore.length > 0 && walletAddress) {
+          for (const file of filesToStore) {
+            try {
+              await deleteEncryptedFile(file.id);
+              // eslint-disable-next-line no-console
+              console.log(
+                `[sendMessage] Cleaned up orphaned OPFS file ${file.id} after message creation failure`
+              );
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
         return {
           data: null,
           error:
