@@ -52,6 +52,7 @@ import {
   getServerTools,
   filterServerTools,
   mergeTools,
+  type ServerTool,
 } from "../lib/tools";
 
 /**
@@ -1730,7 +1731,9 @@ export function useChatStorage(
       const effectiveApiType = requestApiType ?? apiType ?? "responses";
 
       // Fetch and merge server-side tools with client tools
-      let mergedTools = clientTools;
+      let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
+      let filteredServerTools: ServerTool[] = [];
+
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
         getToken &&
@@ -1742,17 +1745,10 @@ export function useChatStorage(
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
           });
-          const filteredServerTools = filterServerTools(
+          filteredServerTools = filterServerTools(
             allServerTools,
             serverToolsFilter
           );
-          if (filteredServerTools.length > 0) {
-            mergedTools = mergeTools(
-              filteredServerTools,
-              clientTools,
-              effectiveApiType
-            );
-          }
         } catch (error) {
           // Log but don't block - server tools are optional
           // eslint-disable-next-line no-console
@@ -1761,6 +1757,15 @@ export function useChatStorage(
             error
           );
         }
+      }
+
+      // Merge and format tools (handles both server and client tools)
+      if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+        mergedTools = mergeTools(
+          filteredServerTools,
+          clientTools,
+          effectiveApiType
+        );
       }
 
       // Send the message using the underlying useChat

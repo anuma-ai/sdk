@@ -304,7 +304,7 @@ export function filterServerTools(
 }
 
 /**
- * Convert client tool (Completions format) to Responses API format.
+ * Convert client tool to Responses API format.
  * Preserves executor and autoExecute for client-side execution.
  */
 function clientToolToResponsesFormat(
@@ -333,6 +333,44 @@ function clientToolToResponsesFormat(
 }
 
 /**
+ * Normalize client tool for Completions API format.
+ * Ensures 'parameters' field exists (converts from 'arguments' if needed).
+ * Preserves executor and autoExecute for client-side execution.
+ */
+function clientToolToCompletionsFormat(
+  tool: LlmapiTool | ToolConfig
+): LlmapiTool | ToolConfig {
+  const toolConfig = tool as ToolConfig;
+  const func = tool.function;
+
+  if (!func) {
+    // Malformed tool - return as-is
+    return tool;
+  }
+
+  // If 'parameters' already exists, return as-is
+  if ((func as any).parameters) {
+    return tool;
+  }
+
+  // Convert 'arguments' to 'parameters' for Completions API
+  const { arguments: args, ...restFunc } = func as any;
+
+  return {
+    type: "function",
+    function: {
+      ...restFunc,
+      parameters: args || { type: "object", properties: {} },
+    },
+    // Preserve executor functions for client-side execution
+    ...(toolConfig.executor && { executor: toolConfig.executor }),
+    ...(toolConfig.autoExecute !== undefined && {
+      autoExecute: toolConfig.autoExecute,
+    }),
+  } as LlmapiTool | ToolConfig;
+}
+
+/**
  * Merge server tools with client tools.
  * Client tools take precedence (if same name exists).
  * @param serverTools - Server tools (already filtered if needed)
@@ -358,7 +396,7 @@ export function mergeTools(
   const formattedClientTools =
     apiType === "responses"
       ? clientTools.map(clientToolToResponsesFormat)
-      : clientTools;
+      : clientTools.map(clientToolToCompletionsFormat);
 
   if (serverTools.length === 0) {
     return formattedClientTools;
