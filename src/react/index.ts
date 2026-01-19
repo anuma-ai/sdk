@@ -184,6 +184,7 @@ export {
   PdfProcessor,
   ExcelProcessor,
   WordProcessor,
+  ZipProcessor,
   ProcessorRegistry,
   preprocessFiles,
 } from "../lib/processors";
@@ -193,6 +194,7 @@ export type {
   ProcessedFileResult,
   PreprocessingOptions,
   PreprocessingResult,
+  ZipProcessorOptions,
 } from "../lib/processors";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
