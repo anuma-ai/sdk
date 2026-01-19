@@ -88,10 +88,27 @@ export function convertServerToolsResponse(
 }
 
 /**
+ * Completions API tool format.
+ * OpenAI Chat Completions expects: { type, function: { name, description, parameters } }
+ */
+export interface CompletionsTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: string;
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+  };
+}
+
+/**
  * Convert ServerTool to completions API format.
  * Format: { type: "function", function: { name, description, parameters } }
  */
-export function toCompletionsFormat(tool: ServerTool): LlmapiTool {
+export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   return {
     type: "function",
     function: {
@@ -99,7 +116,7 @@ export function toCompletionsFormat(tool: ServerTool): LlmapiTool {
       description: tool.description,
       parameters: tool.parameters,
     },
-  } as LlmapiTool;
+  };
 }
 
 /**

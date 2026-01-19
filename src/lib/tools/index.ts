@@ -8,6 +8,7 @@ export {
   // Types
   type ServerToolsResponse,
   type ServerTool,
+  type CompletionsTool,
   type CachedServerTools,
   type ServerToolsOptions,
   // Constants
