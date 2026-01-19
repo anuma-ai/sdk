@@ -2,7 +2,7 @@
 
 > **preprocessFiles**(`files`: [`FileMetadata`](../interfaces/FileMetadata.md)\[] | `undefined`, `options`: [`PreprocessingOptions`](../interfaces/PreprocessingOptions.md)): `Promise`<[`PreprocessingResult`](../interfaces/PreprocessingResult.md)>
 
-Defined in: [src/lib/processors/preprocessor.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/preprocessor.ts#L38)
+Defined in: [src/lib/processors/preprocessor.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/preprocessor.ts#L39)
 
 Preprocess files by extracting text content
 

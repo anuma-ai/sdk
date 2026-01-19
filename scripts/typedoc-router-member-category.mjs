@@ -53,8 +53,21 @@ function slugDir(s) {
 
 class MemberCategoryRouter extends MemberRouter {
   getReflectionDirectory(reflection) {
+    // Safety check: ensure we have a valid reflection
+    if (!reflection || !reflection.kind) {
+      console.warn('[MemberCategoryRouter] Invalid reflection passed to getReflectionDirectory');
+      return "";
+    }
+
     const category = getCategoryFromReflection(reflection);
     const kindDir = this.directories.get(reflection.kind);
+
+    // If no kindDir mapping exists, skip this reflection
+    if (!kindDir) {
+      console.warn(`[MemberCategoryRouter] No directory mapping for kind ${reflection.kind}: ${reflection.name}`);
+      return "";
+    }
+
     const dir = category ? slugDir(category) : `Internal/${kindDir}`;
 
     if (reflection.parent) {
