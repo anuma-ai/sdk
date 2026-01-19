@@ -55,7 +55,7 @@
  *
  *   const { isLoading, sendMessage, stop } = useChat({
  *     getToken: getIdentityToken,
- *     baseUrl: "https://ai-portal-dev.zetachain.com",
+ *     baseUrl: "https://portal.anuma-dev.ai",
  *     onData: (chunk) => {
  *       // Handle streaming chunks
  *       const content =
