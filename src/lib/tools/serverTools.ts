@@ -304,11 +304,40 @@ export function filterServerTools(
 }
 
 /**
+ * Convert client tool (Completions format) to Responses API format.
+ * Preserves executor and autoExecute for client-side execution.
+ */
+function clientToolToResponsesFormat(
+  tool: LlmapiTool | ToolConfig
+): Record<string, unknown> {
+  const toolConfig = tool as ToolConfig;
+  const func = tool.function;
+
+  if (!func) {
+    // Already in responses format or malformed - return as-is
+    return tool as Record<string, unknown>;
+  }
+
+  return {
+    type: "function",
+    name: func.name,
+    description: func.description,
+    // Handle both 'parameters' and 'arguments' field names
+    parameters: (func as any).parameters || (func as any).arguments,
+    // Preserve executor functions for client-side execution
+    ...(toolConfig.executor && { executor: toolConfig.executor }),
+    ...(toolConfig.autoExecute !== undefined && {
+      autoExecute: toolConfig.autoExecute,
+    }),
+  };
+}
+
+/**
  * Merge server tools with client tools.
  * Client tools take precedence (if same name exists).
  * @param serverTools - Server tools (already filtered if needed)
  * @param clientTools - Client tools with optional executors
- * @param apiType - API type to format server tools for
+ * @param apiType - API type to format tools for
  */
 export function mergeTools(
   serverTools: ServerTool[],
@@ -325,14 +354,20 @@ export function mergeTools(
     return formattedServerTools;
   }
 
+  // Format client tools based on API type
+  const formattedClientTools =
+    apiType === "responses"
+      ? clientTools.map(clientToolToResponsesFormat)
+      : clientTools;
+
   if (serverTools.length === 0) {
-    return clientTools;
+    return formattedClientTools;
   }
 
   // Get client tool names for deduplication
   const clientToolNames = new Set(
     clientTools
-      .map((t) => t.function?.name)
+      .map((t) => t.function?.name || (t as any).name)
       .filter((name): name is string => !!name)
   );
 
@@ -344,5 +379,5 @@ export function mergeTools(
   });
 
   // Return merged array: server tools first, then client tools
-  return [...nonConflictingServerTools, ...clientTools];
+  return [...nonConflictingServerTools, ...formattedClientTools];
 }
