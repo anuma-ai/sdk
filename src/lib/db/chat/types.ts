@@ -191,6 +191,14 @@ export interface BaseUseChatStorageOptions {
     /** Callback for errors (non-fatal) */
     onError?: (fileName: string, error: Error) => void;
   };
+  /**
+   * Configuration for server-side tools fetching and caching.
+   * Server tools are fetched from /api/v1/tools and cached in localStorage.
+   */
+  serverTools?: {
+    /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
+    cacheExpirationMs?: number;
+  };
 }
 
 /**
@@ -323,10 +331,25 @@ export interface BaseSendMessageWithStorageArgs {
   maxOutputTokens?: number;
 
   /**
-   * Array of tool definitions available to the model.
-   * Tools enable the model to call functions, search, execute code, etc.
+   * Client-side tools with optional executors.
+   * These tools run in the browser/app and can have JavaScript executor functions.
    */
-  tools?: LlmapiTool[];
+  clientTools?: LlmapiTool[];
+
+  /**
+   * Server-side tools to include from /api/v1/tools.
+   * - undefined: Include all server-side tools (default)
+   * - string[]: Include only tools with these names
+   * - []: Include no server-side tools
+   *
+   * @example
+   * // Include only specific server tools
+   * serverTools: ["generate_cloud_image", "perplexity_search"]
+   *
+   * // Disable server tools for this request
+   * serverTools: []
+   */
+  serverTools?: string[];
 
   /**
    * Controls which tool the model should use:

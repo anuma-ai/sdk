@@ -146,3 +146,16 @@ export {
   generateCompositeKey,
   generateUniqueKey,
 } from "../lib/db/memory";
+
+// Server-side tools caching utilities
+export {
+  clearServerToolsCache,
+  getServerTools,
+  getCachedServerTools,
+  DEFAULT_CACHE_EXPIRATION_MS,
+} from "../lib/tools";
+export type {
+  ServerToolsOptions,
+  CachedServerTools,
+  ServerToolsResponse,
+} from "../lib/tools";

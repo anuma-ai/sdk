@@ -48,6 +48,11 @@ import {
   BlobUrlManager,
 } from "../lib/storage";
 import { preprocessFiles } from "../lib/processors";
+import {
+  getServerTools,
+  filterServerTools,
+  mergeTools,
+} from "../lib/tools";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -492,6 +497,7 @@ export function useChatStorage(
     walletAddress,
     fileProcessors,
     fileProcessingOptions,
+    serverTools: serverToolsConfig,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -1546,7 +1552,8 @@ export function useChatStorage(
         // Responses API options
         temperature,
         maxOutputTokens,
-        tools,
+        clientTools,
+        serverTools: serverToolsFilter,
         toolChoice,
         reasoning,
         thinking,
@@ -1719,6 +1726,43 @@ export function useChatStorage(
       // Track response timing
       const startTime = Date.now();
 
+      // Determine effective API type for this request
+      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+
+      // Fetch and merge server-side tools with client tools
+      let mergedTools = clientTools;
+      // Skip server tools fetch if serverTools is explicitly empty array
+      if (
+        getToken &&
+        !(serverToolsFilter && serverToolsFilter.length === 0)
+      ) {
+        try {
+          const allServerTools = await getServerTools({
+            baseUrl,
+            cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+            getToken,
+          });
+          const filteredServerTools = filterServerTools(
+            allServerTools,
+            serverToolsFilter
+          );
+          if (filteredServerTools.length > 0) {
+            mergedTools = mergeTools(
+              filteredServerTools,
+              clientTools,
+              effectiveApiType
+            );
+          }
+        } catch (error) {
+          // Log but don't block - server tools are optional
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[useChatStorage] Failed to fetch server tools:",
+            error
+          );
+        }
+      }
+
       // Send the message using the underlying useChat
       const result = await baseSendMessage({
         messages: messagesToSend,
@@ -1731,7 +1775,7 @@ export function useChatStorage(
         // Responses API options
         temperature,
         maxOutputTokens,
-        tools,
+        tools: mergedTools,
         toolChoice,
         reasoning,
         thinking,
