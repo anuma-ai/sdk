@@ -2,6 +2,8 @@
 export { PdfProcessor } from "./PdfProcessor";
 export { ExcelProcessor } from "./ExcelProcessor";
 export { WordProcessor } from "./WordProcessor";
+export { ZipProcessor } from "./ZipProcessor";
+export type { ZipProcessorOptions } from "./ZipProcessor";
 
 // Registry
 export { ProcessorRegistry } from "./registry";

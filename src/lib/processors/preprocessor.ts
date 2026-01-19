@@ -8,6 +8,7 @@ import type {
   PreprocessingResult,
 } from "./types";
 import { WordProcessor } from "./WordProcessor";
+import { ZipProcessor } from "./ZipProcessor";
 
 /**
  * Format extracted content with file context header
@@ -84,9 +85,19 @@ export async function preprocessFiles(
     registry.register(new PdfProcessor());
     registry.register(new ExcelProcessor());
     registry.register(new WordProcessor());
+
+    // ZipProcessor needs registry to delegate to other processors
+    const zipProcessor = new ZipProcessor();
+    zipProcessor.setRegistry(registry);
+    registry.register(zipProcessor);
   } else {
-    // Use provided processors
-    processors.forEach((p) => registry.register(p));
+    // Use provided processors, inject registry into ZipProcessor if present
+    processors.forEach((p) => {
+      if (p instanceof ZipProcessor) {
+        p.setRegistry(registry);
+      }
+      registry.register(p);
+    });
   }
 
   const extractedTexts: string[] = [];
