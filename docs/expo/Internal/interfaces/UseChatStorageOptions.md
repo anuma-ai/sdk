@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L72)
+Defined in: [src/expo/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L73)
 
 Options for useChatStorage hook (Expo version)
 
@@ -11,6 +11,19 @@ Uses the base options without React-specific features (no local chat, no tools).
 * `BaseUseChatStorageOptions`
 
 ## Properties
+
+### apiType?
+
+> `optional` **apiType**: `ApiType`
+
+Defined in: [src/expo/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L79)
+
+Which API endpoint to use. Default: "responses"
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)
+
+***
 
 ### autoCreateConversation?
 
@@ -79,6 +92,156 @@ Title for auto-created conversations (default: "New conversation")
 **Inherited from**
 
 `BaseUseChatStorageOptions.defaultConversationTitle`
+
+***
+
+### fileProcessingOptions?
+
+> `optional` **fileProcessingOptions**: `object`
+
+Defined in: [src/lib/db/chat/types.ts:184](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L184)
+
+Options for file preprocessing behavior
+
+**keepOriginalFiles?**
+
+> `optional` **keepOriginalFiles**: `boolean`
+
+Whether to keep original file attachments (default: true)
+
+**maxFileSizeBytes?**
+
+> `optional` **maxFileSizeBytes**: `number`
+
+Max file size to process in bytes (default: 10MB)
+
+**onError()?**
+
+> `optional` **onError**: (`fileName`: `string`, `error`: `Error`) => `void`
+
+Callback for errors (non-fatal)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`fileName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`error`
+
+</td>
+<td>
+
+`Error`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**onProgress()?**
+
+> `optional` **onProgress**: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
+
+Callback for progress updates
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`current`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`total`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`fileName`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.fileProcessingOptions`
+
+***
+
+### fileProcessors?
+
+> `optional` **fileProcessors**: `any`\[] | `null`
+
+Defined in: [src/lib/db/chat/types.ts:180](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L180)
+
+File preprocessors to use for automatic text extraction.
+
+* undefined (default): Use all built-in processors (PDF, Excel, Word)
+* null or \[]: Disable preprocessing
+* FileProcessor\[]: Use specific processors
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.fileProcessors`
 
 ***
 

@@ -4,6 +4,7 @@ import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { ApiType } from "../lib/chat/useChat";
 import {
   Message,
   Conversation,
@@ -69,7 +70,14 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
  * Uses the base options without React-specific features (no local chat, no tools).
  * @inline
  */
-export interface UseChatStorageOptions extends BaseUseChatStorageOptions {}
+export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+}
 
 /**
  * Arguments for sendMessage with storage (Expo version)
@@ -77,7 +85,14 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {}
  * Uses the base arguments without React-specific features (no runTools, no headers).
 
  */
-export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs;
+export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
+};
 
 /**
  * Result from sendMessage with storage (Expo version)
@@ -166,6 +181,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    apiType,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -204,6 +220,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    apiType,
   });
 
   /**
@@ -484,6 +501,7 @@ export function useChatStorage(
         onThinking: perRequestOnThinking,
         memoryContext,
         searchContext,
+        apiType: requestApiType,
         sources,
         thoughtProcess,
         // Responses API options
@@ -578,6 +596,7 @@ export function useChatStorage(
         onThinking: perRequestOnThinking,
         memoryContext,
         searchContext,
+        apiType: requestApiType,
         // Responses API options
         temperature,
         maxOutputTokens,

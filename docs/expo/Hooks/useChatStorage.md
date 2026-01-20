@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L155)
+Defined in: [src/expo/useChatStorage.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L170)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -34,6 +34,26 @@ API-based chat completions. Local chat and client-side tools are not available.
 <td>
 
 Configuration options
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.apiType?`
+
+</td>
+<td>
+
+`ApiType`
+
+</td>
+<td>
+
+Which API endpoint to use. Default: "responses"
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)
 
 </td>
 </tr>
@@ -119,6 +139,112 @@ WatermelonDB database instance for storing conversations and messages
 <td>
 
 Title for auto-created conversations (default: "New conversation")
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions?`
+
+</td>
+<td>
+
+{ `keepOriginalFiles?`: `boolean`; `maxFileSizeBytes?`: `number`; `onError?`: (`fileName`: `string`, `error`: `Error`) => `void`; `onProgress?`: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`; }
+
+</td>
+<td>
+
+Options for file preprocessing behavior
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.keepOriginalFiles?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Whether to keep original file attachments (default: true)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.maxFileSizeBytes?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Max file size to process in bytes (default: 10MB)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.onError?`
+
+</td>
+<td>
+
+(`fileName`: `string`, `error`: `Error`) => `void`
+
+</td>
+<td>
+
+Callback for errors (non-fatal)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessingOptions.onProgress?`
+
+</td>
+<td>
+
+(`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
+
+</td>
+<td>
+
+Callback for progress updates
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.fileProcessors?`
+
+</td>
+<td>
+
+`any`\[] | `null`
+
+</td>
+<td>
+
+File preprocessors to use for automatic text extraction.
+
+* undefined (default): Use all built-in processors (PDF, Excel, Word)
+* null or \[]: Disable preprocessing
+* FileProcessor\[]: Use specific processors
 
 </td>
 </tr>

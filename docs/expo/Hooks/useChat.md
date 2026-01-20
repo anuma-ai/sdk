@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L127)
+Defined in: [src/expo/useChat.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L149)
 
 A React hook for managing chat completions with authentication.
 
@@ -35,6 +35,26 @@ in React Native.
 <td>
 
 Optional configuration object
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.apiType?`
+
+</td>
+<td>
+
+`ApiType`
+
+</td>
+<td>
+
+Which API endpoint to use. Default: "responses"
+
+* "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+* "completions": OpenAI Chat Completions API (wider model compatibility)
 
 </td>
 </tr>

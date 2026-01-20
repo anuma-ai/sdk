@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
+Defined in: [src/expo/useChatStorage.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L109)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **clearMessages**: (`conversationId`: `string`) => `Promise`<`void`>
 
-Defined in: [src/lib/db/chat/types.ts:367](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L367)
+Defined in: [src/lib/db/chat/types.ts:394](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L394)
 
 **Parameters**
 
@@ -57,7 +57,7 @@ Defined in: [src/lib/db/chat/types.ts:367](https://github.com/zeta-chain/ai-sdk/
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:356](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L356)
+Defined in: [src/lib/db/chat/types.ts:383](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L383)
 
 **Inherited from**
 
@@ -69,7 +69,7 @@ Defined in: [src/lib/db/chat/types.ts:356](https://github.com/zeta-chain/ai-sdk/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:358](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L358)
+Defined in: [src/lib/db/chat/types.ts:385](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L385)
 
 **Parameters**
 
@@ -110,7 +110,7 @@ Defined in: [src/lib/db/chat/types.ts:358](https://github.com/zeta-chain/ai-sdk/
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:364](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L364)
+Defined in: [src/lib/db/chat/types.ts:391](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L391)
 
 **Parameters**
 
@@ -151,7 +151,7 @@ Defined in: [src/lib/db/chat/types.ts:364](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
-Defined in: [src/expo/useChatStorage.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L100)
+Defined in: [src/expo/useChatStorage.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L115)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -214,7 +214,7 @@ Extract all links from assistant message content as SearchSource objects
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:361](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L361)
+Defined in: [src/lib/db/chat/types.ts:388](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L388)
 
 **Parameters**
 
@@ -255,7 +255,7 @@ Defined in: [src/lib/db/chat/types.ts:361](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:362](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L362)
+Defined in: [src/lib/db/chat/types.ts:389](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L389)
 
 **Returns**
 
@@ -271,7 +271,7 @@ Defined in: [src/lib/db/chat/types.ts:362](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessageCount**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/lib/db/chat/types.ts:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L366)
+Defined in: [src/lib/db/chat/types.ts:393](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L393)
 
 **Parameters**
 
@@ -312,7 +312,7 @@ Defined in: [src/lib/db/chat/types.ts:366](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:365](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L365)
+Defined in: [src/lib/db/chat/types.ts:392](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L392)
 
 **Parameters**
 
@@ -353,7 +353,7 @@ Defined in: [src/lib/db/chat/types.ts:365](https://github.com/zeta-chain/ai-sdk/
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:354](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L354)
+Defined in: [src/lib/db/chat/types.ts:381](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L381)
 
 **Inherited from**
 
@@ -363,9 +363,9 @@ Defined in: [src/lib/db/chat/types.ts:354](https://github.com/zeta-chain/ai-sdk/
 
 ### sendMessage()
 
-> **sendMessage**: (`args`: `object`) => `Promise`<`BaseSendMessageWithStorageResult`>
+> **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L96)
+Defined in: [src/expo/useChatStorage.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L111)
 
 Send a message and automatically store it (Expo version)
 
@@ -376,7 +376,6 @@ Send a message and automatically store it (Expo version)
 <tr>
 <th>Parameter</th>
 <th>Type</th>
-<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -388,376 +387,7 @@ Send a message and automatically store it (Expo version)
 </td>
 <td>
 
-`object`
-
-</td>
-<td>
-
-‐
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.files?`
-
-</td>
-<td>
-
-[`FileMetadata`](../../../react/Internal/interfaces/FileMetadata.md)\[]
-
-</td>
-<td>
-
-File attachments to include with the message (images, documents, etc.).
-Files with image MIME types and URLs are sent as image content parts.
-File metadata is stored with the message (URLs are stripped if they're data URIs).
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.includeHistory?`
-
-</td>
-<td>
-
-`boolean`
-
-</td>
-<td>
-
-Whether to automatically include previous messages from the conversation as context.
-When true, fetches stored messages and prepends them to the request.
-Ignored if `messages` is provided.
-
-**Default**
-
-```ts
-true
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.maxHistoryMessages?`
-
-</td>
-<td>
-
-`number`
-
-</td>
-<td>
-
-Maximum number of historical messages to include when `includeHistory` is true.
-Only the most recent N messages are included to manage context window size.
-
-**Default**
-
-```ts
-50
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.maxOutputTokens?`
-
-</td>
-<td>
-
-`number`
-
-</td>
-<td>
-
-Maximum number of tokens to generate in the response.
-Use this to limit response length and control costs.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.memoryContext?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Additional context from memory/RAG system to include in the request.
-Typically contains retrieved relevant information from past conversations.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.messages`
-
-</td>
-<td>
-
-[`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
-
-</td>
-<td>
-
-The message array to send to the AI.
-
-Uses the modern array format that supports multimodal content (text, images, files).
-The last user message in this array will be extracted and stored in the database.
-
-When `includeHistory` is true (default), conversation history is prepended.
-When `includeHistory` is false, only these messages are sent.
-
-**Example**
-
-```ts
-// Simple usage
-sendMessage({
-  messages: [
-    { role: "user", content: [{ type: "text", text: "Hello!" }] }
-  ]
-})
-
-// With system prompt and history disabled
-sendMessage({
-  messages: [
-    { role: "system", content: [{ type: "text", text: "You are helpful" }] },
-    { role: "user", content: [{ type: "text", text: "Question" }] },
-  ],
-  includeHistory: false
-})
-
-// With images
-sendMessage({
-  messages: [
-    { role: "user", content: [
-      { type: "text", text: "What's in this image?" },
-      { type: "image_url", image_url: { url: "data:image/png;base64,..." } }
-    ]}
-  ]
-})
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.model?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
-If not specified, uses the default model configured on the server.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.onData?`
-
-</td>
-<td>
-
-(`chunk`: `string`) => `void`
-
-</td>
-<td>
-
-Per-request callback invoked with each streamed response chunk.
-Overrides the hook-level `onData` callback for this request only.
-Use this to update UI as the response streams in.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.onThinking?`
-
-</td>
-<td>
-
-(`chunk`: `string`) => `void`
-
-</td>
-<td>
-
-Per-request callback for thinking/reasoning chunks.
-Called with delta chunks as the model "thinks" through a problem.
-Use this to display thinking progress in the UI.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.reasoning?`
-
-</td>
-<td>
-
-[`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
-
-</td>
-<td>
-
-Reasoning configuration for o-series and other reasoning models.
-Controls reasoning effort level and whether to include reasoning summary.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.searchContext?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Additional context from search results to include in the request.
-Typically contains relevant information from web or document searches.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.sources?`
-
-</td>
-<td>
-
-[`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
-
-</td>
-<td>
-
-Search sources to attach to the stored message for citation/reference.
-These are combined with any sources extracted from the assistant's response.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.temperature?`
-
-</td>
-<td>
-
-`number`
-
-</td>
-<td>
-
-Controls randomness in the response (0.0 to 2.0).
-Lower values make output more deterministic, higher values more creative.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.thinking?`
-
-</td>
-<td>
-
-[`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
-
-</td>
-<td>
-
-Extended thinking configuration for Anthropic models (Claude).
-Enables the model to think through complex problems step by step
-before generating the final response.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.thoughtProcess?`
-
-</td>
-<td>
-
-`ActivityPhase`\[]
-
-</td>
-<td>
-
-Activity phases for tracking the request lifecycle in the UI.
-Each phase represents a step like "Searching", "Thinking", "Generating".
-The final phase is automatically marked as completed when stored.
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.toolChoice?`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Controls which tool the model should use:
-
-* "auto": Model decides whether to use a tool (default)
-* "any": Model must use one of the provided tools
-* "none": Model cannot use any tools
-* "required": Model must use a tool
-* Specific tool name: Model must use that specific tool
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.tools?`
-
-</td>
-<td>
-
-[`LlmapiTool`](../../../client/Internal/type-aliases/LlmapiTool.md)\[]
-
-</td>
-<td>
-
-Array of tool definitions available to the model.
-Tools enable the model to call functions, search, execute code, etc.
+[`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)
 
 </td>
 </tr>
@@ -774,7 +404,7 @@ Tools enable the model to call functions, search, execute code, etc.
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:357](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L357)
+Defined in: [src/lib/db/chat/types.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L384)
 
 **Parameters**
 
@@ -815,7 +445,7 @@ Defined in: [src/lib/db/chat/types.ts:357](https://github.com/zeta-chain/ai-sdk/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:355](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L355)
+Defined in: [src/lib/db/chat/types.ts:382](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L382)
 
 **Returns**
 
@@ -831,7 +461,7 @@ Defined in: [src/lib/db/chat/types.ts:355](https://github.com/zeta-chain/ai-sdk/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:363](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L363)
+Defined in: [src/lib/db/chat/types.ts:390](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L390)
 
 **Parameters**
 
@@ -884,7 +514,7 @@ Defined in: [src/lib/db/chat/types.ts:363](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L105)
+Defined in: [src/expo/useChatStorage.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L120)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 
