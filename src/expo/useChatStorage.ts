@@ -661,10 +661,23 @@ export function useChatStorage(
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
+          // Find the message output item (type: "message") for main content
+          const messageOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "message"
+          );
           const assistantContent =
-            abortedResult.data?.output?.[0]?.content
+            messageOutput?.content
               ?.map((part: { text?: string }) => part.text || "")
               .join("") || "";
+
+          // Find the reasoning output item (type: "reasoning") for thinking content
+          const reasoningOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "reasoning"
+          );
+          const abortedThinkingContent =
+            reasoningOutput?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || undefined;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -681,6 +694,7 @@ export function useChatStorage(
               wasStopped: true,
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thinking: abortedThinkingContent,
             });
 
             // Build a valid response for the return (even if original was null)
@@ -797,7 +811,7 @@ export function useChatStorage(
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
-          // thinking: thinkingContent,
+          thinking: thinkingContent,
         });
       } catch (err) {
         return {

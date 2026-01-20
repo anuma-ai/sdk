@@ -54,7 +54,7 @@ Create a `.env` file in the project root (required for `--full` mode):
 PORTAL_API_KEY=your-api-key-here
 
 # Optional: Override API URL (defaults to production)
-# REVERBIA_API_URL=https://ai-portal-dev.zetachain.com
+# REVERBIA_API_URL=https://portal.anuma-dev.ai
 ```
 
 ## Understanding Embeddings

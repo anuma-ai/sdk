@@ -1,6 +1,6 @@
 # SearchMessagesOptions
 
-Defined in: [src/react/useChatStorage.ts:361](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L361)
+Defined in: [src/react/useChatStorage.ts:404](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L404)
 
 Options for searching messages
 
@@ -10,7 +10,7 @@ Options for searching messages
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:367](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L367)
+Defined in: [src/react/useChatStorage.ts:410](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L410)
 
 Filter by conversation ID
 
@@ -20,7 +20,7 @@ Filter by conversation ID
 
 > `optional` **limit**: `number`
 
-Defined in: [src/react/useChatStorage.ts:363](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L363)
+Defined in: [src/react/useChatStorage.ts:406](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L406)
 
 Limit the number of results (default: 10)
 
@@ -30,6 +30,6 @@ Limit the number of results (default: 10)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/react/useChatStorage.ts:365](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L365)
+Defined in: [src/react/useChatStorage.ts:408](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L408)
 
 Minimum similarity threshold (default: 0.5)

@@ -203,7 +203,7 @@ export class CompletionsStrategy implements ApiStrategy {
       }
 
       // Handle tool calls from alternate "messages" format (some APIs use this instead of "message")
-      if (choice.messages?.tool_calls) {
+      if (choice.messages?.tool_calls && choice.messages.tool_calls.length > 0) {
         for (let i = 0; i < choice.messages.tool_calls.length; i++) {
           const toolCall = choice.messages.tool_calls[i];
           const toolKey = `tool_${i}`;
