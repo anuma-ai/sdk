@@ -95,6 +95,12 @@ function ChatScreen() {
 
 ## Other
 
+### CachedServerTools
+
+Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
+
+***
+
 ### ChatConversation
 
 Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
@@ -125,6 +131,12 @@ Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
 
 ***
 
+### clearServerToolsCache
+
+Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
+
+***
+
 ### CreateConversationOptions
 
 Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
@@ -140,6 +152,12 @@ Re-exports [CreateMemoryOptions](../react/Internal/interfaces/CreateMemoryOption
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### DEFAULT\_CACHE\_EXPIRATION\_MS
+
+Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
 
 ***
 
@@ -164,6 +182,18 @@ Re-exports [generateConversationId](../react/Internal/functions/generateConversa
 ### generateUniqueKey
 
 Re-exports [generateUniqueKey](../react/Internal/functions/generateUniqueKey.md)
+
+***
+
+### getCachedServerTools
+
+Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
+
+***
+
+### getServerTools
+
+Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
 
 ***
 
@@ -206,6 +236,18 @@ Re-exports [sdkSchema](../react/Internal/variables/sdkSchema.md)
 ### SearchSource
 
 Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
+
+***
+
+### ServerToolsOptions
+
+Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.md)
+
+***
+
+### ServerToolsResponse
+
+Re-exports [ServerToolsResponse](../react/Internal/interfaces/ServerToolsResponse.md)
 
 ***
 

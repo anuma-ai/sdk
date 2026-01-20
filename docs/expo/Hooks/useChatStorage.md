@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L170)
+Defined in: [src/expo/useChatStorage.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L175)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -330,6 +330,41 @@ Callback invoked when the response completes successfully
 <td>
 
 Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverTools?`
+
+</td>
+<td>
+
+{ `cacheExpirationMs?`: `number`; }
+
+</td>
+<td>
+
+Configuration for server-side tools fetching and caching.
+Server tools are fetched from /api/v1/tools and cached in localStorage.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.serverTools.cacheExpirationMs?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 </td>
 </tr>

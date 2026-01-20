@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L73)
+Defined in: [src/expo/useChatStorage.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L78)
 
 Options for useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Uses the base options without React-specific features (no local chat, no tools).
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/expo/useChatStorage.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L79)
+Defined in: [src/expo/useChatStorage.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L84)
 
 Which API endpoint to use. Default: "responses"
 
@@ -432,3 +432,24 @@ Callback invoked when thinking/reasoning content is received (from <think> tags 
 **Inherited from**
 
 `BaseUseChatStorageOptions.onThinking`
+
+***
+
+### serverTools?
+
+> `optional` **serverTools**: `object`
+
+Defined in: [src/lib/db/chat/types.ts:198](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L198)
+
+Configuration for server-side tools fetching and caching.
+Server tools are fetched from /api/v1/tools and cached in localStorage.
+
+**cacheExpirationMs?**
+
+> `optional` **cacheExpirationMs**: `number`
+
+Cache expiration time in milliseconds (default: 86400000 = 1 day)
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.serverTools`
