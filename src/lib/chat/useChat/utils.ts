@@ -832,17 +832,22 @@ export function createToolExecutorMap(
   >();
 
   if (!tools) {
+    console.log("[Tool Debug] createToolExecutorMap: No tools provided");
     return map;
   }
+
+  console.log("[Tool Debug] createToolExecutorMap: Processing", tools.length, "tools");
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
     const toolName = (tool as LlmapiTool).function?.name || (tool as any).name;
+    console.log("[Tool Debug] createToolExecutorMap: Tool name:", toolName, "hasExecutor:", !!(tool as any).executor);
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
     const toolWithExecutor = tool as ToolConfig & Record<string, unknown>;
     if (toolWithExecutor.executor) {
+      console.log("[Tool Debug] createToolExecutorMap: Adding executor for:", toolName);
       map.set(toolName, {
         executor: toolWithExecutor.executor as ToolExecutor,
         autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
@@ -850,6 +855,7 @@ export function createToolExecutorMap(
     }
   }
 
+  console.log("[Tool Debug] createToolExecutorMap: Final map size:", map.size, "keys:", Array.from(map.keys()));
   return map;
 }
 
