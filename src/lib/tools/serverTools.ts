@@ -382,9 +382,6 @@ export function mergeTools(
   clientTools: Array<LlmapiTool | ToolConfig> | undefined,
   apiType: "responses" | "completions" = "responses"
 ): Array<LlmapiTool | ToolConfig | Record<string, unknown>> {
-  // eslint-disable-next-line no-console
-  console.log("[Tool Debug] mergeTools: apiType:", apiType, "serverTools:", serverTools.length, "clientTools:", clientTools?.length ?? 0);
-
   // Format server tools based on API type
   const formattedServerTools =
     apiType === "completions"
@@ -395,25 +392,11 @@ export function mergeTools(
     return formattedServerTools;
   }
 
-  // Debug: Log client tools before formatting
-  // eslint-disable-next-line no-console
-  console.log("[Tool Debug] mergeTools: Client tools before formatting:", clientTools.map(t => ({
-    name: t.function?.name || (t as any).name,
-    hasExecutor: !!(t as any).executor,
-  })));
-
   // Format client tools based on API type
   const formattedClientTools =
     apiType === "responses"
       ? clientTools.map(clientToolToResponsesFormat)
       : clientTools.map(clientToolToCompletionsFormat);
-
-  // Debug: Log client tools after formatting
-  // eslint-disable-next-line no-console
-  console.log("[Tool Debug] mergeTools: Client tools after formatting:", formattedClientTools.map(t => ({
-    name: (t as any).function?.name || (t as any).name,
-    hasExecutor: !!(t as any).executor,
-  })));
 
   if (serverTools.length === 0) {
     return formattedClientTools;
@@ -434,8 +417,5 @@ export function mergeTools(
   });
 
   // Return merged array: server tools first, then client tools
-  const merged = [...nonConflictingServerTools, ...formattedClientTools];
-  // eslint-disable-next-line no-console
-  console.log("[Tool Debug] mergeTools: Final merged tools:", merged.length, "with executors:", merged.filter(t => !!(t as any).executor).length);
-  return merged;
+  return [...nonConflictingServerTools, ...formattedClientTools];
 }
