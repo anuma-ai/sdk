@@ -8,6 +8,7 @@ export {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
@@ -42,4 +43,5 @@ export {
   updateMessageOp,
   searchMessagesOp,
   getMessagesWithEmbeddingsOp,
+  getAllFilesOp,
 } from "./operations";
