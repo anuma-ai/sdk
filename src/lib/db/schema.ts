@@ -8,6 +8,7 @@ import {
 import type Model from "@nozbe/watermelondb/Model";
 import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
+import { Project } from "./project/models";
 import { Memory } from "./memory/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
@@ -24,8 +25,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v7: Added userPreferences table for unified user settings storage
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
  * - v9: Added thinking column to history table for reasoning/thinking content
+ * - v10: Added projects table and project_id column to conversations table
  */
-const SDK_SCHEMA_VERSION = 9;
+const SDK_SCHEMA_VERSION = 10;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -88,6 +90,18 @@ export const sdkSchema = appSchema({
       columns: [
         { name: "conversation_id", type: "string", isIndexed: true },
         { name: "title", type: "string" },
+        { name: "project_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+      ],
+    }),
+    // Project storage table
+    tableSchema({
+      name: "projects",
+      columns: [
+        { name: "project_id", type: "string", isIndexed: true },
+        { name: "name", type: "string" },
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
@@ -161,6 +175,7 @@ export const sdkSchema = appSchema({
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
  * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
+ * - v9 → v10: Added `projects` table and `project_id` column to conversations
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -249,6 +264,28 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v9 -> v10: Added projects table and project_id to conversations
+    {
+      toVersion: 10,
+      steps: [
+        createTable({
+          name: "projects",
+          columns: [
+            { name: "project_id", type: "string", isIndexed: true },
+            { name: "name", type: "string" },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+        addColumns({
+          table: "conversations",
+          columns: [
+            { name: "project_id", type: "string", isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -272,6 +309,7 @@ export const sdkMigrations = schemaMigrations({
 export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
+  Project,
   Memory,
   ModelPreference,
   UserPreference,

@@ -43,6 +43,7 @@ export function conversationToStored(
     uniqueId: conversation.id,
     conversationId: conversation.conversationId,
     title: conversation.title,
+    projectId: conversation.projectId,
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     isDeleted: conversation.isDeleted,
@@ -67,6 +68,7 @@ export async function createConversationOp(
     return await ctx.conversationsCollection.create((conv) => {
       conv._setRaw("conversation_id", convId);
       conv._setRaw("title", title);
+      if (opts?.projectId) conv._setRaw("project_id", opts.projectId);
       conv._setRaw("is_deleted", false);
     });
   });
@@ -132,6 +134,49 @@ export async function deleteConversationOp(
     return true;
   }
   return false;
+}
+
+/**
+ * Update a conversation's project assignment.
+ * Pass null to remove the conversation from any project.
+ */
+export async function updateConversationProjectOp(
+  ctx: StorageOperationsContext,
+  id: string,
+  projectId: string | null
+): Promise<boolean> {
+  const results = await ctx.conversationsCollection
+    .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
+    .fetch();
+
+  if (results.length > 0) {
+    await ctx.database.write(async () => {
+      await results[0].update((conv) => {
+        conv._setRaw("project_id", projectId === null ? "" : projectId);
+      });
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get conversations filtered by project ID.
+ * Pass null to get conversations that don't belong to any project.
+ */
+export async function getConversationsByProjectOp(
+  ctx: StorageOperationsContext,
+  projectId: string | null
+): Promise<StoredConversation[]> {
+  const results = await ctx.conversationsCollection
+    .query(
+      Q.where("project_id", projectId === null ? "" : projectId),
+      Q.where("is_deleted", false),
+      Q.sortBy("created_at", Q.desc)
+    )
+    .fetch();
+
+  return results.map(conversationToStored);
 }
 
 export async function getMessagesOp(

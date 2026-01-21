@@ -34,6 +34,8 @@ export {
   getConversationsOp,
   updateConversationTitleOp,
   deleteConversationOp,
+  updateConversationProjectOp,
+  getConversationsByProjectOp,
   getMessagesOp,
   getMessageCountOp,
   clearMessagesOp,
