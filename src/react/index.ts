@@ -150,6 +150,8 @@ export {
   getProjectConversationsOp,
   getProjectConversationCountOp,
 } from "../lib/db/project";
+export { useProjects } from "./useProjects";
+export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,
