@@ -22,6 +22,7 @@ import {
 } from "../lib/db/project";
 import {
   Conversation,
+  Message,
   type StoredConversation,
   updateConversationProjectOp,
   getConversationsByProjectOp,
@@ -51,6 +52,8 @@ export interface UseProjectsResult {
   setCurrentProjectId: (id: string | null) => void;
   /** Whether projects are being loaded */
   isLoading: boolean;
+  /** Whether the projects system is ready (database table exists) */
+  isReady: boolean;
 
   // Project CRUD
   /** Create a new project */
@@ -138,46 +141,88 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     initialProjectId || null
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [projectsCollection, setProjectsCollection] = useState<ReturnType<typeof database.get<Project>> | null>(null);
+  const [conversationsCollection, setConversationsCollection] = useState<ReturnType<typeof database.get<Conversation>> | null>(null);
 
-  // Get collections
-  const projectsCollection = useMemo(
-    () => database.get<Project>("projects"),
-    [database]
-  );
+  // Initialize collections asynchronously to handle database initialization race conditions
+  useEffect(() => {
+    const initCollections = async () => {
+      console.log("[useProjects] Initializing collections...");
+      try {
+        // Get collections - these are synchronous but we wrap in async to handle any issues
+        const projColl = database.get<Project>("projects");
+        const convColl = database.get<Conversation>("conversations");
 
-  const conversationsCollection = useMemo(
-    () => database.get<Conversation>("conversations"),
-    [database]
-  );
+        console.log("[useProjects] Got collections:", {
+          projects: projColl?.table,
+          conversations: convColl?.table,
+        });
 
-  // Project operations context
-  const projectCtx = useMemo<ProjectOperationsContext>(
-    () => ({
+        // Test query to ensure database is initialized and tables exist
+        console.log("[useProjects] Running test query on projects table...");
+        const testResult = await projColl.query(Q.take(1)).fetch();
+        console.log("[useProjects] Test query succeeded, found", testResult.length, "projects");
+
+        setProjectsCollection(projColl);
+        setConversationsCollection(convColl);
+        setIsReady(true);
+        console.log("[useProjects] Collections initialized successfully, isReady=true");
+      } catch (error) {
+        console.error("[useProjects] Failed to initialize collections:", error);
+        console.warn(
+          "[useProjects] This usually means the database schema needs to be updated.",
+          "Try clearing IndexedDB storage and reloading the page."
+        );
+        setIsReady(false);
+      }
+    };
+
+    initCollections();
+  }, [database]);
+
+  // Project operations context - only valid when isReady is true
+  const projectCtx = useMemo<ProjectOperationsContext | null>(() => {
+    if (!isReady || !projectsCollection || !conversationsCollection) {
+      return null;
+    }
+    return {
       database,
       projectsCollection,
       conversationsCollection,
-    }),
-    [database, projectsCollection, conversationsCollection]
-  );
+    };
+  }, [database, projectsCollection, conversationsCollection, isReady]);
 
-  // Storage operations context (for conversation operations)
-  const storageCtx = useMemo<StorageOperationsContext>(
-    () => ({
-      database,
-      messagesCollection: database.get("history"),
-      conversationsCollection,
-    }),
-    [database, conversationsCollection]
-  );
+  // Storage operations context (for conversation operations) - only valid when isReady is true
+  const storageCtx = useMemo<StorageOperationsContext | null>(() => {
+    if (!isReady || !conversationsCollection) {
+      return null;
+    }
+    try {
+      const messagesCollection = database.get<Message>("history");
+      return {
+        database,
+        messagesCollection,
+        conversationsCollection,
+      };
+    } catch {
+      return null;
+    }
+  }, [database, conversationsCollection, isReady]);
 
   /**
    * Refresh projects from database
    */
   const refreshProjects = useCallback(async (): Promise<void> => {
+    if (!projectCtx) {
+      return;
+    }
     setIsLoading(true);
     try {
       const storedProjects = await getProjectsOp(projectCtx);
       setProjects(storedProjects);
+    } catch (error) {
+      console.error("Failed to refresh projects:", error);
     } finally {
       setIsLoading(false);
     }
@@ -185,11 +230,16 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
 
   // Load projects on mount
   useEffect(() => {
-    refreshProjects();
-  }, [refreshProjects]);
+    if (isReady) {
+      refreshProjects();
+    }
+  }, [isReady, refreshProjects]);
 
   // Subscribe to project changes for real-time updates
   useEffect(() => {
+    if (!projectsCollection) {
+      return;
+    }
     const subscription = projectsCollection
       .query(Q.where("is_deleted", false))
       .observe()
@@ -205,6 +255,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const createProject = useCallback(
     async (opts?: CreateProjectOptions): Promise<StoredProject> => {
+      if (!projectCtx) {
+        throw new Error("Projects not available. Database schema may need to be updated.");
+      }
       const project = await createProjectOp(projectCtx, opts);
       return project;
     },
@@ -216,6 +269,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const getProject = useCallback(
     async (projectId: string): Promise<StoredProject | null> => {
+      if (!projectCtx) {
+        return null;
+      }
       return getProjectOp(projectCtx, projectId);
     },
     [projectCtx]
@@ -225,6 +281,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    * Get all projects
    */
   const getProjects = useCallback(async (): Promise<StoredProject[]> => {
+    if (!projectCtx) {
+      return [];
+    }
     return getProjectsOp(projectCtx);
   }, [projectCtx]);
 
@@ -233,6 +292,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const updateProjectName = useCallback(
     async (projectId: string, name: string): Promise<boolean> => {
+      if (!projectCtx) {
+        return false;
+      }
       return updateProjectNameOp(projectCtx, projectId, name);
     },
     [projectCtx]
@@ -243,6 +305,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const updateProject = useCallback(
     async (projectId: string, opts: UpdateProjectOptions): Promise<boolean> => {
+      if (!projectCtx) {
+        return false;
+      }
       return updateProjectOp(projectCtx, projectId, opts);
     },
     [projectCtx]
@@ -253,6 +318,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const deleteProject = useCallback(
     async (projectId: string): Promise<boolean> => {
+      if (!projectCtx) {
+        return false;
+      }
       const result = await deleteProjectOp(projectCtx, projectId);
       if (result && currentProjectId === projectId) {
         setCurrentProjectId(null);
@@ -267,6 +335,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const getProjectConversations = useCallback(
     async (projectId: string): Promise<StoredConversation[]> => {
+      if (!projectCtx) {
+        return [];
+      }
       return getProjectConversationsOp(projectCtx, projectId);
     },
     [projectCtx]
@@ -277,6 +348,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const getProjectConversationCount = useCallback(
     async (projectId: string): Promise<number> => {
+      if (!projectCtx) {
+        return 0;
+      }
       return getProjectConversationCountOp(projectCtx, projectId);
     },
     [projectCtx]
@@ -290,6 +364,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       conversationId: string,
       projectId: string | null
     ): Promise<boolean> => {
+      if (!storageCtx) {
+        return false;
+      }
       return updateConversationProjectOp(storageCtx, conversationId, projectId);
     },
     [storageCtx]
@@ -300,6 +377,9 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    */
   const getConversationsByProject = useCallback(
     async (projectId: string | null): Promise<StoredConversation[]> => {
+      if (!storageCtx) {
+        return [];
+      }
       return getConversationsByProjectOp(storageCtx, projectId);
     },
     [storageCtx]
@@ -311,6 +391,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
     currentProjectId,
     setCurrentProjectId,
     isLoading,
+    isReady,
 
     // Project CRUD
     createProject,
