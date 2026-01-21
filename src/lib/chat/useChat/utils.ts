@@ -821,9 +821,10 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
 
 /**
  * Creates a map of tool name to executor from tool configs
+ * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function createToolExecutorMap(
-  tools?: Array<LlmapiTool | ToolConfig>
+  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
 ): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
   const map = new Map<
     string,
@@ -835,15 +836,16 @@ export function createToolExecutorMap(
   }
 
   for (const tool of tools) {
-    const toolName = tool.function?.name;
+    // Handle both Completions format (function.name) and Responses format (name at top level)
+    const toolName = (tool as LlmapiTool).function?.name || (tool as any).name;
     if (!toolName) continue;
 
-    // Check if this is a ToolConfig with an executor
-    const toolConfig = tool as ToolConfig;
-    if (toolConfig.executor) {
+    // Check if this is a tool with an executor
+    const toolWithExecutor = tool as ToolConfig & Record<string, unknown>;
+    if (toolWithExecutor.executor) {
       map.set(toolName, {
-        executor: toolConfig.executor,
-        autoExecute: toolConfig.autoExecute !== false, // Default to true
+        executor: toolWithExecutor.executor as ToolExecutor,
+        autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
       });
     }
   }
@@ -894,17 +896,18 @@ export async function executeToolCall(
 
 /**
  * Converts tool definitions to the format expected by the API (strips executors)
+ * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiTool | ToolConfig>
-): LlmapiTool[] | undefined {
+  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;
   }
 
   return tools.map((tool) => {
-    // Strip executor and autoExecute properties
-    const { executor, autoExecute, ...apiTool } = tool as ToolConfig;
-    return apiTool as LlmapiTool;
+    // Strip executor and autoExecute properties (client-side only)
+    const { executor, autoExecute, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    return apiTool;
   });
 }

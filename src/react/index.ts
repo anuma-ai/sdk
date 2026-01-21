@@ -205,6 +205,19 @@ export {
   extractConversationContext,
 } from "../lib/memory/chat";
 
+// Server-side tools caching utilities
+export {
+  clearServerToolsCache,
+  getServerTools,
+  getCachedServerTools,
+  DEFAULT_CACHE_EXPIRATION_MS,
+} from "../lib/tools";
+export type {
+  ServerToolsOptions,
+  CachedServerTools,
+  ServerToolsResponse,
+} from "../lib/tools";
+
 export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
 export type {
   UseDropboxBackupOptions,
