@@ -84,6 +84,7 @@
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
