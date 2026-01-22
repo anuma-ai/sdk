@@ -30,6 +30,18 @@ import { calculatePercentiles } from "../metrics.js";
 declare const global: typeof globalThis;
 declare const require: any;
 
+// Silence WatermelonDB/LokiJS emoji logs
+const originalLog = console.log;
+const originalWarn = console.warn;
+console.log = (...args: any[]) => {
+  if (typeof args[0] === "string" && args[0].includes("[🍉]")) return;
+  originalLog(...args);
+};
+console.warn = (...args: any[]) => {
+  if (typeof args[0] === "string" && args[0].includes("[🍉]")) return;
+  originalWarn(...args);
+};
+
 interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
