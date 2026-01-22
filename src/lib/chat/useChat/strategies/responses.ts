@@ -141,6 +141,8 @@ export class ResponsesStrategy implements ApiStrategy {
     }
 
     // Extract content delta from responses API format
+    // For models like Qwen that use implicit reasoning (no opening tag),
+    // we need to parse thinking tags from content as a fallback
     if (typedChunk.type === "response.output_text.delta") {
       const delta = typedChunk.delta;
       if (delta) {
