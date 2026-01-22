@@ -359,6 +359,14 @@ export interface SendMessageWithStorageArgs
   apiType?: ApiType;
 
   /**
+   * Explicitly specify the conversation ID to send this message to.
+   * If provided, bypasses the automatic conversation detection/creation.
+   * Useful when sending a message immediately after creating a conversation,
+   * to avoid race conditions with React state updates.
+   */
+  conversationId?: string;
+
+  /**
    * Function to write files to storage (for MCP image processing).
    * When provided, MCP-generated images in the response are automatically
    * downloaded and stored locally via this function. The content is updated
@@ -1730,6 +1738,7 @@ export function useChatStorage(
         onThinking,
         apiType: requestApiType,
         writeFile,
+        conversationId: explicitConversationId,
       } = args;
 
       // Extract user message content for storage
@@ -1768,17 +1777,31 @@ export function useChatStorage(
       }
 
       // Ensure we have a conversation
+      // If an explicit conversationId is provided, use it directly (bypasses state timing issues)
       let convId: string;
-      try {
-        convId = await ensureConversation();
-      } catch (err) {
-        return {
-          data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to ensure conversation",
-        };
+      if (explicitConversationId) {
+        // Verify the conversation exists
+        const existing = await getConversation(explicitConversationId);
+        if (existing) {
+          convId = explicitConversationId;
+        } else {
+          return {
+            data: null,
+            error: `Conversation ${explicitConversationId} not found`,
+          };
+        }
+      } else {
+        try {
+          convId = await ensureConversation();
+        } catch (err) {
+          return {
+            data: null,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to ensure conversation",
+          };
+        }
       }
 
       // Build the messages array
