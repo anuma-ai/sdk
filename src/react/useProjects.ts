@@ -90,6 +90,8 @@ export interface UseProjectsResult {
   // Utilities
   /** Refresh the projects list from database */
   refreshProjects: () => Promise<void>;
+  /** The ID of the default Inbox project (auto-created) */
+  inboxProjectId: string | null;
 }
 
 /**
@@ -142,6 +144,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [inboxProjectId, setInboxProjectId] = useState<string | null>(null);
   const [projectsCollection, setProjectsCollection] = useState<ReturnType<typeof database.get<Project>> | null>(null);
   const [conversationsCollection, setConversationsCollection] = useState<ReturnType<typeof database.get<Conversation>> | null>(null);
 
@@ -234,6 +237,31 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       refreshProjects();
     }
   }, [isReady, refreshProjects]);
+
+  // Ensure Inbox project exists and track its ID
+  useEffect(() => {
+    const ensureInboxProject = async () => {
+      if (!projectCtx || !isReady) return;
+
+      try {
+        // Look for existing Inbox project
+        const allProjects = await getProjectsOp(projectCtx);
+        const existingInbox = allProjects.find(p => p.name === "Inbox");
+
+        if (existingInbox) {
+          setInboxProjectId(existingInbox.projectId);
+        } else {
+          // Create Inbox project if it doesn't exist
+          const inbox = await createProjectOp(projectCtx, { name: "Inbox" });
+          setInboxProjectId(inbox.projectId);
+        }
+      } catch (error) {
+        console.error("[useProjects] Failed to ensure Inbox project:", error);
+      }
+    };
+
+    ensureInboxProject();
+  }, [projectCtx, isReady]);
 
   // Subscribe to project changes for real-time updates
   useEffect(() => {
@@ -409,5 +437,6 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
 
     // Utilities
     refreshProjects,
+    inboxProjectId,
   };
 }
