@@ -93,7 +93,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`StoredMemoryModel`](StoredMemoryModel.md).[`_preparedState`](StoredMemoryModel.md#_preparedstate)
+[`Project`](Project.md).[`_preparedState`](Project.md#_preparedstate)
 
 ***
 
@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L45)
+Defined in: [src/lib/db/chat/models.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L46)
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/chat/models.ts:45](https://github.com/zeta-chain/ai-sdk/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L47)
+Defined in: [src/lib/db/chat/models.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L49)
 
 ***
 
@@ -153,7 +153,15 @@ Defined in: [src/lib/db/chat/models.ts:47](https://github.com/zeta-chain/ai-sdk/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/models.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L49)
+Defined in: [src/lib/db/chat/models.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L51)
+
+***
+
+### projectId?
+
+> `optional` **projectId**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L48)
 
 ***
 
@@ -161,7 +169,7 @@ Defined in: [src/lib/db/chat/models.ts:49](https://github.com/zeta-chain/ai-sdk/
 
 > **title**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L46)
+Defined in: [src/lib/db/chat/models.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L47)
 
 ***
 
@@ -169,7 +177,7 @@ Defined in: [src/lib/db/chat/models.ts:46](https://github.com/zeta-chain/ai-sdk/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L48)
+Defined in: [src/lib/db/chat/models.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L50)
 
 ***
 
@@ -331,7 +339,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`StoredMemoryModel`](StoredMemoryModel.md).[`table`](StoredMemoryModel.md#table-1)
+[`Project`](Project.md).[`table`](Project.md#table-1)
 
 ## Methods
 

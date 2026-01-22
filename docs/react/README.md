@@ -82,6 +82,7 @@ function ChatComponent() {
 | [useModels](Hooks/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
 | [useOCR](Hooks/useOCR.md) | React hook for extracting text from images using OCR. |
 | [usePdf](Hooks/usePdf.md) | React hook for extracting text from PDF files. |
+| [useProjects](Hooks/useProjects.md) | A React hook for managing projects (conversation groups). |
 | [useSettings](Hooks/useSettings.md) | A React hook for managing user settings with automatic persistence using WatermelonDB. |
 
 ## Other
