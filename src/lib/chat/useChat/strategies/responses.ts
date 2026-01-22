@@ -1,6 +1,7 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
+import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 
 /**
@@ -119,14 +120,38 @@ export class ResponsesStrategy implements ApiStrategy {
     }
 
     // Extract content delta from responses API format
+    // For models like Qwen that use implicit reasoning (no opening tag),
+    // we need to parse thinking tags from content as a fallback
     if (typedChunk.type === "response.output_text.delta") {
       const delta = typedChunk.delta;
       if (delta) {
         const deltaText = typeof delta === "string" ? delta : delta.OfString;
-        // Only emit non-empty content to avoid false error detection
-        if (deltaText && deltaText.trim().length > 0) {
-          accumulator.content += deltaText;
-          result.content = deltaText;
+        if (deltaText) {
+          // Parse reasoning tags from content (handles Qwen implicit reasoning)
+          const parseResult = parseReasoningTags(
+            deltaText,
+            accumulator.partialReasoningTag || "",
+            accumulator.insideReasoning || false,
+            undefined,
+            accumulator.implicitReasoningStart
+          );
+
+          // Update accumulator with parsed content
+          accumulator.content += parseResult.messageContent;
+          accumulator.thinking += parseResult.reasoningContent;
+          accumulator.partialReasoningTag = parseResult.partialTag;
+          accumulator.insideReasoning = parseResult.insideReasoning;
+          if (parseResult.implicitReasoningStart !== undefined) {
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+          }
+
+          // Emit deltas - only emit non-empty content to avoid false error detection
+          if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+            result.content = parseResult.messageContent;
+          }
+          if (parseResult.reasoningContent) {
+            result.thinking = parseResult.reasoningContent;
+          }
         }
       }
     }
