@@ -99,7 +99,13 @@ export class CompletionsStrategy implements ApiStrategy {
     accumulator: StreamAccumulator
   ): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
-    const typedChunk = chunk as CompletionsStreamingChunk;
+
+    // Handle wrapped response format: { response: {...}, type: "response" }
+    // Some endpoints return the completions response nested under a "response" key
+    const rawChunk = chunk as { response?: CompletionsStreamingChunk; type?: string };
+    const typedChunk = (rawChunk.response && rawChunk.type === "response")
+      ? rawChunk.response
+      : (chunk as CompletionsStreamingChunk);
 
     // Extract response ID and model
     if (typedChunk.id && !accumulator.responseId) {
@@ -239,6 +245,10 @@ export class CompletionsStrategy implements ApiStrategy {
             accumulator.implicitReasoningStart
           );
 
+          // Check if we already accumulated content through streaming deltas
+          // If so, don't emit again (the final message is a duplicate of streamed content)
+          const alreadyHasContent = accumulator.content.length > 0;
+
           accumulator.content = parseResult.messageContent;
           accumulator.thinking += parseResult.reasoningContent;
           accumulator.partialReasoningTag = parseResult.partialTag;
@@ -248,19 +258,24 @@ export class CompletionsStrategy implements ApiStrategy {
               parseResult.implicitReasoningStart;
           }
 
-          // For non-streaming, we always emit the final content (reasoning is already separated)
-          // Only emit non-empty content to avoid false error detection
-          if (
-            parseResult.messageContent &&
-            parseResult.messageContent.trim().length > 0
-          ) {
-            result.content = parseResult.messageContent;
-          }
-          if (
-            parseResult.reasoningContent &&
-            parseResult.reasoningContent.trim().length > 0
-          ) {
-            result.thinking = parseResult.reasoningContent;
+          // Only emit content if we haven't already streamed it
+          // This prevents duplicate content when the server sends both streaming deltas
+          // and a final message with the complete content
+          if (!alreadyHasContent) {
+            // For non-streaming, we always emit the final content (reasoning is already separated)
+            // Only emit non-empty content to avoid false error detection
+            if (
+              parseResult.messageContent &&
+              parseResult.messageContent.trim().length > 0
+            ) {
+              result.content = parseResult.messageContent;
+            }
+            if (
+              parseResult.reasoningContent &&
+              parseResult.reasoningContent.trim().length > 0
+            ) {
+              result.thinking = parseResult.reasoningContent;
+            }
           }
         }
 
@@ -314,6 +329,17 @@ export class CompletionsStrategy implements ApiStrategy {
       finalContent += finalParse.messageContent;
       if (finalParse.reasoningContent) {
         finalThinking += finalParse.reasoningContent;
+      }
+      // Handle any remaining partial tag content that couldn't be parsed
+      // (e.g., stream ended with incomplete tag like "<" or "<thi")
+      if (finalParse.partialTag) {
+        if (finalParse.insideReasoning) {
+          // If we're inside reasoning, the partial belongs to thinking
+          finalThinking += finalParse.partialTag;
+        } else {
+          // Otherwise, it's regular content
+          finalContent += finalParse.partialTag;
+        }
       }
     }
 
