@@ -149,7 +149,7 @@ export class ResponsesStrategy implements ApiStrategy {
           if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
             result.content = parseResult.messageContent;
           }
-          if (parseResult.reasoningContent) {
+          if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
             result.thinking = parseResult.reasoningContent;
           }
         }
@@ -202,12 +202,31 @@ export class ResponsesStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
     const output: LlmapiResponseResponse["output"] = [];
 
+    // Final cleanup: handle any remaining partial tag
+    let finalContent = accumulator.content;
+    let finalThinking = accumulator.thinking;
+
+    if (accumulator.partialReasoningTag) {
+      // Final cleanup: if we have a partial tag, try to parse it one more time
+      const finalParse = parseReasoningTags(
+        "",
+        accumulator.partialReasoningTag,
+        accumulator.insideReasoning || false,
+        undefined,
+        accumulator.implicitReasoningStart
+      );
+      finalContent += finalParse.messageContent;
+      if (finalParse.reasoningContent) {
+        finalThinking += finalParse.reasoningContent;
+      }
+    }
+
     // Add thinking/reasoning output if present
-    if (accumulator.thinking) {
+    if (finalThinking) {
       output.push({
         type: "reasoning",
         role: "assistant",
-        content: [{ type: "output_text", text: accumulator.thinking }],
+        content: [{ type: "output_text", text: finalThinking }],
         status: "completed",
       });
     }
@@ -229,7 +248,7 @@ export class ResponsesStrategy implements ApiStrategy {
     output.push({
       type: "message",
       role: "assistant",
-      content: [{ type: "output_text", text: accumulator.content }],
+      content: [{ type: "output_text", text: finalContent }],
       status: "completed",
     });
 
