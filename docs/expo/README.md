@@ -167,21 +167,9 @@ Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
 
 ***
 
-### generateCompositeKey
-
-Re-exports [generateCompositeKey](../react/Internal/functions/generateCompositeKey.md)
-
-***
-
 ### generateConversationId
 
 Re-exports [generateConversationId](../react/Internal/functions/generateConversationId.md)
-
-***
-
-### generateUniqueKey
-
-Re-exports [generateUniqueKey](../react/Internal/functions/generateUniqueKey.md)
 
 ***
 
@@ -206,12 +194,6 @@ Re-exports [MemoryItem](../react/Internal/interfaces/MemoryItem.md)
 ### memoryStorageSchema
 
 Re-exports [memoryStorageSchema](../react/Internal/variables/memoryStorageSchema.md)
-
-***
-
-### MemoryType
-
-Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
 
 ***
 
@@ -295,7 +277,7 @@ Re-exports [StoredMessageWithSimilarity](../react/Internal/interfaces/StoredMess
 
 ### UpdateMemoryOptions
 
-Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOptions.md)
+Re-exports [UpdateMemoryOptions](../react/Internal/interfaces/UpdateMemoryOptions.md)
 
 ***
 

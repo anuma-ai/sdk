@@ -58,7 +58,7 @@ Array of memories with similarity scores
 </td>
 <td>
 
-Format style: "compact" (key-value pairs) or "detailed" (includes evidence)
+Format style: "compact" (simple list) or "detailed" (includes relevance scores)
 
 </td>
 </tr>

@@ -2,7 +2,7 @@
 
 > **useMemoryStorage**(`options`: `object`): `BaseUseMemoryStorageResult`
 
-Defined in: [src/expo/useMemoryStorage.ts:152](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L152)
+Defined in: [src/expo/useMemoryStorage.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useMemoryStorage.ts#L132)
 
 A React hook that wraps useMemory with automatic memory persistence using WatermelonDB.
 

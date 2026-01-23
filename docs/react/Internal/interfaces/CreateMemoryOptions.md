@@ -1,6 +1,6 @@
 # CreateMemoryOptions
 
-Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L24)
+Defined in: [src/lib/db/memory/types.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L12)
 
 ## Extends
 
@@ -8,15 +8,15 @@ Defined in: [src/lib/db/memory/types.ts:24](https://github.com/zeta-chain/ai-sdk
 
 ## Properties
 
-### confidence
+### conversationId?
 
-> **confidence**: `number`
+> `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L20)
+Defined in: [src/lib/db/memory/types.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L9)
 
 **Inherited from**
 
-[`MemoryItem`](MemoryItem.md).[`confidence`](MemoryItem.md#confidence)
+[`MemoryItem`](MemoryItem.md).[`conversationId`](MemoryItem.md#conversationid)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/memory/types.ts:20](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L25)
+Defined in: [src/lib/db/memory/types.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L13)
 
 ***
 
@@ -32,76 +32,16 @@ Defined in: [src/lib/db/memory/types.ts:25](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L26)
+Defined in: [src/lib/db/memory/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L14)
 
 ***
 
-### key
+### text
 
-> **key**: `string`
+> **text**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L17)
-
-**Inherited from**
-
-[`MemoryItem`](MemoryItem.md).[`key`](MemoryItem.md#key)
-
-***
-
-### namespace
-
-> **namespace**: `string`
-
-Defined in: [src/lib/db/memory/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L16)
+Defined in: [src/lib/db/memory/types.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L8)
 
 **Inherited from**
 
-[`MemoryItem`](MemoryItem.md).[`namespace`](MemoryItem.md#namespace)
-
-***
-
-### pii
-
-> **pii**: `boolean`
-
-Defined in: [src/lib/db/memory/types.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L21)
-
-**Inherited from**
-
-[`MemoryItem`](MemoryItem.md).[`pii`](MemoryItem.md#pii)
-
-***
-
-### rawEvidence
-
-> **rawEvidence**: `string`
-
-Defined in: [src/lib/db/memory/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L19)
-
-**Inherited from**
-
-[`MemoryItem`](MemoryItem.md).[`rawEvidence`](MemoryItem.md#rawevidence)
-
-***
-
-### type
-
-> **type**: [`MemoryType`](../type-aliases/MemoryType.md)
-
-Defined in: [src/lib/db/memory/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L15)
-
-**Inherited from**
-
-[`MemoryItem`](MemoryItem.md).[`type`](MemoryItem.md#type)
-
-***
-
-### value
-
-> **value**: `string`
-
-Defined in: [src/lib/db/memory/types.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L18)
-
-**Inherited from**
-
-[`MemoryItem`](MemoryItem.md).[`value`](MemoryItem.md#value)
+[`MemoryItem`](MemoryItem.md).[`text`](MemoryItem.md#text)

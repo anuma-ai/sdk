@@ -1,6 +1,6 @@
 # StoredMemoryModel
 
-Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L5)
+Defined in: [src/lib/db/memory/models.ts:4](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L4)
 
 ## Extends
 
@@ -133,19 +133,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### compositeKey
+### conversationId?
 
-> **compositeKey**: `string`
+> `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/memory/models.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L15)
-
-***
-
-### confidence
-
-> **confidence**: `number`
-
-Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L13)
+Defined in: [src/lib/db/memory/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L8)
 
 ***
 
@@ -153,7 +145,7 @@ Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sd
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L17)
+Defined in: [src/lib/db/memory/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L9)
 
 ***
 
@@ -161,7 +153,7 @@ Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sd
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
+Defined in: [src/lib/db/memory/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L11)
 
 ***
 
@@ -169,7 +161,7 @@ Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sd
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L20)
+Defined in: [src/lib/db/memory/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L12)
 
 ***
 
@@ -177,55 +169,15 @@ Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sd
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memory/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L21)
+Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L13)
 
 ***
 
-### key
+### text
 
-> **key**: `string`
+> **text**: `string`
 
-Defined in: [src/lib/db/memory/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L10)
-
-***
-
-### namespace
-
-> **namespace**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L9)
-
-***
-
-### pii
-
-> **pii**: `boolean`
-
-Defined in: [src/lib/db/memory/models.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L14)
-
-***
-
-### rawEvidence
-
-> **rawEvidence**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L12)
-
-***
-
-### type
-
-> **type**: [`MemoryType`](../type-aliases/MemoryType.md)
-
-Defined in: [src/lib/db/memory/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L8)
-
-***
-
-### uniqueKey
-
-> **uniqueKey**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L16)
+Defined in: [src/lib/db/memory/models.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L7)
 
 ***
 
@@ -233,15 +185,7 @@ Defined in: [src/lib/db/memory/models.ts:16](https://github.com/zeta-chain/ai-sd
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memory/models.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L18)
-
-***
-
-### value
-
-> **value**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L11)
+Defined in: [src/lib/db/memory/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L10)
 
 ***
 
@@ -273,7 +217,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **table**: `string` = `"memories"`
 
-Defined in: [src/lib/db/memory/models.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L6)
+Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L5)
 
 **Overrides**
 
