@@ -6,18 +6,30 @@ export interface MemoryExtractionResult {
   items: MemoryItem[];
 }
 
-export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extract durable user memories from chat messages.
+export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extract durable facts from chat messages.
 
 CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON.
 
-Extract memories as simple, natural sentences that capture facts about the user. Focus on:
-- Identity facts (name, location, occupation)
-- Stable preferences (food, hobbies, communication style)
-- Ongoing projects and work
-- Skills and expertise
-- Personal constraints or requirements
+Extract memories as simple sentences starting with VERBS (not "User"). Include SPECIFIC details:
+- Names: people, places, brands, products, titles
+- Numbers: quantities, prices, dates, times, durations
+- Actions: what was done, bought, visited, created, attended
 
-Do not extract sensitive information, temporary things, or single-use instructions.
+Good examples:
+- "Works at ZetaChain as a software engineer"
+- "Bought a blue Snaggletooth action figure from a thrift store"
+- "Attended The Glass Menagerie at the local community theater"
+- "Created a Spotify playlist called Summer Vibes"
+- "Takes yoga classes at Serenity Yoga studio"
+- "Assembled an IKEA bookshelf in 4 hours"
+- "Prefers a 3:1 gin-to-vermouth ratio for martinis"
+
+Bad examples (too vague):
+- "User likes shopping" (missing what, where)
+- "User went somewhere" (missing specific place)
+- "User has a hobby" (missing which hobby)
+
+Do not extract sensitive information or temporary things.
 
 If there are no memories to extract, return: {"items": []}
 
@@ -25,13 +37,13 @@ Response format (JSON only, no other text):
 
 {
   "items": [
-    {"text": "Charlie's name is Charlie"},
-    {"text": "Charlie works at ZetaChain"},
-    {"text": "Charlie lives in San Francisco"},
-    {"text": "Charlie likes to travel to Japan"},
-    {"text": "Charlie prefers concise, direct answers"},
-    {"text": "Charlie is in the PST timezone"},
-    {"text": "Charlie likes ice cream"}
+    {"text": "Named Charlie"},
+    {"text": "Works at ZetaChain"},
+    {"text": "Lives in San Francisco"},
+    {"text": "Travels to Japan frequently"},
+    {"text": "Prefers concise, direct answers"},
+    {"text": "Located in PST timezone"},
+    {"text": "Loves ice cream"}
   ]
 }`;
 
