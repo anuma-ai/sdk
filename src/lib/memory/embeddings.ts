@@ -70,21 +70,13 @@ export const generateEmbeddingForText = async (
 
 /**
  * Generate embeddings for a single memory item
+ * Simply embeds the text field directly
  */
 export const generateEmbeddingForMemory = async (
   memory: MemoryItem,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const text = [
-    memory.rawEvidence,
-    memory.type,
-    memory.namespace,
-    memory.key,
-    memory.value,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return generateEmbeddingForText(text, options);
+  return generateEmbeddingForText(memory.text, options);
 };
 
 /**
@@ -97,15 +89,11 @@ export const generateEmbeddingsForMemories = async (
   const embeddings = new Map<string, number[]>();
 
   for (const memory of memories) {
-    const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
     try {
       const embedding = await generateEmbeddingForMemory(memory, options);
-      embeddings.set(uniqueKey, embedding);
+      embeddings.set(memory.text, embedding);
     } catch (error) {
-      console.error(
-        `Failed to generate embedding for memory ${uniqueKey}:`,
-        error
-      );
+      console.error(`Failed to generate embedding for memory:`, error);
     }
   }
 
@@ -120,26 +108,19 @@ export const updateMemoriesWithEmbeddings = async (
   embeddings: Map<string, number[]>,
   embeddingModel: string
 ): Promise<void> => {
-  // Get all memories to find by unique key
+  // Get all memories to find by text
   const allMemories = await getAllMemoriesOp(ctx);
-  const memoryByUniqueKey = new Map(
-    allMemories.map((m) => [m.uniqueKey, m])
-  );
+  const memoryByText = new Map(allMemories.map((m) => [m.text, m]));
 
   const updates = Array.from(embeddings.entries()).map(
-    async ([uniqueKey, embedding]) => {
-      const existing = memoryByUniqueKey.get(uniqueKey);
+    async ([text, embedding]) => {
+      const existing = memoryByText.get(text);
 
-      if (existing?.uniqueId) {
-        await updateMemoryEmbeddingOp(
-          ctx,
-          existing.uniqueId,
-          embedding,
-          embeddingModel
-        );
+      if (existing?.id) {
+        await updateMemoryEmbeddingOp(ctx, existing.id, embedding, embeddingModel);
       } else {
         console.warn(
-          `[Embeddings] Memory with uniqueKey ${uniqueKey} not found. ` +
+          `[Embeddings] Memory with text "${text.slice(0, 50)}..." not found. ` +
             `It may have been updated or deleted before embedding was generated.`
         );
       }
@@ -210,13 +191,7 @@ export const generateEmbeddingsForAllMemories = async (
 
   const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map(
     (m: StoredMemory) => ({
-      type: m.type,
-      namespace: m.namespace,
-      key: m.key,
-      value: m.value,
-      rawEvidence: m.rawEvidence,
-      confidence: m.confidence,
-      pii: m.pii,
+      text: m.text,
     })
   );
 

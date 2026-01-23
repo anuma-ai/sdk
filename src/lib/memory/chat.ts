@@ -3,7 +3,7 @@ import type { StoredMemory } from "../db/memory";
 /**
  * Format memories into a context string that can be included in chat messages
  * @param memories Array of memories with similarity scores
- * @param format Format style: "compact" (key-value pairs) or "detailed" (includes evidence)
+ * @param format Format style: "compact" (simple list) or "detailed" (includes relevance scores)
  * @returns Formatted string ready to include in system/user message
  */
 export const formatMemoriesForChat = (
@@ -14,44 +14,17 @@ export const formatMemoriesForChat = (
     return "";
   }
 
-  const sections: string[] = [];
-
-  const byNamespace = new Map<string, typeof memories>();
-  for (const memory of memories) {
-    if (!byNamespace.has(memory.namespace)) {
-      byNamespace.set(memory.namespace, []);
-    }
-    byNamespace.get(memory.namespace)!.push(memory);
+  if (format === "detailed") {
+    return memories
+      .map(
+        (m) =>
+          `- ${m.text}${m.similarity ? ` (relevance: ${m.similarity.toFixed(2)})` : ""}`
+      )
+      .join("\n");
   }
 
-  for (const [namespace, namespaceMemories] of byNamespace) {
-    const items: string[] = [];
-
-    for (const memory of namespaceMemories) {
-      if (format === "detailed") {
-        items.push(
-          `- ${memory.key}: ${memory.value} (${
-            memory.type
-          }, confidence: ${memory.confidence.toFixed(2)}${
-            memory.similarity
-              ? `, relevance: ${memory.similarity.toFixed(2)}`
-              : ""
-          })`
-        );
-        if (memory.rawEvidence) {
-          items.push(`  Evidence: "${memory.rawEvidence}"`);
-        }
-      } else {
-        items.push(`${memory.key}: ${memory.value}`);
-      }
-    }
-
-    if (items.length > 0) {
-      sections.push(`[${namespace}]\n${items.join("\n")}`);
-    }
-  }
-
-  return sections.join("\n\n");
+  // Compact format - just the text
+  return memories.map((m) => `- ${m.text}`).join("\n");
 };
 
 /**

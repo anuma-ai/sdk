@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { useMemoryStorage } from "./useMemoryStorage";
@@ -88,29 +88,20 @@ describe("useMemoryStorage with Encryption", () => {
       );
 
       const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue is favorite",
-        confidence: 0.9,
-        pii: false,
+        text: "User likes pizza on Fridays",
       };
 
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.uniqueId).toBeDefined();
-        expect(saved.namespace).toBe("user"); // Should be decrypted
-        expect(saved.value).toBe("blue"); // Should be decrypted
+        expect(saved.id).toBeDefined();
+        expect(saved.text).toBe("User likes pizza on Fridays"); // Should be decrypted
       });
 
       await act(async () => {
-        const retrieved = await result.current.getMemoryById(
-          (await result.current.saveMemory(memory)).uniqueId
-        );
+        const saved = await result.current.saveMemory(memory);
+        const retrieved = await result.current.getMemoryById(saved.id);
         expect(retrieved).toBeDefined();
-        expect(retrieved?.namespace).toBe("user");
-        expect(retrieved?.value).toBe("blue");
+        expect(retrieved?.text).toBe("User likes pizza on Fridays");
       });
     });
 
@@ -124,23 +115,16 @@ describe("useMemoryStorage with Encryption", () => {
       );
 
       const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue",
-        confidence: 0.9,
-        pii: false,
+        text: "User prefers tea over coffee",
       };
 
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.namespace).toBe("user");
-        expect(saved.value).toBe("blue");
+        expect(saved.text).toBe("User prefers tea over coffee");
       });
     });
 
-    it("should query encrypted memories by namespace (deterministic encryption)", async () => {
+    it("should fetch all memories", async () => {
       const { result } = renderHook(() =>
         useMemoryStorage({
           database,
@@ -150,59 +134,25 @@ describe("useMemoryStorage with Encryption", () => {
         })
       );
 
-      const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue",
-        confidence: 0.9,
-        pii: false,
+      const memory1: CreateMemoryOptions = {
+        text: "User likes pizza",
+      };
+
+      const memory2: CreateMemoryOptions = {
+        text: "User works at Acme Corp",
       };
 
       await act(async () => {
-        await result.current.saveMemory(memory);
+        await result.current.saveMemory(memory1);
+        await result.current.saveMemory(memory2);
       });
 
       await act(async () => {
-        // Query should work because namespace encryption is deterministic
-        const memories = await result.current.fetchMemoriesByNamespace("user");
-        expect(memories.length).toBeGreaterThan(0);
-        expect(memories[0].namespace).toBe("user");
-        expect(memories[0].value).toBe("blue");
-      });
-    });
-
-    it("should query encrypted memories by key (deterministic encryption)", async () => {
-      const { result } = renderHook(() =>
-        useMemoryStorage({
-          database,
-          walletAddress: testAddress,
-          signMessage: mockSignMessage,
-          generateEmbeddings: false, // Disable embeddings for tests
-        })
-      );
-
-      const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue",
-        confidence: 0.9,
-        pii: false,
-      };
-
-      await act(async () => {
-        await result.current.saveMemory(memory);
-      });
-
-      await act(async () => {
-        // Query should work because namespace and key encryption are deterministic
-        const memories = await result.current.fetchMemoriesByKey("user", "favorite_color");
-        expect(memories.length).toBeGreaterThan(0);
-        expect(memories[0].key).toBe("favorite_color");
-        expect(memories[0].value).toBe("blue");
+        const all = await result.current.fetchAllMemories();
+        expect(all.length).toBeGreaterThanOrEqual(2);
+        const texts = all.map((m) => m.text);
+        expect(texts).toContain("User likes pizza");
+        expect(texts).toContain("User works at Acme Corp");
       });
     });
 
@@ -217,59 +167,102 @@ describe("useMemoryStorage with Encryption", () => {
       );
 
       const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue",
-        confidence: 0.9,
-        pii: false,
+        text: "User likes blue",
       };
 
       let savedId: string;
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        savedId = saved.uniqueId;
+        savedId = saved.id;
       });
 
       await act(async () => {
         const updated = await result.current.updateMemory(savedId!, {
-          value: "red",
+          text: "User likes red",
         });
-        expect(updated?.value).toBe("red");
+        expect(updated?.text).toBe("User likes red");
       });
 
       await act(async () => {
         const retrieved = await result.current.getMemoryById(savedId!);
-        expect(retrieved?.value).toBe("red");
+        expect(retrieved?.text).toBe("User likes red");
       });
     });
 
-    it("should keep embeddings unencrypted for search", async () => {
+    it("should save memory with conversationId", async () => {
       const { result } = renderHook(() =>
         useMemoryStorage({
           database,
           walletAddress: testAddress,
           signMessage: mockSignMessage,
-          generateEmbeddings: false, // Disable embeddings for this test
+          generateEmbeddings: false, // Disable embeddings for tests
         })
       );
 
       const memory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "favorite_color",
-        value: "blue",
-        rawEvidence: "User said blue is favorite",
-        confidence: 0.9,
-        pii: false,
+        text: "User mentioned this in conversation",
+        conversationId: "conv-123",
       };
 
-      // Note: This test would require mocking the embedding API
-      // For now, we just verify the structure
       await act(async () => {
         const saved = await result.current.saveMemory(memory);
-        expect(saved.uniqueId).toBeDefined();
+        expect(saved.id).toBeDefined();
+        expect(saved.conversationId).toBe("conv-123");
+      });
+    });
+
+    it("should remove memory by ID", async () => {
+      const { result } = renderHook(() =>
+        useMemoryStorage({
+          database,
+          walletAddress: testAddress,
+          signMessage: mockSignMessage,
+          generateEmbeddings: false, // Disable embeddings for tests
+        })
+      );
+
+      const memory: CreateMemoryOptions = {
+        text: "User likes pizza",
+      };
+
+      let savedId: string;
+      await act(async () => {
+        const saved = await result.current.saveMemory(memory);
+        savedId = saved.id;
+      });
+
+      await act(async () => {
+        await result.current.removeMemoryById(savedId!);
+      });
+
+      await act(async () => {
+        const retrieved = await result.current.getMemoryById(savedId!);
+        expect(retrieved).toBeNull();
+      });
+    });
+
+    it("should clear all memories", async () => {
+      const { result } = renderHook(() =>
+        useMemoryStorage({
+          database,
+          walletAddress: testAddress,
+          signMessage: mockSignMessage,
+          generateEmbeddings: false, // Disable embeddings for tests
+        })
+      );
+
+      await act(async () => {
+        await result.current.saveMemory({ text: "Memory 1" });
+        await result.current.saveMemory({ text: "Memory 2" });
+      });
+
+      await act(async () => {
+        await result.current.clearMemories();
+      });
+
+      await act(async () => {
+        const all = await result.current.fetchAllMemories();
+        expect(all.length).toBe(0);
       });
     });
   });
@@ -285,13 +278,7 @@ describe("useMemoryStorage with Encryption", () => {
       );
 
       const plaintextMemory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "old_key",
-        value: "old_value",
-        rawEvidence: "Old data",
-        confidence: 0.9,
-        pii: false,
+        text: "Old plaintext memory",
       };
 
       await act(async () => {
@@ -309,13 +296,7 @@ describe("useMemoryStorage with Encryption", () => {
       );
 
       const encryptedMemory: CreateMemoryOptions = {
-        type: "preference",
-        namespace: "user",
-        key: "new_key",
-        value: "new_value",
-        rawEvidence: "New data",
-        confidence: 0.9,
-        pii: false,
+        text: "New encrypted memory",
       };
 
       await act(async () => {
@@ -326,13 +307,43 @@ describe("useMemoryStorage with Encryption", () => {
       await act(async () => {
         const all = await result2.current.fetchAllMemories();
         expect(all.length).toBeGreaterThanOrEqual(2);
-        // Both should be readable (decrypted or plaintext)
-        const oldMemory = all.find((m) => m.key === "old_key");
-        const newMemory = all.find((m) => m.key === "new_key");
-        expect(oldMemory?.value).toBe("old_value");
-        expect(newMemory?.value).toBe("new_value");
+        const texts = all.map((m) => m.text);
+        expect(texts).toContain("Old plaintext memory");
+        expect(texts).toContain("New encrypted memory");
+      });
+    });
+  });
+
+  describe("Multiple Memories", () => {
+    it("should save multiple memories at once", async () => {
+      const { result } = renderHook(() =>
+        useMemoryStorage({
+          database,
+          walletAddress: testAddress,
+          signMessage: mockSignMessage,
+          generateEmbeddings: false, // Disable embeddings for tests
+        })
+      );
+
+      const memories: CreateMemoryOptions[] = [
+        { text: "User likes pizza" },
+        { text: "User works remotely" },
+        { text: "User has a dog named Max" },
+      ];
+
+      await act(async () => {
+        const saved = await result.current.saveMemories(memories);
+        expect(saved.length).toBe(3);
+      });
+
+      await act(async () => {
+        const all = await result.current.fetchAllMemories();
+        expect(all.length).toBeGreaterThanOrEqual(3);
+        const texts = all.map((m) => m.text);
+        expect(texts).toContain("User likes pizza");
+        expect(texts).toContain("User works remotely");
+        expect(texts).toContain("User has a dog named Max");
       });
     });
   });
 });
-

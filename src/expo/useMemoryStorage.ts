@@ -12,18 +12,13 @@ import {
   type UpdateMemoryOptions,
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
-  type MemoryItem,
   type MemoryStorageOperationsContext,
   getAllMemoriesOp,
   getMemoryByIdOp,
-  getMemoriesByNamespaceOp,
-  getMemoriesByKeyOp,
   saveMemoryOp,
   saveMemoriesOp,
   updateMemoryOp,
   deleteMemoryByIdOp,
-  deleteMemoryOp,
-  deleteMemoriesByKeyOp,
   clearAllMemoriesOp,
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
@@ -91,21 +86,6 @@ async function generateEmbeddingForTextApi(
   }
 
   return embedding;
-}
-
-/**
- * Generate embedding for a memory item (Expo-compatible)
- */
-async function generateEmbeddingForMemoryApi(
-  memory: MemoryItem,
-  options: {
-    model: string;
-    getToken?: () => Promise<string | null>;
-    baseUrl: string;
-  }
-): Promise<number[]> {
-  const text = `${memory.type}: ${memory.namespace}/${memory.key} = ${memory.value}. Evidence: ${memory.rawEvidence}`;
-  return generateEmbeddingForTextApi(text, options);
 }
 
 /**
@@ -331,7 +311,9 @@ export function useMemoryStorage(
 
         const trimmedJson = jsonContent.trim();
         if (!trimmedJson.startsWith("{") || !trimmedJson.includes("items")) {
-          console.warn("Memory extraction response doesn't appear to be valid JSON.");
+          console.warn(
+            "Memory extraction response doesn't appear to be valid JSON."
+          );
           return { items: [] };
         }
 
@@ -361,42 +343,44 @@ export function useMemoryStorage(
 
         if (result.items && result.items.length > 0) {
           try {
-            // Convert MemoryItem to CreateMemoryOptions
-            // Generate embeddings from plaintext BEFORE saving (encryption happens in saveMemoriesOp)
-            const createOptions: CreateMemoryOptions[] = result.items.map(
-              (item: MemoryItem) => ({
-                type: item.type,
-                namespace: item.namespace,
-                key: item.key,
-                value: item.value,
-                rawEvidence: item.rawEvidence,
-                confidence: item.confidence,
-                pii: item.pii,
-              })
-            );
+            // Convert MemoryItem to CreateMemoryOptions with embeddings
+            const createOptions: CreateMemoryOptions[] = [];
 
-            // Generate embeddings from plaintext before saving
-            if (generateEmbeddings && embeddingModel) {
-              try {
-                for (let i = 0; i < createOptions.length; i++) {
-                  const memoryItem = createOptions[i];
-                  const embedding = await generateEmbeddingForMemoryApi(
-                    memoryItem,
+            for (const item of result.items) {
+              const memoryOption: CreateMemoryOptions = {
+                text: item.text,
+              };
+
+              // Generate embedding from text
+              if (generateEmbeddings && embeddingModel) {
+                try {
+                  const embedding = await generateEmbeddingForTextApi(
+                    item.text,
                     embeddingOptions
                   );
-                  createOptions[i].embedding = embedding;
-                  createOptions[i].embeddingModel = embeddingOptions.model;
+                  memoryOption.embedding = embedding;
+                  memoryOption.embeddingModel = embeddingOptions.model;
+                } catch (error) {
+                  console.error("Failed to generate embedding:", error);
                 }
-                console.log(
-                  `Generated embeddings for ${createOptions.length} memories (from plaintext)`
-                );
-              } catch (error) {
-                console.error("Failed to generate embeddings:", error);
               }
+
+              createOptions.push(memoryOption);
             }
 
-            const savedMemories = await saveMemoriesOp(storageCtx, createOptions);
-            console.log(`Saved ${savedMemories.length} memories to WatermelonDB`);
+            if (generateEmbeddings && embeddingModel) {
+              console.log(
+                `Generated embeddings for ${createOptions.length} memories`
+              );
+            }
+
+            const savedMemories = await saveMemoriesOp(
+              storageCtx,
+              createOptions
+            );
+            console.log(
+              `Saved ${savedMemories.length} memories to WatermelonDB`
+            );
 
             await refreshMemories();
           } catch (error) {
@@ -463,7 +447,9 @@ export function useMemoryStorage(
         } else {
           console.log(
             `[Memory Search] Found ${results.length} memories. ` +
-              `Similarity scores: ${results.map((r) => r.similarity.toFixed(3)).join(", ")}`
+              `Similarity scores: ${results
+                .map((r) => r.similarity.toFixed(3))
+                .join(", ")}`
           );
         }
 
@@ -490,46 +476,6 @@ export function useMemoryStorage(
   }, [storageCtx]);
 
   /**
-   * Get memories by namespace
-   */
-  const fetchMemoriesByNamespace = useCallback(
-    async (namespace: string): Promise<StoredMemory[]> => {
-      if (!namespace) {
-        throw new Error("Missing required field: namespace");
-      }
-      try {
-        return await getMemoriesByNamespaceOp(storageCtx, namespace);
-      } catch (error) {
-        throw new Error(
-          `Failed to fetch memories for namespace "${namespace}": ` +
-            (error instanceof Error ? error.message : String(error))
-        );
-      }
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Get memories by namespace and key
-   */
-  const fetchMemoriesByKey = useCallback(
-    async (namespace: string, key: string): Promise<StoredMemory[]> => {
-      if (!namespace || !key) {
-        throw new Error("Missing required fields: namespace, key");
-      }
-      try {
-        return await getMemoriesByKeyOp(storageCtx, namespace, key);
-      } catch (error) {
-        throw new Error(
-          `Failed to fetch memories for "${namespace}:${key}": ` +
-            (error instanceof Error ? error.message : String(error))
-        );
-      }
-    },
-    [storageCtx]
-  );
-
-  /**
    * Get a memory by ID
    */
   const getMemoryById = useCallback(
@@ -552,21 +498,12 @@ export function useMemoryStorage(
   const saveMemory = useCallback(
     async (memory: CreateMemoryOptions): Promise<StoredMemory> => {
       try {
-        // Generate embedding from plaintext before saving if not already provided
+        // Generate embedding from text before saving if not already provided
         const memoryToSave = { ...memory };
         if (generateEmbeddings && embeddingModel && !memory.embedding) {
           try {
-            const memoryItem: MemoryItem = {
-              type: memory.type,
-              namespace: memory.namespace,
-              key: memory.key,
-              value: memory.value,
-              rawEvidence: memory.rawEvidence,
-              confidence: memory.confidence,
-              pii: memory.pii,
-            };
-            const embedding = await generateEmbeddingForMemoryApi(
-              memoryItem,
+            const embedding = await generateEmbeddingForTextApi(
+              memory.text,
               embeddingOptions
             );
             memoryToSave.embedding = embedding;
@@ -578,13 +515,8 @@ export function useMemoryStorage(
 
         const saved = await saveMemoryOp(storageCtx, memoryToSave);
 
-        setMemories((prev) => {
-          const existing = prev.find((m) => m.uniqueId === saved.uniqueId);
-          if (existing) {
-            return prev.map((m) => (m.uniqueId === saved.uniqueId ? saved : m));
-          }
-          return [saved, ...prev];
-        });
+        // Update local state
+        setMemories((prev) => [saved, ...prev]);
 
         return saved;
       } catch (error) {
@@ -603,22 +535,13 @@ export function useMemoryStorage(
   const saveMemories = useCallback(
     async (memoriesToSave: CreateMemoryOptions[]): Promise<StoredMemory[]> => {
       try {
-        // Generate embeddings from plaintext before saving
+        // Generate embeddings from text before saving
         const memoriesWithEmbeddings = await Promise.all(
           memoriesToSave.map(async (memory) => {
             if (generateEmbeddings && embeddingModel && !memory.embedding) {
               try {
-                const memoryItem: MemoryItem = {
-                  type: memory.type,
-                  namespace: memory.namespace,
-                  key: memory.key,
-                  value: memory.value,
-                  rawEvidence: memory.rawEvidence,
-                  confidence: memory.confidence,
-                  pii: memory.pii,
-                };
-                const embedding = await generateEmbeddingForMemoryApi(
-                  memoryItem,
+                const embedding = await generateEmbeddingForTextApi(
+                  memory.text,
                   embeddingOptions
                 );
                 return {
@@ -646,24 +569,28 @@ export function useMemoryStorage(
         );
       }
     },
-    [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions, refreshMemories]
+    [
+      storageCtx,
+      generateEmbeddings,
+      embeddingModel,
+      embeddingOptions,
+      refreshMemories,
+    ]
   );
 
   /**
    * Update a memory
    */
   const updateMemory = useCallback(
-    async (id: string, updates: UpdateMemoryOptions): Promise<StoredMemory | null> => {
+    async (
+      id: string,
+      updates: UpdateMemoryOptions
+    ): Promise<StoredMemory | null> => {
       const result = await updateMemoryOp(storageCtx, id, updates);
 
       if (!result.ok) {
         if (result.reason === "not_found") {
           return null;
-        }
-        if (result.reason === "conflict") {
-          throw new Error(
-            `Cannot update memory: a memory with key "${result.conflictingKey}" already exists`
-          );
         }
         // result.reason === "error"
         throw new Error(
@@ -673,64 +600,35 @@ export function useMemoryStorage(
 
       const updated = result.memory;
 
-      const contentChanged =
-        updates.value !== undefined ||
-        updates.rawEvidence !== undefined ||
-        updates.type !== undefined ||
-        updates.namespace !== undefined ||
-        updates.key !== undefined;
-
-      if (contentChanged && generateEmbeddings && embeddingModel && !updates.embedding) {
+      // Regenerate embedding if text changed and embeddings are enabled
+      if (
+        updates.text &&
+        generateEmbeddings &&
+        embeddingModel &&
+        !updates.embedding
+      ) {
         try {
-          const memoryItem: MemoryItem = {
-            type: updated.type,
-            namespace: updated.namespace,
-            key: updated.key,
-            value: updated.value,
-            rawEvidence: updated.rawEvidence,
-            confidence: updated.confidence,
-            pii: updated.pii,
-          };
-          const embedding = await generateEmbeddingForMemoryApi(
-            memoryItem,
+          const embedding = await generateEmbeddingForTextApi(
+            updated.text,
             embeddingOptions
           );
-          await updateMemoryEmbeddingOp(storageCtx, id, embedding, embeddingOptions.model);
+          await updateMemoryEmbeddingOp(
+            storageCtx,
+            id,
+            embedding,
+            embeddingOptions.model
+          );
         } catch (error) {
           console.error("Failed to regenerate embedding:", error);
         }
       }
 
-      setMemories((prev) => prev.map((m) => (m.uniqueId === id ? updated : m)));
+      // Update local state
+      setMemories((prev) => prev.map((m) => (m.id === id ? updated : m)));
 
       return updated;
     },
     [storageCtx, generateEmbeddings, embeddingModel, embeddingOptions]
-  );
-
-  /**
-   * Remove a memory by namespace, key, value
-   */
-  const removeMemory = useCallback(
-    async (namespace: string, key: string, value: string): Promise<void> => {
-      if (!namespace || !key || !value) {
-        throw new Error("Missing required fields: namespace, key, value");
-      }
-      try {
-        await deleteMemoryOp(storageCtx, namespace, key, value);
-        setMemories((prev) =>
-          prev.filter(
-            (m) => !(m.namespace === namespace && m.key === key && m.value === value)
-          )
-        );
-      } catch (error) {
-        throw new Error(
-          `Failed to delete memory "${namespace}:${key}:${value}": ` +
-            (error instanceof Error ? error.message : String(error))
-        );
-      }
-    },
-    [storageCtx]
   );
 
   /**
@@ -740,33 +638,11 @@ export function useMemoryStorage(
     async (id: string): Promise<void> => {
       try {
         await deleteMemoryByIdOp(storageCtx, id);
-        setMemories((prev) => prev.filter((m) => m.uniqueId !== id));
+        // Update local state
+        setMemories((prev) => prev.filter((m) => m.id !== id));
       } catch (error) {
         throw new Error(
           `Failed to delete memory with id ${id}: ` +
-            (error instanceof Error ? error.message : String(error))
-        );
-      }
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Remove memories by namespace and key
-   */
-  const removeMemories = useCallback(
-    async (namespace: string, key: string): Promise<void> => {
-      if (!namespace || !key) {
-        throw new Error("Missing required fields: namespace, key");
-      }
-      try {
-        await deleteMemoriesByKeyOp(storageCtx, namespace, key);
-        setMemories((prev) =>
-          prev.filter((m) => !(m.namespace === namespace && m.key === key))
-        );
-      } catch (error) {
-        throw new Error(
-          `Failed to delete memories for "${namespace}:${key}": ` +
             (error instanceof Error ? error.message : String(error))
         );
       }
@@ -795,15 +671,11 @@ export function useMemoryStorage(
     extractMemoriesFromMessage,
     searchMemories,
     fetchAllMemories,
-    fetchMemoriesByNamespace,
-    fetchMemoriesByKey,
     getMemoryById,
     saveMemory,
     saveMemories,
     updateMemory,
-    removeMemory,
     removeMemoryById,
-    removeMemories,
     clearMemories,
   };
 }

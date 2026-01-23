@@ -138,14 +138,11 @@ export {
   /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,
   Memory as StoredMemoryModel,
-  type MemoryType,
   type MemoryItem,
   type StoredMemory,
   type StoredMemoryWithSimilarity,
   type CreateMemoryOptions,
   type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
 } from "../lib/db/memory";
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";

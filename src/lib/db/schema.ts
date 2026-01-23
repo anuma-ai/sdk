@@ -24,8 +24,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v7: Added userPreferences table for unified user settings storage
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
  * - v9: Added thinking column to history table for reasoning/thinking content
+ * - v10: BREAKING - Simplified memory schema to unstructured text blobs
  */
-const SDK_SCHEMA_VERSION = 9;
+const SDK_SCHEMA_VERSION = 10;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -93,19 +94,12 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
-    // Memory storage tables
+    // Memory storage tables - simple unstructured text blobs with embeddings
     tableSchema({
       name: "memories",
       columns: [
-        { name: "type", type: "string", isIndexed: true },
-        { name: "namespace", type: "string", isIndexed: true },
-        { name: "key", type: "string", isIndexed: true },
-        { name: "value", type: "string" },
-        { name: "raw_evidence", type: "string" },
-        { name: "confidence", type: "number" },
-        { name: "pii", type: "boolean", isIndexed: true },
-        { name: "composite_key", type: "string", isIndexed: true },
-        { name: "unique_key", type: "string", isIndexed: true },
+        { name: "text", type: "string" },
+        { name: "conversation_id", type: "string", isOptional: true, isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "embedding", type: "string", isOptional: true },
@@ -161,6 +155,7 @@ export const sdkSchema = appSchema({
  * - v6 → v7: Added `userPreferences` table for unified user settings storage
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
  * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
+ * - v9 → v10: BREAKING - Simplified memory schema to unstructured text blobs
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -248,6 +243,14 @@ export const sdkMigrations = schemaMigrations({
           columns: [{ name: "thinking", type: "string", isOptional: true }],
         }),
       ],
+    },
+    // v9 -> v10: BREAKING - Simplified memory schema to unstructured text blobs
+    // Memory structure changed from namespace/key/value to simple text field
+    // Old memories are incompatible, so we clear all memory data
+    // WatermelonDB doesn't support DROP COLUMN, but cleared data + new schema works
+    {
+      toVersion: 10,
+      steps: [unsafeExecuteSql("DELETE FROM memories;")],
     },
   ],
 });

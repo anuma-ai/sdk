@@ -1,7 +1,6 @@
 export { memoryStorageSchema } from "./schema";
 export { Memory } from "./models";
 export {
-  type MemoryType,
   type MemoryItem,
   type StoredMemory,
   type StoredMemoryWithSimilarity,
@@ -10,8 +9,6 @@ export {
   type UpdateMemoryResult,
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
-  generateCompositeKey,
-  generateUniqueKey,
   cosineSimilarity,
 } from "./types";
 export {
@@ -19,26 +16,12 @@ export {
   memoryToStored,
   getAllMemoriesOp,
   getMemoryByIdOp,
-  getMemoriesByNamespaceOp,
-  getMemoriesByKeyOp,
-  getMemoryByUniqueKeyOp,
   saveMemoryOp,
   saveMemoriesOp,
   updateMemoryOp,
   deleteMemoryByIdOp,
-  deleteMemoryOp,
-  deleteMemoriesByKeyOp,
   clearAllMemoriesOp,
   searchSimilarMemoriesOp,
   updateMemoryEmbeddingOp,
 } from "./operations";
-export {
-  isEncrypted,
-  encryptField,
-  decryptField,
-  encryptMemoryFields,
-  decryptMemoryFields,
-  encryptNamespaceForQuery,
-  encryptKeyForQuery,
-  encryptValueForQuery,
-} from "./encryption";
+export { isEncrypted, encryptMemoryText, decryptMemoryText } from "./encryption";

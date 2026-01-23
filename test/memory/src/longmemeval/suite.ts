@@ -45,12 +45,7 @@ console.warn = (...args: any[]) => {
 interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
-  type: "identity" | "preference" | "project" | "skill" | "constraint";
-  namespace: string;
-  key: string;
-  value: string;
-  rawEvidence: string;
-  confidence: number;
+  text: string;
   embedding?: number[];
 }
 
@@ -123,8 +118,12 @@ async function extractMemoriesFromSession(
 
 CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
 
-Only extract clear, factual statements about the user that might be relevant for future conversations.
-Focus on: identity facts, preferences, projects, skills, constraints, and personal information.
+Extract memories as simple, natural sentences that capture facts about the user. Focus on:
+- Identity facts (name, location, occupation)
+- Stable preferences (food, hobbies, communication style)
+- Ongoing projects and work
+- Skills and expertise
+- Personal constraints or requirements
 
 Conversation:
 ${conversationText}
@@ -132,14 +131,9 @@ ${conversationText}
 Response format:
 {
   "items": [
-    {
-      "type": "identity|preference|project|skill|constraint",
-      "namespace": "category",
-      "key": "attribute_name",
-      "value": "the value",
-      "rawEvidence": "exact quote from conversation",
-      "confidence": 0.0-1.0
-    }
+    {"text": "User's name is John"},
+    {"text": "User works at Acme Corp"},
+    {"text": "User prefers tea over coffee"}
   ]
 }
 
@@ -173,26 +167,16 @@ If no memories to extract, return: {"items": []}`;
     const jsonStr = extractJsonFromResponse(content);
 
     const parsed = JSON.parse(jsonStr) as {
-      items: Array<{
-        type: string;
-        namespace: string;
-        key: string;
-        value: string;
-        rawEvidence: string;
-        confidence: number;
-      }>;
+      items: Array<{ text: string }>;
     };
 
-    return (parsed.items || []).map((item) => ({
-      sessionIndex,
-      sessionId,
-      type: item.type as ExtractedMemory["type"],
-      namespace: item.namespace || "general",
-      key: item.key || "unknown",
-      value: item.value || "",
-      rawEvidence: item.rawEvidence || "",
-      confidence: item.confidence || 0.5,
-    }));
+    return (parsed.items || [])
+      .filter((item) => item.text && item.text.trim().length > 0)
+      .map((item) => ({
+        sessionIndex,
+        sessionId,
+        text: item.text.trim(),
+      }));
   } catch {
     // Silently skip sessions that fail to parse - this is expected for some
     return [];
@@ -244,15 +228,13 @@ async function generateEmbeddings(
  */
 async function answerQuestion(
   question: string,
-  memories: Array<{ value: string; rawEvidence: string; similarity: number }>,
+  memories: Array<{ text: string; similarity: number }>,
   api: ApiConfig
 ): Promise<string> {
   const memoryContext = memories
     .map(
       (m, i) =>
-        `[${i + 1}] ${m.value} (relevance: ${m.similarity.toFixed(
-          2
-        )})\n    Evidence: "${m.rawEvidence}"`
+        `[${i + 1}] ${m.text} (relevance: ${m.similarity.toFixed(2)})`
     )
     .join("\n");
 
@@ -470,14 +452,11 @@ async function processEntry(
     // Generate embeddings for all memories
     if (allMemories.length > 0) {
       logProgress(`Generating embeddings: 0/${allMemories.length}`);
-      const memoryTexts = allMemories.map(
-        (m) => `${m.key}: ${m.value}. ${m.rawEvidence}`
-      );
 
       const memoryEmbeddings: number[][] = [];
-      for (let i = 0; i < memoryTexts.length; i++) {
-        logProgress(`Generating embeddings: ${i + 1}/${memoryTexts.length}`);
-        const [embedding] = await generateEmbeddings([memoryTexts[i]], api);
+      for (let i = 0; i < allMemories.length; i++) {
+        logProgress(`Generating embeddings: ${i + 1}/${allMemories.length}`);
+        const [embedding] = await generateEmbeddings([allMemories[i].text], api);
         memoryEmbeddings.push(embedding);
       }
 
@@ -494,21 +473,16 @@ async function processEntry(
 
         if (!embedding || embedding.length === 0) continue;
 
-        const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
+        // Use the memory text as the key for session tracking
         // Preserve answer session attribution for duplicate memories
-        const existingSessionId = memoryToSession.get(uniqueKey);
+        const existingSessionId = memoryToSession.get(memory.text);
         if (!existingSessionId || answerSessionIdSet.has(memory.sessionId)) {
-          memoryToSession.set(uniqueKey, memory.sessionId);
+          memoryToSession.set(memory.text, memory.sessionId);
         }
 
         await saveMemoryOp(ctx, {
-          type: memory.type,
-          namespace: memory.namespace,
-          key: memory.key,
-          value: memory.value,
-          rawEvidence: memory.rawEvidence,
-          confidence: memory.confidence,
-          pii: false,
+          text: memory.text,
+          conversationId: memory.sessionId,
           embedding,
           embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
         });
@@ -538,7 +512,7 @@ async function processEntry(
       // Get session IDs of retrieved memories
       const retrievedSessionIds = new Set<string>();
       for (const result of searchResults) {
-        const sessionId = memoryToSession.get(result.uniqueKey);
+        const sessionId = memoryToSession.get(result.text);
         if (sessionId) {
           retrievedSessionIds.add(sessionId);
         }
@@ -562,8 +536,7 @@ async function processEntry(
       // Generate answer
       logProgress("Generating answer...");
       const memoriesForAnswer = searchResults.map((r) => ({
-        value: r.value,
-        rawEvidence: r.rawEvidence,
+        text: r.text,
         similarity: r.similarity,
       }));
       const generatedAnswer = await answerQuestion(
