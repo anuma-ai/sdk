@@ -1,9 +1,39 @@
 # Memory Evaluation Framework
 
-SDK integration testing framework for memory retrieval functionality, based on
-[LongMemEval](https://github.com/xiaowu0162/LongMemEval) methodology.
+Two evaluation tools for testing memory systems:
 
-## Quick Start
+1. **SDK Tests** (`pnpm eval:memory`) - Fast unit tests for vector search
+2. **LongMemEval** (`pnpm eval:longmemeval`) - End-to-end benchmark against
+   academic dataset
+
+## LongMemEval Benchmark
+
+Full pipeline benchmark using the
+[LongMemEval](https://github.com/xiaowu0162/LongMemEval) academic dataset (500
+questions, ~50 sessions each).
+
+```bash
+pnpm eval:longmemeval --max 5                  # Test 5 questions
+pnpm eval:longmemeval --max 2 --max-sessions 5 # Quick: 2 questions, 5 sessions each
+pnpm eval:longmemeval --variant oracle --max 5 # Use oracle (answer-only) sessions
+pnpm eval:longmemeval --stats                  # Show dataset statistics
+```
+
+**What it tests**: Memory extraction → Embedding → Search → Answer generation →
+Evaluation
+
+**Datasets** (cached in `~/.cache/longmemeval/`):
+
+- `s` - Small (~50 sessions per question, 264MB)
+- `m` - Medium (~500 sessions per question)
+- `oracle` - Only answer sessions (fast, for dev)
+
+**Requires**: `PORTAL_API_KEY` for LLM calls
+
+## SDK Integration Tests
+
+Fast unit tests for `searchSimilarMemoriesOp()` using custom fixtures, based on
+[LongMemEval](https://github.com/xiaowu0162/LongMemEval) methodology.
 
 ```bash
 # Quick mode: Run with cached embeddings (no API required)
@@ -29,23 +59,23 @@ This tests the complete SDK stack including:
 - SDK's `cosineSimilarity` calculation
 - Full integration (database + search + retrieval)
 
-## Test Modes
+### Test Modes
 
-### Quick Mode (default)
+#### Quick Mode (default)
 
 - Uses cached embeddings from `fixtures/embeddings.json`
 - No API calls required
 - Fast, suitable for CI and local development
 - Run on every PR via GitHub Actions
 
-### Full Mode (`--full`)
+#### Full Mode (`--full`)
 
 - Generates fresh embeddings via Portal API
 - Requires `PORTAL_API_KEY` in `.env`
 - Updates cached embeddings for future quick runs
 - Use when updating test fixtures or validating API changes
 
-## Environment Variables
+### Environment Variables
 
 Create a `.env` file in the project root (required for `--full` mode):
 
@@ -57,7 +87,7 @@ PORTAL_API_KEY=your-api-key-here
 # REVERBIA_API_URL=https://portal.anuma-dev.ai
 ```
 
-## Understanding Embeddings
+### Understanding Embeddings
 
 The framework uses cached real embeddings to avoid API calls during testing:
 
@@ -70,28 +100,28 @@ The framework uses cached real embeddings to avoid API calls during testing:
 Real embeddings typically have lower similarity scores (0.3-0.5 for relevant
 items) compared to theoretical maximum of 1.0.
 
-## Evaluation Metrics
+### Evaluation Metrics
 
 The framework computes:
 
-### Retrieval Quality
+#### Retrieval Quality
 
 - **Precision@K** (K=1,3,5,10): Fraction of retrieved items that are relevant
 - **Recall@K**: Fraction of relevant items that are retrieved
 - **MRR** (Mean Reciprocal Rank): Average 1/rank for first relevant item
 - **NDCG@K**: Normalized Discounted Cumulative Gain (ranking quality)
 
-### Latency
+#### Latency
 
 - **Search Time**: p50, p95, p99 percentiles
 - **Embedding Generation**: Time to generate embeddings via API
 
-### By Category
+#### By Category
 
 - Breakdown by difficulty (easy, medium, hard)
 - Pass/fail rates per category
 
-## Sample Output
+### Sample Output
 
 ```
 Memory Evaluation Results
@@ -122,9 +152,9 @@ By Difficulty
 ✓ All tests passed
 ```
 
-## Adding New Test Cases
+### Adding New Test Cases
 
-### 1. Add Memories
+#### 1. Add Memories
 
 Edit [fixtures/memories.json](fixtures/memories.json):
 
@@ -144,7 +174,7 @@ Edit [fixtures/memories.json](fixtures/memories.json):
 }
 ```
 
-### 2. Add Test Queries
+#### 2. Add Test Queries
 
 Edit [fixtures/queries.json](fixtures/queries.json):
 
@@ -161,7 +191,7 @@ Edit [fixtures/queries.json](fixtures/queries.json):
 }
 ```
 
-### 3. Regenerate Embeddings
+#### 3. Regenerate Embeddings
 
 If you added new memories or queries, regenerate embeddings:
 
@@ -176,7 +206,7 @@ This will:
 - Save embeddings to `fixtures/embeddings.json`
 - Run the SDK integration tests with fresh embeddings
 
-### 4. Run Tests
+#### 4. Run Tests
 
 ```bash
 # Quick mode (uses cached embeddings)

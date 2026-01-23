@@ -64,7 +64,9 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx test/memory"
+    "eval:memory": "tsx test/memory",
+    "eval:longmemeval": "tsx test/memory/longmemeval.ts",
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
   },
   "repository": {
     "type": "git",

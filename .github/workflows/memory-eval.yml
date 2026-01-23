@@ -20,5 +20,11 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
+      - name: Cache LongMemEval Dataset
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/longmemeval
+          key: longmemeval-dataset-v1
+
       - name: Run SDK Tests
         run: pnpm eval:memory
