@@ -34,6 +34,10 @@ export interface StoredMemory {
 
 export interface StoredMemoryWithSimilarity extends StoredMemory {
   similarity: number;
+  /** Recency boost factor (0-1), where 1 is most recent */
+  recencyBoost?: number;
+  /** Final ranking score combining similarity and recency */
+  finalScore?: number;
 }
 
 export type UpdateMemoryResult =
@@ -106,4 +110,33 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   }
 
   return dotProduct / denominator;
+}
+
+/**
+ * Calculate recency boost for a memory based on its age.
+ * Returns a value between 0 and 1, where 1 is most recent.
+ * Uses exponential decay with a half-life of 30 days.
+ */
+export function calculateRecencyBoost(createdAt: Date): number {
+  const now = Date.now();
+  const ageMs = now - createdAt.getTime();
+  const ageDays = ageMs / (1000 * 60 * 60 * 24);
+
+  // Exponential decay with 30-day half-life
+  // After 30 days: ~0.5, after 60 days: ~0.25, after 90 days: ~0.125
+  const halfLifeDays = 30;
+  return Math.exp(-0.693 * ageDays / halfLifeDays);
+}
+
+/**
+ * Combine similarity and recency into a final ranking score.
+ * Default weights: 80% similarity, 20% recency
+ */
+export function calculateFinalScore(
+  similarity: number,
+  recencyBoost: number,
+  similarityWeight: number = 0.8
+): number {
+  const recencyWeight = 1 - similarityWeight;
+  return similarity * similarityWeight + recencyBoost * recencyWeight;
 }

@@ -9,6 +9,8 @@ import {
   type UpdateMemoryOptions,
   type UpdateMemoryResult,
   cosineSimilarity,
+  calculateRecencyBoost,
+  calculateFinalScore,
 } from "./types";
 import { encryptMemoryText, decryptMemoryText } from "./encryption";
 import type {
@@ -247,12 +249,22 @@ export async function clearAllMemoriesOp(
   });
 }
 
+export interface SearchMemoriesOptions {
+  /** Weight for semantic similarity (0-1). Recency weight = 1 - similarityWeight. Default: 0.8 */
+  similarityWeight?: number;
+  /** Whether to use recency boosting in ranking. Default: true */
+  useRecencyBoost?: boolean;
+}
+
 export async function searchSimilarMemoriesOp(
   ctx: MemoryStorageOperationsContext,
   queryEmbedding: number[],
   limit: number = 10,
-  minSimilarity: number = 0.6
+  minSimilarity: number = 0.6,
+  options: SearchMemoriesOptions = {}
 ): Promise<StoredMemoryWithSimilarity[]> {
+  const { similarityWeight = 0.8, useRecencyBoost = true } = options;
+
   const allMemories = await ctx.memoriesCollection
     .query(Q.where("is_deleted", false))
     .fetch();
@@ -274,16 +286,29 @@ export async function searchSimilarMemoriesOp(
         ctx.signMessage,
         ctx.embeddedWalletSigner
       );
+
+      // Calculate recency boost and final score
+      const recencyBoost = useRecencyBoost
+        ? calculateRecencyBoost(stored.createdAt)
+        : 1;
+      const finalScore = useRecencyBoost
+        ? calculateFinalScore(similarity, recencyBoost, similarityWeight)
+        : similarity;
+
       return {
         ...stored,
         similarity,
+        recencyBoost,
+        finalScore,
       };
     })
   );
 
+  // Filter by minimum similarity (raw similarity, not final score)
+  // Sort by final score (which includes recency) for ranking
   return results
     .filter((result) => result.similarity >= minSimilarity)
-    .sort((a, b) => b.similarity - a.similarity)
+    .sort((a, b) => (b.finalScore ?? b.similarity) - (a.finalScore ?? a.similarity))
     .slice(0, limit);
 }
 

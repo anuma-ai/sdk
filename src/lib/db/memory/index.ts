@@ -10,9 +10,12 @@ export {
   type BaseUseMemoryStorageOptions,
   type BaseUseMemoryStorageResult,
   cosineSimilarity,
+  calculateRecencyBoost,
+  calculateFinalScore,
 } from "./types";
 export {
   type MemoryStorageOperationsContext,
+  type SearchMemoriesOptions,
   memoryToStored,
   getAllMemoriesOp,
   getMemoryByIdOp,
