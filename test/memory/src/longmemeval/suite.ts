@@ -113,7 +113,8 @@ Answer sessions included: ${data.sessions.filter((s) => s.isAnswerSession).lengt
 ${data.sessions
   .map(
     (s) => `### Session ${s.index} (${s.sessionId})${s.isAnswerSession ? " [ANSWER SESSION]" : ""}
-${s.conversation.map((m) => `${m.role}: ${m.content}`).join("\n")}
+
+${s.conversation.map((m) => `${m.role}: ${m.content}`).join("\n\n")}
 `
   )
   .join("\n")}
