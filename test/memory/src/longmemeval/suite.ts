@@ -6,6 +6,8 @@
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {
   sdkSchema,
   sdkMigrations,
@@ -26,6 +28,181 @@ import type {
   LongMemEvalQuestionType,
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
+
+// Debug output directory
+const DEBUG_OUTPUT_DIR = path.join(process.cwd(), ".longmemeval");
+
+/**
+ * Initialize debug output directory for a run
+ */
+function initDebugOutput(runId: string): string {
+  const runDir = path.join(DEBUG_OUTPUT_DIR, runId);
+  fs.mkdirSync(runDir, { recursive: true });
+  return runDir;
+}
+
+/**
+ * Write debug data for a single entry
+ */
+interface EntryDebugData {
+  questionId: string;
+  questionType: string;
+  question: string;
+  expectedAnswer: string;
+  answerSessionIds: string[];
+  sessions: Array<{
+    index: number;
+    sessionId: string;
+    isAnswerSession: boolean;
+    conversation: Array<{ role: string; content: string }>;
+  }>;
+  extractedMemories: Array<{
+    sessionIndex: number;
+    sessionId: string;
+    text: string;
+    isFromAnswerSession: boolean;
+  }>;
+  storedMemories: Array<{
+    text: string;
+    sessionId: string;
+    embeddingLength: number;
+  }>;
+  queryEmbeddingLength: number;
+  searchResults: Array<{
+    text: string;
+    similarity: number;
+    sessionId: string | undefined;
+    isFromAnswerSession: boolean;
+  }>;
+  retrievalMetrics: {
+    expectedSessionIds: string[];
+    retrievedSessionIds: string[];
+    correctlyRetrieved: string[];
+    missedSessionIds: string[];
+    precision: number;
+    recall: number;
+  };
+  generatedAnswer: string;
+  isCorrect: boolean;
+  latencyMs: number;
+}
+
+function writeEntryDebug(runDir: string, data: EntryDebugData): void {
+  const entryDir = path.join(runDir, "entries", data.questionId);
+  fs.mkdirSync(entryDir, { recursive: true });
+
+  // Write full debug data as JSON
+  fs.writeFileSync(
+    path.join(entryDir, "debug.json"),
+    JSON.stringify(data, null, 2)
+  );
+
+  // Write human-readable summary
+  const summary = `# ${data.questionId}
+
+## Question
+Type: ${data.questionType}
+Question: ${data.question}
+Expected Answer: ${data.expectedAnswer}
+Answer Session IDs: ${data.answerSessionIds.join(", ")}
+
+## Sessions Processed
+Total: ${data.sessions.length}
+Answer sessions included: ${data.sessions.filter((s) => s.isAnswerSession).length}
+
+${data.sessions
+  .map(
+    (s) => `### Session ${s.index} (${s.sessionId})${s.isAnswerSession ? " [ANSWER SESSION]" : ""}
+${s.conversation.map((m) => `${m.role}: ${m.content}`).join("\n")}
+`
+  )
+  .join("\n")}
+
+## Extracted Memories
+Total: ${data.extractedMemories.length}
+From answer sessions: ${data.extractedMemories.filter((m) => m.isFromAnswerSession).length}
+
+${data.extractedMemories
+  .map(
+    (m) =>
+      `- [Session ${m.sessionIndex}${m.isFromAnswerSession ? " ANSWER" : ""}] ${m.text}`
+  )
+  .join("\n")}
+
+## Stored Memories
+Total: ${data.storedMemories.length}
+
+${data.storedMemories.map((m) => `- [${m.sessionId}] ${m.text} (embedding: ${m.embeddingLength} dims)`).join("\n")}
+
+## Search Results (Top 10)
+Query embedding: ${data.queryEmbeddingLength} dimensions
+
+${data.searchResults
+  .map(
+    (r, i) =>
+      `${i + 1}. [sim=${r.similarity.toFixed(3)}] ${r.text}
+   Session: ${r.sessionId || "unknown"}${r.isFromAnswerSession ? " [ANSWER SESSION]" : ""}`
+  )
+  .join("\n\n")}
+
+## Retrieval Metrics
+Expected sessions: ${data.retrievalMetrics.expectedSessionIds.join(", ")}
+Retrieved sessions: ${data.retrievalMetrics.retrievedSessionIds.join(", ") || "(none)"}
+Correctly retrieved: ${data.retrievalMetrics.correctlyRetrieved.join(", ") || "(none)"}
+Missed sessions: ${data.retrievalMetrics.missedSessionIds.join(", ") || "(none)"}
+Precision: ${(data.retrievalMetrics.precision * 100).toFixed(1)}%
+Recall: ${(data.retrievalMetrics.recall * 100).toFixed(1)}%
+
+## Answer
+Generated: ${data.generatedAnswer}
+Expected: ${data.expectedAnswer}
+Correct: ${data.isCorrect ? "YES" : "NO"}
+Latency: ${data.latencyMs.toFixed(0)}ms
+`;
+
+  fs.writeFileSync(path.join(entryDir, "summary.md"), summary);
+}
+
+/**
+ * Write run summary
+ */
+function writeRunSummary(runDir: string, summary: LongMemEvalSummary): void {
+  fs.writeFileSync(
+    path.join(runDir, "summary.json"),
+    JSON.stringify(summary, null, 2)
+  );
+
+  const md = `# LongMemEval Run Summary
+
+Timestamp: ${summary.timestamp}
+Dataset: ${summary.datasetName}
+
+## Overall Results
+- Total Questions: ${summary.totalQuestions}
+- Correct Answers: ${summary.correctAnswers}
+- Accuracy: ${(summary.accuracy * 100).toFixed(1)}%
+
+## By Question Type
+${Object.entries(summary.byQuestionType)
+  .map(
+    ([type, stats]) =>
+      `- ${type}: ${stats.correct}/${stats.total} (${(stats.accuracy * 100).toFixed(1)}%)`
+  )
+  .join("\n")}
+
+## Retrieval Performance
+- Avg Precision: ${(summary.retrieval.avgPrecision * 100).toFixed(1)}%
+- Avg Recall: ${(summary.retrieval.avgRecall * 100).toFixed(1)}%
+
+## Latency
+- P50: ${summary.latency.p50.toFixed(0)}ms
+- P95: ${summary.latency.p95.toFixed(0)}ms
+- P99: ${summary.latency.p99.toFixed(0)}ms
+- Mean: ${summary.latency.mean.toFixed(0)}ms
+`;
+
+  fs.writeFileSync(path.join(runDir, "summary.md"), md);
+}
 
 declare const global: typeof globalThis;
 declare const require: any;
@@ -390,12 +567,21 @@ async function processEntry(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
-  maxSessions?: number
+  maxSessions?: number,
+  runDir?: string
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
   const { indices: sessionIndices, limited } = selectSessions(entry, maxSessions);
   const totalSessions = sessionIndices.length;
+  const answerSessionIdSet = new Set(entry.answer_session_ids);
+
+  // Debug data collection
+  const debugSessions: EntryDebugData["sessions"] = [];
+  const debugExtractedMemories: EntryDebugData["extractedMemories"] = [];
+  const debugStoredMemories: EntryDebugData["storedMemories"] = [];
+  let debugQueryEmbeddingLength = 0;
+  let debugSearchResults: EntryDebugData["searchResults"] = [];
 
   if (verbose) {
     console.log(`\n  Processing: ${entry.question_id}`);
@@ -428,6 +614,17 @@ async function processEntry(
       const session = entry.haystack_sessions[sessionIdx];
       const sessionId = entry.haystack_session_ids[sessionIdx];
 
+      // Collect debug session data
+      debugSessions.push({
+        index: sessionIdx,
+        sessionId,
+        isAnswerSession: answerSessionIdSet.has(sessionId),
+        conversation: session.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+      });
+
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
       const sessionMemories = await extractMemoriesFromSession(
@@ -437,6 +634,16 @@ async function processEntry(
         api
       );
       allMemories.push(...sessionMemories);
+
+      // Collect debug extracted memories
+      for (const mem of sessionMemories) {
+        debugExtractedMemories.push({
+          sessionIndex: mem.sessionIndex,
+          sessionId: mem.sessionId,
+          text: mem.text,
+          isFromAnswerSession: answerSessionIdSet.has(mem.sessionId),
+        });
+      }
 
       if (verbose && sessionMemories.length > 0) {
         clearProgress();
@@ -464,7 +671,6 @@ async function processEntry(
 
       // Store memories in database
       const memoryToSession = new Map<string, string>();
-      const answerSessionIdSet = new Set(entry.answer_session_ids);
       logProgress(`Storing ${allMemories.length} memories...`);
 
       for (let i = 0; i < allMemories.length; i++) {
@@ -486,6 +692,13 @@ async function processEntry(
           embedding,
           embeddingModel: DEFAULT_API_EMBEDDING_MODEL,
         });
+
+        // Collect debug stored memories
+        debugStoredMemories.push({
+          text: memory.text,
+          sessionId: memory.sessionId,
+          embeddingLength: embedding.length,
+        });
       }
 
       clearProgress();
@@ -498,6 +711,7 @@ async function processEntry(
       if (!queryEmbedding || queryEmbedding.length === 0) {
         throw new Error("Failed to generate query embedding");
       }
+      debugQueryEmbeddingLength = queryEmbedding.length;
 
       // Search for relevant memories
       logProgress("Searching memories...");
@@ -516,13 +730,24 @@ async function processEntry(
         if (sessionId) {
           retrievedSessionIds.add(sessionId);
         }
+        // Collect debug search results
+        debugSearchResults.push({
+          text: result.text,
+          similarity: result.similarity,
+          sessionId,
+          isFromAnswerSession: sessionId ? answerSessionIdSet.has(sessionId) : false,
+        });
       }
 
       // Calculate retrieval metrics
       const expectedSessionIds = new Set(entry.answer_session_ids);
-      const correctlyRetrieved = [...retrievedSessionIds].filter((id) =>
+      const correctlyRetrievedIds = [...retrievedSessionIds].filter((id) =>
         expectedSessionIds.has(id)
-      ).length;
+      );
+      const correctlyRetrieved = correctlyRetrievedIds.length;
+      const missedSessionIds = [...expectedSessionIds].filter(
+        (id) => !retrievedSessionIds.has(id)
+      );
 
       const retrievalPrecision =
         retrievedSessionIds.size > 0
@@ -565,6 +790,33 @@ async function processEntry(
         console.log(`  Time: ${elapsed.toFixed(0)}ms`);
       }
 
+      // Write debug output if runDir provided
+      if (runDir) {
+        writeEntryDebug(runDir, {
+          questionId: entry.question_id,
+          questionType: entry.question_type,
+          question: entry.question,
+          expectedAnswer: entry.answer,
+          answerSessionIds: entry.answer_session_ids,
+          sessions: debugSessions,
+          extractedMemories: debugExtractedMemories,
+          storedMemories: debugStoredMemories,
+          queryEmbeddingLength: debugQueryEmbeddingLength,
+          searchResults: debugSearchResults,
+          retrievalMetrics: {
+            expectedSessionIds: entry.answer_session_ids,
+            retrievedSessionIds: [...retrievedSessionIds],
+            correctlyRetrieved: correctlyRetrievedIds,
+            missedSessionIds,
+            precision: retrievalPrecision,
+            recall: retrievalRecall,
+          },
+          generatedAnswer,
+          isCorrect,
+          latencyMs: elapsed,
+        });
+      }
+
       return {
         questionId: entry.question_id,
         questionType: entry.question_type,
@@ -596,6 +848,33 @@ async function processEntry(
     clearProgress();
 
     const elapsed = performance.now() - startTime;
+
+    // Write debug output if runDir provided (no memories case)
+    if (runDir) {
+      writeEntryDebug(runDir, {
+        questionId: entry.question_id,
+        questionType: entry.question_type,
+        question: entry.question,
+        expectedAnswer: entry.answer,
+        answerSessionIds: entry.answer_session_ids,
+        sessions: debugSessions,
+        extractedMemories: debugExtractedMemories,
+        storedMemories: debugStoredMemories,
+        queryEmbeddingLength: 0,
+        searchResults: [],
+        retrievalMetrics: {
+          expectedSessionIds: entry.answer_session_ids,
+          retrievedSessionIds: [],
+          correctlyRetrieved: [],
+          missedSessionIds: entry.answer_session_ids,
+          precision: 0,
+          recall: 0,
+        },
+        generatedAnswer,
+        isCorrect,
+        latencyMs: elapsed,
+      });
+    }
 
     return {
       questionId: entry.question_id,
@@ -631,6 +910,11 @@ export async function runLongMemEval(
     "temporal-reasoning",
     "knowledge-update",
   ];
+
+  // Initialize debug output directory
+  const runId = new Date().toISOString().replace(/[:.]/g, "-");
+  const runDir = initDebugOutput(runId);
+  console.log(`Debug output: ${runDir}`);
 
   // Filter dataset
   let entries = dataset;
@@ -673,7 +957,8 @@ export async function runLongMemEval(
         entry,
         api,
         options.verbose || false,
-        options.maxSessions
+        options.maxSessions,
+        runDir
       );
       results.push(result);
       latencies.push(result.latencyMs);
@@ -726,7 +1011,7 @@ export async function runLongMemEval(
   const latencyStats = calculatePercentiles(latencies);
   const correctCount = results.filter((r) => r.isCorrect).length;
 
-  return {
+  const summary: LongMemEvalSummary = {
     timestamp: new Date().toISOString(),
     datasetName: `longmemeval_${options.variant}`,
     totalQuestions: results.length,
@@ -753,4 +1038,10 @@ export async function runLongMemEval(
     },
     results: options.verbose ? results : [],
   };
+
+  // Write run summary
+  writeRunSummary(runDir, summary);
+  console.log(`\nDebug output written to: ${runDir}`);
+
+  return summary;
 }
