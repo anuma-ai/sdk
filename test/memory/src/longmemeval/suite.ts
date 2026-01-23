@@ -19,6 +19,7 @@ import {
   clearAllMemoriesOp,
 } from "../../../../src/lib/db/memory/operations.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memory/constants.js";
+import { FACT_EXTRACTION_PROMPT } from "../../../../src/lib/memory/service.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -292,30 +293,10 @@ async function extractMemoriesFromSession(
     .map((msg) => `${msg.role}: ${msg.content}`)
     .join("\n");
 
-  const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
+  const extractionPrompt = `${FACT_EXTRACTION_PROMPT}
 
-CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
-
-Extract memories as simple, natural sentences that capture facts about the user. Focus on:
-- Identity facts (name, location, occupation)
-- Stable preferences (food, hobbies, communication style)
-- Ongoing projects and work
-- Skills and expertise
-- Personal constraints or requirements
-
-Conversation:
-${conversationText}
-
-Response format:
-{
-  "items": [
-    {"text": "User's name is John"},
-    {"text": "User works at Acme Corp"},
-    {"text": "User prefers tea over coffee"}
-  ]
-}
-
-If no memories to extract, return: {"items": []}`;
+Conversation to extract from:
+${conversationText}`;
 
   try {
     const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
