@@ -27,6 +27,8 @@ import type { LongMemEvalOptions, LongMemEvalQuestionType } from "./src/longmeme
 const { values: args } = parseArgs({
   options: {
     variant: { type: "string", default: "s", short: "v" },
+    strategy: { type: "string" },
+    llm: { type: "string" },
     max: { type: "string", short: "m" },
     "max-sessions": { type: "string" },
     types: { type: "string", short: "t" },
@@ -54,6 +56,11 @@ Options:
                               m = medium (~500 sessions per question)
                               oracle = only answer sessions (fast, for dev)
                               Default: s
+  --strategy <extracted|chunked>
+                              Retrieval strategy:
+                              extracted = memory extraction (default)
+                              chunked = chunked tool search
+  --llm <model>               Override chat completion model
   -m, --max <n>               Maximum number of questions to evaluate
   --max-sessions <n>          Max sessions to process per question (for dev)
   -t, --types <types>         Comma-separated question types to include
@@ -71,6 +78,8 @@ Examples:
   pnpm eval:longmemeval --variant oracle --max 5 # Fast: oracle sessions only
   pnpm eval:longmemeval --max 2 --max-sessions 5 # Quick dev test
   pnpm eval:longmemeval --variant m              # Full test with medium dataset
+  pnpm eval:longmemeval --strategy chunked --max 5 # Chunked tool search
+  pnpm eval:longmemeval --llm fireworks/models/gpt-oss-120b --max 5
 
 Environment Variables:
   PORTAL_API_KEY      Required for LLM calls
@@ -130,8 +139,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const rawStrategy = args.strategy?.toLowerCase();
+  const strategy =
+    rawStrategy === "chunked" || rawStrategy === "chunked-tool"
+      ? "chunked-tool"
+      : "extracted-memories";
+
   const options: LongMemEvalOptions = {
     variant: variant === "oracle" ? "s" : variant, // oracle uses same format as s
+    strategy,
+    llmModel: args.llm,
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,
     maxSessions: args["max-sessions"] ? parseInt(args["max-sessions"], 10) : undefined,
     questionTypes: args.types
@@ -150,6 +167,7 @@ async function main(): Promise<void> {
     const summary = await runLongMemEval(dataset, options, {
       apiKey,
       baseUrl,
+      llmModel: "openai/gpt-4o-mini",
     });
 
     if (args.json) {

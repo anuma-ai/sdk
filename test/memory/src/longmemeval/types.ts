@@ -78,6 +78,10 @@ export interface LongMemEvalSummary {
 export interface LongMemEvalOptions {
   /** Dataset variant: 's' (small, ~50 sessions) or 'm' (medium, ~500 sessions) */
   variant: "s" | "m";
+  /** Retrieval strategy */
+  strategy?: "extracted-memories" | "chunked-tool";
+  /** LLM model override for chat completions */
+  llmModel?: string;
   /** Maximum number of questions to evaluate (for quick testing) */
   maxQuestions?: number;
   /** Maximum sessions to process per question (for dev/testing) */
@@ -110,6 +114,25 @@ export interface LongMemEvalEmbeddingsCache {
       }>;
       /** Query embedding for the question */
       queryEmbedding: number[];
+    }
+  >;
+}
+
+/** Cached embeddings for chunked LongMemEval sessions */
+export interface LongMemEvalChunkEmbeddingsCache {
+  version: string;
+  model: string;
+  variant: "s" | "m";
+  entries: Record<
+    string,
+    {
+      chunks: Array<{
+        sessionIndex: number;
+        messageIndex: number;
+        role: "user" | "assistant";
+        contentHash: string;
+        embedding: number[];
+      }>;
     }
   >;
 }
