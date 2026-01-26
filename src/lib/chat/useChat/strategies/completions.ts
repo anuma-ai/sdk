@@ -330,6 +330,17 @@ export class CompletionsStrategy implements ApiStrategy {
       if (finalParse.reasoningContent) {
         finalThinking += finalParse.reasoningContent;
       }
+      // Handle any remaining partial tag content that couldn't be parsed
+      // (e.g., stream ended with incomplete tag like "<" or "<thi")
+      if (finalParse.partialTag) {
+        if (finalParse.insideReasoning) {
+          // If we're inside reasoning, the partial belongs to thinking
+          finalThinking += finalParse.partialTag;
+        } else {
+          // Otherwise, it's regular content
+          finalContent += finalParse.partialTag;
+        }
+      }
     }
 
     // Add thinking/reasoning output if present

@@ -64,7 +64,9 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx test/memory"
+    "eval:memory": "tsx test/memory",
+    "eval:longmemeval": "tsx test/memory/longmemeval.ts",
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
   },
   "repository": {
     "type": "git",
@@ -84,6 +86,7 @@
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
