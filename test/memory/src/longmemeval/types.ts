@@ -82,6 +82,10 @@ export interface LongMemEvalOptions {
   strategy?: "extracted-memories" | "chunked-tool";
   /** LLM model override for chat completions */
   llmModel?: string;
+  /** Skip entries that already have transcripts for the same model */
+  skipExisting?: boolean;
+  /** Run only a specific question id */
+  questionId?: string;
   /** Maximum number of questions to evaluate (for quick testing) */
   maxQuestions?: number;
   /** Maximum sessions to process per question (for dev/testing) */

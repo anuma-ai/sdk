@@ -67,6 +67,7 @@ interface SessionChunk {
   role: "user" | "assistant";
   content: string;
   contentHash: string;
+  timestamp?: string;
   embedding?: number[];
 }
 
@@ -136,6 +137,19 @@ function getChunkCachePath(variant: "s" | "m", model: string): string {
 
 function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
+}
+
+async function transcriptMatchesModel(
+  questionId: string,
+  model: string
+): Promise<boolean> {
+  try {
+    const data = await readFile(getTranscriptPath(questionId), "utf-8");
+    const parsed = JSON.parse(data) as { llmModel?: string };
+    return parsed.llmModel === model;
+  } catch {
+    return false;
+  }
 }
 
 async function loadChunkEmbeddingCache(
@@ -446,6 +460,16 @@ function createChunkSearchTool(): {
             type: "integer",
             description: "Number of chunks to return (default 8).",
           },
+          start_date: {
+            type: "string",
+            description:
+              "Optional inclusive start date/time in dataset format (e.g. 2023/05/30 (Tue) 01:50).",
+          },
+          end_date: {
+            type: "string",
+            description:
+              "Optional inclusive end date/time in dataset format (e.g. 2023/05/30 (Tue) 01:50).",
+          },
         },
         required: ["query"],
       },
@@ -468,6 +492,7 @@ async function callChatCompletion(
   const maxAttempts = 3;
   let lastStatus: number | null = null;
   let lastError: unknown;
+  let emptyRetryUsed = false;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -521,8 +546,16 @@ async function callChatCompletion(
       const message = data.choices[0]?.message;
       const toolCalls =
         options?.tools && options.tools.length > 0 ? message?.tool_calls : undefined;
+      const content = message?.content || "";
+
+      if (!content && !toolCalls && !emptyRetryUsed && attempt < maxAttempts) {
+        emptyRetryUsed = true;
+        await sleep(250 * attempt);
+        continue;
+      }
+
       return {
-        content: message?.content || "",
+        content,
         toolCalls,
       };
     } catch (error) {
@@ -668,6 +701,7 @@ function buildChunks(
         role: message.role,
         content: message.content,
         contentHash,
+        timestamp: entry.haystack_dates[sessionIndex],
       });
     }
   }
@@ -694,12 +728,26 @@ function searchChunks(
   chunks: SessionChunk[],
   queryEmbedding: number[],
   topK: number,
-  includeAssistant: boolean
+  includeAssistant: boolean,
+  startDate?: string,
+  endDate?: string
 ): Array<SessionChunk & { similarity: number }> {
-  const filtered = chunks.filter((chunk) => {
+  let filtered = chunks.filter((chunk) => {
     if (includeAssistant) return true;
     return chunk.role === "user";
   });
+
+  if (startDate || endDate) {
+    const startTs = startDate ? parseLongMemEvalTimestamp(startDate) : Number.NaN;
+    const endTs = endDate ? parseLongMemEvalTimestamp(endDate) : Number.NaN;
+    filtered = filtered.filter((chunk) => {
+      const chunkTs = parseLongMemEvalTimestamp(chunk.timestamp);
+      if (Number.isNaN(chunkTs)) return false;
+      if (!Number.isNaN(startTs) && chunkTs < startTs) return false;
+      if (!Number.isNaN(endTs) && chunkTs > endTs) return false;
+      return true;
+    });
+  }
 
   const scored = filtered
     .filter((chunk) => chunk.embedding && chunk.embedding.length > 0)
@@ -801,6 +849,7 @@ async function processEntry(
       ? `${totalSessions}/${entry.haystack_sessions.length} (limited, includes answer sessions)`
       : `${totalSessions}`;
     console.log(`  Sessions: ${sessionInfo}`);
+    console.log(`  Question: ${entry.question}`);
   }
 
   // Set up a fresh database for this entry
@@ -1044,6 +1093,7 @@ async function processEntryChunked(
       ? `${totalSessions}/${entry.haystack_sessions.length} (limited, includes answer sessions)`
       : `${totalSessions}`;
     console.log(`  Sessions: ${sessionInfo}`);
+    console.log(`  Question: ${entry.question}`);
   }
 
   logProgress("Preparing chunks...");
@@ -1060,13 +1110,17 @@ async function processEntryChunked(
 
   const tool = createChunkSearchTool();
   const systemPrompt = `You are a memory assistant. Your single goal is to answer the user's question as accurately as possible.
+    Today is ${entry.question_date}.
 
 Use the search tool if the question may rely on past conversation details.
 By default the tool searches user chunks. Only set include_assistant=true if the question explicitly asks about the assistant's prior responses.
-Use top_k=8 unless there is a strong reason to use fewer.
+Use top_k=12 unless there is a strong reason to use fewer.
+If the question uses relative time (e.g., “last month”), interpret it flexibly (e.g., last 30 days or the current month) and avoid overly narrow date filters.
+When answering relative-time questions (e.g., “today,” “yesterday,” “X days ago”), interpret them relative to the question date above, not the real current date.
 Use the retrieved chunks as evidence and answer directly. Do not include reasoning in your answer.
 If the question asks for a number or count, respond with only the number.
-If the information is not present, say "I don't have that information."`;
+If the information is not present, say "I don't have that information."
+In your final answer, do not ask the user any questions; just give your best answer.`;
 
   const baseMessages = [
     { role: "system", content: systemPrompt },
@@ -1123,6 +1177,8 @@ If the information is not present, say "I don't have that information."`;
           query?: string;
           include_assistant?: boolean;
           top_k?: number;
+          start_date?: string;
+          end_date?: string;
         } = {};
 
         try {
@@ -1141,12 +1197,16 @@ If the information is not present, say "I don't have that information."`;
 
         const includeAssistant = Boolean(args.include_assistant);
         const topK = args.top_k && args.top_k > 0 ? args.top_k : 8;
+        const startDate = undefined;
+        const endDate = undefined;
 
         const results = searchChunks(
           chunks,
           effectiveQueryEmbedding,
           topK,
-          includeAssistant
+          includeAssistant,
+          startDate,
+          endDate
         );
 
         retrievedChunks = results;
@@ -1164,15 +1224,20 @@ If the information is not present, say "I don't have that information."`;
           oracleRelevant: answerSessionIdSet.has(chunk.sessionId),
         }));
 
-        const searchPool = includeAssistant
-          ? chunks
-          : chunks.filter((chunk) => chunk.role === "user");
+        const searchPool = searchChunks(
+          chunks,
+          effectiveQueryEmbedding,
+          Number.MAX_SAFE_INTEGER,
+          includeAssistant,
+          startDate,
+          endDate
+        );
 
         const missingChunks = entry.answer_session_ids
           .filter((sessionId) => !retrievedSessionIdSet.has(sessionId))
           .map((sessionId) => {
             const candidates = searchPool
-              .filter((chunk) => chunk.sessionId === sessionId && chunk.embedding)
+              .filter((chunk) => chunk.sessionId === sessionId)
               .map((chunk) => ({
                 role: chunk.role,
                 content: chunk.content,
@@ -1180,10 +1245,7 @@ If the information is not present, say "I don't have that information."`;
                 sessionIndex: chunk.sessionIndex,
                 messageIndex: chunk.messageIndex,
                 timestamp: entry.haystack_dates[chunk.sessionIndex],
-                similarity: cosineSimilarity(
-                  effectiveQueryEmbedding,
-                  chunk.embedding!
-                ),
+                similarity: chunk.similarity,
               }))
               .sort((a, b) => b.similarity - a.similarity);
 
@@ -1249,18 +1311,18 @@ If the information is not present, say "I don't have that information."`;
         });
       }
 
-      const assistantMessage = {
-        role: "assistant",
-        tool_calls: firstResponse.toolCalls.map((toolCall) => ({
-          id: toolCall.id,
-          type: "function",
-          function: toolCall.function,
-        })),
-      };
+      const followupContent = [
+        entry.question,
+        "",
+        toolResults.map((result) => result.content).join("\n"),
+      ].join("\n");
 
       const secondResponse = await callChatCompletion(
         api,
-        [...baseMessages, assistantMessage, ...toolResults],
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: followupContent },
+        ],
         {
           toolChoice: "none",
           maxTokens: 500,
@@ -1287,6 +1349,7 @@ If the information is not present, say "I don't have that information."`;
     api
   );
   clearProgress();
+  transcript.isCorrect = isCorrect;
 
   const retrievedSessionIds = new Set<string>();
   for (const chunk of retrievedChunks) {
@@ -1364,6 +1427,10 @@ export async function runLongMemEval(
     );
   }
 
+  if (options.questionId) {
+    entries = entries.filter((e) => e.question_id === options.questionId);
+  }
+
   if (options.skipUnsupported) {
     entries = entries.filter(
       (e) => !unsupportedTypes.includes(e.question_type)
@@ -1408,6 +1475,17 @@ export async function runLongMemEval(
     console.log(`[${i + 1}/${entries.length}] ${entry.question_id}`);
 
     try {
+      if (strategy === "chunked-tool" && options.skipExisting) {
+        const hasTranscript = await transcriptMatchesModel(
+          entry.question_id,
+          llmModel
+        );
+        if (hasTranscript) {
+          console.log("  ↷ Skipping (existing transcript for same model)");
+          continue;
+        }
+      }
+
       const result =
         strategy === "chunked-tool" && chunkCache
           ? await processEntryChunked(
