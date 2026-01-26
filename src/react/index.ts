@@ -128,7 +128,30 @@ export {
   type CreateMessageOptions,
   type CreateConversationOptions,
   generateConversationId,
+  updateConversationProjectOp,
+  getConversationsByProjectOp,
 } from "../lib/db/chat";
+
+// Project storage exports
+export {
+  Project,
+  type StoredProject,
+  type CreateProjectOptions,
+  type UpdateProjectOptions,
+  generateProjectId,
+  type ProjectOperationsContext,
+  projectToStored,
+  createProjectOp,
+  getProjectOp,
+  getProjectsOp,
+  updateProjectNameOp,
+  updateProjectOp,
+  deleteProjectOp,
+  getProjectConversationsOp,
+  getProjectConversationCountOp,
+} from "../lib/db/project";
+export { useProjects } from "./useProjects";
+export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,

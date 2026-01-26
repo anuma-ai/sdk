@@ -1,3 +1,4 @@
+import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
 import type {
   LlmapiMessage,
@@ -96,6 +97,8 @@ export interface StoredConversation {
   uniqueId: string;
   conversationId: string;
   title: string;
+  /** Optional project ID this conversation belongs to */
+  projectId?: string;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -140,6 +143,8 @@ export interface CreateMessageOptions {
 export interface CreateConversationOptions {
   conversationId?: string;
   title?: string;
+  /** Optional project ID to associate this conversation with */
+  projectId?: string;
 }
 
 export interface UpdateMessageOptions {
@@ -433,7 +438,7 @@ export interface BaseUseChatStorageResult {
 // Utility functions
 
 export function generateConversationId(): string {
-  return `conv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return `conv_${uuidv7()}`;
 }
 
 export function convertUsageToStored(
