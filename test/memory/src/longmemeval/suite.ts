@@ -18,7 +18,10 @@ import {
   saveMemoryOp,
   clearAllMemoriesOp,
 } from "../../../../src/lib/db/memory/operations.js";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memory/constants.js";
+import {
+  DEFAULT_API_EMBEDDING_MODEL,
+  DEFAULT_COMPLETION_MODEL,
+} from "../../../../src/lib/memory/constants.js";
 import { FACT_EXTRACTION_PROMPT } from "../../../../src/lib/memory/service.js";
 import type {
   LongMemEvalEntry,
@@ -306,7 +309,7 @@ ${conversationText}`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: DEFAULT_COMPLETION_MODEL,
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0,
         max_tokens: 2000,
@@ -415,7 +418,7 @@ Keep your answer brief and factual.`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: DEFAULT_COMPLETION_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
         max_tokens: 500,
@@ -464,7 +467,7 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: DEFAULT_COMPLETION_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
         max_tokens: 10,
