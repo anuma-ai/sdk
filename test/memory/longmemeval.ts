@@ -119,7 +119,7 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.PORTAL_API_KEY;
   const baseUrl =
-    process.env.REVERBIA_API_URL || "https://ai-portal-dev.zetachain.com";
+    process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     console.error(
