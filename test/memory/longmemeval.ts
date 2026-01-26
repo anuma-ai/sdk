@@ -119,13 +119,13 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.PORTAL_API_KEY;
   const baseUrl =
-    process.env.REVERBIA_API_URL || "https://ai-portal-dev.zetachain.com";
+    process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     console.error(
       "Error: PORTAL_API_KEY is required.\n\n" +
-        "Add PORTAL_API_KEY to your .env file:\n" +
-        "  PORTAL_API_KEY=your-api-key\n"
+      "Add PORTAL_API_KEY to your .env file:\n" +
+      "  PORTAL_API_KEY=your-api-key\n"
     );
     process.exit(1);
   }
