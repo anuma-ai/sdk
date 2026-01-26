@@ -40,10 +40,12 @@ export class Conversation extends Model {
 
   static associations: Associations = {
     history: { type: "has_many", foreignKey: "conversation_id" },
+    projects: { type: "belongs_to", key: "project_id" },
   };
 
   @text("conversation_id") conversationId!: string;
   @text("title") title!: string;
+  @text("project_id") projectId?: string;
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

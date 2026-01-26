@@ -1,6 +1,6 @@
 # StoredFileWithContext
 
-Defined in: [src/lib/db/chat/types.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L113)
+Defined in: [src/lib/db/chat/types.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L115)
 
 File metadata with conversation context for file browsing.
 Extends FileMetadata with information about where the file was used.
@@ -15,7 +15,7 @@ Extends FileMetadata with information about where the file was used.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L115)
+Defined in: [src/lib/db/chat/types.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L117)
 
 ID of the conversation where this file was attached
 
@@ -25,7 +25,7 @@ ID of the conversation where this file was attached
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L117)
+Defined in: [src/lib/db/chat/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L119)
 
 Timestamp when the file was stored (from the message)
 
@@ -49,7 +49,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **messageRole**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L119)
+Defined in: [src/lib/db/chat/types.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L121)
 
 Role of the message that contains this file
 

@@ -97,6 +97,8 @@ export interface StoredConversation {
   uniqueId: string;
   conversationId: string;
   title: string;
+  /** Optional project ID this conversation belongs to */
+  projectId?: string;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -141,6 +143,8 @@ export interface CreateMessageOptions {
 export interface CreateConversationOptions {
   conversationId?: string;
   title?: string;
+  /** Optional project ID to associate this conversation with */
+  projectId?: string;
 }
 
 export interface UpdateMessageOptions {
