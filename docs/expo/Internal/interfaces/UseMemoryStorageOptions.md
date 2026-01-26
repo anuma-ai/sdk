@@ -16,7 +16,7 @@ Uses the base options.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L56)
+Defined in: [src/lib/db/memory/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L60)
 
 **Inherited from**
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/memory/types.ts:56](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **completionsModel**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L51)
+Defined in: [src/lib/db/memory/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L55)
 
 **Inherited from**
 
@@ -40,7 +40,7 @@ Defined in: [src/lib/db/memory/types.ts:51](https://github.com/zeta-chain/ai-sdk
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/memory/types.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L50)
+Defined in: [src/lib/db/memory/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L54)
 
 **Inherited from**
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/db/memory/types.ts:50](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L59)
+Defined in: [src/lib/db/memory/types.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L63)
 
 **Inherited from**
 
@@ -64,7 +64,7 @@ Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **embeddingModel**: `string` | `null`
 
-Defined in: [src/lib/db/memory/types.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L52)
+Defined in: [src/lib/db/memory/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L56)
 
 **Inherited from**
 
@@ -76,7 +76,7 @@ Defined in: [src/lib/db/memory/types.ts:52](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **generateEmbeddings**: `boolean`
 
-Defined in: [src/lib/db/memory/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L53)
+Defined in: [src/lib/db/memory/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L57)
 
 **Inherited from**
 
@@ -88,7 +88,7 @@ Defined in: [src/lib/db/memory/types.ts:53](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/db/memory/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L55)
+Defined in: [src/lib/db/memory/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L59)
 
 **Returns**
 
@@ -104,7 +104,7 @@ Defined in: [src/lib/db/memory/types.ts:55](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **onFactsExtracted**: (`facts`: `MemoryExtractionResult`) => `void`
 
-Defined in: [src/lib/db/memory/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L54)
+Defined in: [src/lib/db/memory/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L58)
 
 **Parameters**
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memory/types.ts:54](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **signMessage**: [`SignMessageFn`](../../../react/Internal/type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/db/memory/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L58)
+Defined in: [src/lib/db/memory/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L62)
 
 **Inherited from**
 
@@ -157,7 +157,7 @@ Defined in: [src/lib/db/memory/types.ts:58](https://github.com/zeta-chain/ai-sdk
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/memory/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L57)
+Defined in: [src/lib/db/memory/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L61)
 
 **Inherited from**
 

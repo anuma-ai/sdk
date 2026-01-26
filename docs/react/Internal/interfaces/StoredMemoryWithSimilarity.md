@@ -56,6 +56,16 @@ Defined in: [src/lib/db/memory/types.ts:31](https://github.com/zeta-chain/ai-sdk
 
 ***
 
+### finalScore?
+
+> `optional` **finalScore**: `number`
+
+Defined in: [src/lib/db/memory/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L40)
+
+Final ranking score combining similarity and recency
+
+***
+
 ### id
 
 > **id**: `string`
@@ -77,6 +87,16 @@ Defined in: [src/lib/db/memory/types.ts:32](https://github.com/zeta-chain/ai-sdk
 **Inherited from**
 
 [`StoredMemory`](StoredMemory.md).[`isDeleted`](StoredMemory.md#isdeleted)
+
+***
+
+### recencyBoost?
+
+> `optional` **recencyBoost**: `number`
+
+Defined in: [src/lib/db/memory/types.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/types.ts#L38)
+
+Recency boost factor (0-1), where 1 is most recent
 
 ***
 

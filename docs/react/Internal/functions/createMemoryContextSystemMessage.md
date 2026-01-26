@@ -1,8 +1,8 @@
 # createMemoryContextSystemMessage
 
-> **createMemoryContextSystemMessage**(`memories`: [`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[], `baseSystemPrompt?`: `string`): `string`
+> **createMemoryContextSystemMessage**(`memories`: `MemoryWithScores`\[], `baseSystemPrompt?`: `string`, `format?`: `"compact"` | `"detailed"` | `"grouped"`): `string`
 
-Defined in: [src/lib/memory/chat.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L36)
+Defined in: [src/lib/memory/chat.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L108)
 
 Create a system message that includes relevant memories
 
@@ -13,6 +13,7 @@ Create a system message that includes relevant memories
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Default value</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -25,7 +26,12 @@ Create a system message that includes relevant memories
 </td>
 <td>
 
-[`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[]
+`MemoryWithScores`\[]
+
+</td>
+<td>
+
+`undefined`
 
 </td>
 <td>
@@ -47,7 +53,34 @@ Array of memories to include
 </td>
 <td>
 
+`undefined`
+
+</td>
+<td>
+
 Optional base system prompt (memories will be prepended)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`format?`
+
+</td>
+<td>
+
+`"compact"` | `"detailed"` | `"grouped"`
+
+</td>
+<td>
+
+`"grouped"`
+
+</td>
+<td>
+
+Format style for memories (default: "grouped")
 
 </td>
 </tr>

@@ -1,8 +1,8 @@
 # formatMemoriesForChat
 
-> **formatMemoriesForChat**(`memories`: [`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[], `format`: `"compact"` | `"detailed"`): `string`
+> **formatMemoriesForChat**(`memories`: `MemoryWithScores`\[], `format`: `"compact"` | `"detailed"` | `"grouped"`): `string`
 
-Defined in: [src/lib/memory/chat.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L9)
+Defined in: [src/lib/memory/chat.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L43)
 
 Format memories into a context string that can be included in chat messages
 
@@ -26,7 +26,7 @@ Format memories into a context string that can be included in chat messages
 </td>
 <td>
 
-[`StoredMemory`](../interfaces/StoredMemory.md) & `object`\[]
+`MemoryWithScores`\[]
 
 </td>
 <td>
@@ -48,7 +48,7 @@ Array of memories with similarity scores
 </td>
 <td>
 
-`"compact"` | `"detailed"`
+`"compact"` | `"detailed"` | `"grouped"`
 
 </td>
 <td>
@@ -58,7 +58,7 @@ Array of memories with similarity scores
 </td>
 <td>
 
-Format style: "compact" (simple list) or "detailed" (includes relevance scores)
+Format style: "compact" (simple list), "detailed" (includes relevance scores), or "grouped" (grouped by confidence)
 
 </td>
 </tr>

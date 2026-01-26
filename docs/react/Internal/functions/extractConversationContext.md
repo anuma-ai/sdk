@@ -2,7 +2,7 @@
 
 > **extractConversationContext**(`messages`: `object`\[], `maxMessages`: `number`): `string`
 
-Defined in: [src/lib/memory/chat.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L61)
+Defined in: [src/lib/memory/chat.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memory/chat.ts#L137)
 
 Extract conversation context from messages for memory search
 
