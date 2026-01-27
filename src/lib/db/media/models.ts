@@ -36,8 +36,7 @@ export class Media extends Model {
   @text("role") role!: MediaRole;
   @text("model") model?: string;
 
-  // URLs
-  @text("url") url?: string;
+  // Original external URL for cached files (MCP R2, etc.)
   @text("source_url") sourceUrl?: string;
 
   // Media-specific metadata
