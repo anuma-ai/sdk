@@ -198,6 +198,55 @@ export {
   type UpdateUserPreferenceOptions,
   type ProfileUpdate,
 } from "../lib/db/userPreferences";
+
+// Media library storage
+export {
+  Media as StoredMediaModel,
+  // Types
+  type MediaType,
+  type MediaRole,
+  type MediaDimensions,
+  type MediaMetadata,
+  type StoredMedia,
+  type CreateMediaOptions,
+  type UpdateMediaOptions,
+  type MediaFilterOptions,
+  type MediaOperationsContext,
+  // Utility functions
+  generateMediaId,
+  getMediaTypeFromMime,
+  isSupportedMediaType,
+  // CRUD operations
+  mediaToStored,
+  createMediaOp,
+  createMediaBatchOp,
+  getMediaByIdOp,
+  getMediaBySourceUrlOp,
+  updateMediaOp,
+  deleteMediaOp,
+  hardDeleteMediaOp,
+  // Library query operations
+  getMediaOp,
+  getMediaByTypeOp,
+  getImagesOp,
+  getVideosOp,
+  getAudioOp,
+  getDocumentsOp,
+  getMediaByConversationOp,
+  getMediaByMessageOp,
+  getMediaByIdsOp,
+  getMediaByRoleOp,
+  getAIGeneratedMediaOp,
+  getUserUploadedMediaOp,
+  getMediaByModelOp,
+  getRecentMediaOp,
+  searchMediaOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  deleteMediaByConversationOp,
+  deleteMediaByMessageOp,
+} from "../lib/db/media";
+
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
