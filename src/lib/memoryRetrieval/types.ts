@@ -41,10 +41,18 @@ export interface MemoryRetrievalResult {
 
 /**
  * Options for embedding generation
+ *
+ * Supports two auth methods:
+ * - `getToken`: For Privy identity tokens (uses Authorization: Bearer header)
+ * - `apiKey`: For direct API keys (uses X-API-Key header)
+ *
+ * At least one of `getToken` or `apiKey` must be provided.
  */
 export interface EmbeddingOptions {
-  /** Function to get auth token (e.g., Privy's getIdentityToken) */
-  getToken: () => Promise<string | null>;
+  /** Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization: Bearer header. */
+  getToken?: () => Promise<string | null>;
+  /** Direct API key for server-side usage. Uses X-API-Key header. */
+  apiKey?: string;
   /** Base URL for the API */
   baseUrl?: string;
   /** Embedding model to use */

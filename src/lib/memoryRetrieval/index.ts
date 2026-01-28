@@ -33,6 +33,7 @@ export {
 
 export {
   generateEmbedding,
+  generateEmbeddings,
   embedMessage,
   embedAllMessages,
 } from "./embeddings";

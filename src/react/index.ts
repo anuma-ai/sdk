@@ -229,6 +229,7 @@ export {
   embedMessage,
   embedAllMessages,
   generateEmbedding,
+  generateEmbeddings,
 } from "../lib/memoryRetrieval";
 export type {
   MemoryRetrievalSearchOptions,

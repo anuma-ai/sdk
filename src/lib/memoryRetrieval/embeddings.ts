@@ -18,16 +18,29 @@ import type { EmbeddingOptions } from "./types";
 
 /**
  * Generate an embedding for text using the API
+ *
+ * Supports two auth methods:
+ * - `apiKey`: Uses X-API-Key header (for server-side/CLI usage)
+ * - `getToken`: Uses Authorization: Bearer header (for Privy identity tokens)
  */
 export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, model } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model } = options;
 
-  const token = await getToken();
-  if (!token) {
-    throw new Error("No token available for embedding generation");
+  // Build auth headers - prefer apiKey if provided
+  let headers: Record<string, string>;
+  if (apiKey) {
+    headers = { "X-API-Key": apiKey };
+  } else if (getToken) {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No token available for embedding generation");
+    }
+    headers = { Authorization: `Bearer ${token}` };
+  } else {
+    throw new Error("Either apiKey or getToken must be provided");
   }
 
   const response = await postApiV1Embeddings({
@@ -36,9 +49,7 @@ export async function generateEmbedding(
       input: text,
       model: model ?? DEFAULT_API_EMBEDDING_MODEL,
     },
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
   });
 
   if (response.error) {
@@ -56,6 +67,65 @@ export async function generateEmbedding(
   }
 
   return response.data.data[0].embedding;
+}
+
+/**
+ * Generate embeddings for multiple texts in a single API call
+ *
+ * More efficient than calling generateEmbedding multiple times.
+ * Supports the same auth methods as generateEmbedding.
+ *
+ * @param texts - Array of texts to embed
+ * @param options - Embedding options
+ * @returns Array of embeddings in the same order as input texts
+ */
+export async function generateEmbeddings(
+  texts: string[],
+  options: EmbeddingOptions
+): Promise<number[][]> {
+  if (texts.length === 0) return [];
+
+  const { baseUrl = BASE_URL, getToken, apiKey, model } = options;
+
+  // Build auth headers - prefer apiKey if provided
+  let headers: Record<string, string>;
+  if (apiKey) {
+    headers = { "X-API-Key": apiKey };
+  } else if (getToken) {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No token available for embedding generation");
+    }
+    headers = { Authorization: `Bearer ${token}` };
+  } else {
+    throw new Error("Either apiKey or getToken must be provided");
+  }
+
+  const response = await postApiV1Embeddings({
+    baseUrl,
+    body: {
+      input: texts,
+      model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+    },
+    headers,
+  });
+
+  if (response.error) {
+    throw new Error(
+      typeof response.error === "object" &&
+      response.error &&
+      "error" in response.error
+        ? (response.error as { error: string }).error
+        : "API embedding failed"
+    );
+  }
+
+  if (!response.data?.data) {
+    throw new Error("No embeddings returned from API");
+  }
+
+  // Return embeddings in the same order as input texts
+  return response.data.data.map((item) => item.embedding ?? []);
 }
 
 /**

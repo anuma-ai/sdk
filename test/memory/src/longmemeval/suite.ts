@@ -21,6 +21,10 @@ import {
 } from "../../../../src/lib/db/memory/operations.js";
 import { cosineSimilarity } from "../../../../src/lib/db/memory/types.js";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memory/constants.js";
+import {
+  generateEmbedding as sdkGenerateEmbedding,
+  generateEmbeddings as sdkGenerateEmbeddings,
+} from "../../../../src/lib/memoryRetrieval/embeddings.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -299,7 +303,7 @@ If no memories to extract, return: {"items": []}`;
 }
 
 /**
- * Generate embeddings for texts
+ * Generate embeddings for texts using SDK's memoryRetrieval (single text at a time)
  */
 async function generateEmbeddings(
   texts: string[],
@@ -309,26 +313,12 @@ async function generateEmbeddings(
 
   for (const text of texts) {
     try {
-      const response = await fetch(`${api.baseUrl}/api/v1/embeddings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-API-Key": api.apiKey,
-        },
-        body: JSON.stringify({
-          model: DEFAULT_API_EMBEDDING_MODEL,
-          input: text,
-        }),
+      const embedding = await sdkGenerateEmbedding(text, {
+        apiKey: api.apiKey,
+        baseUrl: api.baseUrl,
+        model: DEFAULT_API_EMBEDDING_MODEL,
       });
-
-      if (!response.ok) {
-        throw new Error(`Embedding API error: ${response.status}`);
-      }
-
-      const data = (await response.json()) as {
-        data: Array<{ embedding: number[] }>;
-      };
-      embeddings.push(data.data[0].embedding);
+      embeddings.push(embedding);
     } catch (error) {
       console.error("Embedding generation failed:", error);
       embeddings.push([]);
@@ -338,6 +328,9 @@ async function generateEmbeddings(
   return embeddings;
 }
 
+/**
+ * Generate embeddings for texts using SDK's batch API (single API call)
+ */
 async function generateEmbeddingsBatch(
   texts: string[],
   api: ApiConfig
@@ -345,27 +338,11 @@ async function generateEmbeddingsBatch(
   if (texts.length === 0) return [];
 
   try {
-    const response = await fetch(`${api.baseUrl}/api/v1/embeddings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: DEFAULT_API_EMBEDDING_MODEL,
-        input: texts,
-      }),
+    return await sdkGenerateEmbeddings(texts, {
+      apiKey: api.apiKey,
+      baseUrl: api.baseUrl,
+      model: DEFAULT_API_EMBEDDING_MODEL,
     });
-
-    if (!response.ok) {
-      throw new Error(`Embedding API error: ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      data: Array<{ embedding: number[] }>;
-    };
-
-    return data.data.map((item) => item.embedding);
   } catch (error) {
     console.error("Batch embedding generation failed:", error);
     return texts.map(() => []);
