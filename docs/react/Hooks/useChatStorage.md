@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L542)
+Defined in: [src/react/useChatStorage.ts:544](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L544)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -78,6 +78,30 @@ Automatically create a new conversation if none is set (default: true)
 <tr>
 <td>
 
+`options.autoEmbedMessages?`
+
+</td>
+<td>
+
+`boolean`
+
+</td>
+<td>
+
+Automatically generate embeddings for messages after saving.
+Enables semantic search over past conversations via searchMessages().
+
+**Default**
+
+```ts
+true
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.baseUrl?`
 
 </td>
@@ -140,6 +164,29 @@ WatermelonDB database instance for storing conversations and messages
 <td>
 
 Title for auto-created conversations (default: "New conversation")
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.embeddingModel?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Embedding model to use when autoEmbedMessages is enabled.
+
+**Default**
+
+```ts
+DEFAULT_API_EMBEDDING_MODEL
+```
 
 </td>
 </tr>

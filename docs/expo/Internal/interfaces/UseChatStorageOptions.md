@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L78)
+Defined in: [src/expo/useChatStorage.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L81)
 
 Options for useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Uses the base options without React-specific features (no local chat, no tools).
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/expo/useChatStorage.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L84)
+Defined in: [src/expo/useChatStorage.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L87)
 
 Which API endpoint to use. Default: "responses"
 
@@ -36,6 +36,27 @@ Automatically create a new conversation if none is set (default: true)
 **Inherited from**
 
 `BaseUseChatStorageOptions.autoCreateConversation`
+
+***
+
+### autoEmbedMessages?
+
+> `optional` **autoEmbedMessages**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:225](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L225)
+
+Automatically generate embeddings for messages after saving.
+Enables semantic search over past conversations via searchMessages().
+
+**Default**
+
+```ts
+true
+```
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.autoEmbedMessages`
 
 ***
 
@@ -92,6 +113,26 @@ Title for auto-created conversations (default: "New conversation")
 **Inherited from**
 
 `BaseUseChatStorageOptions.defaultConversationTitle`
+
+***
+
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:230](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L230)
+
+Embedding model to use when autoEmbedMessages is enabled.
+
+**Default**
+
+```ts
+DEFAULT_API_EMBEDDING_MODEL
+```
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.embeddingModel`
 
 ***
 
