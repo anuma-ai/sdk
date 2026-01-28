@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsWebhookErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1211](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1211)
+Defined in: [src/client/types.gen.ts:1423](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1423)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1211](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1215](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1215)
+Defined in: [src/client/types.gen.ts:1427](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1427)
 
 Bad Request

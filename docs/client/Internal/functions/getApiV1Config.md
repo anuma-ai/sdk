@@ -2,11 +2,11 @@
 
 > **getApiV1Config**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConfigData`](../type-aliases/GetApiV1ConfigData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConfigResponses`](../type-aliases/GetApiV1ConfigResponses.md), [`GetApiV1ConfigErrors`](../type-aliases/GetApiV1ConfigErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L42)
+Defined in: [src/client/sdk.gen.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L90)
 
 Get configuration
 
-Returns public configuration including contract addresses and payment model
+Returns public configuration including contract addresses, payment model, and registered apps
 
 ## Type Parameters
 

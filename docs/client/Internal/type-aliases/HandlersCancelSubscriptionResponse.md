@@ -2,7 +2,7 @@
 
 > **HandlersCancelSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L7)
+Defined in: [src/client/types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L49)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blo
 
 > `optional` **cancel\_at**: `number`
 
-Defined in: [src/client/types.gen.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L8)
+Defined in: [src/client/types.gen.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L50)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:8](https://github.com/zeta-chain/ai-sdk/blo
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L9)
+Defined in: [src/client/types.gen.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L51)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:9](https://github.com/zeta-chain/ai-sdk/blo
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L10)
+Defined in: [src/client/types.gen.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L52)

@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1028](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1028)
+Defined in: [src/client/types.gen.ts:1240](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1240)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1028](https://github.com/zeta-chain/ai-sdk/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1032](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1032)
+Defined in: [src/client/types.gen.ts:1244](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1244)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1036](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1036)
+Defined in: [src/client/types.gen.ts:1248](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1248)
 
 Not Found
 
@@ -30,6 +30,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1040](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1040)
+Defined in: [src/client/types.gen.ts:1252](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1252)
 
 Internal Server Error

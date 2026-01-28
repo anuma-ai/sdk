@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L154)
+Defined in: [src/client/types.gen.ts:235](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L235)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/b
 
 > **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:158](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L158)
+Defined in: [src/client/types.gen.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L239)
 
 Messages is the conversation history
 
@@ -20,7 +20,7 @@ Messages is the conversation history
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:162](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L162)
+Defined in: [src/client/types.gen.ts:243](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L243)
 
 Model is the model identifier
 
@@ -30,7 +30,7 @@ Model is the model identifier
 
 > `optional` **stream**: `boolean`
 
-Defined in: [src/client/types.gen.ts:166](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L166)
+Defined in: [src/client/types.gen.ts:247](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L247)
 
 Stream indicates if response should be streamed
 
@@ -38,16 +38,16 @@ Stream indicates if response should be streamed
 
 ### tool\_choice?
 
-> `optional` **tool\_choice**: [`LlmapiToolChoice`](LlmapiToolChoice.md)
+> `optional` **tool\_choice**: [`LlmapiChatCompletionToolChoice`](LlmapiChatCompletionToolChoice.md)
 
-Defined in: [src/client/types.gen.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L167)
+Defined in: [src/client/types.gen.ts:248](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L248)
 
 ***
 
 ### tools?
 
-> `optional` **tools**: [`LlmapiTool`](LlmapiTool.md)\[]
+> `optional` **tools**: [`LlmapiChatCompletionTool`](LlmapiChatCompletionTool.md)\[]
 
-Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L171)
+Defined in: [src/client/types.gen.ts:252](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L252)
 
-Tools is an array of tool definitions the model can use
+Tools is an array of tool schemas describing which tools the model can use

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
+import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -16,6 +16,54 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      * used to access values that aren't defined as part of the SDK function.
      */
     meta?: Record<string, unknown>;
+};
+
+/**
+ * Add credits to user
+ *
+ * Adds credits to a user's cost limit on-chain. Requires admin API key and ADMIN_ROLE on smart contract. Optionally specify escrow_contract for custom escrow contracts.
+ */
+export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
+        url: '/api/v1/admin/add-credits',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Seed apps and API keys
+ *
+ * Seeds apps and their API keys into the database. Uses upsert - existing apps are updated. Requires admin API key.
+ */
+export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSeedAppsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminSeedAppsResponses, PostApiV1AdminSeedAppsErrors, ThrowOnError>({
+        url: '/api/v1/admin/seed-apps',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Set user subscription tier
+ *
+ * Sets a user's subscription tier (basic or pro). Requires admin API key.
+ */
+export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSubscriptionTierData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminSubscriptionTierErrors, ThrowOnError>({
+        url: '/api/v1/admin/subscription-tier',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
 };
 
 /**
@@ -37,7 +85,7 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
 /**
  * Get configuration
  *
- * Returns public configuration including contract addresses and payment model
+ * Returns public configuration including contract addresses, payment model, and registered apps
  */
 export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({
@@ -183,6 +231,18 @@ export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = fal
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * List available tools
+ *
+ * Returns a map of available MCP tool schemas indexed by tool name.
+ */
+export const getApiV1Tools = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ToolsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1ToolsResponses, GetApiV1ToolsErrors, ThrowOnError>({
+        url: '/api/v1/tools',
+        ...options
     });
 };
 

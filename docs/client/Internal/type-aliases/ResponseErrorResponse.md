@@ -2,7 +2,7 @@
 
 > **ResponseErrorResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:818](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L818)
+Defined in: [src/client/types.gen.ts:896](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L896)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:818](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:819](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L819)
+Defined in: [src/client/types.gen.ts:897](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L897)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:819](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **request\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:820](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L820)
+Defined in: [src/client/types.gen.ts:898](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L898)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:820](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **trace\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:821](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L821)
+Defined in: [src/client/types.gen.ts:899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L899)

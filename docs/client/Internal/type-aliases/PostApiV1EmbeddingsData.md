@@ -2,7 +2,7 @@
 
 > **PostApiV1EmbeddingsData** = `object`
 
-Defined in: [src/client/types.gen.ts:903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L903)
+Defined in: [src/client/types.gen.ts:1115](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1115)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:903](https://github.com/zeta-chain/ai-sdk/b
 
 > **body**: [`LlmapiEmbeddingRequest`](LlmapiEmbeddingRequest.md)
 
-Defined in: [src/client/types.gen.ts:907](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L907)
+Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1119)
 
 Embedding request
 
@@ -20,7 +20,7 @@ Embedding request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:908](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L908)
+Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1120)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:908](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:909](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L909)
+Defined in: [src/client/types.gen.ts:1121](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1121)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:909](https://github.com/zeta-chain/ai-sdk/b
 
 > **url**: `"/api/v1/embeddings"`
 
-Defined in: [src/client/types.gen.ts:910](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L910)
+Defined in: [src/client/types.gen.ts:1122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1122)

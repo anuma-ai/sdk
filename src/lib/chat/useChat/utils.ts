@@ -1,8 +1,8 @@
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiMessageContentPart,
   LlmapiResponseResponse,
-  LlmapiTool,
 } from "../../../client";
 import type {
   StreamAccumulator,
@@ -824,7 +824,7 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function createToolExecutorMap(
-  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
 ): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
   const map = new Map<
     string,
@@ -837,7 +837,7 @@ export function createToolExecutorMap(
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
-    const toolName = (tool as LlmapiTool).function?.name || (tool as any).name;
+    const toolName = (tool as any).function?.name || (tool as any).name;
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
@@ -899,7 +899,7 @@ export async function executeToolCall(
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
 ): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;

@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingData** = `object`
 
-Defined in: [src/client/types.gen.ts:232](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L232)
+Defined in: [src/client/types.gen.ts:324](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L324)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:232](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:236](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L236)
+Defined in: [src/client/types.gen.ts:328](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L328)
 
 Embedding vector
 
@@ -20,7 +20,7 @@ Embedding vector
 
 > `optional` **index**: `number`
 
-Defined in: [src/client/types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L240)
+Defined in: [src/client/types.gen.ts:332](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L332)
 
 Index of the embedding
 
@@ -30,6 +30,6 @@ Index of the embedding
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:244](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L244)
+Defined in: [src/client/types.gen.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L336)
 
 Object type identifier

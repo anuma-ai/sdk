@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentPart** = `object`
 
-Defined in: [src/client/types.gen.ts:386](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L386)
+Defined in: [src/client/types.gen.ts:493](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L493)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:386](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **file**: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md)
 
-Defined in: [src/client/types.gen.ts:387](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L387)
+Defined in: [src/client/types.gen.ts:494](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L494)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:387](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **image\_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
 
-Defined in: [src/client/types.gen.ts:388](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L388)
+Defined in: [src/client/types.gen.ts:495](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L495)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:388](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:392](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L392)
+Defined in: [src/client/types.gen.ts:499](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L499)
 
 Text holds the text content when Type=text or Type=input\_text
 
@@ -36,6 +36,6 @@ Text holds the text content when Type=text or Type=input\_text
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:396](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L396)
+Defined in: [src/client/types.gen.ts:503](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L503)
 
 Type is the block type (`text`, `image_url`, or `input_file`)

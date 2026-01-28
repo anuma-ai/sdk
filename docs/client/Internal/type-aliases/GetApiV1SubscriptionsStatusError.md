@@ -2,4 +2,4 @@
 
 > **GetApiV1SubscriptionsStatusError** = [`GetApiV1SubscriptionsStatusErrors`](GetApiV1SubscriptionsStatusErrors.md)\[keyof [`GetApiV1SubscriptionsStatusErrors`](GetApiV1SubscriptionsStatusErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
+Defined in: [src/client/types.gen.ts:1397](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1397)

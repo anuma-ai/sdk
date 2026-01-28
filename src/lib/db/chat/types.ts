@@ -1,12 +1,12 @@
 import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
-  LlmapiTool,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 
@@ -352,7 +352,7 @@ export interface BaseSendMessageWithStorageArgs {
    * Client-side tools with optional executors.
    * These tools run in the browser/app and can have JavaScript executor functions.
    */
-  clientTools?: LlmapiTool[];
+  clientTools?: LlmapiChatCompletionTool[];
 
   /**
    * Server-side tools to include from /api/v1/tools.

@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRevokeResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1333](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1333)
+Defined in: [src/client/types.gen.ts:1568](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1568)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1333](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:1337](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1337)
+Defined in: [src/client/types.gen.ts:1572](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1572)
 
 Empty object on success
 
