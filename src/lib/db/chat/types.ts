@@ -69,7 +69,10 @@ export interface StoredMessage {
   role: ChatRole;
   content: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   createdAt: Date;
   updatedAt: Date;
   vector?: number[];
@@ -126,7 +129,10 @@ export interface CreateMessageOptions {
   role: ChatRole;
   content: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;
@@ -150,7 +156,10 @@ export interface CreateConversationOptions {
 export interface UpdateMessageOptions {
   content?: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;
