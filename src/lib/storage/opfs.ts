@@ -348,16 +348,28 @@ export async function resolveFilePlaceholders(
     fileIds.map(async (fileId) => {
       // Check if we already have a URL for this file
       let url = blobManager.getUrl(fileId);
+      const wasCached = !!url;
 
       if (!url) {
         // Read and decrypt the file
         const result = await readEncryptedFile(fileId, encryptionKey);
         if (result) {
           url = blobManager.createUrl(fileId, result.blob);
+          // Debug: Log file details
+          console.log(`[resolveFilePlaceholders] Loaded file ${fileId}:`, {
+            name: result.metadata?.name,
+            type: result.metadata?.type,
+            size: result.blob.size,
+            url: url?.substring(0, 50),
+          });
+        } else {
+          console.warn(`[resolveFilePlaceholders] File not found: ${fileId}`);
         }
+      } else {
+        console.log(`[resolveFilePlaceholders] Using cached URL for ${fileId}`);
       }
 
-      return { fileId, url };
+      return { fileId, url, wasCached };
     })
   );
 
@@ -380,9 +392,10 @@ export async function resolveFilePlaceholders(
     const placeholderRegex = new RegExp(escapedPlaceholder, "g");
     // Use unique alt text with fileId to prevent UI blobUrlMap collisions
     const replacement = `![image-${fileId}](${url})`;
-    
+
     resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
   }
+
 
   return resolvedContent;
 }

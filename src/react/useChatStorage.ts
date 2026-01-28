@@ -280,7 +280,7 @@ async function storedToLlmapiMessage(
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   textContent = textContent.replace(
     /__SDKFILE__([a-f0-9-]+)__/g,
-    (match, fileId) => {
+    (_match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
         // Replace with markdown image pointing to sourceUrl
