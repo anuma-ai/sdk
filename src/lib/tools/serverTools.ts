@@ -8,20 +8,44 @@
 import type { LlmapiTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
 
+/** Tool parameters schema */
+interface ToolParameters {
+  properties: Record<string, unknown>;
+  required: string[];
+  type: "object";
+}
+
+/** Current API response format (description and parameters at top level) */
+interface ServerToolsResponseItemCurrent {
+  description: string;
+  name: string;
+  parameters: ToolParameters;
+}
+
+/** New API response format with schema wrapper */
+interface ServerToolsResponseItemNew {
+  name: string;
+  schema: {
+    name: string;
+    description: string;
+    parameters: ToolParameters;
+  };
+  cost?: number;
+  embedding?: number[];
+}
+
+/** Response item can be either format */
+type ServerToolsResponseItem =
+  | ServerToolsResponseItemCurrent
+  | ServerToolsResponseItemNew;
+
 /**
  * Response format from /api/v1/tools endpoint
- * Maps tool names to their definitions
+ * Maps tool names to their definitions.
+ * Supports both current and new API response formats.
  */
 export interface ServerToolsResponse {
-  [toolName: string]: {
-    description: string;
-    name: string;
-    parameters: {
-      properties: Record<string, unknown>;
-      required: string[];
-      type: "object";
-    };
-  };
+  [toolName: string]: ServerToolsResponseItem;
 }
 
 /**
@@ -70,21 +94,42 @@ export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
-export const CACHE_VERSION = "1.1";
+export const CACHE_VERSION = "1.2";
+
+/**
+ * Type guard to check if tool is in new format (has schema property)
+ */
+function isNewFormat(
+  tool: ServerToolsResponseItem
+): tool is ServerToolsResponseItemNew {
+  return "schema" in tool && tool.schema !== undefined;
+}
 
 /**
  * Convert server API response to ServerTool[] format.
- * Stores in neutral format with parameters field.
+ * Supports both current and new API response formats.
  */
 export function convertServerToolsResponse(
   response: ServerToolsResponse
 ): ServerTool[] {
-  return Object.values(response).map((tool) => ({
-    type: "function" as const,
-    name: tool.name,
-    description: tool.description,
-    parameters: tool.parameters,
-  }));
+  return Object.values(response).map((tool) => {
+    if (isNewFormat(tool)) {
+      // New format: extract from schema
+      return {
+        type: "function" as const,
+        name: tool.schema.name,
+        description: tool.schema.description,
+        parameters: tool.schema.parameters,
+      };
+    }
+    // Current format: extract from top level
+    return {
+      type: "function" as const,
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    };
+  });
 }
 
 /**
