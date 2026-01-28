@@ -90,14 +90,14 @@ Create a `.env` file in the project root (required for `--full` mode):
 PORTAL_API_KEY=your-api-key-here
 
 # Optional: Override API URL (defaults to production)
-# REVERBIA_API_URL=https://ai-portal-dev.zetachain.com
+# REVERBIA_API_URL=https://portal.anuma-dev.ai
 ```
 
 ### Understanding Embeddings
 
 The framework uses cached real embeddings to avoid API calls during testing:
 
-- **Model**: `openai/text-embedding-3-small`
+- **Model**: `fireworks/accounts/fireworks/models/qwen3-embedding-8b`
 - **Dimension**: 1536
 - **Similarity range**: 0.02 - 0.58 (realistic)
 - **Threshold**: 0.2 (optimized for real embeddings)

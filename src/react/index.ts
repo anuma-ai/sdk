@@ -124,10 +124,34 @@ export {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateMessageOptions,
   type CreateConversationOptions,
   generateConversationId,
+  updateConversationProjectOp,
+  getConversationsByProjectOp,
 } from "../lib/db/chat";
+
+// Project storage exports
+export {
+  Project,
+  type StoredProject,
+  type CreateProjectOptions,
+  type UpdateProjectOptions,
+  generateProjectId,
+  type ProjectOperationsContext,
+  projectToStored,
+  createProjectOp,
+  getProjectOp,
+  getProjectsOp,
+  updateProjectNameOp,
+  updateProjectOp,
+  deleteProjectOp,
+  getProjectConversationsOp,
+  getProjectConversationCountOp,
+} from "../lib/db/project";
+export { useProjects } from "./useProjects";
+export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {
   UseMemoryStorageOptions,
@@ -178,17 +202,44 @@ export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
 export type { OCRFile, UseOCRResult } from "./useOCR";
+
+// File processors for preprocessing attachments
+export {
+  PdfProcessor,
+  ExcelProcessor,
+  WordProcessor,
+  ZipProcessor,
+  ProcessorRegistry,
+  preprocessFiles,
+} from "../lib/processors";
+export type {
+  FileProcessor,
+  FileWithData,
+  ProcessedFileResult,
+  PreprocessingOptions,
+  PreprocessingResult,
+  ZipProcessorOptions,
+} from "../lib/processors";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
-export { useSearch } from "./useSearch";
-export type { UseSearchResult } from "./useSearch";
-export { useImageGeneration } from "./useImageGeneration";
-export type { UseImageGenerationResult } from "./useImageGeneration";
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,
   extractConversationContext,
 } from "../lib/memory/chat";
+
+// Server-side tools caching utilities
+export {
+  clearServerToolsCache,
+  getServerTools,
+  getCachedServerTools,
+  DEFAULT_CACHE_EXPIRATION_MS,
+} from "../lib/tools";
+export type {
+  ServerToolsOptions,
+  CachedServerTools,
+  ServerToolsResponse,
+} from "../lib/tools";
 
 export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
 export type {

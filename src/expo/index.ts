@@ -55,7 +55,7 @@
  *
  *   const { isLoading, sendMessage, stop } = useChat({
  *     getToken: getIdentityToken,
- *     baseUrl: "https://ai-portal-dev.zetachain.com",
+ *     baseUrl: "https://portal.anuma-dev.ai",
  *     onData: (chunk) => {
  *       // Handle streaming chunks
  *       const content =
@@ -95,8 +95,6 @@ export type {
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
 } from "./useChatStorage";
-export { useImageGeneration } from "../react/useImageGeneration";
-export type { UseImageGenerationResult } from "../react/useImageGeneration";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 
@@ -148,3 +146,16 @@ export {
   generateCompositeKey,
   generateUniqueKey,
 } from "../lib/db/memory";
+
+// Server-side tools caching utilities
+export {
+  clearServerToolsCache,
+  getServerTools,
+  getCachedServerTools,
+  DEFAULT_CACHE_EXPIRATION_MS,
+} from "../lib/tools";
+export type {
+  ServerToolsOptions,
+  CachedServerTools,
+  ServerToolsResponse,
+} from "../lib/tools";

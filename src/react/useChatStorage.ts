@@ -10,6 +10,7 @@ import {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateConversationOptions,
   type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
@@ -34,6 +35,7 @@ import {
   updateMessageErrorOp,
   updateMessageOp,
   searchMessagesOp,
+  getAllFilesOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -42,11 +44,19 @@ import {
   isOPFSSupported,
   writeEncryptedFile,
   readEncryptedFile,
+  deleteEncryptedFile,
   createFilePlaceholder,
   extractFileIds,
   FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
+import { preprocessFiles } from "../lib/processors";
+import {
+  getServerTools,
+  filterServerTools,
+  mergeTools,
+  type ServerTool,
+} from "../lib/tools";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -174,11 +184,27 @@ export function findFileIdBySourceUrl(
 }
 
 /**
+ * Helper to convert a Blob to a data URI.
+ */
+async function blobToDataUri(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
  * Convert StoredMessage to LlmapiMessage format.
  * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
+ * If encryptionKey is provided and files are stored in OPFS, reads them and converts to data URIs.
  * Internal placeholders are replaced with sourceUrls or removed.
  */
-function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
+async function storedToLlmapiMessage(
+  stored: StoredMessage,
+  encryptionKey?: CryptoKey
+): Promise<LlmapiMessage> {
   let textContent = stored.content;
 
   // Build a map of fileId -> sourceUrl for replacement
@@ -189,7 +215,7 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
   const imageParts: LlmapiMessage["content"] = [];
   if (stored.role !== "assistant" && stored.files?.length) {
     for (const file of stored.files) {
-      // First check if there's a direct url (user uploads with data URIs)
+      // First check if there's a direct url (user uploads with data URIs or external URLs)
       if (file.url) {
         imageParts.push({
           type: "image_url",
@@ -204,6 +230,30 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
         });
         // Track sourceUrl for placeholder replacement
         fileUrlMap.set(file.id, file.sourceUrl);
+      } else if (encryptionKey && isOPFSSupported()) {
+        // No URL but we have encryption key - try to read from OPFS
+        // This handles user-uploaded files stored in OPFS for history replay
+        try {
+          const result = await readEncryptedFile(file.id, encryptionKey);
+          if (result) {
+            // Convert blob to data URI for sending to API
+            const dataUri = await blobToDataUri(result.blob);
+            imageParts.push({
+              type: "image_url",
+              image_url: { url: dataUri },
+            });
+            // eslint-disable-next-line no-console
+            console.log(
+              `[storedToLlmapiMessage] Loaded file ${file.id} from OPFS for history replay`
+            );
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[storedToLlmapiMessage] Failed to read file ${file.id} from OPFS:`,
+            err
+          );
+        }
       }
     }
   } else if (stored.role === "assistant" && stored.files?.length) {
@@ -307,6 +357,14 @@ export interface SendMessageWithStorageArgs
    * Useful when different models need different APIs within the same hook instance.
    */
   apiType?: ApiType;
+
+  /**
+   * Explicitly specify the conversation ID to send this message to.
+   * If provided, bypasses the automatic conversation detection/creation.
+   * Useful when sending a message immediately after creating a conversation,
+   * to avoid race conditions with React state updates.
+   */
+  conversationId?: string;
 
   /**
    * Function to write files to storage (for MCP image processing).
@@ -418,6 +476,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     uniqueId: string,
     options: UpdateMessageOptions
   ) => Promise<StoredMessage | null>;
+  /**
+   * Get all files from all conversations, sorted by creation date (newest first).
+   * Returns files with conversation context for building file browser UIs.
+   */
+  getAllFiles: (options?: {
+    conversationId?: string;
+    limit?: number;
+  }) => Promise<StoredFileWithContext[]>;
 }
 
 /**
@@ -484,10 +550,14 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
     walletAddress,
+    fileProcessors,
+    fileProcessingOptions,
+    serverTools: serverToolsConfig,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -534,6 +604,7 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
     apiType,
@@ -608,7 +679,11 @@ export function useChatStorage(
       const messages = await getMessagesOp(storageCtx, convId);
 
       // If wallet address is provided, resolve file placeholders to blob URLs
-      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+      if (
+        walletAddress &&
+        hasEncryptionKey(walletAddress) &&
+        isOPFSSupported()
+      ) {
         try {
           const encryptionKey = await getEncryptionKey(walletAddress);
           const blobManager = blobManagerRef.current;
@@ -683,18 +758,24 @@ export function useChatStorage(
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
                 // Escape the placeholder for use in regex
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const escapedPlaceholder = placeholder.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                );
                 // Create a non-global regex for this specific placeholder
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
                 // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
-                
+
                 // eslint-disable-next-line no-console
                 console.log(
                   `[getMessages] Replacing ${placeholder} with: ${replacement}`
                 );
-                
-                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+
+                resolvedContent = resolvedContent.replace(
+                  placeholderRegex,
+                  replacement
+                );
               }
 
               // eslint-disable-next-line no-console
@@ -709,7 +790,10 @@ export function useChatStorage(
           return resolvedMessages;
         } catch (error) {
           // eslint-disable-next-line no-console
-          console.error("[useChatStorage] Failed to resolve file placeholders:", error);
+          console.error(
+            "[useChatStorage] Failed to resolve file placeholders:",
+            error
+          );
           // Return messages without resolving placeholders
           return messages;
         }
@@ -808,7 +892,8 @@ export function useChatStorage(
         // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
         // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        const jsonBlockRegex =
+          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
         let jsonMatch: RegExpExecArray | null;
         let foundJsonSources = false;
 
@@ -825,7 +910,8 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet: source.description || source.snippet || undefined,
+                      snippet:
+                        source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -967,8 +1053,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1227,13 +1315,17 @@ export function useChatStorage(
         // Check prerequisites
         if (!isOPFSSupported()) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] OPFS not supported");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] OPFS not supported"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
           // eslint-disable-next-line no-console
-          console.warn("[extractAndStoreEncryptedMCPImages] Encryption key not available");
+          console.warn(
+            "[extractAndStoreEncryptedMCPImages] Encryption key not available"
+          );
           return { processedFiles: [], cleanedContent: content };
         }
 
@@ -1282,8 +1374,10 @@ export function useChatStorage(
           );
           const rawPattern = new RegExp(escapedUrl, "g");
 
-          const htmlDoubleMatches = content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches = content.match(htmlSinglePattern)?.length || 0;
+          const htmlDoubleMatches =
+            content.match(htmlDoublePattern)?.length || 0;
+          const htmlSingleMatches =
+            content.match(htmlSinglePattern)?.length || 0;
           const markdownMatches = content.match(markdownPattern)?.length || 0;
           // For raw URLs, subtract already counted ones to avoid double counting
           const rawMatches =
@@ -1317,9 +1411,13 @@ export function useChatStorage(
               const blob = await response.blob();
               const fileId = crypto.randomUUID();
               const urlPath = imageUrl.split("?")[0] ?? imageUrl;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const extension =
+                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${fileId.slice(0, 8)}.${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${fileId.slice(
+                0,
+                8
+              )}.${extension}`;
 
               // Encrypt and store in OPFS
               await writeEncryptedFile(fileId, blob, encryptionKey, {
@@ -1436,7 +1534,10 @@ export function useChatStorage(
                 placeholder
               );
               replacementCount += rawMatches.length;
-              cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
+              cleanedContent = cleanedContent.replace(
+                rawUrlPattern,
+                placeholder
+              );
             }
 
             // eslint-disable-next-line no-console
@@ -1467,7 +1568,10 @@ export function useChatStorage(
             }
           } else {
             // eslint-disable-next-line no-console
-            console.error("[extractAndStoreEncryptedMCPImages] Failed:", result.reason);
+            console.error(
+              "[extractAndStoreEncryptedMCPImages] Failed:",
+              result.reason
+            );
           }
         });
 
@@ -1476,8 +1580,129 @@ export function useChatStorage(
         return { processedFiles, cleanedContent };
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[extractAndStoreEncryptedMCPImages] Unexpected error:", err);
+        console.error(
+          "[extractAndStoreEncryptedMCPImages] Unexpected error:",
+          err
+        );
         return { processedFiles: [], cleanedContent: content };
+      }
+    },
+    []
+  );
+
+  /**
+   * Store user-attached files in encrypted OPFS storage.
+   * This enables file persistence for history replay in multi-turn conversations.
+   *
+   * @param files - Array of file metadata with URLs (data URIs or external URLs)
+   * @param address - Wallet address for encryption key derivation
+   * @returns Array of file metadata with OPFS storage info (URLs removed, ready for DB storage)
+   */
+  const storeUserFilesInOPFS = useCallback(
+    async (
+      files: FileMetadata[],
+      address: string
+    ): Promise<FileMetadata[]> => {
+      // Check prerequisites
+      if (!isOPFSSupported()) {
+        // eslint-disable-next-line no-console
+        console.warn("[storeUserFilesInOPFS] OPFS not supported");
+        return files.map((f) => ({
+          ...f,
+          // Strip data URIs to avoid DB bloat, keep external URLs
+          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
+        }));
+      }
+
+      if (!hasEncryptionKey(address)) {
+        // eslint-disable-next-line no-console
+        console.warn("[storeUserFilesInOPFS] Encryption key not available");
+        return files.map((f) => ({
+          ...f,
+          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
+        }));
+      }
+
+      try {
+        const encryptionKey = await getEncryptionKey(address);
+        const storedFiles: FileMetadata[] = [];
+
+        for (const file of files) {
+          // Skip files without URLs (already stored or metadata-only)
+          if (!file.url) {
+            storedFiles.push(file);
+            continue;
+          }
+
+          try {
+            let blob: Blob;
+
+            if (file.url.startsWith("data:")) {
+              // Convert data URI to Blob
+              const response = await fetch(file.url);
+              blob = await response.blob();
+            } else {
+              // Fetch external URL
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
+              try {
+                const response = await fetch(file.url, {
+                  signal: controller.signal,
+                  cache: "no-store",
+                });
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch: ${response.status}`);
+                }
+                blob = await response.blob();
+              } finally {
+                clearTimeout(timeoutId);
+              }
+            }
+
+            // Encrypt and store in OPFS
+            await writeEncryptedFile(file.id, blob, encryptionKey, {
+              name: file.name,
+            });
+
+            // eslint-disable-next-line no-console
+            console.log(
+              `[storeUserFilesInOPFS] Stored file ${file.id} (${file.name}) in OPFS`
+            );
+
+            // Return metadata without URL (file is now in OPFS)
+            storedFiles.push({
+              id: file.id,
+              name: file.name,
+              type: file.type || blob.type || "application/octet-stream",
+              size: file.size || blob.size,
+              // No url - file is stored in OPFS and will be read from there
+            });
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(
+              `[storeUserFilesInOPFS] Failed to store file ${file.id}:`,
+              err
+            );
+            // Fall back to metadata-only (strip data URI)
+            storedFiles.push({
+              id: file.id,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
+            });
+          }
+        }
+
+        return storedFiles;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[storeUserFilesInOPFS] Unexpected error:", err);
+        // Fall back to stripping data URIs
+        return files.map((f) => ({
+          ...f,
+          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
+        }));
       }
     },
     []
@@ -1503,18 +1728,17 @@ export function useChatStorage(
         sources,
         thoughtProcess,
         // Responses API options
-        store,
-        previousResponseId,
-        serverConversation,
         temperature,
         maxOutputTokens,
-        tools,
+        clientTools,
+        serverTools: serverToolsFilter,
         toolChoice,
         reasoning,
         thinking,
         onThinking,
         apiType: requestApiType,
         writeFile,
+        conversationId: explicitConversationId,
       } = args;
 
       // Extract user message content for storage
@@ -1525,22 +1749,59 @@ export function useChatStorage(
           error: "No user message found in messages array",
         };
       }
-      const contentForStorage = extracted.content;
+      const contentForStorage = extracted.content; // Original content for DB storage
       // Use provided files, or fall back to files extracted from the message
       const filesForStorage = files ?? extracted.files;
 
+      // Preprocess files if present to generate file context
+      let fileContextForRequest: string | undefined;
+      let preprocessedFileIds: string[] = [];
+      if (filesForStorage && filesForStorage.length > 0) {
+        try {
+          const preprocessingResult = await preprocessFiles(filesForStorage, {
+            processors: fileProcessors,
+            ...fileProcessingOptions,
+          });
+
+          // Store extracted content as file context (will be injected as system message)
+          if (preprocessingResult.extractedContent) {
+            fileContextForRequest = preprocessingResult.extractedContent;
+            preprocessedFileIds = preprocessingResult.preprocessedFileIds;
+            console.log('[Preprocessing] Preprocessed file IDs:', preprocessedFileIds);
+            console.log('[Preprocessing] Extracted content length:', fileContextForRequest.length);
+          }
+        } catch (error) {
+          // Non-fatal error - log and continue without preprocessing
+          console.error("File preprocessing error:", error);
+        }
+      }
+
       // Ensure we have a conversation
+      // If an explicit conversationId is provided, use it directly (bypasses state timing issues)
       let convId: string;
-      try {
-        convId = await ensureConversation();
-      } catch (err) {
-        return {
-          data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to ensure conversation",
-        };
+      if (explicitConversationId) {
+        // Verify the conversation exists
+        const existing = await getConversation(explicitConversationId);
+        if (existing) {
+          convId = explicitConversationId;
+        } else {
+          return {
+            data: null,
+            error: `Conversation ${explicitConversationId} not found`,
+          };
+        }
+      } else {
+        try {
+          convId = await ensureConversation();
+        } catch (err) {
+          return {
+            data: null,
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to ensure conversation",
+          };
+        }
       }
 
       // Build the messages array
@@ -1554,24 +1815,109 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
+
+        // Collect file context from conversation history if we don't have it from current message
+        // Look for the most recent message with extracted file content (stored in thinking field)
+        if (!fileContextForRequest) {
+          for (let i = limitedMessages.length - 1; i >= 0; i--) {
+            const msg = limitedMessages[i];
+            if (msg.thinking && msg.thinking.startsWith("[Extracted content from ")) {
+              fileContextForRequest = msg.thinking;
+              break;
+            }
+          }
+        }
+
         // Convert stored messages to API format
-        const historyMessages = limitedMessages.map(storedToLlmapiMessage);
+        // Get encryption key if available for reading user files from OPFS
+        let encryptionKey: CryptoKey | undefined;
+        if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
+          try {
+            encryptionKey = await getEncryptionKey(walletAddress);
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn("[sendMessage] Failed to get encryption key for history:", err);
+          }
+        }
+        const historyMessages = await Promise.all(
+          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey))
+        );
         messagesToSend = [...historyMessages, ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
       }
 
+      // If we have file context, remove file attachments from the user message to avoid sending large base64 data
+      if (fileContextForRequest) {
+        console.log('[Preprocessing] File context exists, filtering files from message');
+        // Find the last user message in messagesToSend
+        let lastUserMessageIndex = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserMessageIndex = i;
+            break;
+          }
+        }
+
+        if (lastUserMessageIndex !== -1) {
+          const lastUserMessage = messagesToSend[lastUserMessageIndex];
+          console.log('[Preprocessing] Last user message content parts:', lastUserMessage.content?.length);
+          if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
+            // Remove only the files that were actually preprocessed
+            // Keep images and other files that weren't processed (e.g., for vision)
+            messagesToSend[lastUserMessageIndex] = {
+              ...lastUserMessage,
+              content: lastUserMessage.content.filter((part) => {
+                // Keep text parts
+                if (part.type === "text") return true;
+
+                // For input_file parts, check if this specific file was preprocessed
+                if (part.type === "input_file" && part.file) {
+                  const fileId = part.file.file_id;
+                  const shouldKeep = !fileId || !preprocessedFileIds.includes(fileId);
+                  console.log('[Preprocessing] input_file part, file_id:', fileId, 'shouldKeep:', shouldKeep);
+                  return shouldKeep;
+                }
+
+                // For image_url parts, check if the URL matches a preprocessed file
+                if (part.type === "image_url" && part.image_url?.url) {
+                  // Only remove if this specific image was preprocessed
+                  // Images without matching IDs are kept for vision
+                  const matchesPreprocessed = filesForStorage?.some(
+                    (f) => preprocessedFileIds.includes(f.id) && f.url === part.image_url?.url
+                  );
+                  return !matchesPreprocessed;
+                }
+
+                // Keep all other content types
+                return true;
+              }),
+            };
+          }
+        }
+      }
+
       // Store the user message
-      // Sanitize files for storage: remove large data URIs to avoid bloating the database
-      const sanitizedFiles = filesForStorage?.map((file) => ({
-        id: file.id,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        // Only keep URL if it's not a data URI (e.g., external URLs)
-        url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
-      }));
+      // If wallet address is available, store files in encrypted OPFS for persistence
+      // Otherwise, sanitize files by removing large data URIs to avoid bloating the database
+      let filesToStore: FileMetadata[] | undefined;
+      if (filesForStorage && filesForStorage.length > 0) {
+        if (walletAddress) {
+          // Store files in encrypted OPFS - enables history replay with images
+          filesToStore = await storeUserFilesInOPFS(filesForStorage, walletAddress);
+        } else {
+          // Fall back to metadata-only storage (strip data URIs)
+          filesToStore = filesForStorage.map((file) => ({
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            // Only keep URL if it's not a data URI (e.g., external URLs)
+            url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
+          }));
+        }
+      }
 
       let storedUserMessage: StoredMessage;
       try {
@@ -1579,10 +1925,26 @@ export function useChatStorage(
           conversationId: convId,
           role: "user",
           content: contentForStorage,
-          files: sanitizedFiles,
+          files: filesToStore,
           model,
+          // Store extracted file content in thinking field for retrieval in follow-up messages
+          thinking: fileContextForRequest,
         });
       } catch (err) {
+        // Clean up OPFS files if message creation failed to avoid orphaned files
+        if (filesToStore && filesToStore.length > 0 && walletAddress) {
+          for (const file of filesToStore) {
+            try {
+              await deleteEncryptedFile(file.id);
+              // eslint-disable-next-line no-console
+              console.log(
+                `[sendMessage] Cleaned up orphaned OPFS file ${file.id} after message creation failure`
+              );
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
         return {
           data: null,
           error:
@@ -1593,6 +1955,47 @@ export function useChatStorage(
       // Track response timing
       const startTime = Date.now();
 
+      // Determine effective API type for this request
+      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+
+      // Fetch and merge server-side tools with client tools
+      let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
+      let filteredServerTools: ServerTool[] = [];
+
+      // Skip server tools fetch if serverTools is explicitly empty array
+      if (
+        getToken &&
+        !(serverToolsFilter && serverToolsFilter.length === 0)
+      ) {
+        try {
+          const allServerTools = await getServerTools({
+            baseUrl,
+            cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+            getToken,
+          });
+          filteredServerTools = filterServerTools(
+            allServerTools,
+            serverToolsFilter
+          );
+        } catch (error) {
+          // Log but don't block - server tools are optional
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[useChatStorage] Failed to fetch server tools:",
+            error
+          );
+        }
+      }
+
+      // Merge and format tools (handles both server and client tools)
+      if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+        mergedTools = mergeTools(
+          filteredServerTools,
+          clientTools,
+          effectiveApiType
+        );
+      }
+
       // Send the message using the underlying useChat
       const result = await baseSendMessage({
         messages: messagesToSend,
@@ -1601,13 +2004,11 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
+        fileContext: fileContextForRequest,
         // Responses API options
-        store,
-        previousResponseId,
-        conversation: serverConversation,
         temperature,
         maxOutputTokens,
-        tools,
+        tools: mergedTools,
         toolChoice,
         reasoning,
         thinking,
@@ -1626,10 +2027,23 @@ export function useChatStorage(
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
+          // Find the message output item (type: "message") for main content
+          const messageOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "message"
+          );
           const assistantContent =
-            abortedResult.data?.output?.[0]?.content
+            messageOutput?.content
               ?.map((part: { text?: string }) => part.text || "")
               .join("") || "";
+
+          // Find the reasoning output item (type: "reasoning") for thinking content
+          const reasoningOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "reasoning"
+          );
+          const abortedThinkingContent =
+            reasoningOutput?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || undefined;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -1646,6 +2060,7 @@ export function useChatStorage(
               wasStopped: true,
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thinking: abortedThinkingContent,
             });
 
             // Build a valid response for the return (even if original was null)
@@ -1743,8 +2158,11 @@ export function useChatStorage(
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      const jsonSourcesBlockRegex =
+        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
+      let cleanedContent = assistantContent
+        .replace(jsonSourcesBlockRegex, "")
+        .trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
@@ -1809,7 +2227,14 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, walletAddress, extractAndStoreEncryptedMCPImages]
+    [
+      ensureConversation,
+      getMessages,
+      storageCtx,
+      baseSendMessage,
+      walletAddress,
+      extractAndStoreEncryptedMCPImages,
+    ]
   );
 
   /**
@@ -1859,6 +2284,20 @@ export function useChatStorage(
     [storageCtx]
   );
 
+  /**
+   * Get all files from all conversations, sorted by creation date (newest first).
+   * Returns files with conversation context for building file browser UIs.
+   */
+  const getAllFiles = useCallback(
+    async (options?: {
+      conversationId?: string;
+      limit?: number;
+    }): Promise<StoredFileWithContext[]> => {
+      return getAllFilesOp(storageCtx, options);
+    },
+    [storageCtx]
+  );
+
   return {
     isLoading,
     sendMessage,
@@ -1877,5 +2316,6 @@ export function useChatStorage(
     updateMessageEmbedding,
     extractSourcesFromAssistantMessage,
     updateMessage,
+    getAllFiles,
   };
 }

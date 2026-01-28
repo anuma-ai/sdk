@@ -14,7 +14,7 @@ export interface MemoryExtractionResult {
 
 export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extract durable user memories from chat messages.
 
-CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON.
+CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON. Every field must have a value, no null or undefined or empty values.
 
 Only store clear, factual statements that might be relevant for future context or reference. Extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, locations, favorites, and constraints.
 

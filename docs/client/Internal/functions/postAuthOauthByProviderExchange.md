@@ -2,7 +2,7 @@
 
 > **postAuthOauthByProviderExchange**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderExchangeData`](../type-aliases/PostAuthOauthByProviderExchangeData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderExchangeResponses`](../type-aliases/PostAuthOauthByProviderExchangeResponses.md), [`PostAuthOauthByProviderExchangeErrors`](../type-aliases/PostAuthOauthByProviderExchangeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:218](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L218)
+Defined in: [src/client/sdk.gen.ts:194](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L194)
 
 Exchange authorization code for tokens
 

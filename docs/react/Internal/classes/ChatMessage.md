@@ -93,7 +93,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`StoredMemoryModel`](StoredMemoryModel.md).[`_preparedState`](StoredMemoryModel.md#_preparedstate)
+[`Project`](Project.md).[`_preparedState`](Project.md#_preparedstate)
 
 ***
 
@@ -427,7 +427,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Inherited from**
 
-[`StoredMemoryModel`](StoredMemoryModel.md).[`table`](StoredMemoryModel.md#table-1)
+[`Project`](Project.md).[`table`](Project.md#table-1)
 
 ## Methods
 

@@ -27,9 +27,6 @@ export interface BuildRequestBodyArgs {
   tools?: LlmapiTool[];
   toolChoice?: string;
   // Responses-only options (ignored by completions strategy)
-  store?: boolean;
-  previousResponseId?: string;
-  conversation?: string;
   reasoning?: LlmapiResponseReasoning;
   thinking?: LlmapiThinkingOptions;
 }

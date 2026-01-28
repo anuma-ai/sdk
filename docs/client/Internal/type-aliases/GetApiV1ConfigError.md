@@ -2,4 +2,4 @@
 
 > **GetApiV1ConfigError** = [`GetApiV1ConfigErrors`](GetApiV1ConfigErrors.md)\[keyof [`GetApiV1ConfigErrors`](GetApiV1ConfigErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1022](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1022)
+Defined in: [src/client/types.gen.ts:874](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L874)

@@ -2,4 +2,4 @@
 
 > **ChatRole** = `"user"` | `"assistant"` | `"system"`
 
-Defined in: [src/lib/db/chat/types.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L14)
+Defined in: [src/lib/db/chat/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L15)

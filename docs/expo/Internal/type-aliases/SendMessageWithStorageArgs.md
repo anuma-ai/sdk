@@ -1,9 +1,24 @@
 # SendMessageWithStorageArgs
 
-> **SendMessageWithStorageArgs** = `BaseSendMessageWithStorageArgs`
+> **SendMessageWithStorageArgs** = `BaseSendMessageWithStorageArgs` & `object`
 
-Defined in: [src/expo/useChatStorage.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L80)
+Defined in: [src/expo/useChatStorage.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L93)
 
 Arguments for sendMessage with storage (Expo version)
 
 Uses the base arguments without React-specific features (no runTools, no headers).
+
+## Type Declaration
+
+### apiType?
+
+> `optional` **apiType**: `ApiType`
+
+Override the API type for this request only.
+Useful when different models need different APIs.
+
+**Default**
+
+```ts
+Uses the hook-level apiType or "responses"
+```

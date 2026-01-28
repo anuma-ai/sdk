@@ -4,6 +4,7 @@ import { useCallback, useState, useMemo } from "react";
 
 import { useChat } from "./useChat";
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { ApiType } from "../lib/chat/useChat";
 import {
   Message,
   Conversation,
@@ -33,6 +34,11 @@ import {
   updateMessageErrorOp,
   updateMessageOp,
 } from "../lib/db/chat";
+import {
+  getServerTools,
+  filterServerTools,
+  mergeTools,
+} from "../lib/tools";
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -69,7 +75,14 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
  * Uses the base options without React-specific features (no local chat, no tools).
  * @inline
  */
-export interface UseChatStorageOptions extends BaseUseChatStorageOptions {}
+export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+}
 
 /**
  * Arguments for sendMessage with storage (Expo version)
@@ -77,7 +90,14 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {}
  * Uses the base arguments without React-specific features (no runTools, no headers).
 
  */
-export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs;
+export type SendMessageWithStorageArgs = BaseSendMessageWithStorageArgs & {
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
+};
 
 /**
  * Result from sendMessage with storage (Expo version)
@@ -163,8 +183,11 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
+    apiType,
+    serverTools: serverToolsConfig,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -200,8 +223,10 @@ export function useChatStorage(
     getToken,
     baseUrl,
     onData,
+    onThinking,
     onFinish,
     onError,
+    apiType,
   });
 
   /**
@@ -342,7 +367,8 @@ export function useChatStorage(
         // Try to extract JSON sources blocks first (supports multiple blocks)
         // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
         // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex = /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
+        const jsonBlockRegex =
+          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
         let jsonMatch: RegExpExecArray | null;
         let foundJsonSources = false;
 
@@ -359,7 +385,8 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet: source.description || source.snippet || undefined,
+                      snippet:
+                        source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -480,15 +507,14 @@ export function useChatStorage(
         onThinking: perRequestOnThinking,
         memoryContext,
         searchContext,
+        apiType: requestApiType,
         sources,
         thoughtProcess,
         // Responses API options
-        store,
-        previousResponseId,
-        serverConversation,
         temperature,
         maxOutputTokens,
-        tools,
+        clientTools,
+        serverTools: serverToolsFilter,
         toolChoice,
         reasoning,
         thinking,
@@ -569,6 +595,43 @@ export function useChatStorage(
       // Track response timing
       const startTime = Date.now();
 
+      // Determine effective API type for this request
+      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+
+      // Fetch and merge server-side tools with client tools
+      let mergedTools = clientTools;
+      // Skip server tools fetch if serverTools is explicitly empty array
+      if (
+        getToken &&
+        !(serverToolsFilter && serverToolsFilter.length === 0)
+      ) {
+        try {
+          const allServerTools = await getServerTools({
+            baseUrl,
+            cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+            getToken,
+          });
+          const filteredServerTools = filterServerTools(
+            allServerTools,
+            serverToolsFilter
+          );
+          if (filteredServerTools.length > 0) {
+            mergedTools = mergeTools(
+              filteredServerTools,
+              clientTools,
+              effectiveApiType
+            );
+          }
+        } catch (error) {
+          // Log but don't block - server tools are optional
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[useChatStorage] Failed to fetch server tools:",
+            error
+          );
+        }
+      }
+
       // Send the message using the underlying useChat
       const result = await baseSendMessage({
         messages: messagesToSend,
@@ -577,13 +640,11 @@ export function useChatStorage(
         onThinking: perRequestOnThinking,
         memoryContext,
         searchContext,
+        apiType: requestApiType,
         // Responses API options
-        store,
-        previousResponseId,
-        conversation: serverConversation,
         temperature,
         maxOutputTokens,
-        tools,
+        tools: mergedTools,
         toolChoice,
         reasoning,
         thinking,
@@ -600,10 +661,23 @@ export function useChatStorage(
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
+          // Find the message output item (type: "message") for main content
+          const messageOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "message"
+          );
           const assistantContent =
-            abortedResult.data?.output?.[0]?.content
+            messageOutput?.content
               ?.map((part: { text?: string }) => part.text || "")
               .join("") || "";
+
+          // Find the reasoning output item (type: "reasoning") for thinking content
+          const reasoningOutput = abortedResult.data?.output?.find(
+            (item) => item.type === "reasoning"
+          );
+          const abortedThinkingContent =
+            reasoningOutput?.content
+              ?.map((part: { text?: string }) => part.text || "")
+              .join("") || undefined;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -620,6 +694,7 @@ export function useChatStorage(
               wasStopped: true,
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thinking: abortedThinkingContent,
             });
 
             // Build a valid response for the return (even if original was null)
@@ -716,8 +791,11 @@ export function useChatStorage(
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
-      const jsonSourcesBlockRegex = /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
+      const jsonSourcesBlockRegex =
+        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
+      let cleanedContent = assistantContent
+        .replace(jsonSourcesBlockRegex, "")
+        .trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 

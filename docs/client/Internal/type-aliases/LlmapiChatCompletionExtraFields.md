@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L126)
+Defined in: [src/client/types.gen.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L135)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L130)
+Defined in: [src/client/types.gen.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L139)
 
 Latency is the request latency in milliseconds
 
@@ -22,7 +22,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L134)
+Defined in: [src/client/types.gen.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L143)
 
 ModelRequested is the model that was requested
 
@@ -32,7 +32,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L138)
+Defined in: [src/client/types.gen.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L147)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -42,6 +42,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L142)
+Defined in: [src/client/types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L151)
 
 RequestType is always "chat\_completion"

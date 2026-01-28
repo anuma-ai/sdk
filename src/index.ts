@@ -21,7 +21,7 @@
  *
  * ```env
  * PRIVY_APP_ID=cmhwlx82v000xle0cde4rjy5y
- * API_URL=https://ai-portal-dev.zetachain.com
+ * API_URL=https://portal.anuma-dev.ai
  * ```
  *
  * ## Authentication

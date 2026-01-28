@@ -70,20 +70,6 @@ export type ToolConfig = LlmapiTool & {
  */
 export type ResponsesApiOptions = {
   /**
-   * Whether to store the response server-side.
-   * When true, the response can be retrieved later using the response ID.
-   */
-  store?: boolean;
-  /**
-   * ID of a previous response to continue from.
-   * Enables multi-turn conversations without resending full history.
-   */
-  previousResponseId?: string;
-  /**
-   * Conversation ID for grouping related responses.
-   */
-  conversation?: string;
-  /**
    * Controls randomness in the response (0.0 to 2.0).
    * Lower values make output more deterministic.
    */
@@ -219,4 +205,15 @@ export type StreamAccumulator = {
   toolCalls: Map<string, AccumulatedToolCall>;
   /** Track incomplete reasoning tags across chunks */
   partialReasoningTag?: string;
+  /** Track whether we're currently inside a reasoning block */
+  insideReasoning?: boolean;
+  /**
+   * Track if this model uses implicit reasoning start (no opening tag).
+   * Some models like Qwen start reasoning immediately without <think> tag
+   * and only use </think> to mark the end.
+   * - undefined: not yet determined
+   * - true: model uses implicit reasoning (assume inside reasoning until </think>)
+   * - false: model uses explicit tags or no reasoning
+   */
+  implicitReasoningStart?: boolean;
 };

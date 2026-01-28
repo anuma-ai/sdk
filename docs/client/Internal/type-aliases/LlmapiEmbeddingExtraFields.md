@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:247](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L247)
+Defined in: [src/client/types.gen.ts:250](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L250)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **chunk\_index**: `number`
 
-Defined in: [src/client/types.gen.ts:251](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L251)
+Defined in: [src/client/types.gen.ts:254](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L254)
 
 ChunkIndex is the chunk index (0 for single requests)
 
@@ -22,7 +22,7 @@ ChunkIndex is the chunk index (0 for single requests)
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:255](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L255)
+Defined in: [src/client/types.gen.ts:258](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L258)
 
 Latency is the request latency in milliseconds
 
@@ -32,7 +32,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L259)
+Defined in: [src/client/types.gen.ts:262](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L262)
 
 ModelRequested is the model that was requested
 
@@ -42,7 +42,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:263](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L263)
+Defined in: [src/client/types.gen.ts:266](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L266)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -52,6 +52,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:267](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L267)
+Defined in: [src/client/types.gen.ts:270](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L270)
 
 RequestType is always "embedding"

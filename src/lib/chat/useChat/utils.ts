@@ -123,7 +123,10 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
       // Handle tool result messages - format them as system messages with tool results
       if (role === "tool") {
         const content = Array.isArray(msg.content)
-          ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
+          ? msg.content
+              .map(extractTextFromContentPart)
+              .filter(Boolean)
+              .join("\n")
           : String(msg.content || "");
         return `system: Tool result: ${content}`;
       }
@@ -158,18 +161,70 @@ export type ReasoningParseResult = {
   reasoningContent: string;
   /** Incomplete tag at the end (for next chunk) */
   partialTag: string;
+  /** Whether we're currently inside a reasoning block (for next chunk) */
+  insideReasoning: boolean;
+  /** Whether this model uses implicit reasoning start (no opening tag) */
+  implicitReasoningStart?: boolean;
 };
 
 /**
+ * Supported reasoning tag formats
+ */
+const REASONING_TAG_FORMATS = [
+  { open: "<reasoning>", close: "</reasoning>" },
+  { open: "<think>", close: "</think>" },
+] as const;
+
+/**
+ * Detects which tag format is being used based on content or partial tag
+ */
+function detectTagFormat(
+  content: string,
+  partialTag: string
+): (typeof REASONING_TAG_FORMATS)[number] | null {
+  const combined = partialTag + content;
+
+  for (const format of REASONING_TAG_FORMATS) {
+    // Check if content contains or starts with this format's tags
+    if (
+      combined.includes(format.open) ||
+      combined.includes(format.close) ||
+      format.open.startsWith(combined.slice(0, format.open.length)) ||
+      format.close.startsWith(combined.slice(0, format.close.length))
+    ) {
+      return format;
+    }
+  }
+
+  // Default to first format if starting with '<'
+  if (combined.startsWith("<")) {
+    return REASONING_TAG_FORMATS[0];
+  }
+
+  return null;
+}
+
+/**
  * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
- * Extracts content within <think></think> tags and removes them from the message.
+ * Supports both <reasoning></reasoning> and <think></think> tag formats.
+ * Also supports models that start with reasoning content immediately (no opening tag)
+ * and only use a closing tag to mark the end of reasoning.
  */
 export function parseReasoningTags(
   content: string,
-  previousPartialTag: string = ""
+  previousPartialTag: string = "",
+  wasInsideReasoning: boolean = false,
+  detectedFormat?: { open: string; close: string },
+  wasImplicitReasoningStart?: boolean
 ): ReasoningParseResult {
-  const OPENING_TAG = "<think>";
-  const CLOSING_TAG = "</think>";
+  // Detect or use provided tag format
+  const format =
+    detectedFormat ||
+    detectTagFormat(content, previousPartialTag) ||
+    REASONING_TAG_FORMATS[0];
+
+  const OPENING_TAG = format.open;
+  const CLOSING_TAG = format.close;
   const OPENING_TAG_LEN = OPENING_TAG.length;
   const CLOSING_TAG_LEN = CLOSING_TAG.length;
 
@@ -179,43 +234,70 @@ export function parseReasoningTags(
   let reasoningContent = "";
   let partialTag = "";
   let i = 0;
-  let insideReasoning = false;
+  let insideReasoning = wasInsideReasoning;
+  let implicitReasoningStart = wasImplicitReasoningStart;
+
+  // Detect implicit reasoning start: model that doesn't use opening tag
+  // We detect this when we see a closing tag without having seen an opening tag
+  // This serves as a fallback for models not detected by name
+  if (implicitReasoningStart === undefined) {
+    // Check if there's a closing tag in current content
+    const hasClosingTag = REASONING_TAG_FORMATS.some((fmt) =>
+      fullContent.includes(fmt.close)
+    );
+    const hasOpeningTag = REASONING_TAG_FORMATS.some((fmt) =>
+      fullContent.includes(fmt.open)
+    );
+
+    if (hasClosingTag && !hasOpeningTag) {
+      // Model uses implicit reasoning start - treat everything before closing tag as reasoning
+      implicitReasoningStart = true;
+      insideReasoning = true;
+    } else if (hasOpeningTag) {
+      // Model uses explicit tags
+      implicitReasoningStart = false;
+    }
+  } else if (implicitReasoningStart === true) {
+    // For known implicit reasoning models (like Qwen), trust the wasInsideReasoning state.
+    // This handles both initial requests and continuation requests after tool calls.
+    // Each new accumulator starts with insideReasoning=true, meaning we expect thinking
+    // content until we see </think>
+    insideReasoning = wasInsideReasoning;
+  }
 
   // Check if previous partial indicates we're already inside reasoning
   if (previousPartialTag) {
     if (previousPartialTag === OPENING_TAG) {
       insideReasoning = true;
       i = OPENING_TAG_LEN; // Start processing after the opening tag
-    } else if (OPENING_TAG.startsWith(previousPartialTag)) {
-      // Previous partial is start of opening tag
-      if (fullContent.startsWith(OPENING_TAG)) {
-        // Now complete
-        insideReasoning = true;
-        i = OPENING_TAG_LEN;
-      } else if (OPENING_TAG.startsWith(fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)))) {
-        // Still incomplete
-        return { 
-          messageContent: "", 
-          reasoningContent: "", 
-          partialTag: fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)),
-        };
-      } else {
-        // Not part of tag - treat as message content
-        messageContent = previousPartialTag;
-        i = previousPartialTag.length;
-      }
-    } else if (CLOSING_TAG.startsWith(previousPartialTag)) {
-      // Previous partial is start of closing tag
+    } else if (previousPartialTag === CLOSING_TAG) {
+      // Complete closing tag from previous partial
+      i = CLOSING_TAG_LEN;
+      insideReasoning = false;
+    } else if (
+      wasInsideReasoning &&
+      CLOSING_TAG.startsWith(previousPartialTag)
+    ) {
+      // Inside reasoning and partial could be start of closing tag - check closing tag first
       if (fullContent.startsWith(CLOSING_TAG)) {
         // Complete closing tag
         i = CLOSING_TAG_LEN;
         insideReasoning = false;
-      } else if (CLOSING_TAG.startsWith(fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)))) {
-        // Still incomplete
-        return { 
-          messageContent: "", 
-          reasoningContent: "", 
-          partialTag: fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)),
+      } else if (
+        CLOSING_TAG.startsWith(
+          fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length))
+        )
+      ) {
+        // Still incomplete - we're inside reasoning waiting for close
+        return {
+          messageContent: "",
+          reasoningContent: "",
+          partialTag: fullContent.slice(
+            0,
+            Math.min(CLOSING_TAG_LEN, fullContent.length)
+          ),
+          insideReasoning: true,
+          implicitReasoningStart,
         };
       } else {
         // Not part of closing tag - must be reasoning content
@@ -223,9 +305,40 @@ export function parseReasoningTags(
         i = previousPartialTag.length;
         insideReasoning = true;
       }
+    } else if (OPENING_TAG.startsWith(previousPartialTag)) {
+      // Previous partial is start of opening tag
+      if (fullContent.startsWith(OPENING_TAG)) {
+        // Now complete
+        insideReasoning = true;
+        i = OPENING_TAG_LEN;
+      } else if (
+        OPENING_TAG.startsWith(
+          fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length))
+        )
+      ) {
+        // Still incomplete - preserve wasInsideReasoning state
+        return {
+          messageContent: "",
+          reasoningContent: "",
+          partialTag: fullContent.slice(
+            0,
+            Math.min(OPENING_TAG_LEN, fullContent.length)
+          ),
+          insideReasoning: wasInsideReasoning,
+          implicitReasoningStart,
+        };
+      } else {
+        // Not part of tag - treat as message content or reasoning based on state
+        if (wasInsideReasoning) {
+          reasoningContent = previousPartialTag;
+        } else {
+          messageContent = previousPartialTag;
+        }
+        i = previousPartialTag.length;
+      }
     } else {
-      // Previous partial was content (could be reasoning or message)
-      if (insideReasoning) {
+      // Previous partial was content (could be reasoning or message based on state)
+      if (wasInsideReasoning) {
         reasoningContent = previousPartialTag;
       } else {
         messageContent = previousPartialTag;
@@ -239,7 +352,7 @@ export function parseReasoningTags(
     if (insideReasoning) {
       // Look for closing tag
       const closeIndex = fullContent.indexOf(CLOSING_TAG, i);
-      
+
       if (closeIndex === -1) {
         // No closing tag found
         const remaining = fullContent.slice(i);
@@ -270,7 +383,7 @@ export function parseReasoningTags(
     } else {
       // Look for opening tag
       const openIndex = fullContent.indexOf(OPENING_TAG, i);
-      
+
       if (openIndex === -1) {
         // No opening tag found
         const remaining = fullContent.slice(i);
@@ -295,33 +408,77 @@ export function parseReasoningTags(
     }
   }
 
-
   // Defensive check: ensure tags are never included in output
   // This should never happen, but adding as a safety measure
-  if (messageContent.includes(OPENING_TAG) || messageContent.includes(CLOSING_TAG)) {
-    console.warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
-    messageContent = messageContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
-    messageContent = messageContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
+  // Check for all supported tag formats
+  for (const tagFormat of REASONING_TAG_FORMATS) {
+    if (
+      messageContent.includes(tagFormat.open) ||
+      messageContent.includes(tagFormat.close)
+    ) {
+      console.warn(
+        "[parseReasoningTags] Warning: Tag found in messageContent, removing"
+      );
+      messageContent = messageContent.replace(
+        new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+      messageContent = messageContent.replace(
+        new RegExp(tagFormat.close.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+    }
+    if (
+      reasoningContent.includes(tagFormat.open) ||
+      reasoningContent.includes(tagFormat.close)
+    ) {
+      console.warn(
+        "[parseReasoningTags] Warning: Tag found in reasoningContent, removing"
+      );
+      reasoningContent = reasoningContent.replace(
+        new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+      reasoningContent = reasoningContent.replace(
+        new RegExp(tagFormat.close.replace(/[<>/]/g, "\\$&"), "g"),
+        ""
+      );
+    }
   }
-  if (reasoningContent.includes(OPENING_TAG) || reasoningContent.includes(CLOSING_TAG)) {
-    console.warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
-    reasoningContent = reasoningContent.replace(new RegExp(OPENING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
-    reasoningContent = reasoningContent.replace(new RegExp(CLOSING_TAG.replace(/[<>]/g, "\\$&"), "g"), "");
-  }
-
 
   return {
     messageContent,
     reasoningContent,
     partialTag,
+    insideReasoning,
+    implicitReasoningStart,
   };
+}
+
+/**
+ * Check if a model uses implicit reasoning start (no opening tag, only closing tag)
+ * Models like Qwen thinking models start reasoning immediately without <think> tag
+ */
+function isImplicitReasoningModel(modelName?: string): boolean {
+  if (!modelName) return false;
+  const lowerModel = modelName.toLowerCase();
+  // Qwen thinking models use implicit reasoning (no <think> tag, only </think>)
+  return lowerModel.includes("qwen") && lowerModel.includes("thinking");
 }
 
 /**
  * Creates an initial stream accumulator
  * @param initialModel - Optional model name to initialize with (from request)
  */
-export function createStreamAccumulator(initialModel?: string): StreamAccumulator {
+export function createStreamAccumulator(
+  initialModel?: string
+): StreamAccumulator {
+  // Check if this model uses implicit reasoning start
+  // For these models, we assume we're inside reasoning until we see </think>
+  // This applies to both initial requests AND continuation requests (after tool calls),
+  // since models like Qwen continue thinking in each response without <think> tags
+  const implicitReasoning = isImplicitReasoningModel(initialModel);
+
   return {
     content: "",
     thinking: "",
@@ -330,6 +487,10 @@ export function createStreamAccumulator(initialModel?: string): StreamAccumulato
     usage: {},
     toolCalls: new Map(),
     partialReasoningTag: "",
+    // For implicit reasoning models, start inside reasoning mode
+    // If they send <think> first, parseReasoningTags will handle it correctly
+    insideReasoning: implicitReasoning,
+    implicitReasoningStart: implicitReasoning ? true : undefined,
   };
 }
 
@@ -430,7 +591,10 @@ export function processStreamingChunk(
       // The API may return delta as either a string or an object with OfString property
       const deltaText = typeof delta === "string" ? delta : delta.OfString;
       if (deltaText) {
-        console.log("[Tool Debug] output_text.delta - adding text:", deltaText.substring(0, 50));
+        console.log(
+          "[Tool Debug] output_text.delta - adding text:",
+          deltaText.substring(0, 50)
+        );
         accumulator.content += deltaText;
         result.content = deltaText;
       }
@@ -441,10 +605,15 @@ export function processStreamingChunk(
   // Event: response.output_item.added with type "function_call"
   if (chunk.type === "response.output_item.added" && chunk.item) {
     // Debug logging
-    console.log("[Tool Debug] output_item.added:", JSON.stringify(chunk.item, null, 2));
+    console.log(
+      "[Tool Debug] output_item.added:",
+      JSON.stringify(chunk.item, null, 2)
+    );
 
     if (chunk.item.type === "message") {
-      console.log("[Tool Debug] Message output item added - ready to receive text deltas");
+      console.log(
+        "[Tool Debug] Message output item added - ready to receive text deltas"
+      );
     }
 
     if (chunk.item.type === "function_call") {
@@ -453,7 +622,14 @@ export function processStreamingChunk(
       const callId = chunk.item.call_id || "";
 
       if (itemId && chunk.item.name) {
-        console.log("[Tool Debug] Detected tool call:", chunk.item.name, "item ID:", itemId, "call ID:", callId);
+        console.log(
+          "[Tool Debug] Detected tool call:",
+          chunk.item.name,
+          "item ID:",
+          itemId,
+          "call ID:",
+          callId
+        );
         accumulator.toolCalls.set(itemId, {
           id: callId || itemId, // Use call_id for the tool call ID
           type: "function",
@@ -467,7 +643,14 @@ export function processStreamingChunk(
 
   // Event: response.function_call_arguments.delta - streaming arguments (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.delta") {
-    console.log("[Tool Debug] Arguments delta event - item_id:", chunk.item_id, "call_id:", chunk.call_id, "args length:", chunk.arguments?.length);
+    console.log(
+      "[Tool Debug] Arguments delta event - item_id:",
+      chunk.item_id,
+      "call_id:",
+      chunk.call_id,
+      "args length:",
+      chunk.arguments?.length
+    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
@@ -475,23 +658,43 @@ export function processStreamingChunk(
       if (existing) {
         existing.arguments += chunk.arguments;
       } else {
-        console.log("[Tool Debug] WARNING: Tool call not found for item ID:", itemId, "Available keys:", Array.from(accumulator.toolCalls.keys()));
+        console.log(
+          "[Tool Debug] WARNING: Tool call not found for item ID:",
+          itemId,
+          "Available keys:",
+          Array.from(accumulator.toolCalls.keys())
+        );
       }
     }
   }
 
   // Event: response.function_call_arguments.done - arguments complete (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.done") {
-    console.log("[Tool Debug] Arguments done event - item_id:", chunk.item_id, "call_id:", chunk.call_id, "args:", chunk.arguments);
+    console.log(
+      "[Tool Debug] Arguments done event - item_id:",
+      chunk.item_id,
+      "call_id:",
+      chunk.call_id,
+      "args:",
+      chunk.arguments
+    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
       const existing = accumulator.toolCalls.get(itemId);
       if (existing) {
         existing.arguments = chunk.arguments;
-        console.log("[Tool Debug] Successfully updated arguments:", existing.arguments);
+        console.log(
+          "[Tool Debug] Successfully updated arguments:",
+          existing.arguments
+        );
       } else {
-        console.log("[Tool Debug] WARNING: Tool call not found for item ID:", itemId, "Available keys:", Array.from(accumulator.toolCalls.keys()));
+        console.log(
+          "[Tool Debug] WARNING: Tool call not found for item ID:",
+          itemId,
+          "Available keys:",
+          Array.from(accumulator.toolCalls.keys())
+        );
       }
     }
   }
@@ -544,9 +747,7 @@ export function buildResponseResponse(
     object: "response",
     output,
     usage:
-      Object.keys(accumulator.usage).length > 0
-        ? accumulator.usage
-        : undefined,
+      Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
   };
 }
 
@@ -620,26 +821,31 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
 
 /**
  * Creates a map of tool name to executor from tool configs
+ * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function createToolExecutorMap(
-  tools?: Array<LlmapiTool | ToolConfig>
+  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
 ): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
-  const map = new Map<string, { executor: ToolExecutor; autoExecute: boolean }>();
+  const map = new Map<
+    string,
+    { executor: ToolExecutor; autoExecute: boolean }
+  >();
 
   if (!tools) {
     return map;
   }
 
   for (const tool of tools) {
-    const toolName = tool.function?.name;
+    // Handle both Completions format (function.name) and Responses format (name at top level)
+    const toolName = (tool as LlmapiTool).function?.name || (tool as any).name;
     if (!toolName) continue;
 
-    // Check if this is a ToolConfig with an executor
-    const toolConfig = tool as ToolConfig;
-    if (toolConfig.executor) {
+    // Check if this is a tool with an executor
+    const toolWithExecutor = tool as ToolConfig & Record<string, unknown>;
+    if (toolWithExecutor.executor) {
       map.set(toolName, {
-        executor: toolConfig.executor,
-        autoExecute: toolConfig.autoExecute !== false, // Default to true
+        executor: toolWithExecutor.executor as ToolExecutor,
+        autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
       });
     }
   }
@@ -656,7 +862,10 @@ export async function executeToolCall(
 ): Promise<{ result?: unknown; error?: string }> {
   try {
     // Parse arguments
-    console.log("[Tool Debug] executeToolCall - raw arguments:", toolCall.arguments);
+    console.log(
+      "[Tool Debug] executeToolCall - raw arguments:",
+      toolCall.arguments
+    );
     let args: Record<string, unknown> = {};
     if (toolCall.arguments) {
       try {
@@ -664,7 +873,9 @@ export async function executeToolCall(
         console.log("[Tool Debug] executeToolCall - parsed arguments:", args);
       } catch (e) {
         return {
-          error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
+          error: `Failed to parse tool arguments: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
         };
       }
     } else {
@@ -676,24 +887,27 @@ export async function executeToolCall(
     return { result };
   } catch (e) {
     return {
-      error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Tool execution failed: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
     };
   }
 }
 
 /**
  * Converts tool definitions to the format expected by the API (strips executors)
+ * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiTool | ToolConfig>
-): LlmapiTool[] | undefined {
+  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;
   }
 
   return tools.map((tool) => {
-    // Strip executor and autoExecute properties
-    const { executor, autoExecute, ...apiTool } = tool as ToolConfig;
-    return apiTool as LlmapiTool;
+    // Strip executor and autoExecute properties (client-side only)
+    const { executor, autoExecute, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    return apiTool;
   });
 }

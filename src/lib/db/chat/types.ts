@@ -1,3 +1,4 @@
+import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
 import type {
   LlmapiMessage,
@@ -96,6 +97,8 @@ export interface StoredConversation {
   uniqueId: string;
   conversationId: string;
   title: string;
+  /** Optional project ID this conversation belongs to */
+  projectId?: string;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -103,6 +106,19 @@ export interface StoredConversation {
 
 export interface StoredMessageWithSimilarity extends StoredMessage {
   similarity: number;
+}
+
+/**
+ * File metadata with conversation context for file browsing.
+ * Extends FileMetadata with information about where the file was used.
+ */
+export interface StoredFileWithContext extends FileMetadata {
+  /** ID of the conversation where this file was attached */
+  conversationId: string;
+  /** Timestamp when the file was stored (from the message) */
+  createdAt: Date;
+  /** Role of the message that contains this file */
+  messageRole: ChatRole;
 }
 
 export interface CreateMessageOptions {
@@ -127,6 +143,8 @@ export interface CreateMessageOptions {
 export interface CreateConversationOptions {
   conversationId?: string;
   title?: string;
+  /** Optional project ID to associate this conversation with */
+  projectId?: string;
 }
 
 export interface UpdateMessageOptions {
@@ -165,10 +183,40 @@ export interface BaseUseChatStorageOptions {
   baseUrl?: string;
   /** Callback invoked with each streamed response chunk */
   onData?: (chunk: string) => void;
+  /** Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning) */
+  onThinking?: (chunk: string) => void;
   /** Callback invoked when the response completes successfully */
   onFinish?: (response: LlmapiResponseResponse) => void;
   /** Callback invoked when an error occurs during the request */
   onError?: (error: Error) => void;
+  /**
+   * File preprocessors to use for automatic text extraction.
+   * - undefined (default): Use all built-in processors (PDF, Excel, Word)
+   * - null or []: Disable preprocessing
+   * - FileProcessor[]: Use specific processors
+   */
+  fileProcessors?: any[] | null;
+  /**
+   * Options for file preprocessing behavior
+   */
+  fileProcessingOptions?: {
+    /** Whether to keep original file attachments (default: true) */
+    keepOriginalFiles?: boolean;
+    /** Max file size to process in bytes (default: 10MB) */
+    maxFileSizeBytes?: number;
+    /** Callback for progress updates */
+    onProgress?: (current: number, total: number, fileName: string) => void;
+    /** Callback for errors (non-fatal) */
+    onError?: (fileName: string, error: Error) => void;
+  };
+  /**
+   * Configuration for server-side tools fetching and caching.
+   * Server tools are fetched from /api/v1/tools and cached in localStorage.
+   */
+  serverTools?: {
+    /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
+    cacheExpirationMs?: number;
+  };
 }
 
 /**
@@ -267,6 +315,13 @@ export interface BaseSendMessageWithStorageArgs {
   searchContext?: string;
 
   /**
+   * Additional context from preprocessed file attachments.
+   * Contains extracted text from Excel, Word, PDF, and other document files.
+   * Injected as a system message so it's available throughout the conversation.
+   */
+  fileContext?: string;
+
+  /**
    * Search sources to attach to the stored message for citation/reference.
    * These are combined with any sources extracted from the assistant's response.
    */
@@ -282,23 +337,6 @@ export interface BaseSendMessageWithStorageArgs {
   // Responses API options
 
   /**
-   * Whether to store the response server-side.
-   * When true, the response can be retrieved later using the response ID.
-   */
-  store?: boolean;
-
-  /**
-   * ID of a previous response to continue from.
-   * Enables multi-turn conversations without resending full history.
-   */
-  previousResponseId?: string;
-
-  /**
-   * Conversation ID for grouping related responses on the server.
-   */
-  serverConversation?: string;
-
-  /**
    * Controls randomness in the response (0.0 to 2.0).
    * Lower values make output more deterministic, higher values more creative.
    */
@@ -311,10 +349,25 @@ export interface BaseSendMessageWithStorageArgs {
   maxOutputTokens?: number;
 
   /**
-   * Array of tool definitions available to the model.
-   * Tools enable the model to call functions, search, execute code, etc.
+   * Client-side tools with optional executors.
+   * These tools run in the browser/app and can have JavaScript executor functions.
    */
-  tools?: LlmapiTool[];
+  clientTools?: LlmapiTool[];
+
+  /**
+   * Server-side tools to include from /api/v1/tools.
+   * - undefined: Include all server-side tools (default)
+   * - string[]: Include only tools with these names
+   * - []: Include no server-side tools
+   *
+   * @example
+   * // Include only specific server tools
+   * serverTools: ["generate_cloud_image", "perplexity_search"]
+   *
+   * // Disable server tools for this request
+   * serverTools: []
+   */
+  serverTools?: string[];
 
   /**
    * Controls which tool the model should use:
@@ -385,7 +438,7 @@ export interface BaseUseChatStorageResult {
 // Utility functions
 
 export function generateConversationId(): string {
-  return `conv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return `conv_${uuidv7()}`;
 }
 
 export function convertUsageToStored(
@@ -463,6 +516,18 @@ export function extractUserMessageFromMessages(
         size: 0,
         url: part.image_url.url,
       });
+    } else if (part.type === "input_file" && part.file) {
+      // Extract input_file parts (Word, Excel, etc.)
+      const fileUrl = part.file.file_url || part.file.file_data;
+      if (fileUrl) {
+        files.push({
+          id: part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          name: part.file.filename || "file",
+          type: "application/octet-stream", // Will be determined by processor
+          size: 0,
+          url: fileUrl,
+        });
+      }
     }
   }
 

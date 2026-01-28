@@ -6,6 +6,7 @@ import {
   type StoredMessage,
   type StoredMessageWithSimilarity,
   type StoredConversation,
+  type StoredFileWithContext,
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
@@ -42,6 +43,7 @@ export function conversationToStored(
     uniqueId: conversation.id,
     conversationId: conversation.conversationId,
     title: conversation.title,
+    projectId: conversation.projectId,
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     isDeleted: conversation.isDeleted,
@@ -66,6 +68,7 @@ export async function createConversationOp(
     return await ctx.conversationsCollection.create((conv) => {
       conv._setRaw("conversation_id", convId);
       conv._setRaw("title", title);
+      if (opts?.projectId) conv._setRaw("project_id", opts.projectId);
       conv._setRaw("is_deleted", false);
     });
   });
@@ -131,6 +134,49 @@ export async function deleteConversationOp(
     return true;
   }
   return false;
+}
+
+/**
+ * Update a conversation's project assignment.
+ * Pass null to remove the conversation from any project.
+ */
+export async function updateConversationProjectOp(
+  ctx: StorageOperationsContext,
+  id: string,
+  projectId: string | null
+): Promise<boolean> {
+  const results = await ctx.conversationsCollection
+    .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
+    .fetch();
+
+  if (results.length > 0) {
+    await ctx.database.write(async () => {
+      await results[0].update((conv) => {
+        conv._setRaw("project_id", projectId === null ? "" : projectId);
+      });
+    });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get conversations filtered by project ID.
+ * Pass null to get conversations that don't belong to any project.
+ */
+export async function getConversationsByProjectOp(
+  ctx: StorageOperationsContext,
+  projectId: string | null
+): Promise<StoredConversation[]> {
+  const results = await ctx.conversationsCollection
+    .query(
+      Q.where("project_id", projectId === null ? "" : projectId),
+      Q.where("is_deleted", false),
+      Q.sortBy("created_at", Q.desc)
+    )
+    .fetch();
+
+  return results.map(conversationToStored);
 }
 
 export async function getMessagesOp(
@@ -379,4 +425,67 @@ export async function getMessagesWithEmbeddingsOp(
         activeConversationIds.has(m.conversationId)
     )
     .map(messageToStored);
+}
+
+/**
+ * Get all files from all conversations, sorted by creation date (newest first).
+ * Returns files with conversation context for building file browser UIs.
+ */
+export async function getAllFilesOp(
+  ctx: StorageOperationsContext,
+  options?: {
+    /** Filter files by conversation ID */
+    conversationId?: string;
+    /** Maximum number of files to return */
+    limit?: number;
+  }
+): Promise<StoredFileWithContext[]> {
+  const { conversationId, limit } = options || {};
+
+  // Get active conversations
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => c.conversationId)
+  );
+
+  // Build query conditions
+  const queryConditions = conversationId
+    ? [Q.where("conversation_id", conversationId)]
+    : [];
+
+  // Fetch all messages, sorted by creation date descending
+  const messages = await ctx.messagesCollection
+    .query(...queryConditions, Q.sortBy("created_at", Q.desc))
+    .fetch();
+
+  // Extract files from messages
+  const filesWithContext: StoredFileWithContext[] = [];
+
+  for (const message of messages) {
+    // Skip messages from deleted conversations
+    if (!activeConversationIds.has(message.conversationId)) continue;
+
+    // Skip messages without files
+    const files = message.files;
+    if (!files || files.length === 0) continue;
+
+    // Add each file with conversation context
+    for (const file of files) {
+      filesWithContext.push({
+        ...file,
+        conversationId: message.conversationId,
+        createdAt: message.createdAt,
+        messageRole: message.role,
+      });
+    }
+
+    // Check limit
+    if (limit && filesWithContext.length >= limit) {
+      return filesWithContext.slice(0, limit);
+    }
+  }
+
+  return filesWithContext;
 }

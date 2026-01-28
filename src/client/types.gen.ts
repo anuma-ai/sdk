@@ -41,6 +41,15 @@ export type HandlersConfigResponse = {
     settlement_recipient?: string;
 };
 
+export type HandlersCreateCheckoutSessionRequest = {
+    cancel_url?: string;
+    success_url?: string;
+};
+
+export type HandlersCreateCustomerPortalRequest = {
+    return_url?: string;
+};
+
 export type HandlersCustomerPortalResponse = {
     url?: string;
 };
@@ -155,13 +164,7 @@ export type LlmapiChatCompletionRequest = {
      * Stream indicates if response should be streamed
      */
     stream?: boolean;
-    /**
-     * ToolChoice controls which tool to use. Can be:
-     * - string: "auto", "none", "required", or a function name
-     * - object: {"type": "function", "function": {"name": "my_function"}}
-     * Using 'any' to match OpenAI's flexible API format.
-     */
-    tool_choice?: unknown;
+    tool_choice?: LlmapiToolChoice;
     /**
      * Tools is an array of tool definitions the model can use
      */
@@ -317,101 +320,6 @@ export type LlmapiEmbeddingUsage = {
     prompt_tokens?: number;
     /**
      * TotalTokens is the total number of tokens used
-     */
-    total_tokens?: number;
-};
-
-/**
- * ExtraFields contains additional metadata such as provider/model information.
- */
-export type LlmapiImageGenerationExtraFields = {
-    /**
-     * ModelRequested is the model identifier that the client asked for.
-     */
-    model_requested?: string;
-    /**
-     * Provider is the gateway that serviced this request.
-     */
-    provider?: string;
-    /**
-     * RequestType is always "image_generation".
-     */
-    request_type?: string;
-};
-
-export type LlmapiImageGenerationImage = {
-    /**
-     * B64JSON is the base64 payload for models that can only return binary.
-     */
-    b64_json?: string;
-    /**
-     * URL is the signed URL to download the image.
-     */
-    url?: string;
-};
-
-export type LlmapiImageGenerationRequest = {
-    /**
-     * Model is the model identifier to use for generation (e.g., "gpt-image-1").
-     */
-    model: string;
-    /**
-     * Prompt is the text description of the desired image.
-     */
-    prompt: string;
-    /**
-     * Quality targets a quality preset (e.g., "auto", "high").
-     */
-    quality?: string;
-    /**
-     * ResponseFormat controls how the generated image is returned (e.g., "url" or "b64_json").
-     */
-    response_format?: string;
-    /**
-     * Size controls the dimensions of the generated image (e.g., "1024x1024").
-     */
-    size?: string;
-};
-
-export type LlmapiImageGenerationResponse = {
-    /**
-     * Created is the Unix timestamp when the image was generated.
-     */
-    created?: number;
-    extra_fields?: LlmapiImageGenerationExtraFields;
-    /**
-     * Images contains the generated images.
-     */
-    images?: Array<LlmapiImageGenerationImage>;
-    /**
-     * Model is the model identifier that generated the image.
-     */
-    model?: string;
-    /**
-     * Provider is the gateway that produced the image.
-     */
-    provider?: string;
-    usage?: LlmapiImageGenerationUsage;
-};
-
-/**
- * Usage documents token usage (when available).
- */
-export type LlmapiImageGenerationUsage = {
-    /**
-     * CostMicroUSD is the inference cost for this image generation request
-     */
-    cost_micro_usd?: number;
-    /**
-     * InputTokens is the number of tokens sent in the prompt.
-     */
-    input_tokens?: number;
-    /**
-     * OutputTokens is the number of tokens returned by the model.
-     */
-    output_tokens?: number;
-    /**
-     * TotalTokens is the total number of tokens consumed.
      */
     total_tokens?: number;
 };
@@ -726,10 +634,6 @@ export type LlmapiResponseRequest = {
      * Background indicates if request should be processed in background
      */
     background?: boolean;
-    /**
-     * Conversation is the conversation ID (optional)
-     */
-    conversation?: string;
     input: LlmapiResponseInput;
     /**
      * MaxOutputTokens is the maximum number of tokens to generate
@@ -749,10 +653,7 @@ export type LlmapiResponseRequest = {
      */
     temperature?: number;
     thinking?: LlmapiThinkingOptions;
-    /**
-     * ToolChoice controls which tool to use (auto, any, none, required, or tool name)
-     */
-    tool_choice?: string;
+    tool_choice?: LlmapiToolChoice;
     /**
      * Tools is an array of tool definitions the model can use
      */
@@ -819,85 +720,6 @@ export type LlmapiResponseUsage = {
 export type LlmapiRole = string;
 
 /**
- * ExtraFields contains additional metadata.
- */
-export type LlmapiSearchExtraFields = {
-    /**
-     * RequestType is always "search".
-     */
-    request_type?: string;
-    /**
-     * SearchProvider is the search provider used (e.g., "perplexity", "google-pse").
-     */
-    search_provider?: string;
-};
-
-export type LlmapiSearchRequest = {
-    /**
-     * Country code filter (e.g., "US", "GB", "DE").
-     */
-    country?: string;
-    /**
-     * Maximum number of results to return (1-20). Default: 10.
-     */
-    max_results?: number;
-    /**
-     * Maximum tokens per page to process. Default: 1024.
-     */
-    max_tokens_per_page?: number;
-    /**
-     * Search query. Can be a single string or array of strings.
-     */
-    query: Array<string>;
-    /**
-     * List of domains to filter results (max 20 domains).
-     */
-    search_domain_filter?: Array<string>;
-    /**
-     * The search provider to use.
-     */
-    search_tool_name: string;
-};
-
-export type LlmapiSearchResponse = {
-    extra_fields?: LlmapiSearchExtraFields;
-    /**
-     * List of search results.
-     */
-    results?: Array<LlmapiSearchResult>;
-    usage?: LlmapiSearchUsage;
-};
-
-export type LlmapiSearchResult = {
-    /**
-     * Optional publication or last updated date.
-     */
-    date?: string;
-    /**
-     * Text snippet from the result.
-     */
-    snippet?: string;
-    /**
-     * Title of the search result.
-     */
-    title?: string;
-    /**
-     * URL of the search result.
-     */
-    url?: string;
-};
-
-/**
- * Usage contains usage information.
- */
-export type LlmapiSearchUsage = {
-    /**
-     * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
-     */
-    cost_micro_usd?: number;
-};
-
-/**
  * Thinking configures extended thinking for Anthropic models
  */
 export type LlmapiThinkingOptions = {
@@ -946,6 +768,34 @@ export type LlmapiToolCallFunction = {
 };
 
 /**
+ * ToolChoice controls which tool to use. Can be:
+ * - string: "auto", "none", "required"
+ * - object: {"name": "my_function"}
+ */
+export type LlmapiToolChoice = {
+    function?: LlmapiToolChoiceFunction;
+    mode?: LlmapiToolChoiceMode;
+    tag?: LlmapiToolChoiceTag;
+};
+
+/**
+ * Function forces the model to call a specific tool function.
+ */
+export type LlmapiToolChoiceFunction = {
+    name?: string;
+};
+
+/**
+ * Mode controls which (if any) tool is called by the model.
+ * - "none" means the model will not call any tool and instead generates a message.
+ * - "auto" means the model can pick between generating a message or calling one or more tools.
+ * - "required" means the model must call one or more tools.
+ */
+export type LlmapiToolChoiceMode = 'none' | 'auto' | 'required';
+
+export type LlmapiToolChoiceTag = 0 | 1;
+
+/**
  * Function is the function definition (when Type is "function")
  */
 export type LlmapiToolFunction = {
@@ -967,6 +817,8 @@ export type LlmapiToolFunction = {
 
 export type ResponseErrorResponse = {
     error?: string;
+    request_id?: string;
+    trace_id?: string;
 };
 
 export type PostApiV1ChatCompletionsData = {
@@ -1084,42 +936,6 @@ export type PostApiV1EmbeddingsResponses = {
 
 export type PostApiV1EmbeddingsResponse = PostApiV1EmbeddingsResponses[keyof PostApiV1EmbeddingsResponses];
 
-export type PostApiV1ImagesGenerationsData = {
-    /**
-     * Image generation request
-     */
-    body: LlmapiImageGenerationRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/images/generations';
-};
-
-export type PostApiV1ImagesGenerationsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-    /**
-     * Not Implemented
-     */
-    501: ResponseErrorResponse;
-};
-
-export type PostApiV1ImagesGenerationsError = PostApiV1ImagesGenerationsErrors[keyof PostApiV1ImagesGenerationsErrors];
-
-export type PostApiV1ImagesGenerationsResponses = {
-    /**
-     * OK
-     */
-    200: LlmapiImageGenerationResponse;
-};
-
-export type PostApiV1ImagesGenerationsResponse = PostApiV1ImagesGenerationsResponses[keyof PostApiV1ImagesGenerationsResponses];
-
 export type GetApiV1ModelsData = {
     body?: never;
     path?: never;
@@ -1202,38 +1018,6 @@ export type PostApiV1ResponsesResponses = {
 
 export type PostApiV1ResponsesResponse = PostApiV1ResponsesResponses[keyof PostApiV1ResponsesResponses];
 
-export type PostApiV1SearchData = {
-    /**
-     * Search request
-     */
-    body: LlmapiSearchRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/search';
-};
-
-export type PostApiV1SearchErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SearchError = PostApiV1SearchErrors[keyof PostApiV1SearchErrors];
-
-export type PostApiV1SearchResponses = {
-    /**
-     * OK
-     */
-    200: LlmapiSearchResponse;
-};
-
-export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
-
 export type PostApiV1SubscriptionsCancelData = {
     body?: never;
     path?: never;
@@ -1268,13 +1052,20 @@ export type PostApiV1SubscriptionsCancelResponses = {
 export type PostApiV1SubscriptionsCancelResponse = PostApiV1SubscriptionsCancelResponses[keyof PostApiV1SubscriptionsCancelResponses];
 
 export type PostApiV1SubscriptionsCreateCheckoutSessionData = {
-    body?: never;
+    /**
+     * Checkout session request with redirect URLs
+     */
+    body: HandlersCreateCheckoutSessionRequest;
     path?: never;
     query?: never;
     url: '/api/v1/subscriptions/create-checkout-session';
 };
 
 export type PostApiV1SubscriptionsCreateCheckoutSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -1297,13 +1088,20 @@ export type PostApiV1SubscriptionsCreateCheckoutSessionResponses = {
 export type PostApiV1SubscriptionsCreateCheckoutSessionResponse = PostApiV1SubscriptionsCreateCheckoutSessionResponses[keyof PostApiV1SubscriptionsCreateCheckoutSessionResponses];
 
 export type PostApiV1SubscriptionsCustomerPortalData = {
-    body?: never;
+    /**
+     * Customer portal request with return URL
+     */
+    body: HandlersCreateCustomerPortalRequest;
     path?: never;
     query?: never;
     url: '/api/v1/subscriptions/customer-portal';
 };
 
 export type PostApiV1SubscriptionsCustomerPortalErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */

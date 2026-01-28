@@ -1,6 +1,7 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
+import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 
 /**
@@ -24,9 +25,6 @@ export class ResponsesStrategy implements ApiStrategy {
       maxOutputTokens,
       tools,
       toolChoice,
-      store,
-      previousResponseId,
-      conversation,
       reasoning,
       thinking,
     } = args;
@@ -35,9 +33,6 @@ export class ResponsesStrategy implements ApiStrategy {
       input: messages,
       model,
       stream,
-      ...(store !== undefined && { store }),
-      ...(previousResponseId && { previous_response_id: previousResponseId }),
-      ...(conversation && { conversation }),
       ...(temperature !== undefined && { temperature }),
       ...(maxOutputTokens !== undefined && { max_output_tokens: maxOutputTokens }),
       ...(tools && { tools }),
@@ -104,7 +99,7 @@ export class ResponsesStrategy implements ApiStrategy {
       };
     }
 
-    // Handle thinking/reasoning content deltas
+    // Handle thinking/reasoning content deltas (streaming)
     if (
       typedChunk.type === "response.reasoning.delta" ||
       typedChunk.type === "response.reasoning_summary_text.delta" ||
@@ -124,15 +119,69 @@ export class ResponsesStrategy implements ApiStrategy {
       return result;
     }
 
+    // Handle thinking/reasoning done events (marks end of thinking phase)
+    if (
+      typedChunk.type === "response.reasoning.done" ||
+      typedChunk.type === "response.reasoning_summary_text.done" ||
+      typedChunk.type === "response.thinking.done"
+    ) {
+      // Thinking phase complete - no action needed, content already accumulated
+      return result;
+    }
+
+    // Handle thinking/reasoning part added/done events
+    if (
+      typedChunk.type === "response.reasoning_summary_part.added" ||
+      typedChunk.type === "response.reasoning_summary_part.done" ||
+      typedChunk.type === "response.thinking_part.added" ||
+      typedChunk.type === "response.thinking_part.done"
+    ) {
+      // Part boundary events - no action needed
+      return result;
+    }
+
     // Extract content delta from responses API format
+    // For models like Qwen that use implicit reasoning (no opening tag),
+    // we need to parse thinking tags from content as a fallback
     if (typedChunk.type === "response.output_text.delta") {
       const delta = typedChunk.delta;
       if (delta) {
         const deltaText = typeof delta === "string" ? delta : delta.OfString;
-        // Only emit non-empty content to avoid false error detection
-        if (deltaText && deltaText.trim().length > 0) {
-          accumulator.content += deltaText;
-          result.content = deltaText;
+        if (deltaText) {
+          // Parse reasoning tags from content (handles <think>...</think> tags)
+          // Some models (like Qwen via Fireworks) include thinking in content
+          const parseResult = parseReasoningTags(
+            deltaText,
+            accumulator.partialReasoningTag || "",
+            accumulator.insideReasoning || false,
+            undefined,
+            accumulator.implicitReasoningStart
+          );
+
+          // Update accumulator with parsed content
+          accumulator.content += parseResult.messageContent;
+          accumulator.thinking += parseResult.reasoningContent;
+          accumulator.partialReasoningTag = parseResult.partialTag;
+          accumulator.insideReasoning = parseResult.insideReasoning;
+          if (parseResult.implicitReasoningStart !== undefined) {
+            accumulator.implicitReasoningStart =
+              parseResult.implicitReasoningStart;
+          }
+
+          // Emit deltas - only emit non-empty content to avoid false error detection
+          const willEmitMessage =
+            parseResult.messageContent &&
+            parseResult.messageContent.trim().length > 0;
+          const willEmitReasoning =
+            parseResult.reasoningContent &&
+            parseResult.reasoningContent.trim().length > 0;
+
+          if (willEmitMessage) {
+            result.content = parseResult.messageContent;
+          }
+          if (willEmitReasoning) {
+            result.thinking = parseResult.reasoningContent;
+          }
         }
       }
     }
@@ -151,6 +200,13 @@ export class ResponsesStrategy implements ApiStrategy {
             arguments: typedChunk.item.arguments || "",
             status: "pending",
           });
+
+          // For implicit reasoning models (like Qwen), tool calls trigger a new
+          // reasoning phase. Re-enable reasoning mode if this model was
+          // already detected as using implicit reasoning (no opening <think> tag).
+          if (accumulator.implicitReasoningStart === true) {
+            accumulator.insideReasoning = true;
+          }
         }
       }
     }
@@ -183,12 +239,42 @@ export class ResponsesStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
     const output: LlmapiResponseResponse["output"] = [];
 
+    // Final cleanup: handle any remaining partial tag
+    let finalContent = accumulator.content;
+    let finalThinking = accumulator.thinking;
+
+    if (accumulator.partialReasoningTag) {
+      // Final cleanup: if we have a partial tag, try to parse it one more time
+      const finalParse = parseReasoningTags(
+        "",
+        accumulator.partialReasoningTag,
+        accumulator.insideReasoning || false,
+        undefined,
+        accumulator.implicitReasoningStart
+      );
+      finalContent += finalParse.messageContent;
+      if (finalParse.reasoningContent) {
+        finalThinking += finalParse.reasoningContent;
+      }
+      // Handle any remaining partial tag content that couldn't be parsed
+      // (e.g., stream ended with incomplete tag like "<" or "<thi")
+      if (finalParse.partialTag) {
+        if (finalParse.insideReasoning) {
+          // If we're inside reasoning, the partial belongs to thinking
+          finalThinking += finalParse.partialTag;
+        } else {
+          // Otherwise, it's regular content
+          finalContent += finalParse.partialTag;
+        }
+      }
+    }
+
     // Add thinking/reasoning output if present
-    if (accumulator.thinking) {
+    if (finalThinking) {
       output.push({
         type: "reasoning",
         role: "assistant",
-        content: [{ type: "output_text", text: accumulator.thinking }],
+        content: [{ type: "output_text", text: finalThinking }],
         status: "completed",
       });
     }
@@ -210,7 +296,7 @@ export class ResponsesStrategy implements ApiStrategy {
     output.push({
       type: "message",
       role: "assistant",
-      content: [{ type: "output_text", text: accumulator.content }],
+      content: [{ type: "output_text", text: finalContent }],
       status: "completed",
     });
 

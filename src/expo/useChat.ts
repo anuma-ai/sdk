@@ -9,15 +9,14 @@ import {
   type BaseSendMessageResult,
   type BaseUseChatOptions,
   type BaseUseChatResult,
+  type ApiType,
   type StreamAccumulator,
-  type StreamingChunk,
   type AccumulatedToolCall,
   createStreamAccumulator,
   validateMessages,
   validateModel,
   validateTokenGetter,
   validateToken,
-  buildResponseResponse,
   createErrorResult,
   handleError,
   parseSSEDataLine,
@@ -25,6 +24,7 @@ import {
   toolsToApiFormat,
   createToolExecutorMap,
   executeToolCall,
+  getStrategy,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -42,6 +42,12 @@ type SendMessageArgs = BaseSendMessageArgs & {
    * This is typically formatted search results from useSearch.
    */
   searchContext?: string;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
 };
 
 type SendMessageResult = BaseSendMessageResult;
@@ -49,7 +55,14 @@ type SendMessageResult = BaseSendMessageResult;
 /**
  * @inline
  */
-type UseChatOptions = BaseUseChatOptions;
+interface UseChatOptions extends BaseUseChatOptions {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+}
 
 type UseChatResult = BaseUseChatResult & {
   sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
@@ -65,15 +78,24 @@ function processSSELines(
   onData?: (chunk: string) => void,
   globalOnData?: (chunk: string) => void,
   onThinking?: (chunk: string) => void,
-  globalOnThinking?: (chunk: string) => void
+  globalOnThinking?: (chunk: string) => void,
+  strategy?: ReturnType<typeof getStrategy>
 ): void {
   for (const line of lines) {
     const chunk = parseSSEDataLine(line);
     if (!chunk) continue;
 
-    // Use shared processing logic
-    const { content: contentDelta, thinking: thinkingDelta } =
-      processStreamingChunk(chunk, accumulator);
+    const processor = strategy
+      ? strategy.processStreamChunk.bind(strategy)
+      : (processStreamingChunk as unknown as (
+          chunk: unknown,
+          accumulator: StreamAccumulator
+        ) => { content: string | null; thinking: string | null });
+
+    const { content: contentDelta, thinking: thinkingDelta } = processor(
+      chunk as unknown,
+      accumulator
+    );
 
     if (contentDelta) {
       if (onData) onData(contentDelta);
@@ -133,6 +155,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     onToolCall,
+    apiType: defaultApiType = "responses",
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -163,16 +186,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       memoryContext,
       searchContext,
       // Responses API options
-      store,
-      previousResponseId,
-      conversation,
       temperature,
       maxOutputTokens,
       tools,
       toolChoice,
       reasoning,
       thinking,
+      apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
+      const effectiveApiType = requestApiType ?? defaultApiType;
+      const strategy = getStrategy(effectiveApiType);
+
       // Validate inputs
       const messagesValidation = validateMessages(messages);
       if (!messagesValidation.valid) {
@@ -247,7 +271,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // (fetch doesn't support response.body streaming in RN)
         const result = await new Promise<SendMessageResult>((resolve) => {
           const xhr = new XMLHttpRequest();
-          const url = `${baseUrl}/api/v1/responses`;
+          const url = `${baseUrl}${strategy.endpoint}`;
 
           // Initialize accumulator with model name from request for early Qwen detection
           const accumulator = createStreamAccumulator(model || undefined);
@@ -290,7 +314,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               onData,
               globalOnData,
               onThinking,
-              globalOnThinking
+              globalOnThinking,
+              strategy
             );
           };
 
@@ -305,13 +330,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 onData,
                 globalOnData,
                 onThinking,
-                globalOnThinking
+                globalOnThinking,
+                strategy
               );
               incompleteLineBuffer = "";
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
-              const response = buildResponseResponse(accumulator);
+              const response = strategy.buildFinalResponse(accumulator);
 
               // Check for tool calls and handle them
               if (accumulator.toolCalls.size > 0) {
@@ -494,7 +520,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               onData,
                               globalOnData,
                               onThinking,
-                              globalOnThinking
+                              globalOnThinking,
+                              strategy
                             );
                           };
 
@@ -511,7 +538,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                                 onData,
                                 globalOnData,
                                 onThinking,
-                                globalOnThinking
+                                globalOnThinking,
+                                strategy
                               );
                             }
 
@@ -519,9 +547,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               continuationXhr.status >= 200 &&
                               continuationXhr.status < 300
                             ) {
-                              const finalResponse = buildResponseResponse(
-                                continuationAccumulator
-                              );
+                              const finalResponse =
+                                strategy.buildFinalResponse(
+                                  continuationAccumulator
+                                );
                               continueResolve({
                                 data: finalResponse,
                                 error: null,
@@ -554,25 +583,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                             });
                           };
 
-                          continuationXhr.send(
-                            JSON.stringify({
-                              input: continuationMessages,
-                              model,
+                          const continuationRequestBody =
+                            strategy.buildRequestBody({
+                              messages: continuationMessages,
+                              model: model!,
                               stream: true,
-                              ...(store !== undefined && { store }),
-                              ...(previousResponseId && {
-                                previous_response_id: previousResponseId,
-                              }),
-                              ...(conversation && { conversation }),
-                              ...(temperature !== undefined && { temperature }),
-                              ...(maxOutputTokens !== undefined && {
-                                max_output_tokens: maxOutputTokens,
-                              }),
-                              ...(apiTools && { tools: apiTools }),
-                              ...(toolChoice && { tool_choice: toolChoice }),
-                              ...(reasoning && { reasoning }),
-                              ...(thinking && { thinking }),
-                            })
+                              temperature,
+                              maxOutputTokens,
+                              tools: apiTools,
+                              toolChoice,
+                              reasoning,
+                              thinking,
+                            });
+
+                          continuationXhr.send(
+                            JSON.stringify(continuationRequestBody)
                           );
                         }
                       );
@@ -622,25 +647,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             resolve({ data: null, error: "Request aborted" });
           };
 
-          const requestBody = {
-            input: messagesWithContext,
-            model,
+          const requestBody = strategy.buildRequestBody({
+            messages: messagesWithContext,
+            model: model!,
             stream: true,
-            // Responses API options (only include if defined)
-            ...(store !== undefined && { store }),
-            ...(previousResponseId && {
-              previous_response_id: previousResponseId,
-            }),
-            ...(conversation && { conversation }),
-            ...(temperature !== undefined && { temperature }),
-            ...(maxOutputTokens !== undefined && {
-              max_output_tokens: maxOutputTokens,
-            }),
-            ...(apiTools && { tools: apiTools }),
-            ...(toolChoice && { tool_choice: toolChoice }),
-            ...(reasoning && { reasoning }),
-            ...(thinking && { thinking }),
-          };
+            temperature,
+            maxOutputTokens,
+            tools: apiTools,
+            toolChoice,
+            reasoning,
+            thinking,
+          });
 
           // Debug: Log the full request body to see image format
           console.log(
@@ -669,6 +686,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onFinish,
       onError,
       onToolCall,
+      defaultApiType,
     ]
   );
 
