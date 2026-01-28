@@ -2,7 +2,7 @@
 
 > **embedAllMessages**(`ctx`: `StorageOperationsContext`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L109)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:179](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L179)
 
 Embed all messages without embeddings in the database
 

@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L117)
+Defined in: [src/expo/useChatStorage.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L122)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -106,6 +106,64 @@ Defined in: [src/lib/db/chat/types.ts:437](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### createMemoryRetrievalTool()
+
+> **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../../../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
+
+Defined in: [src/expo/useChatStorage.ts:153](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L153)
+
+Create a memory retrieval tool for LLM to search past conversations.
+The tool is pre-configured with the hook's storage context and auth.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`searchOptions?`
+
+</td>
+<td>
+
+`Partial`<[`MemoryRetrievalSearchOptions`](../../../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)>
+
+</td>
+<td>
+
+Optional search configuration (limit, minSimilarity, etc.)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`ToolConfig`
+
+A ToolConfig that can be passed to sendMessage's clientTools
+
+**Example**
+
+```ts
+const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+await sendMessage({
+  messages: [...],
+  clientTools: [memoryTool],
+});
+```
+
+***
+
 ### deleteConversation()
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
@@ -151,7 +209,7 @@ Defined in: [src/lib/db/chat/types.ts:443](https://github.com/zeta-chain/ai-sdk/
 
 > **extractSourcesFromAssistantMessage**: (`assistantMessage`: `object`) => [`SearchSource`](../../../react/Internal/interfaces/SearchSource.md)\[]
 
-Defined in: [src/expo/useChatStorage.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L123)
+Defined in: [src/expo/useChatStorage.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L128)
 
 Extract all links from assistant message content as SearchSource objects
 
@@ -365,7 +423,7 @@ Defined in: [src/lib/db/chat/types.ts:433](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L119)
+Defined in: [src/expo/useChatStorage.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L124)
 
 Send a message and automatically store it (Expo version)
 
@@ -514,7 +572,7 @@ Defined in: [src/lib/db/chat/types.ts:442](https://github.com/zeta-chain/ai-sdk/
 
 > **updateMessage**: (`uniqueId`: `string`, `options`: `UpdateMessageOptions`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/expo/useChatStorage.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L128)
+Defined in: [src/expo/useChatStorage.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L133)
 
 Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found.
 

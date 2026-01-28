@@ -2,7 +2,7 @@
 
 > **embedMessage**(`ctx`: `StorageOperationsContext`, `messageId`: `string`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L69)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L139)
 
 Embed a single message and store the embedding in the database
 

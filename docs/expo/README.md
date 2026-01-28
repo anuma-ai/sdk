@@ -203,6 +203,12 @@ Re-exports [generateEmbedding](../react/Internal/functions/generateEmbedding.md)
 
 ***
 
+### generateEmbeddings
+
+Re-exports [generateEmbeddings](../react/Internal/functions/generateEmbeddings.md)
+
+***
+
 ### generateUniqueKey
 
 Re-exports [generateUniqueKey](../react/Internal/functions/generateUniqueKey.md)
