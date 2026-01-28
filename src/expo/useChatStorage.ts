@@ -39,6 +39,9 @@ import {
   filterServerTools,
   mergeTools,
 } from "../lib/tools";
+import { generateEmbedding } from "../lib/memoryRetrieval";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { updateMessageEmbeddingOp } from "../lib/db/chat";
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -188,6 +191,8 @@ export function useChatStorage(
     onError,
     apiType,
     serverTools: serverToolsConfig,
+    autoEmbedMessages = true,
+    embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -212,6 +217,33 @@ export function useChatStorage(
       conversationsCollection,
     }),
     [database, messagesCollection, conversationsCollection]
+  );
+
+  /**
+   * Embed a message asynchronously (fire and forget)
+   * Does not block the main flow or throw errors
+   */
+  const embedMessageAsync = useCallback(
+    async (message: StoredMessage) => {
+      if (!autoEmbedMessages || !getToken) return;
+      try {
+        const embedding = await generateEmbedding(message.content, {
+          getToken,
+          baseUrl,
+          model: embeddingModel,
+        });
+        await updateMessageEmbeddingOp(
+          storageCtx,
+          message.uniqueId,
+          embedding,
+          embeddingModel
+        );
+      } catch (err) {
+        // Log but don't block - embedding is optional
+        console.warn("[useChatStorage] Failed to embed message:", err);
+      }
+    },
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
   );
 
   // Use the underlying useChat hook (Expo version - no tools, no local chat)
@@ -584,6 +616,8 @@ export function useChatStorage(
           files: sanitizedFiles,
           model,
         });
+        // Embed user message asynchronously (non-blocking)
+        embedMessageAsync(storedUserMessage);
       } catch (err) {
         return {
           data: null,
@@ -696,6 +730,8 @@ export function useChatStorage(
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
             });
+            // Embed assistant message asynchronously (non-blocking)
+            embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: LlmapiResponseResponse = abortedResult.data || {
@@ -813,6 +849,8 @@ export function useChatStorage(
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
           thinking: thinkingContent,
         });
+        // Embed assistant message asynchronously (non-blocking)
+        embedMessageAsync(storedAssistantMessage);
       } catch (err) {
         return {
           data: null,
@@ -831,7 +869,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync]
   );
 
   return {

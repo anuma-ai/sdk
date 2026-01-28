@@ -223,18 +223,18 @@ export type {
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
 
-// Conversation retrieval (semantic search over past messages)
+// Memory retrieval (semantic search over past messages)
 export {
-  createConversationRetrievalTool,
+  createMemoryRetrievalTool,
   embedMessage,
   embedAllMessages,
   generateEmbedding,
-} from "../lib/conversationRetrieval";
+} from "../lib/memoryRetrieval";
 export type {
-  ConversationRetrievalSearchOptions,
-  ConversationRetrievalResult,
-  EmbeddingOptions as ConversationRetrievalEmbeddingOptions,
-} from "../lib/conversationRetrieval";
+  MemoryRetrievalSearchOptions,
+  MemoryRetrievalResult,
+  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+} from "../lib/memoryRetrieval";
 
 export {
   formatMemoriesForChat,

@@ -1,5 +1,5 @@
 /**
- * Conversation Retrieval Embeddings
+ * Memory Retrieval Embeddings
  *
  * Functions for generating and storing embeddings for conversation messages.
  */

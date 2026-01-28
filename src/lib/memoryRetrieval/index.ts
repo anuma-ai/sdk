@@ -1,5 +1,5 @@
 /**
- * Conversation Retrieval Module
+ * Memory Retrieval Module
  *
  * Provides semantic search over past conversation messages.
  * This enables LLMs to retrieve relevant context from previous conversations
@@ -8,15 +8,15 @@
  * @example
  * ```ts
  * import {
- *   createConversationRetrievalTool,
+ *   createMemoryRetrievalTool,
  *   embedMessage,
  *   embedAllMessages,
- * } from "@anthropic/sdk/lib/conversationRetrieval";
+ * } from "@anthropic/sdk/lib/memoryRetrieval";
  *
  * // Create a tool for LLM to search past conversations
- * const tool = createConversationRetrievalTool(
+ * const tool = createMemoryRetrievalTool(
  *   storageCtx,
- *   { apiKey: process.env.PORTAL_API_KEY }
+ *   { getToken: () => getIdentityToken() }
  * );
  *
  * // Embed a single message
@@ -28,7 +28,7 @@
  */
 
 export {
-  createConversationRetrievalTool,
+  createMemoryRetrievalTool,
 } from "./tool";
 
 export {
@@ -38,9 +38,9 @@ export {
 } from "./embeddings";
 
 export type {
-  ConversationRetrievalSearchOptions,
-  ConversationRetrievalResult,
-  ConversationRetrievalContext,
-  ConversationRetrievalToolConfig,
+  MemoryRetrievalSearchOptions,
+  MemoryRetrievalResult,
+  MemoryRetrievalContext,
+  MemoryRetrievalToolConfig,
   EmbeddingOptions,
 } from "./types";

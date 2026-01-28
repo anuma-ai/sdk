@@ -1,5 +1,5 @@
 /**
- * Conversation Retrieval Tool
+ * Memory Retrieval Tool
  *
  * Provides a tool for LLMs to search through past conversation messages
  * using semantic similarity.
@@ -8,13 +8,13 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { searchMessagesOp } from "../db/chat/operations";
-import type { EmbeddingOptions, ConversationRetrievalSearchOptions } from "./types";
+import type { EmbeddingOptions, MemoryRetrievalSearchOptions } from "./types";
 import { generateEmbedding } from "./embeddings";
 
 /**
  * Default search options
  */
-const DEFAULT_SEARCH_OPTIONS: Required<ConversationRetrievalSearchOptions> = {
+const DEFAULT_SEARCH_OPTIONS: Required<MemoryRetrievalSearchOptions> = {
   limit: 10,
   minSimilarity: 0.3,
   includeAssistant: true,
@@ -46,7 +46,7 @@ function formatSearchResults(
 }
 
 /**
- * Creates a conversation retrieval tool for use with chat completions.
+ * Creates a memory retrieval tool for use with chat completions.
  *
  * The tool allows the LLM to search through past conversation messages
  * using semantic similarity. Messages must have embeddings stored to be searchable.
@@ -58,9 +58,9 @@ function formatSearchResults(
  *
  * @example
  * ```ts
- * const tool = createConversationRetrievalTool(
+ * const tool = createMemoryRetrievalTool(
  *   storageCtx,
- *   { apiKey: process.env.PORTAL_API_KEY },
+ *   { getToken: () => getIdentityToken() },
  *   { limit: 5, minSimilarity: 0.4 }
  * );
  *
@@ -71,17 +71,17 @@ function formatSearchResults(
  * });
  * ```
  */
-export function createConversationRetrievalTool(
+export function createMemoryRetrievalTool(
   storageCtx: StorageOperationsContext,
   embeddingOptions: EmbeddingOptions,
-  searchOptions?: Partial<ConversationRetrievalSearchOptions>
+  searchOptions?: Partial<MemoryRetrievalSearchOptions>
 ): ToolConfig {
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
 
   return {
     type: "function",
     function: {
-      name: "search_past_conversations",
+      name: "search_memory",
       description:
         "Search through past conversation messages to find relevant context. " +
         "Use this tool when you need to recall information from previous conversations, " +
@@ -140,7 +140,7 @@ export function createConversationRetrievalTool(
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error searching conversations: ${message}`;
+        return `Error searching memory: ${message}`;
       }
     },
     autoExecute: true,

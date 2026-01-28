@@ -1,16 +1,16 @@
 /**
- * Conversation Retrieval Types
+ * Memory Retrieval Types
  *
- * Types for the conversation retrieval feature that allows semantic search
+ * Types for the memory retrieval feature that allows semantic search
  * across past conversation messages.
  */
 
 import type { StorageOperationsContext } from "../db/chat/operations";
 
 /**
- * Options for conversation retrieval search
+ * Options for memory retrieval search
  */
-export interface ConversationRetrievalSearchOptions {
+export interface MemoryRetrievalSearchOptions {
   /** Maximum number of results to return (default: 10) */
   limit?: number;
   /** Minimum similarity threshold 0-1 (default: 0.3) */
@@ -24,7 +24,7 @@ export interface ConversationRetrievalSearchOptions {
 /**
  * A retrieved message with similarity score
  */
-export interface ConversationRetrievalResult {
+export interface MemoryRetrievalResult {
   /** Message content */
   content: string;
   /** Role of the message sender */
@@ -52,9 +52,9 @@ export interface EmbeddingOptions {
 }
 
 /**
- * Context required for conversation retrieval operations
+ * Context required for memory retrieval operations
  */
-export interface ConversationRetrievalContext {
+export interface MemoryRetrievalContext {
   /** Storage operations context */
   storageCtx: StorageOperationsContext;
   /** Embedding options */
@@ -62,9 +62,9 @@ export interface ConversationRetrievalContext {
 }
 
 /**
- * Tool configuration for conversation retrieval
+ * Tool configuration for memory retrieval
  */
-export interface ConversationRetrievalToolConfig {
+export interface MemoryRetrievalToolConfig {
   /** Tool name */
   name: string;
   /** Tool description */
