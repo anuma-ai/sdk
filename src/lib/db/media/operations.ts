@@ -383,7 +383,8 @@ export async function getMediaOp(
   }
 
   const results = await mediaCollection.query(...conditions).fetch();
-  return results.map(mediaToStored);
+  const stored = results.map(mediaToStored);
+  return stored;
 }
 
 /**

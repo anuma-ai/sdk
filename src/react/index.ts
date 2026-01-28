@@ -100,6 +100,10 @@ export {
   deleteEncryptedFile,
   fileExists,
   BlobUrlManager,
+  resolveFilePlaceholders,
+  extractFileIds,
+  FILE_PLACEHOLDER_PREFIX,
+  FILE_PLACEHOLDER_REGEX,
 } from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
@@ -157,6 +161,8 @@ export type {
   UseMemoryStorageOptions,
   UseMemoryStorageResult,
 } from "./useMemoryStorage";
+export { useMedia } from "./useMedia";
+export type { UseMediaOptions, UseMediaResult } from "./useMedia";
 export {
   /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,

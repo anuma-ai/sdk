@@ -9,7 +9,8 @@
 // Uses a format that won't be interpreted as markdown
 export const FILE_PLACEHOLDER_PREFIX = "__SDKFILE__";
 export const FILE_PLACEHOLDER_SUFFIX = "__";
-export const FILE_PLACEHOLDER_REGEX = /__SDKFILE__([a-f0-9-]+)__/g;
+// Match file IDs like "media_019c0630-8b7a-760c-863e-b6c676fd50d3"
+export const FILE_PLACEHOLDER_REGEX = /__SDKFILE__([a-zA-Z0-9_-]+)__/g;
 
 /**
  * Creates an internal file placeholder for a given file ID.
