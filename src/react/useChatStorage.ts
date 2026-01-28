@@ -53,6 +53,13 @@ import {
 import {
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
+  createMediaOp,
+  createMediaBatchOp,
+  updateMediaMessageIdBatchOp,
+  generateMediaId,
+  getMediaTypeFromMime,
+  type MediaOperationsContext,
+  type CreateMediaOptions,
 } from "../lib/db/media";
 import { preprocessFiles } from "../lib/processors";
 import {
@@ -1306,21 +1313,50 @@ export function useChatStorage(
   );
 
   /**
+   * Extract dimensions from an image blob.
+   */
+  const getImageDimensions = useCallback(
+    async (
+      blob: Blob
+    ): Promise<{ width: number; height: number } | undefined> => {
+      if (!blob.type.startsWith("image/")) {
+        return undefined;
+      }
+      return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(undefined);
+        };
+        img.src = url;
+      });
+    },
+    []
+  );
+
+  /**
    * Extract and store MCP images using encrypted OPFS storage.
-   * Uses wallet-derived encryption keys and internal placeholders.
+   * Creates media records and uses wallet-derived encryption keys.
+   *
+   * @param content - The message content containing MCP image URLs
+   * @param address - Wallet address for encryption and media record ownership
+   * @param conversationId - Conversation ID for media record association
+   * @param responseModel - AI model that generated the images
+   * @returns Object with fileIds (mediaIds) and cleaned content with placeholders
    */
   const extractAndStoreEncryptedMCPImages = useCallback(
     async (
       content: string,
-      address: string
+      address: string,
+      conversationId: string,
+      responseModel?: string
     ): Promise<{
-      processedFiles: {
-        id: string;
-        name: string;
-        type: string;
-        size: number;
-        sourceUrl: string;
-      }[];
+      fileIds: string[];
       cleanedContent: string;
     }> => {
       try {
@@ -1330,7 +1366,7 @@ export function useChatStorage(
           console.warn(
             "[extractAndStoreEncryptedMCPImages] OPFS not supported"
           );
-          return { processedFiles: [], cleanedContent: content };
+          return { fileIds: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
@@ -1338,7 +1374,7 @@ export function useChatStorage(
           console.warn(
             "[extractAndStoreEncryptedMCPImages] Encryption key not available"
           );
-          return { processedFiles: [], cleanedContent: content };
+          return { fileIds: [], cleanedContent: content };
         }
 
         // Pattern to match any URL from the MCP R2 domain
@@ -1350,7 +1386,7 @@ export function useChatStorage(
 
         const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
         if (!urlMatches || urlMatches.length === 0) {
-          return { processedFiles: [], cleanedContent: content };
+          return { fileIds: [], cleanedContent: content };
         }
 
         // Clean URLs by removing any trailing quotes or invalid characters
@@ -1358,13 +1394,8 @@ export function useChatStorage(
         const uniqueUrls = [...new Set(cleanedUrls)];
         const encryptionKey = await getEncryptionKey(address);
 
-        const processedFiles: {
-          id: string;
-          name: string;
-          type: string;
-          size: number;
-          sourceUrl: string;
-        }[] = [];
+        const mediaOptions: CreateMediaOptions[] = [];
+        const mediaIdToPlaceholder: Map<string, string> = new Map();
         let cleanedContent = content;
 
         // Track expected URL occurrences for verification
@@ -1421,45 +1452,65 @@ export function useChatStorage(
               }
 
               const blob = await response.blob();
-              const fileId = crypto.randomUUID();
+              const mediaId = generateMediaId();
               const urlPath = imageUrl.split("?")[0] ?? imageUrl;
               const extension =
                 urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${fileId.slice(
-                0,
-                8
+              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(
+                6,
+                14
               )}.${extension}`;
 
-              // Encrypt and store in OPFS
-              await writeEncryptedFile(fileId, blob, encryptionKey, {
+              // Extract dimensions
+              const dimensions = await getImageDimensions(blob);
+
+              // Encrypt and store in OPFS using mediaId
+              await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
                 sourceUrl: imageUrl,
               });
 
-              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
+              return {
+                mediaId,
+                fileName,
+                mimeType,
+                size: blob.size,
+                imageUrl,
+                dimensions,
+              };
             } finally {
               clearTimeout(timeoutId);
             }
           })
         );
 
-        // Replace URLs with internal placeholders
+        // Replace URLs with internal placeholders and collect media options
         results.forEach((result, i) => {
           const imageUrl = uniqueUrls[i];
 
           if (result.status === "fulfilled") {
-            const { fileId, fileName, mimeType, size } = result.value;
-            processedFiles.push({
-              id: fileId,
+            const { mediaId, fileName, mimeType, size, dimensions } =
+              result.value;
+
+            // Prepare media record
+            mediaOptions.push({
+              mediaId,
+              walletAddress: address,
+              conversationId,
               name: fileName,
-              type: mimeType,
+              mimeType,
+              mediaType: "image",
               size,
+              role: "assistant",
+              model: responseModel,
               sourceUrl: imageUrl,
+              dimensions,
             });
 
             // Create internal placeholder (never shown to clients)
-            const placeholder = createFilePlaceholder(fileId);
+            const placeholder = createFilePlaceholder(mediaId);
+            mediaIdToPlaceholder.set(mediaId, placeholder);
             const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             let replacementCount = 0;
 
@@ -1478,13 +1529,6 @@ export function useChatStorage(
             );
             const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
             if (doubleMatches) {
-              // eslint-disable-next-line no-console
-              console.log(
-                `[extractAndStoreEncryptedMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
-                doubleMatches,
-                "->",
-                placeholder
-              );
               replacementCount += doubleMatches.length;
               cleanedContent = cleanedContent.replace(
                 htmlImgPatternDouble,
@@ -1499,13 +1543,6 @@ export function useChatStorage(
             );
             const singleMatches = cleanedContent.match(htmlImgPatternSingle);
             if (singleMatches) {
-              // eslint-disable-next-line no-console
-              console.log(
-                `[extractAndStoreEncryptedMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
-                singleMatches,
-                "->",
-                placeholder
-              );
               replacementCount += singleMatches.length;
               cleanedContent = cleanedContent.replace(
                 htmlImgPatternSingle,
@@ -1520,13 +1557,6 @@ export function useChatStorage(
             );
             const markdownMatches = cleanedContent.match(markdownImagePattern);
             if (markdownMatches) {
-              // eslint-disable-next-line no-console
-              console.log(
-                `[extractAndStoreEncryptedMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
-                markdownMatches,
-                "->",
-                placeholder
-              );
               replacementCount += markdownMatches.length;
               cleanedContent = cleanedContent.replace(
                 markdownImagePattern,
@@ -1538,13 +1568,6 @@ export function useChatStorage(
             const rawUrlPattern = new RegExp(escapedUrl, "g");
             const rawMatches = cleanedContent.match(rawUrlPattern);
             if (rawMatches) {
-              // eslint-disable-next-line no-console
-              console.log(
-                `[extractAndStoreEncryptedMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
-                rawMatches,
-                "->",
-                placeholder
-              );
               replacementCount += rawMatches.length;
               cleanedContent = cleanedContent.replace(
                 rawUrlPattern,
@@ -1554,8 +1577,7 @@ export function useChatStorage(
 
             // eslint-disable-next-line no-console
             console.log(
-              `[extractAndStoreEncryptedMCPImages] Total replacements made: ${replacementCount} for URL:`,
-              imageUrl
+              `[extractAndStoreEncryptedMCPImages] Total replacements: ${replacementCount} for mediaId: ${mediaId}`
             );
 
             // Verify all instances were replaced
@@ -1563,19 +1585,7 @@ export function useChatStorage(
             if (replacementCount < expectedCount) {
               // eslint-disable-next-line no-console
               console.warn(
-                `[extractAndStoreEncryptedMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
-                imageUrl
-              );
-            }
-
-            // Double-check: verify no remaining instances of the URL
-            const remainingPattern = new RegExp(escapedUrl, "g");
-            const remainingMatches = cleanedContent.match(remainingPattern);
-            if (remainingMatches && remainingMatches.length > 0) {
-              // eslint-disable-next-line no-console
-              console.warn(
-                `[extractAndStoreEncryptedMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
-                imageUrl
+                `[extractAndStoreEncryptedMCPImages] Not all instances replaced. Expected ${expectedCount}, replaced ${replacementCount}`
               );
             }
           } else {
@@ -1589,63 +1599,117 @@ export function useChatStorage(
 
         cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
 
-        return { processedFiles, cleanedContent };
+        // Batch create media records
+        let createdMediaIds: string[] = [];
+        if (mediaOptions.length > 0) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[extractAndStoreEncryptedMCPImages] Creating ${mediaOptions.length} media record(s) with options:`,
+            JSON.stringify(mediaOptions.map(m => ({
+              mediaId: m.mediaId,
+              name: m.name,
+              mimeType: m.mimeType,
+              size: m.size,
+              role: m.role,
+              model: m.model,
+              dimensions: m.dimensions,
+              sourceUrl: m.sourceUrl?.substring(0, 50) + '...',
+            })), null, 2)
+          );
+          try {
+            const createdMedia = await createMediaBatchOp(
+              { database },
+              mediaOptions
+            );
+            createdMediaIds = createdMedia.map((m) => m.mediaId);
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] ✅ Created ${createdMediaIds.length} media record(s):`,
+              createdMediaIds
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              `[extractAndStoreEncryptedMCPImages] Created media records:`,
+              JSON.stringify(createdMedia, null, 2)
+            );
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(
+              "[extractAndStoreEncryptedMCPImages] ❌ Failed to create media records:",
+              err
+            );
+          }
+        }
+
+        // eslint-disable-next-line no-console
+        console.log(
+          `[extractAndStoreEncryptedMCPImages] Returning fileIds:`,
+          createdMediaIds,
+          `cleanedContent length:`,
+          cleanedContent.length
+        );
+        return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error(
           "[extractAndStoreEncryptedMCPImages] Unexpected error:",
           err
         );
-        return { processedFiles: [], cleanedContent: content };
+        return { fileIds: [], cleanedContent: content };
       }
     },
-    []
+    [database, getImageDimensions]
   );
 
   /**
-   * Store user-attached files in encrypted OPFS storage.
-   * This enables file persistence for history replay in multi-turn conversations.
+   * Store user-attached files and create media records.
+   * - If OPFS is supported with encryption: Store encrypted in OPFS, create media record
+   * - If OPFS not available: Create media record with sourceUrl (external URL only, not data URIs)
    *
    * @param files - Array of file metadata with URLs (data URIs or external URLs)
-   * @param address - Wallet address for encryption key derivation
-   * @returns Array of file metadata with OPFS storage info (URLs removed, ready for DB storage)
+   * @param address - Wallet address for encryption key derivation and media record ownership
+   * @param conversationId - Conversation ID for media record association
+   * @returns Array of mediaIds for the created media records
    */
   const storeUserFilesInOPFS = useCallback(
     async (
       files: FileMetadata[],
-      address: string
-    ): Promise<FileMetadata[]> => {
-      // Check prerequisites
-      if (!isOPFSSupported()) {
-        // eslint-disable-next-line no-console
-        console.warn("[storeUserFilesInOPFS] OPFS not supported");
-        return files.map((f) => ({
-          ...f,
-          // Strip data URIs to avoid DB bloat, keep external URLs
-          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
-        }));
+      address: string,
+      conversationId: string
+    ): Promise<string[]> => {
+      const canUseOPFS = isOPFSSupported() && hasEncryptionKey(address);
+      let encryptionKey: CryptoKey | undefined;
+
+      if (canUseOPFS) {
+        try {
+          encryptionKey = await getEncryptionKey(address);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[storeUserFilesInOPFS] Failed to get encryption key:",
+            err
+          );
+        }
       }
 
-      if (!hasEncryptionKey(address)) {
-        // eslint-disable-next-line no-console
-        console.warn("[storeUserFilesInOPFS] Encryption key not available");
-        return files.map((f) => ({
-          ...f,
-          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
-        }));
-      }
+      const mediaOptions: CreateMediaOptions[] = [];
 
-      try {
-        const encryptionKey = await getEncryptionKey(address);
-        const storedFiles: FileMetadata[] = [];
+      for (const file of files) {
+        // Skip files without URLs (already stored or metadata-only)
+        if (!file.url) {
+          continue;
+        }
 
-        for (const file of files) {
-          // Skip files without URLs (already stored or metadata-only)
-          if (!file.url) {
-            storedFiles.push(file);
-            continue;
-          }
+        // Generate a media ID
+        const mediaId = generateMediaId();
+        const mimeType = file.type || "application/octet-stream";
+        let size = file.size || 0;
+        let storedInOPFS = false;
+        let sourceUrl: string | undefined;
+        let dimensions: { width: number; height: number } | undefined;
 
+        // Try to store in OPFS if available
+        if (encryptionKey) {
           try {
             let blob: Blob;
 
@@ -1671,53 +1735,83 @@ export function useChatStorage(
               }
             }
 
-            // Encrypt and store in OPFS
-            await writeEncryptedFile(file.id, blob, encryptionKey, {
+            size = blob.size;
+
+            // Extract dimensions for images
+            dimensions = await getImageDimensions(blob);
+
+            // Encrypt and store in OPFS using mediaId
+            await writeEncryptedFile(mediaId, blob, encryptionKey, {
               name: file.name,
             });
 
+            storedInOPFS = true;
             // eslint-disable-next-line no-console
             console.log(
-              `[storeUserFilesInOPFS] Stored file ${file.id} (${file.name}) in OPFS`
+              `[storeUserFilesInOPFS] Stored file ${mediaId} (${file.name}) in OPFS`
             );
-
-            // Return metadata without URL (file is now in OPFS)
-            storedFiles.push({
-              id: file.id,
-              name: file.name,
-              type: file.type || blob.type || "application/octet-stream",
-              size: file.size || blob.size,
-              // No url - file is stored in OPFS and will be read from there
-            });
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error(
-              `[storeUserFilesInOPFS] Failed to store file ${file.id}:`,
+              `[storeUserFilesInOPFS] Failed to store file in OPFS:`,
               err
             );
-            // Fall back to metadata-only (strip data URI)
-            storedFiles.push({
-              id: file.id,
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
-            });
+            // Will fall back to sourceUrl below
           }
         }
 
-        return storedFiles;
+        // If not stored in OPFS, use sourceUrl (only for external URLs, not data URIs)
+        if (!storedInOPFS) {
+          sourceUrl =
+            file.url && !file.url.startsWith("data:") ? file.url : undefined;
+          // If it's a data URI and we can't store in OPFS, we can't persist the file content
+          if (!sourceUrl) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[storeUserFilesInOPFS] Cannot persist data URI without OPFS: ${file.name}`
+            );
+            continue; // Skip this file - no way to store it
+          }
+        }
+
+        // Prepare media record
+        mediaOptions.push({
+          mediaId,
+          walletAddress: address,
+          conversationId,
+          name: file.name,
+          mimeType,
+          mediaType: getMediaTypeFromMime(mimeType),
+          size,
+          role: "user",
+          sourceUrl,
+          dimensions,
+        });
+      }
+
+      // Batch create media records
+      if (mediaOptions.length === 0) {
+        return [];
+      }
+
+      try {
+        const createdMedia = await createMediaBatchOp({ database }, mediaOptions);
+        const mediaIds = createdMedia.map((m) => m.mediaId);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[storeUserFilesInOPFS] Created ${mediaIds.length} media record(s)`
+        );
+        return mediaIds;
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("[storeUserFilesInOPFS] Unexpected error:", err);
-        // Fall back to stripping data URIs
-        return files.map((f) => ({
-          ...f,
-          url: f.url && !f.url.startsWith("data:") ? f.url : undefined,
-        }));
+        console.error(
+          "[storeUserFilesInOPFS] Failed to create media records:",
+          err
+        );
+        return [];
       }
     },
-    []
+    [database, getImageDimensions]
   );
 
   /**
@@ -1911,24 +2005,16 @@ export function useChatStorage(
       }
 
       // Store the user message
-      // If wallet address is available, store files in encrypted OPFS for persistence
-      // Otherwise, sanitize files by removing large data URIs to avoid bloating the database
-      let filesToStore: FileMetadata[] | undefined;
-      if (filesForStorage && filesForStorage.length > 0) {
-        if (walletAddress) {
-          // Store files in encrypted OPFS - enables history replay with images
-          filesToStore = await storeUserFilesInOPFS(filesForStorage, walletAddress);
-        } else {
-          // Fall back to metadata-only storage (strip data URIs)
-          filesToStore = filesForStorage.map((file) => ({
-            id: file.id,
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            // Only keep URL if it's not a data URI (e.g., external URLs)
-            url: file.url && !file.url.startsWith("data:") ? file.url : undefined,
-          }));
-        }
+      // If wallet address is available, store files in media table and OPFS
+      // The new approach uses fileIds referencing the media table
+      let userFileIds: string[] = [];
+      if (filesForStorage && filesForStorage.length > 0 && walletAddress) {
+        // Store files and create media records
+        userFileIds = await storeUserFilesInOPFS(
+          filesForStorage,
+          walletAddress,
+          convId
+        );
       }
 
       let storedUserMessage: StoredMessage;
@@ -1937,20 +2023,20 @@ export function useChatStorage(
           conversationId: convId,
           role: "user",
           content: contentForStorage,
-          files: filesToStore,
+          fileIds: userFileIds.length > 0 ? userFileIds : undefined,
           model,
           // Store extracted file content in thinking field for retrieval in follow-up messages
           thinking: fileContextForRequest,
         });
       } catch (err) {
         // Clean up OPFS files if message creation failed to avoid orphaned files
-        if (filesToStore && filesToStore.length > 0 && walletAddress) {
-          for (const file of filesToStore) {
+        if (userFileIds.length > 0) {
+          for (const mediaId of userFileIds) {
             try {
-              await deleteEncryptedFile(file.id);
+              await deleteEncryptedFile(mediaId);
               // eslint-disable-next-line no-console
               console.log(
-                `[sendMessage] Cleaned up orphaned OPFS file ${file.id} after message creation failure`
+                `[sendMessage] Cleaned up orphaned OPFS file ${mediaId} after message creation failure`
               );
             } catch {
               // Ignore cleanup errors
@@ -1962,6 +2048,24 @@ export function useChatStorage(
           error:
             err instanceof Error ? err.message : "Failed to store user message",
         };
+      }
+
+      // Update media records with the messageId now that we have it
+      if (userFileIds.length > 0) {
+        try {
+          await updateMediaMessageIdBatchOp(
+            { database },
+            userFileIds,
+            storedUserMessage.uniqueId
+          );
+        } catch (err) {
+          // Non-fatal - log but continue
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[sendMessage] Failed to update user media records with messageId:",
+            err
+          );
+        }
       }
 
       // Track response timing
@@ -2179,34 +2283,37 @@ export function useChatStorage(
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
       // Extract and store MCP images
-      // Priority: walletAddress (encrypted OPFS) > writeFile callback > skip
-      let processedFiles: {
-        id: string;
-        name: string;
-        type: string;
-        size: number;
-        sourceUrl?: string;
-      }[] = [];
+      // Priority: walletAddress (encrypted OPFS with media records) > writeFile callback > skip
+      let assistantFileIds: string[] = [];
 
       if (walletAddress) {
-        // Use encrypted OPFS storage with internal placeholders
+        // Use encrypted OPFS storage with media records
         const result = await extractAndStoreEncryptedMCPImages(
           cleanedContent,
-          walletAddress
+          walletAddress,
+          convId,
+          responseData.model || model
         );
-        processedFiles = result.processedFiles;
+        assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
       } else if (writeFile) {
-        // Fall back to writeFile callback with __SDKFILE__ placeholders
+        // Fall back to writeFile callback with __SDKFILE__ placeholders (no media records)
         const result = await extractAndStoreMCPImages(
           cleanedContent,
           writeFile
         );
-        processedFiles = result.processedFiles;
+        // Note: processedFiles from this path won't have media records
         cleanedContent = result.cleanedContent;
       }
 
       // Store the assistant message
+      // eslint-disable-next-line no-console
+      console.log(
+        `[sendMessage] 📝 Storing assistant message with fileIds:`,
+        assistantFileIds,
+        `content length:`,
+        cleanedContent.length
+      );
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {
@@ -2214,13 +2321,23 @@ export function useChatStorage(
           role: "assistant",
           content: cleanedContent,
           model: responseData.model || model,
-          files: processedFiles.length > 0 ? processedFiles : undefined,
+          fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: combinedSources,
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
           thinking: thinkingContent,
         });
+        // eslint-disable-next-line no-console
+        console.log(
+          `[sendMessage] ✅ Stored assistant message:`,
+          {
+            uniqueId: storedAssistantMessage.uniqueId,
+            conversationId: storedAssistantMessage.conversationId,
+            fileIds: storedAssistantMessage.fileIds,
+            role: storedAssistantMessage.role,
+          }
+        );
       } catch (err) {
         return {
           data: null,
@@ -2230,6 +2347,24 @@ export function useChatStorage(
               : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
+      }
+
+      // Update assistant media records with the messageId now that we have it
+      if (assistantFileIds.length > 0) {
+        try {
+          await updateMediaMessageIdBatchOp(
+            { database },
+            assistantFileIds,
+            storedAssistantMessage.uniqueId
+          );
+        } catch (err) {
+          // Non-fatal - log but continue
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[sendMessage] Failed to update assistant media records with messageId:",
+            err
+          );
+        }
       }
 
       return {

@@ -106,6 +106,8 @@ export interface StoredMedia {
  * Options for creating a new media record.
  */
 export interface CreateMediaOptions {
+  /** Pre-generated media ID. If not provided, one will be generated. */
+  mediaId?: string;
   /** Wallet address of the user */
   walletAddress: string;
   /** Associated message ID (optional) */
@@ -133,6 +135,8 @@ export interface CreateMediaOptions {
  */
 export interface UpdateMediaOptions {
   name?: string;
+  /** Update the associated message ID (set after message creation) */
+  messageId?: string;
   sourceUrl?: string;
   dimensions?: MediaDimensions;
   duration?: number;

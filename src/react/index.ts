@@ -223,6 +223,7 @@ export {
   getMediaByIdOp,
   getMediaBySourceUrlOp,
   updateMediaOp,
+  updateMediaMessageIdBatchOp,
   deleteMediaOp,
   hardDeleteMediaOp,
   // Library query operations

@@ -64,7 +64,7 @@ export async function createMediaOp(
   options: CreateMediaOptions
 ): Promise<StoredMedia> {
   const mediaCollection = ctx.database.get<Media>("media");
-  const mediaId = generateMediaId();
+  const mediaId = options.mediaId || generateMediaId();
   const now = Date.now();
 
   const created = await ctx.database.write(async () => {
@@ -106,8 +106,10 @@ export async function createMediaBatchOp(
   const mediaCollection = ctx.database.get<Media>("media");
   const now = Date.now();
 
-  // Generate media IDs upfront so we can query them after batch insert
-  const mediaIds: string[] = optionsArray.map(() => generateMediaId());
+  // Use provided media IDs or generate new ones
+  const mediaIds: string[] = optionsArray.map(
+    (opt) => opt.mediaId || generateMediaId()
+  );
 
   await ctx.database.write(async () => {
     await ctx.database.batch(
@@ -204,6 +206,8 @@ export async function updateMediaOp(
   await ctx.database.write(async () => {
     await media.update((m) => {
       if (options.name !== undefined) m._setRaw("name", options.name);
+      if (options.messageId !== undefined)
+        m._setRaw("message_id", options.messageId);
       if (options.sourceUrl !== undefined)
         m._setRaw("source_url", options.sourceUrl);
       if (options.dimensions !== undefined)
@@ -223,6 +227,49 @@ export async function updateMediaOp(
     .query(Q.where("media_id", mediaId))
     .fetch();
   return updated.length > 0 ? mediaToStored(updated[0]) : null;
+}
+
+/**
+ * Batch update media records with a messageId.
+ * Used to associate media records with their message after message creation.
+ *
+ * @param ctx - Database context
+ * @param mediaIds - Array of mediaIds to update
+ * @param messageId - The messageId to set on all records
+ * @returns Number of records updated
+ */
+export async function updateMediaMessageIdBatchOp(
+  ctx: MediaOperationsContext,
+  mediaIds: string[],
+  messageId: string
+): Promise<number> {
+  if (mediaIds.length === 0) {
+    return 0;
+  }
+
+  const mediaCollection = ctx.database.get<Media>("media");
+  const results = await mediaCollection
+    .query(Q.where("media_id", Q.oneOf(mediaIds)))
+    .fetch();
+
+  if (results.length === 0) {
+    return 0;
+  }
+
+  const now = Date.now();
+
+  await ctx.database.write(async () => {
+    await ctx.database.batch(
+      ...results.map((media) =>
+        media.prepareUpdate((m) => {
+          m._setRaw("message_id", messageId);
+          m._setRaw("updated_at", now);
+        })
+      )
+    );
+  });
+
+  return results.length;
 }
 
 /**

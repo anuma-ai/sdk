@@ -29,6 +29,7 @@ export {
   getMediaByIdOp,
   getMediaBySourceUrlOp,
   updateMediaOp,
+  updateMediaMessageIdBatchOp,
   deleteMediaOp,
   hardDeleteMediaOp,
 } from "./operations";
