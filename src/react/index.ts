@@ -222,6 +222,20 @@ export type {
 } from "../lib/processors";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
+
+// Conversation retrieval (semantic search over past messages)
+export {
+  createConversationRetrievalTool,
+  embedMessage,
+  embedAllMessages,
+  generateEmbedding,
+} from "../lib/conversationRetrieval";
+export type {
+  ConversationRetrievalSearchOptions,
+  ConversationRetrievalResult,
+  EmbeddingOptions as ConversationRetrievalEmbeddingOptions,
+} from "../lib/conversationRetrieval";
+
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,

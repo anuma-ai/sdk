@@ -159,3 +159,16 @@ export type {
   CachedServerTools,
   ServerToolsResponse,
 } from "../lib/tools";
+
+// Conversation retrieval (semantic search over past messages)
+export {
+  createConversationRetrievalTool,
+  embedMessage,
+  embedAllMessages,
+  generateEmbedding,
+} from "../lib/conversationRetrieval";
+export type {
+  ConversationRetrievalSearchOptions,
+  ConversationRetrievalResult,
+  EmbeddingOptions as ConversationRetrievalEmbeddingOptions,
+} from "../lib/conversationRetrieval";
