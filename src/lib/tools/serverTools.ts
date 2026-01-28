@@ -5,7 +5,7 @@
  * with configurable expiration and localStorage persistence.
  */
 
-import type { LlmapiTool } from "../../client";
+import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
 
 /** Tool parameters schema */
@@ -353,10 +353,10 @@ export function filterServerTools(
  * Preserves executor and autoExecute for client-side execution.
  */
 function clientToolToResponsesFormat(
-  tool: LlmapiTool | ToolConfig
+  tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = tool.function;
+  const func = (tool as any).function;
 
   if (!func) {
     // Already in responses format or malformed - return as-is
@@ -368,7 +368,7 @@ function clientToolToResponsesFormat(
     name: func.name,
     description: func.description,
     // Handle both 'parameters' and 'arguments' field names
-    parameters: (func as any).parameters || (func as any).arguments,
+    parameters: func.parameters || func.arguments,
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.autoExecute !== undefined && {
@@ -383,23 +383,23 @@ function clientToolToResponsesFormat(
  * Preserves executor and autoExecute for client-side execution.
  */
 function clientToolToCompletionsFormat(
-  tool: LlmapiTool | ToolConfig
-): LlmapiTool | ToolConfig {
+  tool: LlmapiChatCompletionTool | ToolConfig
+): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = tool.function;
+  const func = (tool as any).function;
 
   if (!func) {
     // Malformed tool - return as-is
-    return tool;
+    return tool as Record<string, unknown>;
   }
 
   // If 'parameters' already exists, return as-is
-  if ((func as any).parameters) {
-    return tool;
+  if (func.parameters) {
+    return tool as Record<string, unknown>;
   }
 
   // Convert 'arguments' to 'parameters' for Completions API
-  const { arguments: args, ...restFunc } = func as any;
+  const { arguments: args, ...restFunc } = func;
 
   return {
     type: "function",
@@ -412,7 +412,7 @@ function clientToolToCompletionsFormat(
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
     }),
-  } as LlmapiTool | ToolConfig;
+  };
 }
 
 /**
@@ -424,9 +424,9 @@ function clientToolToCompletionsFormat(
  */
 export function mergeTools(
   serverTools: ServerTool[],
-  clientTools: Array<LlmapiTool | ToolConfig> | undefined,
+  clientTools: Array<LlmapiChatCompletionTool | ToolConfig> | undefined,
   apiType: "responses" | "completions" = "responses"
-): Array<LlmapiTool | ToolConfig | Record<string, unknown>> {
+): Array<Record<string, unknown>> {
   // Format server tools based on API type
   const formattedServerTools =
     apiType === "completions"
@@ -434,7 +434,7 @@ export function mergeTools(
       : serverTools.map(toResponsesFormat);
 
   if (!clientTools || clientTools.length === 0) {
-    return formattedServerTools;
+    return formattedServerTools as Array<Record<string, unknown>>;
   }
 
   // Format client tools based on API type
@@ -450,17 +450,17 @@ export function mergeTools(
   // Get client tool names for deduplication
   const clientToolNames = new Set(
     clientTools
-      .map((t) => t.function?.name || (t as any).name)
+      .map((t) => (t as any).function?.name || (t as any).name)
       .filter((name): name is string => !!name)
   );
 
   // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
     const name =
-      "name" in tool ? (tool.name as string) : (tool as LlmapiTool).function?.name;
+      "name" in tool ? (tool.name as string) : (tool as any).function?.name;
     return !clientToolNames.has(name ?? "");
   });
 
   // Return merged array: server tools first, then client tools
-  return [...nonConflictingServerTools, ...formattedClientTools];
+  return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
 }

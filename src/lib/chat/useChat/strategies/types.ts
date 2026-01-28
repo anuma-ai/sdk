@@ -1,9 +1,9 @@
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
   LlmapiThinkingOptions,
-  LlmapiTool,
 } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
@@ -24,7 +24,7 @@ export interface BuildRequestBodyArgs {
   stream: boolean;
   temperature?: number;
   maxOutputTokens?: number;
-  tools?: LlmapiTool[];
+  tools?: LlmapiChatCompletionTool[];
   toolChoice?: string;
   // Responses-only options (ignored by completions strategy)
   reasoning?: LlmapiResponseReasoning;

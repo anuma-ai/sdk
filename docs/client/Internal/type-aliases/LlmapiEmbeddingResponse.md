@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:292](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L292)
+Defined in: [src/client/types.gen.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L384)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:292](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]
 
-Defined in: [src/client/types.gen.ts:296](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L296)
+Defined in: [src/client/types.gen.ts:388](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L388)
 
 Data contains the embeddings
 
@@ -20,7 +20,7 @@ Data contains the embeddings
 
 > `optional` **extra\_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L297)
+Defined in: [src/client/types.gen.ts:389](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L389)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:297](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L301)
+Defined in: [src/client/types.gen.ts:393](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L393)
 
 Model is the model used
 
@@ -38,7 +38,7 @@ Model is the model used
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:305](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L305)
+Defined in: [src/client/types.gen.ts:397](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L397)
 
 Object is always "list"
 
@@ -48,4 +48,4 @@ Object is always "list"
 
 > `optional` **usage**: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md)
 
-Defined in: [src/client/types.gen.ts:306](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L306)
+Defined in: [src/client/types.gen.ts:398](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L398)

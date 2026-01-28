@@ -1,10 +1,10 @@
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
-  LlmapiTool,
   LlmapiToolCall,
 } from "../../../client";
 
@@ -51,7 +51,7 @@ export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> |
 /**
  * Tool configuration with optional executor
  */
-export type ToolConfig = LlmapiTool & {
+export type ToolConfig = LlmapiChatCompletionTool & {
   /**
    * Function to execute when the tool is called.
    * If provided, the tool will be executed automatically when the LLM calls it.
@@ -82,7 +82,7 @@ export type ResponsesApiOptions = {
    * Array of tool definitions available to the model.
    * Can include executor functions for automatic tool execution.
    */
-  tools?: Array<LlmapiTool | ToolConfig>;
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig>;
   /**
    * Controls which tool to use: "auto", "any", "none", "required", or a specific tool name.
    */
