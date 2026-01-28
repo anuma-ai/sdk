@@ -120,16 +120,7 @@ export async function updateConversationTitleOp(
 
 /**
  * Soft delete a conversation.
- * Callers should also cascade delete associated media.
- *
- * @example
- * ```typescript
- * const deleted = await deleteConversationOp(ctx, conversationId);
- * if (deleted) {
- *   // Cascade delete media for this conversation
- *   await deleteMediaByConversationOp(mediaCtx, conversationId);
- * }
- * ```
+ * Note: useChatStorage hooks automatically cascade delete messages and media.
  */
 export async function deleteConversationOp(
   ctx: StorageOperationsContext,
@@ -215,14 +206,8 @@ export async function getMessageCountOp(
 
 /**
  * Clear all messages in a conversation.
- * Clears file_ids before deletion and returns the unique IDs so callers can cascade delete associated media.
- *
- * @example
- * ```typescript
- * const deletedIds = await clearMessagesOp(ctx, convId);
- * // Cascade delete media for the conversation
- * await deleteMediaByConversationOp(mediaCtx, convId);
- * ```
+ * Clears file_ids before deletion and returns the unique IDs.
+ * Note: useChatStorage hooks automatically cascade delete media.
  */
 export async function clearMessagesOp(
   ctx: StorageOperationsContext,
@@ -250,15 +235,8 @@ export async function clearMessagesOp(
 
 /**
  * Delete a single message by its unique ID.
- * Clears file_ids before deletion and returns the unique ID so callers can cascade delete associated media.
- *
- * @example
- * ```typescript
- * const deletedId = await deleteMessageOp(ctx, uniqueId);
- * if (deletedId) {
- *   await deleteMediaByMessageOp(mediaCtx, deletedId);
- * }
- * ```
+ * Clears file_ids before deletion and returns the unique ID.
+ * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
 export async function deleteMessageOp(
   ctx: StorageOperationsContext,

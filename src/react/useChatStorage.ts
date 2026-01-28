@@ -50,6 +50,10 @@ import {
   FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
+import {
+  deleteMediaByConversationOp,
+  deleteMediaByMessageOp,
+} from "../lib/db/media";
 import { preprocessFiles } from "../lib/processors";
 import {
   getServerTools,
@@ -657,14 +661,20 @@ export function useChatStorage(
   );
 
   /**
-   * Soft delete a conversation
+   * Soft delete a conversation and cascade delete messages and media
    * @returns true if deleted, false if conversation not found
    */
   const deleteConversation = useCallback(
     async (id: string): Promise<boolean> => {
       const deleted = await deleteConversationOp(storageCtx, id);
-      if (deleted && currentConversationId === id) {
-        setCurrentConversationId(null);
+      if (deleted) {
+        // Cascade delete messages
+        await clearMessagesOp(storageCtx, id);
+        // Cascade delete media for this conversation
+        await deleteMediaByConversationOp({ database: storageCtx.database }, id);
+        if (currentConversationId === id) {
+          setCurrentConversationId(null);
+        }
       }
       return deleted;
     },
@@ -815,11 +825,13 @@ export function useChatStorage(
   );
 
   /**
-   * Clear all messages in a conversation
+   * Clear all messages in a conversation and cascade delete associated media
    */
   const clearMessages = useCallback(
     async (convId: string): Promise<void> => {
-      return clearMessagesOp(storageCtx, convId);
+      await clearMessagesOp(storageCtx, convId);
+      // Cascade delete media for this conversation
+      await deleteMediaByConversationOp({ database: storageCtx.database }, convId);
     },
     [storageCtx]
   );
