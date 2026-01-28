@@ -21,8 +21,8 @@ importers:
   .:
     dependencies:
       '@reverbia/portal':
-        specifier: 1.0.0-next.20260111184618
-        version: 1.0.0-next.20260111184618
+        specifier: 1.0.0-next.20260128153522
+        version: 1.0.0-next.20260128153522
       '@reverbia/sdk':
         specifier: 1.0.0-next.20260126190436
         version: 1.0.0-next.20260126190436(@nozbe/watermelondb@0.28.0)(@privy-io/react-auth@3.8.1(f386bdad43e9796dd296356bf53da71c))(react-dom@19.2.1(react@19.2.1))(react-native@0.82.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(utf-8-validate@5.0.10))(react@19.2.1)(zod@4.2.1)
@@ -1250,6 +1250,9 @@ packages:
 
   '@reverbia/portal@1.0.0-next.20260111184618':
     resolution: {integrity: sha512-Ue/rr331+u4I0rN8gA6J/EhSyUInM9fWl+AP6EirhJHYd9wqW0PMmaFOUS48p+OFFTtU6fm090uDRIucGLBbnQ==}
+
+  '@reverbia/portal@1.0.0-next.20260128153522':
+    resolution: {integrity: sha512-4JeOPWLePTNLSOEen79To3+TRmOTsbTV0Nxq3jySXcNcMfXTWajYom2ANcXMOFwDEzMcgBuersUeBzs38D6+gQ==}
 
   '@reverbia/sdk@1.0.0-next.20260126190436':
     resolution: {integrity: sha512-6X6eq4cvQnVpfV4ojaqwZgTMgRkA+jYLDCP2cxuS/iUKZlXlRj85N3V0Rt43IU6CBlRhWY6wdAXCr7gx5+hceA==}
@@ -7086,6 +7089,8 @@ snapshots:
       - zod
 
   '@reverbia/portal@1.0.0-next.20260111184618': {}
+
+  '@reverbia/portal@1.0.0-next.20260128153522': {}
 
   '@reverbia/sdk@1.0.0-next.20260126190436(@nozbe/watermelondb@0.28.0)(@privy-io/react-auth@3.8.1(f386bdad43e9796dd296356bf53da71c))(react-dom@19.2.1(react@19.2.1))(react-native@0.82.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(utf-8-validate@5.0.10))(react@19.2.1)(zod@4.2.1)':
     dependencies:
