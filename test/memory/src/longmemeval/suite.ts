@@ -1488,7 +1488,12 @@ export async function runLongMemEval(
       );
 
       if (strategy === "chunked-tool" && chunkCache) {
-        await saveChunkEmbeddingCache(chunkCache);
+        try {
+          await saveChunkEmbeddingCache(chunkCache);
+        } catch (cacheError) {
+          console.warn(`  ⚠ Failed to save cache: ${cacheError}`);
+          // Don't fail the result - cache is optional
+        }
       }
     } catch (error) {
       console.error(`  ✗ Error processing ${entry.question_id}:`, error);
