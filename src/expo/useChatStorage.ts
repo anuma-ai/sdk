@@ -39,7 +39,12 @@ import {
   filterServerTools,
   mergeTools,
 } from "../lib/tools";
-import { generateEmbedding } from "../lib/memoryRetrieval";
+import {
+  generateEmbedding,
+  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  type MemoryRetrievalSearchOptions,
+} from "../lib/memoryRetrieval";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
 
@@ -129,6 +134,25 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     uniqueId: string,
     options: UpdateMessageOptions
   ) => Promise<StoredMessage | null>;
+  /**
+   * Create a memory retrieval tool for LLM to search past conversations.
+   * The tool is pre-configured with the hook's storage context and auth.
+   *
+   * @param searchOptions - Optional search configuration (limit, minSimilarity, etc.)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   *
+   * @example
+   * ```ts
+   * const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+   * await sendMessage({
+   *   messages: [...],
+   *   clientTools: [memoryTool],
+   * });
+   * ```
+   */
+  createMemoryRetrievalTool: (
+    searchOptions?: Partial<MemoryRetrievalSearchOptions>
+  ) => ToolConfig;
 }
 
 /**
@@ -244,6 +268,23 @@ export function useChatStorage(
       }
     },
     [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+  );
+
+  /**
+   * Create a memory retrieval tool pre-configured with hook's context and auth
+   */
+  const createMemoryRetrievalTool = useCallback(
+    (searchOptions?: Partial<MemoryRetrievalSearchOptions>): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for memory retrieval tool");
+      }
+      return createMemoryRetrievalToolBase(
+        storageCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        searchOptions
+      );
+    },
+    [storageCtx, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook (Expo version - no tools, no local chat)
@@ -888,5 +929,6 @@ export function useChatStorage(
     clearMessages,
     extractSourcesFromAssistantMessage,
     updateMessage,
+    createMemoryRetrievalTool,
   };
 }
