@@ -290,7 +290,8 @@ async function extractMemoriesFromSession(
   session: LongMemEvalSession,
   sessionIndex: number,
   sessionId: string,
-  api: ApiConfig
+  api: ApiConfig,
+  completionModel: string
 ): Promise<ExtractedMemory[]> {
   const conversationText = session
     .map((msg) => `${msg.role}: ${msg.content}`)
@@ -309,7 +310,7 @@ ${conversationText}`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: DEFAULT_COMPLETION_MODEL,
+        model: completionModel,
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0,
         max_tokens: 2000,
@@ -391,7 +392,8 @@ async function generateEmbeddings(
 async function answerQuestion(
   question: string,
   memories: Array<{ text: string; similarity: number }>,
-  api: ApiConfig
+  api: ApiConfig,
+  completionModel: string
 ): Promise<string> {
   const memoryContext = memories
     .map(
@@ -418,7 +420,7 @@ Keep your answer brief and factual.`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: DEFAULT_COMPLETION_MODEL,
+        model: completionModel,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
         max_tokens: 500,
@@ -446,7 +448,8 @@ async function evaluateAnswer(
   question: string,
   expectedAnswer: string,
   generatedAnswer: string,
-  api: ApiConfig
+  api: ApiConfig,
+  completionModel: string
 ): Promise<boolean> {
   const prompt = `You are an answer evaluator. Determine if the generated answer correctly answers the question, matching the expected answer's meaning.
 
@@ -467,7 +470,7 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: DEFAULT_COMPLETION_MODEL,
+        model: completionModel,
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
         max_tokens: 10,
@@ -552,6 +555,7 @@ async function processEntry(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
+  completionModel: string,
   maxSessions?: number,
   runDir?: string
 ): Promise<LongMemEvalResult> {
@@ -616,7 +620,8 @@ async function processEntry(
         session,
         sessionIdx,
         sessionId,
-        api
+        api,
+        completionModel
       );
       allMemories.push(...sessionMemories);
 
@@ -752,7 +757,8 @@ async function processEntry(
       const generatedAnswer = await answerQuestion(
         entry.question,
         memoriesForAnswer,
-        api
+        api,
+        completionModel
       );
       clearProgress();
 
@@ -762,7 +768,8 @@ async function processEntry(
         entry.question,
         entry.answer,
         generatedAnswer,
-        api
+        api,
+        completionModel
       );
       clearProgress();
 
@@ -820,7 +827,7 @@ async function processEntry(
     // No memories extracted - still try to answer
     clearProgress();
     logProgress("Generating answer (no memories)...");
-    const generatedAnswer = await answerQuestion(entry.question, [], api);
+    const generatedAnswer = await answerQuestion(entry.question, [], api, completionModel);
     clearProgress();
 
     logProgress("Evaluating answer...");
@@ -828,7 +835,8 @@ async function processEntry(
       entry.question,
       entry.answer,
       generatedAnswer,
-      api
+      api,
+      completionModel
     );
     clearProgress();
 
@@ -923,7 +931,11 @@ export async function runLongMemEval(
     entries = entries.slice(0, options.maxQuestions);
   }
 
+  // Determine completion model to use
+  const completionModel = options.completionModel || DEFAULT_COMPLETION_MODEL;
+
   console.log(`\nRunning LongMemEval benchmark (${options.variant} variant)`);
+  console.log(`Completion model: ${completionModel}`);
   console.log(`Total questions: ${entries.length}`);
   if (options.maxSessions) {
     console.log(`Max sessions per question: ${options.maxSessions}`);
@@ -942,6 +954,7 @@ export async function runLongMemEval(
         entry,
         api,
         options.verbose || false,
+        completionModel,
         options.maxSessions,
         runDir
       );

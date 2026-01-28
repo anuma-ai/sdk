@@ -30,6 +30,7 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     "max-sessions": { type: "string" },
     types: { type: "string", short: "t" },
+    model: { type: "string" },
     json: { type: "boolean", default: false },
     verbose: { type: "boolean", default: false },
     output: { type: "string", short: "o" },
@@ -57,6 +58,8 @@ Options:
   -m, --max <n>               Maximum number of questions to evaluate
   --max-sessions <n>          Max sessions to process per question (for dev)
   -t, --types <types>         Comma-separated question types to include
+  --model <model>             Completion model to use for LLM calls
+                              Default: fireworks/accounts/fireworks/models/gpt-oss-20b
   --skip-unsupported          Skip temporal-reasoning & knowledge-update (default: true)
   --json                      Output results as JSON
   --verbose                   Show detailed per-question results
@@ -140,6 +143,7 @@ async function main(): Promise<void> {
     verbose: args.verbose,
     output: args.output,
     skipUnsupported: args["skip-unsupported"],
+    completionModel: args.model,
   };
 
   try {
