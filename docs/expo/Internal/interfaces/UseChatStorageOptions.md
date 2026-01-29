@@ -398,7 +398,7 @@ Callback invoked when the response completes successfully
 
 Defined in: [src/lib/db/chat/types.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L187)
 
-Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
 
 **Parameters**
 
