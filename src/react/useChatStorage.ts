@@ -279,8 +279,9 @@ async function storedToLlmapiMessage(
   }
 
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
+  // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
-    /__SDKFILE__([a-f0-9-]+)__/g,
+    /__SDKFILE__([a-z0-9_-]+)__/g,
     (_match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
@@ -294,8 +295,9 @@ async function storedToLlmapiMessage(
 
   // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
   // This supports old messages that may still contain MCP_IMAGE placeholders
+  // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
-    /!\[MCP_IMAGE:([a-f0-9-]+)\]/g,
+    /!\[MCP_IMAGE:([a-z0-9_-]+)\]/g,
     (match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
