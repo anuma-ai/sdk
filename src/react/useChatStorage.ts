@@ -56,6 +56,7 @@ import {
   createMediaOp,
   createMediaBatchOp,
   updateMediaMessageIdBatchOp,
+  hardDeleteMediaOp,
   generateMediaId,
   getMediaTypeFromMime,
   type MediaOperationsContext,
@@ -2034,9 +2035,10 @@ export function useChatStorage(
           for (const mediaId of userFileIds) {
             try {
               await deleteEncryptedFile(mediaId);
+              await hardDeleteMediaOp({ database }, mediaId);
               // eslint-disable-next-line no-console
               console.log(
-                `[sendMessage] Cleaned up orphaned OPFS file ${mediaId} after message creation failure`
+                `[sendMessage] Cleaned up orphaned OPFS file and media record ${mediaId} after message creation failure`
               );
             } catch {
               // Ignore cleanup errors
@@ -2335,6 +2337,21 @@ export function useChatStorage(
           }
         );
       } catch (err) {
+        // Clean up OPFS files and media records if message creation failed
+        if (assistantFileIds.length > 0) {
+          for (const mediaId of assistantFileIds) {
+            try {
+              await deleteEncryptedFile(mediaId);
+              await hardDeleteMediaOp({ database }, mediaId);
+              // eslint-disable-next-line no-console
+              console.log(
+                `[sendMessage] Cleaned up orphaned OPFS file and media record ${mediaId} after assistant message creation failure`
+              );
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
         return {
           data: null,
           error:
