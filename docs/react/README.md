@@ -74,11 +74,11 @@ function ChatComponent() {
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
 | [useEncryption](Hooks/useEncryption.md) | Hook that provides encryption key management for securing local data. |
+| [useFiles](Hooks/useFiles.md) | A React hook for managing files (images, videos, audio, documents). |
 | [useGoogleDriveAuth](Hooks/useGoogleDriveAuth.md) | Hook to access Google Drive authentication state and methods. |
 | [useGoogleDriveBackup](Hooks/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
 | [useICloudAuth](Hooks/useICloudAuth.md) | Hook to access iCloud authentication state and methods. |
 | [useICloudBackup](Hooks/useICloudBackup.md) | React hook for iCloud backup and restore functionality. |
-| [useMedia](Hooks/useMedia.md) | A React hook for managing media files (images, videos, audio, documents). |
 | [useMemoryStorage](Hooks/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
 | [useModels](Hooks/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
 | [useOCR](Hooks/useOCR.md) | React hook for extracting text from images using OCR. |

@@ -1,8 +1,8 @@
-# UseMediaResult
+# UseFilesResult
 
-Defined in: [src/react/useMedia.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L66)
+Defined in: [src/react/useFiles.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L65)
 
-Result returned by useMedia hook.
+Result returned by useFiles hook.
 
 ## Properties
 
@@ -10,9 +10,9 @@ Result returned by useMedia hook.
 
 > **createBlobUrl**: (`mediaId`: `string`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useMedia.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L135)
+Defined in: [src/react/useFiles.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L134)
 
-Create a blob URL for a media file (auto-managed lifecycle)
+Create a blob URL for a file (auto-managed lifecycle)
 
 **Parameters**
 
@@ -49,9 +49,9 @@ Create a blob URL for a media file (auto-managed lifecycle)
 
 > **createMedia**: (`options`: [`CreateMediaOptions`](CreateMediaOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md)>
 
-Defined in: [src/react/useMedia.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L75)
+Defined in: [src/react/useFiles.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L74)
 
-Create a new media record
+Create a new file record
 
 **Parameters**
 
@@ -88,9 +88,9 @@ Create a new media record
 
 > **createMediaBatch**: (`optionsArray`: [`CreateMediaOptions`](CreateMediaOptions.md)\[]) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L77)
+Defined in: [src/react/useFiles.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L76)
 
-Create multiple media records in a batch
+Create multiple file records in a batch
 
 **Parameters**
 
@@ -127,9 +127,9 @@ Create multiple media records in a batch
 
 > **deleteMedia**: (`mediaId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useMedia.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L91)
+Defined in: [src/react/useFiles.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L90)
 
-Soft delete a media record
+Soft delete a file record
 
 **Parameters**
 
@@ -166,9 +166,9 @@ Soft delete a media record
 
 > **deleteMediaByConversation**: (`conversationId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useMedia.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L127)
+Defined in: [src/react/useFiles.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L126)
 
-Delete all media for a conversation
+Delete all files for a conversation
 
 **Parameters**
 
@@ -205,9 +205,9 @@ Delete all media for a conversation
 
 > **deleteMediaByMessage**: (`messageId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useMedia.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L129)
+Defined in: [src/react/useFiles.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L128)
 
-Delete all media for a message
+Delete all files for a message
 
 **Parameters**
 
@@ -244,9 +244,9 @@ Delete all media for a message
 
 > **getAIGeneratedMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L113)
+Defined in: [src/react/useFiles.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L112)
 
-Get AI-generated media
+Get AI-generated files
 
 **Parameters**
 
@@ -283,7 +283,7 @@ Get AI-generated media
 
 > **getAudio**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L105)
+Defined in: [src/react/useFiles.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L104)
 
 Get all audio files
 
@@ -322,7 +322,7 @@ Get all audio files
 
 > **getDocuments**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L107)
+Defined in: [src/react/useFiles.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L106)
 
 Get all documents
 
@@ -361,7 +361,7 @@ Get all documents
 
 > **getImages**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L101)
+Defined in: [src/react/useFiles.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L100)
 
 Get all images
 
@@ -400,9 +400,9 @@ Get all images
 
 > **getMedia**: (`filters`: [`MediaFilterOptions`](MediaFilterOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L97)
+Defined in: [src/react/useFiles.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L96)
 
-Get all media with optional filters
+Get all files with optional filters
 
 **Parameters**
 
@@ -439,9 +439,9 @@ Get all media with optional filters
 
 > **getMediaByConversation**: (`conversationId`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L109)
+Defined in: [src/react/useFiles.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L108)
 
-Get media by conversation
+Get files by conversation
 
 **Parameters**
 
@@ -490,9 +490,9 @@ Get media by conversation
 
 > **getMediaById**: (`mediaId`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useMedia.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L79)
+Defined in: [src/react/useFiles.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L78)
 
-Get a media record by its media\_id
+Get a file record by its media\_id
 
 **Parameters**
 
@@ -529,9 +529,9 @@ Get a media record by its media\_id
 
 > **getMediaByIds**: (`mediaIds`: `string`\[], `includeDeleted?`: `boolean`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L83)
+Defined in: [src/react/useFiles.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L82)
 
-Get media by an array of media IDs
+Get files by an array of media IDs
 
 **Parameters**
 
@@ -580,9 +580,9 @@ Get media by an array of media IDs
 
 > **getMediaByMessage**: (`messageId`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L85)
+Defined in: [src/react/useFiles.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L84)
 
-Get media by message ID
+Get files by message ID
 
 **Parameters**
 
@@ -619,9 +619,9 @@ Get media by message ID
 
 > **getMediaByModel**: (`model`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L117)
+Defined in: [src/react/useFiles.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L116)
 
-Get media by AI model
+Get files by AI model
 
 **Parameters**
 
@@ -670,9 +670,9 @@ Get media by AI model
 
 > **getMediaByRole**: (`role`: [`MediaRole`](../type-aliases/MediaRole.md), `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L111)
+Defined in: [src/react/useFiles.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L110)
 
-Get media by role (user uploads vs AI generated)
+Get files by role (user uploads vs AI generated)
 
 **Parameters**
 
@@ -721,9 +721,9 @@ Get media by role (user uploads vs AI generated)
 
 > **getMediaBySourceUrl**: (`sourceUrl`: `string`) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useMedia.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L81)
+Defined in: [src/react/useFiles.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L80)
 
-Get a media record by its source URL
+Get a file record by its source URL
 
 **Parameters**
 
@@ -760,9 +760,9 @@ Get a media record by its source URL
 
 > **getMediaByType**: (`mediaType`: [`MediaType`](../type-aliases/MediaType.md), `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L99)
+Defined in: [src/react/useFiles.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L98)
 
-Get media by type
+Get files by type
 
 **Parameters**
 
@@ -811,9 +811,9 @@ Get media by type
 
 > **getMediaCount**: (`mediaType?`: [`MediaType`](../type-aliases/MediaType.md)) => `Promise`<`number`>
 
-Defined in: [src/react/useMedia.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L123)
+Defined in: [src/react/useFiles.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L122)
 
-Get media count
+Get file count
 
 **Parameters**
 
@@ -850,9 +850,9 @@ Get media count
 
 > **getMediaCountsByType**: () => `Promise`<`Record`<[`MediaType`](../type-aliases/MediaType.md), `number`>>
 
-Defined in: [src/react/useMedia.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L125)
+Defined in: [src/react/useFiles.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L124)
 
-Get media counts by type
+Get file counts by type
 
 **Returns**
 
@@ -864,9 +864,9 @@ Get media counts by type
 
 > **getRecentMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L119)
+Defined in: [src/react/useFiles.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L118)
 
-Get recent media for library homepage
+Get recent files for library homepage
 
 **Parameters**
 
@@ -903,9 +903,9 @@ Get recent media for library homepage
 
 > **getUserUploadedMedia**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L115)
+Defined in: [src/react/useFiles.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L114)
 
-Get user-uploaded media
+Get user-uploaded files
 
 **Parameters**
 
@@ -942,7 +942,7 @@ Get user-uploaded media
 
 > **getVideos**: (`limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L103)
+Defined in: [src/react/useFiles.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L102)
 
 Get all videos
 
@@ -981,9 +981,9 @@ Get all videos
 
 > **hardDeleteMedia**: (`mediaId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useMedia.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L93)
+Defined in: [src/react/useFiles.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L92)
 
-Permanently delete a media record
+Permanently delete a file record
 
 **Parameters**
 
@@ -1020,9 +1020,9 @@ Permanently delete a media record
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useMedia.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L71)
+Defined in: [src/react/useFiles.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L70)
 
-Whether media is being loaded
+Whether files are being loaded
 
 ***
 
@@ -1030,9 +1030,9 @@ Whether media is being loaded
 
 > **isReady**: `boolean`
 
-Defined in: [src/react/useMedia.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L69)
+Defined in: [src/react/useFiles.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L68)
 
-Whether the media system is ready (database table exists)
+Whether the file system is ready (database table exists)
 
 ***
 
@@ -1040,7 +1040,7 @@ Whether the media system is ready (database table exists)
 
 > **readFile**: (`mediaId`: `string`) => `Promise`<`File`>
 
-Defined in: [src/react/useMedia.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L133)
+Defined in: [src/react/useFiles.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L132)
 
 Read a file from OPFS by its media ID
 
@@ -1079,7 +1079,7 @@ Read a file from OPFS by its media ID
 
 > **resolveFilePlaceholders**: (`content`: `string`) => `Promise`<`string`>
 
-Defined in: [src/react/useMedia.ts:141](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L141)
+Defined in: [src/react/useFiles.ts:140](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L140)
 
 Resolve **SDKFILE** placeholders in content to blob URLs
 
@@ -1118,7 +1118,7 @@ Resolve **SDKFILE** placeholders in content to blob URLs
 
 > **revokeAllBlobUrls**: () => `void`
 
-Defined in: [src/react/useMedia.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L139)
+Defined in: [src/react/useFiles.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L138)
 
 Revoke all blob URLs (cleanup)
 
@@ -1132,7 +1132,7 @@ Revoke all blob URLs (cleanup)
 
 > **revokeBlobUrl**: (`mediaId`: `string`) => `void`
 
-Defined in: [src/react/useMedia.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L137)
+Defined in: [src/react/useFiles.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L136)
 
 Revoke a specific blob URL
 
@@ -1171,9 +1171,9 @@ Revoke a specific blob URL
 
 > **searchMedia**: (`query`: `string`, `limit?`: `number`) => `Promise`<[`StoredMedia`](StoredMedia.md)\[]>
 
-Defined in: [src/react/useMedia.ts:121](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L121)
+Defined in: [src/react/useFiles.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L120)
 
-Search media by name
+Search files by name
 
 **Parameters**
 
@@ -1222,9 +1222,9 @@ Search media by name
 
 > **updateMedia**: (`mediaId`: `string`, `options`: [`UpdateMediaOptions`](UpdateMediaOptions.md)) => `Promise`<[`StoredMedia`](StoredMedia.md) | `null`>
 
-Defined in: [src/react/useMedia.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L87)
+Defined in: [src/react/useFiles.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L86)
 
-Update a media record
+Update a file record
 
 **Parameters**
 
@@ -1273,9 +1273,9 @@ Update a media record
 
 > **updateMediaMessageIdBatch**: (`mediaIds`: `string`\[], `messageId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useMedia.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useMedia.ts#L89)
+Defined in: [src/react/useFiles.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L88)
 
-Batch update media records with a messageId
+Batch update file records with a messageId
 
 **Parameters**
 
