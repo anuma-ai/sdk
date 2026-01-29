@@ -13,7 +13,6 @@ import {
   type MediaOperationsContext,
   type MediaType,
   type MediaRole,
-  mediaToStored,
   createMediaOp,
   createMediaBatchOp,
   getMediaByIdOp,
@@ -51,9 +50,9 @@ import {
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
 
 /**
- * Options for useMedia hook.
+ * Options for useFiles hook.
  */
-export interface UseMediaOptions {
+export interface UseFilesOptions {
   /** WatermelonDB database instance */
   database: Database;
   /** Wallet address for user context (required for most operations and file decryption) */
@@ -61,41 +60,41 @@ export interface UseMediaOptions {
 }
 
 /**
- * Result returned by useMedia hook.
+ * Result returned by useFiles hook.
  */
-export interface UseMediaResult {
+export interface UseFilesResult {
   // State
-  /** Whether the media system is ready (database table exists) */
+  /** Whether the file system is ready (database table exists) */
   isReady: boolean;
-  /** Whether media is being loaded */
+  /** Whether files are being loaded */
   isLoading: boolean;
 
   // CRUD Operations
-  /** Create a new media record */
+  /** Create a new file record */
   createMedia: (options: CreateMediaOptions) => Promise<StoredMedia>;
-  /** Create multiple media records in a batch */
+  /** Create multiple file records in a batch */
   createMediaBatch: (optionsArray: CreateMediaOptions[]) => Promise<StoredMedia[]>;
-  /** Get a media record by its media_id */
+  /** Get a file record by its media_id */
   getMediaById: (mediaId: string) => Promise<StoredMedia | null>;
-  /** Get a media record by its source URL */
+  /** Get a file record by its source URL */
   getMediaBySourceUrl: (sourceUrl: string) => Promise<StoredMedia | null>;
-  /** Get media by an array of media IDs */
+  /** Get files by an array of media IDs */
   getMediaByIds: (mediaIds: string[], includeDeleted?: boolean) => Promise<StoredMedia[]>;
-  /** Get media by message ID */
+  /** Get files by message ID */
   getMediaByMessage: (messageId: string) => Promise<StoredMedia[]>;
-  /** Update a media record */
+  /** Update a file record */
   updateMedia: (mediaId: string, options: UpdateMediaOptions) => Promise<StoredMedia | null>;
-  /** Batch update media records with a messageId */
+  /** Batch update file records with a messageId */
   updateMediaMessageIdBatch: (mediaIds: string[], messageId: string) => Promise<number>;
-  /** Soft delete a media record */
+  /** Soft delete a file record */
   deleteMedia: (mediaId: string) => Promise<boolean>;
-  /** Permanently delete a media record */
+  /** Permanently delete a file record */
   hardDeleteMedia: (mediaId: string) => Promise<boolean>;
 
   // Library Query Operations
-  /** Get all media with optional filters */
+  /** Get all files with optional filters */
   getMedia: (filters: MediaFilterOptions) => Promise<StoredMedia[]>;
-  /** Get media by type */
+  /** Get files by type */
   getMediaByType: (mediaType: MediaType, limit?: number) => Promise<StoredMedia[]>;
   /** Get all images */
   getImages: (limit?: number) => Promise<StoredMedia[]>;
@@ -105,33 +104,33 @@ export interface UseMediaResult {
   getAudio: (limit?: number) => Promise<StoredMedia[]>;
   /** Get all documents */
   getDocuments: (limit?: number) => Promise<StoredMedia[]>;
-  /** Get media by conversation */
+  /** Get files by conversation */
   getMediaByConversation: (conversationId: string, limit?: number) => Promise<StoredMedia[]>;
-  /** Get media by role (user uploads vs AI generated) */
+  /** Get files by role (user uploads vs AI generated) */
   getMediaByRole: (role: MediaRole, limit?: number) => Promise<StoredMedia[]>;
-  /** Get AI-generated media */
+  /** Get AI-generated files */
   getAIGeneratedMedia: (limit?: number) => Promise<StoredMedia[]>;
-  /** Get user-uploaded media */
+  /** Get user-uploaded files */
   getUserUploadedMedia: (limit?: number) => Promise<StoredMedia[]>;
-  /** Get media by AI model */
+  /** Get files by AI model */
   getMediaByModel: (model: string, limit?: number) => Promise<StoredMedia[]>;
-  /** Get recent media for library homepage */
+  /** Get recent files for library homepage */
   getRecentMedia: (limit?: number) => Promise<StoredMedia[]>;
-  /** Search media by name */
+  /** Search files by name */
   searchMedia: (query: string, limit?: number) => Promise<StoredMedia[]>;
-  /** Get media count */
+  /** Get file count */
   getMediaCount: (mediaType?: MediaType) => Promise<number>;
-  /** Get media counts by type */
+  /** Get file counts by type */
   getMediaCountsByType: () => Promise<Record<MediaType, number>>;
-  /** Delete all media for a conversation */
+  /** Delete all files for a conversation */
   deleteMediaByConversation: (conversationId: string) => Promise<number>;
-  /** Delete all media for a message */
+  /** Delete all files for a message */
   deleteMediaByMessage: (messageId: string) => Promise<number>;
 
   // File Operations
   /** Read a file from OPFS by its media ID */
   readFile: (mediaId: string) => Promise<File>;
-  /** Create a blob URL for a media file (auto-managed lifecycle) */
+  /** Create a blob URL for a file (auto-managed lifecycle) */
   createBlobUrl: (mediaId: string) => Promise<string | null>;
   /** Revoke a specific blob URL */
   revokeBlobUrl: (mediaId: string) => void;
@@ -142,27 +141,26 @@ export interface UseMediaResult {
 }
 
 /**
- * A React hook for managing media files (images, videos, audio, documents).
+ * A React hook for managing files (images, videos, audio, documents).
  *
- * This hook provides comprehensive CRUD operations for media records stored in
+ * This hook provides comprehensive CRUD operations for file records stored in
  * WatermelonDB, along with file reading capabilities from OPFS encrypted storage.
- * It supports both user-uploaded files and AI-generated media (e.g., DALL-E images).
+ * It supports both user-uploaded files and AI-generated files (e.g., DALL-E images).
  *
  * @param options - Configuration options
- * @returns An object containing media state and methods
+ * @returns An object containing file state and methods
  *
  * @example
  * ```tsx
- * import { useMedia } from '@reverbia/sdk/react';
+ * import { useFiles } from '@anthropic-ai/sdk/react';
  *
- * function MediaGallery({ database, walletAddress }) {
+ * function FileGallery({ database, walletAddress }) {
  *   const {
- *     media,
  *     getImages,
  *     readFile,
  *     createBlobUrl,
  *     isReady,
- *   } = useMedia({ database, walletAddress });
+ *   } = useFiles({ database, walletAddress });
  *
  *   const [images, setImages] = useState<StoredMedia[]>([]);
  *
@@ -175,7 +173,7 @@ export interface UseMediaResult {
  *   return (
  *     <div>
  *       {images.map((img) => (
- *         <MediaImage key={img.mediaId} media={img} createBlobUrl={createBlobUrl} />
+ *         <FileImage key={img.mediaId} file={img} createBlobUrl={createBlobUrl} />
  *       ))}
  *     </div>
  *   );
@@ -184,7 +182,7 @@ export interface UseMediaResult {
  *
  * @category Hooks
  */
-export function useMedia(options: UseMediaOptions): UseMediaResult {
+export function useFiles(options: UseFilesOptions): UseFilesResult {
   const { database, walletAddress } = options;
 
 
@@ -217,7 +215,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
         setMediaCollection(coll);
         setIsReady(true);
       } catch (error) {
-        console.error("[useMedia] Failed to initialize collection:", error);
+        console.error("[useFiles] Failed to initialize collection:", error);
         setIsReady(false);
       } finally {
         setIsLoading(false);
@@ -235,9 +233,9 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
     return { database };
   }, [database, mediaCollection, isReady]);
 
-  
 
-  
+
+
 
   // ============================================================================
   // CRUD Operations
@@ -246,7 +244,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
   const createMedia = useCallback(
     async (createOptions: CreateMediaOptions): Promise<StoredMedia> => {
       if (!ctx) {
-        throw new Error("Media not available. Database may need to be initialized.");
+        throw new Error("Files not available. Database may need to be initialized.");
       }
       return createMediaOp(ctx, createOptions);
     },
@@ -256,7 +254,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
   const createMediaBatch = useCallback(
     async (optionsArray: CreateMediaOptions[]): Promise<StoredMedia[]> => {
       if (!ctx) {
-        throw new Error("Media not available. Database may need to be initialized.");
+        throw new Error("Files not available. Database may need to be initialized.");
       }
       return createMediaBatchOp(ctx, optionsArray);
     },
@@ -548,7 +546,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
           });
         } catch (error) {
           // If encrypted read fails, fall back to legacy storage
-          console.warn(`[useMedia] Encrypted read failed for ${mediaId}, trying legacy storage`);
+          console.warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
         }
       }
 
@@ -566,7 +564,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
   );
 
   /**
-   * Create a blob URL for a media file.
+   * Create a blob URL for a file.
    * The URL is tracked and will be auto-revoked on cleanup.
    */
   const createBlobUrl = useCallback(
@@ -581,7 +579,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
         const file = await readFile(mediaId);
         return blobUrlManager.createUrl(mediaId, file);
       } catch (error) {
-        console.error(`[useMedia] Failed to create blob URL for ${mediaId}:`, error);
+        console.error(`[useFiles] Failed to create blob URL for ${mediaId}:`, error);
         return null;
       }
     },
@@ -619,7 +617,7 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
         const encryptionKey = await getEncryptionKey(walletAddress);
         return resolveFilePlaceholdersOp(content, encryptionKey, blobUrlManager);
       } catch (error) {
-        console.error("[useMedia] Failed to resolve file placeholders:", error);
+        console.error("[useFiles] Failed to resolve file placeholders:", error);
         return content;
       }
     },
@@ -670,3 +668,4 @@ export function useMedia(options: UseMediaOptions): UseMediaResult {
     resolveFilePlaceholders,
   };
 }
+

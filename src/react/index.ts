@@ -161,8 +161,8 @@ export type {
   UseMemoryStorageOptions,
   UseMemoryStorageResult,
 } from "./useMemoryStorage";
-export { useMedia } from "./useMedia";
-export type { UseMediaOptions, UseMediaResult } from "./useMedia";
+export { useFiles } from "./useFiles";
+export type { UseFilesOptions, UseFilesResult } from "./useFiles";
 export {
   /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,
