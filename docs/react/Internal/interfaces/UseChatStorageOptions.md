@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:327](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L327)
+Defined in: [src/react/useChatStorage.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L330)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:333](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L333)
+Defined in: [src/react/useChatStorage.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L336)
 
 Which API endpoint to use. Default: "responses"
 
@@ -460,7 +460,7 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:346](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L346)
+Defined in: [src/react/useChatStorage.ts:349](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L349)
 
 Wallet address for encrypted file storage.
 When provided, MCP-generated images are automatically encrypted and stored
