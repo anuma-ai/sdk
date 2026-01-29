@@ -1297,18 +1297,10 @@ export function useChatStorage(
       try {
         // Check prerequisites
         if (!isOPFSSupported()) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[extractAndStoreEncryptedMCPImages] OPFS not supported"
-          );
           return { fileIds: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[extractAndStoreEncryptedMCPImages] Encryption key not available"
-          );
           return { fileIds: [], cleanedContent: content };
         }
 
@@ -1449,14 +1441,6 @@ export function useChatStorage(
             const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             let replacementCount = 0;
 
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Replacing URL with placeholder:`,
-              imageUrl,
-              "->",
-              placeholder
-            );
-
             // Replace HTML img tags with double-quoted src
             const htmlImgPatternDouble = new RegExp(
               `<img[^>]*src="${escapedUrl}"[^>]*>`,
@@ -1510,11 +1494,6 @@ export function useChatStorage(
               );
             }
 
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Total replacements: ${replacementCount} for mediaId: ${mediaId}`
-            );
-
             // Verify all instances were replaced
             const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
             if (replacementCount < expectedCount) {
@@ -1523,12 +1502,6 @@ export function useChatStorage(
                 `[extractAndStoreEncryptedMCPImages] Not all instances replaced. Expected ${expectedCount}, replaced ${replacementCount}`
               );
             }
-          } else {
-            // eslint-disable-next-line no-console
-            console.error(
-              "[extractAndStoreEncryptedMCPImages] Failed:",
-              result.reason
-            );
           }
         });
 
@@ -1537,36 +1510,13 @@ export function useChatStorage(
         // Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[extractAndStoreEncryptedMCPImages] Creating ${mediaOptions.length} media record(s) with options:`,
-            JSON.stringify(mediaOptions.map(m => ({
-              mediaId: m.mediaId,
-              name: m.name,
-              mimeType: m.mimeType,
-              size: m.size,
-              role: m.role,
-              model: m.model,
-              dimensions: m.dimensions,
-              sourceUrl: m.sourceUrl?.substring(0, 50) + '...',
-            })), null, 2)
-          );
+          
           try {
             const createdMedia = await createMediaBatchOp(
               { database },
               mediaOptions
             );
             createdMediaIds = createdMedia.map((m) => m.mediaId);
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] ✅ Created ${createdMediaIds.length} media record(s):`,
-              createdMediaIds
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Created media records:`,
-              JSON.stringify(createdMedia, null, 2)
-            );
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error(
@@ -1578,10 +1528,6 @@ export function useChatStorage(
               if (opt.mediaId) {
                 try {
                   await deleteEncryptedFile(opt.mediaId);
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[extractAndStoreEncryptedMCPImages] Cleaned up orphaned OPFS file ${opt.mediaId}`
-                  );
                 } catch {
                   // Ignore cleanup errors
                 }
@@ -1589,21 +1535,8 @@ export function useChatStorage(
             }
           }
         }
-
-        // eslint-disable-next-line no-console
-        console.log(
-          `[extractAndStoreEncryptedMCPImages] Returning fileIds:`,
-          createdMediaIds,
-          `cleanedContent length:`,
-          cleanedContent.length
-        );
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(
-          "[extractAndStoreEncryptedMCPImages] Unexpected error:",
-          err
-        );
         return { fileIds: [], cleanedContent: content };
       }
     },
