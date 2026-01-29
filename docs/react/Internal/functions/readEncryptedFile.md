@@ -2,7 +2,7 @@
 
 > **readEncryptedFile**(`fileId`: `string`, `encryptionKey`: `CryptoKey`): `Promise`<{ `blob`: `Blob`; `metadata`: `StoredFileMetadata`; } | `null`>
 
-Defined in: [src/lib/storage/opfs.ts:196](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L196)
+Defined in: [src/lib/storage/opfs.ts:197](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L197)
 
 Reads and decrypts a file from OPFS.
 

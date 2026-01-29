@@ -1,6 +1,6 @@
 # BlobUrlManager
 
-Defined in: [src/lib/storage/opfs.ts:275](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L275)
+Defined in: [src/lib/storage/opfs.ts:276](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L276)
 
 Manager for blob URLs to prevent memory leaks.
 Tracks active blob URLs and provides cleanup functionality.
@@ -23,7 +23,7 @@ Tracks active blob URLs and provides cleanup functionality.
 
 > **get** **size**(): `number`
 
-Defined in: [src/lib/storage/opfs.ts:321](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L321)
+Defined in: [src/lib/storage/opfs.ts:322](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L322)
 
 Gets the count of active blob URLs.
 
@@ -37,7 +37,7 @@ Gets the count of active blob URLs.
 
 > **createUrl**(`fileId`: `string`, `blob`: `Blob`): `string`
 
-Defined in: [src/lib/storage/opfs.ts:281](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L281)
+Defined in: [src/lib/storage/opfs.ts:282](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L282)
 
 Creates a blob URL for a file and tracks it.
 
@@ -88,7 +88,7 @@ Creates a blob URL for a file and tracks it.
 
 > **getUrl**(`fileId`: `string`): `string` | `undefined`
 
-Defined in: [src/lib/storage/opfs.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L293)
+Defined in: [src/lib/storage/opfs.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L294)
 
 Gets the active blob URL for a file, if any.
 
@@ -127,7 +127,7 @@ Gets the active blob URL for a file, if any.
 
 > **revokeAll**(): `void`
 
-Defined in: [src/lib/storage/opfs.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L311)
+Defined in: [src/lib/storage/opfs.ts:312](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L312)
 
 Revokes all tracked blob URLs.
 
@@ -141,7 +141,7 @@ Revokes all tracked blob URLs.
 
 > **revokeUrl**(`fileId`: `string`): `void`
 
-Defined in: [src/lib/storage/opfs.ts:300](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L300)
+Defined in: [src/lib/storage/opfs.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L301)
 
 Revokes a blob URL and removes it from tracking.
 

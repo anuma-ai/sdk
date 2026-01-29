@@ -39,6 +39,7 @@ export {
   getMessagesOp,
   getMessageCountOp,
   clearMessagesOp,
+  deleteMessageOp,
   createMessageOp,
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
