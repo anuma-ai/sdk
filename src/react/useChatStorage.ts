@@ -2302,18 +2302,14 @@ export function useChatStorage(
           cleanedContent,
           writeFile
         );
-        // Note: processedFiles from this path won't have media records
+        // Extract fileIds from processedFiles so they can be stored with the message
+        // Note: This path won't have media records, but fileIds allow file reference/display
+        assistantFileIds = result.processedFiles.map((f) => f.id);
         cleanedContent = result.cleanedContent;
       }
 
       // Store the assistant message
-      // eslint-disable-next-line no-console
-      console.log(
-        `[sendMessage] 📝 Storing assistant message with fileIds:`,
-        assistantFileIds,
-        `content length:`,
-        cleanedContent.length
-      );
+      
       let storedAssistantMessage: StoredMessage;
       try {
         storedAssistantMessage = await createMessageOp(storageCtx, {

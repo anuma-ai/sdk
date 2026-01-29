@@ -355,13 +355,6 @@ export async function resolveFilePlaceholders(
         const result = await readEncryptedFile(fileId, encryptionKey);
         if (result) {
           url = blobManager.createUrl(fileId, result.blob);
-          // Debug: Log file details
-          console.log(`[resolveFilePlaceholders] Loaded file ${fileId}:`, {
-            name: result.metadata?.name,
-            type: result.metadata?.type,
-            size: result.blob.size,
-            url: url?.substring(0, 50),
-          });
         } else {
           console.warn(`[resolveFilePlaceholders] File not found: ${fileId}`);
         }
