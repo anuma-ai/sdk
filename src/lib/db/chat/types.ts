@@ -183,7 +183,7 @@ export interface BaseUseChatStorageOptions {
   baseUrl?: string;
   /** Callback invoked with each streamed response chunk */
   onData?: (chunk: string) => void;
-  /** Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning) */
+  /** Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning) */
   onThinking?: (chunk: string) => void;
   /** Callback invoked when the response completes successfully */
   onFinish?: (response: LlmapiResponseResponse) => void;
