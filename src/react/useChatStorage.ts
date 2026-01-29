@@ -281,7 +281,7 @@ async function storedToLlmapiMessage(
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
-    /__SDKFILE__([a-z0-9_-]+)__/g,
+    /__SDKFILE__([a-zA-Z0-9_-]+)__/g,
     (_match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
@@ -297,7 +297,7 @@ async function storedToLlmapiMessage(
   // This supports old messages that may still contain MCP_IMAGE placeholders
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
-    /!\[MCP_IMAGE:([a-z0-9_-]+)\]/g,
+    /!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g,
     (match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
@@ -2305,7 +2305,6 @@ export function useChatStorage(
 
       // Strip JSON sources block from content (if present)
       // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-      // Uses negative lookahead to avoid crossing triple-backtick boundaries
       const jsonSourcesBlockRegex =
         /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
       let cleanedContent = assistantContent
@@ -2334,9 +2333,8 @@ export function useChatStorage(
           cleanedContent,
           writeFile
         );
-        // Extract fileIds from processedFiles so they can be stored with the message
-        // Note: This path won't have media records, but fileIds allow file reference/display
-        assistantFileIds = result.processedFiles.map((f) => f.id);
+        // Don't set assistantFileIds here - writeFile handles storage externally
+        // and no media records are created, so lookups via getMediaByIds() would fail
         cleanedContent = result.cleanedContent;
       }
 

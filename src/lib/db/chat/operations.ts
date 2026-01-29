@@ -206,18 +206,16 @@ export async function getMessageCountOp(
 
 /**
  * Clear all messages in a conversation.
- * Clears file_ids before deletion and returns the unique IDs.
+ * Clears file_ids before deletion.
  * Note: useChatStorage hooks automatically cascade delete media.
  */
 export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
-): Promise<string[]> {
+): Promise<void> {
   const messages = await ctx.messagesCollection
     .query(Q.where("conversation_id", convId))
     .fetch();
-
-  const messageIds = messages.map((m) => m.id);
 
   await ctx.database.write(async () => {
     for (const message of messages) {
@@ -229,8 +227,6 @@ export async function clearMessagesOp(
       await message.destroyPermanently();
     }
   });
-
-  return messageIds;
 }
 
 /**
