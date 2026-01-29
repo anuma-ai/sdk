@@ -2,7 +2,7 @@
 
 > **findFileIdBySourceUrl**(`files`: `object`\[] | `undefined`, `sourceUrl`: `string`): `string` | `undefined`
 
-Defined in: [src/react/useChatStorage.ts:179](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L179)
+Defined in: [src/react/useChatStorage.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L190)
 
 Find the OPFS file ID for a given source URL from a message's files.
 Used to look up local file storage when an external URL fails (e.g., 404).
