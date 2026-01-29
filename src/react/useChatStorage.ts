@@ -1641,6 +1641,20 @@ export function useChatStorage(
               "[extractAndStoreEncryptedMCPImages] ❌ Failed to create media records:",
               err
             );
+            // Clean up orphaned OPFS files since media records weren't created
+            for (const opt of mediaOptions) {
+              if (opt.mediaId) {
+                try {
+                  await deleteEncryptedFile(opt.mediaId);
+                  // eslint-disable-next-line no-console
+                  console.log(
+                    `[extractAndStoreEncryptedMCPImages] Cleaned up orphaned OPFS file ${opt.mediaId}`
+                  );
+                } catch {
+                  // Ignore cleanup errors
+                }
+              }
+            }
           }
         }
 
@@ -1811,6 +1825,20 @@ export function useChatStorage(
           "[storeUserFilesInOPFS] Failed to create media records:",
           err
         );
+        // Clean up orphaned OPFS files since media records weren't created
+        for (const opt of mediaOptions) {
+          if (opt.mediaId) {
+            try {
+              await deleteEncryptedFile(opt.mediaId);
+              // eslint-disable-next-line no-console
+              console.log(
+                `[storeUserFilesInOPFS] Cleaned up orphaned OPFS file ${opt.mediaId}`
+              );
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
         return [];
       }
     },
