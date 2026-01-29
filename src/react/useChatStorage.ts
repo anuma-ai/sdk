@@ -740,20 +740,14 @@ export function useChatStorage(
                       `[getMessages] Failed to read file ${fileId} from OPFS`
                     );
                   }
-                } else {
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[getMessages] Using cached blob URL for ${fileId}:`,
-                    url
-                  );
-                }
+                } 
 
                 if (url) {
                   fileIdToUrlMap.set(fileId, url);
                 } else {
                   // eslint-disable-next-line no-console
                   console.warn(
-                    `[getMessages] No URL available for ${fileId}, placeholder ${placeholder} will remain in content`
+                    `[getMessages] No URL available for file, placeholder will remain in content`
                   );
                 }
               }
