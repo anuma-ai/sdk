@@ -254,15 +254,6 @@ export {
   deleteMediaByMessageOp,
 } from "../lib/db/media";
 
-// Database migrations
-export {
-  migrateFilesToMedia,
-  isFilesToMediaMigrationCompleted,
-  markFilesToMediaMigrationCompleted,
-  type MigrateFilesToMediaContext,
-  type MigrateFilesToMediaResult,
-} from "../lib/db/migrations";
-
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
