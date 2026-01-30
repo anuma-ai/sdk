@@ -14,11 +14,13 @@ export interface MemoryExtractionResult {
 
 export const FACT_EXTRACTION_PROMPT = `You are a memory extraction system. Extract durable user memories from chat messages.
 
-CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON.
+CRITICAL: You MUST respond with ONLY valid JSON. No explanations, no markdown, no code blocks, just pure JSON. Every field must have a value, no null or undefined or empty values.
 
-Only extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, and constraints.
+Only store clear, factual statements that might be relevant for future context or reference. Extract facts that will be useful in future conversations, such as identity, stable preferences, ongoing projects, skills, locations, favorites, and constraints.
 
 Do not extract sensitive attributes, temporary things, or single-use instructions.
+
+You must also extract stable personal preferences, including food likes/dislikes, hobbies, favorite items, favorite genres, or other enduring tastes. 
 
 If there are no memories to extract, return: {"items": []}
 
@@ -45,6 +47,24 @@ Response format (JSON only, no other text):
       "pii": false
     },
     {
+      "type": "identity",
+      "namespace": "location",
+      "key": "city",
+      "value": "San Francisco",
+      "rawEvidence": "I live in San Francisco",
+      "confidence": 0.99,
+      "pii": false
+    },
+    {
+      "type": "preference",
+      "namespace": "location",
+      "key": "country",
+      "value": "Japan",
+      "rawEvidence": "I like to travel to the Japan",
+      "confidence": 0.94,
+      "pii": false
+    },
+    {
       "type": "preference",
       "namespace": "answer_style",
       "key": "verbosity",
@@ -60,6 +80,15 @@ Response format (JSON only, no other text):
       "value": "America/Los_Angeles",
       "rawEvidence": "I'm in PST",
       "confidence": 0.9,
+      "pii": false
+    },
+    {
+      "type": "preference",
+      "namespace": "food",
+      "key": "likes_ice_cream",
+      "value": "ice cream",
+      "rawEvidence": "I like ice cream",
+      "confidence": 0.95,
       "pii": false
     }
   ]
@@ -139,148 +168,4 @@ export const preprocessMemories = (
   }
 
   return Array.from(deduplicatedMap.values());
-};
-
-/**
- * Extracts facts from a user message using an LLM
- */
-export const extractFacts = async (
-  options: ExtractFactsOptions
-): Promise<MemoryExtractionResult | null> => {
-  const { api, model, message, conversationHistory = [], getToken } = options;
-
-  try {
-    const conversationContext = conversationHistory
-      .map((msg) => `${msg.role}: ${msg.content}`)
-      .join("\n");
-
-    const fullPrompt = `${FACT_EXTRACTION_PROMPT}
-
-Conversation context:
-${conversationContext}
-
-User message to extract facts from:
-${message}
-
-Extract facts from the user message above. Return only valid JSON.`;
-
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-    };
-
-    if (getToken) {
-      const token = await getToken();
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-    }
-
-    const response = await fetch(api, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [{ type: "text", text: fullPrompt }],
-          },
-        ],
-        stream: false,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Memory extraction failed:", response.statusText);
-      return null;
-    }
-
-    const contentType = response.headers.get("content-type") || "";
-    const isStreaming =
-      contentType.includes("text/event-stream") ||
-      contentType.includes("text/plain");
-
-    let content = "";
-
-    if (isStreaming) {
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        console.error("No response body for streaming");
-        return null;
-      }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        content += decoder.decode(value, { stream: true });
-      }
-    } else {
-      const data = await response.json();
-      const messageContent =
-        data.choices?.[0]?.message?.content ||
-        data.data?.choices?.[0]?.message?.content ||
-        data.content;
-
-      if (Array.isArray(messageContent)) {
-        content = messageContent
-          .map((p: any) => p.text || "")
-          .join("")
-          .trim();
-      } else if (typeof messageContent === "string") {
-        content = messageContent.trim();
-      } else {
-        content = "";
-      }
-    }
-
-    if (!content) {
-      console.error("No content in memory extraction response");
-      return null;
-    }
-
-    let jsonContent = content;
-
-    jsonContent = jsonContent.replace(/^data:\s*/gm, "").trim();
-
-    const jsonMatch = jsonContent.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-    if (jsonMatch) {
-      jsonContent = jsonMatch[1];
-    }
-
-    const jsonObjectMatch = jsonContent.match(/\{[\s\S]*\}/);
-    if (jsonObjectMatch) {
-      jsonContent = jsonObjectMatch[0];
-    }
-
-    try {
-      const result: MemoryExtractionResult = JSON.parse(jsonContent);
-
-      if (result.items && Array.isArray(result.items)) {
-        const originalCount = result.items.length;
-        result.items = preprocessMemories(result.items);
-        const filteredCount = result.items.length;
-
-        if (originalCount !== filteredCount) {
-          console.log(
-            `Preprocessed memories: ${originalCount} -> ${filteredCount} (dropped ${
-              originalCount - filteredCount
-            } entries)`
-          );
-        }
-      }
-
-      console.log("Extracted memories:", JSON.stringify(result, null, 2));
-
-      return result;
-    } catch (parseError) {
-      console.error("Failed to parse memory extraction JSON:", parseError);
-      console.error("Raw content:", content);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error extracting facts:", error);
-    return null;
-  }
 };

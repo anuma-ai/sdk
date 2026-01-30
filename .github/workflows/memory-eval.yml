@@ -1,0 +1,30 @@
+name: Memory Evaluation
+
+on:
+  pull_request:
+
+jobs:
+  memory-eval:
+    name: Memory Evaluation Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Cache LongMemEval Dataset
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/longmemeval
+          key: longmemeval-dataset-v1
+
+      - name: Run SDK Tests
+        run: pnpm eval:memory

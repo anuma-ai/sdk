@@ -1,11 +1,18 @@
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import type { MemoryItem } from "./service";
-import { memoryDb, getAllMemories, type StoredMemoryItem } from "./db";
+import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
+import {
+  type MemoryStorageOperationsContext,
+  getAllMemoriesOp,
+  updateMemoryEmbeddingOp,
+  type StoredMemory,
+} from "../db/memory";
 
 export interface GenerateEmbeddingOptions {
   /**
-   * The model to use for generating embeddings (default: "openai/text-embedding-3-small")
+   * The model to use for generating embeddings
+   * Default is provided by the backend
    */
   model?: string;
   /**
@@ -18,54 +25,47 @@ export interface GenerateEmbeddingOptions {
   baseUrl?: string;
 }
 
-const generateEmbeddingForText = async (
+export const generateEmbeddingForText = async (
   text: string,
   options: GenerateEmbeddingOptions = {}
 ): Promise<number[]> => {
-  const {
-    model = "openai/text-embedding-3-small",
-    getToken,
-    baseUrl = BASE_URL,
-  } = options;
+  const { baseUrl = BASE_URL, getToken, model } = options;
 
-  try {
-    const token = getToken ? await getToken() : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await postApiV1Embeddings({
-      baseUrl,
-      body: {
-        input: text,
-        model,
-      },
-      headers,
-    });
-
-    if (
-      !response.data ||
-      !response.data.data ||
-      response.data.data.length === 0
-    ) {
-      throw new Error(
-        `Failed to generate embedding: ${
-          response.error?.error ?? "No data returned"
-        }`
-      );
-    }
-
-    const embedding = response.data.data[0]?.embedding;
-    if (!embedding || !Array.isArray(embedding)) {
-      throw new Error("Invalid embedding format returned from API");
-    }
-
-    return embedding;
-  } catch (error) {
-    console.error("Failed to generate embedding:", error);
-    throw error;
+  if (!getToken) {
+    throw new Error("getToken is required for API embeddings");
   }
+
+  const token = await getToken();
+  if (!token) {
+    throw new Error("No access token available for API embeddings");
+  }
+
+  const response = await postApiV1Embeddings({
+    baseUrl,
+    body: {
+      input: text,
+      model: model ?? DEFAULT_API_EMBEDDING_MODEL,
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.error) {
+    throw new Error(
+      typeof response.error === "object" &&
+      response.error &&
+      "error" in response.error
+        ? (response.error as any).error
+        : "API embedding failed"
+    );
+  }
+
+  if (!response.data?.data?.[0]?.embedding) {
+    throw new Error("No embedding returned from API");
+  }
+
+  return response.data.data[0].embedding;
 };
 
 /**
@@ -94,21 +94,12 @@ export const generateEmbeddingsForMemories = async (
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<Map<string, number[]>> => {
-  const {
-    model = "openai/text-embedding-3-small",
-    getToken,
-    baseUrl = BASE_URL,
-  } = options;
   const embeddings = new Map<string, number[]>();
 
   for (const memory of memories) {
     const uniqueKey = `${memory.namespace}:${memory.key}:${memory.value}`;
     try {
-      const embedding = await generateEmbeddingForMemory(memory, {
-        model,
-        getToken,
-        baseUrl,
-      });
+      const embedding = await generateEmbeddingForMemory(memory, options);
       embeddings.set(uniqueKey, embedding);
     } catch (error) {
       console.error(
@@ -125,23 +116,27 @@ export const generateEmbeddingsForMemories = async (
  * Update memory items in the database with their embeddings
  */
 export const updateMemoriesWithEmbeddings = async (
+  ctx: MemoryStorageOperationsContext,
   embeddings: Map<string, number[]>,
   embeddingModel: string
 ): Promise<void> => {
+  // Get all memories to find by unique key
+  const allMemories = await getAllMemoriesOp(ctx);
+  const memoryByUniqueKey = new Map(
+    allMemories.map((m) => [m.uniqueKey, m])
+  );
+
   const updates = Array.from(embeddings.entries()).map(
     async ([uniqueKey, embedding]) => {
-      const existing = await memoryDb.memories
-        .where("uniqueKey")
-        .equals(uniqueKey)
-        .first();
+      const existing = memoryByUniqueKey.get(uniqueKey);
 
-      if (existing?.id) {
-        await memoryDb.memories.update(existing.id, {
+      if (existing?.uniqueId) {
+        await updateMemoryEmbeddingOp(
+          ctx,
+          existing.uniqueId,
           embedding,
-          embeddingModel,
-          updatedAt: Date.now(),
-          createdAt: existing.createdAt,
-        });
+          embeddingModel
+        );
       } else {
         console.warn(
           `[Embeddings] Memory with uniqueKey ${uniqueKey} not found. ` +
@@ -158,10 +153,11 @@ export const updateMemoriesWithEmbeddings = async (
  * Generate and store embeddings for memory items
  */
 export const generateAndStoreEmbeddings = async (
+  ctx: MemoryStorageOperationsContext,
   memories: MemoryItem[],
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
-  const { model = "openai/text-embedding-3-small" } = options;
+  const model = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
 
   if (memories.length === 0) {
     return;
@@ -169,8 +165,11 @@ export const generateAndStoreEmbeddings = async (
 
   console.log(`Generating embeddings for ${memories.length} memories...`);
 
-  const embeddings = await generateEmbeddingsForMemories(memories, options);
-  await updateMemoriesWithEmbeddings(embeddings, model);
+  const embeddings = await generateEmbeddingsForMemories(memories, {
+    ...options,
+    model,
+  });
+  await updateMemoriesWithEmbeddings(ctx, embeddings, model);
 
   console.log(`Generated and stored ${embeddings.size} embeddings`);
 };
@@ -184,19 +183,20 @@ export const generateAndStoreEmbeddings = async (
  * import { generateEmbeddingsForAllMemories } from '@your-sdk/lib/memory/embeddings';
  *
  * // Generate embeddings for all memories without them
- * await generateEmbeddingsForAllMemories({
- *   model: "openai/text-embedding-3-small",
- *   getToken: async () => await getAuthToken()
+ * await generateEmbeddingsForAllMemories(ctx, {
+ *   getToken: async () => token,
+ *   model: "openai/text-embedding-3-small"
  * });
  * ```
  */
 export const generateEmbeddingsForAllMemories = async (
+  ctx: MemoryStorageOperationsContext,
   options: GenerateEmbeddingOptions = {}
 ): Promise<void> => {
-  const allMemories = await getAllMemories();
+  const allMemories = await getAllMemoriesOp(ctx);
 
   const memoriesWithoutEmbeddings = allMemories.filter(
-    (m) => !m.embedding || m.embedding.length === 0
+    (m: StoredMemory) => !m.embedding || m.embedding.length === 0
   );
 
   if (memoriesWithoutEmbeddings.length === 0) {
@@ -208,25 +208,17 @@ export const generateEmbeddingsForAllMemories = async (
     `Found ${memoriesWithoutEmbeddings.length} memories without embeddings. Generating...`
   );
 
-  const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map((m) => ({
-    type: m.type,
-    namespace: m.namespace,
-    key: m.key,
-    value: m.value,
-    rawEvidence: m.rawEvidence,
-    confidence: m.confidence,
-    pii: m.pii,
-  }));
+  const memoryItems: MemoryItem[] = memoriesWithoutEmbeddings.map(
+    (m: StoredMemory) => ({
+      type: m.type,
+      namespace: m.namespace,
+      key: m.key,
+      value: m.value,
+      rawEvidence: m.rawEvidence,
+      confidence: m.confidence,
+      pii: m.pii,
+    })
+  );
 
-  await generateAndStoreEmbeddings(memoryItems, options);
-};
-
-/**
- * Generate embedding for a query string
- */
-export const generateQueryEmbedding = async (
-  query: string,
-  options: GenerateEmbeddingOptions = {}
-): Promise<number[]> => {
-  return generateEmbeddingForText(query, options);
+  await generateAndStoreEmbeddings(ctx, memoryItems, options);
 };

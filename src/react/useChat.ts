@@ -4,73 +4,87 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
-import type { LlmapiChatCompletionResponse, LlmapiMessage } from "../client";
+import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import {
+  type BaseSendMessageArgs,
+  type BaseUseChatOptions,
+  type BaseUseChatResult,
+  type AccumulatedToolCall,
+  type ApiType,
+  createStreamAccumulator,
+  validateMessages,
+  validateModel,
+  validateTokenGetter,
+  validateToken,
+  createErrorResult,
+  handleError,
+  isAbortError,
+  isDoneMarker,
+  toolsToApiFormat,
+  createToolExecutorMap,
+  executeToolCall,
+  getStrategy,
+} from "../lib/chat/useChat";
 
-type SendMessageArgs = {
-  messages: LlmapiMessage[];
-  model: string;
+type SendMessageArgs = BaseSendMessageArgs & {
   /**
-   * Per-request callback for data chunks. Called in addition to the global
-   * `onData` callback if provided in `useChat` options.
-   *
-   * @param chunk - The content delta from the current chunk
+   * Optional custom headers to include with the request.
    */
-  onData?: (chunk: string) => void;
+  headers?: Record<string, string>;
+  /**
+   * Memory context to inject as a system message.
+   * This is typically formatted memories from useMemoryStorage.
+   */
+  memoryContext?: string;
+  /**
+   * Search context to inject as a system message.
+   * This is typically formatted search results from useSearch.
+   */
+  searchContext?: string;
+  /**
+   * File context to inject as a system message.
+   * This is typically extracted text from preprocessed file attachments.
+   */
+  fileContext?: string;
+  /**
+   * Per-request callback for thinking/reasoning chunks. Called in addition to the global
+   * `onThinking` callback if provided in `useChat` options.
+   *
+   * @param chunk - The thinking delta from the current chunk
+   */
+  onThinking?: (chunk: string) => void;
+  /**
+   * Override the API type for this request only.
+   * Useful when different models need different APIs.
+   * @default Uses the hook-level apiType or "responses"
+   */
+  apiType?: ApiType;
 };
 
 type SendMessageResult =
-  | { data: LlmapiChatCompletionResponse; error: null }
-  | { data: null; error: string };
-
-type UseChatOptions = {
-  getToken?: () => Promise<string | null>;
-  baseUrl?: string;
-  /**
-   * Callback function to be called when a new data chunk is received.
-   */
-  onData?: (chunk: string) => void;
-  /**
-   * Callback function to be called when the chat completion finishes successfully.
-   */
-  onFinish?: (response: LlmapiChatCompletionResponse) => void;
-  /**
-   * Callback function to be called when an unexpected error is encountered.
-   *
-   * **Note:** This callback is NOT called for aborted requests (via `stop()` or
-   * component unmount). Aborts are intentional actions and are not considered
-   * errors. To detect aborts, check the `error` field in the `sendMessage` result:
-   * `result.error === "Request aborted"`.
-   *
-   * @param error - The error that occurred (never an AbortError)
-   */
-  onError?: (error: Error) => void;
-};
-
-type UseChatResult = {
-  isLoading: boolean;
-  sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
-  /**
-   * Aborts the current streaming request if one is in progress.
-   *
-   * When a request is aborted, `sendMessage` will return with
-   * `{ data: null, error: "Request aborted" }`. The `onError` callback
-   * will NOT be called, as aborts are intentional actions, not errors.
-   */
-  stop: () => void;
-};
-
-type StreamingChunk = {
-  id?: string;
-  model?: string;
-  choices?: Array<{
-    delta?: {
-      content?: string;
-      role?: string;
+  | {
+      data: LlmapiResponseResponse;
+      error: null;
+    }
+  | {
+      data: LlmapiResponseResponse | null;
+      error: string;
     };
-    finish_reason?: string;
-    index?: number;
-  }>;
-  usage?: LlmapiChatCompletionResponse["usage"];
+
+/**
+ * @inline
+ */
+interface UseChatOptions extends BaseUseChatOptions {
+  /**
+   * Which API endpoint to use. Default: "responses"
+   * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
+   * - "completions": OpenAI Chat Completions API (wider model compatibility)
+   */
+  apiType?: ApiType;
+}
+
+type UseChatResult = BaseUseChatResult & {
+  sendMessage: (args: SendMessageArgs) => Promise<SendMessageResult>;
 };
 
 /**
@@ -86,50 +100,43 @@ type StreamingChunk = {
  *   If not provided, `sendMessage` will return an error.
  * @param options.baseUrl - Optional base URL for the API requests.
  * @param options.onData - Callback function to be called when a new data chunk is received.
+ * @param options.onThinking - Callback function to be called when thinking/reasoning content is received.
  * @param options.onFinish - Callback function to be called when the chat completion finishes successfully.
  * @param options.onError - Callback function to be called when an unexpected error
  *   is encountered. Note: This is NOT called for aborted requests (see `stop()`).
  *
- * @returns An object containing:
- *   - `isLoading`: A boolean indicating whether a request is currently in progress
- *   - `sendMessage`: An async function to send chat messages
- *   - `stop`: A function to abort the current request
+ * @category Hooks
  *
  * @example
  * ```tsx
+ * // Basic usage with API
  * const { isLoading, sendMessage, stop } = useChat({
- *   getToken: async () => {
- *     // Get your auth token from your auth provider
- *     return await getAuthToken();
- *   },
- *   onFinish: (response) => {
- *     console.log("Chat finished:", response);
- *   },
- *   onError: (error) => {
- *     // This is only called for unexpected errors, not aborts
- *     console.error("Chat error:", error);
- *   }
+ *   getToken: async () => await getAuthToken(),
+ *   onFinish: (response) => console.log("Chat finished:", response),
+ *   onError: (error) => console.error("Chat error:", error)
  * });
  *
  * const handleSend = async () => {
  *   const result = await sendMessage({
- *     messages: [{ role: 'user', content: 'Hello!' }],
+ *     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
  *     model: 'gpt-4o-mini'
  *   });
- *
- *   if (result.error) {
- *     if (result.error === "Request aborted") {
- *       console.log("Request was aborted");
- *     } else {
- *       console.error("Error:", result.error);
- *     }
- *   } else {
- *     console.log("Success:", result.data);
- *   }
  * };
  *
- * // To stop generation:
- * // stop();
+ * // Using extended thinking (Anthropic Claude)
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
+ *   model: 'anthropic/claude-3-7-sonnet-20250219',
+ *   thinking: { type: 'enabled', budget_tokens: 10000 },
+ *   onThinking: (chunk) => console.log('Thinking:', chunk)
+ * });
+ *
+ * // Using reasoning (OpenAI o-series)
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
+ *   model: 'openai/o1',
+ *   reasoning: { effort: 'high', summary: 'detailed' }
+ * });
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
@@ -137,8 +144,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     getToken,
     baseUrl = BASE_URL,
     onData: globalOnData,
+    onThinking: globalOnThinking,
     onFinish,
     onError,
+    onToolCall,
+    apiType: defaultApiType = "responses",
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -165,23 +175,27 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       messages,
       model,
       onData,
+      onThinking,
+      headers,
+      memoryContext,
+      searchContext,
+      fileContext,
+      // Responses API options
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
+      reasoning,
+      thinking,
+      apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      if (!messages?.length) {
-        const errorMsg = "messages are required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
-      }
-
-      if (!model) {
-        const errorMsg = "model is required to call sendMessage.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
-      }
-
-      if (!getToken) {
-        const errorMsg = "Token getter function is required.";
-        if (onError) onError(new Error(errorMsg));
-        return { data: null, error: errorMsg };
+      // Get the effective API type and strategy
+      const effectiveApiType = requestApiType ?? defaultApiType;
+      const strategy = getStrategy(effectiveApiType);
+      // Validate messages
+      const messagesValidation = validateMessages(messages);
+      if (!messagesValidation.valid) {
+        return createErrorResult(messagesValidation.message, onError);
       }
 
       // Abort any pending request
@@ -194,144 +208,492 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
       setIsLoading(true);
 
-      try {
-        const token = await getToken();
+      // Inject memory context as a system message at the beginning if provided
+      let messagesWithContext = messages;
+      if (memoryContext) {
+        const memorySystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: memoryContext,
+            },
+          ],
+        };
+        messagesWithContext = [memorySystemMessage, ...messages];
+      }
 
-        if (!token) {
-          const errorMsg = "No access token available.";
-          setIsLoading(false);
-          if (onError) onError(new Error(errorMsg));
-          return { data: null, error: errorMsg };
+      if (searchContext) {
+        const searchSystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: "Here are the search results for the user's query. Use this information to respond to the user's request:",
+            },
+            {
+              type: "text",
+              text: searchContext,
+            },
+          ],
+        };
+        messagesWithContext = [searchSystemMessage, ...messagesWithContext];
+      }
+
+      if (fileContext) {
+        const fileSystemMessage: LlmapiMessage = {
+          role: "system",
+          content: [
+            {
+              type: "text",
+              text: "IMPORTANT: The user has attached files to this conversation. The extracted file contents are shown below. When the user asks about \"the file\", \"this file\", or \"what's in the file\", refer to this content:\n\n" + fileContext,
+            },
+          ],
+        };
+        messagesWithContext = [fileSystemMessage, ...messagesWithContext];
+      }
+
+      // Check if aborted before proceeding to chat
+      if (abortController.signal.aborted) {
+        setIsLoading(false);
+        return {
+          data: null,
+          error: "Request aborted",
+        };
+      }
+
+      try {
+        // Validate model and token
+        const modelValidation = validateModel(model);
+        if (!modelValidation.valid) {
+          if (onError) onError(new Error(modelValidation.message));
+          return {
+            data: null,
+            error: modelValidation.message,
+          };
+        }
+
+        const tokenGetterValidation = validateTokenGetter(getToken);
+        if (!tokenGetterValidation.valid) {
+          if (onError) onError(new Error(tokenGetterValidation.message));
+          return {
+            data: null,
+            error: tokenGetterValidation.message,
+          };
+        }
+
+        const token = await getToken!();
+
+        const tokenValidation = validateToken(token);
+        if (!tokenValidation.valid) {
+          if (onError) onError(new Error(tokenValidation.message));
+          return {
+            data: null,
+            error: tokenValidation.message,
+          };
         }
 
         // Use SSE client for streaming
+        // Track SSE errors to surface them after streaming completes
+        let sseError: Error | null = null;
+
+        // Convert tools to API format (strip executors)
+        const apiTools = toolsToApiFormat(tools);
+
+        // Build request body using the strategy
+        const requestBody = strategy.buildRequestBody({
+          messages: messagesWithContext,
+          model: model!,
+          stream: true,
+          temperature,
+          maxOutputTokens,
+          tools: apiTools,
+          toolChoice,
+          reasoning,
+          thinking,
+        });
+
         const sseResult = await client.sse.post({
           baseUrl,
-          url: "/api/v1/chat/completions",
-          body: {
-            messages,
-            model,
-            stream: true,
-          },
+          url: strategy.endpoint,
+          body: requestBody,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            ...headers,
           },
           signal: abortController.signal,
+          sseMaxRetryAttempts: 1,
+          onSseError: (error) => {
+            sseError =
+              error instanceof Error ? error : new Error(String(error));
+          },
         });
 
-        let accumulatedContent = "";
-        let completionId = "";
-        let completionModel = "";
-        // Accumulate usage data from all chunks (merge instead of overwrite)
-        // This fixes the issue where token counts come in one chunk and cost in another
-        let accumulatedUsage: Partial<LlmapiChatCompletionResponse["usage"]> = {};
-        let finishReason: string | undefined;
+        // Initialize accumulator with model name from request for early Qwen detection
+        const accumulator = createStreamAccumulator(model || undefined);
 
-        for await (const chunk of sseResult.stream) {
-          // Skip [DONE] marker (can come as string or in various formats)
-          if (
-            typeof chunk === "string" &&
-            (chunk.trim() === "[DONE]" || chunk.includes("[DONE]"))
-          ) {
-            continue;
-          }
-
-          // Handle chunk data
-          if (chunk && typeof chunk === "object") {
-            const chunkData = chunk as StreamingChunk;
-
-            // Extract completion ID and model from first chunk
-            if (chunkData.id && !completionId) {
-              completionId = chunkData.id;
-            }
-            if (chunkData.model && !completionModel) {
-              completionModel = chunkData.model;
+        try {
+          for await (const chunk of sseResult.stream) {
+            // Skip [DONE] marker
+            if (isDoneMarker(chunk)) {
+              continue;
             }
 
-            // Accumulate usage data - merge instead of replace
-            // This ensures we capture both token counts (from first usage chunk)
-            // and cost_micro_usd (from final usage chunk)
-            if (chunkData.usage) {
-              accumulatedUsage = {
-                ...accumulatedUsage,
-                ...chunkData.usage,
-              };
-            }
-
-            // Extract content delta
-            if (
-              chunkData.choices &&
-              Array.isArray(chunkData.choices) &&
-              chunkData.choices.length > 0
-            ) {
-              const choice = chunkData.choices[0];
-              if (choice.delta?.content) {
-                const content = choice.delta.content;
-                accumulatedContent += content;
-                if (onData) {
-                  onData(content);
-                }
-                if (globalOnData) {
-                  globalOnData(content);
-                }
+            // Handle chunk data
+            if (chunk && typeof chunk === "object") {
+              const { content: contentDelta, thinking: thinkingDelta } =
+                strategy.processStreamChunk(chunk, accumulator);
+              if (contentDelta) {
+                if (onData) onData(contentDelta);
+                if (globalOnData) globalOnData(contentDelta);
               }
-              if (choice.finish_reason) {
-                finishReason = choice.finish_reason;
+              if (thinkingDelta) {
+                if (onThinking) onThinking(thinkingDelta);
+                if (globalOnThinking) globalOnThinking(thinkingDelta);
               }
             }
           }
+        } catch (streamErr) {
+          // Check if this was an abort during streaming
+          if (isAbortError(streamErr) || abortController.signal.aborted) {
+            // Return partial data so far
+            const partialResponse = strategy.buildFinalResponse(accumulator);
+            return {
+              data: partialResponse,
+              error: "Request aborted",
+            };
+          }
+          throw streamErr;
+        }
+
+        // Check if abort happened during streaming but loop completed before throw
+        if (abortController.signal.aborted) {
+          const partialResponse = strategy.buildFinalResponse(accumulator);
+          return {
+            data: partialResponse,
+            error: "Request aborted",
+          };
+        }
+
+        // Check if SSE encountered an error
+        if (sseError) {
+          throw sseError;
         }
 
         // Build the final response
-        const completion: LlmapiChatCompletionResponse = {
-          id: completionId,
-          model: completionModel,
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: "assistant",
-                content: [{ type: "text", text: accumulatedContent }],
-              },
-              finish_reason: finishReason,
-            },
-          ],
-          usage: Object.keys(accumulatedUsage).length > 0 
-            ? accumulatedUsage as LlmapiChatCompletionResponse["usage"]
-            : undefined,
-        };
+        const response = strategy.buildFinalResponse(accumulator);
 
-        setIsLoading(false);
-        if (onFinish) {
-          onFinish(completion);
+        // Check for tool calls and handle them
+        if (accumulator.toolCalls.size > 0) {
+          console.log(
+            "[Tool Debug] Found",
+            accumulator.toolCalls.size,
+            "tool calls"
+          );
+          const executorMap = createToolExecutorMap(tools);
+          const toolCallsToExecute: AccumulatedToolCall[] = [];
+
+          // Determine which tools to execute vs emit as events
+          for (const toolCall of accumulator.toolCalls.values()) {
+            console.log("[Tool Debug] Processing tool call:", toolCall.name);
+            const executorConfig = executorMap.get(toolCall.name);
+
+            if (executorConfig && executorConfig.autoExecute) {
+              // Will execute automatically
+              console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+              toolCallsToExecute.push(toolCall);
+            } else {
+              // Emit event for manual handling
+              console.log(
+                "[Tool Debug] Emitting onToolCall event for:",
+                toolCall.name
+              );
+              if (onToolCall) {
+                onToolCall({
+                  id: toolCall.id,
+                  type: toolCall.type,
+                  function: {
+                    name: toolCall.name,
+                    arguments: toolCall.arguments,
+                  },
+                });
+              }
+            }
+          }
+
+          // If we have tools to auto-execute, execute them and continue
+          if (toolCallsToExecute.length > 0) {
+            console.log(
+              "[Tool Debug] Executing",
+              toolCallsToExecute.length,
+              "tools"
+            );
+
+            // Output tool execution info to thinking section
+            if (onThinking || globalOnThinking) {
+              const toolInfo = toolCallsToExecute
+                .map((tc) => {
+                  try {
+                    const args = JSON.parse(tc.arguments);
+                    const argsStr = Object.entries(args)
+                      .map(([k, v]) => `${k}=${v}`)
+                      .join(", ");
+                    return `${tc.name}(${argsStr})`;
+                  } catch {
+                    return `${tc.name}(${tc.arguments})`;
+                  }
+                })
+                .join(", ");
+              const thinkingText = `\nExecuting tool: ${toolInfo}\n`;
+              if (onThinking) onThinking(thinkingText);
+              if (globalOnThinking) globalOnThinking(thinkingText);
+            }
+
+            // Execute all tools in parallel
+            const executionResults = await Promise.all(
+              toolCallsToExecute.map(async (toolCall) => {
+                const executorConfig = executorMap.get(toolCall.name);
+                if (!executorConfig) {
+                  return {
+                    id: toolCall.id,
+                    error: `No executor found for tool: ${toolCall.name}`,
+                  };
+                }
+
+                // toolCall is already the AccumulatedToolCall from the map, use it directly
+                const { result, error } = await executeToolCall(
+                  toolCall,
+                  executorConfig.executor
+                );
+
+                console.log(
+                  "[Tool Debug] Tool execution result for",
+                  toolCall.name,
+                  ":",
+                  { result, error }
+                );
+
+                return {
+                  id: toolCall.id,
+                  name: toolCall.name,
+                  result,
+                  error,
+                };
+              })
+            );
+
+            console.log(
+              "[Tool Debug] All tools executed, results:",
+              executionResults.length
+            );
+
+            // Output tool execution results to thinking section
+            if (onThinking || globalOnThinking) {
+              const resultsText = executionResults
+                .map((r) => {
+                  if (r.error) {
+                    return `${r.name}: Error - ${r.error}`;
+                  }
+                  const resultStr =
+                    typeof r.result === "object"
+                      ? JSON.stringify(r.result)
+                      : String(r.result);
+                  return `${r.name}: ${resultStr}`;
+                })
+                .join("\n");
+              const thinkingText = `${resultsText}\n`;
+              if (onThinking) onThinking(thinkingText);
+              if (globalOnThinking) globalOnThinking(thinkingText);
+            }
+
+            // Build tool result messages to send back to the model
+            const toolResultMessages: LlmapiMessage[] = [];
+
+            // Add the assistant's message with tool calls
+            const assistantMessage: LlmapiMessage = {
+              role: "assistant",
+              content: [{ type: "text", text: accumulator.content }],
+              tool_calls: toolCallsToExecute.map((tc) => ({
+                id: tc.id,
+                type: "function",
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              })),
+            };
+            toolResultMessages.push(assistantMessage);
+
+            // Add tool result messages
+            for (const execResult of executionResults) {
+              const resultContent = execResult.error
+                ? `Error: ${execResult.error}`
+                : JSON.stringify(execResult.result);
+
+              toolResultMessages.push({
+                role: "tool",
+                content: [{ type: "text", text: resultContent }],
+                tool_call_id: execResult.id,
+              } as LlmapiMessage);
+            }
+
+            // Continue the conversation with tool results
+            const continuationMessages = [
+              ...messagesWithContext,
+              ...toolResultMessages,
+            ];
+
+            console.log(
+              "[Tool Debug] Continuation messages:",
+              JSON.stringify(continuationMessages, null, 2)
+            );
+
+            // Recursive call to continue with tool results
+            // Use the same parameters but with updated messages
+            const continuationRequestBody = strategy.buildRequestBody({
+              messages: continuationMessages,
+              model: model!,
+              stream: true,
+              temperature,
+              maxOutputTokens,
+              tools: apiTools,
+              toolChoice,
+              reasoning,
+              thinking,
+            });
+
+            const continuationResult = await client.sse.post({
+              baseUrl,
+              url: strategy.endpoint,
+              body: continuationRequestBody,
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                ...headers,
+              },
+              signal: abortController.signal,
+              sseMaxRetryAttempts: 1,
+              onSseError: (error) => {
+                sseError =
+                  error instanceof Error ? error : new Error(String(error));
+              },
+            });
+
+            // Create a new accumulator for the continuation
+            const continuationAccumulator = createStreamAccumulator(model || undefined);
+
+            try {
+              for await (const chunk of continuationResult.stream) {
+                if (isDoneMarker(chunk)) {
+                  continue;
+                }
+
+                if (chunk && typeof chunk === "object") {
+                  const { content: contentDelta, thinking: thinkingDelta } =
+                    strategy.processStreamChunk(chunk, continuationAccumulator);
+                  if (contentDelta) {
+                    if (onData) onData(contentDelta);
+                    if (globalOnData) globalOnData(contentDelta);
+                  }
+                  if (thinkingDelta) {
+                    if (onThinking) onThinking(thinkingDelta);
+                    if (globalOnThinking) globalOnThinking(thinkingDelta);
+                  }
+                }
+              }
+
+              console.log(
+                "[Tool Debug] Continuation stream complete - accumulated content:",
+                continuationAccumulator.content
+              );
+              console.log(
+                "[Tool Debug] Continuation stream complete - accumulated thinking:",
+                continuationAccumulator.thinking
+              );
+            } catch (streamErr) {
+              if (isAbortError(streamErr) || abortController.signal.aborted) {
+                const partialResponse = strategy.buildFinalResponse(
+                  continuationAccumulator
+                );
+                return {
+                  data: partialResponse,
+                  error: "Request aborted",
+                };
+              }
+              throw streamErr;
+            }
+
+            if (abortController.signal.aborted) {
+              const partialResponse = strategy.buildFinalResponse(
+                continuationAccumulator
+              );
+              return {
+                data: partialResponse,
+                error: "Request aborted",
+              };
+            }
+
+            if (sseError) {
+              throw sseError;
+            }
+
+            // Build final response from continuation
+            const finalResponse = strategy.buildFinalResponse(
+              continuationAccumulator
+            );
+
+            if (onFinish) {
+              onFinish(finalResponse);
+            }
+            return {
+              data: finalResponse,
+              error: null,
+            };
+          }
         }
-        return { data: completion, error: null };
+
+        if (onFinish) {
+          onFinish(response);
+        }
+        return {
+          data: response,
+          error: null,
+        };
       } catch (err) {
         // Handle AbortError specifically - aborts are intentional user actions,
-        // not errors, so we don't trigger onError callback (consistent with
-        // Vercel AI SDK and React Query patterns)
-        if (err instanceof Error && err.name === "AbortError") {
-          setIsLoading(false);
-          return { data: null, error: "Request aborted" };
+        // not errors, so we don't trigger onError callback
+        if (isAbortError(err)) {
+          return {
+            data: null,
+            error: "Request aborted",
+          };
         }
 
-        const errorMsg =
-          err instanceof Error ? err.message : "Failed to send message.";
-        const errorObj = err instanceof Error ? err : new Error(errorMsg);
-
-        setIsLoading(false);
-        if (onError) {
-          onError(errorObj);
-        }
-        return { data: null, error: errorMsg };
+        const errorResult = handleError<{
+          data: null;
+          error: string;
+        }>(err, onError);
+        return errorResult;
       } finally {
+        // Always reset loading state, regardless of success or failure
+        // This prevents the UI from getting "stuck" in loading state on errors
+        setIsLoading(false);
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
       }
     },
-    [getToken, baseUrl, globalOnData, onFinish, onError]
+    [
+      getToken,
+      baseUrl,
+      globalOnData,
+      globalOnThinking,
+      onFinish,
+      onError,
+      onToolCall,
+      defaultApiType,
+    ]
   );
 
   return {

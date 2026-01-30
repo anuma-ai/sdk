@@ -1,0 +1,310 @@
+# Overview
+
+React Native hooks for building AI-powered mobile applications.
+
+The `@reverbia/sdk/expo` package provides React hooks optimized for
+Expo and React Native environments. These hooks exclude web-only
+dependencies (like pdfjs-dist) that aren't compatible with React Native.
+
+## Installation & Setup
+
+Before using this package, you must set up polyfills for React Native compatibility.
+See the polyfills module documentation for complete setup instructions.
+
+Quick setup summary:
+
+```bash
+pnpm install @reverbia/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
+```
+
+Then create an entrypoint file with all required polyfills. See
+[ai-example-expo](https://github.com/zeta-chain/ai-example-expo) for a complete
+working example.
+
+## Differences from React Package
+
+The Expo package is a lightweight subset of `@reverbia/sdk/react`:
+
+* No PDF text extraction (pdfjs-dist is web-only)
+* Uses XMLHttpRequest for streaming (fetch streaming isn't supported in RN)
+
+## Authentication
+
+Use `@privy-io/expo` for authentication in React Native:
+
+```typescript
+import { PrivyProvider, usePrivy } from "@privy-io/expo";
+import { useIdentityToken } from "@privy-io/expo";
+
+// Wrap your app with PrivyProvider
+<PrivyProvider appId="your-app-id" clientId="your-client-id">
+  <App />
+</PrivyProvider>;
+
+// Get identity token for API calls
+const { getIdentityToken } = useIdentityToken();
+```
+
+## Quick Start
+
+```tsx
+import { useIdentityToken } from "@privy-io/expo";
+import { useChat } from "@reverbia/sdk/expo";
+
+function ChatScreen() {
+  const { getIdentityToken } = useIdentityToken();
+
+  const { isLoading, sendMessage, stop } = useChat({
+    getToken: getIdentityToken,
+    baseUrl: "https://portal.anuma-dev.ai",
+    onData: (chunk) => {
+      // Handle streaming chunks
+      const content =
+        typeof chunk === "string"
+          ? chunk
+          : chunk.choices?.[0]?.delta?.content || "";
+      console.log("Received:", content);
+    },
+    onFinish: () => console.log("Stream finished"),
+    onError: (error) => console.error("Error:", error),
+  });
+
+  const handleSend = async () => {
+    await sendMessage({
+      messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
+      model: "openai/gpt-4o",
+    });
+  };
+
+  return (
+    <View>
+      <Button onPress={handleSend} disabled={isLoading} title="Send" />
+      {isLoading && <Button onPress={stop} title="Stop" />}
+    </View>
+  );
+}
+```
+
+## Hooks
+
+| Function | Description |
+| ------ | ------ |
+| [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useChatStorage](Hooks/useChatStorage.md) | A React hook that wraps useChat with automatic message persistence using WatermelonDB. |
+| [useMemoryStorage](Hooks/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
+
+## Other
+
+### CachedServerTools
+
+Re-exports [CachedServerTools](../react/Internal/interfaces/CachedServerTools.md)
+
+***
+
+### ChatConversation
+
+Re-exports [ChatConversation](../react/Internal/classes/ChatConversation.md)
+
+***
+
+### ChatMessage
+
+Re-exports [ChatMessage](../react/Internal/classes/ChatMessage.md)
+
+***
+
+### ChatRole
+
+Re-exports [ChatRole](../react/Internal/type-aliases/ChatRole.md)
+
+***
+
+### chatStorageMigrations
+
+Re-exports [chatStorageMigrations](../react/Internal/variables/chatStorageMigrations.md)
+
+***
+
+### chatStorageSchema
+
+Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
+
+***
+
+### clearServerToolsCache
+
+Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
+
+***
+
+### CreateConversationOptions
+
+Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConversationOptions.md)
+
+***
+
+### CreateMemoryOptions
+
+Re-exports [CreateMemoryOptions](../react/Internal/interfaces/CreateMemoryOptions.md)
+
+***
+
+### CreateMessageOptions
+
+Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### DEFAULT\_CACHE\_EXPIRATION\_MS
+
+Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
+
+***
+
+### FileMetadata
+
+Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
+
+***
+
+### generateCompositeKey
+
+Re-exports [generateCompositeKey](../react/Internal/functions/generateCompositeKey.md)
+
+***
+
+### generateConversationId
+
+Re-exports [generateConversationId](../react/Internal/functions/generateConversationId.md)
+
+***
+
+### generateUniqueKey
+
+Re-exports [generateUniqueKey](../react/Internal/functions/generateUniqueKey.md)
+
+***
+
+### getCachedServerTools
+
+Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
+
+***
+
+### getServerTools
+
+Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
+
+***
+
+### MemoryItem
+
+Re-exports [MemoryItem](../react/Internal/interfaces/MemoryItem.md)
+
+***
+
+### memoryStorageSchema
+
+Re-exports [memoryStorageSchema](../react/Internal/variables/memoryStorageSchema.md)
+
+***
+
+### MemoryType
+
+Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
+
+***
+
+### sdkMigrations
+
+Re-exports [sdkMigrations](../react/Internal/variables/sdkMigrations.md)
+
+***
+
+### sdkModelClasses
+
+Re-exports [sdkModelClasses](../react/Internal/variables/sdkModelClasses.md)
+
+***
+
+### sdkSchema
+
+Re-exports [sdkSchema](../react/Internal/variables/sdkSchema.md)
+
+***
+
+### SearchSource
+
+Re-exports [SearchSource](../react/Internal/interfaces/SearchSource.md)
+
+***
+
+### ServerToolsOptions
+
+Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.md)
+
+***
+
+### ServerToolsResponse
+
+Re-exports [ServerToolsResponse](../react/Internal/interfaces/ServerToolsResponse.md)
+
+***
+
+### StoredChatCompletionUsage
+
+Re-exports [StoredChatCompletionUsage](../react/Internal/interfaces/StoredChatCompletionUsage.md)
+
+***
+
+### StoredConversation
+
+Re-exports [StoredConversation](../react/Internal/interfaces/StoredConversation.md)
+
+***
+
+### StoredMemory
+
+Re-exports [StoredMemory](../react/Internal/interfaces/StoredMemory.md)
+
+***
+
+### StoredMemoryModel
+
+Re-exports [StoredMemoryModel](../react/Internal/classes/StoredMemoryModel.md)
+
+***
+
+### StoredMemoryWithSimilarity
+
+Re-exports [StoredMemoryWithSimilarity](../react/Internal/interfaces/StoredMemoryWithSimilarity.md)
+
+***
+
+### StoredMessage
+
+Re-exports [StoredMessage](../react/Internal/interfaces/StoredMessage.md)
+
+***
+
+### StoredMessageWithSimilarity
+
+Re-exports [StoredMessageWithSimilarity](../react/Internal/interfaces/StoredMessageWithSimilarity.md)
+
+***
+
+### UpdateMemoryOptions
+
+Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOptions.md)
+
+***
+
+### useModels
+
+Re-exports [useModels](../react/Hooks/useModels.md)
+
+***
+
+### UseModelsResult
+
+Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)

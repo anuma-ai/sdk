@@ -15,9 +15,24 @@
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
+      "react-native": "./dist/react/index.mjs",
       "import": "./dist/react/index.mjs",
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
+    },
+    "./expo": {
+      "types": "./dist/expo/index.d.ts",
+      "react-native": "./dist/expo/index.mjs",
+      "import": "./dist/expo/index.mjs",
+      "require": "./dist/expo/index.cjs",
+      "default": "./dist/expo/index.cjs"
+    },
+    "./polyfills": {
+      "types": "./dist/polyfills/index.d.ts",
+      "react-native": "./dist/polyfills/index.mjs",
+      "import": "./dist/polyfills/index.mjs",
+      "require": "./dist/polyfills/index.cjs",
+      "default": "./dist/polyfills/index.cjs"
     },
     "./vercel": {
       "types": "./dist/vercel/index.d.ts",
@@ -25,6 +40,18 @@
       "import": "./dist/vercel/index.mjs",
       "require": "./dist/vercel/index.cjs",
       "default": "./dist/vercel/index.cjs"
+    },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "import": "./dist/next/index.mjs",
+      "require": "./dist/next/index.cjs",
+      "default": "./dist/next/index.cjs"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.mjs",
+      "require": "./dist/tools/index.cjs",
+      "default": "./dist/tools/index.cjs"
     }
   },
   "files": [
@@ -32,10 +59,14 @@
   ],
   "scripts": {
     "spec": "openapi-ts",
+    "test": "vitest run",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
-    "docs": "typedoc src/client/index.ts",
-    "generate": "pnpm run spec && pnpm run docs"
+    "docs": "typedoc",
+    "generate": "pnpm run spec && pnpm run docs",
+    "eval:memory": "tsx test/memory",
+    "eval:longmemeval": "tsx test/memory/longmemeval.ts",
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
   },
   "repository": {
     "type": "git",
@@ -49,23 +80,66 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@reverbia/portal": "1.0.0-next.20251201141659",
-    "@reverbia/sdk": "1.0.0-next.20251120124145",
-    "ai": "5.0.93"
+    "@reverbia/portal": "1.0.0-next.20260128153522",
+    "ai": "5.0.93",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
+    "pdfjs-dist": "^4.10.38",
+    "tesseract.js": "^6.0.1",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
+    "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^25.0.3",
     "@types/react": "^19.2.6",
+    "dotenv": "^17.2.3",
+    "happy-dom": "^20.0.11",
+    "playwright": "^1.57.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typedoc": "^0.28.14",
-    "typedoc-plugin-frontmatter": "^1.3.0",
+    "typedoc-plugin-frontmatter": "^1.3.1",
     "typedoc-plugin-markdown": "^4.9.0",
-    "typescript": "^5.9.3"
+    "typedoc-plugin-remark": "^2.0.1",
+    "typescript": "^5.9.3",
+    "unist-util-visit": "^5.0.0",
+    "vitest": "^4.0.14"
   },
   "peerDependencies": {
+    "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
-    "dexie": "^4.2.1",
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-native": ">=0.70.0"
+  },
+  "peerDependenciesMeta": {
+    "@nozbe/watermelondb": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "@privy-io/react-auth": {
+      "optional": true
+    }
+  },
+  "pnpm": {
+    "overrides": {
+      "react": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
+      "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1"
+    },
+    "patchedDependencies": {
+      "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",
+      "pdfjs-dist@4.10.38": "patches/pdfjs-dist@4.10.38.patch"
+    }
   }
 }

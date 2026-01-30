@@ -4,6 +4,102 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersAddCreditsRequest = {
+    /**
+     * Number of credits to add (1 credit = 1 cent)
+     */
+    credits?: number;
+    /**
+     * Escrow contract address to use
+     */
+    escrow_contract?: string;
+    user_address?: string;
+};
+
+export type HandlersAddCreditsResponse = {
+    credits_added?: number;
+    /**
+     * Escrow contract used for the operation
+     */
+    escrow_contract?: string;
+    message?: string;
+    /**
+     * New cost limit in credits (from contract)
+     */
+    new_cost_limit?: string;
+    success?: boolean;
+    /**
+     * Transaction hash if on-chain
+     */
+    tx_hash?: string;
+    user_address?: string;
+};
+
+export type HandlersAppConfig = {
+    /**
+     * EscrowContract is the escrow contract address for this app
+     */
+    escrow_contract?: string;
+    /**
+     * Name is the human-readable name of the app
+     */
+    name?: string;
+};
+
+export type HandlersCancelSubscriptionResponse = {
+    cancel_at?: number;
+    current_period_end?: number;
+    message?: string;
+};
+
+export type HandlersCheckoutSessionResponse = {
+    url?: string;
+};
+
+export type HandlersConfigResponse = {
+    /**
+     * Apps is the list of active apps with their escrow contracts
+     */
+    apps?: Array<HandlersAppConfig>;
+    /**
+     * ChainID is the blockchain chain ID
+     */
+    chain_id?: string;
+    /**
+     * OperatorAddress is the operator wallet address
+     */
+    operator_address?: string;
+    /**
+     * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
+     */
+    payment_model?: string;
+    /**
+     * SettlementRecipient is the address that receives settlement payments
+     */
+    settlement_recipient?: string;
+};
+
+export type HandlersCreateCheckoutSessionRequest = {
+    cancel_url?: string;
+    success_url?: string;
+};
+
+export type HandlersCreateCustomerPortalRequest = {
+    return_url?: string;
+};
+
+export type HandlersCustomerPortalResponse = {
+    url?: string;
+};
+
+export type HandlersExchangeRequest = {
+    code: string;
+    /**
+     * Optional - uses config default if not provided
+     */
+    redirect_uri?: string;
+};
+
 export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
@@ -17,6 +113,101 @@ export type HandlersHealthResponse = {
      * Version is the current API version
      */
     version?: string;
+};
+
+export type HandlersRefreshRequest = {
+    refresh_token: string;
+};
+
+export type HandlersRenewSubscriptionResponse = {
+    current_period_end?: number;
+    message?: string;
+};
+
+export type HandlersRevokeRequest = {
+    token: string;
+};
+
+export type HandlersSeedApiKeyInput = {
+    is_active?: boolean;
+    key?: string;
+    name?: string;
+    wallet_address?: string;
+};
+
+export type HandlersSeedAppInput = {
+    api_keys?: Array<HandlersSeedApiKeyInput>;
+    credit_reset_enabled?: boolean;
+    escrow_contract?: string;
+    is_active?: boolean;
+    name?: string;
+    privy_app_id?: string;
+    privy_verification_key?: string;
+};
+
+export type HandlersSeedAppsRequest = {
+    apps?: Array<HandlersSeedAppInput>;
+};
+
+export type HandlersSeedAppsResponse = {
+    apps_seeded?: number;
+    keys_seeded?: number;
+    message?: string;
+    success?: boolean;
+};
+
+export type HandlersSetSubscriptionTierRequest = {
+    /**
+     * "basic" or "pro"
+     */
+    tier?: string;
+    user_address?: string;
+};
+
+export type HandlersSetSubscriptionTierResponse = {
+    message?: string;
+    success?: boolean;
+    tier?: string;
+    user_address?: string;
+};
+
+export type HandlersSubscriptionStatusResponse = {
+    /**
+     * true if scheduled to cancel
+     */
+    cancel_at_period_end?: boolean;
+    /**
+     * Unix timestamp, only present if subscribed
+     */
+    current_period_end?: number;
+    /**
+     * "free" | "pro"
+     */
+    plan?: string;
+    /**
+     * "none" | "active" | "canceling" | "past_due" | "canceled"
+     */
+    status?: string;
+};
+
+export type HandlersTokenResponse = {
+    access_token?: string;
+    /**
+     * Seconds until expiration
+     */
+    expires_in?: number;
+    /**
+     * May not be present on refresh
+     */
+    refresh_token?: string;
+    /**
+     * Granted scopes
+     */
+    scope?: string;
+    /**
+     * Usually "Bearer"
+     */
+    token_type?: string;
 };
 
 /**
@@ -45,15 +236,20 @@ export type LlmapiChatCompletionRequest = {
     /**
      * Messages is the conversation history
      */
-    messages?: Array<LlmapiMessage>;
+    messages: Array<LlmapiMessage>;
     /**
      * Model is the model identifier
      */
-    model?: string;
+    model: string;
     /**
      * Stream indicates if response should be streamed
      */
     stream?: boolean;
+    tool_choice?: LlmapiChatCompletionToolChoice;
+    /**
+     * Tools is an array of tool schemas describing which tools the model can use
+     */
+    tools?: Array<LlmapiChatCompletionTool>;
 };
 
 export type LlmapiChatCompletionResponse = {
@@ -67,10 +263,28 @@ export type LlmapiChatCompletionResponse = {
      */
     id?: string;
     /**
+     * Messages contains the full conversation history when local tools need execution.
+     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+     * The client should execute these tools and send a new request with this message history
+     * plus the tool results appended.
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
      * Model is the model used
      */
     model?: string;
     usage?: LlmapiChatCompletionUsage;
+};
+
+export type LlmapiChatCompletionTool = {
+    [key: string]: unknown;
+};
+
+/**
+ * ToolChoice controls tool usage
+ */
+export type LlmapiChatCompletionToolChoice = {
+    [key: string]: unknown;
 };
 
 /**
@@ -160,11 +374,11 @@ export type LlmapiEmbeddingRequest = {
     /**
      * Input text or tokens to embed (can be string, []string, []int, or [][]int)
      */
-    input?: unknown;
+    input: unknown;
     /**
      * Model identifier in 'provider/model' format
      */
-    model?: string;
+    model: string;
 };
 
 export type LlmapiEmbeddingResponse = {
@@ -202,6 +416,21 @@ export type LlmapiEmbeddingUsage = {
     total_tokens?: number;
 };
 
+export type LlmapiMcpTool = {
+    /**
+     * Description is the description of the tool
+     */
+    description?: string;
+    /**
+     * InputSchema is the JSON schema describing the tool's input
+     */
+    input_schema?: unknown;
+    /**
+     * Name is the name of the tool
+     */
+    name?: string;
+};
+
 /**
  * Message is the generated message
  */
@@ -211,6 +440,67 @@ export type LlmapiMessage = {
      */
     content?: Array<LlmapiMessageContentPart>;
     role?: LlmapiRole;
+    /**
+     * ToolCallID is the ID of the tool call this message is responding to (only for tool role)
+     */
+    tool_call_id?: string;
+    /**
+     * ToolCalls contains tool/function calls made by the assistant (only for assistant role)
+     */
+    tool_calls?: Array<LlmapiToolCall>;
+    /**
+     * Type is the message type (for Responses API: "message")
+     */
+    type?: string;
+};
+
+/**
+ * File is used when Type=input_file (for Responses API)
+ */
+export type LlmapiMessageContentFile = {
+    /**
+     * FileData is the base64-encoded file content
+     */
+    file_data?: string;
+    /**
+     * FileID is the ID of an uploaded file
+     */
+    file_id?: string;
+    /**
+     * FileURL is the URL to the file
+     */
+    file_url?: string;
+    /**
+     * Filename is the name of the file
+     */
+    filename?: string;
+};
+
+/**
+ * ImageURL is used when Type=image_url or Type=input_image
+ */
+export type LlmapiMessageContentImage = {
+    /**
+     * Detail is the OpenAI detail hint (auto|low|high)
+     */
+    detail?: string;
+    /**
+     * URL is the image URL or data URI
+     */
+    url?: string;
+};
+
+export type LlmapiMessageContentPart = {
+    file?: LlmapiMessageContentFile;
+    image_url?: LlmapiMessageContentImage;
+    /**
+     * Text holds the text content when Type=text or Type=input_text
+     */
+    text?: string;
+    /**
+     * Type is the block type (`text`, `image_url`, or `input_file`)
+     */
+    type?: string;
 };
 
 /**
@@ -279,6 +569,10 @@ export type LlmapiModel = {
      * MaxOutputTokens is the maximum output tokens
      */
     max_output_tokens?: number;
+    /**
+     * Modalities is a list of supported modalities (e.g., ["llm", "vision"])
+     */
+    modalities?: Array<string>;
     /**
      * Name is the human-readable model name (optional)
      */
@@ -368,92 +662,402 @@ export type LlmapiModelsListResponse = {
 };
 
 /**
- * Role is the message role (system, user, assistant)
+ * ExtraFields contains additional metadata
+ */
+export type LlmapiResponseExtraFields = {
+    /**
+     * Latency is the request latency in milliseconds
+     */
+    latency?: number;
+    /**
+     * ModelRequested is the model that was requested
+     */
+    model_requested?: string;
+    /**
+     * Provider is the LLM provider used (e.g., "openai", "anthropic")
+     */
+    provider?: string;
+    /**
+     * RequestType is always "responses"
+     */
+    request_type?: string;
+};
+
+/**
+ * Input can be a simple text string or an array of messages for multi-turn conversations.
+ * When continuing after client tool calls, pass the messages array from the previous response.
+ */
+export type LlmapiResponseInput = {
+    /**
+     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
+     * Text is set when input is a simple string
+     */
+    text?: string;
+};
+
+export type LlmapiResponseOutputContent = {
+    /**
+     * Text is the text content
+     */
+    text?: string;
+    /**
+     * Type is the content type (e.g., "output_text")
+     */
+    type?: string;
+};
+
+export type LlmapiResponseOutputItem = {
+    /**
+     * Arguments is the function arguments for function_call and mcp_call types
+     */
+    arguments?: string;
+    /**
+     * CallID is the call ID for function_call and mcp_call types
+     */
+    call_id?: string;
+    /**
+     * Content is the content array for message and reasoning types
+     */
+    content?: Array<LlmapiResponseOutputContent>;
+    /**
+     * Error is the MCP error message for mcp_call types
+     */
+    error?: string;
+    /**
+     * ID is the unique identifier for this output item
+     */
+    id?: string;
+    /**
+     * Name is the function name for function_call and mcp_call types
+     */
+    name?: string;
+    /**
+     * Output is the MCP tool output for mcp_call types
+     */
+    output?: string;
+    /**
+     * Role is the role for message types (e.g., "assistant")
+     */
+    role?: string;
+    /**
+     * ServerLabel is the MCP server label for mcp_call and mcp_list_tools types
+     */
+    server_label?: string;
+    /**
+     * Status is the status of this output item (e.g., "completed")
+     */
+    status?: string;
+    /**
+     * Summary is the reasoning summary for reasoning types
+     */
+    summary?: Array<LlmapiResponseOutputContent>;
+    /**
+     * Tools is the list of available tools for mcp_list_tools types
+     */
+    tools?: Array<LlmapiMcpTool>;
+    /**
+     * Type is the output item type (e.g., "message", "function_call", "reasoning", "mcp_call")
+     */
+    type?: string;
+};
+
+/**
+ * Reasoning configures reasoning for o-series and other reasoning models
+ */
+export type LlmapiResponseReasoning = {
+    /**
+     * Effort controls reasoning effort: "low", "medium", or "high"
+     */
+    effort?: string;
+    /**
+     * Summary controls reasoning summary: "auto", "concise", or "detailed"
+     */
+    summary?: string;
+};
+
+export type LlmapiResponseRequest = {
+    /**
+     * Background indicates if request should be processed in background
+     */
+    background?: boolean;
+    input: LlmapiResponseInput;
+    /**
+     * MaxOutputTokens is the maximum number of tokens to generate
+     */
+    max_output_tokens?: number;
+    /**
+     * Model is the model identifier in 'provider/model' format
+     */
+    model: string;
+    reasoning?: LlmapiResponseReasoning;
+    /**
+     * Stream indicates if response should be streamed
+     */
+    stream?: boolean;
+    /**
+     * Temperature controls randomness (0.0 to 2.0)
+     */
+    temperature?: number;
+    thinking?: LlmapiThinkingOptions;
+    tool_choice?: LlmapiResponseToolChoice;
+    /**
+     * Tools is an array of tool schemas describing which tools the model can use
+     */
+    tools?: Array<LlmapiResponseTool>;
+};
+
+export type LlmapiResponseResponse = {
+    /**
+     * Created is the Unix timestamp of creation (created_at in OpenAI format)
+     */
+    created_at?: number;
+    extra_fields?: LlmapiResponseExtraFields;
+    /**
+     * ID is the unique response identifier
+     */
+    id?: string;
+    /**
+     * Messages contains the full conversation history when local tools need execution.
+     * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
+     * The client should execute these tools and send a new request with this message history
+     * plus the tool results appended.
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
+     * Model is the model used for generation
+     */
+    model?: string;
+    /**
+     * Object is the response type (e.g., "response")
+     */
+    object?: string;
+    /**
+     * Output is the array of output items (OpenAI Responses API format)
+     */
+    output?: Array<LlmapiResponseOutputItem>;
+    usage?: LlmapiResponseUsage;
+};
+
+export type LlmapiResponseTool = {
+    [key: string]: unknown;
+};
+
+/**
+ * ToolChoice controls tool usage
+ */
+export type LlmapiResponseToolChoice = {
+    [key: string]: unknown;
+};
+
+/**
+ * Usage contains token usage information
+ */
+export type LlmapiResponseUsage = {
+    /**
+     * CompletionTokens is the number of tokens in the completion
+     */
+    completion_tokens?: number;
+    /**
+     * CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
+     */
+    cost_micro_usd?: number;
+    /**
+     * PromptTokens is the number of tokens in the prompt
+     */
+    prompt_tokens?: number;
+    /**
+     * TotalTokens is the total number of tokens used
+     */
+    total_tokens?: number;
+};
+
+/**
+ * Role is the message role (system, user, assistant, tool)
  */
 export type LlmapiRole = string;
 
 /**
- * ExtraFields contains additional metadata.
+ * Thinking configures extended thinking for Anthropic models
  */
-export type LlmapiSearchExtraFields = {
+export type LlmapiThinkingOptions = {
     /**
-     * RequestType is always "search".
+     * BudgetTokens is the token budget for thinking
      */
-    request_type?: string;
+    budget_tokens?: number;
     /**
-     * SearchProvider is the search provider used (e.g., "perplexity", "google-pse").
+     * Type indicates if thinking is enabled: "enabled" or "disabled"
      */
-    search_provider?: string;
+    type?: string;
 };
 
-export type LlmapiSearchRequest = {
+export type LlmapiToolCall = {
+    function?: LlmapiToolCallFunction;
     /**
-     * Country code filter (e.g., "US", "GB", "DE").
+     * ID is the unique identifier for this tool call
      */
-    country?: string;
+    id?: string;
     /**
-     * Maximum number of results to return (1-20). Default: 10.
+     * Type is the type of tool call (always "function" for now)
      */
-    max_results?: number;
-    /**
-     * Maximum tokens per page to process. Default: 1024.
-     */
-    max_tokens_per_page?: number;
-    /**
-     * Search query. Can be a single string or array of strings.
-     */
-    query?: Array<string>;
-    /**
-     * List of domains to filter results (max 20 domains).
-     */
-    search_domain_filter?: Array<string>;
-    /**
-     * The search provider to use.
-     */
-    search_tool_name?: string;
-};
-
-export type LlmapiSearchResponse = {
-    extra_fields?: LlmapiSearchExtraFields;
-    /**
-     * List of search results.
-     */
-    results?: Array<LlmapiSearchResult>;
-    usage?: LlmapiSearchUsage;
-};
-
-export type LlmapiSearchResult = {
-    /**
-     * Optional publication or last updated date.
-     */
-    date?: string;
-    /**
-     * Text snippet from the result.
-     */
-    snippet?: string;
-    /**
-     * Title of the search result.
-     */
-    title?: string;
-    /**
-     * URL of the search result.
-     */
-    url?: string;
+    type?: string;
 };
 
 /**
- * Usage contains usage information.
+ * Function contains the function call details
  */
-export type LlmapiSearchUsage = {
+export type LlmapiToolCallFunction = {
     /**
-     * CostMicroUSD is the cost of this search in micro-dollars (USD × 1,000,000).
+     * Arguments is the JSON string of arguments to pass to the function
      */
-    cost_micro_usd?: number;
+    arguments?: string;
+    /**
+     * Name is the name of the function to call
+     */
+    name?: string;
 };
 
 export type ResponseErrorResponse = {
     error?: string;
+    request_id?: string;
+    trace_id?: string;
 };
+
+export type PostApiV1AdminAddCreditsData = {
+    /**
+     * Add credits request
+     */
+    body: HandlersAddCreditsRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/add-credits';
+};
+
+export type PostApiV1AdminAddCreditsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminAddCreditsError = PostApiV1AdminAddCreditsErrors[keyof PostApiV1AdminAddCreditsErrors];
+
+export type PostApiV1AdminAddCreditsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAddCreditsResponse;
+};
+
+export type PostApiV1AdminAddCreditsResponse = PostApiV1AdminAddCreditsResponses[keyof PostApiV1AdminAddCreditsResponses];
+
+export type PostApiV1AdminSeedAppsData = {
+    /**
+     * Seed apps request
+     */
+    body: HandlersSeedAppsRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/seed-apps';
+};
+
+export type PostApiV1AdminSeedAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminSeedAppsError = PostApiV1AdminSeedAppsErrors[keyof PostApiV1AdminSeedAppsErrors];
+
+export type PostApiV1AdminSeedAppsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSeedAppsResponse;
+};
+
+export type PostApiV1AdminSeedAppsResponse = PostApiV1AdminSeedAppsResponses[keyof PostApiV1AdminSeedAppsResponses];
+
+export type PostApiV1AdminSubscriptionTierData = {
+    /**
+     * Set subscription tier request
+     */
+    body: HandlersSetSubscriptionTierRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/subscription-tier';
+};
+
+export type PostApiV1AdminSubscriptionTierErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminSubscriptionTierError = PostApiV1AdminSubscriptionTierErrors[keyof PostApiV1AdminSubscriptionTierErrors];
+
+export type PostApiV1AdminSubscriptionTierResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSetSubscriptionTierResponse;
+};
+
+export type PostApiV1AdminSubscriptionTierResponse = PostApiV1AdminSubscriptionTierResponses[keyof PostApiV1AdminSubscriptionTierResponses];
 
 export type PostApiV1ChatCompletionsData = {
     /**
@@ -471,6 +1075,10 @@ export type PostApiV1ChatCompletionsErrors = {
      */
     400: ResponseErrorResponse;
     /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -487,6 +1095,49 @@ export type PostApiV1ChatCompletionsResponses = {
 
 export type PostApiV1ChatCompletionsResponse = PostApiV1ChatCompletionsResponses[keyof PostApiV1ChatCompletionsResponses];
 
+export type GetApiV1ConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/config';
+};
+
+export type GetApiV1ConfigErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ConfigError = GetApiV1ConfigErrors[keyof GetApiV1ConfigErrors];
+
+export type GetApiV1ConfigResponses = {
+    /**
+     * OK
+     */
+    200: HandlersConfigResponse;
+};
+
+export type GetApiV1ConfigResponse = GetApiV1ConfigResponses[keyof GetApiV1ConfigResponses];
+
+export type GetApiV1DocsSwaggerJsonData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/docs/swagger.json';
+};
+
+export type GetApiV1DocsSwaggerJsonResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetApiV1DocsSwaggerJsonResponse = GetApiV1DocsSwaggerJsonResponses[keyof GetApiV1DocsSwaggerJsonResponses];
+
 export type PostApiV1EmbeddingsData = {
     /**
      * Embedding request
@@ -502,6 +1153,10 @@ export type PostApiV1EmbeddingsErrors = {
      * Bad Request
      */
     400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -545,6 +1200,10 @@ export type GetApiV1ModelsErrors = {
      */
     400: ResponseErrorResponse;
     /**
+     * Rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -561,17 +1220,291 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
-export type PostApiV1SearchData = {
+export type PostApiV1ResponsesData = {
     /**
-     * Search request
+     * Response request
      */
-    body: LlmapiSearchRequest;
+    body: LlmapiResponseRequest;
     path?: never;
     query?: never;
-    url: '/api/v1/search';
+    url: '/api/v1/responses';
 };
 
-export type PostApiV1SearchErrors = {
+export type PostApiV1ResponsesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Model provider rate limit exceeded
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1ResponsesError = PostApiV1ResponsesErrors[keyof PostApiV1ResponsesErrors];
+
+export type PostApiV1ResponsesResponses = {
+    /**
+     * OK
+     */
+    200: LlmapiResponseResponse | string;
+};
+
+export type PostApiV1ResponsesResponse = PostApiV1ResponsesResponses[keyof PostApiV1ResponsesResponses];
+
+export type PostApiV1SubscriptionsCancelData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/cancel';
+};
+
+export type PostApiV1SubscriptionsCancelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCancelError = PostApiV1SubscriptionsCancelErrors[keyof PostApiV1SubscriptionsCancelErrors];
+
+export type PostApiV1SubscriptionsCancelResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCancelSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsCancelResponse = PostApiV1SubscriptionsCancelResponses[keyof PostApiV1SubscriptionsCancelResponses];
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionData = {
+    /**
+     * Checkout session request with redirect URLs
+     */
+    body: HandlersCreateCheckoutSessionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/create-checkout-session';
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionError = PostApiV1SubscriptionsCreateCheckoutSessionErrors[keyof PostApiV1SubscriptionsCreateCheckoutSessionErrors];
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostApiV1SubscriptionsCreateCheckoutSessionResponse = PostApiV1SubscriptionsCreateCheckoutSessionResponses[keyof PostApiV1SubscriptionsCreateCheckoutSessionResponses];
+
+export type PostApiV1SubscriptionsCustomerPortalData = {
+    /**
+     * Customer portal request with return URL
+     */
+    body: HandlersCreateCustomerPortalRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/customer-portal';
+};
+
+export type PostApiV1SubscriptionsCustomerPortalErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsCustomerPortalError = PostApiV1SubscriptionsCustomerPortalErrors[keyof PostApiV1SubscriptionsCustomerPortalErrors];
+
+export type PostApiV1SubscriptionsCustomerPortalResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCustomerPortalResponse;
+};
+
+export type PostApiV1SubscriptionsCustomerPortalResponse = PostApiV1SubscriptionsCustomerPortalResponses[keyof PostApiV1SubscriptionsCustomerPortalResponses];
+
+export type PostApiV1SubscriptionsRenewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/renew';
+};
+
+export type PostApiV1SubscriptionsRenewErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsRenewError = PostApiV1SubscriptionsRenewErrors[keyof PostApiV1SubscriptionsRenewErrors];
+
+export type PostApiV1SubscriptionsRenewResponses = {
+    /**
+     * OK
+     */
+    200: HandlersRenewSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsRenewResponse = PostApiV1SubscriptionsRenewResponses[keyof PostApiV1SubscriptionsRenewResponses];
+
+export type GetApiV1SubscriptionsStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/status';
+};
+
+export type GetApiV1SubscriptionsStatusErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1SubscriptionsStatusError = GetApiV1SubscriptionsStatusErrors[keyof GetApiV1SubscriptionsStatusErrors];
+
+export type GetApiV1SubscriptionsStatusResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSubscriptionStatusResponse;
+};
+
+export type GetApiV1SubscriptionsStatusResponse = GetApiV1SubscriptionsStatusResponses[keyof GetApiV1SubscriptionsStatusResponses];
+
+export type PostApiV1SubscriptionsWebhookData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    headers: {
+        /**
+         * Stripe webhook signature
+         */
+        'Stripe-Signature': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/webhook';
+};
+
+export type PostApiV1SubscriptionsWebhookErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsWebhookError = PostApiV1SubscriptionsWebhookErrors[keyof PostApiV1SubscriptionsWebhookErrors];
+
+export type PostApiV1SubscriptionsWebhookResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
+
+export type GetApiV1ToolsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools';
+};
+
+export type GetApiV1ToolsErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ToolsError = GetApiV1ToolsErrors[keyof GetApiV1ToolsErrors];
+
+export type GetApiV1ToolsResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type PostAuthOauthByProviderExchangeData = {
+    /**
+     * Exchange request
+     */
+    body: HandlersExchangeRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive, dropbox)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/exchange';
+};
+
+export type PostAuthOauthByProviderExchangeErrors = {
     /**
      * Bad Request
      */
@@ -582,16 +1515,92 @@ export type PostApiV1SearchErrors = {
     500: ResponseErrorResponse;
 };
 
-export type PostApiV1SearchError = PostApiV1SearchErrors[keyof PostApiV1SearchErrors];
+export type PostAuthOauthByProviderExchangeError = PostAuthOauthByProviderExchangeErrors[keyof PostAuthOauthByProviderExchangeErrors];
 
-export type PostApiV1SearchResponses = {
+export type PostAuthOauthByProviderExchangeResponses = {
     /**
      * OK
      */
-    200: LlmapiSearchResponse;
+    200: HandlersTokenResponse;
 };
 
-export type PostApiV1SearchResponse = PostApiV1SearchResponses[keyof PostApiV1SearchResponses];
+export type PostAuthOauthByProviderExchangeResponse = PostAuthOauthByProviderExchangeResponses[keyof PostAuthOauthByProviderExchangeResponses];
+
+export type PostAuthOauthByProviderRefreshData = {
+    /**
+     * Refresh request
+     */
+    body: HandlersRefreshRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive, dropbox)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/refresh';
+};
+
+export type PostAuthOauthByProviderRefreshErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostAuthOauthByProviderRefreshError = PostAuthOauthByProviderRefreshErrors[keyof PostAuthOauthByProviderRefreshErrors];
+
+export type PostAuthOauthByProviderRefreshResponses = {
+    /**
+     * OK
+     */
+    200: HandlersTokenResponse;
+};
+
+export type PostAuthOauthByProviderRefreshResponse = PostAuthOauthByProviderRefreshResponses[keyof PostAuthOauthByProviderRefreshResponses];
+
+export type PostAuthOauthByProviderRevokeData = {
+    /**
+     * Revoke request
+     */
+    body: HandlersRevokeRequest;
+    path: {
+        /**
+         * OAuth provider (google-drive, dropbox)
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/auth/oauth/{provider}/revoke';
+};
+
+export type PostAuthOauthByProviderRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostAuthOauthByProviderRevokeError = PostAuthOauthByProviderRevokeErrors[keyof PostAuthOauthByProviderRevokeErrors];
+
+export type PostAuthOauthByProviderRevokeResponses = {
+    /**
+     * Empty object on success
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostAuthOauthByProviderRevokeResponse = PostAuthOauthByProviderRevokeResponses[keyof PostAuthOauthByProviderRevokeResponses];
 
 export type GetHealthData = {
     body?: never;

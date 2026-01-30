@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1SearchData, PostApiV1SearchErrors, PostApiV1SearchResponses } from './types.gen';
+import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -19,6 +19,54 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Add credits to user
+ *
+ * Adds credits to a user's cost limit on-chain. Requires admin API key and ADMIN_ROLE on smart contract. Optionally specify escrow_contract for custom escrow contracts.
+ */
+export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
+        url: '/api/v1/admin/add-credits',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Seed apps and API keys
+ *
+ * Seeds apps and their API keys into the database. Uses upsert - existing apps are updated. Requires admin API key.
+ */
+export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSeedAppsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminSeedAppsResponses, PostApiV1AdminSeedAppsErrors, ThrowOnError>({
+        url: '/api/v1/admin/seed-apps',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Set user subscription tier
+ *
+ * Sets a user's subscription tier (basic or pro). Requires admin API key.
+ */
+export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSubscriptionTierData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminSubscriptionTierErrors, ThrowOnError>({
+        url: '/api/v1/admin/subscription-tier',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
  * Create chat completion
  *
  * Generates a chat completion using the configured gateway. Supports streaming when stream=true.
@@ -31,6 +79,30 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Get configuration
+ *
+ * Returns public configuration including contract addresses, payment model, and registered apps
+ */
+export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({
+        url: '/api/v1/config',
+        ...options
+    });
+};
+
+/**
+ * Get OpenAPI specification
+ *
+ * Returns the OpenAPI 3.1 specification for this API
+ */
+export const getApiV1DocsSwaggerJson = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DocsSwaggerJsonData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1DocsSwaggerJsonResponses, unknown, ThrowOnError>({
+        url: '/api/v1/docs/swagger.json',
+        ...options
     });
 };
 
@@ -53,7 +125,7 @@ export const postApiV1Embeddings = <ThrowOnError extends boolean = false>(option
 /**
  * List available models
  *
- * Returns a list of all available models from the configured gateway with optional filters.
+ * Returns a list of all available models from the configured gateway with optional filters. Models include modality information indicating their capabilities (e.g., llm, embedding, vision, image, audio, reasoning, code, reranker, multimodal, video).
  */
 export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ModelsData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ModelsResponses, GetApiV1ModelsErrors, ThrowOnError>({
@@ -63,13 +135,157 @@ export const getApiV1Models = <ThrowOnError extends boolean = false>(options?: O
 };
 
 /**
- * Create search
+ * Create response
  *
- * Returns a list of ranked search results
+ * Generates a response using the Responses API format. Supports streaming when stream=true.
  */
-export const postApiV1Search = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SearchData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostApiV1SearchResponses, PostApiV1SearchErrors, ThrowOnError>({
-        url: '/api/v1/search',
+export const postApiV1Responses = <ThrowOnError extends boolean = false>(options: Options<PostApiV1ResponsesData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1ResponsesResponses, PostApiV1ResponsesErrors, ThrowOnError>({
+        url: '/api/v1/responses',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Cancel subscription
+ *
+ * Cancels the user's subscription at the end of the current billing period (cancel_at_period_end)
+ */
+export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/cancel',
+        ...options
+    });
+};
+
+/**
+ * Create checkout session
+ *
+ * Creates a Stripe Checkout Session for Pro subscription and returns the checkout URL
+ */
+export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCreateCheckoutSessionData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCreateCheckoutSessionErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/create-checkout-session',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Create customer portal session
+ *
+ * Creates a Stripe Customer Portal session for managing subscription and returns the portal URL
+ */
+export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCustomerPortalData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsCustomerPortalErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/customer-portal',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Renew subscription
+ *
+ * Reactivates a subscription that was scheduled for cancellation (undoes cancel_at_period_end)
+ */
+export const postApiV1SubscriptionsRenew = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsRenewData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsRenewErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/renew',
+        ...options
+    });
+};
+
+/**
+ * Get subscription status
+ *
+ * Returns the current subscription status, plan, and billing period info
+ */
+export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsStatusData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1SubscriptionsStatusResponses, GetApiV1SubscriptionsStatusErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/status',
+        ...options
+    });
+};
+
+/**
+ * Handle Stripe webhook
+ *
+ * Receives and processes Stripe webhook events for subscription lifecycle management
+ */
+export const postApiV1SubscriptionsWebhook = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsWebhookData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsWebhookResponses, PostApiV1SubscriptionsWebhookErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/webhook',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * List available tools
+ *
+ * Returns a map of available MCP tool schemas indexed by tool name.
+ */
+export const getApiV1Tools = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ToolsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1ToolsResponses, GetApiV1ToolsErrors, ThrowOnError>({
+        url: '/api/v1/tools',
+        ...options
+    });
+};
+
+/**
+ * Exchange authorization code for tokens
+ *
+ * Exchanges an OAuth authorization code for access and refresh tokens
+ */
+export const postAuthOauthByProviderExchange = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderExchangeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderExchangeErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/exchange',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Refresh access token
+ *
+ * Refreshes an expired access token using a refresh token
+ */
+export const postAuthOauthByProviderRefresh = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRefreshData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRefreshErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/refresh',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Revoke OAuth token
+ *
+ * Revokes an OAuth access or refresh token
+ */
+export const postAuthOauthByProviderRevoke = <ThrowOnError extends boolean = false>(options: Options<PostAuthOauthByProviderRevokeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthOauthByProviderRevokeResponses, PostAuthOauthByProviderRevokeErrors, ThrowOnError>({
+        url: '/auth/oauth/{provider}/revoke',
         ...options,
         headers: {
             'Content-Type': 'application/json',

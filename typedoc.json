@@ -1,8 +1,47 @@
 {
+  "name": "Overview",
   "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "textContentMappings": {
+    "title.indexPage": "{projectName}",
+    "title.memberPage": "{name}",
+    "title.modulePage": "Overview"
+  },
+  "gitRevision": "main",
+  "readme": "./README.md",
+  "mergeReadme": true,
+  "entryPoints": [
+    "src/react/index.ts",
+    "src/client/index.ts",
+    "src/next/index.ts",
+    "src/vercel/index.ts",
+    "src/expo/index.ts"
+  ],
+  "indexFormat": "table",
+  "entryFileName": "README.md",
+  "parametersFormat": "htmlTable",
+  "expandParameters": true,
+  "expandObjects": false,
   "plugin": [
     "typedoc-plugin-markdown",
     "typedoc-plugin-frontmatter",
-    "./utils/typedoc-fumadocs.js"
-  ]
+    "typedoc-plugin-remark",
+    "./scripts/typedoc-router-member-category.mjs",
+    "./scripts/typedoc-theme-collapsed-params.mjs"
+  ],
+  "theme": "collapsed-params",
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.security.test.ts"
+  ],
+  "remarkPlugins": [
+    {
+      "applyTo": "*",
+      "plugins": [
+        "./scripts/remark-clamp-headings.mjs"
+      ]
+    }
+  ],
+  "router": "member-category"
 }
