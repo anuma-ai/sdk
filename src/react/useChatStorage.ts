@@ -716,58 +716,38 @@ export function useChatStorage(
                 return msg;
               }
 
-              // eslint-disable-next-line no-console
-              console.log(
-                `[getMessages] Found ${fileIds.length} placeholder(s) in message ${msg.uniqueId}:`,
-                fileIds
-              );
+             
 
               // Resolve all files to blob URLs and build a map
               const fileIdToUrlMap = new Map<string, string>();
               for (const fileId of fileIds) {
                 const placeholder = createFilePlaceholder(fileId);
-                // eslint-disable-next-line no-console
-                console.log(
-                  `[getMessages] Resolving placeholder: ${placeholder} (fileId: ${fileId})`
-                );
+                
 
                 // Check if we already have a URL for this file
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[getMessages] No cached URL for ${fileId}, reading from OPFS...`
-                  );
+                  
                   // Read and decrypt the file
                   const result = await readEncryptedFile(fileId, encryptionKey);
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
-                    // eslint-disable-next-line no-console
-                    console.log(
-                      `[getMessages] Created blob URL for ${fileId}:`,
-                      url
-                    );
+                    
                   } else {
                     // eslint-disable-next-line no-console
                     console.warn(
                       `[getMessages] Failed to read file ${fileId} from OPFS`
                     );
                   }
-                } else {
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[getMessages] Using cached blob URL for ${fileId}:`,
-                    url
-                  );
-                }
+                } 
 
                 if (url) {
                   fileIdToUrlMap.set(fileId, url);
                 } else {
                   // eslint-disable-next-line no-console
                   console.warn(
-                    `[getMessages] No URL available for ${fileId}, placeholder ${placeholder} will remain in content`
+                    `[getMessages] No URL available for file, placeholder will remain in content`
                   );
                 }
               }
@@ -787,21 +767,11 @@ export function useChatStorage(
                 // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
 
-                // eslint-disable-next-line no-console
-                console.log(
-                  `[getMessages] Replacing ${placeholder} with: ${replacement}`
-                );
-
                 resolvedContent = resolvedContent.replace(
                   placeholderRegex,
                   replacement
                 );
               }
-
-              // eslint-disable-next-line no-console
-              console.log(
-                `[getMessages] Resolved content length: ${resolvedContent.length}, original length: ${msg.content.length}`
-              );
 
               return { ...msg, content: resolvedContent };
             })
@@ -1143,14 +1113,6 @@ export function useChatStorage(
           const placeholder = createFilePlaceholder(fileId);
           let replacementCount = 0;
 
-          // eslint-disable-next-line no-console
-          console.log(
-            `[extractAndStoreMCPImages] Replacing URL with placeholder:`,
-            imageUrl,
-            "->",
-            placeholder
-          );
-
           // Replace HTML img tags with double-quoted src
           const htmlImgPatternDouble = new RegExp(
             `<img[^>]*src="${escapedUrl}"[^>]*>`,
@@ -1158,13 +1120,6 @@ export function useChatStorage(
           );
           const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
           if (doubleMatches) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreMCPImages] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
-              doubleMatches,
-              "->",
-              placeholder
-            );
             replacementCount += doubleMatches.length;
             cleanedContent = cleanedContent.replace(
               htmlImgPatternDouble,
@@ -1179,13 +1134,6 @@ export function useChatStorage(
           );
           const singleMatches = cleanedContent.match(htmlImgPatternSingle);
           if (singleMatches) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreMCPImages] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
-              singleMatches,
-              "->",
-              placeholder
-            );
             replacementCount += singleMatches.length;
             cleanedContent = cleanedContent.replace(
               htmlImgPatternSingle,
@@ -1201,13 +1149,6 @@ export function useChatStorage(
           );
           const markdownMatches = cleanedContent.match(markdownImagePattern);
           if (markdownMatches) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreMCPImages] Replacing ${markdownMatches.length} markdown image(s):`,
-              markdownMatches,
-              "->",
-              placeholder
-            );
             replacementCount += markdownMatches.length;
             cleanedContent = cleanedContent.replace(
               markdownImagePattern,
@@ -1220,22 +1161,9 @@ export function useChatStorage(
           const rawUrlPattern = new RegExp(escapedUrl, "g");
           const rawMatches = cleanedContent.match(rawUrlPattern);
           if (rawMatches) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreMCPImages] Replacing ${rawMatches.length} raw URL(s):`,
-              rawMatches,
-              "->",
-              placeholder
-            );
             replacementCount += rawMatches.length;
             cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
           }
-
-          // eslint-disable-next-line no-console
-          console.log(
-            `[extractAndStoreMCPImages] Total replacements made: ${replacementCount} for URL:`,
-            imageUrl
-          );
 
           return replacementCount;
         };
@@ -1267,8 +1195,7 @@ export function useChatStorage(
               if (replacementCount < expectedCount) {
                 // eslint-disable-next-line no-console
                 console.warn(
-                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}:`,
-                  imageUrl
+                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}`
                 );
               }
 
@@ -1282,8 +1209,7 @@ export function useChatStorage(
               if (remainingMatches && remainingMatches.length > 0) {
                 // eslint-disable-next-line no-console
                 console.warn(
-                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement:`,
-                  imageUrl
+                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement`
                 );
               }
             }
@@ -1365,18 +1291,10 @@ export function useChatStorage(
       try {
         // Check prerequisites
         if (!isOPFSSupported()) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[extractAndStoreEncryptedMCPImages] OPFS not supported"
-          );
           return { fileIds: [], cleanedContent: content };
         }
 
         if (!hasEncryptionKey(address)) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[extractAndStoreEncryptedMCPImages] Encryption key not available"
-          );
           return { fileIds: [], cleanedContent: content };
         }
 
@@ -1517,14 +1435,6 @@ export function useChatStorage(
             const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             let replacementCount = 0;
 
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Replacing URL with placeholder:`,
-              imageUrl,
-              "->",
-              placeholder
-            );
-
             // Replace HTML img tags with double-quoted src
             const htmlImgPatternDouble = new RegExp(
               `<img[^>]*src="${escapedUrl}"[^>]*>`,
@@ -1578,11 +1488,6 @@ export function useChatStorage(
               );
             }
 
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Total replacements: ${replacementCount} for mediaId: ${mediaId}`
-            );
-
             // Verify all instances were replaced
             const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
             if (replacementCount < expectedCount) {
@@ -1591,12 +1496,6 @@ export function useChatStorage(
                 `[extractAndStoreEncryptedMCPImages] Not all instances replaced. Expected ${expectedCount}, replaced ${replacementCount}`
               );
             }
-          } else {
-            // eslint-disable-next-line no-console
-            console.error(
-              "[extractAndStoreEncryptedMCPImages] Failed:",
-              result.reason
-            );
           }
         });
 
@@ -1605,36 +1504,13 @@ export function useChatStorage(
         // Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[extractAndStoreEncryptedMCPImages] Creating ${mediaOptions.length} media record(s) with options:`,
-            JSON.stringify(mediaOptions.map(m => ({
-              mediaId: m.mediaId,
-              name: m.name,
-              mimeType: m.mimeType,
-              size: m.size,
-              role: m.role,
-              model: m.model,
-              dimensions: m.dimensions,
-              sourceUrl: m.sourceUrl?.substring(0, 50) + '...',
-            })), null, 2)
-          );
+          
           try {
             const createdMedia = await createMediaBatchOp(
               { database },
               mediaOptions
             );
             createdMediaIds = createdMedia.map((m) => m.mediaId);
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] ✅ Created ${createdMediaIds.length} media record(s):`,
-              createdMediaIds
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              `[extractAndStoreEncryptedMCPImages] Created media records:`,
-              JSON.stringify(createdMedia, null, 2)
-            );
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error(
@@ -1646,10 +1522,6 @@ export function useChatStorage(
               if (opt.mediaId) {
                 try {
                   await deleteEncryptedFile(opt.mediaId);
-                  // eslint-disable-next-line no-console
-                  console.log(
-                    `[extractAndStoreEncryptedMCPImages] Cleaned up orphaned OPFS file ${opt.mediaId}`
-                  );
                 } catch {
                   // Ignore cleanup errors
                 }
@@ -1657,21 +1529,8 @@ export function useChatStorage(
             }
           }
         }
-
-        // eslint-disable-next-line no-console
-        console.log(
-          `[extractAndStoreEncryptedMCPImages] Returning fileIds:`,
-          createdMediaIds,
-          `cleanedContent length:`,
-          cleanedContent.length
-        );
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(
-          "[extractAndStoreEncryptedMCPImages] Unexpected error:",
-          err
-        );
         return { fileIds: [], cleanedContent: content };
       }
     },
@@ -2066,10 +1925,7 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp({ database }, mediaId);
-              // eslint-disable-next-line no-console
-              console.log(
-                `[sendMessage] Cleaned up orphaned OPFS file and media record ${mediaId} after message creation failure`
-              );
+              
             } catch {
               // Ignore cleanup errors
             }
@@ -2354,16 +2210,7 @@ export function useChatStorage(
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
           thinking: thinkingContent,
         });
-        // eslint-disable-next-line no-console
-        console.log(
-          `[sendMessage] ✅ Stored assistant message:`,
-          {
-            uniqueId: storedAssistantMessage.uniqueId,
-            conversationId: storedAssistantMessage.conversationId,
-            fileIds: storedAssistantMessage.fileIds,
-            role: storedAssistantMessage.role,
-          }
-        );
+        
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed
         if (assistantFileIds.length > 0) {
@@ -2371,10 +2218,7 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp({ database }, mediaId);
-              // eslint-disable-next-line no-console
-              console.log(
-                `[sendMessage] Cleaned up orphaned OPFS file and media record ${mediaId} after assistant message creation failure`
-              );
+              
             } catch {
               // Ignore cleanup errors
             }
