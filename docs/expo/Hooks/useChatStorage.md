@@ -329,7 +329,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
 
 </td>
 </tr>

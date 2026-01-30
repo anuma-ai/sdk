@@ -218,7 +218,7 @@ export class CompletionsStrategy implements ApiStrategy {
 
         // For implicit reasoning models (like Qwen), tool calls trigger a new
         // reasoning phase. Only re-enable reasoning mode if this model was
-        // already detected as using implicit reasoning (no opening <think> tag).
+        // already detected as using implicit reasoning (no opening `<think>` tag).
         if (accumulator.implicitReasoningStart === true) {
           accumulator.insideReasoning = true;
         }

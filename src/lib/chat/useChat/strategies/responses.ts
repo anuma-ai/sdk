@@ -148,7 +148,7 @@ export class ResponsesStrategy implements ApiStrategy {
       if (delta) {
         const deltaText = typeof delta === "string" ? delta : delta.OfString;
         if (deltaText) {
-          // Parse reasoning tags from content (handles <think>...</think> tags)
+          // Parse reasoning tags from content (handles `<think>...</think>` tags)
           // Some models (like Qwen via Fireworks) include thinking in content
           const parseResult = parseReasoningTags(
             deltaText,
@@ -203,7 +203,7 @@ export class ResponsesStrategy implements ApiStrategy {
 
           // For implicit reasoning models (like Qwen), tool calls trigger a new
           // reasoning phase. Re-enable reasoning mode if this model was
-          // already detected as using implicit reasoning (no opening <think> tag).
+          // already detected as using implicit reasoning (no opening `<think>` tag).
           if (accumulator.implicitReasoningStart === true) {
             accumulator.insideReasoning = true;
           }
