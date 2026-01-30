@@ -226,6 +226,17 @@ export interface BaseUseChatStorageOptions {
     /** Cache expiration time in milliseconds (default: 86400000 = 1 day) */
     cacheExpirationMs?: number;
   };
+  /**
+   * Automatically generate embeddings for messages after saving.
+   * Enables semantic search over past conversations via searchMessages().
+   * @default true
+   */
+  autoEmbedMessages?: boolean;
+  /**
+   * Embedding model to use when autoEmbedMessages is enabled.
+   * @default DEFAULT_API_EMBEDDING_MODEL
+   */
+  embeddingModel?: string;
 }
 
 /**

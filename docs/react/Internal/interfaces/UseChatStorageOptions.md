@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L330)
+Defined in: [src/react/useChatStorage.ts:337](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L337)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L336)
+Defined in: [src/react/useChatStorage.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L343)
 
 Which API endpoint to use. Default: "responses"
 
@@ -36,6 +36,27 @@ Automatically create a new conversation if none is set (default: true)
 **Inherited from**
 
 `BaseUseChatStorageOptions.autoCreateConversation`
+
+***
+
+### autoEmbedMessages?
+
+> `optional` **autoEmbedMessages**: `boolean`
+
+Defined in: [src/lib/db/chat/types.ts:234](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L234)
+
+Automatically generate embeddings for messages after saving.
+Enables semantic search over past conversations via searchMessages().
+
+**Default**
+
+```ts
+true
+```
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.autoEmbedMessages`
 
 ***
 
@@ -92,6 +113,26 @@ Title for auto-created conversations (default: "New conversation")
 **Inherited from**
 
 `BaseUseChatStorageOptions.defaultConversationTitle`
+
+***
+
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L239)
+
+Embedding model to use when autoEmbedMessages is enabled.
+
+**Default**
+
+```ts
+DEFAULT_API_EMBEDDING_MODEL
+```
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.embeddingModel`
 
 ***
 
@@ -460,7 +501,7 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:349](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L349)
+Defined in: [src/react/useChatStorage.ts:356](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L356)
 
 Wallet address for encrypted file storage.
 When provided, MCP-generated images are automatically encrypted and stored

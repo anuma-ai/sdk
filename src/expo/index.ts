@@ -159,3 +159,17 @@ export type {
   CachedServerTools,
   ServerToolsResponse,
 } from "../lib/tools";
+
+// Memory retrieval (semantic search over past messages)
+export {
+  createMemoryRetrievalTool,
+  embedMessage,
+  embedAllMessages,
+  generateEmbedding,
+  generateEmbeddings,
+} from "../lib/memoryRetrieval";
+export type {
+  MemoryRetrievalSearchOptions,
+  MemoryRetrievalResult,
+  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+} from "../lib/memoryRetrieval";

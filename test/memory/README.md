@@ -16,17 +16,23 @@ questions, ~50 sessions each).
 pnpm eval:longmemeval --max 5                  # Test 5 questions
 pnpm eval:longmemeval --max 2 --max-sessions 5 # Quick: 2 questions, 5 sessions each
 pnpm eval:longmemeval --variant oracle --max 5 # Use oracle (answer-only) sessions
+pnpm eval:longmemeval --strategy chunked --max 5 # Chunked tool search
 pnpm eval:longmemeval --stats                  # Show dataset statistics
 ```
 
-**What it tests**: Memory extraction → Embedding → Search → Answer generation →
-Evaluation
+**What it tests**:
+- Extraction strategy: Memory extraction → Embedding → Search → Answer generation → Evaluation
+- Chunked tool strategy: Chunked conversation search → Tool-assisted answer generation → Evaluation
 
 **Datasets** (cached in `~/.cache/longmemeval/`):
 
 - `s` - Small (~50 sessions per question, 264MB)
 - `m` - Medium (~500 sessions per question)
 - `oracle` - Only answer sessions (fast, for dev)
+
+**Chunked embeddings cache** (also in `~/.cache/longmemeval/`):
+
+- `longmemeval_chunk_embeddings_<variant>_<model>.json`
 
 **Requires**: `PORTAL_API_KEY` for LLM calls
 

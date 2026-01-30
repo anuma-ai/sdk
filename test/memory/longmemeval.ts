@@ -27,6 +27,10 @@ import type { LongMemEvalOptions, LongMemEvalQuestionType } from "./src/longmeme
 const { values: args } = parseArgs({
   options: {
     variant: { type: "string", default: "s", short: "v" },
+    strategy: { type: "string" },
+    llm: { type: "string" },
+    "skip-existing": { type: "boolean", default: false },
+    "question-id": { type: "string" },
     max: { type: "string", short: "m" },
     "max-sessions": { type: "string" },
     types: { type: "string", short: "t" },
@@ -35,6 +39,7 @@ const { values: args } = parseArgs({
     output: { type: "string", short: "o" },
     preload: { type: "boolean", default: false },
     "skip-unsupported": { type: "boolean", default: true },
+    "include-unsupported": { type: "boolean", default: false },
     "cache-dir": { type: "boolean", default: false },
     stats: { type: "boolean", default: false },
     help: { type: "boolean", default: false, short: "h" },
@@ -54,10 +59,18 @@ Options:
                               m = medium (~500 sessions per question)
                               oracle = only answer sessions (fast, for dev)
                               Default: s
+  --strategy <extracted|chunked>
+                              Retrieval strategy:
+                              extracted = memory extraction (default)
+                              chunked = chunked tool search
+  --llm <model>               Override chat completion model
+  --skip-existing             Skip entries with existing transcript for same model
+  --question-id <id>          Run only the specified question id
   -m, --max <n>               Maximum number of questions to evaluate
   --max-sessions <n>          Max sessions to process per question (for dev)
   -t, --types <types>         Comma-separated question types to include
   --skip-unsupported          Skip temporal-reasoning & knowledge-update (default: true)
+  --include-unsupported       Include temporal-reasoning & knowledge-update
   --json                      Output results as JSON
   --verbose                   Show detailed per-question results
   -o, --output <path>         Write results to file
@@ -71,6 +84,10 @@ Examples:
   pnpm eval:longmemeval --variant oracle --max 5 # Fast: oracle sessions only
   pnpm eval:longmemeval --max 2 --max-sessions 5 # Quick dev test
   pnpm eval:longmemeval --variant m              # Full test with medium dataset
+  pnpm eval:longmemeval --strategy chunked --max 5 # Chunked tool search
+  pnpm eval:longmemeval --llm fireworks/models/gpt-oss-120b --max 5
+  pnpm eval:longmemeval --skip-existing --max 5
+  pnpm eval:longmemeval --question-id gpt4_5dcc0aab
 
 Environment Variables:
   PORTAL_API_KEY      Required for LLM calls
@@ -124,14 +141,24 @@ async function main(): Promise<void> {
   if (!apiKey) {
     console.error(
       "Error: PORTAL_API_KEY is required.\n\n" +
-        "Add PORTAL_API_KEY to your .env file:\n" +
-        "  PORTAL_API_KEY=your-api-key\n"
+      "Add PORTAL_API_KEY to your .env file:\n" +
+      "  PORTAL_API_KEY=your-api-key\n"
     );
     process.exit(1);
   }
 
+  const rawStrategy = args.strategy?.toLowerCase();
+  const strategy =
+    rawStrategy === "chunked" || rawStrategy === "chunked-tool"
+      ? "chunked-tool"
+      : "extracted-memories";
+
   const options: LongMemEvalOptions = {
     variant: variant === "oracle" ? "s" : variant, // oracle uses same format as s
+    strategy,
+    llmModel: args.llm,
+    skipExisting: args["skip-existing"],
+    questionId: args["question-id"],
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,
     maxSessions: args["max-sessions"] ? parseInt(args["max-sessions"], 10) : undefined,
     questionTypes: args.types
@@ -139,7 +166,7 @@ async function main(): Promise<void> {
       : undefined,
     verbose: args.verbose,
     output: args.output,
-    skipUnsupported: args["skip-unsupported"],
+    skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
   };
 
   try {
@@ -150,6 +177,7 @@ async function main(): Promise<void> {
     const summary = await runLongMemEval(dataset, options, {
       apiKey,
       baseUrl,
+      llmModel: "openai/gpt-4o-mini",
     });
 
     if (args.json) {

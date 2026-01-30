@@ -149,6 +149,12 @@ Re-exports [CreateMemoryOptions](../react/Internal/interfaces/CreateMemoryOption
 
 ***
 
+### createMemoryRetrievalTool
+
+Re-exports [createMemoryRetrievalTool](../react/Internal/functions/createMemoryRetrievalTool.md)
+
+***
+
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
@@ -158,6 +164,18 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
+
+***
+
+### embedAllMessages
+
+Re-exports [embedAllMessages](../react/Internal/functions/embedAllMessages.md)
+
+***
+
+### embedMessage
+
+Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
 
 ***
 
@@ -176,6 +194,18 @@ Re-exports [generateCompositeKey](../react/Internal/functions/generateCompositeK
 ### generateConversationId
 
 Re-exports [generateConversationId](../react/Internal/functions/generateConversationId.md)
+
+***
+
+### generateEmbedding
+
+Re-exports [generateEmbedding](../react/Internal/functions/generateEmbedding.md)
+
+***
+
+### generateEmbeddings
+
+Re-exports [generateEmbeddings](../react/Internal/functions/generateEmbeddings.md)
 
 ***
 
@@ -200,6 +230,24 @@ Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
 ### MemoryItem
 
 Re-exports [MemoryItem](../react/Internal/interfaces/MemoryItem.md)
+
+***
+
+### MemoryRetrievalEmbeddingOptions
+
+Re-exports [MemoryRetrievalEmbeddingOptions](../react/Internal/interfaces/MemoryRetrievalEmbeddingOptions.md)
+
+***
+
+### MemoryRetrievalResult
+
+Re-exports [MemoryRetrievalResult](../react/Internal/interfaces/MemoryRetrievalResult.md)
+
+***
+
+### MemoryRetrievalSearchOptions
+
+Re-exports [MemoryRetrievalSearchOptions](../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)
 
 ***
 

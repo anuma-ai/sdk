@@ -69,6 +69,13 @@ import {
   mergeTools,
   type ServerTool,
 } from "../lib/tools";
+import {
+  generateEmbedding,
+  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  type MemoryRetrievalSearchOptions,
+} from "../lib/memoryRetrieval";
+import type { ToolConfig } from "../lib/chat/useChat/types";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 
 /**
  * Replace a URL in content with an internal file placeholder.
@@ -498,6 +505,25 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     conversationId?: string;
     limit?: number;
   }) => Promise<StoredFileWithContext[]>;
+  /**
+   * Create a memory retrieval tool for LLM to search past conversations.
+   * The tool is pre-configured with the hook's storage context and auth.
+   *
+   * @param searchOptions - Optional search configuration (limit, minSimilarity, etc.)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   *
+   * @example
+   * ```ts
+   * const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+   * await sendMessage({
+   *   messages: [...],
+   *   clientTools: [memoryTool],
+   * });
+   * ```
+   */
+  createMemoryRetrievalTool: (
+    searchOptions?: Partial<MemoryRetrievalSearchOptions>
+  ) => ToolConfig;
 }
 
 /**
@@ -572,6 +598,8 @@ export function useChatStorage(
     fileProcessors,
     fileProcessingOptions,
     serverTools: serverToolsConfig,
+    autoEmbedMessages = true,
+    embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -607,6 +635,47 @@ export function useChatStorage(
       conversationsCollection,
     }),
     [database, messagesCollection, conversationsCollection]
+  );
+
+  // Helper to embed a message after creation (non-blocking)
+  const embedMessageAsync = useCallback(
+    async (message: StoredMessage) => {
+      if (!autoEmbedMessages || !getToken) return;
+      try {
+        const embedding = await generateEmbedding(message.content, {
+          getToken,
+          baseUrl,
+          model: embeddingModel,
+        });
+        await updateMessageEmbeddingOp(
+          storageCtx,
+          message.uniqueId,
+          embedding,
+          embeddingModel
+        );
+      } catch (err) {
+        // Non-fatal: log but don't fail the message save
+        console.warn("[useChatStorage] Failed to embed message:", err);
+      }
+    },
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+  );
+
+  /**
+   * Create a memory retrieval tool pre-configured with hook's context and auth
+   */
+  const createMemoryRetrievalTool = useCallback(
+    (searchOptions?: Partial<MemoryRetrievalSearchOptions>): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for memory retrieval tool");
+      }
+      return createMemoryRetrievalToolBase(
+        storageCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        searchOptions
+      );
+    },
+    [storageCtx, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook
@@ -1938,6 +2007,9 @@ export function useChatStorage(
         };
       }
 
+      // Embed user message (non-blocking)
+      embedMessageAsync(storedUserMessage);
+
       // Update media records with the messageId now that we have it
       if (userFileIds.length > 0) {
         try {
@@ -2066,6 +2138,9 @@ export function useChatStorage(
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
             });
+
+            // Embed assistant message (non-blocking)
+            embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: LlmapiResponseResponse = abortedResult.data || {
@@ -2210,7 +2285,9 @@ export function useChatStorage(
           thoughtProcess: finalizeThoughtProcess(thoughtProcess),
           thinking: thinkingContent,
         });
-        
+
+        // Embed assistant message (non-blocking)
+        embedMessageAsync(storedAssistantMessage);
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed
         if (assistantFileIds.length > 0) {
@@ -2266,6 +2343,7 @@ export function useChatStorage(
       baseSendMessage,
       walletAddress,
       extractAndStoreEncryptedMCPImages,
+      embedMessageAsync,
     ]
   );
 
@@ -2349,5 +2427,6 @@ export function useChatStorage(
     extractSourcesFromAssistantMessage,
     updateMessage,
     getAllFiles,
+    createMemoryRetrievalTool,
   };
 }

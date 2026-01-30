@@ -278,6 +278,21 @@ export type {
 } from "../lib/processors";
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
+
+// Memory retrieval (semantic search over past messages)
+export {
+  createMemoryRetrievalTool,
+  embedMessage,
+  embedAllMessages,
+  generateEmbedding,
+  generateEmbeddings,
+} from "../lib/memoryRetrieval";
+export type {
+  MemoryRetrievalSearchOptions,
+  MemoryRetrievalResult,
+  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+} from "../lib/memoryRetrieval";
+
 export {
   formatMemoriesForChat,
   createMemoryContextSystemMessage,
