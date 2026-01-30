@@ -74,6 +74,7 @@ function ChatComponent() {
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
 | [useEncryption](Hooks/useEncryption.md) | Hook that provides encryption key management for securing local data. |
+| [useFiles](Hooks/useFiles.md) | A React hook for managing files (images, videos, audio, documents). |
 | [useGoogleDriveAuth](Hooks/useGoogleDriveAuth.md) | Hook to access Google Drive authentication state and methods. |
 | [useGoogleDriveBackup](Hooks/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
 | [useICloudAuth](Hooks/useICloudAuth.md) | Hook to access iCloud authentication state and methods. |

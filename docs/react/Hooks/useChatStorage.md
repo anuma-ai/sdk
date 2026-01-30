@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L568)
+Defined in: [src/react/useChatStorage.ts:582](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L582)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -377,7 +377,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning)
+Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
 
 </td>
 </tr>

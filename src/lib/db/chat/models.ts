@@ -14,6 +14,7 @@ export class Message extends Model {
 
   static associations: Associations = {
     conversations: { type: "belongs_to", key: "conversation_id" },
+    media: { type: "has_many", foreignKey: "message_id" },
   };
 
   @field("message_id") messageId!: number;
@@ -21,7 +22,10 @@ export class Message extends Model {
   @text("role") role!: ChatRole;
   @text("content") content!: string;
   @text("model") model?: string;
+  /** @deprecated Use fileIds with media table instead */
   @json("files", (json) => json) files?: FileMetadata[];
+  /** Array of media_id references for direct lookup */
+  @json("file_ids", (json) => json) fileIds?: string[];
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @json("vector", (json) => json) vector?: number[];

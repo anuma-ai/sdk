@@ -1,8 +1,8 @@
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiMessageContentPart,
   LlmapiResponseResponse,
-  LlmapiTool,
 } from "../../../client";
 import type {
   StreamAccumulator,
@@ -206,7 +206,7 @@ function detectTagFormat(
 
 /**
  * Parses and extracts reasoning tags from content, handling partial tags across streaming chunks.
- * Supports both <reasoning></reasoning> and <think></think> tag formats.
+ * Supports both `<reasoning></reasoning>` and `<think></think>` tag formats.
  * Also supports models that start with reasoning content immediately (no opening tag)
  * and only use a closing tag to mark the end of reasoning.
  */
@@ -457,12 +457,12 @@ export function parseReasoningTags(
 
 /**
  * Check if a model uses implicit reasoning start (no opening tag, only closing tag)
- * Models like Qwen thinking models start reasoning immediately without <think> tag
+ * Models like Qwen thinking models start reasoning immediately without `<think>` tag
  */
 function isImplicitReasoningModel(modelName?: string): boolean {
   if (!modelName) return false;
   const lowerModel = modelName.toLowerCase();
-  // Qwen thinking models use implicit reasoning (no <think> tag, only </think>)
+  // Qwen thinking models use implicit reasoning (no `<think>` tag, only `</think>`)
   return lowerModel.includes("qwen") && lowerModel.includes("thinking");
 }
 
@@ -476,7 +476,7 @@ export function createStreamAccumulator(
   // Check if this model uses implicit reasoning start
   // For these models, we assume we're inside reasoning until we see </think>
   // This applies to both initial requests AND continuation requests (after tool calls),
-  // since models like Qwen continue thinking in each response without <think> tags
+  // since models like Qwen continue thinking in each response without `<think>` tags
   const implicitReasoning = isImplicitReasoningModel(initialModel);
 
   return {
@@ -488,7 +488,7 @@ export function createStreamAccumulator(
     toolCalls: new Map(),
     partialReasoningTag: "",
     // For implicit reasoning models, start inside reasoning mode
-    // If they send <think> first, parseReasoningTags will handle it correctly
+    // If they send `<think>` first, parseReasoningTags will handle it correctly
     insideReasoning: implicitReasoning,
     implicitReasoningStart: implicitReasoning ? true : undefined,
   };
@@ -824,7 +824,7 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function createToolExecutorMap(
-  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
 ): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
   const map = new Map<
     string,
@@ -837,7 +837,7 @@ export function createToolExecutorMap(
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
-    const toolName = (tool as LlmapiTool).function?.name || (tool as any).name;
+    const toolName = (tool as any).function?.name || (tool as any).name;
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
@@ -899,7 +899,7 @@ export async function executeToolCall(
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
 ): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;

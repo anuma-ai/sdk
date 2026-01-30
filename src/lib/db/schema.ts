@@ -10,6 +10,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
 import { Project } from "./project/models";
 import { Memory } from "./memory/models";
+import { Media } from "./media/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
 
@@ -26,8 +27,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v8: BREAKING - Clear all data (switching embedding model from OpenAI to Fireworks)
  * - v9: Added thinking column to history table for reasoning/thinking content
  * - v10: Added projects table and project_id column to conversations table
+ * - v11: Added media table for library feature, added file_ids column to history table
  */
-const SDK_SCHEMA_VERSION = 10;
+const SDK_SCHEMA_VERSION = 11;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -71,7 +73,8 @@ export const sdkSchema = appSchema({
         { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
-        { name: "files", type: "string", isOptional: true },
+        { name: "files", type: "string", isOptional: true }, // Deprecated: use file_ids with media table
+        { name: "file_ids", type: "string", isOptional: true }, // JSON array of media_id references
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "vector", type: "string", isOptional: true },
@@ -154,6 +157,36 @@ export const sdkSchema = appSchema({
         { name: "updated_at", type: "number" },
       ],
     }),
+    // Media library storage (images, videos, audio, documents)
+    tableSchema({
+      name: "media",
+      columns: [
+        // Identity
+        { name: "media_id", type: "string", isIndexed: true },
+        { name: "wallet_address", type: "string", isIndexed: true },
+        { name: "message_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "conversation_id", type: "string", isOptional: true, isIndexed: true },
+        // Basic metadata
+        { name: "name", type: "string" },
+        { name: "mime_type", type: "string", isIndexed: true },
+        { name: "media_type", type: "string", isIndexed: true }, // "image" | "video" | "audio" | "document"
+        { name: "size", type: "number" },
+        // Origin
+        { name: "role", type: "string", isIndexed: true }, // "user" | "assistant"
+        { name: "model", type: "string", isOptional: true, isIndexed: true }, // AI model used for generation
+        // Original external URL for cached files (MCP R2, etc.)
+        { name: "source_url", type: "string", isOptional: true },
+        // Media-specific metadata
+        { name: "dimensions", type: "string", isOptional: true }, // JSON: { width, height }
+        { name: "duration", type: "number", isOptional: true }, // Video/audio duration in seconds
+        { name: "metadata", type: "string", isOptional: true }, // JSON: additional metadata
+        // Timestamps
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number" },
+        // Soft delete
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+      ],
+    }),
   ],
 });
 
@@ -176,6 +209,7 @@ export const sdkSchema = appSchema({
  * - v7 → v8: BREAKING - Clear all data (embedding model change)
  * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
  * - v9 → v10: Added `projects` table and `project_id` column to conversations
+ * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -286,6 +320,48 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v10 -> v11: Added media table for library feature and file_ids to history
+    {
+      toVersion: 11,
+      steps: [
+        createTable({
+          name: "media",
+          columns: [
+            // Identity
+            { name: "media_id", type: "string", isIndexed: true },
+            { name: "wallet_address", type: "string", isIndexed: true },
+            { name: "message_id", type: "string", isOptional: true, isIndexed: true },
+            { name: "conversation_id", type: "string", isOptional: true, isIndexed: true },
+            // Basic metadata
+            { name: "name", type: "string" },
+            { name: "mime_type", type: "string", isIndexed: true },
+            { name: "media_type", type: "string", isIndexed: true },
+            { name: "size", type: "number" },
+            // Origin
+            { name: "role", type: "string", isIndexed: true },
+            { name: "model", type: "string", isOptional: true, isIndexed: true },
+            // Original external URL for cached files (MCP R2, etc.)
+            { name: "source_url", type: "string", isOptional: true },
+            // Media-specific metadata
+            { name: "dimensions", type: "string", isOptional: true },
+            { name: "duration", type: "number", isOptional: true },
+            { name: "metadata", type: "string", isOptional: true },
+            // Timestamps
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            // Soft delete
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+        // Add file_ids column to history table for direct media lookup
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "file_ids", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -311,6 +387,7 @@ export const sdkModelClasses: Class<Model>[] = [
   Conversation,
   Project,
   Memory,
+  Media,
   ModelPreference,
   UserPreference,
 ];

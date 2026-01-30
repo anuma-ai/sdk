@@ -2,7 +2,7 @@
 
 > **LlmapiThinkingOptions** = `object`
 
-Defined in: [src/client/types.gen.ts:725](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L725)
+Defined in: [src/client/types.gen.ts:859](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L859)
 
 Thinking configures extended thinking for Anthropic models
 
@@ -12,7 +12,7 @@ Thinking configures extended thinking for Anthropic models
 
 > `optional` **budget\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:729](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L729)
+Defined in: [src/client/types.gen.ts:863](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L863)
 
 BudgetTokens is the token budget for thinking
 
@@ -22,6 +22,6 @@ BudgetTokens is the token budget for thinking
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:733](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L733)
+Defined in: [src/client/types.gen.ts:867](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L867)
 
 Type indicates if thinking is enabled: "enabled" or "disabled"

@@ -9,7 +9,8 @@
 // Uses a format that won't be interpreted as markdown
 export const FILE_PLACEHOLDER_PREFIX = "__SDKFILE__";
 export const FILE_PLACEHOLDER_SUFFIX = "__";
-export const FILE_PLACEHOLDER_REGEX = /__SDKFILE__([a-f0-9-]+)__/g;
+// Match file IDs like "media_019c0630-8b7a-760c-863e-b6c676fd50d3"
+export const FILE_PLACEHOLDER_REGEX = /__SDKFILE__([a-zA-Z0-9_-]+)__/g;
 
 /**
  * Creates an internal file placeholder for a given file ID.
@@ -347,16 +348,21 @@ export async function resolveFilePlaceholders(
     fileIds.map(async (fileId) => {
       // Check if we already have a URL for this file
       let url = blobManager.getUrl(fileId);
+      const wasCached = !!url;
 
       if (!url) {
         // Read and decrypt the file
         const result = await readEncryptedFile(fileId, encryptionKey);
         if (result) {
           url = blobManager.createUrl(fileId, result.blob);
+        } else {
+          console.warn(`[resolveFilePlaceholders] File not found: ${fileId}`);
         }
+      } else {
+        console.log(`[resolveFilePlaceholders] Using cached URL for ${fileId}`);
       }
 
-      return { fileId, url };
+      return { fileId, url, wasCached };
     })
   );
 
@@ -379,9 +385,10 @@ export async function resolveFilePlaceholders(
     const placeholderRegex = new RegExp(escapedPlaceholder, "g");
     // Use unique alt text with fileId to prevent UI blobUrlMap collisions
     const replacement = `![image-${fileId}](${url})`;
-    
+
     resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
   }
+
 
   return resolvedContent;
 }

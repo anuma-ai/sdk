@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsRenew**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsRenewData`](../type-aliases/PostApiV1SubscriptionsRenewData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsRenewResponses`](../type-aliases/PostApiV1SubscriptionsRenewResponses.md), [`PostApiV1SubscriptionsRenewErrors`](../type-aliases/PostApiV1SubscriptionsRenewErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L154)
+Defined in: [src/client/sdk.gen.ts:202](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L202)
 
 Renew subscription
 

@@ -2,7 +2,7 @@
 
 > **GetApiV1ModelsData** = `object`
 
-Defined in: [src/client/types.gen.ts:939](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L939)
+Defined in: [src/client/types.gen.ts:1151](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1151)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:939](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:940](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L940)
+Defined in: [src/client/types.gen.ts:1152](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1152)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:940](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:941](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L941)
+Defined in: [src/client/types.gen.ts:1153](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1153)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:941](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:942](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L942)
+Defined in: [src/client/types.gen.ts:1154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1154)
 
 **page\_size?**
 
@@ -52,4 +52,4 @@ Filter by provider (e.g., openai, anthropic)
 
 > **url**: `"/api/v1/models"`
 
-Defined in: [src/client/types.gen.ts:956](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L956)
+Defined in: [src/client/types.gen.ts:1168](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1168)

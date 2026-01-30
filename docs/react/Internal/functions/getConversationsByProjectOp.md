@@ -2,7 +2,7 @@
 
 > **getConversationsByProjectOp**(`ctx`: `StorageOperationsContext`, `projectId`: `string` | `null`): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L167)
+Defined in: [src/lib/db/chat/operations.ts:172](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L172)
 
 Get conversations filtered by project ID.
 Pass null to get conversations that don't belong to any project.

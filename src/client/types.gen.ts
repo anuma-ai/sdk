@@ -4,6 +4,48 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersAddCreditsRequest = {
+    /**
+     * Number of credits to add (1 credit = 1 cent)
+     */
+    credits?: number;
+    /**
+     * Escrow contract address to use
+     */
+    escrow_contract?: string;
+    user_address?: string;
+};
+
+export type HandlersAddCreditsResponse = {
+    credits_added?: number;
+    /**
+     * Escrow contract used for the operation
+     */
+    escrow_contract?: string;
+    message?: string;
+    /**
+     * New cost limit in credits (from contract)
+     */
+    new_cost_limit?: string;
+    success?: boolean;
+    /**
+     * Transaction hash if on-chain
+     */
+    tx_hash?: string;
+    user_address?: string;
+};
+
+export type HandlersAppConfig = {
+    /**
+     * EscrowContract is the escrow contract address for this app
+     */
+    escrow_contract?: string;
+    /**
+     * Name is the human-readable name of the app
+     */
+    name?: string;
+};
+
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
@@ -16,21 +58,17 @@ export type HandlersCheckoutSessionResponse = {
 
 export type HandlersConfigResponse = {
     /**
+     * Apps is the list of active apps with their escrow contracts
+     */
+    apps?: Array<HandlersAppConfig>;
+    /**
      * ChainID is the blockchain chain ID
      */
     chain_id?: string;
     /**
-     * CostLimitEscrowAddress is the cost-limit escrow contract address (if configured)
-     */
-    cost_limit_escrow_address?: string;
-    /**
      * OperatorAddress is the operator wallet address
      */
     operator_address?: string;
-    /**
-     * PayAsYouGoEscrowAddress is the pay-as-you-go escrow contract address (if configured)
-     */
-    pay_as_you_go_escrow_address?: string;
     /**
      * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
      */
@@ -88,6 +126,49 @@ export type HandlersRenewSubscriptionResponse = {
 
 export type HandlersRevokeRequest = {
     token: string;
+};
+
+export type HandlersSeedApiKeyInput = {
+    is_active?: boolean;
+    key?: string;
+    name?: string;
+    wallet_address?: string;
+};
+
+export type HandlersSeedAppInput = {
+    api_keys?: Array<HandlersSeedApiKeyInput>;
+    credit_reset_enabled?: boolean;
+    escrow_contract?: string;
+    is_active?: boolean;
+    name?: string;
+    privy_app_id?: string;
+    privy_verification_key?: string;
+};
+
+export type HandlersSeedAppsRequest = {
+    apps?: Array<HandlersSeedAppInput>;
+};
+
+export type HandlersSeedAppsResponse = {
+    apps_seeded?: number;
+    keys_seeded?: number;
+    message?: string;
+    success?: boolean;
+};
+
+export type HandlersSetSubscriptionTierRequest = {
+    /**
+     * "basic" or "pro"
+     */
+    tier?: string;
+    user_address?: string;
+};
+
+export type HandlersSetSubscriptionTierResponse = {
+    message?: string;
+    success?: boolean;
+    tier?: string;
+    user_address?: string;
 };
 
 export type HandlersSubscriptionStatusResponse = {
@@ -164,11 +245,11 @@ export type LlmapiChatCompletionRequest = {
      * Stream indicates if response should be streamed
      */
     stream?: boolean;
-    tool_choice?: LlmapiToolChoice;
+    tool_choice?: LlmapiChatCompletionToolChoice;
     /**
-     * Tools is an array of tool definitions the model can use
+     * Tools is an array of tool schemas describing which tools the model can use
      */
-    tools?: Array<LlmapiTool>;
+    tools?: Array<LlmapiChatCompletionTool>;
 };
 
 export type LlmapiChatCompletionResponse = {
@@ -193,6 +274,17 @@ export type LlmapiChatCompletionResponse = {
      */
     model?: string;
     usage?: LlmapiChatCompletionUsage;
+};
+
+export type LlmapiChatCompletionTool = {
+    [key: string]: unknown;
+};
+
+/**
+ * ToolChoice controls tool usage
+ */
+export type LlmapiChatCompletionToolChoice = {
+    [key: string]: unknown;
 };
 
 /**
@@ -322,6 +414,21 @@ export type LlmapiEmbeddingUsage = {
      * TotalTokens is the total number of tokens used
      */
     total_tokens?: number;
+};
+
+export type LlmapiMcpTool = {
+    /**
+     * Description is the description of the tool
+     */
+    description?: string;
+    /**
+     * InputSchema is the JSON schema describing the tool's input
+     */
+    input_schema?: unknown;
+    /**
+     * Name is the name of the tool
+     */
+    name?: string;
 };
 
 /**
@@ -578,11 +685,11 @@ export type LlmapiResponseOutputContent = {
 
 export type LlmapiResponseOutputItem = {
     /**
-     * Arguments is the function arguments for function_call types
+     * Arguments is the function arguments for function_call and mcp_call types
      */
     arguments?: string;
     /**
-     * CallID is the call ID for function_call types
+     * CallID is the call ID for function_call and mcp_call types
      */
     call_id?: string;
     /**
@@ -590,17 +697,29 @@ export type LlmapiResponseOutputItem = {
      */
     content?: Array<LlmapiResponseOutputContent>;
     /**
+     * Error is the MCP error message for mcp_call types
+     */
+    error?: string;
+    /**
      * ID is the unique identifier for this output item
      */
     id?: string;
     /**
-     * Name is the function name for function_call types
+     * Name is the function name for function_call and mcp_call types
      */
     name?: string;
+    /**
+     * Output is the MCP tool output for mcp_call types
+     */
+    output?: string;
     /**
      * Role is the role for message types (e.g., "assistant")
      */
     role?: string;
+    /**
+     * ServerLabel is the MCP server label for mcp_call and mcp_list_tools types
+     */
+    server_label?: string;
     /**
      * Status is the status of this output item (e.g., "completed")
      */
@@ -610,7 +729,11 @@ export type LlmapiResponseOutputItem = {
      */
     summary?: Array<LlmapiResponseOutputContent>;
     /**
-     * Type is the output item type (e.g., "message", "function_call", "reasoning")
+     * Tools is the list of available tools for mcp_list_tools types
+     */
+    tools?: Array<LlmapiMcpTool>;
+    /**
+     * Type is the output item type (e.g., "message", "function_call", "reasoning", "mcp_call")
      */
     type?: string;
 };
@@ -653,11 +776,11 @@ export type LlmapiResponseRequest = {
      */
     temperature?: number;
     thinking?: LlmapiThinkingOptions;
-    tool_choice?: LlmapiToolChoice;
+    tool_choice?: LlmapiResponseToolChoice;
     /**
-     * Tools is an array of tool definitions the model can use
+     * Tools is an array of tool schemas describing which tools the model can use
      */
-    tools?: Array<LlmapiTool>;
+    tools?: Array<LlmapiResponseTool>;
 };
 
 export type LlmapiResponseResponse = {
@@ -690,6 +813,17 @@ export type LlmapiResponseResponse = {
      */
     output?: Array<LlmapiResponseOutputItem>;
     usage?: LlmapiResponseUsage;
+};
+
+export type LlmapiResponseTool = {
+    [key: string]: unknown;
+};
+
+/**
+ * ToolChoice controls tool usage
+ */
+export type LlmapiResponseToolChoice = {
+    [key: string]: unknown;
 };
 
 /**
@@ -733,14 +867,6 @@ export type LlmapiThinkingOptions = {
     type?: string;
 };
 
-export type LlmapiTool = {
-    function?: LlmapiToolFunction;
-    /**
-     * Type is the tool type (function, code_interpreter, file_search, web_search)
-     */
-    type?: string;
-};
-
 export type LlmapiToolCall = {
     function?: LlmapiToolCallFunction;
     /**
@@ -767,59 +893,145 @@ export type LlmapiToolCallFunction = {
     name?: string;
 };
 
-/**
- * ToolChoice controls which tool to use. Can be:
- * - string: "auto", "none", "required"
- * - object: {"name": "my_function"}
- */
-export type LlmapiToolChoice = {
-    function?: LlmapiToolChoiceFunction;
-    mode?: LlmapiToolChoiceMode;
-    tag?: LlmapiToolChoiceTag;
-};
-
-/**
- * Function forces the model to call a specific tool function.
- */
-export type LlmapiToolChoiceFunction = {
-    name?: string;
-};
-
-/**
- * Mode controls which (if any) tool is called by the model.
- * - "none" means the model will not call any tool and instead generates a message.
- * - "auto" means the model can pick between generating a message or calling one or more tools.
- * - "required" means the model must call one or more tools.
- */
-export type LlmapiToolChoiceMode = 'none' | 'auto' | 'required';
-
-export type LlmapiToolChoiceTag = 0 | 1;
-
-/**
- * Function is the function definition (when Type is "function")
- */
-export type LlmapiToolFunction = {
-    /**
-     * Arguments is the function arguments schema (JSON object)
-     */
-    arguments?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Description is a description of the function (used by the model to decide when to call it)
-     */
-    description?: string;
-    /**
-     * Name is the function name
-     */
-    name?: string;
-};
-
 export type ResponseErrorResponse = {
     error?: string;
     request_id?: string;
     trace_id?: string;
 };
+
+export type PostApiV1AdminAddCreditsData = {
+    /**
+     * Add credits request
+     */
+    body: HandlersAddCreditsRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/add-credits';
+};
+
+export type PostApiV1AdminAddCreditsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminAddCreditsError = PostApiV1AdminAddCreditsErrors[keyof PostApiV1AdminAddCreditsErrors];
+
+export type PostApiV1AdminAddCreditsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAddCreditsResponse;
+};
+
+export type PostApiV1AdminAddCreditsResponse = PostApiV1AdminAddCreditsResponses[keyof PostApiV1AdminAddCreditsResponses];
+
+export type PostApiV1AdminSeedAppsData = {
+    /**
+     * Seed apps request
+     */
+    body: HandlersSeedAppsRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/seed-apps';
+};
+
+export type PostApiV1AdminSeedAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminSeedAppsError = PostApiV1AdminSeedAppsErrors[keyof PostApiV1AdminSeedAppsErrors];
+
+export type PostApiV1AdminSeedAppsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSeedAppsResponse;
+};
+
+export type PostApiV1AdminSeedAppsResponse = PostApiV1AdminSeedAppsResponses[keyof PostApiV1AdminSeedAppsResponses];
+
+export type PostApiV1AdminSubscriptionTierData = {
+    /**
+     * Set subscription tier request
+     */
+    body: HandlersSetSubscriptionTierRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/subscription-tier';
+};
+
+export type PostApiV1AdminSubscriptionTierErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminSubscriptionTierError = PostApiV1AdminSubscriptionTierErrors[keyof PostApiV1AdminSubscriptionTierErrors];
+
+export type PostApiV1AdminSubscriptionTierResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSetSubscriptionTierResponse;
+};
+
+export type PostApiV1AdminSubscriptionTierResponse = PostApiV1AdminSubscriptionTierResponses[keyof PostApiV1AdminSubscriptionTierResponses];
 
 export type PostApiV1ChatCompletionsData = {
     /**
@@ -1227,6 +1439,29 @@ export type PostApiV1SubscriptionsWebhookResponses = {
 };
 
 export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
+
+export type GetApiV1ToolsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools';
+};
+
+export type GetApiV1ToolsErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1ToolsError = GetApiV1ToolsErrors[keyof GetApiV1ToolsErrors];
+
+export type GetApiV1ToolsResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

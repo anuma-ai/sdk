@@ -2,7 +2,7 @@
 
 > **writeEncryptedFile**(`fileId`: `string`, `blob`: `Blob`, `encryptionKey`: `CryptoKey`, `metadata?`: `object`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/opfs.ts:148](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L148)
+Defined in: [src/lib/storage/opfs.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L149)
 
 Writes an encrypted file to OPFS.
 

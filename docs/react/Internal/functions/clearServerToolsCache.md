@@ -2,7 +2,7 @@
 
 > **clearServerToolsCache**(): `void`
 
-Defined in: [src/lib/tools/serverTools.ts:194](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L194)
+Defined in: [src/lib/tools/serverTools.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L239)
 
 Clear the server tools cache
 

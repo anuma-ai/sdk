@@ -22,6 +22,7 @@ export function messageToStored(message: Message): StoredMessage {
     content: message.content,
     model: message.model,
     files: message.files,
+    fileIds: message.fileIds,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
     vector: message.vector,
@@ -117,6 +118,10 @@ export async function updateConversationTitleOp(
   return false;
 }
 
+/**
+ * Soft delete a conversation.
+ * Note: useChatStorage hooks automatically cascade delete messages and media.
+ */
 export async function deleteConversationOp(
   ctx: StorageOperationsContext,
   id: string
@@ -199,6 +204,11 @@ export async function getMessageCountOp(
     .fetchCount();
 }
 
+/**
+ * Clear all messages in a conversation.
+ * Clears file_ids before deletion.
+ * Note: useChatStorage hooks automatically cascade delete media.
+ */
 export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
@@ -209,9 +219,42 @@ export async function clearMessagesOp(
 
   await ctx.database.write(async () => {
     for (const message of messages) {
+      // Clear file references before deletion
+      await message.update((msg) => {
+        msg._setRaw("file_ids", null);
+        msg._setRaw("files", null);
+      });
       await message.destroyPermanently();
     }
   });
+}
+
+/**
+ * Delete a single message by its unique ID.
+ * Clears file_ids before deletion and returns the unique ID.
+ * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
+ */
+export async function deleteMessageOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string
+): Promise<string | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  await ctx.database.write(async () => {
+    // Clear file references before deletion
+    await message.update((msg) => {
+      msg._setRaw("file_ids", null);
+      msg._setRaw("files", null);
+    });
+    await message.destroyPermanently();
+  });
+
+  return uniqueId;
 }
 
 export async function createMessageOp(
@@ -229,6 +272,7 @@ export async function createMessageOp(
       msg._setRaw("content", opts.content);
       if (opts.model) msg._setRaw("model", opts.model);
       if (opts.files) msg._setRaw("files", JSON.stringify(opts.files));
+      if (opts.fileIds) msg._setRaw("file_ids", JSON.stringify(opts.fileIds));
       if (opts.usage) msg._setRaw("usage", JSON.stringify(opts.usage));
       if (opts.sources) msg._setRaw("sources", JSON.stringify(opts.sources));
       if (opts.responseDuration !== undefined)
@@ -309,6 +353,8 @@ export async function updateMessageOp(
       if (opts.model !== undefined) msg._setRaw("model", opts.model);
       if (opts.files !== undefined)
         msg._setRaw("files", JSON.stringify(opts.files));
+      if (opts.fileIds !== undefined)
+        msg._setRaw("file_ids", JSON.stringify(opts.fileIds));
       if (opts.usage !== undefined)
         msg._setRaw("usage", JSON.stringify(opts.usage));
       if (opts.sources !== undefined)

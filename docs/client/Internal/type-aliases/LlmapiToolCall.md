@@ -2,7 +2,7 @@
 
 > **LlmapiToolCall** = `object`
 
-Defined in: [src/client/types.gen.ts:744](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L744)
+Defined in: [src/client/types.gen.ts:870](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L870)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:744](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **function**: [`LlmapiToolCallFunction`](LlmapiToolCallFunction.md)
 
-Defined in: [src/client/types.gen.ts:745](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L745)
+Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:745](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:749](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L749)
+Defined in: [src/client/types.gen.ts:875](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L875)
 
 ID is the unique identifier for this tool call
 
@@ -28,6 +28,6 @@ ID is the unique identifier for this tool call
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:753](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L753)
+Defined in: [src/client/types.gen.ts:879](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L879)
 
 Type is the type of tool call (always "function" for now)

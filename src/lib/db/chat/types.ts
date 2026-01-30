@@ -1,12 +1,12 @@
 import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
 import type {
+  LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
   LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
-  LlmapiTool,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 
@@ -69,7 +69,10 @@ export interface StoredMessage {
   role: ChatRole;
   content: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   createdAt: Date;
   updatedAt: Date;
   vector?: number[];
@@ -126,7 +129,10 @@ export interface CreateMessageOptions {
   role: ChatRole;
   content: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;
@@ -150,7 +156,10 @@ export interface CreateConversationOptions {
 export interface UpdateMessageOptions {
   content?: string;
   model?: string;
+  /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
+  /** Array of media_id references for direct lookup in media table */
+  fileIds?: string[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;
@@ -183,7 +192,7 @@ export interface BaseUseChatStorageOptions {
   baseUrl?: string;
   /** Callback invoked with each streamed response chunk */
   onData?: (chunk: string) => void;
-  /** Callback invoked when thinking/reasoning content is received (from <think> tags or API reasoning) */
+  /** Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning) */
   onThinking?: (chunk: string) => void;
   /** Callback invoked when the response completes successfully */
   onFinish?: (response: LlmapiResponseResponse) => void;
@@ -363,7 +372,7 @@ export interface BaseSendMessageWithStorageArgs {
    * Client-side tools with optional executors.
    * These tools run in the browser/app and can have JavaScript executor functions.
    */
-  clientTools?: LlmapiTool[];
+  clientTools?: LlmapiChatCompletionTool[];
 
   /**
    * Server-side tools to include from /api/v1/tools.

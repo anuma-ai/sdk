@@ -100,6 +100,10 @@ export {
   deleteEncryptedFile,
   fileExists,
   BlobUrlManager,
+  resolveFilePlaceholders,
+  extractFileIds,
+  FILE_PLACEHOLDER_PREFIX,
+  FILE_PLACEHOLDER_REGEX,
 } from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
@@ -157,6 +161,8 @@ export type {
   UseMemoryStorageOptions,
   UseMemoryStorageResult,
 } from "./useMemoryStorage";
+export { useFiles } from "./useFiles";
+export type { UseFilesOptions, UseFilesResult } from "./useFiles";
 export {
   /** @deprecated Use sdkSchema instead */
   memoryStorageSchema,
@@ -198,6 +204,56 @@ export {
   type UpdateUserPreferenceOptions,
   type ProfileUpdate,
 } from "../lib/db/userPreferences";
+
+// Media library storage
+export {
+  Media as StoredMediaModel,
+  // Types
+  type MediaType,
+  type MediaRole,
+  type MediaDimensions,
+  type MediaMetadata,
+  type StoredMedia,
+  type CreateMediaOptions,
+  type UpdateMediaOptions,
+  type MediaFilterOptions,
+  type MediaOperationsContext,
+  // Utility functions
+  generateMediaId,
+  getMediaTypeFromMime,
+  isSupportedMediaType,
+  // CRUD operations
+  mediaToStored,
+  createMediaOp,
+  createMediaBatchOp,
+  getMediaByIdOp,
+  getMediaBySourceUrlOp,
+  updateMediaOp,
+  updateMediaMessageIdBatchOp,
+  deleteMediaOp,
+  hardDeleteMediaOp,
+  // Library query operations
+  getMediaOp,
+  getMediaByTypeOp,
+  getImagesOp,
+  getVideosOp,
+  getAudioOp,
+  getDocumentsOp,
+  getMediaByConversationOp,
+  getMediaByMessageOp,
+  getMediaByIdsOp,
+  getMediaByRoleOp,
+  getAIGeneratedMediaOp,
+  getUserUploadedMediaOp,
+  getMediaByModelOp,
+  getRecentMediaOp,
+  searchMediaOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  deleteMediaByConversationOp,
+  deleteMediaByMessageOp,
+} from "../lib/db/media";
+
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";

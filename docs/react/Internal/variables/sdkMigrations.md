@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:180](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L180)
+Defined in: [src/lib/db/schema.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L214)
 
 Combined migrations for all SDK storage modules.
 
@@ -23,3 +23,4 @@ Migration history:
 * v7 → v8: BREAKING - Clear all data (embedding model change)
 * v8 → v9: Added `thinking` column to history table for reasoning/thinking content
 * v9 → v10: Added `projects` table and `project_id` column to conversations
+* v10 → v11: Added `media` table for library feature, added `file_ids` column to history

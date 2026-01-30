@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputContent** = `object`
 
-Defined in: [src/client/types.gen.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L568)
+Defined in: [src/client/types.gen.ts:675](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L675)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:568](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:572](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L572)
+Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
 
 Text is the text content
 
@@ -20,6 +20,6 @@ Text is the text content
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:576](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L576)
+Defined in: [src/client/types.gen.ts:683](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L683)
 
 Type is the content type (e.g., "output\_text")

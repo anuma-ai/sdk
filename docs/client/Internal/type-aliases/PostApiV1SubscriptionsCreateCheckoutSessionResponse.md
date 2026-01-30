@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionResponse** = [`PostApiV1SubscriptionsCreateCheckoutSessionResponses`](PostApiV1SubscriptionsCreateCheckoutSessionResponses.md)\[keyof [`PostApiV1SubscriptionsCreateCheckoutSessionResponses`](PostApiV1SubscriptionsCreateCheckoutSessionResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1088](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1088)
+Defined in: [src/client/types.gen.ts:1300](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1300)

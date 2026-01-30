@@ -23,11 +23,18 @@
 | [GetApiV1SubscriptionsStatusErrors](Internal/type-aliases/GetApiV1SubscriptionsStatusErrors.md) | - |
 | [GetApiV1SubscriptionsStatusResponse](Internal/type-aliases/GetApiV1SubscriptionsStatusResponse.md) | - |
 | [GetApiV1SubscriptionsStatusResponses](Internal/type-aliases/GetApiV1SubscriptionsStatusResponses.md) | - |
+| [GetApiV1ToolsData](Internal/type-aliases/GetApiV1ToolsData.md) | - |
+| [GetApiV1ToolsError](Internal/type-aliases/GetApiV1ToolsError.md) | - |
+| [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
+| [GetApiV1ToolsResponses](Internal/type-aliases/GetApiV1ToolsResponses.md) | - |
 | [GetHealthData](Internal/type-aliases/GetHealthData.md) | - |
 | [GetHealthError](Internal/type-aliases/GetHealthError.md) | - |
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
 | [GetHealthResponse](Internal/type-aliases/GetHealthResponse.md) | - |
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
+| [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
+| [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
+| [HandlersAppConfig](Internal/type-aliases/HandlersAppConfig.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
@@ -39,11 +46,19 @@
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
 | [HandlersRevokeRequest](Internal/type-aliases/HandlersRevokeRequest.md) | - |
+| [HandlersSeedApiKeyInput](Internal/type-aliases/HandlersSeedApiKeyInput.md) | - |
+| [HandlersSeedAppInput](Internal/type-aliases/HandlersSeedAppInput.md) | - |
+| [HandlersSeedAppsRequest](Internal/type-aliases/HandlersSeedAppsRequest.md) | - |
+| [HandlersSeedAppsResponse](Internal/type-aliases/HandlersSeedAppsResponse.md) | - |
+| [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
+| [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
 | [LlmapiChatCompletionResponse](Internal/type-aliases/LlmapiChatCompletionResponse.md) | - |
+| [LlmapiChatCompletionTool](Internal/type-aliases/LlmapiChatCompletionTool.md) | - |
+| [LlmapiChatCompletionToolChoice](Internal/type-aliases/LlmapiChatCompletionToolChoice.md) | ToolChoice controls tool usage |
 | [LlmapiChatCompletionUsage](Internal/type-aliases/LlmapiChatCompletionUsage.md) | Usage contains token usage information |
 | [LlmapiChoice](Internal/type-aliases/LlmapiChoice.md) | - |
 | [LlmapiEmbeddingData](Internal/type-aliases/LlmapiEmbeddingData.md) | - |
@@ -51,6 +66,7 @@
 | [LlmapiEmbeddingRequest](Internal/type-aliases/LlmapiEmbeddingRequest.md) | - |
 | [LlmapiEmbeddingResponse](Internal/type-aliases/LlmapiEmbeddingResponse.md) | - |
 | [LlmapiEmbeddingUsage](Internal/type-aliases/LlmapiEmbeddingUsage.md) | Usage contains token usage information |
+| [LlmapiMcpTool](Internal/type-aliases/LlmapiMcpTool.md) | - |
 | [LlmapiMessage](Internal/type-aliases/LlmapiMessage.md) | Message is the generated message |
 | [LlmapiMessageContentFile](Internal/type-aliases/LlmapiMessageContentFile.md) | File is used when Type=input\_file (for Responses API) |
 | [LlmapiMessageContentImage](Internal/type-aliases/LlmapiMessageContentImage.md) | ImageURL is used when Type=image\_url or Type=input\_image |
@@ -69,18 +85,29 @@
 | [LlmapiResponseReasoning](Internal/type-aliases/LlmapiResponseReasoning.md) | Reasoning configures reasoning for o-series and other reasoning models |
 | [LlmapiResponseRequest](Internal/type-aliases/LlmapiResponseRequest.md) | - |
 | [LlmapiResponseResponse](Internal/type-aliases/LlmapiResponseResponse.md) | - |
+| [LlmapiResponseTool](Internal/type-aliases/LlmapiResponseTool.md) | - |
+| [LlmapiResponseToolChoice](Internal/type-aliases/LlmapiResponseToolChoice.md) | ToolChoice controls tool usage |
 | [LlmapiResponseUsage](Internal/type-aliases/LlmapiResponseUsage.md) | Usage contains token usage information |
 | [LlmapiRole](Internal/type-aliases/LlmapiRole.md) | Role is the message role (system, user, assistant, tool) |
 | [LlmapiThinkingOptions](Internal/type-aliases/LlmapiThinkingOptions.md) | Thinking configures extended thinking for Anthropic models |
-| [LlmapiTool](Internal/type-aliases/LlmapiTool.md) | - |
 | [LlmapiToolCall](Internal/type-aliases/LlmapiToolCall.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
-| [LlmapiToolChoice](Internal/type-aliases/LlmapiToolChoice.md) | ToolChoice controls which tool to use. Can be: - string: "auto", "none", "required" - object: {"name": "my\_function"} |
-| [LlmapiToolChoiceFunction](Internal/type-aliases/LlmapiToolChoiceFunction.md) | Function forces the model to call a specific tool function. |
-| [LlmapiToolChoiceMode](Internal/type-aliases/LlmapiToolChoiceMode.md) | Mode controls which (if any) tool is called by the model. - "none" means the model will not call any tool and instead generates a message. - "auto" means the model can pick between generating a message or calling one or more tools. - "required" means the model must call one or more tools. |
-| [LlmapiToolChoiceTag](Internal/type-aliases/LlmapiToolChoiceTag.md) | - |
-| [LlmapiToolFunction](Internal/type-aliases/LlmapiToolFunction.md) | Function is the function definition (when Type is "function") |
 | [Options](Internal/type-aliases/Options.md) | - |
+| [PostApiV1AdminAddCreditsData](Internal/type-aliases/PostApiV1AdminAddCreditsData.md) | - |
+| [PostApiV1AdminAddCreditsError](Internal/type-aliases/PostApiV1AdminAddCreditsError.md) | - |
+| [PostApiV1AdminAddCreditsErrors](Internal/type-aliases/PostApiV1AdminAddCreditsErrors.md) | - |
+| [PostApiV1AdminAddCreditsResponse](Internal/type-aliases/PostApiV1AdminAddCreditsResponse.md) | - |
+| [PostApiV1AdminAddCreditsResponses](Internal/type-aliases/PostApiV1AdminAddCreditsResponses.md) | - |
+| [PostApiV1AdminSeedAppsData](Internal/type-aliases/PostApiV1AdminSeedAppsData.md) | - |
+| [PostApiV1AdminSeedAppsError](Internal/type-aliases/PostApiV1AdminSeedAppsError.md) | - |
+| [PostApiV1AdminSeedAppsErrors](Internal/type-aliases/PostApiV1AdminSeedAppsErrors.md) | - |
+| [PostApiV1AdminSeedAppsResponse](Internal/type-aliases/PostApiV1AdminSeedAppsResponse.md) | - |
+| [PostApiV1AdminSeedAppsResponses](Internal/type-aliases/PostApiV1AdminSeedAppsResponses.md) | - |
+| [PostApiV1AdminSubscriptionTierData](Internal/type-aliases/PostApiV1AdminSubscriptionTierData.md) | - |
+| [PostApiV1AdminSubscriptionTierError](Internal/type-aliases/PostApiV1AdminSubscriptionTierError.md) | - |
+| [PostApiV1AdminSubscriptionTierErrors](Internal/type-aliases/PostApiV1AdminSubscriptionTierErrors.md) | - |
+| [PostApiV1AdminSubscriptionTierResponse](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponse.md) | - |
+| [PostApiV1AdminSubscriptionTierResponses](Internal/type-aliases/PostApiV1AdminSubscriptionTierResponses.md) | - |
 | [PostApiV1ChatCompletionsData](Internal/type-aliases/PostApiV1ChatCompletionsData.md) | - |
 | [PostApiV1ChatCompletionsError](Internal/type-aliases/PostApiV1ChatCompletionsError.md) | - |
 | [PostApiV1ChatCompletionsErrors](Internal/type-aliases/PostApiV1ChatCompletionsErrors.md) | - |
@@ -146,7 +173,11 @@
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
+| [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
+| [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
+| [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
+| [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
