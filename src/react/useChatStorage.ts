@@ -419,12 +419,16 @@ export type SendMessageWithStorageResult =
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
+      /** Checksum of tools used to generate this response */
+      toolsChecksum?: string;
     }
   | {
       data: null;
       error: string;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
+      /** Checksum of tools used to generate this response */
+      toolsChecksum?: string;
     };
 
 /**
@@ -2163,6 +2167,7 @@ export function useChatStorage(
               error: null, // Treat as success to the caller
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
+              toolsChecksum: result.toolsChecksum,
             };
           } catch {
             // Storage failed for abort - don't set error field on stored messages
@@ -2172,6 +2177,7 @@ export function useChatStorage(
               data: null,
               error: "Request aborted",
               userMessage: storedUserMessage,
+              toolsChecksum: result.toolsChecksum,
             };
           }
         }
@@ -2203,6 +2209,7 @@ export function useChatStorage(
           data: null,
           error: errorMessage,
           userMessage: { ...storedUserMessage, error: errorMessage },
+          toolsChecksum: result.toolsChecksum,
         };
       }
 
@@ -2308,6 +2315,7 @@ export function useChatStorage(
               ? err.message
               : "Failed to store assistant message",
           userMessage: storedUserMessage,
+          toolsChecksum: result.toolsChecksum,
         };
       }
 
@@ -2334,6 +2342,7 @@ export function useChatStorage(
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        toolsChecksum: result.toolsChecksum,
       };
     },
     [

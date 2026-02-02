@@ -313,7 +313,10 @@ export type {
   CachedServerTools,
   ServerToolsResponse,
   ParsedServerToolsResponse,
+  ServerTool,
 } from "../lib/tools";
+export { useTools } from "./useTools";
+export type { UseToolsOptions, UseToolsResult } from "./useTools";
 
 export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
 export type {
