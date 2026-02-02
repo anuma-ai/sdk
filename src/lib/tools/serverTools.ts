@@ -51,9 +51,9 @@ type ServerToolsMap = {
  */
 export type ServerToolsResponse =
   | {
-      checksum: string;
-      tools: ServerToolsMap;
-    }
+    checksum: string;
+    tools: ServerToolsMap;
+  }
   | ServerToolsMap;
 
 /**
@@ -307,10 +307,6 @@ export function getToolsChecksum(): string | undefined {
  * - Checksums match
  */
 export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
-  // TODO: TEMP - always refresh for debugging
-  if (responseChecksum) {
-    return true;
-  }
 
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
