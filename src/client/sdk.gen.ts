@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses } from './types.gen';
+import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -26,6 +26,142 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
         url: '/api/v1/admin/add-credits',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * List all apps
+ *
+ * Returns all registered apps. Requires admin API key.
+ */
+export const getApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AdminAppsResponses, GetApiV1AdminAppsErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps',
+        ...options
+    });
+};
+
+/**
+ * Create app
+ *
+ * Creates a new app. Requires admin API key.
+ */
+export const postApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminAppsResponses, PostApiV1AdminAppsErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * List API keys for an app
+ *
+ * Returns all API keys for the specified app. Requires admin API key.
+ */
+export const getApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{app_id}/api-keys',
+        ...options
+    });
+};
+
+/**
+ * Create API key
+ *
+ * Creates a new API key for an app. Requires admin API key.
+ */
+export const postApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{app_id}/api-keys',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Delete API key
+ *
+ * Deletes an API key by ID. Requires admin API key.
+ */
+export const deleteApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
+        ...options
+    });
+};
+
+/**
+ * Get API key by ID
+ *
+ * Returns a single API key by its ID. Requires admin API key.
+ */
+export const getApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
+        ...options
+    });
+};
+
+/**
+ * Update API key
+ *
+ * Updates an existing API key. Only provided fields are updated. Requires admin API key.
+ */
+export const putApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{app_id}/api-keys/{id}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Delete app
+ *
+ * Deletes an app by ID. Requires admin API key.
+ */
+export const deleteApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AdminAppsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1AdminAppsByIdResponses, DeleteApiV1AdminAppsByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{id}',
+        ...options
+    });
+};
+
+/**
+ * Get app by ID
+ *
+ * Returns a single app by its ID. Requires admin API key.
+ */
+export const getApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{id}',
+        ...options
+    });
+};
+
+/**
+ * Update app
+ *
+ * Updates an existing app. Only provided fields are updated. Requires admin API key.
+ */
+export const putApiV1AdminAppsById = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AdminAppsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutApiV1AdminAppsByIdResponses, PutApiV1AdminAppsByIdErrors, ThrowOnError>({
+        url: '/api/v1/admin/apps/{id}',
         ...options,
         headers: {
             'Content-Type': 'application/json',

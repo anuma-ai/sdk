@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsCancel**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCancelResponses`](../type-aliases/PostApiV1SubscriptionsCancelResponses.md), [`PostApiV1SubscriptionsCancelErrors`](../type-aliases/PostApiV1SubscriptionsCancelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:158](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L158)
+Defined in: [src/client/sdk.gen.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L294)
 
 Cancel subscription
 

@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsWebhookResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1432](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1432)
+Defined in: [src/client/types.gen.ts:2029](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2029)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1432](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:1436](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1436)
+Defined in: [src/client/types.gen.ts:2033](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2033)
 
 OK
 

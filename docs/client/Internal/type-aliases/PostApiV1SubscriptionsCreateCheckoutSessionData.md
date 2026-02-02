@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionData** = `object`
 
-Defined in: [src/client/types.gen.ts:1266](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1266)
+Defined in: [src/client/types.gen.ts:1863](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1863)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1266](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersCreateCheckoutSessionRequest`](HandlersCreateCheckoutSessionRequest.md)
 
-Defined in: [src/client/types.gen.ts:1270](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1270)
+Defined in: [src/client/types.gen.ts:1867](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1867)
 
 Checkout session request with redirect URLs
 
@@ -20,7 +20,7 @@ Checkout session request with redirect URLs
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1271](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1271)
+Defined in: [src/client/types.gen.ts:1868](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1868)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1271](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1272](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1272)
+Defined in: [src/client/types.gen.ts:1869](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1869)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1272](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/subscriptions/create-checkout-session"`
 
-Defined in: [src/client/types.gen.ts:1273](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1273)
+Defined in: [src/client/types.gen.ts:1870](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1870)

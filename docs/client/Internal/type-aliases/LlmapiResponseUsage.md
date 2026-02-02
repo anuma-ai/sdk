@@ -2,7 +2,7 @@
 
 > **LlmapiResponseUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:832](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L832)
+Defined in: [src/client/types.gen.ts:957](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L957)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:836](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L836)
+Defined in: [src/client/types.gen.ts:961](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L961)
 
 CompletionTokens is the number of tokens in the completion
 
@@ -22,7 +22,7 @@ CompletionTokens is the number of tokens in the completion
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:840](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L840)
+Defined in: [src/client/types.gen.ts:965](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L965)
 
 CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
 
@@ -32,7 +32,7 @@ CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:844](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L844)
+Defined in: [src/client/types.gen.ts:969](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L969)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -42,6 +42,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:848](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L848)
+Defined in: [src/client/types.gen.ts:973](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L973)
 
 TotalTokens is the total number of tokens used

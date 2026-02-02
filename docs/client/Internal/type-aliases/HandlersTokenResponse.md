@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:193](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L193)
+Defined in: [src/client/types.gen.ts:287](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L287)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:193](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:194](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L194)
+Defined in: [src/client/types.gen.ts:288](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L288)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:194](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:198](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L198)
+Defined in: [src/client/types.gen.ts:292](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L292)
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:202](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L202)
+Defined in: [src/client/types.gen.ts:296](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L296)
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:206](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L206)
+Defined in: [src/client/types.gen.ts:300](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L300)
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > `optional` **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:210](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L210)
+Defined in: [src/client/types.gen.ts:304](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L304)
 
 Usually "Bearer"

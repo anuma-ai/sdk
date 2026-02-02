@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRevokeResponse** = [`PostAuthOauthByProviderRevokeResponses`](PostAuthOauthByProviderRevokeResponses.md)\[keyof [`PostAuthOauthByProviderRevokeResponses`](PostAuthOauthByProviderRevokeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1577](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1577)
+Defined in: [src/client/types.gen.ts:2176](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2176)

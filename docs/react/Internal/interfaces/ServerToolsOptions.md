@@ -1,6 +1,6 @@
 # ServerToolsOptions
 
-Defined in: [src/lib/tools/serverTools.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L79)
+Defined in: [src/lib/tools/serverTools.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L89)
 
 Options for fetching server tools
 
@@ -10,7 +10,7 @@ Options for fetching server tools
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L81)
+Defined in: [src/lib/tools/serverTools.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L91)
 
 Base URL for the API (defaults to BASE\_URL from clientConfig)
 
@@ -20,7 +20,7 @@ Base URL for the API (defaults to BASE\_URL from clientConfig)
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L83)
+Defined in: [src/lib/tools/serverTools.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L93)
 
 Cache expiration time in milliseconds (default: 5 minutes)
 
@@ -30,7 +30,7 @@ Cache expiration time in milliseconds (default: 5 minutes)
 
 > `optional` **forceRefresh**: `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L85)
+Defined in: [src/lib/tools/serverTools.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L95)
 
 Force refresh even if cache is valid
 
@@ -40,7 +40,7 @@ Force refresh even if cache is valid
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L87)
+Defined in: [src/lib/tools/serverTools.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L97)
 
 Authentication token getter
 
