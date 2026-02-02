@@ -102,6 +102,10 @@ export class ResponsesStrategy implements ApiStrategy {
     if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.tools_checksum;
     }
+    // Also capture from nested response if present (fallback for events without explicit type)
+    if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+    }
 
     // Accumulate usage data - merge instead of replace
     if (typedChunk.usage) {

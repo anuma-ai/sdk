@@ -307,6 +307,11 @@ export function getToolsChecksum(): string | undefined {
  * - Checksums match
  */
 export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
+  // TODO: TEMP - always refresh for debugging
+  if (responseChecksum) {
+    return true;
+  }
+
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
     return false;
