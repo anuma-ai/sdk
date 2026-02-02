@@ -4,6 +4,34 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HandlersApiKeyResponse = {
+    app_id?: number;
+    created_at?: string;
+    /**
+     * Indicates if key is set, but doesn't expose it
+     */
+    has_key?: boolean;
+    id?: number;
+    is_active?: boolean;
+    name?: string;
+    updated_at?: string;
+    wallet_address?: string;
+};
+
+export type HandlersApiKeyWithKeyResponse = {
+    /**
+     * Only included in create response
+     */
+    api_key?: string;
+    app_id?: number;
+    created_at?: string;
+    id?: number;
+    is_active?: boolean;
+    name?: string;
+    updated_at?: string;
+    wallet_address?: string;
+};
+
 export type HandlersAddCreditsRequest = {
     /**
      * Number of credits to add (1 credit = 1 cent)
@@ -46,6 +74,21 @@ export type HandlersAppConfig = {
     name?: string;
 };
 
+export type HandlersAppResponse = {
+    created_at?: string;
+    credit_reset_enabled?: boolean;
+    escrow_contract?: string;
+    /**
+     * Indicates if key is set, but doesn't expose it
+     */
+    has_privy_verification_key?: boolean;
+    id?: number;
+    is_active?: boolean;
+    name?: string;
+    privy_app_id?: string;
+    updated_at?: string;
+};
+
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
@@ -79,6 +122,25 @@ export type HandlersConfigResponse = {
     settlement_recipient?: string;
 };
 
+export type HandlersCreateApiKeyRequest = {
+    is_active?: boolean;
+    /**
+     * If true, generates anuma_test_ prefix; otherwise anuma_live_
+     */
+    is_test?: boolean;
+    name?: string;
+    wallet_address?: string;
+};
+
+export type HandlersCreateAppRequest = {
+    credit_reset_enabled?: boolean;
+    escrow_contract?: string;
+    is_active?: boolean;
+    name?: string;
+    privy_app_id?: string;
+    privy_verification_key?: string;
+};
+
 export type HandlersCreateCheckoutSessionRequest = {
     cancel_url?: string;
     success_url?: string;
@@ -100,6 +162,21 @@ export type HandlersExchangeRequest = {
     redirect_uri?: string;
 };
 
+export type HandlersGeneratedApiKey = {
+    /**
+     * Full HMAC key (anuma_live_<key_id>.<secret> or anuma_test_<key_id>.<secret>)
+     */
+    api_key?: string;
+    name?: string;
+};
+
+export type HandlersGetToolsResponse = {
+    checksum?: string;
+    tools?: {
+        [key: string]: HandlersTool;
+    };
+};
+
 export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
@@ -113,6 +190,14 @@ export type HandlersHealthResponse = {
      * Version is the current API version
      */
     version?: string;
+};
+
+export type HandlersListApiKeysResponse = {
+    api_keys?: Array<HandlersApiKeyResponse>;
+};
+
+export type HandlersListAppsResponse = {
+    apps?: Array<HandlersAppResponse>;
 };
 
 export type HandlersRefreshRequest = {
@@ -130,7 +215,10 @@ export type HandlersRevokeRequest = {
 
 export type HandlersSeedApiKeyInput = {
     is_active?: boolean;
-    key?: string;
+    /**
+     * If true, generates anuma_test_ prefix; otherwise anuma_live_
+     */
+    is_test?: boolean;
     name?: string;
     wallet_address?: string;
 };
@@ -151,6 +239,12 @@ export type HandlersSeedAppsRequest = {
 
 export type HandlersSeedAppsResponse = {
     apps_seeded?: number;
+    /**
+     * Map of app name to generated keys
+     */
+    generated_keys?: {
+        [key: string]: Array<HandlersGeneratedApiKey>;
+    };
     keys_seeded?: number;
     message?: string;
     success?: boolean;
@@ -208,6 +302,29 @@ export type HandlersTokenResponse = {
      * Usually "Bearer"
      */
     token_type?: string;
+};
+
+export type HandlersTool = {
+    cost?: number;
+    embedding?: Array<number>;
+    name?: string;
+    schema?: McpToolSchema;
+};
+
+export type HandlersUpdateApiKeyRequest = {
+    app_id?: number;
+    is_active?: boolean;
+    name?: string;
+    wallet_address?: string;
+};
+
+export type HandlersUpdateAppRequest = {
+    credit_reset_enabled?: boolean;
+    escrow_contract?: string;
+    is_active?: boolean;
+    name?: string;
+    privy_app_id?: string;
+    privy_verification_key?: string;
 };
 
 /**
@@ -273,6 +390,10 @@ export type LlmapiChatCompletionResponse = {
      * Model is the model used
      */
     model?: string;
+    /**
+     * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
+     */
+    tools_checksum?: string;
     usage?: LlmapiChatCompletionUsage;
 };
 
@@ -812,6 +933,10 @@ export type LlmapiResponseResponse = {
      * Output is the array of output items (OpenAI Responses API format)
      */
     output?: Array<LlmapiResponseOutputItem>;
+    /**
+     * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
+     */
+    tools_checksum?: string;
     usage?: LlmapiResponseUsage;
 };
 
@@ -893,6 +1018,12 @@ export type LlmapiToolCallFunction = {
     name?: string;
 };
 
+export type McpToolSchema = {
+    description?: string;
+    name?: string;
+    parameters?: unknown;
+};
+
 export type ResponseErrorResponse = {
     error?: string;
     request_id?: string;
@@ -944,6 +1075,472 @@ export type PostApiV1AdminAddCreditsResponses = {
 };
 
 export type PostApiV1AdminAddCreditsResponse = PostApiV1AdminAddCreditsResponses[keyof PostApiV1AdminAddCreditsResponses];
+
+export type GetApiV1AdminAppsData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/apps';
+};
+
+export type GetApiV1AdminAppsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminAppsError = GetApiV1AdminAppsErrors[keyof GetApiV1AdminAppsErrors];
+
+export type GetApiV1AdminAppsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListAppsResponse;
+};
+
+export type GetApiV1AdminAppsResponse = GetApiV1AdminAppsResponses[keyof GetApiV1AdminAppsResponses];
+
+export type PostApiV1AdminAppsData = {
+    /**
+     * Create app request
+     */
+    body: HandlersCreateAppRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/apps';
+};
+
+export type PostApiV1AdminAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminAppsError = PostApiV1AdminAppsErrors[keyof PostApiV1AdminAppsErrors];
+
+export type PostApiV1AdminAppsResponses = {
+    /**
+     * Created
+     */
+    201: HandlersAppResponse;
+};
+
+export type PostApiV1AdminAppsResponse = PostApiV1AdminAppsResponses[keyof PostApiV1AdminAppsResponses];
+
+export type GetApiV1AdminAppsByAppIdApiKeysData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        app_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{app_id}/api-keys';
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysError = GetApiV1AdminAppsByAppIdApiKeysErrors[keyof GetApiV1AdminAppsByAppIdApiKeysErrors];
+
+export type GetApiV1AdminAppsByAppIdApiKeysResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListApiKeysResponse;
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysResponse = GetApiV1AdminAppsByAppIdApiKeysResponses[keyof GetApiV1AdminAppsByAppIdApiKeysResponses];
+
+export type PostApiV1AdminAppsByAppIdApiKeysData = {
+    /**
+     * Create API key request
+     */
+    body: HandlersCreateApiKeyRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        app_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{app_id}/api-keys';
+};
+
+export type PostApiV1AdminAppsByAppIdApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminAppsByAppIdApiKeysError = PostApiV1AdminAppsByAppIdApiKeysErrors[keyof PostApiV1AdminAppsByAppIdApiKeysErrors];
+
+export type PostApiV1AdminAppsByAppIdApiKeysResponses = {
+    /**
+     * Created
+     */
+    201: HandlersApiKeyWithKeyResponse;
+};
+
+export type PostApiV1AdminAppsByAppIdApiKeysResponse = PostApiV1AdminAppsByAppIdApiKeysResponses[keyof PostApiV1AdminAppsByAppIdApiKeysResponses];
+
+export type DeleteApiV1AdminAppsByAppIdApiKeysByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        app_id: number;
+        /**
+         * API Key ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{app_id}/api-keys/{id}';
+};
+
+export type DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminAppsByAppIdApiKeysByIdError = DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors[keyof DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors];
+
+export type DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminAppsByAppIdApiKeysByIdResponse = DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses[keyof DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses];
+
+export type GetApiV1AdminAppsByAppIdApiKeysByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        app_id: number;
+        /**
+         * API Key ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{app_id}/api-keys/{id}';
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysByIdError = GetApiV1AdminAppsByAppIdApiKeysByIdErrors[keyof GetApiV1AdminAppsByAppIdApiKeysByIdErrors];
+
+export type GetApiV1AdminAppsByAppIdApiKeysByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersApiKeyResponse;
+};
+
+export type GetApiV1AdminAppsByAppIdApiKeysByIdResponse = GetApiV1AdminAppsByAppIdApiKeysByIdResponses[keyof GetApiV1AdminAppsByAppIdApiKeysByIdResponses];
+
+export type PutApiV1AdminAppsByAppIdApiKeysByIdData = {
+    /**
+     * Update API key request
+     */
+    body: HandlersUpdateApiKeyRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        app_id: number;
+        /**
+         * API Key ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{app_id}/api-keys/{id}';
+};
+
+export type PutApiV1AdminAppsByAppIdApiKeysByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminAppsByAppIdApiKeysByIdError = PutApiV1AdminAppsByAppIdApiKeysByIdErrors[keyof PutApiV1AdminAppsByAppIdApiKeysByIdErrors];
+
+export type PutApiV1AdminAppsByAppIdApiKeysByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersApiKeyResponse;
+};
+
+export type PutApiV1AdminAppsByAppIdApiKeysByIdResponse = PutApiV1AdminAppsByAppIdApiKeysByIdResponses[keyof PutApiV1AdminAppsByAppIdApiKeysByIdResponses];
+
+export type DeleteApiV1AdminAppsByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{id}';
+};
+
+export type DeleteApiV1AdminAppsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminAppsByIdError = DeleteApiV1AdminAppsByIdErrors[keyof DeleteApiV1AdminAppsByIdErrors];
+
+export type DeleteApiV1AdminAppsByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminAppsByIdResponse = DeleteApiV1AdminAppsByIdResponses[keyof DeleteApiV1AdminAppsByIdResponses];
+
+export type GetApiV1AdminAppsByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{id}';
+};
+
+export type GetApiV1AdminAppsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminAppsByIdError = GetApiV1AdminAppsByIdErrors[keyof GetApiV1AdminAppsByIdErrors];
+
+export type GetApiV1AdminAppsByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAppResponse;
+};
+
+export type GetApiV1AdminAppsByIdResponse = GetApiV1AdminAppsByIdResponses[keyof GetApiV1AdminAppsByIdResponses];
+
+export type PutApiV1AdminAppsByIdData = {
+    /**
+     * Update app request
+     */
+    body: HandlersUpdateAppRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * App ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/apps/{id}';
+};
+
+export type PutApiV1AdminAppsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminAppsByIdError = PutApiV1AdminAppsByIdErrors[keyof PutApiV1AdminAppsByIdErrors];
+
+export type PutApiV1AdminAppsByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAppResponse;
+};
+
+export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
 
 export type PostApiV1AdminSeedAppsData = {
     /**
@@ -1460,8 +2057,10 @@ export type GetApiV1ToolsResponses = {
     /**
      * OK
      */
-    200: unknown;
+    200: HandlersGetToolsResponse;
 };
+
+export type GetApiV1ToolsResponse = GetApiV1ToolsResponses[keyof GetApiV1ToolsResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

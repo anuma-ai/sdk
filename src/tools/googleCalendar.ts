@@ -7,8 +7,8 @@
  * Tool configuration type that extends the SDK's tool type with executor support.
  * The SDK runtime supports these properties even though the base types don't include them.
  *
- * Note: We use "arguments" instead of "parameters" because the backend expects this field name.
- * This is a workaround for a backend bug where "parameters" is not properly parsed.
+ * Note: Client tools use "arguments" internally. The SDK converts this to "parameters"
+ * when sending to the API (see serverTools.ts mergeTools function).
  */
 export interface ToolConfig {
   type: 'function';

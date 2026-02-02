@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L142)
+Defined in: [src/react/useChat.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L146)
 
 A React hook for managing chat completions with authentication.
 
@@ -141,12 +141,13 @@ errors. To detect aborts, check the `error` field in the `sendMessage` result:
 </td>
 <td>
 
-(`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
+(`response`: `ApiResponse`) => `void`
 
 </td>
 <td>
 
 Callback function to be called when the chat completion finishes successfully.
+Receives raw API response - either Responses API or Completions API format.
 
 </td>
 </tr>

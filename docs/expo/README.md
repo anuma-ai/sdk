@@ -295,7 +295,7 @@ Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.
 
 ### ServerToolsResponse
 
-Re-exports [ServerToolsResponse](../react/Internal/interfaces/ServerToolsResponse.md)
+Re-exports [ServerToolsResponse](../react/Internal/type-aliases/ServerToolsResponse.md)
 
 ***
 

@@ -57,6 +57,9 @@ export class ResponsesStrategy implements ApiStrategy {
       if (typedChunk.response.model && !accumulator.responseModel) {
         accumulator.responseModel = typedChunk.response.model;
       }
+      if (typedChunk.response.tools_checksum && !accumulator.toolsChecksum) {
+        accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+      }
       return result;
     }
 
@@ -71,6 +74,11 @@ export class ResponsesStrategy implements ApiStrategy {
             (typedChunk.response.usage.input_tokens || 0) +
             (typedChunk.response.usage.output_tokens || 0),
         };
+      }
+
+      // Capture tools_checksum if present
+      if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
+        accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
       // Mark all pending tool calls as completed
@@ -89,6 +97,14 @@ export class ResponsesStrategy implements ApiStrategy {
     }
     if (typedChunk.model && !accumulator.responseModel) {
       accumulator.responseModel = typedChunk.model;
+    }
+    // Capture tools_checksum from top-level if present
+    if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.tools_checksum;
+    }
+    // Also capture from nested response if present (fallback for events without explicit type)
+    if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.response.tools_checksum;
     }
 
     // Accumulate usage data - merge instead of replace
@@ -309,6 +325,7 @@ export class ResponsesStrategy implements ApiStrategy {
         Object.keys(accumulator.usage).length > 0
           ? accumulator.usage
           : undefined,
+      tools_checksum: accumulator.toolsChecksum,
     };
   }
 }

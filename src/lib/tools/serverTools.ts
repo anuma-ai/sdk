@@ -39,14 +39,22 @@ type ServerToolsResponseItem =
   | ServerToolsResponseItemCurrent
   | ServerToolsResponseItemNew;
 
-/**
- * Response format from /api/v1/tools endpoint
- * Maps tool names to their definitions.
- * Supports both current and new API response formats.
- */
-export interface ServerToolsResponse {
+/** Tools object mapping tool names to their definitions */
+type ServerToolsMap = {
   [toolName: string]: ServerToolsResponseItem;
-}
+};
+
+/**
+ * Response format from /api/v1/tools endpoint.
+ * New format includes checksum and tools wrapper.
+ * Legacy format is just the tools map directly.
+ */
+export type ServerToolsResponse =
+  | {
+      checksum: string;
+      tools: ServerToolsMap;
+    }
+  | ServerToolsMap;
 
 /**
  * Server tool definition with parameters field.
@@ -71,6 +79,8 @@ export interface CachedServerTools {
   tools: ServerTool[];
   timestamp: number;
   version: string;
+  /** Checksum from the server for cache invalidation */
+  checksum?: string;
 }
 
 /**
@@ -94,26 +104,59 @@ export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
-export const CACHE_VERSION = "1.2";
+export const CACHE_VERSION = "1.3";
 
 /**
  * Type guard to check if tool is in new format (has schema property)
  */
-function isNewFormat(
+function isNewToolFormat(
   tool: ServerToolsResponseItem
 ): tool is ServerToolsResponseItemNew {
   return "schema" in tool && tool.schema !== undefined;
 }
 
 /**
+ * Type guard to check if response is in new format (has checksum and tools wrapper)
+ */
+function isNewResponseFormat(
+  response: ServerToolsResponse
+): response is { checksum: string; tools: ServerToolsMap } {
+  return (
+    "checksum" in response &&
+    "tools" in response &&
+    typeof (response as { checksum?: string }).checksum === "string"
+  );
+}
+
+/**
+ * Result of parsing server tools response
+ */
+export interface ParsedServerToolsResponse {
+  tools: ServerTool[];
+  checksum?: string;
+}
+
+/**
  * Convert server API response to ServerTool[] format.
- * Supports both current and new API response formats.
+ * Supports both legacy and new API response formats.
+ * Returns tools and optional checksum.
  */
 export function convertServerToolsResponse(
   response: ServerToolsResponse
-): ServerTool[] {
-  return Object.values(response).map((tool) => {
-    if (isNewFormat(tool)) {
+): ParsedServerToolsResponse {
+  // Extract tools map and checksum based on response format
+  let toolsMap: ServerToolsMap;
+  let checksum: string | undefined;
+
+  if (isNewResponseFormat(response)) {
+    toolsMap = response.tools;
+    checksum = response.checksum;
+  } else {
+    toolsMap = response;
+  }
+
+  const tools = Object.values(toolsMap).map((tool) => {
+    if (isNewToolFormat(tool)) {
       // New format: extract from schema
       return {
         type: "function" as const,
@@ -130,6 +173,8 @@ export function convertServerToolsResponse(
       parameters: tool.parameters,
     };
   });
+
+  return { tools, checksum };
 }
 
 /**
@@ -215,13 +260,14 @@ export function isCacheExpired(
 /**
  * Store tools in localStorage cache
  */
-export function cacheServerTools(tools: ServerTool[]): void {
+export function cacheServerTools(tools: ServerTool[], checksum?: string): void {
   if (typeof window === "undefined") return;
 
   const cacheData: CachedServerTools = {
     tools,
     timestamp: Date.now(),
     version: CACHE_VERSION,
+    ...(checksum && { checksum }),
   };
 
   try {
@@ -242,12 +288,52 @@ export function clearServerToolsCache(): void {
 }
 
 /**
+ * Get the checksum of currently cached tools.
+ * Returns undefined if no cache or no checksum stored.
+ */
+export function getToolsChecksum(): string | undefined {
+  const cached = getCachedServerTools();
+  return cached?.checksum;
+}
+
+/**
+ * Check if tools should be refreshed based on checksum comparison.
+ * Returns true if:
+ * - responseChecksum is provided and differs from cached checksum
+ * - No cached checksum exists (first time with checksum support)
+ *
+ * Returns false if:
+ * - responseChecksum is not provided (legacy response)
+ * - Checksums match
+ */
+export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
+  // TODO: TEMP - always refresh for debugging
+  if (responseChecksum) {
+    return true;
+  }
+
+  if (!responseChecksum) {
+    // Legacy response without checksum - don't trigger refresh
+    return false;
+  }
+
+  const cachedChecksum = getToolsChecksum();
+
+  if (!cachedChecksum) {
+    // No cached checksum - refresh to get tools with checksum
+    return true;
+  }
+
+  return cachedChecksum !== responseChecksum;
+}
+
+/**
  * Fetch tools from the server API
  */
 export async function fetchServerToolsFromApi(
   baseUrl: string,
   token: string
-): Promise<ServerTool[]> {
+): Promise<ParsedServerToolsResponse> {
   const response = await fetch(`${baseUrl}/api/v1/tools`, {
     method: "GET",
     headers: {
@@ -305,8 +391,8 @@ export async function getServerTools(
     const { BASE_URL } = await import("../../clientConfig");
     const effectiveBaseUrl = baseUrl ?? BASE_URL;
 
-    const tools = await fetchServerToolsFromApi(effectiveBaseUrl, token);
-    cacheServerTools(tools);
+    const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
+    cacheServerTools(tools, checksum);
     return tools;
   } catch (error) {
     // eslint-disable-next-line no-console

@@ -2,7 +2,7 @@
 
 > **LlmapiMcpTool** = `object`
 
-Defined in: [src/client/types.gen.ts:419](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L419)
+Defined in: [src/client/types.gen.ts:540](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L540)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:419](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:423](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L423)
+Defined in: [src/client/types.gen.ts:544](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L544)
 
 Description is the description of the tool
 
@@ -20,7 +20,7 @@ Description is the description of the tool
 
 > `optional` **input\_schema**: `unknown`
 
-Defined in: [src/client/types.gen.ts:427](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L427)
+Defined in: [src/client/types.gen.ts:548](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L548)
 
 InputSchema is the JSON schema describing the tool's input
 
@@ -30,6 +30,6 @@ InputSchema is the JSON schema describing the tool's input
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:431](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L431)
+Defined in: [src/client/types.gen.ts:552](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L552)
 
 Name is the name of the tool

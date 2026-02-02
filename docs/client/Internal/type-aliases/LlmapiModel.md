@@ -2,7 +2,7 @@
 
 > **LlmapiModel** = `object`
 
-Defined in: [src/client/types.gen.ts:506](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L506)
+Defined in: [src/client/types.gen.ts:627](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L627)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:506](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **architecture**: [`LlmapiModelArchitecture`](LlmapiModelArchitecture.md)
 
-Defined in: [src/client/types.gen.ts:507](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L507)
+Defined in: [src/client/types.gen.ts:628](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L628)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:507](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **canonical\_slug**: `string`
 
-Defined in: [src/client/types.gen.ts:511](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L511)
+Defined in: [src/client/types.gen.ts:632](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L632)
 
 CanonicalSlug is the canonical slug for the model
 
@@ -28,7 +28,7 @@ CanonicalSlug is the canonical slug for the model
 
 > `optional` **context\_length**: `number`
 
-Defined in: [src/client/types.gen.ts:515](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L515)
+Defined in: [src/client/types.gen.ts:636](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L636)
 
 ContextLength is the maximum context length in tokens
 
@@ -38,7 +38,7 @@ ContextLength is the maximum context length in tokens
 
 > `optional` **created**: `number`
 
-Defined in: [src/client/types.gen.ts:519](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L519)
+Defined in: [src/client/types.gen.ts:640](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L640)
 
 Created is the Unix timestamp of when the model was created
 
@@ -48,7 +48,7 @@ Created is the Unix timestamp of when the model was created
 
 > `optional` **default\_parameters**: `object`
 
-Defined in: [src/client/types.gen.ts:523](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L523)
+Defined in: [src/client/types.gen.ts:644](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L644)
 
 DefaultParameters contains default parameter values
 
@@ -62,7 +62,7 @@ DefaultParameters contains default parameter values
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:529](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L529)
+Defined in: [src/client/types.gen.ts:650](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L650)
 
 Description describes the model and its capabilities
 
@@ -72,7 +72,7 @@ Description describes the model and its capabilities
 
 > `optional` **hugging\_face\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:533](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L533)
+Defined in: [src/client/types.gen.ts:654](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L654)
 
 HuggingFaceID is the Hugging Face model identifier
 
@@ -82,7 +82,7 @@ HuggingFaceID is the Hugging Face model identifier
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:537](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L537)
+Defined in: [src/client/types.gen.ts:658](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L658)
 
 ID is the model identifier (e.g., "openai/gpt-4")
 
@@ -92,7 +92,7 @@ ID is the model identifier (e.g., "openai/gpt-4")
 
 > `optional` **max\_input\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:541](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L541)
+Defined in: [src/client/types.gen.ts:662](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L662)
 
 MaxInputTokens is the maximum input tokens
 
@@ -102,7 +102,7 @@ MaxInputTokens is the maximum input tokens
 
 > `optional` **max\_output\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:545](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L545)
+Defined in: [src/client/types.gen.ts:666](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L666)
 
 MaxOutputTokens is the maximum output tokens
 
@@ -112,7 +112,7 @@ MaxOutputTokens is the maximum output tokens
 
 > `optional` **modalities**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:549](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L549)
+Defined in: [src/client/types.gen.ts:670](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L670)
 
 Modalities is a list of supported modalities (e.g., \["llm", "vision"])
 
@@ -122,7 +122,7 @@ Modalities is a list of supported modalities (e.g., \["llm", "vision"])
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:553](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L553)
+Defined in: [src/client/types.gen.ts:674](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L674)
 
 Name is the human-readable model name (optional)
 
@@ -132,7 +132,7 @@ Name is the human-readable model name (optional)
 
 > `optional` **owned\_by**: `string`
 
-Defined in: [src/client/types.gen.ts:557](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L557)
+Defined in: [src/client/types.gen.ts:678](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L678)
 
 OwnedBy is the organization that owns the model
 
@@ -142,7 +142,7 @@ OwnedBy is the organization that owns the model
 
 > `optional` **per\_request\_limits**: [`LlmapiModelPerRequestLimits`](LlmapiModelPerRequestLimits.md)
 
-Defined in: [src/client/types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L558)
+Defined in: [src/client/types.gen.ts:679](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L679)
 
 ***
 
@@ -150,7 +150,7 @@ Defined in: [src/client/types.gen.ts:558](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **pricing**: [`LlmapiModelPricing`](LlmapiModelPricing.md)
 
-Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L559)
+Defined in: [src/client/types.gen.ts:680](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L680)
 
 ***
 
@@ -158,7 +158,7 @@ Defined in: [src/client/types.gen.ts:559](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **supported\_methods**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:563](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L563)
+Defined in: [src/client/types.gen.ts:684](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L684)
 
 SupportedMethods is a list of supported API methods
 
@@ -168,7 +168,7 @@ SupportedMethods is a list of supported API methods
 
 > `optional` **supported\_parameters**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L567)
+Defined in: [src/client/types.gen.ts:688](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L688)
 
 SupportedParameters is a list of supported parameter names
 
@@ -178,4 +178,4 @@ SupportedParameters is a list of supported parameter names
 
 > `optional` **top\_provider**: [`LlmapiModelTopProvider`](LlmapiModelTopProvider.md)
 
-Defined in: [src/client/types.gen.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L568)
+Defined in: [src/client/types.gen.ts:689](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L689)

@@ -139,12 +139,13 @@ errors. To detect aborts, check the `error` field in the `sendMessage` result:
 </td>
 <td>
 
-(`response`: [`LlmapiResponseResponse`](../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
+(`response`: `ApiResponse`) => `void`
 
 </td>
 <td>
 
 Callback function to be called when the chat completion finishes successfully.
+Receives raw API response - either Responses API or Completions API format.
 
 </td>
 </tr>

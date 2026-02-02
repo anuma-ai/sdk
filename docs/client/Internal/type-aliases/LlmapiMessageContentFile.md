@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentFile** = `object`
 
-Defined in: [src/client/types.gen.ts:460](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L460)
+Defined in: [src/client/types.gen.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L581)
 
 File is used when Type=input\_file (for Responses API)
 
@@ -12,7 +12,7 @@ File is used when Type=input\_file (for Responses API)
 
 > `optional` **file\_data**: `string`
 
-Defined in: [src/client/types.gen.ts:464](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L464)
+Defined in: [src/client/types.gen.ts:585](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L585)
 
 FileData is the base64-encoded file content
 
@@ -22,7 +22,7 @@ FileData is the base64-encoded file content
 
 > `optional` **file\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:468](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L468)
+Defined in: [src/client/types.gen.ts:589](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L589)
 
 FileID is the ID of an uploaded file
 
@@ -32,7 +32,7 @@ FileID is the ID of an uploaded file
 
 > `optional` **file\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:472](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L472)
+Defined in: [src/client/types.gen.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L593)
 
 FileURL is the URL to the file
 
@@ -42,6 +42,6 @@ FileURL is the URL to the file
 
 > `optional` **filename**: `string`
 
-Defined in: [src/client/types.gen.ts:476](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L476)
+Defined in: [src/client/types.gen.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L597)
 
 Filename is the name of the file

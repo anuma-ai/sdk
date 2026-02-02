@@ -2,7 +2,7 @@
 
 > **HandlersAddCreditsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L7)
+Defined in: [src/client/types.gen.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L35)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:7](https://github.com/zeta-chain/ai-sdk/blo
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L11)
+Defined in: [src/client/types.gen.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L39)
 
 Number of credits to add (1 credit = 1 cent)
 
@@ -20,7 +20,7 @@ Number of credits to add (1 credit = 1 cent)
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L15)
+Defined in: [src/client/types.gen.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L43)
 
 Escrow contract address to use
 
@@ -30,4 +30,4 @@ Escrow contract address to use
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L16)
+Defined in: [src/client/types.gen.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L44)

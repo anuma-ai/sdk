@@ -2,7 +2,7 @@
 
 > **HandlersSeedAppsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:148](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L148)
+Defined in: [src/client/types.gen.ts:236](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L236)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:148](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **apps**: [`HandlersSeedAppInput`](HandlersSeedAppInput.md)\[]
 
-Defined in: [src/client/types.gen.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L149)
+Defined in: [src/client/types.gen.ts:237](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L237)

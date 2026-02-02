@@ -2,11 +2,11 @@ import type {
   LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
-  LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { ApiResponse } from "./strategies/types";
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -25,7 +25,11 @@ export type StreamingChunk = {
       input_tokens?: number;
       output_tokens?: number;
     };
+    /** Checksum of tools used to generate this response */
+    tools_checksum?: string;
   };
+  /** Checksum of tools used to generate this response (top-level for some APIs) */
+  tools_checksum?: string;
   // For thinking/reasoning content
   content_index?: number;
   output_index?: number;
@@ -115,11 +119,12 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
 };
 
 /**
- * Base result type for sendMessage
+ * Base result type for sendMessage.
+ * Returns raw API response - either Responses API or Completions API format.
  */
 export type BaseSendMessageResult =
   | {
-      data: LlmapiResponseResponse;
+      data: ApiResponse;
       error: null;
     }
   | { data: null; error: string };
@@ -142,8 +147,9 @@ export type BaseUseChatOptions = {
   onThinking?: (chunk: string) => void;
   /**
    * Callback function to be called when the chat completion finishes successfully.
+   * Receives raw API response - either Responses API or Completions API format.
    */
-  onFinish?: (response: LlmapiResponseResponse) => void;
+  onFinish?: (response: ApiResponse) => void;
   /**
    * Callback function to be called when an unexpected error is encountered.
    *
@@ -216,4 +222,6 @@ export type StreamAccumulator = {
    * - false: model uses explicit tags or no reasoning
    */
   implicitReasoningStart?: boolean;
+  /** Checksum of tools used to generate this response */
+  toolsChecksum?: string;
 };

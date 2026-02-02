@@ -304,13 +304,19 @@ export {
   clearServerToolsCache,
   getServerTools,
   getCachedServerTools,
+  getToolsChecksum,
+  shouldRefreshTools,
   DEFAULT_CACHE_EXPIRATION_MS,
 } from "../lib/tools";
 export type {
   ServerToolsOptions,
   CachedServerTools,
   ServerToolsResponse,
+  ParsedServerToolsResponse,
+  ServerTool,
 } from "../lib/tools";
+export { useTools } from "./useTools";
+export type { UseToolsOptions, UseToolsResult } from "./useTools";
 
 export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
 export type {
