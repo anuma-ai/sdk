@@ -2,11 +2,11 @@ import type {
   LlmapiChatCompletionTool,
   LlmapiMessage,
   LlmapiResponseReasoning,
-  LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { ApiResponse } from "./strategies/types";
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -119,11 +119,12 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
 };
 
 /**
- * Base result type for sendMessage
+ * Base result type for sendMessage.
+ * Returns raw API response - either Responses API or Completions API format.
  */
 export type BaseSendMessageResult =
   | {
-      data: LlmapiResponseResponse;
+      data: ApiResponse;
       error: null;
     }
   | { data: null; error: string };
@@ -146,8 +147,9 @@ export type BaseUseChatOptions = {
   onThinking?: (chunk: string) => void;
   /**
    * Callback function to be called when the chat completion finishes successfully.
+   * Receives raw API response - either Responses API or Completions API format.
    */
-  onFinish?: (response: LlmapiResponseResponse) => void;
+  onFinish?: (response: ApiResponse) => void;
   /**
    * Callback function to be called when an unexpected error is encountered.
    *

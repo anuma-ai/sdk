@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { LlmapiMessage, LlmapiResponseResponse, LlmapiChatCompletionResponse } from "../client";
 import {
   Message,
   Conversation,
@@ -412,23 +412,20 @@ export interface SendMessageWithStorageArgs
 
 /**
  * Result from sendMessage with storage (React version)
+ * The `data` field contains the raw server response which includes `tools_checksum`.
  */
 export type SendMessageWithStorageResult =
   | {
-      data: import("../client").LlmapiResponseResponse;
+      data: LlmapiResponseResponse | LlmapiChatCompletionResponse;
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
-      /** Checksum of tools used to generate this response */
-      toolsChecksum?: string;
     }
   | {
       data: null;
       error: string;
       userMessage?: StoredMessage;
       assistantMessage?: undefined;
-      /** Checksum of tools used to generate this response */
-      toolsChecksum?: string;
     };
 
 /**
@@ -2167,7 +2164,6 @@ export function useChatStorage(
               error: null, // Treat as success to the caller
               userMessage: storedUserMessage,
               assistantMessage: storedAssistantMessage,
-              toolsChecksum: result.toolsChecksum,
             };
           } catch {
             // Storage failed for abort - don't set error field on stored messages
@@ -2177,7 +2173,6 @@ export function useChatStorage(
               data: null,
               error: "Request aborted",
               userMessage: storedUserMessage,
-              toolsChecksum: result.toolsChecksum,
             };
           }
         }
@@ -2209,30 +2204,49 @@ export function useChatStorage(
           data: null,
           error: errorMessage,
           userMessage: { ...storedUserMessage, error: errorMessage },
-          toolsChecksum: result.toolsChecksum,
         };
       }
 
       // Extract assistant response content and thinking/reasoning
+      // Handle both Responses API (output[]) and Completions API (choices[]) formats
       const responseData = result.data;
+      let assistantContent = "";
+      let thinkingContent: string | undefined;
 
-      // Find the message output item (type: "message") for main content
-      const messageOutput = responseData.output?.find(
-        (item) => item.type === "message"
-      );
-      const assistantContent =
-        messageOutput?.content
-          ?.map((part: { text?: string }) => part.text || "")
-          .join("") || "";
+      if ("output" in responseData && responseData.output) {
+        // Responses API format
+        type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+        const messageOutput = (responseData.output as OutputItem[]).find(
+          (item) => item.type === "message"
+        );
+        assistantContent =
+          messageOutput?.content
+            ?.map((part) => part.text || "")
+            .join("") || "";
 
-      // Find the reasoning output item (type: "reasoning") for thinking content
-      const reasoningOutput = responseData.output?.find(
-        (item) => item.type === "reasoning"
-      );
-      const thinkingContent =
-        reasoningOutput?.content
-          ?.map((part: { text?: string }) => part.text || "")
-          .join("") || undefined;
+        const reasoningOutput = (responseData.output as OutputItem[]).find(
+          (item) => item.type === "reasoning"
+        );
+        thinkingContent =
+          reasoningOutput?.content
+            ?.map((part) => part.text || "")
+            .join("") || undefined;
+      } else if ("choices" in responseData && responseData.choices) {
+        // Completions API format
+        const completionsData = responseData as LlmapiChatCompletionResponse;
+        const choice = completionsData.choices?.[0];
+        const message = choice?.message;
+        if (message?.content) {
+          // Content can be string or array
+          if (Array.isArray(message.content)) {
+            assistantContent = message.content
+              .map((part: { text?: string }) => part.text || "")
+              .join("");
+          } else {
+            assistantContent = String(message.content);
+          }
+        }
+      }
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
       // Filter out MCP image URLs from sources (they are handled separately as files)
@@ -2315,7 +2329,6 @@ export function useChatStorage(
               ? err.message
               : "Failed to store assistant message",
           userMessage: storedUserMessage,
-          toolsChecksum: result.toolsChecksum,
         };
       }
 
@@ -2342,7 +2355,6 @@ export function useChatStorage(
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
-        toolsChecksum: result.toolsChecksum,
       };
     },
     [

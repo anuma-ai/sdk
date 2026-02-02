@@ -1,4 +1,4 @@
-export type { ApiStrategy, ApiType, BuildRequestBodyArgs } from "./types";
+export type { ApiResponse, ApiStrategy, ApiType, BuildRequestBodyArgs } from "./types";
 export { ResponsesStrategy } from "./responses";
 export { CompletionsStrategy } from "./completions";
 

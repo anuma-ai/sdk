@@ -321,6 +321,7 @@ export class ResponsesStrategy implements ApiStrategy {
         Object.keys(accumulator.usage).length > 0
           ? accumulator.usage
           : undefined,
+      tools_checksum: accumulator.toolsChecksum,
     };
   }
 }

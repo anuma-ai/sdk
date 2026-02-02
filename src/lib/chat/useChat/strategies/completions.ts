@@ -1,4 +1,4 @@
-import type { LlmapiResponseResponse } from "../../../../client";
+import type { LlmapiChatCompletionResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 import { parseReasoningTags } from "../utils";
@@ -316,9 +316,7 @@ export class CompletionsStrategy implements ApiStrategy {
     return result;
   }
 
-  buildFinalResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
-    const output: LlmapiResponseResponse["output"] = [];
-
+  buildFinalResponse(accumulator: StreamAccumulator): LlmapiChatCompletionResponse {
     // Final cleanup: handle any remaining partial tag
     let finalContent = accumulator.content;
     let finalThinking = accumulator.thinking;
@@ -349,46 +347,41 @@ export class CompletionsStrategy implements ApiStrategy {
       }
     }
 
-    // Add thinking/reasoning output if present
-    if (finalThinking) {
-      output.push({
-        type: "reasoning",
-        role: "assistant",
-        content: [{ type: "output_text", text: finalThinking }],
-        status: "completed",
-      });
-    }
+    // Build tool_calls array for the choice message
+    const toolCalls = accumulator.toolCalls.size > 0
+      ? Array.from(accumulator.toolCalls.values()).map((tc) => ({
+          id: tc.id,
+          type: tc.type,
+          function: {
+            name: tc.name,
+            arguments: tc.arguments,
+          },
+        }))
+      : undefined;
 
-    // Add tool calls if present
-    if (accumulator.toolCalls.size > 0) {
-      for (const toolCall of accumulator.toolCalls.values()) {
-        output.push({
-          type: "function_call",
-          call_id: toolCall.id,
-          name: toolCall.name,
-          arguments: toolCall.arguments,
-          status: toolCall.status,
-        });
-      }
-    }
-
-    // Add the main message output
-    output.push({
-      type: "message",
-      role: "assistant",
-      content: [{ type: "output_text", text: finalContent }],
-      status: "completed",
-    });
-
+    // Build native Completions API response format
     return {
       id: accumulator.responseId,
       model: accumulator.responseModel,
-      object: "response",
-      output,
-      usage:
-        Object.keys(accumulator.usage).length > 0
-          ? accumulator.usage
-          : undefined,
+      tools_checksum: accumulator.toolsChecksum,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: finalContent }],
+            ...(toolCalls && { tool_calls: toolCalls }),
+          },
+          finish_reason: toolCalls ? "tool_calls" : "stop",
+        },
+      ],
+      usage: Object.keys(accumulator.usage).length > 0
+        ? {
+            prompt_tokens: accumulator.usage.prompt_tokens,
+            completion_tokens: accumulator.usage.completion_tokens,
+            total_tokens: accumulator.usage.total_tokens,
+          }
+        : undefined,
     };
   }
 }
