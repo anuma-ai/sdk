@@ -11,6 +11,8 @@ type CompletionsStreamingChunk = {
   id?: string;
   object?: string;
   model?: string;
+  /** Checksum of tools used to generate this response */
+  tools_checksum?: string;
   choices?: Array<{
     index: number;
     delta?: {
@@ -113,6 +115,10 @@ export class CompletionsStrategy implements ApiStrategy {
     }
     if (typedChunk.model && !accumulator.responseModel) {
       accumulator.responseModel = typedChunk.model;
+    }
+    // Capture tools_checksum if present
+    if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.tools_checksum;
     }
 
     // Accumulate usage data

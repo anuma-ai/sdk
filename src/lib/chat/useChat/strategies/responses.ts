@@ -57,6 +57,9 @@ export class ResponsesStrategy implements ApiStrategy {
       if (typedChunk.response.model && !accumulator.responseModel) {
         accumulator.responseModel = typedChunk.response.model;
       }
+      if (typedChunk.response.tools_checksum && !accumulator.toolsChecksum) {
+        accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+      }
       return result;
     }
 
@@ -71,6 +74,11 @@ export class ResponsesStrategy implements ApiStrategy {
             (typedChunk.response.usage.input_tokens || 0) +
             (typedChunk.response.usage.output_tokens || 0),
         };
+      }
+
+      // Capture tools_checksum if present
+      if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
+        accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
       // Mark all pending tool calls as completed
@@ -89,6 +97,10 @@ export class ResponsesStrategy implements ApiStrategy {
     }
     if (typedChunk.model && !accumulator.responseModel) {
       accumulator.responseModel = typedChunk.model;
+    }
+    // Capture tools_checksum from top-level if present
+    if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.tools_checksum;
     }
 
     // Accumulate usage data - merge instead of replace

@@ -25,7 +25,11 @@ export type StreamingChunk = {
       input_tokens?: number;
       output_tokens?: number;
     };
+    /** Checksum of tools used to generate this response */
+    tools_checksum?: string;
   };
+  /** Checksum of tools used to generate this response (top-level for some APIs) */
+  tools_checksum?: string;
   // For thinking/reasoning content
   content_index?: number;
   output_index?: number;
@@ -216,4 +220,6 @@ export type StreamAccumulator = {
    * - false: model uses explicit tags or no reasoning
    */
   implicitReasoningStart?: boolean;
+  /** Checksum of tools used to generate this response */
+  toolsChecksum?: string;
 };

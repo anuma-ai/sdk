@@ -65,10 +65,14 @@ type SendMessageResult =
   | {
       data: LlmapiResponseResponse;
       error: null;
+      /** Checksum of tools used to generate this response */
+      toolsChecksum?: string;
     }
   | {
       data: LlmapiResponseResponse | null;
       error: string;
+      /** Checksum of tools used to generate this response */
+      toolsChecksum?: string;
     };
 
 /**
@@ -362,6 +366,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             return {
               data: partialResponse,
               error: "Request aborted",
+              toolsChecksum: accumulator.toolsChecksum,
             };
           }
           throw streamErr;
@@ -373,6 +378,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           return {
             data: partialResponse,
             error: "Request aborted",
+            toolsChecksum: accumulator.toolsChecksum,
           };
         }
 
@@ -619,6 +625,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 return {
                   data: partialResponse,
                   error: "Request aborted",
+                  toolsChecksum: continuationAccumulator.toolsChecksum,
                 };
               }
               throw streamErr;
@@ -631,6 +638,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               return {
                 data: partialResponse,
                 error: "Request aborted",
+                toolsChecksum: continuationAccumulator.toolsChecksum,
               };
             }
 
@@ -649,6 +657,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             return {
               data: finalResponse,
               error: null,
+              toolsChecksum: continuationAccumulator.toolsChecksum,
             };
           }
         }
@@ -659,6 +668,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         return {
           data: response,
           error: null,
+          toolsChecksum: accumulator.toolsChecksum,
         };
       } catch (err) {
         // Handle AbortError specifically - aborts are intentional user actions,

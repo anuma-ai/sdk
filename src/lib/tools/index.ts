@@ -11,6 +11,7 @@ export {
   type CompletionsTool,
   type CachedServerTools,
   type ServerToolsOptions,
+  type ParsedServerToolsResponse,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
   SERVER_TOOLS_CACHE_KEY,
@@ -23,6 +24,8 @@ export {
   isCacheExpired,
   cacheServerTools,
   clearServerToolsCache,
+  getToolsChecksum,
+  shouldRefreshTools,
   fetchServerToolsFromApi,
   getServerTools,
   filterServerTools,
