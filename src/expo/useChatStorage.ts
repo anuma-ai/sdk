@@ -127,11 +127,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
-  /** Extract all links from assistant message content as SearchSource objects */
-  extractSourcesFromAssistantMessage: (assistantMessage: {
-    content: string;
-    sources?: SearchSource[];
-  }) => SearchSource[];
   /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
   updateMessage: (
     uniqueId: string,
@@ -958,7 +953,6 @@ export function useChatStorage(
     getMessages,
     getMessageCount,
     clearMessages,
-    extractSourcesFromAssistantMessage,
     updateMessage,
     createMemoryRetrievalTool,
   };

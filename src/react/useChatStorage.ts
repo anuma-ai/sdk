@@ -488,11 +488,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     vector: number[],
     embeddingModel: string
   ) => Promise<StoredMessage | null>;
-  /** Extract all links from assistant message content as SearchSource objects */
-  extractSourcesFromAssistantMessage: (assistantMessage: {
-    content: string;
-    sources?: SearchSource[];
-  }) => SearchSource[];
   /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
   updateMessage: (
     uniqueId: string,
@@ -2445,7 +2440,6 @@ export function useChatStorage(
     clearMessages,
     searchMessages,
     updateMessageEmbedding,
-    extractSourcesFromAssistantMessage,
     updateMessage,
     getAllFiles,
     createMemoryRetrievalTool,
