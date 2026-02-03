@@ -2249,10 +2249,12 @@ export function useChatStorage(
       }
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Also include sources from API response (structured citations from Bifrost)
       // Filter out MCP image URLs from sources (they are handled separately as files)
+      const apiResponseSources = (responseData as { sources?: SearchSource[] }).sources;
       const combinedSources = extractSourcesFromAssistantMessage({
         content: assistantContent,
-        sources,
+        sources: [...(apiResponseSources || []), ...(sources || [])],
       }).filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
 
       // Strip JSON sources block from content (if present)

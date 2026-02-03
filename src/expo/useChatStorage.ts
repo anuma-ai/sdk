@@ -891,9 +891,11 @@ export function useChatStorage(
       }
 
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Also include sources from API response (structured citations from Bifrost)
+      const apiResponseSources = (responseData as { sources?: SearchSource[] }).sources;
       const combinedSources = extractSourcesFromAssistantMessage({
         content: assistantContent,
-        sources,
+        sources: [...(apiResponseSources || []), ...(sources || [])],
       });
 
       // Strip JSON sources block from content (if present)
