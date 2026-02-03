@@ -102,29 +102,11 @@ export function replaceUrlWithMCPPlaceholder(
   const placeholder = createFilePlaceholder(fileId);
   let result = content;
 
-  // eslint-disable-next-line no-console
-  console.log(
-    `[replaceUrlWithMCPPlaceholder] Replacing URL with placeholder:`,
-    url,
-    "->",
-    placeholder
-  );
-
   // Replace HTML img tags with double-quoted src
   const htmlImgPatternDouble = new RegExp(
     `<img[^>]*src="${escapedUrl}"[^>]*>`,
     "gi"
   );
-  const doubleMatches = result.match(htmlImgPatternDouble);
-  if (doubleMatches) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[replaceUrlWithMCPPlaceholder] Replacing ${doubleMatches.length} HTML img tag(s) with double quotes:`,
-      doubleMatches,
-      "->",
-      placeholder
-    );
-  }
   result = result.replace(htmlImgPatternDouble, placeholder);
 
   // Replace HTML img tags with single-quoted src
@@ -132,16 +114,6 @@ export function replaceUrlWithMCPPlaceholder(
     `<img[^>]*src='${escapedUrl}'[^>]*>`,
     "gi"
   );
-  const singleMatches = result.match(htmlImgPatternSingle);
-  if (singleMatches) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[replaceUrlWithMCPPlaceholder] Replacing ${singleMatches.length} HTML img tag(s) with single quotes:`,
-      singleMatches,
-      "->",
-      placeholder
-    );
-  }
   result = result.replace(htmlImgPatternSingle, placeholder);
 
   // Replace markdown image syntax: ![alt](url) -> placeholder
@@ -149,36 +121,11 @@ export function replaceUrlWithMCPPlaceholder(
     `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
     "g"
   );
-  const markdownMatches = result.match(markdownImagePattern);
-  if (markdownMatches) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[replaceUrlWithMCPPlaceholder] Replacing ${markdownMatches.length} markdown image(s):`,
-      markdownMatches,
-      "->",
-      placeholder
-    );
-  }
   result = result.replace(markdownImagePattern, placeholder);
 
   // Replace raw URLs with placeholder (only if not already replaced by markdown pattern or HTML tags)
   const rawUrlPattern = new RegExp(escapedUrl, "g");
-  const rawMatches = result.match(rawUrlPattern);
-  if (rawMatches) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[replaceUrlWithMCPPlaceholder] Replacing ${rawMatches.length} raw URL(s):`,
-      rawMatches,
-      "->",
-      placeholder
-    );
-  }
   result = result.replace(rawUrlPattern, placeholder);
-
-  // eslint-disable-next-line no-console
-  console.log(
-    `[replaceUrlWithMCPPlaceholder] Final result length: ${result.length}, original length: ${content.length}`
-  );
 
   return result;
 }
@@ -257,17 +204,9 @@ async function storedToLlmapiMessage(
               type: "image_url",
               image_url: { url: dataUri },
             });
-            // eslint-disable-next-line no-console
-            console.log(
-              `[storedToLlmapiMessage] Loaded file ${file.id} from OPFS for history replay`
-            );
           }
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            `[storedToLlmapiMessage] Failed to read file ${file.id} from OPFS:`,
-            err
-          );
+        } catch {
+          // Failed to read file from OPFS - skip silently
         }
       }
     }
@@ -645,9 +584,8 @@ export function useChatStorage(
           embedding,
           embeddingModel
         );
-      } catch (err) {
-        // Non-fatal: log but don't fail the message save
-        console.warn("[useChatStorage] Failed to embed message:", err);
+      } catch {
+        // Non-fatal: embedding failure doesn't block message save
       }
     },
     [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
@@ -791,22 +729,11 @@ export function useChatStorage(
                   const result = await readEncryptedFile(fileId, encryptionKey);
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
-                    
-                  } else {
-                    // eslint-disable-next-line no-console
-                    console.warn(
-                      `[getMessages] Failed to read file ${fileId} from OPFS`
-                    );
                   }
-                } 
+                }
 
                 if (url) {
                   fileIdToUrlMap.set(fileId, url);
-                } else {
-                  // eslint-disable-next-line no-console
-                  console.warn(
-                    `[getMessages] No URL available for file, placeholder will remain in content`
-                  );
                 }
               }
 
@@ -836,12 +763,7 @@ export function useChatStorage(
           );
 
           return resolvedMessages;
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(
-            "[useChatStorage] Failed to resolve file placeholders:",
-            error
-          );
+        } catch {
           // Return messages without resolving placeholders
           return messages;
         }
@@ -1243,43 +1165,10 @@ export function useChatStorage(
             // Replace URL with placeholder on SUCCESS (only if replaceUrls is enabled)
             // Placeholders will be resolved to blob URLs when messages are retrieved
             if (replaceUrls && imageUrl) {
-              const replacementCount = replaceUrlWithPlaceholder(
-                imageUrl,
-                fileId
-              );
-              const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
-
-              // Verify all instances were replaced
-              if (replacementCount < expectedCount) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}`
-                );
-              }
-
-              // Double-check: verify no remaining instances of the URL
-              const escapedUrl = imageUrl.replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&"
-              );
-              const remainingPattern = new RegExp(escapedUrl, "g");
-              const remainingMatches = cleanedContent.match(remainingPattern);
-              if (remainingMatches && remainingMatches.length > 0) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement`
-                );
-              }
+              replaceUrlWithPlaceholder(imageUrl, fileId);
             }
-          } else {
-            // eslint-disable-next-line no-console
-            console.error(
-              "[handleMcpImageUrl] Failed to process image:",
-              result.reason
-            );
-            // On FAILURE: Keep URL in content so user can still click it
-            // MarkdownRenderer will show it as a clickable link
           }
+          // On FAILURE: Keep URL in content so user can still click it
         });
 
         // Clean up extra newlines
@@ -1289,9 +1178,7 @@ export function useChatStorage(
           processedFiles: processedFiles.length > 0 ? processedFiles : [],
           cleanedContent,
         };
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[handleMcpImageUrl] Unexpected error:", err);
+      } catch {
         // Don't throw - let the original message remain as-is if processing fails completely
         return { processedFiles: [], cleanedContent: content };
       }
@@ -1546,14 +1433,6 @@ export function useChatStorage(
               );
             }
 
-            // Verify all instances were replaced
-            const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
-            if (replacementCount < expectedCount) {
-              // eslint-disable-next-line no-console
-              console.warn(
-                `[extractAndStoreEncryptedMCPImages] Not all instances replaced. Expected ${expectedCount}, replaced ${replacementCount}`
-              );
-            }
           }
         });
 
@@ -1569,12 +1448,7 @@ export function useChatStorage(
               mediaOptions
             );
             createdMediaIds = createdMedia.map((m) => m.mediaId);
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error(
-              "[extractAndStoreEncryptedMCPImages] ❌ Failed to create media records:",
-              err
-            );
+          } catch {
             // Clean up orphaned OPFS files since media records weren't created
             for (const opt of mediaOptions) {
               if (opt.mediaId) {
@@ -1617,12 +1491,8 @@ export function useChatStorage(
       if (canUseOPFS) {
         try {
           encryptionKey = await getEncryptionKey(address);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[storeUserFilesInOPFS] Failed to get encryption key:",
-            err
-          );
+        } catch {
+          // Failed to get encryption key - will skip OPFS storage
         }
       }
 
@@ -1680,16 +1550,7 @@ export function useChatStorage(
             });
 
             storedInOPFS = true;
-            // eslint-disable-next-line no-console
-            console.log(
-              `[storeUserFilesInOPFS] Stored file ${mediaId} (${file.name}) in OPFS`
-            );
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error(
-              `[storeUserFilesInOPFS] Failed to store file in OPFS:`,
-              err
-            );
+          } catch {
             // Will fall back to sourceUrl below
           }
         }
@@ -1700,10 +1561,6 @@ export function useChatStorage(
             file.url && !file.url.startsWith("data:") ? file.url : undefined;
           // If it's a data URI and we can't store in OPFS, we can't persist the file content
           if (!sourceUrl) {
-            // eslint-disable-next-line no-console
-            console.warn(
-              `[storeUserFilesInOPFS] Cannot persist data URI without OPFS: ${file.name}`
-            );
             continue; // Skip this file - no way to store it
           }
         }
@@ -1730,27 +1587,13 @@ export function useChatStorage(
 
       try {
         const createdMedia = await createMediaBatchOp({ database }, mediaOptions);
-        const mediaIds = createdMedia.map((m) => m.mediaId);
-        // eslint-disable-next-line no-console
-        console.log(
-          `[storeUserFilesInOPFS] Created ${mediaIds.length} media record(s)`
-        );
-        return mediaIds;
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(
-          "[storeUserFilesInOPFS] Failed to create media records:",
-          err
-        );
+        return createdMedia.map((m) => m.mediaId);
+      } catch {
         // Clean up orphaned OPFS files since media records weren't created
         for (const opt of mediaOptions) {
           if (opt.mediaId) {
             try {
               await deleteEncryptedFile(opt.mediaId);
-              // eslint-disable-next-line no-console
-              console.log(
-                `[storeUserFilesInOPFS] Cleaned up orphaned OPFS file ${opt.mediaId}`
-              );
             } catch {
               // Ignore cleanup errors
             }
@@ -1821,12 +1664,9 @@ export function useChatStorage(
           if (preprocessingResult.extractedContent) {
             fileContextForRequest = preprocessingResult.extractedContent;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
-            console.log('[Preprocessing] Preprocessed file IDs:', preprocessedFileIds);
-            console.log('[Preprocessing] Extracted content length:', fileContextForRequest.length);
           }
-        } catch (error) {
-          // Non-fatal error - log and continue without preprocessing
-          console.error("File preprocessing error:", error);
+        } catch {
+          // Non-fatal error - continue without preprocessing
         }
       }
 
@@ -1888,9 +1728,8 @@ export function useChatStorage(
         if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
           try {
             encryptionKey = await getEncryptionKey(walletAddress);
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn("[sendMessage] Failed to get encryption key for history:", err);
+          } catch {
+            // Failed to get encryption key for history
           }
         }
         const historyMessages = await Promise.all(
@@ -1904,7 +1743,6 @@ export function useChatStorage(
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
       if (fileContextForRequest) {
-        console.log('[Preprocessing] File context exists, filtering files from message');
         // Find the last user message in messagesToSend
         let lastUserMessageIndex = -1;
         for (let i = messagesToSend.length - 1; i >= 0; i--) {
@@ -1916,7 +1754,6 @@ export function useChatStorage(
 
         if (lastUserMessageIndex !== -1) {
           const lastUserMessage = messagesToSend[lastUserMessageIndex];
-          console.log('[Preprocessing] Last user message content parts:', lastUserMessage.content?.length);
           if (lastUserMessage.content && Array.isArray(lastUserMessage.content)) {
             // Remove only the files that were actually preprocessed
             // Keep images and other files that weren't processed (e.g., for vision)
@@ -1929,9 +1766,7 @@ export function useChatStorage(
                 // For input_file parts, check if this specific file was preprocessed
                 if (part.type === "input_file" && part.file) {
                   const fileId = part.file.file_id;
-                  const shouldKeep = !fileId || !preprocessedFileIds.includes(fileId);
-                  console.log('[Preprocessing] input_file part, file_id:', fileId, 'shouldKeep:', shouldKeep);
-                  return shouldKeep;
+                  return !fileId || !preprocessedFileIds.includes(fileId);
                 }
 
                 // For image_url parts, check if the URL matches a preprocessed file
@@ -2007,13 +1842,8 @@ export function useChatStorage(
             userFileIds,
             storedUserMessage.uniqueId
           );
-        } catch (err) {
-          // Non-fatal - log but continue
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[sendMessage] Failed to update user media records with messageId:",
-            err
-          );
+        } catch {
+          // Non-fatal - continue without updating messageId
         }
       }
 
@@ -2042,13 +1872,8 @@ export function useChatStorage(
             allServerTools,
             serverToolsFilter
           );
-        } catch (error) {
-          // Log but don't block - server tools are optional
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[useChatStorage] Failed to fetch server tools:",
-            error
-          );
+        } catch {
+          // Server tools are optional - continue without them
         }
       }
 
@@ -2328,13 +2153,8 @@ export function useChatStorage(
             assistantFileIds,
             storedAssistantMessage.uniqueId
           );
-        } catch (err) {
-          // Non-fatal - log but continue
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[sendMessage] Failed to update assistant media records with messageId:",
-            err
-          );
+        } catch {
+          // Non-fatal - continue without updating messageId
         }
       }
 
