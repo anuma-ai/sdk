@@ -451,8 +451,6 @@ export interface BaseUseChatStorageResult {
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
   deleteConversation: (id: string) => Promise<boolean>;
   getMessages: (conversationId: string) => Promise<StoredMessage[]>;
-  getMessageCount: (conversationId: string) => Promise<number>;
-  clearMessages: (conversationId: string) => Promise<void>;
 }
 
 // Utility functions

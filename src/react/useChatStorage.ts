@@ -8,11 +8,9 @@ import {
   Message,
   Conversation,
   type StoredMessage,
-  type StoredMessageWithSimilarity,
   type StoredConversation,
   type StoredFileWithContext,
   type CreateConversationOptions,
-  type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseUseChatStorageResult,
@@ -28,13 +26,10 @@ import {
   updateConversationTitleOp,
   deleteConversationOp,
   getMessagesOp,
-  getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
-  updateMessageOp,
-  searchMessagesOp,
   getAllFilesOp,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
@@ -412,22 +407,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
-  /** Search messages by vector similarity */
-  searchMessages: (
-    queryVector: number[],
-    options?: SearchMessagesOptions
-  ) => Promise<StoredMessageWithSimilarity[]>;
-  /** Update a message's embedding vector. Returns updated message or null if not found. */
-  updateMessageEmbedding: (
-    uniqueId: string,
-    vector: number[],
-    embeddingModel: string
-  ) => Promise<StoredMessage | null>;
-  /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
-  updateMessage: (
-    uniqueId: string,
-    options: UpdateMessageOptions
-  ) => Promise<StoredMessage | null>;
   /**
    * Get all files from all conversations, sorted by creation date (newest first).
    * Returns files with conversation context for building file browser UIs.
@@ -772,28 +751,6 @@ export function useChatStorage(
       return messages;
     },
     [storageCtx, walletAddress]
-  );
-
-  /**
-   * Get message count for a conversation
-   */
-  const getMessageCount = useCallback(
-    async (convId: string): Promise<number> => {
-      return getMessageCountOp(storageCtx, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Clear all messages in a conversation and cascade delete associated media
-   */
-  const clearMessages = useCallback(
-    async (convId: string): Promise<void> => {
-      await clearMessagesOp(storageCtx, convId);
-      // Cascade delete media for this conversation
-      await deleteMediaByConversationOp({ database: storageCtx.database }, convId);
-    },
-    [storageCtx]
   );
 
   /**
@@ -2177,53 +2134,6 @@ export function useChatStorage(
   );
 
   /**
-   * Search messages by vector similarity
-   */
-  const searchMessages = useCallback(
-    async (
-      queryVector: number[],
-      options?: SearchMessagesOptions
-    ): Promise<StoredMessageWithSimilarity[]> => {
-      return searchMessagesOp(storageCtx, queryVector, options);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Update message embedding
-   * @returns The updated message, or null if message not found
-   */
-  const updateMessageEmbedding = useCallback(
-    async (
-      uniqueId: string,
-      vector: number[],
-      embeddingModel: string
-    ): Promise<StoredMessage | null> => {
-      return updateMessageEmbeddingOp(
-        storageCtx,
-        uniqueId,
-        vector,
-        embeddingModel
-      );
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Update message fields (content, embedding, files, etc)
-   * @returns The updated message, or null if message not found
-   */
-  const updateMessage = useCallback(
-    async (
-      uniqueId: string,
-      options: UpdateMessageOptions
-    ): Promise<StoredMessage | null> => {
-      return updateMessageOp(storageCtx, uniqueId, options);
-    },
-    [storageCtx]
-  );
-
-  /**
    * Get all files from all conversations, sorted by creation date (newest first).
    * Returns files with conversation context for building file browser UIs.
    */
@@ -2249,11 +2159,6 @@ export function useChatStorage(
     updateConversationTitle,
     deleteConversation,
     getMessages,
-    getMessageCount,
-    clearMessages,
-    searchMessages,
-    updateMessageEmbedding,
-    updateMessage,
     getAllFiles,
     createMemoryRetrievalTool,
   };

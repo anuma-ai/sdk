@@ -11,7 +11,6 @@ import {
   type StoredMessage,
   type StoredConversation,
   type CreateConversationOptions,
-  type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
@@ -28,11 +27,9 @@ import {
   updateConversationTitleOp,
   deleteConversationOp,
   getMessagesOp,
-  getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
   updateMessageErrorOp,
-  updateMessageOp,
 } from "../lib/db/chat";
 import {
   getServerTools,
@@ -127,11 +124,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
-  /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
-  updateMessage: (
-    uniqueId: string,
-    options: UpdateMessageOptions
-  ) => Promise<StoredMessage | null>;
   /**
    * Create a memory retrieval tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -373,42 +365,6 @@ export function useChatStorage(
   const getMessages = useCallback(
     async (convId: string): Promise<StoredMessage[]> => {
       return getMessagesOp(storageCtx, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Get message count for a conversation
-   */
-  const getMessageCount = useCallback(
-    async (convId: string): Promise<number> => {
-      return getMessageCountOp(storageCtx, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Clear all messages in a conversation and cascade delete associated media
-   */
-  const clearMessages = useCallback(
-    async (convId: string): Promise<void> => {
-      await clearMessagesOp(storageCtx, convId);
-      // Cascade delete media for this conversation
-      await deleteMediaByConversationOp({ database: storageCtx.database }, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Update message fields (content, embedding, files, etc)
-   * @returns The updated message, or null if message not found
-   */
-  const updateMessage = useCallback(
-    async (
-      uniqueId: string,
-      options: UpdateMessageOptions
-    ): Promise<StoredMessage | null> => {
-      return updateMessageOp(storageCtx, uniqueId, options);
     },
     [storageCtx]
   );
@@ -951,9 +907,6 @@ export function useChatStorage(
     updateConversationTitle,
     deleteConversation,
     getMessages,
-    getMessageCount,
-    clearMessages,
-    updateMessage,
     createMemoryRetrievalTool,
   };
 }
