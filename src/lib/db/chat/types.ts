@@ -294,6 +294,32 @@ export interface BaseSendMessageWithStorageArgs {
   model?: string;
 
   /**
+   * Skip all storage operations (conversation, messages, embeddings, media).
+   * Use this for one-off tasks like title generation where you don't want
+   * to pollute the database with utility messages.
+   *
+   * When true:
+   * - No conversation is created or required
+   * - Messages are not stored in the database
+   * - No embeddings are generated
+   * - No media/files are processed for storage
+   * - Result will not include userMessage or assistantMessage
+   *
+   * @default false
+   *
+   * @example
+   * ```ts
+   * // Generate a title without storing anything
+   * const { data } = await sendMessage({
+   *   messages: [{ role: "user", content: [{ type: "text", text: "Generate a title for: ..." }] }],
+   *   skipStorage: true,
+   *   includeHistory: false,
+   * });
+   * ```
+   */
+  skipStorage?: boolean;
+
+  /**
    * Whether to automatically include previous messages from the conversation as context.
    * When true, fetches stored messages and prepends them to the request.
    * Ignored if `messages` is provided.
@@ -427,6 +453,15 @@ export interface BaseSendMessageSuccessResult {
   assistantMessage: StoredMessage;
 }
 
+export interface BaseSendMessageSkippedResult {
+  data: LlmapiResponseResponse;
+  error: null;
+  userMessage?: undefined;
+  assistantMessage?: undefined;
+  /** Indicates this was a skipStorage request - no messages were persisted */
+  skipped: true;
+}
+
 export interface BaseSendMessageErrorResult {
   data: null;
   error: string;
@@ -436,6 +471,7 @@ export interface BaseSendMessageErrorResult {
 
 export type BaseSendMessageWithStorageResult =
   | BaseSendMessageSuccessResult
+  | BaseSendMessageSkippedResult
   | BaseSendMessageErrorResult;
 
 export interface BaseUseChatStorageResult {

@@ -35,6 +35,7 @@ import {
   getServerTools,
   filterServerTools,
   mergeTools,
+  type ServerTool,
 } from "../lib/tools";
 import {
   generateEmbedding,
@@ -535,6 +536,7 @@ export function useChatStorage(
       const {
         messages,
         model,
+        skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
         files,
@@ -554,6 +556,73 @@ export function useChatStorage(
         reasoning,
         thinking,
       } = args;
+
+      // Fast path for skipStorage - bypass all storage operations
+      if (skipStorage) {
+        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+
+        // Fetch server tools if needed
+        let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
+        let filteredServerTools: ServerTool[] = [];
+
+        if (
+          getToken &&
+          effectiveApiType === "responses" &&
+          serverToolsFilter !== undefined &&
+          (serverToolsFilter === undefined || serverToolsFilter.length > 0)
+        ) {
+          try {
+            const allServerTools = await getServerTools({
+              baseUrl,
+              cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+              getToken,
+            });
+            filteredServerTools = filterServerTools(
+              allServerTools,
+              serverToolsFilter
+            );
+          } catch {
+            // Server tools are optional
+          }
+        }
+
+        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+          mergedTools = mergeTools(
+            filteredServerTools,
+            clientTools,
+            effectiveApiType
+          );
+        }
+
+        const result = await baseSendMessage({
+          messages,
+          model,
+          onData: perRequestOnData,
+          onThinking: perRequestOnThinking,
+          memoryContext,
+          searchContext,
+          temperature,
+          maxOutputTokens,
+          tools: mergedTools,
+          toolChoice,
+          reasoning,
+          thinking,
+          apiType: effectiveApiType,
+        });
+
+        if (result.error || !result.data) {
+          return {
+            data: null,
+            error: result.error || "Unknown error",
+          };
+        }
+
+        return {
+          data: result.data,
+          error: null,
+          skipped: true,
+        };
+      }
 
       // Extract user message content for storage
       const extracted = extractUserMessageFromMessages(messages);
