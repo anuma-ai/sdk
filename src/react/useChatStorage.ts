@@ -47,19 +47,15 @@ import {
   deleteEncryptedFile,
   createFilePlaceholder,
   extractFileIds,
-  FILE_PLACEHOLDER_REGEX,
   BlobUrlManager,
 } from "../lib/storage";
 import {
   deleteMediaByConversationOp,
-  deleteMediaByMessageOp,
-  createMediaOp,
   createMediaBatchOp,
   updateMediaMessageIdBatchOp,
   hardDeleteMediaOp,
   generateMediaId,
   getMediaTypeFromMime,
-  type MediaOperationsContext,
   type CreateMediaOptions,
 } from "../lib/db/media";
 import { preprocessFiles } from "../lib/processors";
@@ -305,7 +301,7 @@ async function storedToLlmapiMessage(
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
     /!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g,
-    (match, fileId) => {
+    (_match, fileId) => {
       const sourceUrl = fileUrlMap.get(fileId);
       if (sourceUrl) {
         return `![image](${sourceUrl})`;
@@ -786,9 +782,6 @@ export function useChatStorage(
               // Resolve all files to blob URLs and build a map
               const fileIdToUrlMap = new Map<string, string>();
               for (const fileId of fileIds) {
-                const placeholder = createFilePlaceholder(fileId);
-                
-
                 // Check if we already have a URL for this file
                 let url = blobManager.getUrl(fileId);
 
