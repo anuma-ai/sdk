@@ -2,7 +2,7 @@
 
 > **shouldChunkMessage**(`content`: `string`, `chunkSize`: `number`): `boolean`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L190)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:215](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L215)
 
 Check if a message should be chunked based on its length.
 
