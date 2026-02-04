@@ -21,6 +21,8 @@ export interface MemoryRetrievalSearchOptions {
   includeAssistant?: boolean;
   /** Filter to a specific conversation */
   conversationId?: string;
+  /** Exclude messages from this conversation (e.g., the current conversation) */
+  excludeConversationId?: string;
   /** Inclusive start date filter (currently disabled) */
   startDate?: string;
   /** Inclusive end date filter (currently disabled) */

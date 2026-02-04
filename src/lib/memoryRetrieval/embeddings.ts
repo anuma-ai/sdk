@@ -24,6 +24,13 @@ import {
 } from "./chunking";
 
 /**
+ * Default minimum content length for embedding.
+ * Messages shorter than this are typically too short to provide
+ * meaningful semantic search results (e.g., "ok", "thanks", "more").
+ */
+export const DEFAULT_MIN_CONTENT_LENGTH = 30;
+
+/**
  * Generate an embedding for text using the API
  *
  * Supports two auth methods:
@@ -191,6 +198,8 @@ export async function embedAllMessages(
     conversationId?: string;
     /** Only embed messages with these roles */
     roles?: ("user" | "assistant")[];
+    /** Minimum content length to embed (default: 30). Shorter messages are skipped. */
+    minContentLength?: number;
   }
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -218,6 +227,12 @@ export async function embedAllMessages(
 
       // Skip system messages
       if (message.role === "system") {
+        continue;
+      }
+
+      // Skip short messages that won't provide useful search context
+      const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
+      if (message.content.length < minLength) {
         continue;
       }
 
@@ -323,6 +338,8 @@ export async function chunkAndEmbedAllMessages(
     roles?: ("user" | "assistant")[];
     /** Re-chunk messages that have whole-message embeddings but no chunks */
     rechunkExisting?: boolean;
+    /** Minimum content length to embed (default: 30). Shorter messages are skipped. */
+    minContentLength?: number;
   }
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
@@ -360,6 +377,12 @@ export async function chunkAndEmbedAllMessages(
 
       // Skip system messages
       if (message.role === "system") {
+        continue;
+      }
+
+      // Skip short messages that won't provide useful search context
+      const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
+      if (message.content.length < minLength) {
         continue;
       }
 

@@ -38,6 +38,7 @@ export {
   embedAllMessages,
   chunkAndEmbedMessage,
   chunkAndEmbedAllMessages,
+  DEFAULT_MIN_CONTENT_LENGTH,
 } from "./embeddings";
 
 export {

@@ -20,6 +20,7 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryRetrievalSearchOptions> = {
   minSimilarity: 0.3,
   includeAssistant: false,
   conversationId: undefined as unknown as string,
+  excludeConversationId: undefined as unknown as string,
   startDate: undefined as unknown as string,
   endDate: undefined as unknown as string,
 };
@@ -147,10 +148,17 @@ export function createMemoryRetrievalTool(
           conversationId: defaultOpts.conversationId,
         });
 
+        // Filter out excluded conversation (e.g., current conversation)
+        let filteredResults = defaultOpts.excludeConversationId
+          ? results.filter(
+              (r) => r.message.conversationId !== defaultOpts.excludeConversationId
+            )
+          : results;
+
         // Filter by role if needed
-        const filteredResults = includeAssistant
-          ? results
-          : results.filter((r) => r.message.role === "user");
+        filteredResults = includeAssistant
+          ? filteredResults
+          : filteredResults.filter((r) => r.message.role === "user");
 
         // Format results for LLM - use chunk text, not full message
         return formatSearchResults(

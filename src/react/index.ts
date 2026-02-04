@@ -131,9 +131,14 @@ export {
   type StoredFileWithContext,
   type CreateMessageOptions,
   type CreateConversationOptions,
+  type StorageOperationsContext,
+  type MessageChunk,
+  type ChunkSearchResult,
   generateConversationId,
   updateConversationProjectOp,
   getConversationsByProjectOp,
+  searchChunksOp,
+  searchMessagesOp,
 } from "../lib/db/chat";
 
 // Project storage exports
@@ -286,11 +291,21 @@ export {
   embedAllMessages,
   generateEmbedding,
   generateEmbeddings,
+  // Chunking functions for sub-message semantic search
+  chunkAndEmbedMessage,
+  chunkAndEmbedAllMessages,
+  chunkText,
+  shouldChunkMessage,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_MIN_CHUNK_SIZE,
 } from "../lib/memoryRetrieval";
 export type {
   MemoryRetrievalSearchOptions,
   MemoryRetrievalResult,
   EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+  ChunkingOptions,
+  TextChunk,
 } from "../lib/memoryRetrieval";
 
 export {
