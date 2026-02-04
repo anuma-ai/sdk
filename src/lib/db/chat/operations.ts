@@ -16,10 +16,13 @@ import {
 } from "./types";
 
 export function messageToStored(message: Message): StoredMessage {
+  // Use _getRaw for conversationId to ensure reliable raw column access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const convId = (message as any)._getRaw("conversation_id") as string;
   return {
     uniqueId: message.id,
     messageId: message.messageId,
-    conversationId: message.conversationId,
+    conversationId: convId,
     role: message.role,
     content: message.content,
     model: message.model,

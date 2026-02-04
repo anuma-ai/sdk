@@ -148,12 +148,19 @@ export function createMemoryRetrievalTool(
           conversationId: defaultOpts.conversationId,
         });
 
+        // DEBUG: Log filtering info
+        console.log("[MEMORY_TOOL] excludeConversationId:", defaultOpts.excludeConversationId);
+        console.log("[MEMORY_TOOL] results count:", results.length);
+        console.log("[MEMORY_TOOL] results conversationIds:", results.map(r => r.message.conversationId));
+
         // Filter out excluded conversation (e.g., current conversation)
         let filteredResults = defaultOpts.excludeConversationId
           ? results.filter(
               (r) => r.message.conversationId !== defaultOpts.excludeConversationId
             )
           : results;
+
+        console.log("[MEMORY_TOOL] filteredResults count:", filteredResults.length);
 
         // Filter by role if needed
         filteredResults = includeAssistant
