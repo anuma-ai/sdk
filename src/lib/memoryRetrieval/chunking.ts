@@ -71,9 +71,12 @@ export function chunkText(
 ): TextChunk[] {
   const {
     chunkSize = DEFAULT_CHUNK_SIZE,
-    chunkOverlap = DEFAULT_CHUNK_OVERLAP,
+    chunkOverlap: requestedOverlap = DEFAULT_CHUNK_OVERLAP,
     minChunkSize = DEFAULT_MIN_CHUNK_SIZE,
   } = options ?? {};
+
+  // Ensure overlap is less than chunk size to prevent infinite loops
+  const chunkOverlap = Math.min(requestedOverlap, chunkSize - 1);
 
   // If text is short enough, return as single chunk
   if (text.length <= chunkSize) {
