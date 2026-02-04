@@ -1,8 +1,8 @@
 # embedAllMessages
 
-> **embedAllMessages**(`ctx`: `StorageOperationsContext`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
+> **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:179](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L179)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:193](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L193)
 
 Embed all messages without embeddings in the database
 
@@ -25,7 +25,7 @@ Embed all messages without embeddings in the database
 </td>
 <td>
 
-`StorageOperationsContext`
+[`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
 
 </td>
 <td>
@@ -82,6 +82,23 @@ Optional filter for which messages to embed
 <td>
 
 Only embed messages from this conversation
+
+</td>
+</tr>
+<tr>
+<td>
+
+`filter.minContentLength?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Minimum content length to embed (default: 30). Shorter messages are skipped.
 
 </td>
 </tr>
