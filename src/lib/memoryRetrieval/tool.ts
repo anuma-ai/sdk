@@ -151,9 +151,16 @@ export function createMemoryRetrievalTool(
         // Generate embedding for the query
         const queryEmbedding = await generateEmbedding(query, embeddingOptions);
 
+        // Calculate fetch multiplier to account for post-filtering
+        // Fetch more results when filtering by role or excluding conversations
+        const fetchMultiplier =
+          (includeAssistant ? 1 : 2) *
+          (defaultOpts.excludeConversationId ? 1.5 : 1);
+        const fetchLimit = Math.ceil(topK * fetchMultiplier);
+
         // Search through message chunks for better precision
         const results = await searchChunksOp(storageCtx, queryEmbedding, {
-          limit: topK,
+          limit: fetchLimit,
           minSimilarity: defaultOpts.minSimilarity,
           conversationId: defaultOpts.conversationId,
         });
@@ -169,6 +176,9 @@ export function createMemoryRetrievalTool(
         filteredResults = includeAssistant
           ? filteredResults
           : filteredResults.filter((r) => r.message.role === "user");
+
+        // Limit to requested topK after filtering
+        filteredResults = filteredResults.slice(0, topK);
 
         // Format results for LLM - use chunk text, not full message
         return formatSearchResults(
