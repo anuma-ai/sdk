@@ -437,7 +437,9 @@ export async function searchMessagesOp(
     .query(Q.where("is_deleted", false))
     .fetch();
   const activeConversationIds = new Set(
-    activeConversations.map((c) => c.conversationId)
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
   const queryConditions = conversationId
@@ -451,7 +453,10 @@ export async function searchMessagesOp(
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
   for (const message of messages) {
-    if (!activeConversationIds.has(message.conversationId)) continue;
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    if (!activeConversationIds.has(msgConvId)) continue;
 
     const messageVector = message.vector;
     if (!messageVector || messageVector.length === 0) continue;
@@ -489,7 +494,9 @@ export async function searchChunksOp(
     .query(Q.where("is_deleted", false))
     .fetch();
   const activeConversationIds = new Set(
-    activeConversations.map((c) => c.conversationId)
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
   const queryConditions = conversationId
@@ -503,7 +510,10 @@ export async function searchChunksOp(
   const results: ChunkSearchResult[] = [];
 
   for (const message of messages) {
-    if (!activeConversationIds.has(message.conversationId)) continue;
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    if (!activeConversationIds.has(msgConvId)) continue;
 
     const chunks = message.chunks;
 
@@ -550,7 +560,9 @@ export async function getMessagesWithEmbeddingsOp(
     .query(Q.where("is_deleted", false))
     .fetch();
   const activeConversationIds = new Set(
-    activeConversations.map((c) => c.conversationId)
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
   const queryConditions = conversationId
@@ -562,12 +574,12 @@ export async function getMessagesWithEmbeddingsOp(
     .fetch();
 
   return messages
-    .filter(
-      (m) =>
-        m.vector &&
-        m.vector.length > 0 &&
-        activeConversationIds.has(m.conversationId)
-    )
+    .filter((m) => {
+      // Use _getRaw for reliable raw column access
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msgConvId = (m as any)._getRaw("conversation_id") as string;
+      return m.vector && m.vector.length > 0 && activeConversationIds.has(msgConvId);
+    })
     .map(messageToStored);
 }
 
@@ -591,7 +603,9 @@ export async function getAllFilesOp(
     .query(Q.where("is_deleted", false))
     .fetch();
   const activeConversationIds = new Set(
-    activeConversations.map((c) => c.conversationId)
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
   // Build query conditions
@@ -609,7 +623,10 @@ export async function getAllFilesOp(
 
   for (const message of messages) {
     // Skip messages from deleted conversations
-    if (!activeConversationIds.has(message.conversationId)) continue;
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    if (!activeConversationIds.has(msgConvId)) continue;
 
     // Skip messages without files
     const files = message.files;
@@ -619,7 +636,7 @@ export async function getAllFilesOp(
     for (const file of files) {
       filesWithContext.push({
         ...file,
-        conversationId: message.conversationId,
+        conversationId: msgConvId,
         createdAt: message.createdAt,
         messageRole: message.role,
       });
