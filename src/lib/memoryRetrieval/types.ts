@@ -27,6 +27,8 @@ export interface MemoryRetrievalSearchOptions {
   startDate?: string;
   /** Inclusive end date filter (currently disabled) */
   endDate?: string;
+  /** Sort order for results: "similarity" (most relevant first) or "chronological" (oldest first). Default: "similarity" */
+  sortBy?: "similarity" | "chronological";
 }
 
 /**

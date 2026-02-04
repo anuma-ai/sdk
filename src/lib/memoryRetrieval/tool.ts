@@ -23,11 +23,11 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryRetrievalSearchOptions> = {
   excludeConversationId: undefined as unknown as string,
   startDate: undefined as unknown as string,
   endDate: undefined as unknown as string,
+  sortBy: "similarity",
 };
 
 /**
  * Format search results for LLM consumption
- * Results are sorted chronologically with timestamps
  */
 function formatSearchResults(
   results: Array<{
@@ -36,16 +36,19 @@ function formatSearchResults(
     conversationId: string;
     similarity: number;
     createdAt: Date;
-  }>
+  }>,
+  sortBy: "similarity" | "chronological" = "similarity"
 ): string {
   if (results.length === 0) {
     return "No relevant past conversation chunks found.";
   }
 
-  // Sort chronologically (oldest first)
-  const sortedResults = [...results].sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-  );
+  const sortedResults = [...results].sort((a, b) => {
+    if (sortBy === "chronological") {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    }
+    return b.similarity - a.similarity;
+  });
 
   const formatted = sortedResults.map((r, i) => {
     const date = r.createdAt.toISOString().replace("T", " ").slice(0, 16);
@@ -120,6 +123,11 @@ export function createMemoryRetrievalTool(
             type: "string",
             description: "Inclusive end date/time (currently disabled).",
           },
+          sort_by: {
+            type: "string",
+            enum: ["similarity", "chronological"],
+            description: `Sort order: "similarity" (most relevant first) or "chronological" (oldest first). Default: ${defaultOpts.sortBy}`,
+          },
         },
         required: ["query"],
       },
@@ -129,6 +137,8 @@ export function createMemoryRetrievalTool(
       const topK = (args.top_k as number) ?? defaultOpts.topK;
       const includeAssistant =
         (args.include_assistant as boolean) ?? defaultOpts.includeAssistant;
+      const sortBy =
+        (args.sort_by as "similarity" | "chronological") ?? defaultOpts.sortBy;
       // Date filters are currently disabled but parsed for future use
       // const startDate = args.start_date as string | undefined;
       // const endDate = args.end_date as string | undefined;
@@ -168,7 +178,8 @@ export function createMemoryRetrievalTool(
             conversationId: r.message.conversationId,
             similarity: r.similarity,
             createdAt: r.message.createdAt,
-          }))
+          })),
+          sortBy
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
