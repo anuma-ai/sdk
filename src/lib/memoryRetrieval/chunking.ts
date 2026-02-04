@@ -190,6 +190,22 @@ export function chunkText(
     }
   }
 
+  // Fallback: if no chunks were created but text has content, return trimmed text
+  // This handles cases where text exceeds chunkSize due to whitespace but
+  // meaningful content is below minChunkSize
+  if (chunks.length === 0) {
+    const trimmedText = text.trim();
+    if (trimmedText.length > 0) {
+      return [
+        {
+          text: trimmedText,
+          startOffset: 0,
+          endOffset: text.length,
+        },
+      ];
+    }
+  }
+
   return chunks;
 }
 
