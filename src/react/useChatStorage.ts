@@ -79,6 +79,7 @@ import {
   chunkText,
   shouldChunkMessage,
   DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
@@ -649,6 +650,8 @@ export function useChatStorage(
   const embedMessageAsync = useCallback(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
+      // Skip short messages that won't provide useful search context
+      if (message.content.length < DEFAULT_MIN_CONTENT_LENGTH) return;
       try {
         const embeddingOptions = {
           getToken,
