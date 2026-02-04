@@ -94,7 +94,11 @@ export function chunkText(
 
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i];
-    const sentenceStart = text.indexOf(sentence, currentOffset);
+    let sentenceStart = text.indexOf(sentence, currentOffset);
+    // Fallback if trimmed sentence not found at expected position
+    if (sentenceStart === -1) {
+      sentenceStart = currentOffset;
+    }
     const sentenceEnd = sentenceStart + sentence.length;
 
     // If single sentence exceeds chunk size, split it by characters
@@ -153,7 +157,9 @@ export function chunkText(
         currentChunkSentences = [...overlapSentences, sentence];
         // Find the start offset of the overlap
         const overlapText = overlapSentences[0];
-        currentChunkStart = text.lastIndexOf(overlapText, currentOffset);
+        const overlapStart = text.lastIndexOf(overlapText, currentOffset);
+        // Fallback to sentence start if overlap text not found
+        currentChunkStart = overlapStart === -1 ? sentenceStart : overlapStart;
       } else {
         currentChunkSentences = [sentence];
         currentChunkStart = sentenceStart;
