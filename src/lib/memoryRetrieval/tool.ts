@@ -7,7 +7,7 @@
 
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
-import { searchMessagesOp } from "../db/chat/operations";
+import { searchChunksOp } from "../db/chat/operations";
 import type { EmbeddingOptions, MemoryRetrievalSearchOptions } from "./types";
 import { generateEmbedding } from "./embeddings";
 
@@ -15,10 +15,15 @@ import { generateEmbedding } from "./embeddings";
  * Default search options
  */
 const DEFAULT_SEARCH_OPTIONS: Required<MemoryRetrievalSearchOptions> = {
-  limit: 10,
+  limit: 8,
+  topK: 8,
   minSimilarity: 0.3,
-  includeAssistant: true,
+  includeAssistant: false,
   conversationId: undefined as unknown as string,
+  excludeConversationId: undefined as unknown as string,
+  startDate: undefined as unknown as string,
+  endDate: undefined as unknown as string,
+  sortBy: "similarity",
 };
 
 /**
@@ -31,18 +36,26 @@ function formatSearchResults(
     conversationId: string;
     similarity: number;
     createdAt: Date;
-  }>
+  }>,
+  sortBy: "similarity" | "chronological" = "similarity"
 ): string {
   if (results.length === 0) {
-    return "No relevant past conversations found.";
+    return "No relevant past conversation chunks found.";
   }
 
-  const formatted = results.map((r, i) => {
-    const date = r.createdAt.toISOString().split("T")[0];
+  const sortedResults = [...results].sort((a, b) => {
+    if (sortBy === "chronological") {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    }
+    return b.similarity - a.similarity;
+  });
+
+  const formatted = sortedResults.map((r, i) => {
+    const date = r.createdAt.toISOString().replace("T", " ").slice(0, 16);
     return `[${i + 1}] (${r.role}, ${date}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`;
   });
 
-  return `Found ${results.length} relevant past messages:\n\n${formatted.join("\n\n---\n\n")}`;
+  return `Found ${results.length} relevant past conversation chunks:\n\n${formatted.join("\n\n---\n\n")}`;
 }
 
 /**
@@ -83,7 +96,7 @@ export function createMemoryRetrievalTool(
     function: {
       name: "search_memory",
       description:
-        "Search through past conversation messages to find relevant context. " +
+        "Search past conversation chunks to find relevant context from previous discussions. " +
         "Use this tool when you need to recall information from previous conversations, " +
         "such as user preferences, past discussions, or previously mentioned facts. " +
         "The search uses semantic similarity, so phrase your query naturally.",
@@ -92,13 +105,28 @@ export function createMemoryRetrievalTool(
         properties: {
           query: {
             type: "string",
-            description:
-              "The search query describing what information you're looking for. " +
-              "Can be a question or keywords related to the topic.",
+            description: "User question to match against past chunks.",
           },
-          limit: {
-            type: "number",
-            description: `Maximum number of results to return. Default: ${defaultOpts.limit}`,
+          include_assistant: {
+            type: "boolean",
+            description: `Include assistant message chunks. Default: ${defaultOpts.includeAssistant}`,
+          },
+          top_k: {
+            type: "integer",
+            description: `Number of chunks to return. Default: ${defaultOpts.topK}`,
+          },
+          start_date: {
+            type: "string",
+            description: "Inclusive start date/time (currently disabled).",
+          },
+          end_date: {
+            type: "string",
+            description: "Inclusive end date/time (currently disabled).",
+          },
+          sort_by: {
+            type: "string",
+            enum: ["similarity", "chronological"],
+            description: `Sort order: "similarity" (most relevant first) or "chronological" (oldest first). Default: ${defaultOpts.sortBy}`,
           },
         },
         required: ["query"],
@@ -106,7 +134,14 @@ export function createMemoryRetrievalTool(
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
-      const limit = (args.limit as number) ?? defaultOpts.limit;
+      const topK = (args.top_k as number) ?? defaultOpts.topK;
+      const includeAssistant =
+        (args.include_assistant as boolean) ?? defaultOpts.includeAssistant;
+      const sortBy =
+        (args.sort_by as "similarity" | "chronological") ?? defaultOpts.sortBy;
+      // Date filters are currently disabled but parsed for future use
+      // const startDate = args.start_date as string | undefined;
+      // const endDate = args.end_date as string | undefined;
 
       if (!query || typeof query !== "string") {
         return "Error: A search query is required.";
@@ -116,31 +151,49 @@ export function createMemoryRetrievalTool(
         // Generate embedding for the query
         const queryEmbedding = await generateEmbedding(query, embeddingOptions);
 
-        // Search for similar messages
-        const results = await searchMessagesOp(storageCtx, queryEmbedding, {
-          limit,
+        // Calculate fetch multiplier to account for post-filtering
+        // Fetch more results when filtering by role or excluding conversations
+        const fetchMultiplier =
+          (includeAssistant ? 1 : 2) *
+          (defaultOpts.excludeConversationId ? 1.5 : 1);
+        const fetchLimit = Math.ceil(topK * fetchMultiplier);
+
+        // Search through message chunks for better precision
+        const results = await searchChunksOp(storageCtx, queryEmbedding, {
+          limit: fetchLimit,
           minSimilarity: defaultOpts.minSimilarity,
           conversationId: defaultOpts.conversationId,
         });
 
-        // Filter by role if needed
-        const filteredResults = defaultOpts.includeAssistant
-          ? results
-          : results.filter((r) => r.role === "user");
+        // Filter out excluded conversation (e.g., current conversation)
+        let filteredResults = defaultOpts.excludeConversationId
+          ? results.filter(
+              (r) => r.message.conversationId !== defaultOpts.excludeConversationId
+            )
+          : results;
 
-        // Format results for LLM
+        // Filter by role if needed
+        filteredResults = includeAssistant
+          ? filteredResults
+          : filteredResults.filter((r) => r.message.role === "user");
+
+        // Limit to requested topK after filtering
+        filteredResults = filteredResults.slice(0, topK);
+
+        // Format results for LLM - use chunk text, not full message
         return formatSearchResults(
           filteredResults.map((r) => ({
-            content: r.content,
-            role: r.role,
-            conversationId: r.conversationId,
+            content: r.chunkText,
+            role: r.message.role,
+            conversationId: r.message.conversationId,
             similarity: r.similarity,
-            createdAt: r.createdAt,
-          }))
+            createdAt: r.message.createdAt,
+          })),
+          sortBy
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error searching memory: ${message}`;
+        return `Error searching conversation chunks: ${message}`;
       }
     },
     autoExecute: true,

@@ -1,8 +1,8 @@
 # createMemoryRetrievalTool
 
-> **createMemoryRetrievalTool**(`storageCtx`: `StorageOperationsContext`, `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../interfaces/MemoryRetrievalSearchOptions.md)>): `ToolConfig`
+> **createMemoryRetrievalTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../interfaces/MemoryRetrievalSearchOptions.md)>): `ToolConfig`
 
-Defined in: [src/lib/memoryRetrieval/tool.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/tool.ts#L74)
+Defined in: [src/lib/memoryRetrieval/tool.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/tool.ts#L87)
 
 Creates a memory retrieval tool for use with chat completions.
 
@@ -28,7 +28,7 @@ using semantic similarity. Messages must have embeddings stored to be searchable
 </td>
 <td>
 
-`StorageOperationsContext`
+[`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
 
 </td>
 <td>
