@@ -10,6 +10,8 @@ import {
   type CreateMessageOptions,
   type CreateConversationOptions,
   type UpdateMessageOptions,
+  type MessageChunk,
+  type ChunkSearchResult,
   generateConversationId,
 } from "./types";
 
@@ -27,6 +29,7 @@ export function messageToStored(message: Message): StoredMessage {
     updatedAt: message.updatedAt,
     vector: message.vector,
     embeddingModel: message.embeddingModel,
+    chunks: message.chunks,
     usage: message.usage,
     sources: message.sources,
     responseDuration: message.responseDuration,
@@ -314,6 +317,29 @@ export async function updateMessageEmbeddingOp(
   return messageToStored(message);
 }
 
+export async function updateMessageChunksOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  chunks: MessageChunk[],
+  embeddingModel: string
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("chunks", JSON.stringify(chunks));
+      msg._setRaw("embedding_model", embeddingModel);
+    });
+  });
+
+  return messageToStored(message);
+}
+
 export async function updateMessageErrorOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
@@ -440,6 +466,78 @@ export async function searchMessagesOp(
   }
 
   return resultsWithSimilarity
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+}
+
+/**
+ * Search through message chunks for fine-grained semantic search.
+ * Returns the matching chunk text along with the parent message.
+ */
+export async function searchChunksOp(
+  ctx: StorageOperationsContext,
+  queryVector: number[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    conversationId?: string;
+  }
+): Promise<ChunkSearchResult[]> {
+  const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
+
+  const activeConversations = await ctx.conversationsCollection
+    .query(Q.where("is_deleted", false))
+    .fetch();
+  const activeConversationIds = new Set(
+    activeConversations.map((c) => c.conversationId)
+  );
+
+  const queryConditions = conversationId
+    ? [Q.where("conversation_id", conversationId)]
+    : [];
+
+  const messages = await ctx.messagesCollection
+    .query(...queryConditions)
+    .fetch();
+
+  const results: ChunkSearchResult[] = [];
+
+  for (const message of messages) {
+    if (!activeConversationIds.has(message.conversationId)) continue;
+
+    const chunks = message.chunks;
+
+    // If message has chunks, search through them
+    if (chunks && chunks.length > 0) {
+      for (const chunk of chunks) {
+        if (!chunk.vector || chunk.vector.length === 0) continue;
+
+        const similarity = cosineSimilarity(queryVector, chunk.vector);
+        if (similarity >= minSimilarity) {
+          results.push({
+            chunkText: chunk.text,
+            message: messageToStored(message),
+            similarity,
+          });
+        }
+      }
+    } else {
+      // Fallback to whole message vector if no chunks
+      const messageVector = message.vector;
+      if (!messageVector || messageVector.length === 0) continue;
+
+      const similarity = cosineSimilarity(queryVector, messageVector);
+      if (similarity >= minSimilarity) {
+        results.push({
+          chunkText: message.content,
+          message: messageToStored(message),
+          similarity,
+        });
+      }
+    }
+  }
+
+  return results
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
 }

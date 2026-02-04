@@ -32,10 +32,12 @@ import {
   clearMessagesOp,
   createMessageOp,
   updateMessageEmbeddingOp,
+  updateMessageChunksOp,
   updateMessageErrorOp,
   updateMessageOp,
   searchMessagesOp,
   getAllFilesOp,
+  type MessageChunk,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
@@ -71,8 +73,12 @@ import {
 } from "../lib/tools";
 import {
   generateEmbedding,
+  generateEmbeddings,
   createMemoryRetrievalTool as createMemoryRetrievalToolBase,
   type MemoryRetrievalSearchOptions,
+  chunkText,
+  shouldChunkMessage,
+  DEFAULT_CHUNK_SIZE,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
@@ -639,21 +645,46 @@ export function useChatStorage(
   );
 
   // Helper to embed a message after creation (non-blocking)
+  // Uses chunking for long messages to improve semantic search precision
   const embedMessageAsync = useCallback(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
       try {
-        const embedding = await generateEmbedding(message.content, {
+        const embeddingOptions = {
           getToken,
           baseUrl,
           model: embeddingModel,
-        });
-        await updateMessageEmbeddingOp(
-          storageCtx,
-          message.uniqueId,
-          embedding,
-          embeddingModel
-        );
+        };
+
+        // Use chunking for long messages
+        if (shouldChunkMessage(message.content, DEFAULT_CHUNK_SIZE)) {
+          const textChunks = chunkText(message.content);
+          const chunkTexts = textChunks.map((c) => c.text);
+          const embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
+
+          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+            text: chunk.text,
+            vector: embeddings[i],
+            startOffset: chunk.startOffset,
+            endOffset: chunk.endOffset,
+          }));
+
+          await updateMessageChunksOp(
+            storageCtx,
+            message.uniqueId,
+            messageChunks,
+            embeddingModel
+          );
+        } else {
+          // Use whole-message embedding for short messages
+          const embedding = await generateEmbedding(message.content, embeddingOptions);
+          await updateMessageEmbeddingOp(
+            storageCtx,
+            message.uniqueId,
+            embedding,
+            embeddingModel
+          );
+        }
       } catch (err) {
         // Non-fatal: log but don't fail the message save
         console.warn("[useChatStorage] Failed to embed message:", err);

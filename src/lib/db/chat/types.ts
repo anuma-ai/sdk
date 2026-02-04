@@ -77,6 +77,8 @@ export interface StoredMessage {
   updatedAt: Date;
   vector?: number[];
   embeddingModel?: string;
+  /** Chunks of this message with individual embeddings for fine-grained search */
+  chunks?: MessageChunk[];
   usage?: ChatCompletionUsage;
   sources?: SearchSource[];
   responseDuration?: number;
@@ -108,6 +110,32 @@ export interface StoredConversation {
 }
 
 export interface StoredMessageWithSimilarity extends StoredMessage {
+  similarity: number;
+}
+
+/**
+ * A chunk of a message with its own embedding for fine-grained search
+ */
+export interface MessageChunk {
+  /** The chunk text */
+  text: string;
+  /** Embedding vector for this chunk */
+  vector: number[];
+  /** Character offset where this chunk starts in the original message */
+  startOffset: number;
+  /** Character offset where this chunk ends in the original message */
+  endOffset: number;
+}
+
+/**
+ * Search result from chunk-based search
+ */
+export interface ChunkSearchResult {
+  /** The matching chunk text */
+  chunkText: string;
+  /** The full message containing this chunk */
+  message: StoredMessage;
+  /** Similarity score of the chunk */
   similarity: number;
 }
 

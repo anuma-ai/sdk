@@ -5,7 +5,7 @@ import {
 } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     tableSchema({
       name: "history",
@@ -20,6 +20,7 @@ export const chatStorageSchema = appSchema({
         { name: "updated_at", type: "number" },
         { name: "vector", type: "string", isOptional: true },
         { name: "embedding_model", type: "string", isOptional: true },
+        { name: "chunks", type: "string", isOptional: true }, // JSON stringified MessageChunk[]
         { name: "usage", type: "string", isOptional: true },
         { name: "sources", type: "string", isOptional: true },
         { name: "response_duration", type: "number", isOptional: true },
@@ -80,6 +81,17 @@ export const chatStorageMigrations = schemaMigrations({
           table: "history",
           columns: [
             { name: "thinking", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "chunks", type: "string", isOptional: true },
           ],
         }),
       ],

@@ -10,11 +10,18 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../memory/constants";
 import {
   type StorageOperationsContext,
   updateMessageEmbeddingOp,
+  updateMessageChunksOp,
   getMessagesOp,
   getConversationsOp,
 } from "../db/chat/operations";
-import type { StoredMessage } from "../db/chat/types";
+import type { StoredMessage, MessageChunk } from "../db/chat/types";
 import type { EmbeddingOptions } from "./types";
+import {
+  chunkText,
+  shouldChunkMessage,
+  type ChunkingOptions,
+  DEFAULT_CHUNK_SIZE,
+} from "./chunking";
 
 /**
  * Generate an embedding for text using the API
@@ -222,6 +229,170 @@ export async function embedAllMessages(
           embedding,
           embeddingModel
         );
+        embeddedCount++;
+      } catch (error) {
+        console.error(
+          `Failed to embed message ${message.uniqueId}:`,
+          error
+        );
+      }
+    }
+  }
+
+  return embeddedCount;
+}
+
+/**
+ * Chunk and embed a single message, storing chunk embeddings in the database.
+ * For messages shorter than chunkSize, falls back to whole-message embedding.
+ *
+ * @param ctx - Storage operations context
+ * @param messageId - Unique ID of the message to chunk and embed
+ * @param options - Embedding and chunking options
+ * @returns The updated message, or null if message not found
+ */
+export async function chunkAndEmbedMessage(
+  ctx: StorageOperationsContext,
+  messageId: string,
+  options: EmbeddingOptions & ChunkingOptions
+): Promise<StoredMessage | null> {
+  const { chunkSize = DEFAULT_CHUNK_SIZE } = options;
+
+  // Find the message by uniqueId
+  let message: StoredMessage | undefined;
+
+  const conversations = await getConversationsOp(ctx);
+  for (const conv of conversations) {
+    const messages = await getMessagesOp(ctx, conv.conversationId);
+    message = messages.find((m) => m.uniqueId === messageId);
+    if (message) break;
+  }
+
+  if (!message) {
+    return null;
+  }
+
+  // Skip if already has chunks
+  if (message.chunks && message.chunks.length > 0) {
+    return message;
+  }
+
+  const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
+
+  // If message is short, use whole-message embedding
+  if (!shouldChunkMessage(message.content, chunkSize)) {
+    const embedding = await generateEmbedding(message.content, options);
+    return updateMessageEmbeddingOp(ctx, messageId, embedding, embeddingModel);
+  }
+
+  // Chunk the message
+  const textChunks = chunkText(message.content, options);
+
+  // Generate embeddings for all chunks in batch
+  const chunkTexts = textChunks.map((c) => c.text);
+  const embeddings = await generateEmbeddings(chunkTexts, options);
+
+  // Build chunk objects with embeddings
+  const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+    text: chunk.text,
+    vector: embeddings[i],
+    startOffset: chunk.startOffset,
+    endOffset: chunk.endOffset,
+  }));
+
+  // Update message with chunks
+  return updateMessageChunksOp(ctx, messageId, messageChunks, embeddingModel);
+}
+
+/**
+ * Chunk and embed all messages without embeddings/chunks in the database.
+ * Uses chunking for long messages, whole-message embedding for short ones.
+ *
+ * @param ctx - Storage operations context
+ * @param options - Embedding and chunking options
+ * @param filter - Optional filter for which messages to embed
+ * @returns Number of messages embedded
+ */
+export async function chunkAndEmbedAllMessages(
+  ctx: StorageOperationsContext,
+  options: EmbeddingOptions & ChunkingOptions,
+  filter?: {
+    /** Only embed messages from this conversation */
+    conversationId?: string;
+    /** Only embed messages with these roles */
+    roles?: ("user" | "assistant")[];
+    /** Re-chunk messages that have whole-message embeddings but no chunks */
+    rechunkExisting?: boolean;
+  }
+): Promise<number> {
+  const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
+  const { chunkSize = DEFAULT_CHUNK_SIZE } = options;
+  let embeddedCount = 0;
+
+  // Get all conversations
+  const conversations = await getConversationsOp(ctx);
+  const targetConversations = filter?.conversationId
+    ? conversations.filter((c) => c.conversationId === filter.conversationId)
+    : conversations;
+
+  for (const conv of targetConversations) {
+    const messages = await getMessagesOp(ctx, conv.conversationId);
+
+    for (const message of messages) {
+      // Skip if already has chunks
+      if (message.chunks && message.chunks.length > 0) {
+        continue;
+      }
+
+      // Skip if has embedding and not rechunking
+      const hasVector = message.vector && message.vector.length > 0;
+      if (hasVector && !filter?.rechunkExisting) {
+        continue;
+      }
+
+      // Skip if role filter doesn't match
+      if (
+        filter?.roles &&
+        !filter.roles.includes(message.role as "user" | "assistant")
+      ) {
+        continue;
+      }
+
+      // Skip system messages
+      if (message.role === "system") {
+        continue;
+      }
+
+      try {
+        // Use chunking for long messages
+        if (shouldChunkMessage(message.content, chunkSize)) {
+          const textChunks = chunkText(message.content, options);
+          const chunkTexts = textChunks.map((c) => c.text);
+          const embeddings = await generateEmbeddings(chunkTexts, options);
+
+          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+            text: chunk.text,
+            vector: embeddings[i],
+            startOffset: chunk.startOffset,
+            endOffset: chunk.endOffset,
+          }));
+
+          await updateMessageChunksOp(
+            ctx,
+            message.uniqueId,
+            messageChunks,
+            embeddingModel
+          );
+        } else {
+          // Use whole-message embedding for short messages
+          const embedding = await generateEmbedding(message.content, options);
+          await updateMessageEmbeddingOp(
+            ctx,
+            message.uniqueId,
+            embedding,
+            embeddingModel
+          );
+        }
         embeddedCount++;
       } catch (error) {
         console.error(

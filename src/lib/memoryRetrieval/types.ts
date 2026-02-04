@@ -11,14 +11,20 @@ import type { StorageOperationsContext } from "../db/chat/operations";
  * Options for memory retrieval search
  */
 export interface MemoryRetrievalSearchOptions {
-  /** Maximum number of results to return (default: 10) */
+  /** Maximum number of results to return (default: 8) */
   limit?: number;
+  /** Alias for limit - number of chunks to return (default: 8) */
+  topK?: number;
   /** Minimum similarity threshold 0-1 (default: 0.3) */
   minSimilarity?: number;
-  /** Include assistant messages in results (default: true) */
+  /** Include assistant messages in results (default: false) */
   includeAssistant?: boolean;
   /** Filter to a specific conversation */
   conversationId?: string;
+  /** Inclusive start date filter (currently disabled) */
+  startDate?: string;
+  /** Inclusive end date filter (currently disabled) */
+  endDate?: string;
 }
 
 /**

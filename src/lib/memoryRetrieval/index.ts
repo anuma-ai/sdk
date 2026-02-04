@@ -36,7 +36,22 @@ export {
   generateEmbeddings,
   embedMessage,
   embedAllMessages,
+  chunkAndEmbedMessage,
+  chunkAndEmbedAllMessages,
 } from "./embeddings";
+
+export {
+  chunkText,
+  shouldChunkMessage,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_MIN_CHUNK_SIZE,
+} from "./chunking";
+
+export type {
+  ChunkingOptions,
+  TextChunk,
+} from "./chunking";
 
 export type {
   MemoryRetrievalSearchOptions,
