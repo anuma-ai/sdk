@@ -1444,30 +1444,19 @@ export function useChatStorage(
 
         // If no URLs from tool_call_events, return cleaned content only
         if (urls.length === 0) {
-          // eslint-disable-next-line no-console
-          console.log('[extractAndStoreEncryptedMCPImages] No URLs found in tool_call_events');
           return { fileIds: [], cleanedContent };
         }
 
-        // eslint-disable-next-line no-console
-        console.log('[extractAndStoreEncryptedMCPImages] Found URLs to process:', urls);
-
         const encryptionKey = await getEncryptionKey(address);
-        // eslint-disable-next-line no-console
-        console.log('[extractAndStoreEncryptedMCPImages] Got encryption key:', !!encryptionKey);
         const mediaOptions: CreateMediaOptions[] = [];
 
         // Process all images in parallel
-        // eslint-disable-next-line no-console
-        console.log('[extractAndStoreEncryptedMCPImages] Processing', urls.length, 'URLs');
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
 
             try {
-              // eslint-disable-next-line no-console
-              console.log('[extractAndStoreEncryptedMCPImages] Fetching URL:', url);
               const response = await fetch(url, {
                 signal: controller.signal,
                 cache: "no-store",
@@ -1478,11 +1467,6 @@ export function useChatStorage(
               }
 
               const blob = await response.blob();
-              // eslint-disable-next-line no-console
-              console.log('[extractAndStoreEncryptedMCPImages] Fetched blob:', {
-                size: blob.size,
-                type: blob.type,
-              });
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
@@ -1496,18 +1480,12 @@ export function useChatStorage(
 
               // Extract dimensions
               const dimensions = await getImageDimensions(blob);
-              // eslint-disable-next-line no-console
-              console.log('[extractAndStoreEncryptedMCPImages] Dimensions:', dimensions);
 
               // Encrypt and store in OPFS using mediaId
-              // eslint-disable-next-line no-console
-              console.log('[extractAndStoreEncryptedMCPImages] Writing to OPFS:', mediaId);
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
                 sourceUrl: url,
               });
-              // eslint-disable-next-line no-console
-              console.log('[extractAndStoreEncryptedMCPImages] Successfully wrote to OPFS:', mediaId);
 
               return {
                 mediaId,
@@ -1521,16 +1499,6 @@ export function useChatStorage(
               clearTimeout(timeoutId);
             }
           })
-        );
-
-        // eslint-disable-next-line no-console
-        console.log('[extractAndStoreEncryptedMCPImages] Promise.allSettled results:',
-          results.map((r, i) => ({
-            index: i,
-            status: r.status,
-            value: r.status === 'fulfilled' ? r.value?.mediaId : undefined,
-            reason: r.status === 'rejected' ? String(r.reason) : undefined,
-          }))
         );
 
         // Collect media options for successful downloads
@@ -2257,7 +2225,6 @@ export function useChatStorage(
       let assistantFileIds: string[] = [];
 
       if (walletAddress) {
-        console.log('[sendMessage] tool_call_events:', responseData.tool_call_events);
         // Use encrypted OPFS storage with media records
         const result = await extractAndStoreEncryptedMCPImages(
           cleanedContent,
