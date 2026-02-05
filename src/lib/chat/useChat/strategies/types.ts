@@ -17,16 +17,6 @@ import type { ProcessChunkResult } from "../utils";
 export type ApiType = "responses" | "completions";
 
 /**
- * Tool call event from server-side tool execution
- */
-export interface ToolCallEvent {
-  id: string;
-  name: string;
-  arguments: string;
-  output: string;
-}
-
-/**
  * Union type for API responses - raw pass-through from server.
  * Responses API returns LlmapiResponseResponse (with output[]).
  * Completions API returns LlmapiChatCompletionResponse (with choices[]).
