@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiResponseResponse, LlmapiChatCompletionResponse } from "../client";
+import type { LlmapiMessage, LlmapiResponseResponse, LlmapiChatCompletionResponse, LlmapiToolCallEvent } from "../client";
 import {
   Message,
   Conversation,
@@ -83,7 +83,6 @@ import {
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
-
 /**
  * Replace a URL in content with an internal file placeholder.
  * This is used to swap external URLs with locally-stored file references.
@@ -1387,87 +1386,89 @@ export function useChatStorage(
       content: string,
       address: string,
       conversationId: string,
-      responseModel?: string
+      toolCallEvents?: LlmapiToolCallEvent[]
     ): Promise<{
       fileIds: string[];
       cleanedContent: string;
     }> => {
       try {
-        // Check prerequisites
-        if (!isOPFSSupported()) {
-          return { fileIds: [], cleanedContent: content };
-        }
-
-        if (!hasEncryptionKey(address)) {
-          return { fileIds: [], cleanedContent: content };
-        }
-
-        // Pattern to match any URL from the MCP R2 domain
+        // Pattern to match any URL from the MCP R2 domain (including truncated ones)
         // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
         const MCP_IMAGE_URL_PATTERN = new RegExp(
           `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
           "g"
         );
 
-        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
-        if (!urlMatches || urlMatches.length === 0) {
-          return { fileIds: [], cleanedContent: content };
+        // Extract image URLs from tool_call_events
+        const urls: Array<{ url: string; model: string }> = [];
+        for (const toolCallEvent of toolCallEvents || []) {
+          if (toolCallEvent.name === "AnumaImageMCP_generate_cloud_image") {
+            try {
+              const output = JSON.parse(toolCallEvent.output || "{}");
+              const { model, url } = output;
+              if (url) {
+                urls.push({ url, model });
+              }
+            } catch {
+              // Ignore JSON parse errors
+            }
+          }
         }
 
-        // Clean URLs by removing any trailing quotes or invalid characters
-        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
-        const uniqueUrls = [...new Set(cleanedUrls)];
-        const encryptionKey = await getEncryptionKey(address);
-
-        const mediaOptions: CreateMediaOptions[] = [];
-        const mediaIdToPlaceholder: Map<string, string> = new Map();
+        // Clean content by removing all MCP image URLs (full and truncated)
         let cleanedContent = content;
 
-        // Track expected URL occurrences for verification
-        const urlOccurrenceCounts = new Map<string, number>();
-        uniqueUrls.forEach((url) => {
-          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Count all occurrences: HTML img tags, markdown images, and raw URLs
-          const htmlDoublePattern = new RegExp(
-            `<img[^>]*src="${escapedUrl}"[^>]*>`,
+        // Remove HTML img tags with MCP URLs
+        cleanedContent = cleanedContent.replace(
+          new RegExp(
+            `<img[^>]*src=["']https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
             "gi"
-          );
-          const htmlSinglePattern = new RegExp(
-            `<img[^>]*src='${escapedUrl}'[^>]*>`,
-            "gi"
-          );
-          const markdownPattern = new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
+          ),
+          ""
+        );
+
+        // Remove markdown images with MCP URLs: ![alt](url)
+        cleanedContent = cleanedContent.replace(
+          new RegExp(
+            `!\\[[^\\]]*\\]\\([\\s]*https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^)]*\\)`,
             "g"
-          );
-          const rawPattern = new RegExp(escapedUrl, "g");
+          ),
+          ""
+        );
 
-          const htmlDoubleMatches =
-            content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches =
-            content.match(htmlSinglePattern)?.length || 0;
-          const markdownMatches = content.match(markdownPattern)?.length || 0;
-          // For raw URLs, subtract already counted ones to avoid double counting
-          const rawMatches =
-            (content.match(rawPattern)?.length || 0) -
-            htmlDoubleMatches -
-            htmlSingleMatches -
-            markdownMatches;
+        // Remove any remaining raw MCP URLs (including truncated ones)
+        cleanedContent = cleanedContent.replace(MCP_IMAGE_URL_PATTERN, "");
 
-          urlOccurrenceCounts.set(
-            url,
-            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
-          );
-        });
+        // Clean up extra whitespace and newlines
+        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
+
+        // If no URLs from tool_call_events, return cleaned content only
+        if (urls.length === 0) {
+          // eslint-disable-next-line no-console
+          console.log('[extractAndStoreEncryptedMCPImages] No URLs found in tool_call_events');
+          return { fileIds: [], cleanedContent };
+        }
+
+        // eslint-disable-next-line no-console
+        console.log('[extractAndStoreEncryptedMCPImages] Found URLs to process:', urls);
+
+        const encryptionKey = await getEncryptionKey(address);
+        // eslint-disable-next-line no-console
+        console.log('[extractAndStoreEncryptedMCPImages] Got encryption key:', !!encryptionKey);
+        const mediaOptions: CreateMediaOptions[] = [];
 
         // Process all images in parallel
+        // eslint-disable-next-line no-console
+        console.log('[extractAndStoreEncryptedMCPImages] Processing', urls.length, 'URLs');
         const results = await Promise.allSettled(
-          uniqueUrls.map(async (imageUrl) => {
+          urls.map(async ({ url }) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
 
             try {
-              const response = await fetch(imageUrl, {
+              // eslint-disable-next-line no-console
+              console.log('[extractAndStoreEncryptedMCPImages] Fetching URL:', url);
+              const response = await fetch(url, {
                 signal: controller.signal,
                 cache: "no-store",
               });
@@ -1477,8 +1478,14 @@ export function useChatStorage(
               }
 
               const blob = await response.blob();
+              // eslint-disable-next-line no-console
+              console.log('[extractAndStoreEncryptedMCPImages] Fetched blob:', {
+                size: blob.size,
+                type: blob.type,
+              });
+
               const mediaId = generateMediaId();
-              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
+              const urlPath = url.split("?")[0] ?? url;
               const extension =
                 urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
@@ -1489,19 +1496,25 @@ export function useChatStorage(
 
               // Extract dimensions
               const dimensions = await getImageDimensions(blob);
+              // eslint-disable-next-line no-console
+              console.log('[extractAndStoreEncryptedMCPImages] Dimensions:', dimensions);
 
               // Encrypt and store in OPFS using mediaId
+              // eslint-disable-next-line no-console
+              console.log('[extractAndStoreEncryptedMCPImages] Writing to OPFS:', mediaId);
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
-                sourceUrl: imageUrl,
+                sourceUrl: url,
               });
+              // eslint-disable-next-line no-console
+              console.log('[extractAndStoreEncryptedMCPImages] Successfully wrote to OPFS:', mediaId);
 
               return {
                 mediaId,
                 fileName,
                 mimeType,
                 size: blob.size,
-                imageUrl,
+                url,
                 dimensions,
               };
             } finally {
@@ -1510,9 +1523,19 @@ export function useChatStorage(
           })
         );
 
-        // Replace URLs with internal placeholders and collect media options
+        // eslint-disable-next-line no-console
+        console.log('[extractAndStoreEncryptedMCPImages] Promise.allSettled results:',
+          results.map((r, i) => ({
+            index: i,
+            status: r.status,
+            value: r.status === 'fulfilled' ? r.value?.mediaId : undefined,
+            reason: r.status === 'rejected' ? String(r.reason) : undefined,
+          }))
+        );
+
+        // Collect media options for successful downloads
         results.forEach((result, i) => {
-          const imageUrl = uniqueUrls[i];
+          const { url, model } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } =
@@ -1528,87 +1551,16 @@ export function useChatStorage(
               mediaType: "image",
               size,
               role: "assistant",
-              model: responseModel,
-              sourceUrl: imageUrl,
+              model,
+              sourceUrl: url,
               dimensions,
             });
-
-            // Create internal placeholder (never shown to clients)
-            const placeholder = createFilePlaceholder(mediaId);
-            mediaIdToPlaceholder.set(mediaId, placeholder);
-            const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            let replacementCount = 0;
-
-            // Replace HTML img tags with double-quoted src
-            const htmlImgPatternDouble = new RegExp(
-              `<img[^>]*src="${escapedUrl}"[^>]*>`,
-              "gi"
-            );
-            const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
-            if (doubleMatches) {
-              replacementCount += doubleMatches.length;
-              cleanedContent = cleanedContent.replace(
-                htmlImgPatternDouble,
-                placeholder
-              );
-            }
-
-            // Replace HTML img tags with single-quoted src
-            const htmlImgPatternSingle = new RegExp(
-              `<img[^>]*src='${escapedUrl}'[^>]*>`,
-              "gi"
-            );
-            const singleMatches = cleanedContent.match(htmlImgPatternSingle);
-            if (singleMatches) {
-              replacementCount += singleMatches.length;
-              cleanedContent = cleanedContent.replace(
-                htmlImgPatternSingle,
-                placeholder
-              );
-            }
-
-            // Replace markdown image syntax
-            const markdownImagePattern = new RegExp(
-              `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
-              "g"
-            );
-            const markdownMatches = cleanedContent.match(markdownImagePattern);
-            if (markdownMatches) {
-              replacementCount += markdownMatches.length;
-              cleanedContent = cleanedContent.replace(
-                markdownImagePattern,
-                placeholder
-              );
-            }
-
-            // Replace raw URLs (only if not already replaced)
-            const rawUrlPattern = new RegExp(escapedUrl, "g");
-            const rawMatches = cleanedContent.match(rawUrlPattern);
-            if (rawMatches) {
-              replacementCount += rawMatches.length;
-              cleanedContent = cleanedContent.replace(
-                rawUrlPattern,
-                placeholder
-              );
-            }
-
-            // Verify all instances were replaced
-            const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
-            if (replacementCount < expectedCount) {
-              // eslint-disable-next-line no-console
-              console.warn(
-                `[extractAndStoreEncryptedMCPImages] Not all instances replaced. Expected ${expectedCount}, replaced ${replacementCount}`
-              );
-            }
           }
         });
-
-        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
 
         // Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
-          
           try {
             const createdMedia = await createMediaBatchOp(
               { database },
@@ -1618,7 +1570,7 @@ export function useChatStorage(
           } catch (err) {
             // eslint-disable-next-line no-console
             console.error(
-              "[extractAndStoreEncryptedMCPImages] ❌ Failed to create media records:",
+              "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
               err
             );
             // Clean up orphaned OPFS files since media records weren't created
@@ -1633,6 +1585,7 @@ export function useChatStorage(
             }
           }
         }
+
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
         return { fileIds: [], cleanedContent: content };
@@ -2304,12 +2257,13 @@ export function useChatStorage(
       let assistantFileIds: string[] = [];
 
       if (walletAddress) {
+        console.log('[sendMessage] tool_call_events:', responseData.tool_call_events);
         // Use encrypted OPFS storage with media records
         const result = await extractAndStoreEncryptedMCPImages(
           cleanedContent,
           walletAddress,
           convId,
-          responseData.model || model
+          responseData.tool_call_events
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;

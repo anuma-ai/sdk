@@ -81,6 +81,16 @@ export class ResponsesStrategy implements ApiStrategy {
         accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
+      // Capture tool_call_events if present
+      if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+        accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
+          id: event.id || "",
+          name: event.name || "",
+          arguments: event.arguments || "",
+          output: event.output || "",
+        }));
+      }
+
       // Mark all pending tool calls as completed
       for (const toolCall of accumulator.toolCalls.values()) {
         if (toolCall.status === "pending") {
@@ -105,6 +115,24 @@ export class ResponsesStrategy implements ApiStrategy {
     // Also capture from nested response if present (fallback for events without explicit type)
     if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+    }
+    // Capture tool_call_events from top-level if present
+    if (typedChunk.tool_call_events && !accumulator.toolCallEvents) {
+      accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
+        id: event.id || "",
+        name: event.name || "",
+        arguments: event.arguments || "",
+        output: event.output || "",
+      }));
+    }
+    // Also capture from nested response if present
+    if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+      accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
+        id: event.id || "",
+        name: event.name || "",
+        arguments: event.arguments || "",
+        output: event.output || "",
+      }));
     }
 
     // Accumulate usage data - merge instead of replace
@@ -326,6 +354,7 @@ export class ResponsesStrategy implements ApiStrategy {
           ? accumulator.usage
           : undefined,
       tools_checksum: accumulator.toolsChecksum,
+      tool_call_events: accumulator.toolCallEvents,
     };
   }
 }

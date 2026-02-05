@@ -904,6 +904,17 @@ export type LlmapiResponseRequest = {
     tools?: Array<LlmapiResponseTool>;
 };
 
+/**
+ * Tool call event from server-side MCP tool execution
+ */
+export type LlmapiToolCallEvent = {
+    id?: string;
+      type?: string;
+      name?: string;
+      arguments?: string;
+      output?: string;
+};
+
 export type LlmapiResponseResponse = {
     /**
      * Created is the Unix timestamp of creation (created_at in OpenAI format)
@@ -933,6 +944,10 @@ export type LlmapiResponseResponse = {
      * Output is the array of output items (OpenAI Responses API format)
      */
     output?: Array<LlmapiResponseOutputItem>;
+    /**
+     * ToolCallEvents contains the server-side MCP tool execution events
+     */
+    tool_call_events?: Array<LlmapiToolCallEvent>;
     /**
      * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
      */

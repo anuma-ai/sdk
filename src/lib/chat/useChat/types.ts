@@ -27,9 +27,25 @@ export type StreamingChunk = {
     };
     /** Checksum of tools used to generate this response */
     tools_checksum?: string;
+    /** Tool call events from server-side tool execution */
+    tool_call_events?: Array<{
+      id?: string;
+      type?: string;
+      name?: string;
+      arguments?: string;
+      output?: string;
+    }>;
   };
   /** Checksum of tools used to generate this response (top-level for some APIs) */
   tools_checksum?: string;
+  /** Tool call events from server-side tool execution (top-level for some APIs) */
+  tool_call_events?: Array<{
+    id?: string;
+    type?: string;
+    name?: string;
+    arguments?: string;
+    output?: string;
+  }>;
   // For thinking/reasoning content
   content_index?: number;
   output_index?: number;
@@ -224,4 +240,11 @@ export type StreamAccumulator = {
   implicitReasoningStart?: boolean;
   /** Checksum of tools used to generate this response */
   toolsChecksum?: string;
+  /** Tool call events from server-side tool execution */
+  toolCallEvents?: Array<{
+    id: string;
+    name: string;
+    arguments: string;
+    output: string;
+  }>;
 };
