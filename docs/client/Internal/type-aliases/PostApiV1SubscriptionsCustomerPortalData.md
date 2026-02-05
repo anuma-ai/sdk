@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCustomerPortalData** = `object`
 
-Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1899)
+Defined in: [src/client/types.gen.ts:1956](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1956)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersCreateCustomerPortalRequest`](HandlersCreateCustomerPortalRequest.md)
 
-Defined in: [src/client/types.gen.ts:1903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1903)
+Defined in: [src/client/types.gen.ts:1960](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1960)
 
 Customer portal request with return URL
 
@@ -20,7 +20,7 @@ Customer portal request with return URL
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1904](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1904)
+Defined in: [src/client/types.gen.ts:1961](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1961)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1904](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1905](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1905)
+Defined in: [src/client/types.gen.ts:1962](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1962)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1905](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/subscriptions/customer-portal"`
 
-Defined in: [src/client/types.gen.ts:1906](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1906)
+Defined in: [src/client/types.gen.ts:1963](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1963)

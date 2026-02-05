@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminAppsByAppIdApiKeysByIdError** = [`GetApiV1AdminAppsByAppIdApiKeysByIdErrors`](GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md)\[keyof [`GetApiV1AdminAppsByAppIdApiKeysByIdErrors`](GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1338](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1338)
+Defined in: [src/client/types.gen.ts:1395](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1395)

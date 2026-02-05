@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSubscriptionTierResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1624](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1624)
+Defined in: [src/client/types.gen.ts:1681](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1681)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1624](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersSetSubscriptionTierResponse`](HandlersSetSubscriptionTierResponse.md)
 
-Defined in: [src/client/types.gen.ts:1628](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1628)
+Defined in: [src/client/types.gen.ts:1685](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1685)
 
 OK

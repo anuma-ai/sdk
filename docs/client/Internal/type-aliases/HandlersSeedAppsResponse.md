@@ -2,7 +2,7 @@
 
 > **HandlersSeedAppsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L240)
+Defined in: [src/client/types.gen.ts:237](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L237)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:240](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **apps\_seeded**: `number`
 
-Defined in: [src/client/types.gen.ts:241](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L241)
+Defined in: [src/client/types.gen.ts:238](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L238)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:241](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **generated\_keys**: `object`
 
-Defined in: [src/client/types.gen.ts:245](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L245)
+Defined in: [src/client/types.gen.ts:242](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L242)
 
 Map of app name to generated keys
 
@@ -32,7 +32,7 @@ Map of app name to generated keys
 
 > `optional` **keys\_seeded**: `number`
 
-Defined in: [src/client/types.gen.ts:248](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L248)
+Defined in: [src/client/types.gen.ts:245](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L245)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:248](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:249](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L249)
+Defined in: [src/client/types.gen.ts:246](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L246)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:249](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:250](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L250)
+Defined in: [src/client/types.gen.ts:247](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L247)
