@@ -565,11 +565,13 @@ export function useChatStorage(
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
         let filteredServerTools: ServerTool[] = [];
 
+        // Check if serverTools is a function (dynamic filtering)
+        const isServerToolsFunction = typeof serverToolsFilter === "function";
+
         if (
           getToken &&
           effectiveApiType === "responses" &&
-          serverToolsFilter !== undefined &&
-          (serverToolsFilter === undefined || serverToolsFilter.length > 0)
+          !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
           try {
             const allServerTools = await getServerTools({
@@ -577,10 +579,31 @@ export function useChatStorage(
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
             });
-            filteredServerTools = filterServerTools(
-              allServerTools,
-              serverToolsFilter
-            );
+
+            if (isServerToolsFunction) {
+              // Function-based filtering: generate embedding and call the function
+              const extracted = extractUserMessageFromMessages(messages);
+              const messageContent = extracted?.content || "";
+
+              if (messageContent.length >= 30) {
+                const embedding = await generateEmbedding(messageContent, {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                });
+                const toolNames = serverToolsFilter(embedding, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
+              } else {
+                // Message too short - use all tools
+                filteredServerTools = allServerTools;
+              }
+            } else {
+              // Static filtering
+              filteredServerTools = filterServerTools(
+                allServerTools,
+                serverToolsFilter
+              );
+            }
           } catch {
             // Server tools are optional
           }
@@ -688,8 +711,6 @@ export function useChatStorage(
           files: sanitizedFiles,
           model,
         });
-        // Embed user message asynchronously (non-blocking)
-        embedMessageAsync(storedUserMessage);
       } catch (err) {
         return {
           data: null,
@@ -706,10 +727,17 @@ export function useChatStorage(
 
       // Fetch and merge server-side tools with client tools
       let mergedTools = clientTools;
+
+      // Track embeddings for function-based tool filtering (to reuse for message storage)
+      let userMessageEmbedding: number[] | undefined;
+
+      // Check if serverTools is a function (dynamic filtering)
+      const isServerToolsFunction = typeof serverToolsFilter === "function";
+
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
         getToken &&
-        !(serverToolsFilter && serverToolsFilter.length === 0)
+        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
           const allServerTools = await getServerTools({
@@ -717,10 +745,31 @@ export function useChatStorage(
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
           });
-          const filteredServerTools = filterServerTools(
-            allServerTools,
-            serverToolsFilter
-          );
+
+          let filteredServerTools: ServerTool[];
+
+          if (isServerToolsFunction) {
+            // Function-based filtering: generate embedding and call the function
+            if (contentForStorage.length >= 30) {
+              userMessageEmbedding = await generateEmbedding(contentForStorage, {
+                getToken,
+                baseUrl,
+                model: embeddingModel,
+              });
+              const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
+              filteredServerTools = filterServerTools(allServerTools, toolNames);
+            } else {
+              // Message too short - use all tools
+              filteredServerTools = allServerTools;
+            }
+          } else {
+            // Static filtering
+            filteredServerTools = filterServerTools(
+              allServerTools,
+              serverToolsFilter
+            );
+          }
+
           if (filteredServerTools.length > 0) {
             mergedTools = mergeTools(
               filteredServerTools,
@@ -736,6 +785,22 @@ export function useChatStorage(
             error
           );
         }
+      }
+
+      // Embed user message: reuse embedding if generated, otherwise async
+      if (userMessageEmbedding) {
+        // Reuse embedding from tool filtering
+        updateMessageEmbeddingOp(
+          storageCtx,
+          storedUserMessage.uniqueId,
+          userMessageEmbedding,
+          embeddingModel
+        ).catch(() => {
+          // Non-fatal
+        });
+      } else if (!isServerToolsFunction) {
+        // No function-based filtering - use async embedding as usual
+        embedMessageAsync(storedUserMessage);
       }
 
       // Send the message using the underlying useChat

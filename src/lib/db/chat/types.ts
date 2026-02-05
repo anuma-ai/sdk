@@ -9,6 +9,27 @@ import type {
   LlmapiThinkingOptions,
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
+import type { ServerTool } from "../../tools";
+
+/**
+ * Function type for dynamic server tools filtering based on prompt embeddings.
+ * Receives the prompt embedding(s) and all available tools, returns tool names to include.
+ *
+ * @param embeddings - Single embedding or array of embeddings (for chunked messages)
+ * @param tools - All available server tools with embeddings
+ * @returns Array of tool names to include
+ */
+export type ServerToolsFilterFn = (
+  embeddings: number[] | number[][],
+  tools: ServerTool[]
+) => string[];
+
+/**
+ * Server tools filter: static list of names or dynamic function.
+ * - string[]: Static list of tool names to include
+ * - ServerToolsFilterFn: Dynamic filter based on prompt embeddings
+ */
+export type ServerToolsFilter = string[] | ServerToolsFilterFn;
 
 // Core types
 
@@ -433,6 +454,8 @@ export interface BaseSendMessageWithStorageArgs {
    * - undefined: Include all server-side tools (default)
    * - string[]: Include only tools with these names
    * - []: Include no server-side tools
+   * - function: Dynamic filter that receives prompt embedding(s) and all tools,
+   *   returns tool names to include. Useful for semantic tool matching.
    *
    * @example
    * // Include only specific server tools
@@ -440,8 +463,14 @@ export interface BaseSendMessageWithStorageArgs {
    *
    * // Disable server tools for this request
    * serverTools: []
+   *
+   * // Semantic tool matching based on prompt
+   * serverTools: (embeddings, tools) => {
+   *   const matches = findMatchingTools(embeddings, tools, { limit: 5 });
+   *   return matches.map(m => m.tool.name);
+   * }
    */
-  serverTools?: string[];
+  serverTools?: ServerToolsFilter;
 
   /**
    * Controls which tool the model should use:
