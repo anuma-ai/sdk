@@ -284,6 +284,12 @@ export type {
 export { useModels } from "./useModels";
 export type { UseModelsResult } from "./useModels";
 
+export { useSubscription } from "./useSubscription";
+export type {
+  UseSubscriptionOptions,
+  UseSubscriptionResult,
+} from "./useSubscription";
+
 // Memory retrieval (semantic search over past messages)
 export {
   createMemoryRetrievalTool,
