@@ -2,7 +2,7 @@
 
 > **HandlersAddCreditsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L47)
+Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L48)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:47](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **credits\_added**: `number`
 
-Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L48)
+Defined in: [src/client/types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L49)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L52)
+Defined in: [src/client/types.gen.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L53)
 
 Escrow contract used for the operation
 
@@ -28,7 +28,7 @@ Escrow contract used for the operation
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L53)
+Defined in: [src/client/types.gen.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L54)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:53](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **new\_cost\_limit**: `string`
 
-Defined in: [src/client/types.gen.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L57)
+Defined in: [src/client/types.gen.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L58)
 
 New cost limit in credits (from contract)
 
@@ -46,7 +46,7 @@ New cost limit in credits (from contract)
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L58)
+Defined in: [src/client/types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L59)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [src/client/types.gen.ts:58](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **tx\_hash**: `string`
 
-Defined in: [src/client/types.gen.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L62)
+Defined in: [src/client/types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L63)
 
 Transaction hash if on-chain
 
@@ -64,4 +64,4 @@ Transaction hash if on-chain
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L63)
+Defined in: [src/client/types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L64)

@@ -2,4 +2,4 @@
 
 > **PostApiV1EmbeddingsResponse** = [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)\[keyof [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1746](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1746)
+Defined in: [src/client/types.gen.ts:1803](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1803)

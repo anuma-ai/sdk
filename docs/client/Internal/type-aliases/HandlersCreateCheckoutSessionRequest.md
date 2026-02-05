@@ -2,7 +2,7 @@
 
 > **HandlersCreateCheckoutSessionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:144](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L144)
+Defined in: [src/client/types.gen.ts:141](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L141)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:144](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L145)
+Defined in: [src/client/types.gen.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L142)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:145](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L146)
+Defined in: [src/client/types.gen.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L143)

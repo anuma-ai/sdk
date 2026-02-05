@@ -16,6 +16,7 @@ export type HandlersApiKeyResponse = {
     name?: string;
     updated_at?: string;
     wallet_address?: string;
+    wallet_details?: HandlersWalletDetails;
 };
 
 export type HandlersApiKeyWithKeyResponse = {
@@ -112,10 +113,6 @@ export type HandlersConfigResponse = {
      * OperatorAddress is the operator wallet address
      */
     operator_address?: string;
-    /**
-     * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
-     */
-    payment_model?: string;
     /**
      * SettlementRecipient is the address that receives settlement payments
      */
@@ -328,6 +325,49 @@ export type HandlersUpdateAppRequest = {
 };
 
 /**
+ * Wallet account details
+ */
+export type HandlersWalletDetails = {
+    /**
+     * When account was first created
+     */
+    account_created_at?: string;
+    account_id?: number;
+    /**
+     * When balance was last synced from chain
+     */
+    balance_updated_at?: string;
+    /**
+     * Balance in micro-dollars (USD * 1,000,000)
+     */
+    cached_balance_usd?: number;
+    /**
+     * App ID for enrollment (0 if not enrolled)
+     */
+    enrolled_app_id?: number;
+    /**
+     * Whether enrolled in cost-limit model
+     */
+    is_enrolled?: boolean;
+    /**
+     * Last credit reset timestamp
+     */
+    last_credit_reset_at?: string;
+    /**
+     * In-flight request holds in micro-dollars
+     */
+    pending_cost_usd?: number;
+    /**
+     * When user became Pro subscriber
+     */
+    pro_activated_at?: string;
+    /**
+     * "basic" or "pro"
+     */
+    subscription_tier?: string;
+};
+
+/**
  * ExtraFields contains additional metadata
  */
 export type LlmapiChatCompletionExtraFields = {
@@ -390,6 +430,10 @@ export type LlmapiChatCompletionResponse = {
      * Model is the model used
      */
     model?: string;
+    /**
+     * ToolCallEvents is an array of tool call events.
+     */
+    tool_call_events?: Array<LlmapiToolCallEvent>;
     /**
      * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
      */
@@ -934,6 +978,10 @@ export type LlmapiResponseResponse = {
      */
     output?: Array<LlmapiResponseOutputItem>;
     /**
+     * ToolCallEvents is an array of tool call events.
+     */
+    tool_call_events?: Array<LlmapiToolCallEvent>;
+    /**
      * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
      */
     tools_checksum?: string;
@@ -1004,6 +1052,13 @@ export type LlmapiToolCall = {
     type?: string;
 };
 
+export type LlmapiToolCallEvent = {
+    arguments?: string;
+    id?: string;
+    name?: string;
+    output?: string;
+};
+
 /**
  * Function contains the function call details
  */
@@ -1025,9 +1080,11 @@ export type McpToolSchema = {
 };
 
 export type ResponseErrorResponse = {
+    code?: string;
     error?: string;
     request_id?: string;
     trace_id?: string;
+    type?: string;
 };
 
 export type PostApiV1AdminAddCreditsData = {
