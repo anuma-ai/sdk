@@ -29,7 +29,7 @@ Useful when different models need different APIs within the same hook instance.
 
 ### clientTools?
 
-> `optional` **clientTools**: [`LlmapiMcpTool`](../../../client/Internal/type-aliases/LlmapiMcpTool.md)\[]
+> `optional` **clientTools**: [`LlmapiChatCompletionTool`](../../../client/Internal/type-aliases/LlmapiChatCompletionTool.md)\[]
 
 Defined in: [src/lib/db/chat/types.ts:429](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L429)
 

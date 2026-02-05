@@ -92,13 +92,14 @@ export function createMemoryRetrievalTool(
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
 
   return {
+    type: "function",
     name: "search_memory",
     description:
       "Search past conversation chunks to find relevant context from previous discussions. " +
       "Use this tool when you need to recall information from previous conversations, " +
       "such as user preferences, past discussions, or previously mentioned facts. " +
       "The search uses semantic similarity, so phrase your query naturally.",
-    input_schema: {
+    parameters: {
       type: "object",
       properties: {
         query: {
