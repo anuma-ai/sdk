@@ -7,6 +7,7 @@ import type {
   ChatCompletionUsage,
   SearchSource,
   ActivityPhase,
+  MessageChunk,
 } from "./types";
 
 export class Message extends Model {
@@ -30,6 +31,7 @@ export class Message extends Model {
   @date("updated_at") updatedAt!: Date;
   @json("vector", (json) => json) vector?: number[];
   @text("embedding_model") embeddingModel?: string;
+  @json("chunks", (json) => json) chunks?: MessageChunk[];
   @json("usage", (json) => json) usage?: ChatCompletionUsage;
   @json("sources", (json) => json) sources?: SearchSource[];
   @field("response_duration") responseDuration?: number;

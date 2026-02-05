@@ -2,7 +2,7 @@
 
 > **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L82)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L96)
 
 Generate embeddings for multiple texts in a single API call
 

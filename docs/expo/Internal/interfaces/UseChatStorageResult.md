@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:480](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L480)
+Defined in: [src/lib/db/chat/types.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L508)
 
 **Inherited from**
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/chat/types.ts:480](https://github.com/zeta-chain/ai-sdk/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:482](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L482)
+Defined in: [src/lib/db/chat/types.ts:510](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L510)
 
 **Parameters**
 
@@ -127,7 +127,7 @@ await sendMessage({
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:488](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L488)
+Defined in: [src/lib/db/chat/types.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L516)
 
 **Parameters**
 
@@ -168,7 +168,7 @@ Defined in: [src/lib/db/chat/types.ts:488](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:485](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L485)
+Defined in: [src/lib/db/chat/types.ts:513](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L513)
 
 **Parameters**
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/chat/types.ts:485](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:486](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L486)
+Defined in: [src/lib/db/chat/types.ts:514](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L514)
 
 **Returns**
 
@@ -225,7 +225,7 @@ Defined in: [src/lib/db/chat/types.ts:486](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:489](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L489)
+Defined in: [src/lib/db/chat/types.ts:517](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L517)
 
 **Parameters**
 
@@ -266,7 +266,7 @@ Defined in: [src/lib/db/chat/types.ts:489](https://github.com/zeta-chain/ai-sdk/
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:478](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L478)
+Defined in: [src/lib/db/chat/types.ts:506](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L506)
 
 **Inherited from**
 
@@ -317,7 +317,7 @@ Send a message and automatically store it (Expo version)
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:481](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L481)
+Defined in: [src/lib/db/chat/types.ts:509](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L509)
 
 **Parameters**
 
@@ -358,7 +358,7 @@ Defined in: [src/lib/db/chat/types.ts:481](https://github.com/zeta-chain/ai-sdk/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:479](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L479)
+Defined in: [src/lib/db/chat/types.ts:507](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L507)
 
 **Returns**
 
@@ -374,7 +374,7 @@ Defined in: [src/lib/db/chat/types.ts:479](https://github.com/zeta-chain/ai-sdk/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:487](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L487)
+Defined in: [src/lib/db/chat/types.ts:515](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L515)
 
 **Parameters**
 

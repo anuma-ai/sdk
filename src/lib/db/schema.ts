@@ -28,8 +28,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v9: Added thinking column to history table for reasoning/thinking content
  * - v10: Added projects table and project_id column to conversations table
  * - v11: Added media table for library feature, added file_ids column to history table
+ * - v12: Added chunks column to history table for sub-message semantic search
  */
-const SDK_SCHEMA_VERSION = 11;
+const SDK_SCHEMA_VERSION = 12;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -79,6 +80,7 @@ export const sdkSchema = appSchema({
         { name: "updated_at", type: "number" },
         { name: "vector", type: "string", isOptional: true },
         { name: "embedding_model", type: "string", isOptional: true },
+        { name: "chunks", type: "string", isOptional: true }, // JSON stringified MessageChunk[]
         { name: "usage", type: "string", isOptional: true },
         { name: "sources", type: "string", isOptional: true },
         { name: "response_duration", type: "number", isOptional: true },
@@ -210,6 +212,7 @@ export const sdkSchema = appSchema({
  * - v8 → v9: Added `thinking` column to history table for reasoning/thinking content
  * - v9 → v10: Added `projects` table and `project_id` column to conversations
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
+ * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -358,6 +361,18 @@ export const sdkMigrations = schemaMigrations({
           table: "history",
           columns: [
             { name: "file_ids", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v11 -> v12: Added chunks column to history for sub-message semantic search
+    {
+      toVersion: 12,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "chunks", type: "string", isOptional: true },
           ],
         }),
       ],
