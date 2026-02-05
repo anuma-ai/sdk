@@ -135,7 +135,7 @@
 | [LlmapiRole](Internal/type-aliases/LlmapiRole.md) | Role is the message role (system, user, assistant, tool) |
 | [LlmapiThinkingOptions](Internal/type-aliases/LlmapiThinkingOptions.md) | Thinking configures extended thinking for Anthropic models |
 | [LlmapiToolCall](Internal/type-aliases/LlmapiToolCall.md) | - |
-| [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
+| [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | Tool call event from server-side MCP tool execution |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
 | [Options](Internal/type-aliases/Options.md) | - |

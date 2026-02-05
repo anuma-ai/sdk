@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminAddCreditsResponse** = [`PostApiV1AdminAddCreditsResponses`](PostApiV1AdminAddCreditsResponses.md)\[keyof [`PostApiV1AdminAddCreditsResponses`](PostApiV1AdminAddCreditsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1134](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1134)
+Defined in: [src/client/types.gen.ts:1138](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1138)

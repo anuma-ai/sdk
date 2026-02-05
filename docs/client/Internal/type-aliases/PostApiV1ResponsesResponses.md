@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1878](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1878)
+Defined in: [src/client/types.gen.ts:1882](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1882)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1878](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`LlmapiResponseResponse`](LlmapiResponseResponse.md) | `string`
 
-Defined in: [src/client/types.gen.ts:1882](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1882)
+Defined in: [src/client/types.gen.ts:1886](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1886)
 
 OK

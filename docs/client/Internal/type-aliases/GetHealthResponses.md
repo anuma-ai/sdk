@@ -2,7 +2,7 @@
 
 > **GetHealthResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2251](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2251)
+Defined in: [src/client/types.gen.ts:2255](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2255)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2251](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersHealthResponse`](HandlersHealthResponse.md)
 
-Defined in: [src/client/types.gen.ts:2255](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2255)
+Defined in: [src/client/types.gen.ts:2259](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2259)
 
 OK

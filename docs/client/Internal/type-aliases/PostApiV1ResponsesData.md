@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesData** = `object`
 
-Defined in: [src/client/types.gen.ts:1851](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1851)
+Defined in: [src/client/types.gen.ts:1855](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1855)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1851](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`LlmapiResponseRequest`](LlmapiResponseRequest.md)
 
-Defined in: [src/client/types.gen.ts:1855](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1855)
+Defined in: [src/client/types.gen.ts:1859](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1859)
 
 Response request
 
@@ -20,7 +20,7 @@ Response request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1856](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1856)
+Defined in: [src/client/types.gen.ts:1860](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1860)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1856](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1857](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1857)
+Defined in: [src/client/types.gen.ts:1861](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1861)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1857](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/responses"`
 
-Defined in: [src/client/types.gen.ts:1858](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1858)
+Defined in: [src/client/types.gen.ts:1862](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1862)
