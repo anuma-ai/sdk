@@ -72,6 +72,9 @@ import {
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
+
+// Lower threshold for tool filtering - short prompts like "draw a cat" should work
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 
@@ -1667,7 +1670,7 @@ export function useChatStorage(
               const extracted = extractUserMessageFromMessages(messages);
               const messageContent = extracted?.content || "";
 
-              if (messageContent.length >= DEFAULT_MIN_CONTENT_LENGTH) {
+              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
                 const embeddingOptions = {
                   getToken,
                   baseUrl,
@@ -1685,10 +1688,9 @@ export function useChatStorage(
 
                 const toolNames = serverToolsFilter(embeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
-              } else {
-                // Message too short for embeddings - use all tools
-                filteredServerTools = allServerTools;
               }
+              // If message is too short for embeddings, don't include any server tools
+              // (user explicitly provided a filter function for semantic matching)
             } else {
               // Static filtering
               filteredServerTools = filterServerTools(
@@ -1983,11 +1985,12 @@ export function useChatStorage(
             };
 
             // Generate embeddings based on message length (chunked or whole)
+            // Use lower threshold for tool filtering - short prompts like "draw a cat" should work
             if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
               const textChunks = chunkText(contentForStorage);
               const chunkTexts = textChunks.map((c) => c.text);
               userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-            } else if (contentForStorage.length >= DEFAULT_MIN_CONTENT_LENGTH) {
+            } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
               userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
             }
 
@@ -1995,10 +1998,9 @@ export function useChatStorage(
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
-            } else {
-              // No embeddings (message too short) - use all tools
-              filteredServerTools = allServerTools;
             }
+            // If message is too short for embeddings, don't include any tools
+            // (user explicitly provided a filter, so sending all tools defeats the purpose)
           } else {
             // Static filtering: use string array directly
             filteredServerTools = filterServerTools(
