@@ -11,7 +11,6 @@ import {
   type StoredMessage,
   type StoredConversation,
   type CreateConversationOptions,
-  type UpdateMessageOptions,
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
@@ -28,16 +27,15 @@ import {
   updateConversationTitleOp,
   deleteConversationOp,
   getMessagesOp,
-  getMessageCountOp,
   clearMessagesOp,
   createMessageOp,
   updateMessageErrorOp,
-  updateMessageOp,
 } from "../lib/db/chat";
 import {
   getServerTools,
   filterServerTools,
   mergeTools,
+  type ServerTool,
 } from "../lib/tools";
 import {
   generateEmbedding,
@@ -127,16 +125,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   sendMessage: (
     args: SendMessageWithStorageArgs
   ) => Promise<SendMessageWithStorageResult>;
-  /** Extract all links from assistant message content as SearchSource objects */
-  extractSourcesFromAssistantMessage: (assistantMessage: {
-    content: string;
-    sources?: SearchSource[];
-  }) => SearchSource[];
-  /** Update a message's fields (content, embedding, files, etc). Returns updated message or null if not found. */
-  updateMessage: (
-    uniqueId: string,
-    options: UpdateMessageOptions
-  ) => Promise<StoredMessage | null>;
   /**
    * Create a memory retrieval tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -383,42 +371,6 @@ export function useChatStorage(
   );
 
   /**
-   * Get message count for a conversation
-   */
-  const getMessageCount = useCallback(
-    async (convId: string): Promise<number> => {
-      return getMessageCountOp(storageCtx, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Clear all messages in a conversation and cascade delete associated media
-   */
-  const clearMessages = useCallback(
-    async (convId: string): Promise<void> => {
-      await clearMessagesOp(storageCtx, convId);
-      // Cascade delete media for this conversation
-      await deleteMediaByConversationOp({ database: storageCtx.database }, convId);
-    },
-    [storageCtx]
-  );
-
-  /**
-   * Update message fields (content, embedding, files, etc)
-   * @returns The updated message, or null if message not found
-   */
-  const updateMessage = useCallback(
-    async (
-      uniqueId: string,
-      options: UpdateMessageOptions
-    ): Promise<StoredMessage | null> => {
-      return updateMessageOp(storageCtx, uniqueId, options);
-    },
-    [storageCtx]
-  );
-
-  /**
    * Extracts sources from assistant message content and returns them as SearchSource objects.
    * First attempts to parse a JSON sources block (```json { "sources": [...] }```),
    * then falls back to parsing markdown links [text](url) and plain URLs.
@@ -584,6 +536,7 @@ export function useChatStorage(
       const {
         messages,
         model,
+        skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
         files,
@@ -603,6 +556,73 @@ export function useChatStorage(
         reasoning,
         thinking,
       } = args;
+
+      // Fast path for skipStorage - bypass all storage operations
+      if (skipStorage) {
+        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+
+        // Fetch server tools if needed
+        let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
+        let filteredServerTools: ServerTool[] = [];
+
+        if (
+          getToken &&
+          effectiveApiType === "responses" &&
+          serverToolsFilter !== undefined &&
+          (serverToolsFilter === undefined || serverToolsFilter.length > 0)
+        ) {
+          try {
+            const allServerTools = await getServerTools({
+              baseUrl,
+              cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
+              getToken,
+            });
+            filteredServerTools = filterServerTools(
+              allServerTools,
+              serverToolsFilter
+            );
+          } catch {
+            // Server tools are optional
+          }
+        }
+
+        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+          mergedTools = mergeTools(
+            filteredServerTools,
+            clientTools,
+            effectiveApiType
+          );
+        }
+
+        const result = await baseSendMessage({
+          messages,
+          model,
+          onData: perRequestOnData,
+          onThinking: perRequestOnThinking,
+          memoryContext,
+          searchContext,
+          temperature,
+          maxOutputTokens,
+          tools: mergedTools,
+          toolChoice,
+          reasoning,
+          thinking,
+          apiType: effectiveApiType,
+        });
+
+        if (result.error || !result.data) {
+          return {
+            data: null,
+            error: result.error || "Unknown error",
+          };
+        }
+
+        return {
+          data: result.data,
+          error: null,
+          skipped: true,
+        };
+      }
 
       // Extract user message content for storage
       const extracted = extractUserMessageFromMessages(messages);
@@ -956,10 +976,6 @@ export function useChatStorage(
     updateConversationTitle,
     deleteConversation,
     getMessages,
-    getMessageCount,
-    clearMessages,
-    extractSourcesFromAssistantMessage,
-    updateMessage,
     createMemoryRetrievalTool,
   };
 }
