@@ -268,28 +268,6 @@ export interface SendMessageWithStorageArgs
    * to avoid race conditions with React state updates.
    */
   conversationId?: string;
-
-  /**
-   * Function to write files to storage (for MCP image processing).
-   * When provided, MCP-generated images in the response are automatically
-   * downloaded and stored locally via this function. The content is updated
-   * with placeholders that can be resolved to the stored files.
-   *
-   * If not provided, MCP images remain as URLs in the response content.
-   *
-   * @param fileId - Unique identifier for the file
-   * @param blob - The file content as a Blob
-   * @param options - Optional progress callback and abort signal
-   * @returns Promise resolving to the stored file URL/path
-   */
-  writeFile?: (
-    fileId: string,
-    blob: Blob,
-    options?: {
-      onProgress?: (progress: number) => void;
-      signal?: AbortSignal;
-    }
-  ) => Promise<string>;
 }
 
 /**
@@ -462,6 +440,40 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *
  * @category Hooks
  */
+
+/**
+ * Removes MCP R2 image URLs from content to prevent broken links.
+ * This is used when images cannot be stored locally (e.g., missing walletAddress).
+ */
+function cleanMCPUrlsFromContent(content: string): string {
+  const escapedDomain = MCP_R2_DOMAIN.replace(/\./g, "\\.");
+
+  let cleaned = content;
+
+  // Remove HTML img tags with MCP URLs
+  cleaned = cleaned.replace(
+    new RegExp(`<img[^>]*src=["']https://${escapedDomain}[^"']*["'][^>]*>`, "gi"),
+    ""
+  );
+
+  // Remove markdown images with MCP URLs: ![alt](url)
+  cleaned = cleaned.replace(
+    new RegExp(`!\\[[^\\]]*\\]\\([\\s]*https://${escapedDomain}[^)]*\\)`, "g"),
+    ""
+  );
+
+  // Remove any remaining raw MCP URLs (including truncated ones)
+  cleaned = cleaned.replace(
+    new RegExp(`https://${escapedDomain}[^\\s"'<>)]*`, "g"),
+    ""
+  );
+
+  // Clean up extra whitespace and newlines
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+
+  return cleaned;
+}
+
 export function useChatStorage(
   options: UseChatStorageOptions
 ): UseChatStorageResult {
@@ -951,275 +963,6 @@ export function useChatStorage(
     []
   );
 
-  const extractAndStoreMCPImages = useCallback(
-    async (
-      content: string,
-      writeFile: (
-        fileId: string,
-        blob: Blob,
-        options?: {
-          onProgress?: (progress: number) => void;
-          signal?: AbortSignal;
-        }
-      ) => Promise<string>,
-      options?: {
-        /** Whether to replace URLs with placeholders in the content. Default: true */
-        replaceUrls?: boolean;
-      }
-    ): Promise<{
-      processedFiles: {
-        id: string;
-        name: string;
-        type: string;
-        size: number;
-        /** Original source URL for URL→OPFS mapping */
-        sourceUrl: string;
-      }[];
-      cleanedContent: string;
-    }> => {
-      const { replaceUrls = true } = options ?? {};
-      try {
-        // Pattern to match any URL from the MCP R2 domain
-        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
-        const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
-          "g"
-        );
-        // Find all MCP image URLs in the content
-        const urlMatches = content.match(MCP_IMAGE_URL_PATTERN);
-        if (!urlMatches || urlMatches.length === 0) {
-          return { processedFiles: [], cleanedContent: content };
-        }
-
-        // Clean URLs by removing any trailing quotes or invalid characters
-        const cleanedUrls = urlMatches.map((url) => url.replace(/["']+$/, ""));
-        // Deduplicate URLs (same image might appear multiple times)
-        const uniqueUrls = [...new Set(cleanedUrls)];
-
-        const processedFiles: {
-          id: string;
-          name: string;
-          type: string;
-          size: number;
-          sourceUrl: string;
-        }[] = [];
-        let cleanedContent = content;
-
-        // Track expected URL occurrences for verification
-        const urlOccurrenceCounts = new Map<string, number>();
-        uniqueUrls.forEach((url) => {
-          const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Count all occurrences: HTML img tags, markdown images, and raw URLs
-          const htmlDoublePattern = new RegExp(
-            `<img[^>]*src="${escapedUrl}"[^>]*>`,
-            "gi"
-          );
-          const htmlSinglePattern = new RegExp(
-            `<img[^>]*src='${escapedUrl}'[^>]*>`,
-            "gi"
-          );
-          const markdownPattern = new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
-            "g"
-          );
-          const rawPattern = new RegExp(escapedUrl, "g");
-
-          const htmlDoubleMatches =
-            content.match(htmlDoublePattern)?.length || 0;
-          const htmlSingleMatches =
-            content.match(htmlSinglePattern)?.length || 0;
-          const markdownMatches = content.match(markdownPattern)?.length || 0;
-          // For raw URLs, subtract already counted ones to avoid double counting
-          const rawMatches =
-            (content.match(rawPattern)?.length || 0) -
-            htmlDoubleMatches -
-            htmlSingleMatches -
-            markdownMatches;
-
-          urlOccurrenceCounts.set(
-            url,
-            htmlDoubleMatches + htmlSingleMatches + markdownMatches + rawMatches
-          );
-        });
-
-        // Process all images in parallel
-        const results = await Promise.allSettled(
-          uniqueUrls.map(async (imageUrl) => {
-            // Add timeout to prevent indefinite hangs
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-            try {
-              const response = await fetch(imageUrl, {
-                signal: controller.signal,
-                cache: "no-store", // Prevent caching issues with CORS
-              });
-
-              if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
-              }
-
-              const blob = await response.blob();
-              const fileId = crypto.randomUUID();
-              // Infer extension from URL path (before query params) or fallback to png
-              const urlPath = imageUrl.split("?")[0] ?? imageUrl;
-              const extension =
-                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-              const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-generated-image-${Date.now()}-${fileId.slice(
-                0,
-                8
-              )}.${extension}`;
-
-              // Store in OPFS
-              await writeFile(fileId, blob);
-
-              return { fileId, fileName, mimeType, size: blob.size, imageUrl };
-            } finally {
-              clearTimeout(timeoutId);
-            }
-          })
-        );
-
-        // Helper to replace URL with placeholder (only used on success)
-        // Returns the number of replacements made for verification
-        const replaceUrlWithPlaceholder = (
-          imageUrl: string,
-          fileId: string
-        ): number => {
-          const escapedUrl = imageUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          // Create internal placeholder (never shown to clients)
-          const placeholder = createFilePlaceholder(fileId);
-          let replacementCount = 0;
-
-          // Replace HTML img tags with double-quoted src
-          const htmlImgPatternDouble = new RegExp(
-            `<img[^>]*src="${escapedUrl}"[^>]*>`,
-            "gi"
-          );
-          const doubleMatches = cleanedContent.match(htmlImgPatternDouble);
-          if (doubleMatches) {
-            replacementCount += doubleMatches.length;
-            cleanedContent = cleanedContent.replace(
-              htmlImgPatternDouble,
-              placeholder
-            );
-          }
-
-          // Replace HTML img tags with single-quoted src
-          const htmlImgPatternSingle = new RegExp(
-            `<img[^>]*src='${escapedUrl}'[^>]*>`,
-            "gi"
-          );
-          const singleMatches = cleanedContent.match(htmlImgPatternSingle);
-          if (singleMatches) {
-            replacementCount += singleMatches.length;
-            cleanedContent = cleanedContent.replace(
-              htmlImgPatternSingle,
-              placeholder
-            );
-          }
-
-          // Replace markdown image syntax: ![alt](url) -> placeholder
-          // This pattern allows for optional whitespace/newlines around the URL
-          const markdownImagePattern = new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*${escapedUrl}[\\s]*\\)`,
-            "g"
-          );
-          const markdownMatches = cleanedContent.match(markdownImagePattern);
-          if (markdownMatches) {
-            replacementCount += markdownMatches.length;
-            cleanedContent = cleanedContent.replace(
-              markdownImagePattern,
-              placeholder
-            );
-          }
-
-          // Replace raw URLs with placeholder (only if not already replaced)
-          // This handles cases where the URL appears without markdown syntax or HTML tags
-          const rawUrlPattern = new RegExp(escapedUrl, "g");
-          const rawMatches = cleanedContent.match(rawUrlPattern);
-          if (rawMatches) {
-            replacementCount += rawMatches.length;
-            cleanedContent = cleanedContent.replace(rawUrlPattern, placeholder);
-          }
-
-          return replacementCount;
-        };
-
-        // Process results and optionally replace URLs with placeholders
-        results.forEach((result, i) => {
-          const imageUrl = uniqueUrls[i];
-
-          if (result.status === "fulfilled") {
-            const { fileId, fileName, mimeType, size } = result.value;
-            processedFiles.push({
-              id: fileId,
-              name: fileName,
-              type: mimeType,
-              size,
-              sourceUrl: imageUrl,
-            });
-
-            // Replace URL with placeholder on SUCCESS (only if replaceUrls is enabled)
-            // Placeholders will be resolved to blob URLs when messages are retrieved
-            if (replaceUrls && imageUrl) {
-              const replacementCount = replaceUrlWithPlaceholder(
-                imageUrl,
-                fileId
-              );
-              const expectedCount = urlOccurrenceCounts.get(imageUrl) || 0;
-
-              // Verify all instances were replaced
-              if (replacementCount < expectedCount) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  `[extractAndStoreMCPImages] Not all instances of URL replaced. Expected ${expectedCount}, replaced ${replacementCount}`
-                );
-              }
-
-              // Double-check: verify no remaining instances of the URL
-              const escapedUrl = imageUrl.replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&"
-              );
-              const remainingPattern = new RegExp(escapedUrl, "g");
-              const remainingMatches = cleanedContent.match(remainingPattern);
-              if (remainingMatches && remainingMatches.length > 0) {
-                // eslint-disable-next-line no-console
-                console.warn(
-                  `[extractAndStoreMCPImages] Found ${remainingMatches.length} remaining instance(s) of URL after replacement`
-                );
-              }
-            }
-          } else {
-            // eslint-disable-next-line no-console
-            console.error(
-              "[handleMcpImageUrl] Failed to process image:",
-              result.reason
-            );
-            // On FAILURE: Keep URL in content so user can still click it
-            // MarkdownRenderer will show it as a clickable link
-          }
-        });
-
-        // Clean up extra newlines
-        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
-
-        return {
-          processedFiles: processedFiles.length > 0 ? processedFiles : [],
-          cleanedContent,
-        };
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[handleMcpImageUrl] Unexpected error:", err);
-        // Don't throw - let the original message remain as-is if processing fails completely
-        return { processedFiles: [], cleanedContent: content };
-      }
-    },
-    []
-  );
-
   /**
    * Extract dimensions from an image blob.
    */
@@ -1634,7 +1377,6 @@ export function useChatStorage(
         thinking,
         onThinking,
         apiType: requestApiType,
-        writeFile,
         conversationId: explicitConversationId,
       } = args;
 
@@ -2096,12 +1838,10 @@ export function useChatStorage(
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
-      // Extract and store MCP images
-      // Priority: walletAddress (encrypted OPFS with media records) > writeFile callback > skip
+      // Extract and store MCP images using encrypted OPFS with media records (requires walletAddress)
       let assistantFileIds: string[] = [];
 
       if (walletAddress) {
-        // Use encrypted OPFS storage with media records
         const result = await extractAndStoreEncryptedMCPImages(
           cleanedContent,
           walletAddress,
@@ -2110,15 +1850,10 @@ export function useChatStorage(
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
-      } else if (writeFile) {
-        // Fall back to writeFile callback with __SDKFILE__ placeholders (no media records)
-        const result = await extractAndStoreMCPImages(
-          cleanedContent,
-          writeFile
-        );
-        // Don't set assistantFileIds here - writeFile handles storage externally
-        // and no media records are created, so lookups via getMediaByIds() would fail
-        cleanedContent = result.cleanedContent;
+      } else {
+        // Safety fallback: clean MCP URLs from content to prevent broken links
+        // This shouldn't happen since walletAddress is required, but handles edge cases
+        cleanedContent = cleanMCPUrlsFromContent(cleanedContent);
       }
 
       // Store the assistant message
