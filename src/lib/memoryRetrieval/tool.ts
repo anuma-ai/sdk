@@ -93,7 +93,7 @@ export function createMemoryRetrievalTool(
 
   return {
     type: "function",
-    function: {
+   function: {
       name: "search_memory",
       description:
         "Search past conversation chunks to find relevant context from previous discussions. " +

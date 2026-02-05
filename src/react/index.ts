@@ -79,11 +79,7 @@ export type {
   UseEncryptionResult,
 } from "./useEncryption";
 
-export {
-  useChatStorage,
-  replaceUrlWithMCPPlaceholder,
-  findFileIdBySourceUrl,
-} from "./useChatStorage";
+export { useChatStorage } from "./useChatStorage";
 export type {
   UseChatStorageOptions,
   UseChatStorageResult,

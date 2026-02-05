@@ -5,6 +5,17 @@ import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 
 /**
+ * Tool call event from server-side MCP tool execution
+ */
+type ToolCallEventChunk = {
+  id?: string;
+  type?: string;
+  name?: string;
+  arguments?: string;
+  output?: string;
+};
+
+/**
  * Streaming chunk format for Chat Completions API (OpenAI-compatible)
  */
 type CompletionsStreamingChunk = {
@@ -13,6 +24,13 @@ type CompletionsStreamingChunk = {
   model?: string;
   /** Checksum of tools used to generate this response */
   tools_checksum?: string;
+  /** Tool call events from server-side MCP tool execution */
+  tool_call_events?: Array<ToolCallEventChunk>;
+  /** Wrapped response format (some endpoints nest the response) */
+  response?: {
+    tools_checksum?: string;
+    tool_call_events?: Array<ToolCallEventChunk>;
+  };
   choices?: Array<{
     index: number;
     delta?: {
@@ -119,6 +137,29 @@ export class CompletionsStrategy implements ApiStrategy {
     // Capture tools_checksum if present
     if (typedChunk.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.tools_checksum;
+    }
+    // Also capture from nested response if present
+    if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
+      accumulator.toolsChecksum = typedChunk.response.tools_checksum;
+    }
+
+    // Capture tool_call_events if present (from server-side MCP tool execution)
+    if (typedChunk.tool_call_events && !accumulator.toolCallEvents) {
+      accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
+        id: event.id || "",
+        name: event.name || "",
+        arguments: event.arguments || "",
+        output: event.output || "",
+      }));
+    }
+    // Also capture from nested response if present
+    if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+      accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
+        id: event.id || "",
+        name: event.name || "",
+        arguments: event.arguments || "",
+        output: event.output || "",
+      }));
     }
 
     // Accumulate usage data
@@ -364,6 +405,7 @@ export class CompletionsStrategy implements ApiStrategy {
       id: accumulator.responseId,
       model: accumulator.responseModel,
       tools_checksum: accumulator.toolsChecksum,
+      tool_call_events: accumulator.toolCallEvents,
       choices: [
         {
           index: 0,
