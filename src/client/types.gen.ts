@@ -16,6 +16,7 @@ export type HandlersApiKeyResponse = {
     name?: string;
     updated_at?: string;
     wallet_address?: string;
+    wallet_details?: HandlersWalletDetails;
 };
 
 export type HandlersApiKeyWithKeyResponse = {
@@ -112,10 +113,6 @@ export type HandlersConfigResponse = {
      * OperatorAddress is the operator wallet address
      */
     operator_address?: string;
-    /**
-     * PaymentModel is the payment model used (pay_as_you_go or cost_limit)
-     */
-    payment_model?: string;
     /**
      * SettlementRecipient is the address that receives settlement payments
      */
@@ -325,6 +322,49 @@ export type HandlersUpdateAppRequest = {
     name?: string;
     privy_app_id?: string;
     privy_verification_key?: string;
+};
+
+/**
+ * Wallet account details
+ */
+export type HandlersWalletDetails = {
+    /**
+     * When account was first created
+     */
+    account_created_at?: string;
+    account_id?: number;
+    /**
+     * When balance was last synced from chain
+     */
+    balance_updated_at?: string;
+    /**
+     * Balance in micro-dollars (USD * 1,000,000)
+     */
+    cached_balance_usd?: number;
+    /**
+     * App ID for enrollment (0 if not enrolled)
+     */
+    enrolled_app_id?: number;
+    /**
+     * Whether enrolled in cost-limit model
+     */
+    is_enrolled?: boolean;
+    /**
+     * Last credit reset timestamp
+     */
+    last_credit_reset_at?: string;
+    /**
+     * In-flight request holds in micro-dollars
+     */
+    pending_cost_usd?: number;
+    /**
+     * When user became Pro subscriber
+     */
+    pro_activated_at?: string;
+    /**
+     * "basic" or "pro"
+     */
+    subscription_tier?: string;
 };
 
 /**
@@ -1044,9 +1084,11 @@ export type McpToolSchema = {
 };
 
 export type ResponseErrorResponse = {
+    code?: string;
     error?: string;
     request_id?: string;
     trace_id?: string;
+    type?: string;
 };
 
 export type PostApiV1AdminAddCreditsData = {

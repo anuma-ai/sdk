@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionToolChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:407](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L407)
+Defined in: [src/client/types.gen.ts:451](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L451)
 
 ToolChoice controls tool usage
 
