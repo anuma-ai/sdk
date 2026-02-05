@@ -391,6 +391,10 @@ export type LlmapiChatCompletionResponse = {
      */
     model?: string;
     /**
+     * ToolCallEvents contains the server-side MCP tool execution events
+     */
+    tool_call_events?: Array<LlmapiToolCallEvent>;
+    /**
      * ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
      */
     tools_checksum?: string;
