@@ -431,7 +431,7 @@ export type LlmapiChatCompletionResponse = {
      */
     model?: string;
     /**
-     * ToolCallEvents contains the server-side MCP tool execution events
+     * ToolCallEvents is an array of tool call events.
      */
     tool_call_events?: Array<LlmapiToolCallEvent>;
     /**
@@ -948,17 +948,6 @@ export type LlmapiResponseRequest = {
     tools?: Array<LlmapiResponseTool>;
 };
 
-/**
- * Tool call event from server-side MCP tool execution
- */
-export type LlmapiToolCallEvent = {
-    id?: string;
-      type?: string;
-      name?: string;
-      arguments?: string;
-      output?: string;
-};
-
 export type LlmapiResponseResponse = {
     /**
      * Created is the Unix timestamp of creation (created_at in OpenAI format)
@@ -989,7 +978,7 @@ export type LlmapiResponseResponse = {
      */
     output?: Array<LlmapiResponseOutputItem>;
     /**
-     * ToolCallEvents contains the server-side MCP tool execution events
+     * ToolCallEvents is an array of tool call events.
      */
     tool_call_events?: Array<LlmapiToolCallEvent>;
     /**
@@ -1061,6 +1050,13 @@ export type LlmapiToolCall = {
      * Type is the type of tool call (always "function" for now)
      */
     type?: string;
+};
+
+export type LlmapiToolCallEvent = {
+    arguments?: string;
+    id?: string;
+    name?: string;
+    output?: string;
 };
 
 /**

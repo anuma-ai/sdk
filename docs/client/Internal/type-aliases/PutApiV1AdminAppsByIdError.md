@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminAppsByIdError** = [`PutApiV1AdminAppsByIdErrors`](PutApiV1AdminAppsByIdErrors.md)\[keyof [`PutApiV1AdminAppsByIdErrors`](PutApiV1AdminAppsByIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1595](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1595)
+Defined in: [src/client/types.gen.ts:1591](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1591)

@@ -2,7 +2,7 @@
 
 > **McpToolSchema** = `object`
 
-Defined in: [src/client/types.gen.ts:1080](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1080)
+Defined in: [src/client/types.gen.ts:1076](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1076)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1080](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:1081](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1081)
+Defined in: [src/client/types.gen.ts:1077](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1077)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1081](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1082](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1082)
+Defined in: [src/client/types.gen.ts:1078](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1078)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:1082](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **parameters**: `unknown`
 
-Defined in: [src/client/types.gen.ts:1083](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1083)
+Defined in: [src/client/types.gen.ts:1079](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1079)

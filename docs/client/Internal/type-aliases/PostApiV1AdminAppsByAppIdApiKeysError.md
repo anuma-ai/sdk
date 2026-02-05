@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminAppsByAppIdApiKeysError** = [`PostApiV1AdminAppsByAppIdApiKeysErrors`](PostApiV1AdminAppsByAppIdApiKeysErrors.md)\[keyof [`PostApiV1AdminAppsByAppIdApiKeysErrors`](PostApiV1AdminAppsByAppIdApiKeysErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1301](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1301)
+Defined in: [src/client/types.gen.ts:1297](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1297)

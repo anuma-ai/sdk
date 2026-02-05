@@ -2,4 +2,4 @@
 
 > **PutApiV1AdminAppsByIdResponse** = [`PutApiV1AdminAppsByIdResponses`](PutApiV1AdminAppsByIdResponses.md)\[keyof [`PutApiV1AdminAppsByIdResponses`](PutApiV1AdminAppsByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1604](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1604)
+Defined in: [src/client/types.gen.ts:1600](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1600)

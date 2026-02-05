@@ -92,45 +92,42 @@ export function createMemoryRetrievalTool(
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
 
   return {
-    type: "function",
-    function: {
-      name: "search_memory",
-      description:
-        "Search past conversation chunks to find relevant context from previous discussions. " +
-        "Use this tool when you need to recall information from previous conversations, " +
-        "such as user preferences, past discussions, or previously mentioned facts. " +
-        "The search uses semantic similarity, so phrase your query naturally.",
-      arguments: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "User question to match against past chunks.",
-          },
-          include_assistant: {
-            type: "boolean",
-            description: `Include assistant message chunks. Default: ${defaultOpts.includeAssistant}`,
-          },
-          top_k: {
-            type: "integer",
-            description: `Number of chunks to return. Default: ${defaultOpts.topK}`,
-          },
-          start_date: {
-            type: "string",
-            description: "Inclusive start date/time (currently disabled).",
-          },
-          end_date: {
-            type: "string",
-            description: "Inclusive end date/time (currently disabled).",
-          },
-          sort_by: {
-            type: "string",
-            enum: ["similarity", "chronological"],
-            description: `Sort order: "similarity" (most relevant first) or "chronological" (oldest first). Default: ${defaultOpts.sortBy}`,
-          },
+    name: "search_memory",
+    description:
+      "Search past conversation chunks to find relevant context from previous discussions. " +
+      "Use this tool when you need to recall information from previous conversations, " +
+      "such as user preferences, past discussions, or previously mentioned facts. " +
+      "The search uses semantic similarity, so phrase your query naturally.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "User question to match against past chunks.",
         },
-        required: ["query"],
+        include_assistant: {
+          type: "boolean",
+          description: `Include assistant message chunks. Default: ${defaultOpts.includeAssistant}`,
+        },
+        top_k: {
+          type: "integer",
+          description: `Number of chunks to return. Default: ${defaultOpts.topK}`,
+        },
+        start_date: {
+          type: "string",
+          description: "Inclusive start date/time (currently disabled).",
+        },
+        end_date: {
+          type: "string",
+          description: "Inclusive end date/time (currently disabled).",
+        },
+        sort_by: {
+          type: "string",
+          enum: ["similarity", "chronological"],
+          description: `Sort order: "similarity" (most relevant first) or "chronological" (oldest first). Default: ${defaultOpts.sortBy}`,
+        },
       },
+      required: ["query"],
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;

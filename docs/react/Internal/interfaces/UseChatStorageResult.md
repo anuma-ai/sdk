@@ -414,7 +414,7 @@ Useful when different models need different APIs within the same hook instance.
 </td>
 <td>
 
-[`LlmapiChatCompletionTool`](../../../client/Internal/type-aliases/LlmapiChatCompletionTool.md)\[]
+[`LlmapiMcpTool`](../../../client/Internal/type-aliases/LlmapiMcpTool.md)\[]
 
 </td>
 <td>

@@ -2,7 +2,7 @@
 
 > **LlmapiResponseTool** = `object`
 
-Defined in: [src/client/types.gen.ts:1002](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1002)
+Defined in: [src/client/types.gen.ts:991](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L991)
 
 ## Index Signature
 

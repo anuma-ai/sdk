@@ -2,7 +2,7 @@
 
 > **ResponseErrorResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1086](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1086)
+Defined in: [src/client/types.gen.ts:1082](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1082)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1086](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **code**: `string`
 
-Defined in: [src/client/types.gen.ts:1087](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1087)
+Defined in: [src/client/types.gen.ts:1083](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1083)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1087](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:1088](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1088)
+Defined in: [src/client/types.gen.ts:1084](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1084)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1088](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **request\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1089](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1089)
+Defined in: [src/client/types.gen.ts:1085](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1085)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:1089](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **trace\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1090](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1090)
+Defined in: [src/client/types.gen.ts:1086](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1086)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:1090](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:1091](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1091)
+Defined in: [src/client/types.gen.ts:1087](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1087)

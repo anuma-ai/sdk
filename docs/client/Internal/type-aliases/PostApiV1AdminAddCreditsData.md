@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAddCreditsData** = `object`
 
-Defined in: [src/client/types.gen.ts:1094](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1094)
+Defined in: [src/client/types.gen.ts:1090](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1090)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1094](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersAddCreditsRequest`](HandlersAddCreditsRequest.md)
 
-Defined in: [src/client/types.gen.ts:1098](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1098)
+Defined in: [src/client/types.gen.ts:1094](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1094)
 
 Add credits request
 
@@ -20,7 +20,7 @@ Add credits request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1099](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1099)
+Defined in: [src/client/types.gen.ts:1095](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1095)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1105](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1105)
+Defined in: [src/client/types.gen.ts:1101](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1101)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1105](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1106)
+Defined in: [src/client/types.gen.ts:1102](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1102)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/admin/add-credits"`
 
-Defined in: [src/client/types.gen.ts:1107](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1107)
+Defined in: [src/client/types.gen.ts:1103](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1103)
