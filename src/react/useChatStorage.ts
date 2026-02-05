@@ -1104,7 +1104,8 @@ export function useChatStorage(
 
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        return { fileIds: [], cleanedContent: content };
+        // Still clean MCP URLs to prevent broken links even on error
+        return { fileIds: [], cleanedContent: cleanMCPUrlsFromContent(content) };
       }
     },
     [database, getImageDimensions]
