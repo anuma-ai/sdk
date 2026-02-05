@@ -457,13 +457,20 @@ export function parseReasoningTags(
 
 /**
  * Check if a model uses implicit reasoning start (no opening tag, only closing tag)
- * Models like Qwen thinking models start reasoning immediately without `<think>` tag
+ * Models like Qwen thinking models and Kimi start reasoning immediately without `<think>` tag
  */
 function isImplicitReasoningModel(modelName?: string): boolean {
   if (!modelName) return false;
   const lowerModel = modelName.toLowerCase();
   // Qwen thinking models use implicit reasoning (no `<think>` tag, only `</think>`)
-  return lowerModel.includes("qwen") && lowerModel.includes("thinking");
+  if (lowerModel.includes("qwen") && lowerModel.includes("thinking")) {
+    return true;
+  }
+  // Kimi K2.5 also uses implicit reasoning
+  if (lowerModel.includes("kimi-k2p5")) {
+    return true;
+  }
+  return false;
 }
 
 /**
