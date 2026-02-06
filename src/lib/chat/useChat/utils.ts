@@ -545,15 +545,29 @@ export function processStreamingChunk(
   }
 
   // Handle response.completed event - extract usage from response object
-  if (chunk.type === "response.completed" && chunk.response?.usage) {
-    accumulator.usage = {
-      ...accumulator.usage,
-      prompt_tokens: chunk.response.usage.input_tokens,
-      completion_tokens: chunk.response.usage.output_tokens,
-      total_tokens:
-        (chunk.response.usage.input_tokens || 0) +
-        (chunk.response.usage.output_tokens || 0),
-    };
+  if (chunk.type === "response.completed") {
+    if (chunk.response?.usage) {
+      accumulator.usage = {
+        ...accumulator.usage,
+        prompt_tokens: chunk.response.usage.input_tokens,
+        completion_tokens: chunk.response.usage.output_tokens,
+        total_tokens:
+          (chunk.response.usage.input_tokens || 0) +
+          (chunk.response.usage.output_tokens || 0),
+      };
+    }
+
+    // Mark all pending tool calls as completed and emit completion event
+    for (const toolCall of accumulator.toolCalls.values()) {
+      if (toolCall.status === "pending") {
+        toolCall.status = "completed";
+        result.serverToolCall = {
+          name: toolCall.name,
+          status: "completed",
+        };
+      }
+    }
+
     return result;
   }
 

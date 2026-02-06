@@ -8,6 +8,7 @@ import type {
 } from "../../../client";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
+import type { ServerToolCallEvent } from "./utils";
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -195,11 +196,7 @@ export type BaseUseChatOptions = {
    * @param toolCall.status - "started" when tool begins, "completed" when done
    * @param toolCall.arguments - The arguments passed to the tool (JSON string)
    */
-  onServerToolCall?: (toolCall: {
-    name: string;
-    status: "started" | "completed";
-    arguments?: string;
-  }) => void;
+  onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
   /**
    * Controls adaptive output smoothing for streaming responses.
    * Fast models can return text faster than is comfortable to read — smoothing

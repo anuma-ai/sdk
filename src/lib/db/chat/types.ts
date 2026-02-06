@@ -10,6 +10,7 @@ import type {
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 import type { ServerTool } from "../../tools";
+import type { ServerToolCallEvent } from "../../chat/useChat/utils";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -251,11 +252,7 @@ export interface BaseUseChatStorageOptions {
    * Callback invoked when a server-side tool (MCP) is called during streaming.
    * Use this to show activity indicators like "Searching..." in the UI.
    */
-  onServerToolCall?: (toolCall: {
-    name: string;
-    status: "started" | "completed";
-    arguments?: string;
-  }) => void;
+  onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
   /**
    * File preprocessors to use for automatic text extraction.
    * - undefined (default): Use all built-in processors (PDF, Excel, Word)
