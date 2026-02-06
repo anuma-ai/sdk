@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:305](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L305)
+Defined in: [src/react/useChatStorage.ts:233](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L233)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:320](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L320)
+Defined in: [src/react/useChatStorage.ts:248](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L248)
 
 Override the API type for this specific request.
 
@@ -46,7 +46,7 @@ These tools run in the browser/app and can have JavaScript executor functions.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:328](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L328)
+Defined in: [src/react/useChatStorage.ts:256](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L256)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -91,7 +91,7 @@ File metadata is stored with the message (URLs are stripped if they're data URIs
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L311)
+Defined in: [src/react/useChatStorage.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L239)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -512,123 +512,3 @@ Controls which tool the model should use:
 **Inherited from**
 
 `BaseSendMessageWithStorageArgs.toolChoice`
-
-***
-
-### writeFile()?
-
-> `optional` **writeFile**: (`fileId`: `string`, `blob`: `Blob`, `options?`: `object`) => `Promise`<`string`>
-
-Defined in: [src/react/useChatStorage.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L343)
-
-Function to write files to storage (for MCP image processing).
-When provided, MCP-generated images in the response are automatically
-downloaded and stored locally via this function. The content is updated
-with placeholders that can be resolved to the stored files.
-
-If not provided, MCP images remain as URLs in the response content.
-
-**Parameters**
-
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-
-`fileId`
-
-</td>
-<td>
-
-`string`
-
-</td>
-<td>
-
-Unique identifier for the file
-
-</td>
-</tr>
-<tr>
-<td>
-
-`blob`
-
-</td>
-<td>
-
-`Blob`
-
-</td>
-<td>
-
-The file content as a Blob
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options?`
-
-</td>
-<td>
-
-`object`
-
-</td>
-<td>
-
-Optional progress callback and abort signal
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options.onProgress?`
-
-</td>
-<td>
-
-(`progress`: `number`) => `void`
-
-</td>
-<td>
-
-‐
-
-</td>
-</tr>
-<tr>
-<td>
-
-`options.signal?`
-
-</td>
-<td>
-
-`AbortSignal`
-
-</td>
-<td>
-
-‐
-
-</td>
-</tr>
-</tbody>
-</table>
-
-**Returns**
-
-`Promise`<`string`>
-
-Promise resolving to the stored file URL/path

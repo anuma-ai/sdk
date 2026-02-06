@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:396](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L396)
+Defined in: [src/react/useChatStorage.ts:302](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L302)
 
 Result returned by useChatStorage hook (React version)
 
@@ -69,7 +69,7 @@ Defined in: [src/lib/db/chat/types.ts:545](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:452](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L452)
+Defined in: [src/react/useChatStorage.ts:358](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L358)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -168,7 +168,7 @@ Defined in: [src/lib/db/chat/types.ts:551](https://github.com/zeta-chain/ai-sdk/
 
 > **getAllFiles**: (`options?`: `object`) => `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:432](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L432)
+Defined in: [src/react/useChatStorage.ts:338](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L338)
 
 Get all files from all conversations, sorted by creation date (newest first).
 Returns files with conversation context for building file browser UIs.
@@ -342,7 +342,7 @@ Defined in: [src/lib/db/chat/types.ts:541](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:425](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L425)
+Defined in: [src/react/useChatStorage.ts:331](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L331)
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.
@@ -907,28 +907,6 @@ Controls which tool the model should use:
 * "none": Model cannot use any tools
 * "required": Model must use a tool
 * Specific tool name: Model must use that specific tool
-
-</td>
-</tr>
-<tr>
-<td>
-
-`args.writeFile?`
-
-</td>
-<td>
-
-(`fileId`: `string`, `blob`: `Blob`, `options?`: `object`) => `Promise`<`string`>
-
-</td>
-<td>
-
-Function to write files to storage (for MCP image processing).
-When provided, MCP-generated images in the response are automatically
-downloaded and stored locally via this function. The content is updated
-with placeholders that can be resolved to the stored files.
-
-If not provided, MCP images remain as URLs in the response content.
 
 </td>
 </tr>
