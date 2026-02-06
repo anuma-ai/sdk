@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:150](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L150)
+Defined in: [src/expo/useChat.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChat.ts#L146)
 
 A React hook for managing chat completions with authentication.
 
@@ -203,7 +203,7 @@ Controls adaptive output smoothing for streaming responses.
 Fast models can return text faster than is comfortable to read — smoothing
 buffers incoming chunks and releases them at a consistent, adaptive pace.
 
-* `true` or omitted: enabled with defaults (30→200 chars/sec over 1.5s)
+* `true` or omitted: enabled with defaults (0→200 chars/sec over 3s)
 * `false`: disabled, callbacks fire immediately with raw chunks
 * `StreamSmoothingConfig`: custom speed/ramp configuration
 

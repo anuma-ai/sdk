@@ -214,7 +214,7 @@ describe("StreamSmoother", () => {
       const received: string[] = [];
       const smoother = new StreamSmoother(
         (text) => received.push(text),
-        { enabled: true, minSpeed: 30, maxSpeed: 200, rampDuration: 1500 }
+        { enabled: true, minSpeed: 0, maxSpeed: 200, rampDuration: 3000 }
       );
 
       // Simulate slow model: push 1 char, wait 100ms, push 1 char, etc.
