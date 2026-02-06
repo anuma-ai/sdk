@@ -10,6 +10,7 @@ When asked to create a PR, use `gh pr create` with:
   - Summary of changes
   - **Integration**: how to integrate changes from the SDK into a client app (can be empty if nothing required)
   - **Breaking Changes**: what will break by upgrading the SDK (if any)
+- Do not include the "🤖 Generated with Claude Code" footer
 
 ## Branches
 
