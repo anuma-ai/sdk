@@ -12,6 +12,8 @@ export {
   type CachedServerTools,
   type ServerToolsOptions,
   type ParsedServerToolsResponse,
+  type ToolMatchResult,
+  type ToolMatchOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
   SERVER_TOOLS_CACHE_KEY,
@@ -30,4 +32,5 @@ export {
   getServerTools,
   filterServerTools,
   mergeTools,
+  findMatchingTools,
 } from "./serverTools";

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:447](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L447)
+Defined in: [src/react/useChatStorage.ts:450](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L450)
 
 ## Parameters
 
@@ -304,6 +304,30 @@ File preprocessors to use for automatic text extraction.
 <td>
 
 Function to retrieve the auth token for API requests
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.minContentLength?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Minimum content length required to generate embeddings.
+Messages shorter than this are skipped as they provide limited semantic value.
+
+**Default**
+
+```ts
+10
+```
 
 </td>
 </tr>

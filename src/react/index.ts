@@ -130,6 +130,8 @@ export {
   type StorageOperationsContext,
   type MessageChunk,
   type ChunkSearchResult,
+  type ServerToolsFilter,
+  type ServerToolsFilterFn,
   generateConversationId,
   updateConversationProjectOp,
   getConversationsByProjectOp,
@@ -323,6 +325,7 @@ export {
   getCachedServerTools,
   getToolsChecksum,
   shouldRefreshTools,
+  findMatchingTools,
   DEFAULT_CACHE_EXPIRATION_MS,
 } from "../lib/tools";
 export type {
@@ -331,6 +334,8 @@ export type {
   ServerToolsResponse,
   ParsedServerToolsResponse,
   ServerTool,
+  ToolMatchResult,
+  ToolMatchOptions,
 } from "../lib/tools";
 export { useTools } from "./useTools";
 export type { UseToolsOptions, UseToolsResult } from "./useTools";
