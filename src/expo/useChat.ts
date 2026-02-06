@@ -25,6 +25,8 @@ import {
   createToolExecutorMap,
   executeToolCall,
   getStrategy,
+  StreamSmoother,
+  resolveSmoothingConfig,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -156,7 +158,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     apiType: defaultApiType = "responses",
+    smoothing,
   } = options || {};
+  const smoothingConfig = resolveSmoothingConfig(smoothing);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -279,8 +283,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Buffer for incomplete lines that span across XHR progress events
           let incompleteLineBuffer = "";
 
+          // Create smoothers for adaptive output pacing
+          const contentSmoother = new StreamSmoother((text) => {
+            if (onData) onData(text);
+            if (globalOnData) globalOnData(text);
+          }, smoothingConfig);
+          const thinkingSmoother = new StreamSmoother((text) => {
+            if (onThinking) onThinking(text);
+            if (globalOnThinking) globalOnThinking(text);
+          }, smoothingConfig);
+
+          // Smoother-wrapped callbacks for processSSELines
+          const smoothedOnData = (chunk: string) => contentSmoother.push(chunk);
+          const smoothedOnThinking = (chunk: string) => thinkingSmoother.push(chunk);
+
           // Handle abort
           const abortHandler = () => {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             xhr.abort();
           };
           abortController.signal.addEventListener("abort", abortHandler);
@@ -311,10 +331,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             processSSELines(
               lines,
               accumulator,
-              onData,
-              globalOnData,
-              onThinking,
-              globalOnThinking,
+              smoothedOnData,
+              undefined,
+              smoothedOnThinking,
+              undefined,
               strategy
             );
           };
@@ -327,14 +347,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               processSSELines(
                 [incompleteLineBuffer.trim()],
                 accumulator,
-                onData,
-                globalOnData,
-                onThinking,
-                globalOnThinking,
+                smoothedOnData,
+                undefined,
+                smoothedOnThinking,
+                undefined,
                 strategy
               );
               incompleteLineBuffer = "";
             }
+
+            // Flush any remaining buffered content before building response
+            contentSmoother.flush();
+            thinkingSmoother.flush();
 
             if (xhr.status >= 200 && xhr.status < 300) {
               const response = strategy.buildFinalResponse(accumulator);
@@ -475,7 +499,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           let contLastProcessedIndex = 0;
                           let contIncompleteLineBuffer = "";
 
+                          // Create fresh smoothers for continuation
+                          const contContentSmoother = new StreamSmoother((text) => {
+                            if (onData) onData(text);
+                            if (globalOnData) globalOnData(text);
+                          }, smoothingConfig);
+                          const contThinkingSmoother = new StreamSmoother((text) => {
+                            if (onThinking) onThinking(text);
+                            if (globalOnThinking) globalOnThinking(text);
+                          }, smoothingConfig);
+                          const contSmoothedOnData = (chunk: string) => contContentSmoother.push(chunk);
+                          const contSmoothedOnThinking = (chunk: string) => contThinkingSmoother.push(chunk);
+
                           const contAbortHandler = () => {
+                            contContentSmoother.destroy();
+                            contThinkingSmoother.destroy();
                             continuationXhr.abort();
                           };
                           abortController.signal.addEventListener(
@@ -517,10 +555,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                             processSSELines(
                               lines,
                               continuationAccumulator,
-                              onData,
-                              globalOnData,
-                              onThinking,
-                              globalOnThinking,
+                              contSmoothedOnData,
+                              undefined,
+                              contSmoothedOnThinking,
+                              undefined,
                               strategy
                             );
                           };
@@ -535,13 +573,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               processSSELines(
                                 [contIncompleteLineBuffer.trim()],
                                 continuationAccumulator,
-                                onData,
-                                globalOnData,
-                                onThinking,
-                                globalOnThinking,
+                                contSmoothedOnData,
+                                undefined,
+                                contSmoothedOnThinking,
+                                undefined,
                                 strategy
                               );
                             }
+
+                            // Flush remaining buffered content
+                            contContentSmoother.flush();
+                            contThinkingSmoother.flush();
 
                             if (
                               continuationXhr.status >= 200 &&
@@ -635,6 +677,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.onerror = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             const errorMsg = "Network error";
             setIsLoading(false);
             if (onError) onError(new Error(errorMsg));
@@ -643,6 +687,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.onabort = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             setIsLoading(false);
             resolve({ data: null, error: "Request aborted" });
           };
@@ -687,6 +733,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
+      smoothingConfig,
     ]
   );
 
