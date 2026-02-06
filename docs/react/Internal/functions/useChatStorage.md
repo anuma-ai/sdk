@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:451](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L451)
+Defined in: [src/react/useChatStorage.ts:452](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L452)
 
 ## Parameters
 
@@ -390,7 +390,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`toolCall`: `object`) => `void`
+(`toolCall`: `ServerToolCallEvent`) => `void`
 
 </td>
 <td>

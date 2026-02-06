@@ -159,7 +159,7 @@ Receives raw API response - either Responses API or Completions API format.
 </td>
 <td>
 
-(`toolCall`: `object`) => `void`
+(`toolCall`: `ServerToolCallEvent`) => `void`
 
 </td>
 <td>

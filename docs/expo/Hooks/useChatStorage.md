@@ -395,7 +395,7 @@ Callback invoked when the response completes successfully
 </td>
 <td>
 
-(`toolCall`: `object`) => `void`
+(`toolCall`: `ServerToolCallEvent`) => `void`
 
 </td>
 <td>

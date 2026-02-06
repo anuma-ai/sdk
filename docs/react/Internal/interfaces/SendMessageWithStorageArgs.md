@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:234](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L234)
+Defined in: [src/react/useChatStorage.ts:235](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L235)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:249](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L249)
+Defined in: [src/react/useChatStorage.ts:250](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L250)
 
 Override the API type for this specific request.
 
@@ -31,7 +31,7 @@ Useful when different models need different APIs within the same hook instance.
 
 > `optional` **clientTools**: [`LlmapiChatCompletionTool`](../../../client/Internal/type-aliases/LlmapiChatCompletionTool.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:477](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L477)
+Defined in: [src/lib/db/chat/types.ts:474](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L474)
 
 Client-side tools with optional executors.
 These tools run in the browser/app and can have JavaScript executor functions.
@@ -46,7 +46,7 @@ These tools run in the browser/app and can have JavaScript executor functions.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:257](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L257)
+Defined in: [src/react/useChatStorage.ts:258](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L258)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -59,7 +59,7 @@ to avoid race conditions with React state updates.
 
 > `optional` **fileContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:432](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L432)
+Defined in: [src/lib/db/chat/types.ts:429](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L429)
 
 Additional context from preprocessed file attachments.
 Contains extracted text from Excel, Word, PDF, and other document files.
@@ -75,7 +75,7 @@ Injected as a system message so it's available throughout the conversation.
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:406](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L406)
+Defined in: [src/lib/db/chat/types.ts:403](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L403)
 
 File attachments to include with the message (images, documents, etc.).
 Files with image MIME types and URLs are sent as image content parts.
@@ -91,7 +91,7 @@ File metadata is stored with the message (URLs are stripped if they're data URIs
 
 > `optional` **getThoughtProcess**: () => `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:457](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L457)
+Defined in: [src/lib/db/chat/types.ts:454](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L454)
 
 Callback to get activity phases AFTER streaming completes.
 Use this instead of `thoughtProcess` when phases are added dynamically during streaming
@@ -113,7 +113,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:240](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L240)
+Defined in: [src/react/useChatStorage.ts:241](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L241)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -124,7 +124,7 @@ Useful for passing additional authentication, tracking, or feature flags.
 
 > `optional` **includeHistory**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:392](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L392)
+Defined in: [src/lib/db/chat/types.ts:389](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L389)
 
 Whether to automatically include previous messages from the conversation as context.
 When true, fetches stored messages and prepends them to the request.
@@ -146,7 +146,7 @@ true
 
 > `optional` **maxHistoryMessages**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:399](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L399)
+Defined in: [src/lib/db/chat/types.ts:396](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L396)
 
 Maximum number of historical messages to include when `includeHistory` is true.
 Only the most recent N messages are included to manage context window size.
@@ -167,7 +167,7 @@ Only the most recent N messages are included to manage context window size.
 
 > `optional` **maxOutputTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:471](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L471)
+Defined in: [src/lib/db/chat/types.ts:468](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L468)
 
 Maximum number of tokens to generate in the response.
 Use this to limit response length and control costs.
@@ -182,7 +182,7 @@ Use this to limit response length and control costs.
 
 > `optional` **memoryContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:419](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L419)
+Defined in: [src/lib/db/chat/types.ts:416](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L416)
 
 Additional context from memory/RAG system to include in the request.
 Typically contains retrieved relevant information from past conversations.
@@ -197,7 +197,7 @@ Typically contains retrieved relevant information from past conversations.
 
 > **messages**: [`LlmapiMessage`](../../../client/Internal/type-aliases/LlmapiMessage.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:352](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L352)
+Defined in: [src/lib/db/chat/types.ts:349](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L349)
 
 The message array to send to the AI.
 
@@ -247,7 +247,7 @@ sendMessage({
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:358](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L358)
+Defined in: [src/lib/db/chat/types.ts:355](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L355)
 
 The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
 If not specified, uses the default model configured on the server.
@@ -262,7 +262,7 @@ If not specified, uses the default model configured on the server.
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:413](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L413)
+Defined in: [src/lib/db/chat/types.ts:410](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L410)
 
 Per-request callback invoked with each streamed response chunk.
 Overrides the hook-level `onData` callback for this request only.
@@ -307,7 +307,7 @@ Use this to update UI as the response streams in.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:530](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L530)
+Defined in: [src/lib/db/chat/types.ts:527](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L527)
 
 Per-request callback for thinking/reasoning chunks.
 Called with delta chunks as the model "thinks" through a problem.
@@ -352,7 +352,7 @@ Use this to display thinking progress in the UI.
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
 
-Defined in: [src/lib/db/chat/types.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L516)
+Defined in: [src/lib/db/chat/types.ts:513](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L513)
 
 Reasoning configuration for o-series and other reasoning models.
 Controls reasoning effort level and whether to include reasoning summary.
@@ -367,7 +367,7 @@ Controls reasoning effort level and whether to include reasoning summary.
 
 > `optional` **searchContext**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:425](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L425)
+Defined in: [src/lib/db/chat/types.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L422)
 
 Additional context from search results to include in the request.
 Typically contains relevant information from web or document searches.
@@ -382,7 +382,7 @@ Typically contains relevant information from web or document searches.
 
 > `optional` **serverTools**: [`ServerToolsFilter`](../type-aliases/ServerToolsFilter.md)
 
-Defined in: [src/lib/db/chat/types.ts:500](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L500)
+Defined in: [src/lib/db/chat/types.ts:497](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L497)
 
 Server-side tools to include from /api/v1/tools.
 
@@ -418,7 +418,7 @@ serverTools: (embeddings, tools) => {
 
 > `optional` **skipStorage**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L384)
+Defined in: [src/lib/db/chat/types.ts:381](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L381)
 
 Skip all storage operations (conversation, messages, embeddings, media).
 Use this for one-off tasks like title generation where you don't want
@@ -459,10 +459,10 @@ const { data } = await sendMessage({
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:438](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L438)
+Defined in: [src/lib/db/chat/types.ts:435](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L435)
 
 Search sources to attach to the stored message for citation/reference.
-These are combined with any sources extracted from the assistant's response.
+Note: Sources are also automatically extracted from tool\_call\_events in the response.
 
 **Inherited from**
 
@@ -474,7 +474,7 @@ These are combined with any sources extracted from the assistant's response.
 
 > `optional` **temperature**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:465](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L465)
+Defined in: [src/lib/db/chat/types.ts:462](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L462)
 
 Controls randomness in the response (0.0 to 2.0).
 Lower values make output more deterministic, higher values more creative.
@@ -489,7 +489,7 @@ Lower values make output more deterministic, higher values more creative.
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
 
-Defined in: [src/lib/db/chat/types.ts:523](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L523)
+Defined in: [src/lib/db/chat/types.ts:520](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L520)
 
 Extended thinking configuration for Anthropic models (Claude).
 Enables the model to think through complex problems step by step
@@ -505,7 +505,7 @@ before generating the final response.
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:448](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L448)
+Defined in: [src/lib/db/chat/types.ts:445](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L445)
 
 Activity phases for tracking the request lifecycle in the UI.
 Each phase represents a step like "Searching", "Thinking", "Generating".
@@ -524,7 +524,7 @@ use `getThoughtProcess` callback instead, which captures phases AFTER streaming 
 
 > `optional` **toolChoice**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:510](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L510)
+Defined in: [src/lib/db/chat/types.ts:507](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L507)
 
 Controls which tool the model should use:
 
