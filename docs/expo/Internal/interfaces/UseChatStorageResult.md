@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L123)
+Defined in: [src/expo/useChatStorage.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L124)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Extends base result with Expo-specific sendMessage signature.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L508)
+Defined in: [src/lib/db/chat/types.ts:543](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L543)
 
 **Inherited from**
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/db/chat/types.ts:508](https://github.com/zeta-chain/ai-sdk/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](../../../react/Internal/interfaces/CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:510](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L510)
+Defined in: [src/lib/db/chat/types.ts:545](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L545)
 
 **Parameters**
 
@@ -69,7 +69,7 @@ Defined in: [src/lib/db/chat/types.ts:510](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../../../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:144](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L144)
+Defined in: [src/expo/useChatStorage.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L145)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -127,7 +127,7 @@ await sendMessage({
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:516](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L516)
+Defined in: [src/lib/db/chat/types.ts:551](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L551)
 
 **Parameters**
 
@@ -168,7 +168,7 @@ Defined in: [src/lib/db/chat/types.ts:516](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:513](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L513)
+Defined in: [src/lib/db/chat/types.ts:548](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L548)
 
 **Parameters**
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/chat/types.ts:513](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](../../../react/Internal/interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:514](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L514)
+Defined in: [src/lib/db/chat/types.ts:549](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L549)
 
 **Returns**
 
@@ -225,7 +225,7 @@ Defined in: [src/lib/db/chat/types.ts:514](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](../../../react/Internal/interfaces/StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:517](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L517)
+Defined in: [src/lib/db/chat/types.ts:552](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L552)
 
 **Parameters**
 
@@ -266,7 +266,7 @@ Defined in: [src/lib/db/chat/types.ts:517](https://github.com/zeta-chain/ai-sdk/
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:506](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L506)
+Defined in: [src/lib/db/chat/types.ts:541](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L541)
 
 **Inherited from**
 
@@ -278,7 +278,7 @@ Defined in: [src/lib/db/chat/types.ts:506](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L125)
+Defined in: [src/expo/useChatStorage.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L126)
 
 Send a message and automatically store it (Expo version)
 
@@ -317,7 +317,7 @@ Send a message and automatically store it (Expo version)
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:509](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L509)
+Defined in: [src/lib/db/chat/types.ts:544](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L544)
 
 **Parameters**
 
@@ -358,7 +358,7 @@ Defined in: [src/lib/db/chat/types.ts:509](https://github.com/zeta-chain/ai-sdk/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:507](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L507)
+Defined in: [src/lib/db/chat/types.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L542)
 
 **Returns**
 
@@ -374,7 +374,7 @@ Defined in: [src/lib/db/chat/types.ts:507](https://github.com/zeta-chain/ai-sdk/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:515](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L515)
+Defined in: [src/lib/db/chat/types.ts:550](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L550)
 
 **Parameters**
 

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:507](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L507)
+Defined in: [src/react/useChatStorage.ts:510](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L510)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -310,6 +310,30 @@ File preprocessors to use for automatic text extraction.
 <td>
 
 Function to retrieve the auth token for API requests
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.minContentLength?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+<td>
+
+Minimum content length required to generate embeddings.
+Messages shorter than this are skipped as they provide limited semantic value.
+
+**Default**
+
+```ts
+10
+```
 
 </td>
 </tr>
