@@ -16,6 +16,7 @@ import {
   type BaseUseChatStorageResult,
   type FileMetadata,
   type SearchSource,
+  type ActivityPhase,
   convertUsageToStored,
   finalizeThoughtProcess,
   extractUserMessageFromMessages,
@@ -1236,6 +1237,10 @@ export function useChatStorage(
         conversationId: explicitConversationId,
       } = args;
 
+      // Helper to resolve thought process from callback or static value
+      const resolveThoughtProcess = (): ActivityPhase[] | undefined =>
+        finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess);
+
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
         const effectiveApiType = requestApiType ?? apiType ?? "responses";
@@ -1722,7 +1727,7 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
-              thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
+              thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
             });
 
@@ -1778,7 +1783,7 @@ export function useChatStorage(
             content: "",
             model: model || "",
             responseDuration,
-            thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
+            thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
           });
         } catch {
@@ -1871,7 +1876,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: extractedSources,
-          thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
+          thoughtProcess: resolveThoughtProcess(),
           thinking: thinkingContent,
         });
 
