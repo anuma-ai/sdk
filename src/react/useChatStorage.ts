@@ -779,10 +779,10 @@ export function useChatStorage(
   ]);
 
   /**
-   * Extracts sources from assistant message content and returns them as SearchSource objects.
-   * First extracts sources from tool_call_events (search tool results),
-   * then attempts to parse a JSON sources block (```json { "sources": [...] }```),
    * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
+   *
+   * Note: Currently only handles BraveSearchMCP tool calls. Other search tools
+   * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
    */
   const extractSourcesFromToolCallEvents = useCallback(
     (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
@@ -790,18 +790,18 @@ export function useChatStorage(
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
 
-        // Extract sources from tool_call_events (search tool results)
-        // This is the primary source of truth for web search results
         if (toolCallEvents) {
           for (const toolCallEvent of toolCallEvents) {
-            // Match search-related MCP tools (e.g., BraveSearchMCP_brave_web_search)
+            // Currently only BraveSearchMCP returns structured source data
+            // Other search tools (PerplexityMCP, etc.) may need similar handling
             if (toolCallEvent.name?.includes("BraveSearchMCP")) {
               try {
                 // The output is a concatenated JSON string of search results
                 // Parse each result object from the output
                 const outputStr = toolCallEvent.output || "";
 
-                // Match each JSON object in the output (they're concatenated without separators)
+                // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
+                // If search results contain nested objects, this regex will fail silently
                 const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
                 let match: RegExpExecArray | null;
 
