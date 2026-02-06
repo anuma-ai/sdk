@@ -782,10 +782,9 @@ export function useChatStorage(
    * Extracts sources from assistant message content and returns them as SearchSource objects.
    * First extracts sources from tool_call_events (search tool results),
    * then attempts to parse a JSON sources block (```json { "sources": [...] }```),
-   * then falls back to parsing markdown links [text](url) and plain URLs.
-   * Merges extracted sources with any existing sources already attached to the message.
+   * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
    */
-  const extractSourcesFromAssistantMessage = useCallback(
+  const extractSourcesFromToolCallEvents = useCallback(
     (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
@@ -1836,7 +1835,7 @@ export function useChatStorage(
 
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const extractedSources = extractSourcesFromAssistantMessage(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
+      const extractedSources = extractSourcesFromToolCallEvents(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
