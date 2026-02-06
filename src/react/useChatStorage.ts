@@ -2045,8 +2045,9 @@ export function useChatStorage(
             // Non-fatal
           });
         }
-      } else if (!isServerToolsFunction) {
-        // No function-based filtering - use async embedding as usual
+      } else {
+        // No embedding to reuse - use async embedding
+        // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
         embedMessageAsync(storedUserMessage);
       }
 
