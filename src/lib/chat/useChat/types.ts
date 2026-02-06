@@ -200,6 +200,7 @@ export type BaseUseChatOptions = {
     status: "started" | "completed";
     arguments?: string;
   }) => void;
+  /**
    * Controls adaptive output smoothing for streaming responses.
    * Fast models can return text faster than is comfortable to read — smoothing
    * buffers incoming chunks and releases them at a consistent, adaptive pace.
