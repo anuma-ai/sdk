@@ -110,7 +110,16 @@ export {
   sdkSchema,
   sdkMigrations,
   sdkModelClasses,
+  SDK_SCHEMA_VERSION,
 } from "../lib/db/schema";
+
+// Database manager for per-wallet isolation
+export { DatabaseManager } from "../lib/db/manager";
+export type {
+  PlatformStorage,
+  DatabaseManagerOptions,
+  DatabaseManagerLogger,
+} from "../lib/db/manager";
 
 // Re-export chat storage schema and types for database setup
 export {
