@@ -458,6 +458,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    onServerToolCall,
     apiType,
     walletAddress,
     fileProcessors,
@@ -582,6 +583,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    onServerToolCall,
     apiType,
   });
 
@@ -1217,6 +1219,7 @@ export function useChatStorage(
         searchContext,
         sources,
         thoughtProcess,
+        getThoughtProcess,
         // Responses API options
         temperature,
         maxOutputTokens,
@@ -1609,7 +1612,7 @@ export function useChatStorage(
               responseDuration,
               wasStopped: true,
               sources,
-              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
               thinking: abortedThinkingContent,
             });
 
@@ -1666,7 +1669,7 @@ export function useChatStorage(
             model: model || "",
             responseDuration,
             sources,
-            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+            thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
             error: errorMessage,
           });
         } catch {
@@ -1758,7 +1761,7 @@ export function useChatStorage(
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
           sources: extractedSources,
-          thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+          thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
           thinking: thinkingContent,
         });
 

@@ -251,6 +251,13 @@ export class ResponsesStrategy implements ApiStrategy {
           if (accumulator.implicitReasoningStart === true) {
             accumulator.insideReasoning = true;
           }
+
+          // Emit server tool call started event for activity indicators
+          result.serverToolCall = {
+            name: typedChunk.item.name,
+            status: "started",
+            arguments: typedChunk.item.arguments,
+          };
         }
       }
     }

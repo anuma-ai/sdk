@@ -495,6 +495,18 @@ export function createStreamAccumulator(
 }
 
 /**
+ * Server tool call event emitted during streaming
+ */
+export type ServerToolCallEvent = {
+  /** Tool name (e.g., "BraveSearchMCP_brave_web_search") */
+  name: string;
+  /** Status: "started" when tool begins, "completed" when done */
+  status: "started" | "completed";
+  /** Arguments passed to the tool (JSON string) */
+  arguments?: string;
+};
+
+/**
  * Result from processing a streaming chunk
  */
 export type ProcessChunkResult = {
@@ -502,6 +514,8 @@ export type ProcessChunkResult = {
   content: string | null;
   /** Thinking delta (reasoning/thinking content) */
   thinking: string | null;
+  /** Server tool call event (for activity indicators) */
+  serverToolCall?: ServerToolCallEvent;
 };
 
 /**
@@ -637,6 +651,13 @@ export function processStreamingChunk(
           arguments: chunk.item.arguments || "",
           status: "pending",
         });
+
+        // Emit server tool call started event
+        result.serverToolCall = {
+          name: chunk.item.name,
+          status: "started",
+          arguments: chunk.item.arguments,
+        };
       }
     }
   }

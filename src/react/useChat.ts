@@ -152,6 +152,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     onToolCall,
+    onServerToolCall,
     apiType: defaultApiType = "responses",
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
@@ -346,7 +347,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const { content: contentDelta, thinking: thinkingDelta } =
+              const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                 strategy.processStreamChunk(chunk, accumulator);
               if (contentDelta) {
                 if (onData) onData(contentDelta);
@@ -355,6 +356,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               if (thinkingDelta) {
                 if (onThinking) onThinking(thinkingDelta);
                 if (globalOnThinking) globalOnThinking(thinkingDelta);
+              }
+              if (serverToolCall && onServerToolCall) {
+                onServerToolCall(serverToolCall);
               }
             }
           }
@@ -596,7 +600,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 }
 
                 if (chunk && typeof chunk === "object") {
-                  const { content: contentDelta, thinking: thinkingDelta } =
+                  const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                     strategy.processStreamChunk(chunk, continuationAccumulator);
                   if (contentDelta) {
                     if (onData) onData(contentDelta);
@@ -605,6 +609,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   if (thinkingDelta) {
                     if (onThinking) onThinking(thinkingDelta);
                     if (globalOnThinking) globalOnThinking(thinkingDelta);
+                  }
+                  if (serverToolCall && onServerToolCall) {
+                    onServerToolCall(serverToolCall);
                   }
                 }
               }
@@ -702,6 +709,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onFinish,
       onError,
       onToolCall,
+      onServerToolCall,
       defaultApiType,
     ]
   );

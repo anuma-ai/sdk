@@ -185,6 +185,20 @@ export type BaseUseChatOptions = {
    * @param toolCall - The tool call requested by the LLM
    */
   onToolCall?: (toolCall: LlmapiToolCall) => void;
+  /**
+   * Callback function to be called when a server-side tool (MCP) is invoked during streaming.
+   * Use this to show activity indicators like "Searching..." in the UI.
+   *
+   * @param toolCall - Info about the server tool being called
+   * @param toolCall.name - The tool name (e.g., "BraveSearchMCP_brave_web_search")
+   * @param toolCall.status - "started" when tool begins, "completed" when done
+   * @param toolCall.arguments - The arguments passed to the tool (JSON string)
+   */
+  onServerToolCall?: (toolCall: {
+    name: string;
+    status: "started" | "completed";
+    arguments?: string;
+  }) => void;
 };
 
 /**
