@@ -161,6 +161,24 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### DatabaseManager
+
+Re-exports [DatabaseManager](../react/Internal/classes/DatabaseManager.md)
+
+***
+
+### DatabaseManagerLogger
+
+Re-exports [DatabaseManagerLogger](../react/Internal/interfaces/DatabaseManagerLogger.md)
+
+***
+
+### DatabaseManagerOptions
+
+Re-exports [DatabaseManagerOptions](../react/Internal/interfaces/DatabaseManagerOptions.md)
+
+***
+
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
@@ -260,6 +278,18 @@ Re-exports [memoryStorageSchema](../react/Internal/variables/memoryStorageSchema
 ### MemoryType
 
 Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
+
+***
+
+### PlatformStorage
+
+Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### SDK\_SCHEMA\_VERSION
+
+Re-exports [SDK\_SCHEMA\_VERSION](../react/Internal/variables/SDK_SCHEMA_VERSION.md)
 
 ***
 
