@@ -24,6 +24,7 @@ import {
   createToolExecutorMap,
   executeToolCall,
   getStrategy,
+  StreamSmoother,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -154,6 +155,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onToolCall,
     onServerToolCall,
     apiType: defaultApiType = "responses",
+    smoothing,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -338,6 +340,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Initialize accumulator with model name from request for early Qwen detection
         const accumulator = createStreamAccumulator(model || undefined);
 
+        // Create smoothers for adaptive output pacing
+        const contentSmoother = new StreamSmoother((text) => {
+          if (onData) onData(text);
+          if (globalOnData) globalOnData(text);
+        }, smoothing);
+        const thinkingSmoother = new StreamSmoother((text) => {
+          if (onThinking) onThinking(text);
+          if (globalOnThinking) globalOnThinking(text);
+        }, smoothing);
+
         try {
           for await (const chunk of sseResult.stream) {
             // Skip [DONE] marker
@@ -350,12 +362,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                 strategy.processStreamChunk(chunk, accumulator);
               if (contentDelta) {
-                if (onData) onData(contentDelta);
-                if (globalOnData) globalOnData(contentDelta);
+                contentSmoother.push(contentDelta);
               }
               if (thinkingDelta) {
-                if (onThinking) onThinking(thinkingDelta);
-                if (globalOnThinking) globalOnThinking(thinkingDelta);
+                thinkingSmoother.push(thinkingDelta);
               }
               if (serverToolCall && onServerToolCall) {
                 onServerToolCall(serverToolCall);
@@ -365,6 +375,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         } catch (streamErr) {
           // Check if this was an abort during streaming
           if (isAbortError(streamErr) || abortController.signal.aborted) {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             // Return partial data so far
             const partialResponse = strategy.buildFinalResponse(accumulator);
             return {
@@ -373,11 +385,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               toolsChecksum: accumulator.toolsChecksum,
             };
           }
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
           throw streamErr;
         }
 
         // Check if abort happened during streaming but loop completed before throw
         if (abortController.signal.aborted) {
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
           const partialResponse = strategy.buildFinalResponse(accumulator);
           return {
             data: partialResponse,
@@ -388,8 +404,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         // Check if SSE encountered an error
         if (sseError) {
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
           throw sseError;
         }
+
+        // Flush any remaining buffered content before building final response
+        contentSmoother.flush();
+        thinkingSmoother.flush();
 
         // Build the final response
         const response = strategy.buildFinalResponse(accumulator);
@@ -593,6 +615,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             // Create a new accumulator for the continuation
             const continuationAccumulator = createStreamAccumulator(model || undefined);
 
+            // Create fresh smoothers for the continuation stream
+            const contContentSmoother = new StreamSmoother((text) => {
+              if (onData) onData(text);
+              if (globalOnData) globalOnData(text);
+            }, smoothing);
+            const contThinkingSmoother = new StreamSmoother((text) => {
+              if (onThinking) onThinking(text);
+              if (globalOnThinking) globalOnThinking(text);
+            }, smoothing);
+
             try {
               for await (const chunk of continuationResult.stream) {
                 if (isDoneMarker(chunk)) {
@@ -603,12 +635,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                     strategy.processStreamChunk(chunk, continuationAccumulator);
                   if (contentDelta) {
-                    if (onData) onData(contentDelta);
-                    if (globalOnData) globalOnData(contentDelta);
+                    contContentSmoother.push(contentDelta);
                   }
                   if (thinkingDelta) {
-                    if (onThinking) onThinking(thinkingDelta);
-                    if (globalOnThinking) globalOnThinking(thinkingDelta);
+                    contThinkingSmoother.push(thinkingDelta);
                   }
                   if (serverToolCall && onServerToolCall) {
                     onServerToolCall(serverToolCall);
@@ -626,6 +656,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               );
             } catch (streamErr) {
               if (isAbortError(streamErr) || abortController.signal.aborted) {
+                contContentSmoother.destroy();
+                contThinkingSmoother.destroy();
                 const partialResponse = strategy.buildFinalResponse(
                   continuationAccumulator
                 );
@@ -635,10 +667,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   toolsChecksum: continuationAccumulator.toolsChecksum,
                 };
               }
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
               throw streamErr;
             }
 
             if (abortController.signal.aborted) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
               const partialResponse = strategy.buildFinalResponse(
                 continuationAccumulator
               );
@@ -650,8 +686,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (sseError) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
               throw sseError;
             }
+
+            // Flush any remaining buffered content
+            contContentSmoother.flush();
+            contThinkingSmoother.flush();
 
             // Build final response from continuation
             const finalResponse = strategy.buildFinalResponse(
@@ -711,6 +753,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onToolCall,
       onServerToolCall,
       defaultApiType,
+      smoothing,
     ]
   );
 

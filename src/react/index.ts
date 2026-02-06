@@ -107,7 +107,17 @@ export {
   sdkSchema,
   sdkMigrations,
   sdkModelClasses,
+  SDK_SCHEMA_VERSION,
 } from "../lib/db/schema";
+
+// Database manager for per-wallet isolation
+export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
+export type {
+  PlatformStorage,
+  DatabaseManagerOptions,
+  DatabaseManagerLogger,
+} from "../lib/db/manager";
+export { useDatabaseManager } from "./useDatabaseManager";
 
 // Individual schema exports (deprecated - use sdkSchema instead)
 export {
@@ -130,6 +140,8 @@ export {
   type StorageOperationsContext,
   type MessageChunk,
   type ChunkSearchResult,
+  type ServerToolsFilter,
+  type ServerToolsFilterFn,
   generateConversationId,
   updateConversationProjectOp,
   getConversationsByProjectOp,
@@ -323,6 +335,7 @@ export {
   getCachedServerTools,
   getToolsChecksum,
   shouldRefreshTools,
+  findMatchingTools,
   DEFAULT_CACHE_EXPIRATION_MS,
 } from "../lib/tools";
 export type {
@@ -331,6 +344,8 @@ export type {
   ServerToolsResponse,
   ParsedServerToolsResponse,
   ServerTool,
+  ToolMatchResult,
+  ToolMatchOptions,
 } from "../lib/tools";
 export { useTools } from "./useTools";
 export type { UseToolsOptions, UseToolsResult } from "./useTools";

@@ -30,7 +30,7 @@ import { UserPreference } from "./userPreferences/models";
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
  */
-const SDK_SCHEMA_VERSION = 12;
+export const SDK_SCHEMA_VERSION = 12;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.

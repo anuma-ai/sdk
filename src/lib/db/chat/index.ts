@@ -22,6 +22,8 @@ export {
   type ExtractedUserMessage,
   type MessageChunk,
   type ChunkSearchResult,
+  type ServerToolsFilter,
+  type ServerToolsFilterFn,
   convertUsageToStored,
   generateConversationId,
   finalizeThoughtProcess,

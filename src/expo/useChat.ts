@@ -25,6 +25,7 @@ import {
   createToolExecutorMap,
   executeToolCall,
   getStrategy,
+  StreamSmoother,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -76,9 +77,7 @@ function processSSELines(
   lines: string[],
   accumulator: StreamAccumulator,
   onData?: (chunk: string) => void,
-  globalOnData?: (chunk: string) => void,
   onThinking?: (chunk: string) => void,
-  globalOnThinking?: (chunk: string) => void,
   strategy?: ReturnType<typeof getStrategy>
 ): void {
   for (const line of lines) {
@@ -97,14 +96,12 @@ function processSSELines(
       accumulator
     );
 
-    if (contentDelta) {
-      if (onData) onData(contentDelta);
-      if (globalOnData) globalOnData(contentDelta);
+    if (contentDelta && onData) {
+      onData(contentDelta);
     }
 
-    if (thinkingDelta) {
-      if (onThinking) onThinking(thinkingDelta);
-      if (globalOnThinking) globalOnThinking(thinkingDelta);
+    if (thinkingDelta && onThinking) {
+      onThinking(thinkingDelta);
     }
   }
 }
@@ -156,6 +153,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     apiType: defaultApiType = "responses",
+    smoothing,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -279,8 +277,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Buffer for incomplete lines that span across XHR progress events
           let incompleteLineBuffer = "";
 
+          // Create smoothers for adaptive output pacing
+          const contentSmoother = new StreamSmoother((text) => {
+            if (onData) onData(text);
+            if (globalOnData) globalOnData(text);
+          }, smoothing);
+          const thinkingSmoother = new StreamSmoother((text) => {
+            if (onThinking) onThinking(text);
+            if (globalOnThinking) globalOnThinking(text);
+          }, smoothing);
+
+          // Smoother-wrapped callbacks for processSSELines
+          const smoothedOnData = (chunk: string) => contentSmoother.push(chunk);
+          const smoothedOnThinking = (chunk: string) => thinkingSmoother.push(chunk);
+
           // Handle abort
           const abortHandler = () => {
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             xhr.abort();
           };
           abortController.signal.addEventListener("abort", abortHandler);
@@ -311,10 +325,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             processSSELines(
               lines,
               accumulator,
-              onData,
-              globalOnData,
-              onThinking,
-              globalOnThinking,
+              smoothedOnData,
+              smoothedOnThinking,
               strategy
             );
           };
@@ -327,16 +339,18 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               processSSELines(
                 [incompleteLineBuffer.trim()],
                 accumulator,
-                onData,
-                globalOnData,
-                onThinking,
-                globalOnThinking,
+                smoothedOnData,
+                smoothedOnThinking,
                 strategy
               );
               incompleteLineBuffer = "";
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
+              // Flush any remaining buffered content before building response
+              contentSmoother.flush();
+              thinkingSmoother.flush();
+
               const response = strategy.buildFinalResponse(accumulator);
 
               // Check for tool calls and handle them
@@ -475,7 +489,21 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           let contLastProcessedIndex = 0;
                           let contIncompleteLineBuffer = "";
 
+                          // Create fresh smoothers for continuation
+                          const contContentSmoother = new StreamSmoother((text) => {
+                            if (onData) onData(text);
+                            if (globalOnData) globalOnData(text);
+                          }, smoothing);
+                          const contThinkingSmoother = new StreamSmoother((text) => {
+                            if (onThinking) onThinking(text);
+                            if (globalOnThinking) globalOnThinking(text);
+                          }, smoothing);
+                          const contSmoothedOnData = (chunk: string) => contContentSmoother.push(chunk);
+                          const contSmoothedOnThinking = (chunk: string) => contThinkingSmoother.push(chunk);
+
                           const contAbortHandler = () => {
+                            contContentSmoother.destroy();
+                            contThinkingSmoother.destroy();
                             continuationXhr.abort();
                           };
                           abortController.signal.addEventListener(
@@ -517,10 +545,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                             processSSELines(
                               lines,
                               continuationAccumulator,
-                              onData,
-                              globalOnData,
-                              onThinking,
-                              globalOnThinking,
+                              contSmoothedOnData,
+                              contSmoothedOnThinking,
                               strategy
                             );
                           };
@@ -535,10 +561,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               processSSELines(
                                 [contIncompleteLineBuffer.trim()],
                                 continuationAccumulator,
-                                onData,
-                                globalOnData,
-                                onThinking,
-                                globalOnThinking,
+                                contSmoothedOnData,
+                                contSmoothedOnThinking,
                                 strategy
                               );
                             }
@@ -547,6 +571,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               continuationXhr.status >= 200 &&
                               continuationXhr.status < 300
                             ) {
+                              // Flush remaining buffered content
+                              contContentSmoother.flush();
+                              contThinkingSmoother.flush();
+
                               const finalResponse =
                                 strategy.buildFinalResponse(
                                   continuationAccumulator
@@ -556,6 +584,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                                 error: null,
                               });
                             } else {
+                              contContentSmoother.destroy();
+                              contThinkingSmoother.destroy();
                               const errorMsg = `Continuation request failed with status ${continuationXhr.status}`;
                               continueResolve({ data: null, error: errorMsg });
                             }
@@ -566,6 +596,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               "abort",
                               contAbortHandler
                             );
+                            contContentSmoother.destroy();
+                            contThinkingSmoother.destroy();
                             continueResolve({
                               data: null,
                               error: "Network error in continuation",
@@ -626,6 +658,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               if (onFinish) onFinish(response);
               resolve({ data: response, error: null });
             } else {
+              contentSmoother.destroy();
+              thinkingSmoother.destroy();
               const errorMsg = `Request failed with status ${xhr.status}`;
               setIsLoading(false);
               if (onError) onError(new Error(errorMsg));
@@ -635,6 +669,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.onerror = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             const errorMsg = "Network error";
             setIsLoading(false);
             if (onError) onError(new Error(errorMsg));
@@ -643,6 +679,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           xhr.onabort = () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+            contentSmoother.destroy();
+            thinkingSmoother.destroy();
             setIsLoading(false);
             resolve({ data: null, error: "Request aborted" });
           };
@@ -687,6 +725,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
+      smoothing,
     ]
   );
 

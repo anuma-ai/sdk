@@ -60,6 +60,7 @@ import {
   getServerTools,
   filterServerTools,
   mergeTools,
+  shouldRefreshTools,
   type ServerTool,
 } from "../lib/tools";
 import {
@@ -72,6 +73,9 @@ import {
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
+
+// Lower threshold for tool filtering - short prompts like "draw a cat" should work
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 
@@ -466,6 +470,7 @@ export function useChatStorage(
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -509,7 +514,7 @@ export function useChatStorage(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
       // Skip short messages that won't provide useful search context
-      if (message.content.length < DEFAULT_MIN_CONTENT_LENGTH) return;
+      if (message.content.length < minContentLength) return;
       try {
         const embeddingOptions = {
           getToken,
@@ -551,7 +556,7 @@ export function useChatStorage(
         console.warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
   );
 
   /**
@@ -1241,11 +1246,13 @@ export function useChatStorage(
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
         let filteredServerTools: ServerTool[] = [];
 
+        // Check if serverTools is a function (dynamic filtering)
+        const isServerToolsFunction = typeof serverToolsFilter === "function";
+
         if (
           getToken &&
           effectiveApiType === "responses" &&
-          serverToolsFilter !== undefined &&
-          (serverToolsFilter === undefined || serverToolsFilter.length > 0)
+          !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
           try {
             const allServerTools = await getServerTools({
@@ -1253,10 +1260,40 @@ export function useChatStorage(
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
             });
-            filteredServerTools = filterServerTools(
-              allServerTools,
-              serverToolsFilter
-            );
+
+            if (isServerToolsFunction) {
+              // Function-based filtering: generate embeddings and call the function
+              const extracted = extractUserMessageFromMessages(messages);
+              const messageContent = extracted?.content || "";
+
+              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+                const embeddingOptions = {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                };
+
+                let embeddings: number[] | number[][];
+                if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+                  const textChunks = chunkText(messageContent);
+                  const chunkTexts = textChunks.map((c) => c.text);
+                  embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
+                } else {
+                  embeddings = await generateEmbedding(messageContent, embeddingOptions);
+                }
+
+                const toolNames = serverToolsFilter(embeddings, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
+              }
+              // If message is too short for embeddings, don't include any server tools
+              // (user explicitly provided a filter function for semantic matching)
+            } else {
+              // Static filtering
+              filteredServerTools = filterServerTools(
+                allServerTools,
+                serverToolsFilter
+              );
+            }
           } catch {
             // Server tools are optional
           }
@@ -1292,6 +1329,13 @@ export function useChatStorage(
             data: null,
             error: result.error || "Unknown error",
           };
+        }
+
+        // Auto-refresh server tools cache if checksum changed
+        if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+            () => {}
+          );
         }
 
         return {
@@ -1494,9 +1538,6 @@ export function useChatStorage(
         };
       }
 
-      // Embed user message (non-blocking)
-      embedMessageAsync(storedUserMessage);
-
       // Update media records with the messageId now that we have it
       if (userFileIds.length > 0) {
         try {
@@ -1520,10 +1561,16 @@ export function useChatStorage(
       let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
       let filteredServerTools: ServerTool[] = [];
 
+      // Track embeddings generated for function-based tool filtering (to reuse for message storage)
+      let userMessageEmbeddings: number[] | number[][] | undefined;
+
+      // Check if serverTools is a function (dynamic filtering)
+      const isServerToolsFunction = typeof serverToolsFilter === "function";
+
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
         getToken &&
-        !(serverToolsFilter && serverToolsFilter.length === 0)
+        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
           const allServerTools = await getServerTools({
@@ -1531,13 +1578,79 @@ export function useChatStorage(
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
           });
-          filteredServerTools = filterServerTools(
-            allServerTools,
-            serverToolsFilter
-          );
+
+          if (isServerToolsFunction) {
+            // Function-based filtering: generate embeddings and call the function
+            const embeddingOptions = {
+              getToken,
+              baseUrl,
+              model: embeddingModel,
+            };
+
+            // Generate embeddings based on message length (chunked or whole)
+            // Use lower threshold for tool filtering - short prompts like "draw a cat" should work
+            if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
+              const textChunks = chunkText(contentForStorage);
+              const chunkTexts = textChunks.map((c) => c.text);
+              userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
+            } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+              userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
+            }
+
+            // Call the filter function with embeddings and all tools
+            if (userMessageEmbeddings) {
+              const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
+              filteredServerTools = filterServerTools(allServerTools, toolNames);
+            }
+            // If message is too short for embeddings, don't include any tools
+            // (user explicitly provided a filter, so sending all tools defeats the purpose)
+          } else {
+            // Static filtering: use string array directly
+            filteredServerTools = filterServerTools(
+              allServerTools,
+              serverToolsFilter
+            );
+          }
         } catch {
           // Server tools are optional - continue without them
         }
+      }
+
+      // Embed user message: reuse embeddings if generated, otherwise async
+      if (userMessageEmbeddings && autoEmbedMessages) {
+        // Reuse embeddings from tool filtering
+        if (Array.isArray(userMessageEmbeddings[0])) {
+          // Chunked embeddings
+          const textChunks = chunkText(contentForStorage);
+          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+            text: chunk.text,
+            vector: (userMessageEmbeddings as number[][])[i],
+            startOffset: chunk.startOffset,
+            endOffset: chunk.endOffset,
+          }));
+          updateMessageChunksOp(
+            storageCtx,
+            storedUserMessage.uniqueId,
+            messageChunks,
+            embeddingModel
+          ).catch(() => {
+            // Non-fatal
+          });
+        } else {
+          // Single embedding
+          updateMessageEmbeddingOp(
+            storageCtx,
+            storedUserMessage.uniqueId,
+            userMessageEmbeddings as number[],
+            embeddingModel
+          ).catch(() => {
+            // Non-fatal
+          });
+        }
+      } else {
+        // No embedding to reuse - use async embedding
+        // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
+        embedMessageAsync(storedUserMessage);
       }
 
       // Merge and format tools (handles both server and client tools)
@@ -1801,6 +1914,13 @@ export function useChatStorage(
         } catch {
           // Non-fatal - continue without updating messageId
         }
+      }
+
+      // Auto-refresh server tools cache if checksum changed
+      if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+          () => {}
+        );
       }
 
       return {

@@ -7,6 +7,7 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
+import { cosineSimilarity } from "../db/memory/types";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -70,6 +71,8 @@ export interface ServerTool {
     properties: Record<string, unknown>;
     required: string[];
   };
+  /** Optional embedding vector for semantic matching */
+  embedding?: number[];
 }
 
 /**
@@ -157,12 +160,13 @@ export function convertServerToolsResponse(
 
   const tools = Object.values(toolsMap).map((tool) => {
     if (isNewToolFormat(tool)) {
-      // New format: extract from schema
+      // New format: extract from schema, preserve embedding
       return {
         type: "function" as const,
         name: tool.schema.name,
         description: tool.schema.description,
         parameters: tool.schema.parameters,
+        ...(tool.embedding && { embedding: tool.embedding }),
       };
     }
     // Current format: extract from top level
@@ -545,4 +549,104 @@ export function mergeTools(
 
   // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
+}
+
+/**
+ * Result of tool matching with similarity score
+ */
+export interface ToolMatchResult {
+  tool: ServerTool;
+  similarity: number;
+}
+
+/**
+ * Options for findMatchingTools
+ */
+export interface ToolMatchOptions {
+  /** Maximum number of tools to return (default: 10) */
+  limit?: number;
+  /** Minimum similarity threshold 0-1 (default: 0.3) */
+  minSimilarity?: number;
+}
+
+const DEFAULT_TOOL_MATCH_OPTIONS: Required<ToolMatchOptions> = {
+  limit: 10,
+  minSimilarity: 0.3,
+};
+
+/**
+ * Find tools that semantically match prompt embedding(s).
+ *
+ * Accepts either a single embedding or an array of embeddings (e.g., from chunked messages).
+ * When multiple embeddings are provided, uses max similarity across all chunks for each tool.
+ *
+ * @param promptEmbeddings - Single embedding vector or array of embeddings (for chunked messages)
+ * @param tools - Array of server tools (with embeddings) to search through
+ * @param options - Optional matching configuration
+ * @returns Array of matching tools with similarity scores, sorted by relevance
+ *
+ * @example
+ * ```ts
+ * // Single embedding
+ * const matches = findMatchingTools(embedding, tools, { limit: 5 });
+ *
+ * // Multiple embeddings (chunked message) - uses max similarity
+ * const matches = findMatchingTools(chunkEmbeddings, tools, { limit: 5 });
+ * ```
+ */
+export function findMatchingTools(
+  promptEmbeddings: number[] | number[][],
+  tools: ServerTool[],
+  options?: ToolMatchOptions
+): ToolMatchResult[] {
+  const { limit, minSimilarity } = {
+    ...DEFAULT_TOOL_MATCH_OPTIONS,
+    ...options,
+  };
+
+  // Early return for invalid inputs
+  if (!promptEmbeddings || promptEmbeddings.length === 0) {
+    return [];
+  }
+
+  if (!tools || tools.length === 0) {
+    return [];
+  }
+
+  // Normalize to array of embeddings
+  const embeddings: number[][] = Array.isArray(promptEmbeddings[0])
+    ? (promptEmbeddings as number[][])
+    : [promptEmbeddings as number[]];
+
+  // Calculate similarity for each tool with a valid embedding
+  const results: ToolMatchResult[] = [];
+
+  for (const tool of tools) {
+    if (!tool.embedding || tool.embedding.length === 0) {
+      continue;
+    }
+
+    try {
+      // Max similarity across all chunk embeddings
+      let maxSimilarity = -Infinity;
+      for (const embedding of embeddings) {
+        const similarity = cosineSimilarity(embedding, tool.embedding);
+        if (similarity > maxSimilarity) {
+          maxSimilarity = similarity;
+        }
+      }
+
+      if (maxSimilarity >= minSimilarity) {
+        results.push({ tool, similarity: maxSimilarity });
+      }
+    } catch {
+      // Skip tools with dimension mismatch
+      continue;
+    }
+  }
+
+  // Sort by similarity descending and limit results
+  return results
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
 }
