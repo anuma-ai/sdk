@@ -77,9 +77,7 @@ function processSSELines(
   lines: string[],
   accumulator: StreamAccumulator,
   onData?: (chunk: string) => void,
-  globalOnData?: (chunk: string) => void,
   onThinking?: (chunk: string) => void,
-  globalOnThinking?: (chunk: string) => void,
   strategy?: ReturnType<typeof getStrategy>
 ): void {
   for (const line of lines) {
@@ -98,14 +96,12 @@ function processSSELines(
       accumulator
     );
 
-    if (contentDelta) {
-      if (onData) onData(contentDelta);
-      if (globalOnData) globalOnData(contentDelta);
+    if (contentDelta && onData) {
+      onData(contentDelta);
     }
 
-    if (thinkingDelta) {
-      if (onThinking) onThinking(thinkingDelta);
-      if (globalOnThinking) globalOnThinking(thinkingDelta);
+    if (thinkingDelta && onThinking) {
+      onThinking(thinkingDelta);
     }
   }
 }
@@ -330,9 +326,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               lines,
               accumulator,
               smoothedOnData,
-              undefined,
               smoothedOnThinking,
-              undefined,
               strategy
             );
           };
@@ -346,9 +340,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 [incompleteLineBuffer.trim()],
                 accumulator,
                 smoothedOnData,
-                undefined,
                 smoothedOnThinking,
-                undefined,
                 strategy
               );
               incompleteLineBuffer = "";
@@ -554,9 +546,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               lines,
                               continuationAccumulator,
                               contSmoothedOnData,
-                              undefined,
                               contSmoothedOnThinking,
-                              undefined,
                               strategy
                             );
                           };
@@ -572,9 +562,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                                 [contIncompleteLineBuffer.trim()],
                                 continuationAccumulator,
                                 contSmoothedOnData,
-                                undefined,
                                 contSmoothedOnThinking,
-                                undefined,
                                 strategy
                               );
                             }
