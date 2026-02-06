@@ -41,6 +41,7 @@ import {
   generateEmbedding,
   createMemoryRetrievalTool as createMemoryRetrievalToolBase,
   type MemoryRetrievalSearchOptions,
+  DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
@@ -208,6 +209,7 @@ export function useChatStorage(
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -241,6 +243,8 @@ export function useChatStorage(
   const embedMessageAsync = useCallback(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
+      // Skip short messages that won't provide useful search context
+      if (message.content.length < minContentLength) return;
       try {
         const embedding = await generateEmbedding(message.content, {
           getToken,
@@ -258,7 +262,7 @@ export function useChatStorage(
         console.warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
   );
 
   /**
@@ -565,11 +569,13 @@ export function useChatStorage(
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
         let filteredServerTools: ServerTool[] = [];
 
+        // Check if serverTools is a function (dynamic filtering)
+        const isServerToolsFunction = typeof serverToolsFilter === "function";
+
         if (
           getToken &&
           effectiveApiType === "responses" &&
-          serverToolsFilter !== undefined &&
-          (serverToolsFilter === undefined || serverToolsFilter.length > 0)
+          !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
           try {
             const allServerTools = await getServerTools({
@@ -577,10 +583,31 @@ export function useChatStorage(
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
             });
-            filteredServerTools = filterServerTools(
-              allServerTools,
-              serverToolsFilter
-            );
+
+            if (isServerToolsFunction) {
+              // Function-based filtering: generate embedding and call the function
+              const extracted = extractUserMessageFromMessages(messages);
+              const messageContent = extracted?.content || "";
+
+              if (messageContent.length >= minContentLength) {
+                const embedding = await generateEmbedding(messageContent, {
+                  getToken,
+                  baseUrl,
+                  model: embeddingModel,
+                });
+                const toolNames = serverToolsFilter(embedding, allServerTools);
+                filteredServerTools = filterServerTools(allServerTools, toolNames);
+              } else {
+                // Message too short - use all tools
+                filteredServerTools = allServerTools;
+              }
+            } else {
+              // Static filtering
+              filteredServerTools = filterServerTools(
+                allServerTools,
+                serverToolsFilter
+              );
+            }
           } catch {
             // Server tools are optional
           }
@@ -688,8 +715,6 @@ export function useChatStorage(
           files: sanitizedFiles,
           model,
         });
-        // Embed user message asynchronously (non-blocking)
-        embedMessageAsync(storedUserMessage);
       } catch (err) {
         return {
           data: null,
@@ -706,10 +731,17 @@ export function useChatStorage(
 
       // Fetch and merge server-side tools with client tools
       let mergedTools = clientTools;
+
+      // Track embeddings for function-based tool filtering (to reuse for message storage)
+      let userMessageEmbedding: number[] | undefined;
+
+      // Check if serverTools is a function (dynamic filtering)
+      const isServerToolsFunction = typeof serverToolsFilter === "function";
+
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
         getToken &&
-        !(serverToolsFilter && serverToolsFilter.length === 0)
+        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
           const allServerTools = await getServerTools({
@@ -717,10 +749,31 @@ export function useChatStorage(
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
           });
-          const filteredServerTools = filterServerTools(
-            allServerTools,
-            serverToolsFilter
-          );
+
+          let filteredServerTools: ServerTool[];
+
+          if (isServerToolsFunction) {
+            // Function-based filtering: generate embedding and call the function
+            if (contentForStorage.length >= minContentLength) {
+              userMessageEmbedding = await generateEmbedding(contentForStorage, {
+                getToken,
+                baseUrl,
+                model: embeddingModel,
+              });
+              const toolNames = serverToolsFilter(userMessageEmbedding, allServerTools);
+              filteredServerTools = filterServerTools(allServerTools, toolNames);
+            } else {
+              // Message too short - use all tools
+              filteredServerTools = allServerTools;
+            }
+          } else {
+            // Static filtering
+            filteredServerTools = filterServerTools(
+              allServerTools,
+              serverToolsFilter
+            );
+          }
+
           if (filteredServerTools.length > 0) {
             mergedTools = mergeTools(
               filteredServerTools,
@@ -736,6 +789,23 @@ export function useChatStorage(
             error
           );
         }
+      }
+
+      // Embed user message: reuse embedding if generated, otherwise async
+      if (userMessageEmbedding && autoEmbedMessages) {
+        // Reuse embedding from tool filtering
+        updateMessageEmbeddingOp(
+          storageCtx,
+          storedUserMessage.uniqueId,
+          userMessageEmbedding,
+          embeddingModel
+        ).catch(() => {
+          // Non-fatal
+        });
+      } else {
+        // No embedding to reuse - use async embedding
+        // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
+        embedMessageAsync(storedUserMessage);
       }
 
       // Send the message using the underlying useChat
@@ -961,7 +1031,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync, minContentLength]
   );
 
   return {
