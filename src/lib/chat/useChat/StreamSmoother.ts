@@ -15,21 +15,6 @@ export type StreamSmoothingConfig = {
   rampDuration?: number;
 };
 
-/**
- * Resolves a smoothing option (boolean | config | undefined) into a full config.
- */
-export function resolveSmoothingConfig(
-  option?: StreamSmoothingConfig | boolean
-): StreamSmoothingConfig {
-  if (option === false) {
-    return { enabled: false };
-  }
-  if (option === true || option === undefined) {
-    return { enabled: true };
-  }
-  return option;
-}
-
 /** Default tick interval in ms (~60fps) */
 const TICK_INTERVAL = 16;
 
@@ -67,13 +52,20 @@ export class StreamSmoother {
 
   constructor(
     callback: (text: string) => void,
-    config?: Partial<StreamSmoothingConfig>
+    config?: StreamSmoothingConfig | boolean
   ) {
     this.callback = callback;
-    this.enabled = config?.enabled !== false;
-    this.minSpeed = config?.minSpeed ?? 30;
-    this.maxSpeed = config?.maxSpeed ?? 200;
-    this.rampDuration = config?.rampDuration ?? 1500;
+    if (typeof config === "boolean" || config === undefined) {
+      this.enabled = config !== false;
+      this.minSpeed = 30;
+      this.maxSpeed = 200;
+      this.rampDuration = 1500;
+    } else {
+      this.enabled = config.enabled !== false;
+      this.minSpeed = config.minSpeed ?? 30;
+      this.maxSpeed = config.maxSpeed ?? 200;
+      this.rampDuration = config.rampDuration ?? 1500;
+    }
   }
 
   /**

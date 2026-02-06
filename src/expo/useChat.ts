@@ -26,7 +26,6 @@ import {
   executeToolCall,
   getStrategy,
   StreamSmoother,
-  resolveSmoothingConfig,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -160,7 +159,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "responses",
     smoothing,
   } = options || {};
-  const smoothingConfig = resolveSmoothingConfig(smoothing);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -287,11 +285,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           const contentSmoother = new StreamSmoother((text) => {
             if (onData) onData(text);
             if (globalOnData) globalOnData(text);
-          }, smoothingConfig);
+          }, smoothing);
           const thinkingSmoother = new StreamSmoother((text) => {
             if (onThinking) onThinking(text);
             if (globalOnThinking) globalOnThinking(text);
-          }, smoothingConfig);
+          }, smoothing);
 
           // Smoother-wrapped callbacks for processSSELines
           const smoothedOnData = (chunk: string) => contentSmoother.push(chunk);
@@ -356,11 +354,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               incompleteLineBuffer = "";
             }
 
-            // Flush any remaining buffered content before building response
-            contentSmoother.flush();
-            thinkingSmoother.flush();
-
             if (xhr.status >= 200 && xhr.status < 300) {
+              // Flush any remaining buffered content before building response
+              contentSmoother.flush();
+              thinkingSmoother.flush();
+
               const response = strategy.buildFinalResponse(accumulator);
 
               // Check for tool calls and handle them
@@ -503,11 +501,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           const contContentSmoother = new StreamSmoother((text) => {
                             if (onData) onData(text);
                             if (globalOnData) globalOnData(text);
-                          }, smoothingConfig);
+                          }, smoothing);
                           const contThinkingSmoother = new StreamSmoother((text) => {
                             if (onThinking) onThinking(text);
                             if (globalOnThinking) globalOnThinking(text);
-                          }, smoothingConfig);
+                          }, smoothing);
                           const contSmoothedOnData = (chunk: string) => contContentSmoother.push(chunk);
                           const contSmoothedOnThinking = (chunk: string) => contThinkingSmoother.push(chunk);
 
@@ -581,14 +579,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               );
                             }
 
-                            // Flush remaining buffered content
-                            contContentSmoother.flush();
-                            contThinkingSmoother.flush();
-
                             if (
                               continuationXhr.status >= 200 &&
                               continuationXhr.status < 300
                             ) {
+                              // Flush remaining buffered content
+                              contContentSmoother.flush();
+                              contThinkingSmoother.flush();
+
                               const finalResponse =
                                 strategy.buildFinalResponse(
                                   continuationAccumulator
@@ -598,6 +596,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                                 error: null,
                               });
                             } else {
+                              contContentSmoother.destroy();
+                              contThinkingSmoother.destroy();
                               const errorMsg = `Continuation request failed with status ${continuationXhr.status}`;
                               continueResolve({ data: null, error: errorMsg });
                             }
@@ -608,6 +608,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               "abort",
                               contAbortHandler
                             );
+                            contContentSmoother.destroy();
+                            contThinkingSmoother.destroy();
                             continueResolve({
                               data: null,
                               error: "Network error in continuation",
@@ -668,6 +670,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               if (onFinish) onFinish(response);
               resolve({ data: response, error: null });
             } else {
+              contentSmoother.destroy();
+              thinkingSmoother.destroy();
               const errorMsg = `Request failed with status ${xhr.status}`;
               setIsLoading(false);
               if (onError) onError(new Error(errorMsg));
@@ -733,7 +737,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
-      smoothingConfig,
     ]
   );
 

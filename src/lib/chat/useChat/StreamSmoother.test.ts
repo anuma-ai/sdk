@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { StreamSmoother, resolveSmoothingConfig } from "./StreamSmoother";
+import { StreamSmoother } from "./StreamSmoother";
 
 describe("StreamSmoother", () => {
   beforeEach(() => {
@@ -163,17 +163,6 @@ describe("StreamSmoother", () => {
       const earlyChunks: string[] = [];
       const lateChunks: string[] = [];
 
-      // Use wide ramp: 10 chars/sec → 1000 chars/sec over 2s
-      const smoother = new StreamSmoother(
-        (text) => {
-          // We'll categorize by checking the time
-        },
-        { enabled: true, minSpeed: 10, maxSpeed: 1000, rampDuration: 2000 }
-      );
-
-      // Actually, let's use a different approach: two separate smoothers
-      smoother.destroy();
-
       // Early smoother — measure output in first 100ms
       const earlySmoother = new StreamSmoother(
         (text) => earlyChunks.push(text),
@@ -243,34 +232,55 @@ describe("StreamSmoother", () => {
   });
 });
 
-describe("resolveSmoothingConfig", () => {
-  it("returns enabled with defaults for undefined", () => {
-    const config = resolveSmoothingConfig(undefined);
-    expect(config.enabled).toBe(true);
+describe("constructor config handling", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
   });
 
-  it("returns enabled with defaults for true", () => {
-    const config = resolveSmoothingConfig(true);
-    expect(config.enabled).toBe(true);
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it("returns disabled for false", () => {
-    const config = resolveSmoothingConfig(false);
-    expect(config.enabled).toBe(false);
+  it("enables smoothing by default (undefined)", () => {
+    const callback = vi.fn();
+    const smoother = new StreamSmoother(callback);
+
+    smoother.push("hello");
+    // Should not call immediately when enabled
+    expect(callback).not.toHaveBeenCalled();
+
+    smoother.destroy();
   });
 
-  it("passes through config object", () => {
-    const config = resolveSmoothingConfig({
-      enabled: true,
-      minSpeed: 50,
-      maxSpeed: 300,
-      rampDuration: 2000,
-    });
-    expect(config).toEqual({
-      enabled: true,
-      minSpeed: 50,
-      maxSpeed: 300,
-      rampDuration: 2000,
-    });
+  it("enables smoothing for true", () => {
+    const callback = vi.fn();
+    const smoother = new StreamSmoother(callback, true);
+
+    smoother.push("hello");
+    expect(callback).not.toHaveBeenCalled();
+
+    smoother.destroy();
+  });
+
+  it("disables smoothing for false", () => {
+    const callback = vi.fn();
+    const smoother = new StreamSmoother(callback, false);
+
+    smoother.push("hello");
+    expect(callback).toHaveBeenCalledWith("hello");
+  });
+
+  it("accepts config object", () => {
+    const received: string[] = [];
+    const smoother = new StreamSmoother(
+      (text) => received.push(text),
+      { enabled: true, minSpeed: 100, maxSpeed: 100, rampDuration: 0 }
+    );
+
+    smoother.push("a".repeat(100));
+    vi.advanceTimersByTime(2000);
+    expect(received.join("").length).toBe(100);
+
+    smoother.destroy();
   });
 });

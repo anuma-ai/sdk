@@ -25,7 +25,6 @@ import {
   executeToolCall,
   getStrategy,
   StreamSmoother,
-  resolveSmoothingConfig,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -157,7 +156,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     apiType: defaultApiType = "responses",
     smoothing,
   } = options || {};
-  const smoothingConfig = resolveSmoothingConfig(smoothing);
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -345,11 +343,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         const contentSmoother = new StreamSmoother((text) => {
           if (onData) onData(text);
           if (globalOnData) globalOnData(text);
-        }, smoothingConfig);
+        }, smoothing);
         const thinkingSmoother = new StreamSmoother((text) => {
           if (onThinking) onThinking(text);
           if (globalOnThinking) globalOnThinking(text);
-        }, smoothingConfig);
+        }, smoothing);
 
         try {
           for await (const chunk of sseResult.stream) {
@@ -383,6 +381,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               toolsChecksum: accumulator.toolsChecksum,
             };
           }
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
           throw streamErr;
         }
 
@@ -615,11 +615,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             const contContentSmoother = new StreamSmoother((text) => {
               if (onData) onData(text);
               if (globalOnData) globalOnData(text);
-            }, smoothingConfig);
+            }, smoothing);
             const contThinkingSmoother = new StreamSmoother((text) => {
               if (onThinking) onThinking(text);
               if (globalOnThinking) globalOnThinking(text);
-            }, smoothingConfig);
+            }, smoothing);
 
             try {
               for await (const chunk of continuationResult.stream) {
@@ -743,7 +743,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
-      smoothingConfig,
     ]
   );
 
