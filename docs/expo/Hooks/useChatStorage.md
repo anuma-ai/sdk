@@ -390,6 +390,24 @@ Callback invoked when the response completes successfully
 <tr>
 <td>
 
+`options.onServerToolCall?`
+
+</td>
+<td>
+
+(`toolCall`: `ServerToolCallEvent`) => `void`
+
+</td>
+<td>
+
+Callback invoked when a server-side tool (MCP) is called during streaming.
+Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onThinking?`
 
 </td>

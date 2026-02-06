@@ -10,6 +10,7 @@ import type {
 } from "../../../client";
 import type { StoredMemory } from "../memory/types";
 import type { ServerTool } from "../../tools";
+import type { ServerToolCallEvent } from "../../chat/useChat/utils";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -248,6 +249,11 @@ export interface BaseUseChatStorageOptions {
   /** Callback invoked when an error occurs during the request */
   onError?: (error: Error) => void;
   /**
+   * Callback invoked when a server-side tool (MCP) is called during streaming.
+   * Use this to show activity indicators like "Searching..." in the UI.
+   */
+  onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
+  /**
    * File preprocessors to use for automatic text extraction.
    * - undefined (default): Use all built-in processors (PDF, Excel, Word)
    * - null or []: Disable preprocessing
@@ -424,7 +430,7 @@ export interface BaseSendMessageWithStorageArgs {
 
   /**
    * Search sources to attach to the stored message for citation/reference.
-   * These are combined with any sources extracted from the assistant's response.
+   * Note: Sources are also automatically extracted from tool_call_events in the response.
    */
   sources?: SearchSource[];
 
@@ -432,8 +438,20 @@ export interface BaseSendMessageWithStorageArgs {
    * Activity phases for tracking the request lifecycle in the UI.
    * Each phase represents a step like "Searching", "Thinking", "Generating".
    * The final phase is automatically marked as completed when stored.
+   *
+   * Note: If you need activity phases that are added during streaming (e.g., server tool calls),
+   * use `getThoughtProcess` callback instead, which captures phases AFTER streaming completes.
    */
   thoughtProcess?: ActivityPhase[];
+
+  /**
+   * Callback to get activity phases AFTER streaming completes.
+   * Use this instead of `thoughtProcess` when phases are added dynamically during streaming
+   * (e.g., via server tool call events like "Searching...", "Generating image...").
+   *
+   * If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProcess` takes precedence.
+   */
+  getThoughtProcess?: () => ActivityPhase[];
 
   // Responses API options
 

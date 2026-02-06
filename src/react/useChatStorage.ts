@@ -16,6 +16,7 @@ import {
   type BaseUseChatStorageResult,
   type FileMetadata,
   type SearchSource,
+  type ActivityPhase,
   convertUsageToStored,
   finalizeThoughtProcess,
   extractUserMessageFromMessages,
@@ -462,6 +463,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    onServerToolCall,
     apiType,
     walletAddress,
     fileProcessors,
@@ -587,6 +589,7 @@ export function useChatStorage(
     onThinking,
     onFinish,
     onError,
+    onServerToolCall,
     apiType,
   });
 
@@ -777,114 +780,63 @@ export function useChatStorage(
   ]);
 
   /**
-   * Extracts sources from assistant message content and returns them as SearchSource objects.
-   * First attempts to parse a JSON sources block (```json { "sources": [...] }```),
-   * then falls back to parsing markdown links [text](url) and plain URLs.
-   * Merges extracted sources with any existing sources already attached to the message.
+   * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
+   *
+   * Note: Currently only handles BraveSearchMCP tool calls. Other search tools
+   * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
    */
-  const extractSourcesFromAssistantMessage = useCallback(
-    (assistantMessage: {
-      content: string;
-      sources?: SearchSource[];
-    }): SearchSource[] => {
+  const extractSourcesFromToolCallEvents = useCallback(
+    (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
 
-        // Add existing sources first (they have priority)
-        if (assistantMessage.sources) {
-          for (const source of assistantMessage.sources) {
-            if (source.url) {
-              seenUrls.add(source.url);
-            }
-            extractedSources.push(source);
-          }
-        }
+        if (toolCallEvents) {
+          for (const toolCallEvent of toolCallEvents) {
+            // Currently only BraveSearchMCP returns structured source data
+            // Other search tools (PerplexityMCP, etc.) may need similar handling
+            if (toolCallEvent.name?.includes("BraveSearchMCP")) {
+              try {
+                // The output is a concatenated JSON string of search results
+                // Parse each result object from the output
+                const outputStr = toolCallEvent.output || "";
 
-        const content = assistantMessage.content;
-        if (!content) {
-          return extractedSources;
-        }
+                // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
+                // If search results contain nested objects, this regex will fail silently
+                const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
+                let match: RegExpExecArray | null;
 
-        // Try to extract JSON sources blocks first (supports multiple blocks)
-        // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-        // Uses negative lookahead to avoid crossing triple-backtick boundaries
-        const jsonBlockRegex =
-          /```(?:json)?\s*(\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\})\s*```/g;
-        let jsonMatch: RegExpExecArray | null;
-        let foundJsonSources = false;
-
-        while ((jsonMatch = jsonBlockRegex.exec(content)) !== null) {
-          if (jsonMatch[1]) {
-            try {
-              const parsed = JSON.parse(jsonMatch[1]);
-              if (Array.isArray(parsed.sources)) {
-                foundJsonSources = true;
-                for (const source of parsed.sources) {
-                  if (source.url && !seenUrls.has(source.url)) {
-                    seenUrls.add(source.url);
-                    extractedSources.push({
-                      title: source.title || undefined,
-                      url: source.url,
-                      // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet:
-                        source.description || source.snippet || undefined,
-                    });
+                while ((match = jsonObjectRegex.exec(outputStr)) !== null) {
+                  try {
+                    const result = JSON.parse(match[0]);
+                    if (result.url && !seenUrls.has(result.url)) {
+                      seenUrls.add(result.url);
+                      // Strip HTML tags and decode entities from description
+                      const rawDescription = result.description || "";
+                      const cleanDescription = rawDescription
+                        .replace(/<[^>]*>/g, "") // Remove HTML tags
+                        .replace(/&amp;/g, "&")
+                        .replace(/&lt;/g, "<")
+                        .replace(/&gt;/g, ">")
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#x27;/g, "'")
+                        .replace(/&#39;/g, "'")
+                        .replace(/&apos;/g, "'")
+                        .replace(/&nbsp;/g, " ")
+                        .trim();
+                      extractedSources.push({
+                        title: result.title || undefined,
+                        url: result.url,
+                        snippet: cleanDescription || undefined,
+                      });
+                    }
+                  } catch {
+                    // Ignore individual JSON parse errors
                   }
                 }
+              } catch {
+                // Ignore tool call event parse errors
               }
-            } catch {
-              // JSON parsing failed for this block, continue to next
-            }
-          }
-        }
-
-        // If we found any JSON sources, return them without parsing markdown links
-        if (foundJsonSources) {
-          return extractedSources;
-        }
-
-        // Fallback: Extract markdown links and plain URLs
-        // Regex to match markdown links: [title](url) with support for balanced parentheses
-        const markdownLinkRegex =
-          /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
-
-        // Regex to match plain URLs (http, https)
-        const plainUrlRegex =
-          /(?<![(\[])https?:\/\/[^\s<>\[\]()'"]+(?<![.,;:!?])/g;
-
-        // Extract markdown links
-        let match: RegExpExecArray | null;
-        while ((match = markdownLinkRegex.exec(content)) !== null) {
-          const title = match[1].trim();
-          const url = match[2].trim();
-
-          if (url && !seenUrls.has(url)) {
-            seenUrls.add(url);
-            extractedSources.push({
-              title: title || undefined,
-              url: url,
-            });
-          }
-        }
-
-        // Extract plain URLs (not already captured in markdown links)
-        while ((match = plainUrlRegex.exec(content)) !== null) {
-          const url = match[0].trim();
-
-          if (url && !seenUrls.has(url)) {
-            seenUrls.add(url);
-            // Try to extract a title from the URL domain
-            try {
-              const urlObj = new URL(url);
-              extractedSources.push({
-                title: urlObj.hostname,
-                url: url,
-              });
-            } catch {
-              extractedSources.push({
-                url: url,
-              });
             }
           }
         }
@@ -1270,8 +1222,8 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
-        sources,
         thoughtProcess,
+        getThoughtProcess,
         // Responses API options
         temperature,
         maxOutputTokens,
@@ -1284,6 +1236,10 @@ export function useChatStorage(
         apiType: requestApiType,
         conversationId: explicitConversationId,
       } = args;
+
+      // Helper to resolve thought process from callback or static value
+      const resolveThoughtProcess = (): ActivityPhase[] | undefined =>
+        finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess);
 
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
@@ -1771,8 +1727,7 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
-              sources,
-              thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+              thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
             });
 
@@ -1828,8 +1783,7 @@ export function useChatStorage(
             content: "",
             model: model || "",
             responseDuration,
-            sources,
-            thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+            thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
           });
         } catch {
@@ -1884,22 +1838,12 @@ export function useChatStorage(
         }
       }
 
-      // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const combinedSources = extractSourcesFromAssistantMessage({
-        content: assistantContent,
-        sources,
-      }).filter((source) => !source.url?.includes(MCP_R2_DOMAIN));
+      const extractedSources = extractSourcesFromToolCallEvents(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
 
-      // Strip JSON sources block from content (if present)
-      // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-      const jsonSourcesBlockRegex =
-        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent
-        .replace(jsonSourcesBlockRegex, "")
-        .trim();
       // Clean up extra newlines left after stripping
-      cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
+      let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
 
       // Extract and store MCP images using encrypted OPFS with media records (requires walletAddress)
       let assistantFileIds: string[] = [];
@@ -1931,8 +1875,8 @@ export function useChatStorage(
           fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
           usage: convertUsageToStored(responseData.usage),
           responseDuration,
-          sources: combinedSources,
-          thoughtProcess: finalizeThoughtProcess(thoughtProcess),
+          sources: extractedSources,
+          thoughtProcess: resolveThoughtProcess(),
           thinking: thinkingContent,
         });
 

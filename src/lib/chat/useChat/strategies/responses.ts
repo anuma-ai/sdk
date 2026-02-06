@@ -91,10 +91,14 @@ export class ResponsesStrategy implements ApiStrategy {
         }));
       }
 
-      // Mark all pending tool calls as completed
+      // Mark all pending tool calls as completed and emit completion event
       for (const toolCall of accumulator.toolCalls.values()) {
         if (toolCall.status === "pending") {
           toolCall.status = "completed";
+          result.serverToolCall = {
+            name: toolCall.name,
+            status: "completed",
+          };
         }
       }
 
@@ -251,6 +255,13 @@ export class ResponsesStrategy implements ApiStrategy {
           if (accumulator.implicitReasoningStart === true) {
             accumulator.insideReasoning = true;
           }
+
+          // Emit server tool call started event for activity indicators
+          result.serverToolCall = {
+            name: typedChunk.item.name,
+            status: "started",
+            arguments: typedChunk.item.arguments,
+          };
         }
       }
     }

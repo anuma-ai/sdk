@@ -153,6 +153,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     onToolCall,
+    onServerToolCall,
     apiType: defaultApiType = "responses",
     smoothing,
   } = options || {};
@@ -358,13 +359,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const { content: contentDelta, thinking: thinkingDelta } =
+              const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                 strategy.processStreamChunk(chunk, accumulator);
               if (contentDelta) {
                 contentSmoother.push(contentDelta);
               }
               if (thinkingDelta) {
                 thinkingSmoother.push(thinkingDelta);
+              }
+              if (serverToolCall && onServerToolCall) {
+                onServerToolCall(serverToolCall);
               }
             }
           }
@@ -628,13 +632,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 }
 
                 if (chunk && typeof chunk === "object") {
-                  const { content: contentDelta, thinking: thinkingDelta } =
+                  const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
                     strategy.processStreamChunk(chunk, continuationAccumulator);
                   if (contentDelta) {
                     contContentSmoother.push(contentDelta);
                   }
                   if (thinkingDelta) {
                     contThinkingSmoother.push(thinkingDelta);
+                  }
+                  if (serverToolCall && onServerToolCall) {
+                    onServerToolCall(serverToolCall);
                   }
                 }
               }
@@ -744,6 +751,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onFinish,
       onError,
       onToolCall,
+      onServerToolCall,
       defaultApiType,
       smoothing,
     ]

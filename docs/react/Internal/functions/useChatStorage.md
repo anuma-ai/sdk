@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:451](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L451)
+Defined in: [src/react/useChatStorage.ts:452](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L452)
 
 ## Parameters
 
@@ -379,6 +379,24 @@ Callback invoked when an error occurs during the request
 <td>
 
 Callback invoked when the response completes successfully
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onServerToolCall?`
+
+</td>
+<td>
+
+(`toolCall`: `ServerToolCallEvent`) => `void`
+
+</td>
+<td>
+
+Callback invoked when a server-side tool (MCP) is called during streaming.
+Use this to show activity indicators like "Searching..." in the UI.
 
 </td>
 </tr>
