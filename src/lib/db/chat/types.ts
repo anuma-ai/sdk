@@ -286,6 +286,12 @@ export interface BaseUseChatStorageOptions {
    * @default DEFAULT_API_EMBEDDING_MODEL
    */
   embeddingModel?: string;
+  /**
+   * Minimum content length required to generate embeddings.
+   * Messages shorter than this are skipped as they provide limited semantic value.
+   * @default 10
+   */
+  minContentLength?: number;
 }
 
 /**

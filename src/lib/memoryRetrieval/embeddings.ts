@@ -26,9 +26,9 @@ import {
 /**
  * Default minimum content length for embedding.
  * Messages shorter than this are typically too short to provide
- * meaningful semantic search results (e.g., "ok", "thanks", "more").
+ * meaningful semantic search results (e.g., "ok", "thanks").
  */
-export const DEFAULT_MIN_CONTENT_LENGTH = 30;
+export const DEFAULT_MIN_CONTENT_LENGTH = 10;
 
 /**
  * Generate an embedding for text using the API

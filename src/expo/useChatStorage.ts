@@ -209,6 +209,7 @@ export function useChatStorage(
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -242,6 +243,8 @@ export function useChatStorage(
   const embedMessageAsync = useCallback(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
+      // Skip short messages that won't provide useful search context
+      if (message.content.length < minContentLength) return;
       try {
         const embedding = await generateEmbedding(message.content, {
           getToken,
@@ -259,7 +262,7 @@ export function useChatStorage(
         console.warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
   );
 
   /**
@@ -586,7 +589,7 @@ export function useChatStorage(
               const extracted = extractUserMessageFromMessages(messages);
               const messageContent = extracted?.content || "";
 
-              if (messageContent.length >= DEFAULT_MIN_CONTENT_LENGTH) {
+              if (messageContent.length >= minContentLength) {
                 const embedding = await generateEmbedding(messageContent, {
                   getToken,
                   baseUrl,
@@ -751,7 +754,7 @@ export function useChatStorage(
 
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
-            if (contentForStorage.length >= DEFAULT_MIN_CONTENT_LENGTH) {
+            if (contentForStorage.length >= minContentLength) {
               userMessageEmbedding = await generateEmbedding(contentForStorage, {
                 getToken,
                 baseUrl,
@@ -1027,7 +1030,7 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync]
+    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync, minContentLength]
   );
 
   return {

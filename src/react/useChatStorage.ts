@@ -528,6 +528,7 @@ export function useChatStorage(
     serverTools: serverToolsConfig,
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
+    minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -571,7 +572,7 @@ export function useChatStorage(
     async (message: StoredMessage) => {
       if (!autoEmbedMessages || !getToken) return;
       // Skip short messages that won't provide useful search context
-      if (message.content.length < DEFAULT_MIN_CONTENT_LENGTH) return;
+      if (message.content.length < minContentLength) return;
       try {
         const embeddingOptions = {
           getToken,
@@ -613,7 +614,7 @@ export function useChatStorage(
         console.warn("[useChatStorage] Failed to embed message:", err);
       }
     },
-    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx]
+    [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
   );
 
   /**
