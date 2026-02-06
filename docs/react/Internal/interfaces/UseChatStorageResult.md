@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:302](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L302)
+Defined in: [src/react/useChatStorage.ts:303](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L303)
 
 Result returned by useChatStorage hook (React version)
 
@@ -69,7 +69,7 @@ Defined in: [src/lib/db/chat/types.ts:545](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:358](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L358)
+Defined in: [src/react/useChatStorage.ts:359](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L359)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -168,7 +168,7 @@ Defined in: [src/lib/db/chat/types.ts:551](https://github.com/zeta-chain/ai-sdk/
 
 > **getAllFiles**: (`options?`: `object`) => `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:338](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L338)
+Defined in: [src/react/useChatStorage.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L339)
 
 Get all files from all conversations, sorted by creation date (newest first).
 Returns files with conversation context for building file browser UIs.
@@ -342,7 +342,7 @@ Defined in: [src/lib/db/chat/types.ts:541](https://github.com/zeta-chain/ai-sdk/
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:331](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L331)
+Defined in: [src/react/useChatStorage.ts:332](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L332)
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.
