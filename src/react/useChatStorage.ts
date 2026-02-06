@@ -60,6 +60,7 @@ import {
   getServerTools,
   filterServerTools,
   mergeTools,
+  shouldRefreshTools,
   type ServerTool,
 } from "../lib/tools";
 import {
@@ -1377,6 +1378,13 @@ export function useChatStorage(
           };
         }
 
+        // Auto-refresh server tools cache if checksum changed
+        if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+            () => {}
+          );
+        }
+
         return {
           data: result.data,
           error: null,
@@ -1964,6 +1972,13 @@ export function useChatStorage(
         } catch {
           // Non-fatal - continue without updating messageId
         }
+      }
+
+      // Auto-refresh server tools cache if checksum changed
+      if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+          () => {}
+        );
       }
 
       return {
