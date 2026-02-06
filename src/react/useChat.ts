@@ -660,6 +660,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   toolsChecksum: continuationAccumulator.toolsChecksum,
                 };
               }
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
               throw streamErr;
             }
 
@@ -743,6 +745,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
+      smoothing,
     ]
   );
 

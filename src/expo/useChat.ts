@@ -725,6 +725,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       defaultApiType,
+      smoothing,
     ]
   );
 
