@@ -18,6 +18,12 @@ export type StreamSmoothingConfig = {
 /** Default tick interval in ms (~60fps) */
 const TICK_INTERVAL = 16;
 
+/** Buffer size (chars) before we start boosting speed */
+const BUFFER_THRESHOLD = 50;
+
+/** How quickly to drain excess buffer (ms) - lower = more aggressive */
+const EXCESS_DRAIN_TIME = 500;
+
 /**
  * Buffers incoming streaming text and releases it at an adaptive rate.
  *
@@ -149,12 +155,25 @@ export class StreamSmoother {
     }
   }
 
-  /** Calculate current output speed based on elapsed time */
+  /** Calculate current output speed based on elapsed time and buffer size */
   private getCurrentSpeed(elapsed: number): number {
+    // Base speed from time-based ramp
+    let speed: number;
     if (elapsed >= this.rampDuration) {
-      return this.maxSpeed;
+      speed = this.maxSpeed;
+    } else {
+      const progress = elapsed / this.rampDuration;
+      speed = this.minSpeed + (this.maxSpeed - this.minSpeed) * progress;
     }
-    const progress = elapsed / this.rampDuration;
-    return this.minSpeed + (this.maxSpeed - this.minSpeed) * progress;
+
+    // Boost speed if buffer is growing too large
+    if (this.buffer.length > BUFFER_THRESHOLD) {
+      const excess = this.buffer.length - BUFFER_THRESHOLD;
+      // Calculate extra speed needed to drain excess over EXCESS_DRAIN_TIME
+      const excessDrainRate = (excess / EXCESS_DRAIN_TIME) * 1000;
+      speed += excessDrainRate;
+    }
+
+    return speed;
   }
 }

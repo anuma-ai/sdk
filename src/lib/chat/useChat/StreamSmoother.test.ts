@@ -163,13 +163,17 @@ describe("StreamSmoother", () => {
       const earlyChunks: string[] = [];
       const lateChunks: string[] = [];
 
+      // Use small buffer (under 50 char threshold) to test pure time-based ramp
+      // without triggering buffer-adaptive boost
+      const smallBuffer = "a".repeat(40);
+
       // Early smoother — measure output in first 100ms
       const earlySmoother = new StreamSmoother(
         (text) => earlyChunks.push(text),
         { enabled: true, minSpeed: 10, maxSpeed: 1000, rampDuration: 2000 }
       );
 
-      earlySmoother.push("a".repeat(10000));
+      earlySmoother.push(smallBuffer);
       // Collect first 100ms of output
       vi.advanceTimersByTime(100);
       const earlyTotal = earlyChunks.join("").length;
@@ -181,18 +185,42 @@ describe("StreamSmoother", () => {
         { enabled: true, minSpeed: 10, maxSpeed: 1000, rampDuration: 2000 }
       );
 
-      lateSmoother.push("a".repeat(10000));
-      // Skip past ramp period
+      // Keep feeding small chunks to simulate streaming without large buffer
+      lateSmoother.push(smallBuffer);
+      // Skip past ramp period (buffer will drain during this time)
       vi.advanceTimersByTime(2000);
       lateChunks.length = 0; // Reset
-      // Now measure 100ms at max speed
+      // Push more content and measure at max speed
+      lateSmoother.push(smallBuffer);
       vi.advanceTimersByTime(100);
       const lateTotal = lateChunks.join("").length;
       lateSmoother.destroy();
 
-      // At max speed (1000 chars/sec), 100ms should produce ~100 chars
+      // At max speed (1000 chars/sec), 100ms should produce ~100 chars (but capped by buffer)
       // At min speed (10 chars/sec), 100ms should produce ~1 char
       expect(lateTotal).toBeGreaterThan(earlyTotal);
+    });
+
+    it("boosts speed when buffer grows large", () => {
+      const chunks: string[] = [];
+      const smoother = new StreamSmoother(
+        (text) => chunks.push(text),
+        { enabled: true, minSpeed: 10, maxSpeed: 100, rampDuration: 2000 }
+      );
+
+      // Push a large buffer that exceeds threshold (50 chars)
+      smoother.push("a".repeat(500));
+
+      // Even at start of ramp, large buffer should boost speed significantly
+      // Without boost: 10 chars/sec * 0.1s = 1 char
+      // With boost for 450 excess chars: (450/500)*1000 = 900 chars/sec extra
+      vi.advanceTimersByTime(100);
+      const total = chunks.join("").length;
+
+      // Should have released much more than the base 1 char
+      expect(total).toBeGreaterThan(50);
+
+      smoother.destroy();
     });
   });
 
