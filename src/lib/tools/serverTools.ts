@@ -628,7 +628,7 @@ export function findMatchingTools(
 
     try {
       // Max similarity across all chunk embeddings
-      let maxSimilarity = 0;
+      let maxSimilarity = -Infinity;
       for (const embedding of embeddings) {
         const similarity = cosineSimilarity(embedding, tool.embedding);
         if (similarity > maxSimilarity) {
