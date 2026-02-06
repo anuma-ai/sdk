@@ -41,6 +41,7 @@ import {
   generateEmbedding,
   createMemoryRetrievalTool as createMemoryRetrievalToolBase,
   type MemoryRetrievalSearchOptions,
+  DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
@@ -585,7 +586,7 @@ export function useChatStorage(
               const extracted = extractUserMessageFromMessages(messages);
               const messageContent = extracted?.content || "";
 
-              if (messageContent.length >= 30) {
+              if (messageContent.length >= DEFAULT_MIN_CONTENT_LENGTH) {
                 const embedding = await generateEmbedding(messageContent, {
                   getToken,
                   baseUrl,
@@ -750,7 +751,7 @@ export function useChatStorage(
 
           if (isServerToolsFunction) {
             // Function-based filtering: generate embedding and call the function
-            if (contentForStorage.length >= 30) {
+            if (contentForStorage.length >= DEFAULT_MIN_CONTENT_LENGTH) {
               userMessageEmbedding = await generateEmbedding(contentForStorage, {
                 getToken,
                 baseUrl,
