@@ -788,7 +788,7 @@ export function useChatStorage(
       }
 
       // Embed user message: reuse embedding if generated, otherwise async
-      if (userMessageEmbedding) {
+      if (userMessageEmbedding && autoEmbedMessages) {
         // Reuse embedding from tool filtering
         updateMessageEmbeddingOp(
           storageCtx,
