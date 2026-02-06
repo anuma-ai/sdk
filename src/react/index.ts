@@ -107,7 +107,17 @@ export {
   sdkSchema,
   sdkMigrations,
   sdkModelClasses,
+  SDK_SCHEMA_VERSION,
 } from "../lib/db/schema";
+
+// Database manager for per-wallet isolation
+export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
+export type {
+  PlatformStorage,
+  DatabaseManagerOptions,
+  DatabaseManagerLogger,
+} from "../lib/db/manager";
+export { useDatabaseManager } from "./useDatabaseManager";
 
 // Individual schema exports (deprecated - use sdkSchema instead)
 export {
