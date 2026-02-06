@@ -154,6 +154,24 @@ Receives raw API response - either Responses API or Completions API format.
 <tr>
 <td>
 
+`options.onServerToolCall?`
+
+</td>
+<td>
+
+(`toolCall`: `object`) => `void`
+
+</td>
+<td>
+
+Callback function to be called when a server-side tool (MCP) is invoked during streaming.
+Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onThinking?`
 
 </td>

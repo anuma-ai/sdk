@@ -43,7 +43,7 @@ Automatically create a new conversation if none is set (default: true)
 
 > `optional` **autoEmbedMessages**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:283](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L283)
+Defined in: [src/lib/db/chat/types.ts:292](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L292)
 
 Automatically generate embeddings for messages after saving.
 Enables semantic search over past conversations via searchMessages().
@@ -120,7 +120,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:288](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L288)
+Defined in: [src/lib/db/chat/types.ts:297](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L297)
 
 Embedding model to use when autoEmbedMessages is enabled.
 
@@ -140,7 +140,7 @@ DEFAULT_API_EMBEDDING_MODEL
 
 > `optional` **fileProcessingOptions**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:260](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L260)
+Defined in: [src/lib/db/chat/types.ts:269](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L269)
 
 Options for file preprocessing behavior
 
@@ -272,7 +272,7 @@ Callback for progress updates
 
 > `optional` **fileProcessors**: `any`\[] | `null`
 
-Defined in: [src/lib/db/chat/types.ts:256](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L256)
+Defined in: [src/lib/db/chat/types.ts:265](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L265)
 
 File preprocessors to use for automatic text extraction.
 
@@ -308,7 +308,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **minContentLength**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L294)
+Defined in: [src/lib/db/chat/types.ts:303](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L303)
 
 Minimum content length required to generate embeddings.
 Messages shorter than this are skipped as they provide limited semantic value.
@@ -454,6 +454,86 @@ Callback invoked when the response completes successfully
 
 ***
 
+### onServerToolCall()?
+
+> `optional` **onServerToolCall**: (`toolCall`: `object`) => `void`
+
+Defined in: [src/lib/db/chat/types.ts:254](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L254)
+
+Callback invoked when a server-side tool (MCP) is called during streaming.
+Use this to show activity indicators like "Searching..." in the UI.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`toolCall`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`toolCall.arguments?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`toolCall.name`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`toolCall.status`
+
+</td>
+<td>
+
+`"started"` | `"completed"`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.onServerToolCall`
+
+***
+
 ### onThinking()?
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
@@ -501,7 +581,7 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 
 > `optional` **serverTools**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L274)
+Defined in: [src/lib/db/chat/types.ts:283](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L283)
 
 Configuration for server-side tools fetching and caching.
 Server tools are fetched from /api/v1/tools and cached in localStorage.
