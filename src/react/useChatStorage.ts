@@ -1724,17 +1724,8 @@ export function useChatStorage(
       // Extract sources from assistant content and combine with passed sources (deduplicates internally)
       // Filter out MCP image URLs from sources (they are handled separately as files)
       const extractedSources = extractSourcesFromAssistantMessage(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
-      // eslint-disable-next-line no-console
-      console.log("[useChatStorage] extractedSources", extractedSources);
-      // Strip JSON sources block from content (if present)
-      // Matches ```json { "sources": [...] } ``` or ``` { "sources": [...] } ```
-      const jsonSourcesBlockRegex =
-        /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent
-        .replace(jsonSourcesBlockRegex, "")
-        .trim();
       // Clean up extra newlines left after stripping
-      cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
+      let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
 
       // Extract and store MCP images using encrypted OPFS with media records (requires walletAddress)
       let assistantFileIds: string[] = [];
