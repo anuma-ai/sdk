@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L146)
+Defined in: [src/react/useChat.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChat.ts#L147)
 
 A React hook for managing chat completions with authentication.
 
@@ -185,6 +185,35 @@ This is called with delta chunks as the model "thinks" through a problem.
 Callback function to be called when a tool call is requested by the LLM.
 This is called for tools that don't have an executor or have autoExecute=false.
 The app should execute the tool and send the result back.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.smoothing?`
+
+</td>
+<td>
+
+`boolean` | `StreamSmoothingConfig`
+
+</td>
+<td>
+
+Controls adaptive output smoothing for streaming responses.
+Fast models can return text faster than is comfortable to read — smoothing
+buffers incoming chunks and releases them at a consistent, adaptive pace.
+
+* `true` or omitted: enabled with defaults (30→200 chars/sec over 3s)
+* `false`: disabled, callbacks fire immediately with raw chunks
+* `StreamSmoothingConfig`: custom speed/ramp configuration
+
+**Default**
+
+```ts
+true
+```
 
 </td>
 </tr>

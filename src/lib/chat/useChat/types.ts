@@ -7,6 +7,7 @@ import type {
   LlmapiToolCall,
 } from "../../../client";
 import type { ApiResponse } from "./strategies/types";
+import type { StreamSmoothingConfig } from "./StreamSmoother";
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -185,6 +186,18 @@ export type BaseUseChatOptions = {
    * @param toolCall - The tool call requested by the LLM
    */
   onToolCall?: (toolCall: LlmapiToolCall) => void;
+  /**
+   * Controls adaptive output smoothing for streaming responses.
+   * Fast models can return text faster than is comfortable to read — smoothing
+   * buffers incoming chunks and releases them at a consistent, adaptive pace.
+   *
+   * - `true` or omitted: enabled with defaults (30→200 chars/sec over 3s)
+   * - `false`: disabled, callbacks fire immediately with raw chunks
+   * - `StreamSmoothingConfig`: custom speed/ramp configuration
+   *
+   * @default true
+   */
+  smoothing?: StreamSmoothingConfig | boolean;
 };
 
 /**
