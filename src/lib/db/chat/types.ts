@@ -433,7 +433,7 @@ export interface BaseSendMessageWithStorageArgs {
 
   /**
    * Search sources to attach to the stored message for citation/reference.
-   * These are combined with any sources extracted from the assistant's response.
+   * Note: Sources are also automatically extracted from tool_call_events in the response.
    */
   sources?: SearchSource[];
 

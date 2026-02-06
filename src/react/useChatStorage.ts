@@ -1222,7 +1222,6 @@ export function useChatStorage(
         headers,
         memoryContext,
         searchContext,
-        sources,
         thoughtProcess,
         getThoughtProcess,
         // Responses API options
@@ -1724,7 +1723,6 @@ export function useChatStorage(
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
-              sources,
               thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
               thinking: abortedThinkingContent,
             });
@@ -1781,7 +1779,6 @@ export function useChatStorage(
             content: "",
             model: model || "",
             responseDuration,
-            sources,
             thoughtProcess: finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess),
             error: errorMessage,
           });
@@ -1837,9 +1834,10 @@ export function useChatStorage(
         }
       }
 
-      // Extract sources from assistant content and combine with passed sources (deduplicates internally)
+      // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
       const extractedSources = extractSourcesFromAssistantMessage(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
+
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
 
