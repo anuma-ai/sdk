@@ -32,7 +32,9 @@ export {
 export {
   type StorageOperationsContext,
   messageToStored,
+  messageToStoredRaw,
   conversationToStored,
+  conversationToStoredRaw,
   createConversationOp,
   getConversationOp,
   getConversationsOp,

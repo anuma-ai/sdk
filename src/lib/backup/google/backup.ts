@@ -8,7 +8,7 @@
 import type { Database } from "@nozbe/watermelondb";
 
 import { Conversation } from "../../db/chat";
-import { conversationToStored } from "../../db/chat/operations";
+import { conversationToStoredRaw } from "../../db/chat/operations";
 import {
   DEFAULT_CONVERSATIONS_FOLDER,
   DEFAULT_ROOT_FOLDER,
@@ -116,7 +116,7 @@ export async function pushConversationToDrive(
         .fetch();
 
       if (records.length > 0) {
-        const conversation = conversationToStored(records[0]);
+        const conversation = conversationToStoredRaw(records[0]);
         const localUpdated = conversation.updatedAt.getTime();
         const remoteModified = new Date(existingFile.modifiedTime).getTime();
         if (localUpdated <= remoteModified) {
@@ -196,7 +196,7 @@ export async function performGoogleDriveExport(
     .query(Q.where("is_deleted", false))
     .fetch();
 
-  const conversations = records.map(conversationToStored);
+  const conversations = records.map(conversationToStoredRaw);
   const total = conversations.length;
 
   if (total === 0) {

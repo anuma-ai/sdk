@@ -11,6 +11,8 @@ import type {
 } from "./types";
 import { generateMediaId } from "./types";
 import { deleteEncryptedFile, isOPFSSupported } from "../../storage";
+import { encryptMediaFields, decryptMediaFields } from "./encryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
 /**
  * Delete a file from OPFS if supported, silently ignoring errors.
@@ -27,9 +29,9 @@ async function tryDeleteFromOPFS(mediaId: string): Promise<void> {
 }
 
 /**
- * Convert a Media model instance to a StoredMedia object.
+ * Convert a Media model instance to a StoredMedia object (raw, without decryption).
  */
-export function mediaToStored(media: Media): StoredMedia {
+export function mediaToStoredRaw(media: Media): StoredMedia {
   return {
     id: media.id,
     mediaId: media.mediaId,
@@ -52,6 +54,25 @@ export function mediaToStored(media: Media): StoredMedia {
   };
 }
 
+/**
+ * Converts a Media model to StoredMedia, decrypting fields if encryption context is available.
+ */
+export async function mediaToStored(
+  media: Media,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<StoredMedia> {
+  const baseMedia = mediaToStoredRaw(media);
+
+  // Decrypt fields if wallet address provided
+  if (walletAddress) {
+    return await decryptMediaFields(baseMedia, walletAddress, signMessage, embeddedWalletSigner);
+  }
+
+  return baseMedia;
+}
+
 // =============================================================================
 // CRUD Operations
 // =============================================================================
@@ -67,33 +88,43 @@ export async function createMediaOp(
   const mediaId = options.mediaId || generateMediaId();
   const now = Date.now();
 
+  // Encrypt media fields if encryption context is available
+  const encryptedOpts = ctx.walletAddress && ctx.signMessage
+    ? await encryptMediaFields(options, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : options;
+
   const created = await ctx.database.write(async () => {
     return await mediaCollection.create((media) => {
       media._setRaw("media_id", mediaId);
-      media._setRaw("wallet_address", options.walletAddress);
-      if (options.messageId) media._setRaw("message_id", options.messageId);
-      if (options.conversationId)
-        media._setRaw("conversation_id", options.conversationId);
-      media._setRaw("name", options.name);
-      media._setRaw("mime_type", options.mimeType);
-      media._setRaw("media_type", options.mediaType);
-      media._setRaw("size", options.size);
-      media._setRaw("role", options.role);
-      if (options.model) media._setRaw("model", options.model);
-      if (options.sourceUrl) media._setRaw("source_url", options.sourceUrl);
-      if (options.dimensions)
-        media._setRaw("dimensions", JSON.stringify(options.dimensions));
-      if (options.duration !== undefined)
-        media._setRaw("duration", options.duration);
-      if (options.metadata)
-        media._setRaw("metadata", JSON.stringify(options.metadata));
+      media._setRaw("wallet_address", encryptedOpts.walletAddress);
+      if (encryptedOpts.messageId) media._setRaw("message_id", encryptedOpts.messageId);
+      if (encryptedOpts.conversationId)
+        media._setRaw("conversation_id", encryptedOpts.conversationId);
+      media._setRaw("name", encryptedOpts.name);
+      media._setRaw("mime_type", encryptedOpts.mimeType);
+      media._setRaw("media_type", encryptedOpts.mediaType);
+      media._setRaw("size", encryptedOpts.size);
+      media._setRaw("role", encryptedOpts.role);
+      if (encryptedOpts.model) media._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.sourceUrl) media._setRaw("source_url", encryptedOpts.sourceUrl);
+      if (encryptedOpts.dimensions)
+        media._setRaw("dimensions", JSON.stringify(encryptedOpts.dimensions));
+      if (encryptedOpts.duration !== undefined)
+        media._setRaw("duration", encryptedOpts.duration);
+      if (encryptedOpts.metadata) {
+        // Metadata may already be encrypted as a string
+        const metadataValue = typeof encryptedOpts.metadata === 'string'
+          ? encryptedOpts.metadata
+          : JSON.stringify(encryptedOpts.metadata);
+        media._setRaw("metadata", metadataValue);
+      }
       media._setRaw("created_at", now);
       media._setRaw("updated_at", now);
       media._setRaw("is_deleted", false);
     });
   });
 
-  return mediaToStored(created);
+  return mediaToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 /**
@@ -111,9 +142,18 @@ export async function createMediaBatchOp(
     (opt) => opt.mediaId || generateMediaId()
   );
 
+  // Encrypt all media options if encryption context is available
+  const encryptedArray = ctx.walletAddress && ctx.signMessage
+    ? await Promise.all(
+        optionsArray.map((opts) =>
+          encryptMediaFields(opts, ctx.walletAddress!, ctx.signMessage!, ctx.embeddedWalletSigner)
+        )
+      )
+    : optionsArray;
+
   await ctx.database.write(async () => {
     await ctx.database.batch(
-      ...optionsArray.map((options, index) => {
+      ...encryptedArray.map((options, index) => {
         return mediaCollection.prepareCreate((media) => {
           media._setRaw("media_id", mediaIds[index]);
           media._setRaw("wallet_address", options.walletAddress);
@@ -131,8 +171,12 @@ export async function createMediaBatchOp(
             media._setRaw("dimensions", JSON.stringify(options.dimensions));
           if (options.duration !== undefined)
             media._setRaw("duration", options.duration);
-          if (options.metadata)
-            media._setRaw("metadata", JSON.stringify(options.metadata));
+          if (options.metadata) {
+            const metadataValue = typeof options.metadata === 'string'
+              ? options.metadata
+              : JSON.stringify(options.metadata);
+            media._setRaw("metadata", metadataValue);
+          }
           media._setRaw("created_at", now);
           media._setRaw("updated_at", now);
           media._setRaw("is_deleted", false);
@@ -145,7 +189,9 @@ export async function createMediaBatchOp(
   const results = await mediaCollection
     .query(Q.where("media_id", Q.oneOf(mediaIds)))
     .fetch();
-  return results.map(mediaToStored);
+  return Promise.all(
+    results.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 /**
@@ -160,11 +206,16 @@ export async function getMediaByIdOp(
     .query(Q.where("media_id", mediaId), Q.where("is_deleted", false))
     .fetch();
 
-  return results.length > 0 ? mediaToStored(results[0]) : null;
+  return results.length > 0
+    ? await mediaToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : null;
 }
 
 /**
  * Get a media record by its source URL.
+ * Note: When encryption is enabled, sourceUrl is encrypted and this query
+ * will only match if the stored value is plaintext (legacy data).
+ * For encrypted data, use getMediaByIdOp instead.
  */
 export async function getMediaBySourceUrlOp(
   ctx: MediaOperationsContext,
@@ -180,7 +231,9 @@ export async function getMediaBySourceUrlOp(
     )
     .fetch();
 
-  return results.length > 0 ? mediaToStored(results[0]) : null;
+  return results.length > 0
+    ? await mediaToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : null;
 }
 
 /**
@@ -226,7 +279,9 @@ export async function updateMediaOp(
   const updated = await mediaCollection
     .query(Q.where("media_id", mediaId))
     .fetch();
-  return updated.length > 0 ? mediaToStored(updated[0]) : null;
+  return updated.length > 0
+    ? await mediaToStored(updated[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : null;
 }
 
 /**
@@ -383,8 +438,9 @@ export async function getMediaOp(
   }
 
   const results = await mediaCollection.query(...conditions).fetch();
-  const stored = results.map(mediaToStored);
-  return stored;
+  return Promise.all(
+    results.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 /**
@@ -470,7 +526,9 @@ export async function getMediaByMessageOp(
       Q.sortBy("created_at", Q.asc)
     )
     .fetch();
-  return results.map(mediaToStored);
+  return Promise.all(
+    results.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 /**
@@ -497,10 +555,12 @@ export async function getMediaByIdsOp(
 
   // Return in the same order as the input mediaIds
   const mediaMap = new Map(results.map((m) => [m.mediaId, m]));
-  return mediaIds
+  const orderedMedia = mediaIds
     .map((id) => mediaMap.get(id))
-    .filter((m): m is Media => m !== undefined)
-    .map(mediaToStored);
+    .filter((m): m is Media => m !== undefined);
+  return Promise.all(
+    orderedMedia.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 /**
@@ -562,6 +622,10 @@ export async function getRecentMediaOp(
 
 /**
  * Search media by name.
+ * Handles both encrypted and plaintext names:
+ * - First tries SQL LIKE for plaintext/legacy records
+ * - Then fetches all records and filters decrypted names in memory
+ * - Deduplicates and returns merged results
  */
 export async function searchMediaOp(
   ctx: MediaOperationsContext,
@@ -570,16 +634,27 @@ export async function searchMediaOp(
   limit?: number
 ): Promise<StoredMedia[]> {
   const mediaCollection = ctx.database.get<Media>("media");
-  const results = await mediaCollection
+  const queryLower = query.toLowerCase();
+
+  // Fetch all non-deleted media for this wallet, decrypt, and filter in memory.
+  // SQL LIKE cannot match encrypted field content, so we must decrypt first.
+  const allResults = await mediaCollection
     .query(
       Q.where("wallet_address", walletAddress),
       Q.where("is_deleted", false),
-      Q.where("name", Q.like(`%${Q.sanitizeLikeString(query)}%`)),
       Q.sortBy("created_at", Q.desc),
-      ...(limit ? [Q.take(limit)] : [])
     )
     .fetch();
-  return results.map(mediaToStored);
+
+  const decrypted = await Promise.all(
+    allResults.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
+
+  const matched = decrypted.filter(
+    (m) => m.name?.toLowerCase().includes(queryLower)
+  );
+
+  return limit ? matched.slice(0, limit) : matched;
 }
 
 /**

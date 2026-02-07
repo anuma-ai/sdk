@@ -38,6 +38,7 @@ import {
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
 import {
   isOPFSSupported,
   writeEncryptedFile,
@@ -56,6 +57,15 @@ import {
   getMediaTypeFromMime,
   type CreateMediaOptions,
 } from "../lib/db/media";
+import {
+  queueManager,
+  WalletPoller,
+  type QueueStatus,
+  type FlushResult,
+  type QueueEncryptionContext,
+  type QueuedOperation,
+} from "../lib/db/queue";
+import { onKeyAvailable } from "./useEncryption";
 import { preprocessFiles } from "../lib/processors";
 import {
   getServerTools,
@@ -213,17 +223,53 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
   apiType?: ApiType;
 
   /**
-   * Wallet address for encrypted file storage.
-   * When provided, MCP-generated images are automatically encrypted and stored
-   * in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+   * Wallet address for encrypted file storage and field-level encryption.
+   * When provided with signMessage, all sensitive message content, conversation titles,
+   * and media metadata are encrypted at rest using AES-GCM with wallet-derived keys.
    *
    * Requires:
-   * - OPFS browser support
-   * - Encryption key to be requested via `requestEncryptionKey` first
+   * - OPFS browser support (for file storage)
+   * - signMessage function (for encryption key derivation)
    *
-   * When not provided, falls back to the `writeFile` callback in sendMessage args.
+   * When not provided, data is stored in plaintext (backwards compatible).
    */
   walletAddress?: string;
+
+  /**
+   * Function to sign a message for encryption key derivation.
+   * Typically from Privy's useSignMessage hook.
+   * Required together with walletAddress for field-level encryption.
+   */
+  signMessage?: SignMessageFn;
+
+  /**
+   * Function for silent signing with Privy embedded wallets.
+   * When provided, enables automatic encryption key derivation without
+   * user confirmation modals.
+   */
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
+
+  /**
+   * Async function that returns the wallet address when available.
+   * Used for polling during Privy embedded wallet initialization.
+   * When the wallet isn't ready yet, should return null.
+   */
+  getWalletAddress?: () => Promise<string | null>;
+
+  /**
+   * Enable the in-memory write queue for operations when encryption key
+   * isn't yet available. When enabled, operations are held in memory and
+   * flushed to encrypted storage once the key becomes available.
+   * @default true
+   */
+  enableQueue?: boolean;
+
+  /**
+   * Automatically flush queued operations when the encryption key becomes
+   * available. Requires `enableQueue` to be true.
+   * @default true
+   */
+  autoFlushOnKeyAvailable?: boolean;
 }
 
 /**
@@ -360,6 +406,24 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryRetrievalTool: (
     searchOptions?: Partial<MemoryRetrievalSearchOptions>
   ) => ToolConfig;
+
+  /**
+   * Manually flush all queued operations for the current wallet.
+   * Operations are encrypted and written to the database.
+   * Requires the encryption key to be available.
+   */
+  flushQueue: () => Promise<FlushResult>;
+
+  /**
+   * Clear all queued operations for the current wallet.
+   * Discards pending operations without writing them.
+   */
+  clearQueue: () => void;
+
+  /**
+   * Current status of the write queue.
+   */
+  queueStatus: QueueStatus;
 }
 
 /**
@@ -466,6 +530,11 @@ export function useChatStorage(
     onServerToolCall,
     apiType,
     walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    getWalletAddress,
+    enableQueue = true,
+    autoFlushOnKeyAvailable = true,
     fileProcessors,
     fileProcessingOptions,
     serverTools: serverToolsConfig,
@@ -499,15 +568,142 @@ export function useChatStorage(
     [database]
   );
 
-  // Storage operations context
+  // Storage operations context (includes encryption context when wallet is available)
   const storageCtx = useMemo<StorageOperationsContext>(
     () => ({
       database,
       messagesCollection,
       conversationsCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
     }),
-    [database, messagesCollection, conversationsCollection]
+    [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
+
+  // Media operations context (includes encryption context for media field encryption)
+  const mediaCtx = useMemo(
+    () => ({
+      database,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    }),
+    [database, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // ── Queue Management ──
+
+  // Track queue status as React state so UI can react to changes
+  const [queueStatus, setQueueStatus] = useState<QueueStatus>({
+    pending: 0,
+    failed: 0,
+    isFlushing: false,
+    isPaused: false,
+  });
+
+  // Refresh queue status from the manager
+  const refreshQueueStatus = useCallback(() => {
+    if (walletAddress) {
+      setQueueStatus(queueManager.getStatus(walletAddress));
+    }
+  }, [walletAddress]);
+
+  // Operation executor: runs a queued operation against the real database
+  const executeQueuedOperation = useCallback(
+    async (operation: QueuedOperation, encCtx: QueueEncryptionContext) => {
+      const ctx = {
+        ...storageCtx,
+        walletAddress: encCtx.walletAddress,
+        signMessage: encCtx.signMessage,
+        embeddedWalletSigner: encCtx.embeddedWalletSigner,
+      };
+
+      const mCtx = {
+        database: ctx.database,
+        walletAddress: encCtx.walletAddress,
+        signMessage: encCtx.signMessage,
+        embeddedWalletSigner: encCtx.embeddedWalletSigner,
+      };
+
+      switch (operation.type) {
+        case "createConversation":
+          await createConversationOp(ctx, operation.payload as Parameters<typeof createConversationOp>[1]);
+          break;
+        case "updateConversationTitle":
+          await updateConversationTitleOp(ctx, operation.payload.conversationId, operation.payload.title);
+          break;
+        case "createMessage":
+          await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
+          break;
+        case "createMediaBatch":
+          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
+          break;
+        default:
+          console.warn(`[QueueManager] Unknown operation type: ${operation.type}`);
+      }
+    },
+    [storageCtx]
+  );
+
+  // Flush the queue
+  const flushQueue = useCallback(async (): Promise<FlushResult> => {
+    if (!walletAddress || !signMessage) {
+      return { succeeded: [], failed: [], total: 0 };
+    }
+
+    const encCtx: QueueEncryptionContext = {
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    };
+
+    const result = await queueManager.flush(encCtx, executeQueuedOperation);
+    refreshQueueStatus();
+    return result;
+  }, [walletAddress, signMessage, embeddedWalletSigner, executeQueuedOperation, refreshQueueStatus]);
+
+  // Clear the queue
+  const clearQueue = useCallback(() => {
+    if (walletAddress) {
+      queueManager.clear(walletAddress);
+      refreshQueueStatus();
+    }
+  }, [walletAddress, refreshQueueStatus]);
+
+  // Subscribe to queue changes for this wallet
+  useEffect(() => {
+    if (!walletAddress) return;
+    refreshQueueStatus();
+    return queueManager.onQueueChange(walletAddress, refreshQueueStatus);
+  }, [walletAddress, refreshQueueStatus]);
+
+  // Auto-flush when encryption key becomes available
+  useEffect(() => {
+    if (!walletAddress || !enableQueue || !autoFlushOnKeyAvailable || !signMessage) return;
+
+    return onKeyAvailable(walletAddress, () => {
+      // Fire and forget the flush
+      flushQueue().catch((err) => {
+        console.warn("[useChatStorage] Auto-flush failed:", err);
+      });
+    });
+  }, [walletAddress, enableQueue, autoFlushOnKeyAvailable, signMessage, flushQueue]);
+
+  // Wallet polling for Privy embedded wallet detection
+  useEffect(() => {
+    if (!getWalletAddress || walletAddress) return; // Already have address, or no poller provided
+
+    const poller = new WalletPoller();
+    return poller.startPolling(
+      getWalletAddress,
+      () => {
+        // Wallet is now available - the parent component should update walletAddress prop
+        // which triggers the onKeyAvailable auto-flush above.
+        // We don't need to do anything here since state will flow through props.
+      }
+    );
+  }, [getWalletAddress, walletAddress]);
 
   // Helper to embed a message after creation (non-blocking)
   // Uses chunking for long messages to improve semantic search precision
@@ -650,14 +846,14 @@ export function useChatStorage(
         // Cascade delete messages
         await clearMessagesOp(storageCtx, id);
         // Cascade delete media for this conversation
-        await deleteMediaByConversationOp({ database: storageCtx.database }, id);
+        await deleteMediaByConversationOp(mediaCtx, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
       }
       return deleted;
     },
-    [storageCtx, currentConversationId]
+    [storageCtx, mediaCtx, currentConversationId]
   );
 
   /**
@@ -1036,7 +1232,7 @@ export function useChatStorage(
         if (mediaOptions.length > 0) {
           try {
             const createdMedia = await createMediaBatchOp(
-              { database },
+              mediaCtx,
               mediaOptions
             );
             createdMediaIds = createdMedia.map((m) => m.mediaId);
@@ -1065,7 +1261,7 @@ export function useChatStorage(
         return { fileIds: [], cleanedContent: cleanMCPUrlsFromContent(content) };
       }
     },
-    [database, getImageDimensions]
+    [mediaCtx, getImageDimensions]
   );
 
   /**
@@ -1185,7 +1381,7 @@ export function useChatStorage(
       }
 
       try {
-        const createdMedia = await createMediaBatchOp({ database }, mediaOptions);
+        const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
         return createdMedia.map((m) => m.mediaId);
       } catch {
         // Clean up orphaned OPFS files since media records weren't created
@@ -1201,7 +1397,7 @@ export function useChatStorage(
         return [];
       }
     },
-    [database, getImageDimensions]
+    [mediaCtx, getImageDimensions]
   );
 
   /**
@@ -1527,7 +1723,7 @@ export function useChatStorage(
           for (const mediaId of userFileIds) {
             try {
               await deleteEncryptedFile(mediaId);
-              await hardDeleteMediaOp({ database }, mediaId);
+              await hardDeleteMediaOp(mediaCtx, mediaId);
               
             } catch {
               // Ignore cleanup errors
@@ -1545,7 +1741,7 @@ export function useChatStorage(
       if (userFileIds.length > 0) {
         try {
           await updateMediaMessageIdBatchOp(
-            { database },
+            mediaCtx,
             userFileIds,
             storedUserMessage.uniqueId
           );
@@ -1888,7 +2084,7 @@ export function useChatStorage(
           for (const mediaId of assistantFileIds) {
             try {
               await deleteEncryptedFile(mediaId);
-              await hardDeleteMediaOp({ database }, mediaId);
+              await hardDeleteMediaOp(mediaCtx, mediaId);
               
             } catch {
               // Ignore cleanup errors
@@ -1909,7 +2105,7 @@ export function useChatStorage(
       if (assistantFileIds.length > 0) {
         try {
           await updateMediaMessageIdBatchOp(
-            { database },
+            mediaCtx,
             assistantFileIds,
             storedAssistantMessage.uniqueId
           );
@@ -1971,5 +2167,8 @@ export function useChatStorage(
     getMessages,
     getAllFiles,
     createMemoryRetrievalTool,
+    flushQueue,
+    clearQueue,
+    queueStatus,
   };
 }
