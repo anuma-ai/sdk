@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/expo/useChatStorage.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L88)
+Defined in: [src/expo/useChatStorage.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L98)
 
 Options for useChatStorage hook (Expo version)
 
@@ -16,7 +16,7 @@ Uses the base options without React-specific features (no local chat, no tools).
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/expo/useChatStorage.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L94)
+Defined in: [src/expo/useChatStorage.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L104)
 
 Which API endpoint to use. Default: "responses"
 
@@ -57,6 +57,22 @@ true
 **Inherited from**
 
 `BaseUseChatStorageOptions.autoEmbedMessages`
+
+***
+
+### autoFlushOnKeyAvailable?
+
+> `optional` **autoFlushOnKeyAvailable**: `boolean`
+
+Defined in: [src/expo/useChatStorage.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L135)
+
+Auto-flush queued operations when key becomes available.
+
+**Default**
+
+```ts
+true
+```
 
 ***
 
@@ -116,6 +132,16 @@ Title for auto-created conversations (default: "New conversation")
 
 ***
 
+### embeddedWalletSigner?
+
+> `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../../../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+Defined in: [src/expo/useChatStorage.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L120)
+
+Function for silent signing with Privy embedded wallets.
+
+***
+
 ### embeddingModel?
 
 > `optional` **embeddingModel**: `string`
@@ -133,6 +159,22 @@ DEFAULT_API_EMBEDDING_MODEL
 **Inherited from**
 
 `BaseUseChatStorageOptions.embeddingModel`
+
+***
+
+### enableQueue?
+
+> `optional` **enableQueue**: `boolean`
+
+Defined in: [src/expo/useChatStorage.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L130)
+
+Enable the in-memory write queue.
+
+**Default**
+
+```ts
+true
+```
 
 ***
 
@@ -301,6 +343,20 @@ Function to retrieve the auth token for API requests
 **Inherited from**
 
 `BaseUseChatStorageOptions.getToken`
+
+***
+
+### getWalletAddress()?
+
+> `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
+
+Defined in: [src/expo/useChatStorage.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L125)
+
+Async function to poll for wallet address during Privy initialization.
+
+**Returns**
+
+`Promise`<`string` | `null`>
 
 ***
 
@@ -559,3 +615,24 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 **Inherited from**
 
 `BaseUseChatStorageOptions.serverTools`
+
+***
+
+### signMessage?
+
+> `optional` **signMessage**: [`SignMessageFn`](../../../react/Internal/type-aliases/SignMessageFn.md)
+
+Defined in: [src/expo/useChatStorage.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L115)
+
+Function to sign a message for encryption key derivation.
+
+***
+
+### walletAddress?
+
+> `optional` **walletAddress**: `string`
+
+Defined in: [src/expo/useChatStorage.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L110)
+
+Wallet address for field-level encryption.
+When provided with signMessage, all sensitive content is encrypted at rest.

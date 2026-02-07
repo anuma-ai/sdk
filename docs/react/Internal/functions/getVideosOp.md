@@ -2,7 +2,7 @@
 
 > **getVideosOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:416](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L416)
+Defined in: [src/lib/db/media/operations.ts:472](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L472)
 
 Get all videos for a user.
 

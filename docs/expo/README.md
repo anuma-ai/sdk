@@ -131,6 +131,18 @@ Re-exports [chatStorageSchema](../react/Internal/variables/chatStorageSchema.md)
 
 ***
 
+### clearAllEncryptionKeys
+
+Re-exports [clearAllEncryptionKeys](../react/Internal/functions/clearAllEncryptionKeys.md)
+
+***
+
+### clearEncryptionKey
+
+Re-exports [clearEncryptionKey](../react/Internal/functions/clearEncryptionKey.md)
+
+***
+
 ### clearServerToolsCache
 
 Re-exports [clearServerToolsCache](../react/Internal/functions/clearServerToolsCache.md)
@@ -191,6 +203,12 @@ Re-exports [embedAllMessages](../react/Internal/functions/embedAllMessages.md)
 
 ***
 
+### EmbeddedWalletSignerFn
+
+Re-exports [EmbeddedWalletSignerFn](../react/Internal/type-aliases/EmbeddedWalletSignerFn.md)
+
+***
+
 ### embedMessage
 
 Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
@@ -200,6 +218,12 @@ Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
 ### FileMetadata
 
 Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
+
+***
+
+### FlushResult
+
+Re-exports [FlushResult](../react/Internal/interfaces/FlushResult.md)
 
 ***
 
@@ -245,6 +269,12 @@ Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
 
 ***
 
+### hasEncryptionKey
+
+Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
+
+***
+
 ### MemoryItem
 
 Re-exports [MemoryItem](../react/Internal/interfaces/MemoryItem.md)
@@ -281,9 +311,39 @@ Re-exports [MemoryType](../react/Internal/type-aliases/MemoryType.md)
 
 ***
 
+### onKeyAvailable
+
+Re-exports [onKeyAvailable](../react/Internal/functions/onKeyAvailable.md)
+
+***
+
 ### PlatformStorage
 
 Re-exports [PlatformStorage](../react/Internal/interfaces/PlatformStorage.md)
+
+***
+
+### queueManager
+
+Re-exports [queueManager](../react/Internal/variables/queueManager.md)
+
+***
+
+### QueueManager
+
+Re-exports [QueueManager](../react/Internal/classes/QueueManager.md)
+
+***
+
+### QueueStatus
+
+Re-exports [QueueStatus](../react/Internal/interfaces/QueueStatus.md)
+
+***
+
+### requestEncryptionKey
+
+Re-exports [requestEncryptionKey](../react/Internal/functions/requestEncryptionKey.md)
 
 ***
 
@@ -326,6 +386,12 @@ Re-exports [ServerToolsOptions](../react/Internal/interfaces/ServerToolsOptions.
 ### ServerToolsResponse
 
 Re-exports [ServerToolsResponse](../react/Internal/type-aliases/ServerToolsResponse.md)
+
+***
+
+### SignMessageFn
+
+Re-exports [SignMessageFn](../react/Internal/type-aliases/SignMessageFn.md)
 
 ***
 
@@ -377,6 +443,12 @@ Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOpti
 
 ***
 
+### useEncryption
+
+Re-exports [useEncryption](../react/Hooks/useEncryption.md)
+
+***
+
 ### useModels
 
 Re-exports [useModels](../react/Hooks/useModels.md)
@@ -386,3 +458,9 @@ Re-exports [useModels](../react/Hooks/useModels.md)
 ### UseModelsResult
 
 Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
+
+***
+
+### WalletPoller
+
+Re-exports [WalletPoller](../react/Internal/classes/WalletPoller.md)

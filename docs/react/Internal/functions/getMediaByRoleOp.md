@@ -2,7 +2,7 @@
 
 > **getMediaByRoleOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `role`: [`MediaRole`](../type-aliases/MediaRole.md), `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:509](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L509)
+Defined in: [src/lib/db/media/operations.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L569)
 
 Get media by role (user uploads vs AI generated).
 

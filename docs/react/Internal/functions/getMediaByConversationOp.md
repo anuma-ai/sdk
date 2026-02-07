@@ -2,7 +2,7 @@
 
 > **getMediaByConversationOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `conversationId`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:449](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L449)
+Defined in: [src/lib/db/media/operations.ts:505](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L505)
 
 Get media by conversation.
 

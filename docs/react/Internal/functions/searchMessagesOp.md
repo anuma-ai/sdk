@@ -2,7 +2,7 @@
 
 > **searchMessagesOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`StoredMessageWithSimilarity`](../interfaces/StoredMessageWithSimilarity.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:428](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L428)
+Defined in: [src/lib/db/chat/operations.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L542)
 
 ## Parameters
 

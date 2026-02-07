@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:207](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L207)
+Defined in: [src/react/useChatStorage.ts:217](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L217)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L213)
+Defined in: [src/react/useChatStorage.ts:223](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L223)
 
 Which API endpoint to use. Default: "responses"
 
@@ -57,6 +57,23 @@ true
 **Inherited from**
 
 `BaseUseChatStorageOptions.autoEmbedMessages`
+
+***
+
+### autoFlushOnKeyAvailable?
+
+> `optional` **autoFlushOnKeyAvailable**: `boolean`
+
+Defined in: [src/react/useChatStorage.ts:272](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L272)
+
+Automatically flush queued operations when the encryption key becomes
+available. Requires `enableQueue` to be true.
+
+**Default**
+
+```ts
+true
+```
 
 ***
 
@@ -116,6 +133,18 @@ Title for auto-created conversations (default: "New conversation")
 
 ***
 
+### embeddedWalletSigner?
+
+> `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
+
+Defined in: [src/react/useChatStorage.ts:250](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L250)
+
+Function for silent signing with Privy embedded wallets.
+When provided, enables automatic encryption key derivation without
+user confirmation modals.
+
+***
+
 ### embeddingModel?
 
 > `optional` **embeddingModel**: `string`
@@ -133,6 +162,24 @@ DEFAULT_API_EMBEDDING_MODEL
 **Inherited from**
 
 `BaseUseChatStorageOptions.embeddingModel`
+
+***
+
+### enableQueue?
+
+> `optional` **enableQueue**: `boolean`
+
+Defined in: [src/react/useChatStorage.ts:265](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L265)
+
+Enable the in-memory write queue for operations when encryption key
+isn't yet available. When enabled, operations are held in memory and
+flushed to encrypted storage once the key becomes available.
+
+**Default**
+
+```ts
+true
+```
 
 ***
 
@@ -301,6 +348,22 @@ Function to retrieve the auth token for API requests
 **Inherited from**
 
 `BaseUseChatStorageOptions.getToken`
+
+***
+
+### getWalletAddress()?
+
+> `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
+
+Defined in: [src/react/useChatStorage.ts:257](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L257)
+
+Async function that returns the wallet address when available.
+Used for polling during Privy embedded wallet initialization.
+When the wallet isn't ready yet, should return null.
+
+**Returns**
+
+`Promise`<`string` | `null`>
 
 ***
 
@@ -562,19 +625,31 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 ***
 
+### signMessage?
+
+> `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
+
+Defined in: [src/react/useChatStorage.ts:243](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L243)
+
+Function to sign a message for encryption key derivation.
+Typically from Privy's useSignMessage hook.
+Required together with walletAddress for field-level encryption.
+
+***
+
 ### walletAddress?
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L226)
+Defined in: [src/react/useChatStorage.ts:236](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L236)
 
-Wallet address for encrypted file storage.
-When provided, MCP-generated images are automatically encrypted and stored
-in OPFS using wallet-derived keys. Messages are returned with working blob URLs.
+Wallet address for encrypted file storage and field-level encryption.
+When provided with signMessage, all sensitive message content, conversation titles,
+and media metadata are encrypted at rest using AES-GCM with wallet-derived keys.
 
 Requires:
 
-* OPFS browser support
-* Encryption key to be requested via `requestEncryptionKey` first
+* OPFS browser support (for file storage)
+* signMessage function (for encryption key derivation)
 
-When not provided, falls back to the `writeFile` callback in sendMessage args.
+When not provided, data is stored in plaintext (backwards compatible).

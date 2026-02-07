@@ -2,7 +2,7 @@
 
 > **hardDeleteMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/media/operations.ts:314](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L314)
+Defined in: [src/lib/db/media/operations.ts:369](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L369)
 
 Permanently delete a media record (hard delete).
 Also removes the file from OPFS.

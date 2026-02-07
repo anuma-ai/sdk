@@ -2,9 +2,14 @@
 
 > **searchMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `query`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:566](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L566)
+Defined in: [src/lib/db/media/operations.ts:630](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L630)
 
 Search media by name.
+Handles both encrypted and plaintext names:
+
+* First tries SQL LIKE for plaintext/legacy records
+* Then fetches all records and filters decrypted names in memory
+* Deduplicates and returns merged results
 
 ## Parameters
 

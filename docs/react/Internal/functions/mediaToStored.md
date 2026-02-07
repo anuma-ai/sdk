@@ -1,10 +1,10 @@
 # mediaToStored
 
-> **mediaToStored**(`media`: [`StoredMediaModel`](../classes/StoredMediaModel.md)): [`StoredMedia`](../interfaces/StoredMedia.md)
+> **mediaToStored**(`media`: [`StoredMediaModel`](../classes/StoredMediaModel.md), `walletAddress?`: `string`, `signMessage?`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)>
 
-Defined in: [src/lib/db/media/operations.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L32)
+Defined in: [src/lib/db/media/operations.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L60)
 
-Convert a Media model instance to a StoredMedia object.
+Converts a Media model to StoredMedia, decrypting fields if encryption context is available.
 
 ## Parameters
 
@@ -28,9 +28,45 @@ Convert a Media model instance to a StoredMedia object.
 
 </td>
 </tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`signMessage?`
+
+</td>
+<td>
+
+[`SignMessageFn`](../type-aliases/SignMessageFn.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`embeddedWalletSigner?`
+
+</td>
+<td>
+
+[`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
+
+</td>
+</tr>
 </tbody>
 </table>
 
 ## Returns
 
-[`StoredMedia`](../interfaces/StoredMedia.md)
+`Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)>
