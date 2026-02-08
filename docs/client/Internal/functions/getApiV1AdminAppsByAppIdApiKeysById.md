@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:110](https://github.com/zeta-chain/ai-sdk/blo
 
 Get API key by ID
 
-Returns a single API key by its ID with wallet balance details. Requires admin API key.
+Returns a single API key by its ID. Requires admin API key.
 
 ## Type Parameters
 

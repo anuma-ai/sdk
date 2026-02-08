@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L569)
+Defined in: [src/client/types.gen.ts:525](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L525)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:573](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L573)
+Defined in: [src/client/types.gen.ts:529](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L529)
 
 CostMicroUSD is the inference cost for this embedding request
 
@@ -22,7 +22,7 @@ CostMicroUSD is the inference cost for this embedding request
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:577](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L577)
+Defined in: [src/client/types.gen.ts:533](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L533)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -32,6 +32,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L581)
+Defined in: [src/client/types.gen.ts:537](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L537)
 
 TotalTokens is the total number of tokens used

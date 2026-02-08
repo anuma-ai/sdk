@@ -69,11 +69,3 @@ Defined in: [src/client/types.gen.ts:17](https://github.com/zeta-chain/ai-sdk/bl
 > `optional` **wallet\_address**: `string`
 
 Defined in: [src/client/types.gen.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L18)
-
-***
-
-### wallet\_details?
-
-> `optional` **wallet\_details**: [`HandlersWalletDetails`](HandlersWalletDetails.md)
-
-Defined in: [src/client/types.gen.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L19)

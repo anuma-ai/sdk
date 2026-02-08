@@ -55,4 +55,6 @@ export {
   searchChunksOp,
   getMessagesWithEmbeddingsOp,
   getAllFilesOp,
+  makeSyntheticStoredMessage,
+  makeSyntheticStoredConversation,
 } from "./operations";

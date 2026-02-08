@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByIdErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1479](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1479)
+Defined in: [src/client/types.gen.ts:1422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1422)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1479](https://github.com/zeta-chain/ai-sdk/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1483](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1483)
+Defined in: [src/client/types.gen.ts:1426](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1426)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1487](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1487)
+Defined in: [src/client/types.gen.ts:1430](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1430)
 
 Not Found
 
@@ -30,6 +30,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1491](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1491)
+Defined in: [src/client/types.gen.ts:1434](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1434)
 
 Internal Server Error

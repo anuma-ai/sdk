@@ -2,7 +2,7 @@
 
 > **HandlersAppConfig** = `object`
 
-Defined in: [src/client/types.gen.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L67)
+Defined in: [src/client/types.gen.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L66)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:67](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L71)
+Defined in: [src/client/types.gen.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L70)
 
 EscrowContract is the escrow contract address for this app
 
@@ -20,6 +20,6 @@ EscrowContract is the escrow contract address for this app
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L75)
+Defined in: [src/client/types.gen.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L74)
 
 Name is the human-readable name of the app

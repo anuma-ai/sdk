@@ -2,4 +2,4 @@
 
 > **PostApiV1AdminAppsByAppIdApiKeysResponse** = [`PostApiV1AdminAppsByAppIdApiKeysResponses`](PostApiV1AdminAppsByAppIdApiKeysResponses.md)\[keyof [`PostApiV1AdminAppsByAppIdApiKeysResponses`](PostApiV1AdminAppsByAppIdApiKeysResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1306](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1306)
+Defined in: [src/client/types.gen.ts:1249](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1249)

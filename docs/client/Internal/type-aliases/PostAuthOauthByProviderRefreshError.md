@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRefreshError** = [`PostAuthOauthByProviderRefreshErrors`](PostAuthOauthByProviderRefreshErrors.md)\[keyof [`PostAuthOauthByProviderRefreshErrors`](PostAuthOauthByProviderRefreshErrors.md)]
 
-Defined in: [src/client/types.gen.ts:2185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2185)
+Defined in: [src/client/types.gen.ts:2128](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2128)

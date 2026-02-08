@@ -2,7 +2,7 @@ import type { LlmapiResponseResponse } from "../../../../client";
 import type { StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
 import { parseReasoningTags } from "../utils";
-import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import type { ApiStrategy, ApiResponse, BuildRequestBodyArgs } from "./types";
 
 /**
  * Strategy for the OpenAI Responses API (/api/v1/responses)
@@ -355,6 +355,7 @@ export class ResponsesStrategy implements ApiStrategy {
       status: "completed",
     });
 
+    // Cast to ApiResponse because tool_call_events is an SDK extension not in the generated types
     return {
       id: accumulator.responseId,
       model: accumulator.responseModel,
@@ -366,6 +367,6 @@ export class ResponsesStrategy implements ApiStrategy {
           : undefined,
       tools_checksum: accumulator.toolsChecksum,
       tool_call_events: accumulator.toolCallEvents,
-    };
+    } as ApiResponse;
   }
 }

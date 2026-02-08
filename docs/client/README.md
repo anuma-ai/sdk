@@ -97,7 +97,6 @@
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
-| [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
 | [LlmapiChatCompletionResponse](Internal/type-aliases/LlmapiChatCompletionResponse.md) | - |
@@ -135,7 +134,6 @@
 | [LlmapiRole](Internal/type-aliases/LlmapiRole.md) | Role is the message role (system, user, assistant, tool) |
 | [LlmapiThinkingOptions](Internal/type-aliases/LlmapiThinkingOptions.md) | Thinking configures extended thinking for Anthropic models |
 | [LlmapiToolCall](Internal/type-aliases/LlmapiToolCall.md) | - |
-| [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
 | [Options](Internal/type-aliases/Options.md) | - |

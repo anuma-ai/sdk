@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:350](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L350)
+Defined in: [src/react/useChatStorage.ts:355](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L355)
 
 Result returned by useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:421](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L421)
+Defined in: [src/react/useChatStorage.ts:426](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L426)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -84,7 +84,7 @@ Defined in: [src/lib/db/chat/types.ts:563](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:406](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L406)
+Defined in: [src/react/useChatStorage.ts:411](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L411)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -183,7 +183,7 @@ Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:415](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L415)
+Defined in: [src/react/useChatStorage.ts:420](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L420)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -199,7 +199,7 @@ Requires the encryption key to be available.
 
 > **getAllFiles**: (`options?`: `object`) => `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:386](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L386)
+Defined in: [src/react/useChatStorage.ts:391](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L391)
 
 Get all files from all conversations, sorted by creation date (newest first).
 Returns files with conversation context for building file browser UIs.
@@ -373,7 +373,7 @@ Defined in: [src/lib/db/chat/types.ts:559](https://github.com/zeta-chain/ai-sdk/
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:426](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L426)
+Defined in: [src/react/useChatStorage.ts:431](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L431)
 
 Current status of the write queue.
 
@@ -383,7 +383,7 @@ Current status of the write queue.
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:379](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L379)
+Defined in: [src/react/useChatStorage.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L384)
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.

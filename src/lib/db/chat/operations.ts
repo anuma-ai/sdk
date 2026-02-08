@@ -1,5 +1,6 @@
 import { Q } from "@nozbe/watermelondb";
 import type { Database, Collection } from "@nozbe/watermelondb";
+import { v7 as uuidv7 } from "uuid";
 
 import { Message, Conversation } from "./models";
 import {
@@ -776,4 +777,54 @@ export async function getAllFilesOp(
   }
 
   return filesWithContext;
+}
+
+/**
+ * Create a synthetic StoredMessage from CreateMessageOptions without a DB round-trip.
+ * Used when writes are queued (encryption key not yet available).
+ * The uniqueId is temporary and will be replaced when the operation is flushed.
+ */
+export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMessage {
+  const now = new Date();
+  return {
+    uniqueId: `queued_${uuidv7()}`,
+    messageId: -1, // Unknown until flushed — DB generates sequential count
+    conversationId: opts.conversationId,
+    role: opts.role,
+    content: opts.content,
+    model: opts.model,
+    files: opts.files,
+    fileIds: opts.fileIds,
+    createdAt: now,
+    updatedAt: now,
+    vector: opts.vector,
+    embeddingModel: opts.embeddingModel,
+    usage: opts.usage,
+    sources: opts.sources,
+    responseDuration: opts.responseDuration,
+    wasStopped: opts.wasStopped,
+    error: opts.error,
+    thoughtProcess: opts.thoughtProcess,
+    thinking: opts.thinking,
+  };
+}
+
+/**
+ * Create a synthetic StoredConversation from CreateConversationOptions without a DB round-trip.
+ * Used when writes are queued (encryption key not yet available).
+ */
+export function makeSyntheticStoredConversation(
+  opts?: CreateConversationOptions,
+  defaultTitle?: string
+): StoredConversation {
+  const now = new Date();
+  return {
+    uniqueId: `queued_${uuidv7()}`,
+    conversationId: opts?.conversationId || generateConversationId(),
+    title: opts?.title || defaultTitle || "New Conversation",
+    projectId: opts?.projectId,
+    createdAt: now,
+    updatedAt: now,
+    isDeleted: false,
+  };
 }

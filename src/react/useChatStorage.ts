@@ -3,7 +3,8 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiResponseResponse, LlmapiChatCompletionResponse, LlmapiToolCallEvent } from "../client";
+import type { LlmapiMessage, LlmapiChatCompletionResponse } from "../client";
+import type { ApiResponse, ToolCallEvent } from "../lib/chat/useChat/strategies/types";
 import {
   Message,
   Conversation,
@@ -14,6 +15,7 @@ import {
   type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseUseChatStorageResult,
+  type CreateMessageOptions,
   type FileMetadata,
   type SearchSource,
   type ActivityPhase,
@@ -33,11 +35,13 @@ import {
   updateMessageChunksOp,
   updateMessageErrorOp,
   getAllFilesOp,
+  makeSyntheticStoredMessage,
+  makeSyntheticStoredConversation,
   type MessageChunk,
 } from "../lib/db/chat";
 import type { ApiType } from "../lib/chat/useChat";
 import { MCP_R2_DOMAIN } from "../clientConfig";
-import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
 import {
   isOPFSSupported,
@@ -64,6 +68,7 @@ import {
   type FlushResult,
   type QueueEncryptionContext,
   type QueuedOperation,
+  type QueuedOperationType,
 } from "../lib/db/queue";
 import { onKeyAvailable } from "./useEncryption";
 import { preprocessFiles } from "../lib/processors";
@@ -310,13 +315,13 @@ export interface SendMessageWithStorageArgs
  */
 export type SendMessageWithStorageResult =
   | {
-      data: LlmapiResponseResponse | LlmapiChatCompletionResponse;
+      data: ApiResponse;
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
     }
   | {
-      data: LlmapiResponseResponse | LlmapiChatCompletionResponse;
+      data: ApiResponse;
       error: null;
       userMessage?: undefined;
       assistantMessage?: undefined;
@@ -705,6 +710,85 @@ export function useChatStorage(
     );
   }, [getWalletAddress, walletAddress]);
 
+  // ── Write Queue Wiring ──
+
+  // Check if encryption is ready for direct writes
+  const isEncryptionReady = useCallback((): boolean => {
+    if (!walletAddress || !signMessage) return true; // No encryption configured
+    return hasEncryptionKey(walletAddress); // Key derived and in memory
+  }, [walletAddress, signMessage]);
+
+  // Pre-wallet pending buffer: holds operations when walletAddress is undefined
+  // but getWalletAddress is provided (signaling encryption intent during Privy init)
+  const pendingOpsRef = useRef<Array<{
+    type: QueuedOperationType;
+    payload: Record<string, any>;
+    dependencies: string[];
+  }>>([]);
+
+  // Track synthetic conversation IDs so ensureConversation doesn't fail for queued conversations
+  const syntheticConvIdsRef = useRef<Set<string>>(new Set());
+
+  // Transfer pending ops to QueueManager when walletAddress becomes available
+  useEffect(() => {
+    if (!walletAddress || !enableQueue) return;
+    const pending = pendingOpsRef.current;
+    if (pending.length === 0) return;
+    for (const op of pending) {
+      queueManager.queueOperation(walletAddress, op.type, op.payload, op.dependencies);
+    }
+    pendingOpsRef.current = [];
+    refreshQueueStatus();
+  }, [walletAddress, enableQueue, refreshQueueStatus]);
+
+  /**
+   * Routes a DB write through the queue when encryption key isn't ready,
+   * or executes it directly when the key is available.
+   */
+  async function writeOrQueue<T>(
+    opType: QueuedOperationType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    payload: Record<string, any>,
+    directWrite: () => Promise<T>,
+    makeSynthetic: () => T,
+    dependencies: string[] = [],
+  ): Promise<{ result: T; queued: boolean; queueId?: string }> {
+    // Key available — direct write
+    if (isEncryptionReady()) {
+      const result = await directWrite();
+      return { result, queued: false };
+    }
+
+    // Queue disabled — plaintext fallback (existing behavior)
+    if (!enableQueue) {
+      const result = await directWrite();
+      return { result, queued: false };
+    }
+
+    // walletAddress undefined but getWalletAddress provided — buffer in ref
+    if (!walletAddress && getWalletAddress) {
+      pendingOpsRef.current.push({ type: opType, payload, dependencies });
+      return { result: makeSynthetic(), queued: true };
+    }
+
+    // walletAddress present but key not derived — queue in QueueManager
+    if (walletAddress) {
+      const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
+      if (queueId === null) {
+        // Queue full — fall back to direct write with warning
+        console.warn("[useChatStorage] Queue full, falling back to direct write");
+        const result = await directWrite();
+        return { result, queued: false };
+      }
+      refreshQueueStatus();
+      return { result: makeSynthetic(), queued: true, queueId };
+    }
+
+    // No encryption context at all — direct write
+    const result = await directWrite();
+    return { result, queued: false };
+  }
+
   // Helper to embed a message after creation (non-blocking)
   // Uses chunking for long messages to improve semantic search precision
   const embedMessageAsync = useCallback(
@@ -794,15 +878,19 @@ export function useChatStorage(
    */
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
-      const created = await createConversationOp(
-        storageCtx,
-        opts,
-        defaultConversationTitle
+      const { result, queued } = await writeOrQueue(
+        "createConversation",
+        { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
+        () => createConversationOp(storageCtx, opts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(opts, defaultConversationTitle),
       );
-      setCurrentConversationId(created.conversationId);
-      return created;
+      if (queued) {
+        syntheticConvIdsRef.current.add(result.conversationId);
+      }
+      setCurrentConversationId(result.conversationId);
+      return result;
     },
-    [storageCtx, defaultConversationTitle]
+    [storageCtx, defaultConversationTitle, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
   );
 
   /**
@@ -830,9 +918,15 @@ export function useChatStorage(
    */
   const updateConversationTitle = useCallback(
     async (id: string, title: string): Promise<boolean> => {
-      return updateConversationTitleOp(storageCtx, id, title);
+      const { result } = await writeOrQueue(
+        "updateConversationTitle",
+        { conversationId: id, title },
+        () => updateConversationTitleOp(storageCtx, id, title),
+        () => true,
+      );
+      return result;
     },
-    [storageCtx]
+    [storageCtx, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
   );
 
   /**
@@ -945,6 +1039,11 @@ export function useChatStorage(
    */
   const ensureConversation = useCallback(async (): Promise<string> => {
     if (currentConversationId) {
+      // Trust synthetic conversation IDs — they were queued and will be flushed
+      if (syntheticConvIdsRef.current.has(currentConversationId)) {
+        return currentConversationId;
+      }
+
       const existing = await getConversation(currentConversationId);
       if (existing) {
         return currentConversationId;
@@ -982,7 +1081,7 @@ export function useChatStorage(
    * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
    */
   const extractSourcesFromToolCallEvents = useCallback(
-    (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
+    (toolCallEvents?: ToolCallEvent[]): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
@@ -1087,7 +1186,7 @@ export function useChatStorage(
       content: string,
       address: string,
       conversationId: string,
-      toolCallEvents?: LlmapiToolCallEvent[]
+      toolCallEvents?: ToolCallEvent[]
     ): Promise<{
       fileIds: string[];
       cleanedContent: string;
@@ -1437,6 +1536,16 @@ export function useChatStorage(
       const resolveThoughtProcess = (): ActivityPhase[] | undefined =>
         finalizeThoughtProcess(getThoughtProcess?.() || thoughtProcess);
 
+      // Eager key derivation: if wallet is present but key isn't, try to derive it now.
+      // This eliminates the queueing path in the common case (embedded wallet signing is silent and fast).
+      if (walletAddress && signMessage && !hasEncryptionKey(walletAddress)) {
+        try {
+          await requestEncryptionKey(walletAddress, signMessage, embeddedWalletSigner);
+        } catch {
+          // Key derivation failed — writes will be queued via writeOrQueue
+        }
+      }
+
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
         const effectiveApiType = requestApiType ?? apiType ?? "responses";
@@ -1694,10 +1803,10 @@ export function useChatStorage(
       }
 
       // Store the user message
-      // If wallet address is available, store files in media table and OPFS
-      // The new approach uses fileIds referencing the media table
+      // If wallet address is available and encryption is ready, store files in media table and OPFS
+      // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
       let userFileIds: string[] = [];
-      if (filesForStorage && filesForStorage.length > 0 && walletAddress) {
+      if (filesForStorage && filesForStorage.length > 0 && walletAddress && isEncryptionReady()) {
         // Store files and create media records
         userFileIds = await storeUserFilesInOPFS(
           filesForStorage,
@@ -1706,17 +1815,29 @@ export function useChatStorage(
         );
       }
 
+      const userMsgOpts: CreateMessageOptions = {
+        conversationId: convId,
+        role: "user",
+        content: contentForStorage,
+        fileIds: userFileIds.length > 0 ? userFileIds : undefined,
+        model,
+        // Store extracted file content in thinking field for retrieval in follow-up messages
+        thinking: fileContextForRequest,
+      };
+
       let storedUserMessage: StoredMessage;
+      let userMsgQueueId: string | undefined;
       try {
-        storedUserMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
-          role: "user",
-          content: contentForStorage,
-          fileIds: userFileIds.length > 0 ? userFileIds : undefined,
-          model,
-          // Store extracted file content in thinking field for retrieval in follow-up messages
-          thinking: fileContextForRequest,
-        });
+        const userMsgResult = await writeOrQueue(
+          "createMessage",
+          userMsgOpts,
+          () => createMessageOp(storageCtx, userMsgOpts),
+          () => makeSyntheticStoredMessage(userMsgOpts),
+          // Depend on queued conversation if applicable
+          convId && syntheticConvIdsRef.current.has(convId) ? [] : [],
+        );
+        storedUserMessage = userMsgResult.result;
+        userMsgQueueId = userMsgResult.queueId;
       } catch (err) {
         // Clean up OPFS files if message creation failed to avoid orphaned files
         if (userFileIds.length > 0) {
@@ -1724,7 +1845,7 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp(mediaCtx, mediaId);
-              
+
             } catch {
               // Ignore cleanup errors
             }
@@ -1737,8 +1858,8 @@ export function useChatStorage(
         };
       }
 
-      // Update media records with the messageId now that we have it
-      if (userFileIds.length > 0) {
+      // Update media records with the messageId now that we have it (only for direct writes)
+      if (userFileIds.length > 0 && !userMsgQueueId) {
         try {
           await updateMediaMessageIdBatchOp(
             mediaCtx,
@@ -1815,41 +1936,43 @@ export function useChatStorage(
         }
       }
 
-      // Embed user message: reuse embeddings if generated, otherwise async
-      if (userMessageEmbeddings && autoEmbedMessages) {
-        // Reuse embeddings from tool filtering
-        if (Array.isArray(userMessageEmbeddings[0])) {
-          // Chunked embeddings
-          const textChunks = chunkText(contentForStorage);
-          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
-            text: chunk.text,
-            vector: (userMessageEmbeddings as number[][])[i],
-            startOffset: chunk.startOffset,
-            endOffset: chunk.endOffset,
-          }));
-          updateMessageChunksOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            messageChunks,
-            embeddingModel
-          ).catch(() => {
-            // Non-fatal
-          });
+      // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
+      if (!userMsgQueueId) {
+        if (userMessageEmbeddings && autoEmbedMessages) {
+          // Reuse embeddings from tool filtering
+          if (Array.isArray(userMessageEmbeddings[0])) {
+            // Chunked embeddings
+            const textChunks = chunkText(contentForStorage);
+            const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
+              text: chunk.text,
+              vector: (userMessageEmbeddings as number[][])[i],
+              startOffset: chunk.startOffset,
+              endOffset: chunk.endOffset,
+            }));
+            updateMessageChunksOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              messageChunks,
+              embeddingModel
+            ).catch(() => {
+              // Non-fatal
+            });
+          } else {
+            // Single embedding
+            updateMessageEmbeddingOp(
+              storageCtx,
+              storedUserMessage.uniqueId,
+              userMessageEmbeddings as number[],
+              embeddingModel
+            ).catch(() => {
+              // Non-fatal
+            });
+          }
         } else {
-          // Single embedding
-          updateMessageEmbeddingOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            userMessageEmbeddings as number[],
-            embeddingModel
-          ).catch(() => {
-            // Non-fatal
-          });
+          // No embedding to reuse - use async embedding
+          // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
+          embedMessageAsync(storedUserMessage);
         }
-      } else {
-        // No embedding to reuse - use async embedding
-        // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-        embedMessageAsync(storedUserMessage);
       }
 
       // Merge and format tools (handles both server and client tools)
@@ -1886,29 +2009,35 @@ export function useChatStorage(
       if (result.error || !result.data) {
         // If aborted, store the message with wasStopped=true (even without partial data)
         const abortedResult = result as {
-          data: LlmapiResponseResponse | null;
+          data: ApiResponse | null;
           error: string;
         };
 
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
-          // Find the message output item (type: "message") for main content
-          const messageOutput = abortedResult.data?.output?.find(
-            (item) => item.type === "message"
-          );
-          const assistantContent =
-            messageOutput?.content
-              ?.map((part: { text?: string }) => part.text || "")
-              .join("") || "";
+          let assistantContent = "";
+          let abortedThinkingContent: string | undefined;
 
-          // Find the reasoning output item (type: "reasoning") for thinking content
-          const reasoningOutput = abortedResult.data?.output?.find(
-            (item) => item.type === "reasoning"
-          );
-          const abortedThinkingContent =
-            reasoningOutput?.content
-              ?.map((part: { text?: string }) => part.text || "")
-              .join("") || undefined;
+          if (abortedResult.data && "output" in abortedResult.data && abortedResult.data.output) {
+            type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+            // Find the message output item (type: "message") for main content
+            const messageOutput = (abortedResult.data.output as OutputItem[]).find(
+              (item) => item.type === "message"
+            );
+            assistantContent =
+              messageOutput?.content
+                ?.map((part) => part.text || "")
+                .join("") || "";
+
+            // Find the reasoning output item (type: "reasoning") for thinking content
+            const reasoningOutput = (abortedResult.data.output as OutputItem[]).find(
+              (item) => item.type === "reasoning"
+            );
+            abortedThinkingContent =
+              reasoningOutput?.content
+                ?.map((part) => part.text || "")
+                .join("") || undefined;
+          }
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -1931,7 +2060,7 @@ export function useChatStorage(
             embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
-            const responseData: LlmapiResponseResponse = abortedResult.data || {
+            const responseData: ApiResponse = abortedResult.data || {
               id: `aborted-${Date.now()}`,
               model: responseModel,
               object: "response",
@@ -2041,10 +2170,11 @@ export function useChatStorage(
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
 
-      // Extract and store MCP images using encrypted OPFS with media records (requires walletAddress)
+      // Extract and store MCP images using encrypted OPFS with media records
+      // Skip file/media storage when encryption key isn't ready (queue window is 1-3s during signup)
       let assistantFileIds: string[] = [];
 
-      if (walletAddress) {
+      if (walletAddress && isEncryptionReady()) {
         const result = await extractAndStoreEncryptedMCPImages(
           cleanedContent,
           walletAddress,
@@ -2055,29 +2185,38 @@ export function useChatStorage(
         cleanedContent = result.cleanedContent;
       } else {
         // Safety fallback: clean MCP URLs from content to prevent broken links
-        // This shouldn't happen since walletAddress is required, but handles edge cases
         cleanedContent = cleanMCPUrlsFromContent(cleanedContent);
       }
 
       // Store the assistant message
-      
+      const assistantMsgOpts: CreateMessageOptions = {
+        conversationId: convId,
+        role: "assistant",
+        content: cleanedContent,
+        model: responseData.model || model,
+        fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
+        usage: convertUsageToStored(responseData.usage),
+        responseDuration,
+        sources: extractedSources,
+        thoughtProcess: resolveThoughtProcess(),
+        thinking: thinkingContent,
+      };
+
       let storedAssistantMessage: StoredMessage;
       try {
-        storedAssistantMessage = await createMessageOp(storageCtx, {
-          conversationId: convId,
-          role: "assistant",
-          content: cleanedContent,
-          model: responseData.model || model,
-          fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
-          usage: convertUsageToStored(responseData.usage),
-          responseDuration,
-          sources: extractedSources,
-          thoughtProcess: resolveThoughtProcess(),
-          thinking: thinkingContent,
-        });
+        const assistantMsgResult = await writeOrQueue(
+          "createMessage",
+          assistantMsgOpts,
+          () => createMessageOp(storageCtx, assistantMsgOpts),
+          () => makeSyntheticStoredMessage(assistantMsgOpts),
+          userMsgQueueId ? [userMsgQueueId] : [],
+        );
+        storedAssistantMessage = assistantMsgResult.result;
 
-        // Embed assistant message (non-blocking)
-        embedMessageAsync(storedAssistantMessage);
+        // Embed assistant message (non-blocking, only for direct writes)
+        if (!assistantMsgResult.queued) {
+          embedMessageAsync(storedAssistantMessage);
+        }
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed
         if (assistantFileIds.length > 0) {
@@ -2085,7 +2224,7 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp(mediaCtx, mediaId);
-              
+
             } catch {
               // Ignore cleanup errors
             }
@@ -2101,8 +2240,8 @@ export function useChatStorage(
         };
       }
 
-      // Update assistant media records with the messageId now that we have it
-      if (assistantFileIds.length > 0) {
+      // Update assistant media records with the messageId now that we have it (only for direct writes)
+      if (assistantFileIds.length > 0 && !userMsgQueueId) {
         try {
           await updateMediaMessageIdBatchOp(
             mediaCtx,
@@ -2134,8 +2273,14 @@ export function useChatStorage(
       storageCtx,
       baseSendMessage,
       walletAddress,
+      signMessage,
+      embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
       embedMessageAsync,
+      isEncryptionReady,
+      enableQueue,
+      getWalletAddress,
+      refreshQueueStatus,
     ]
   );
 

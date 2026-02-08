@@ -2,7 +2,7 @@ import type { LlmapiChatCompletionResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 import { parseReasoningTags } from "../utils";
-import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import type { ApiStrategy, ApiResponse, BuildRequestBodyArgs } from "./types";
 
 /**
  * Tool call event from server-side MCP tool execution
@@ -401,6 +401,7 @@ export class CompletionsStrategy implements ApiStrategy {
       : undefined;
 
     // Build native Completions API response format
+    // Cast to ApiResponse because tool_call_events is an SDK extension not in the generated types
     return {
       id: accumulator.responseId,
       model: accumulator.responseModel,
@@ -424,6 +425,6 @@ export class CompletionsStrategy implements ApiStrategy {
             total_tokens: accumulator.usage.total_tokens,
           }
         : undefined,
-    };
+    } as ApiResponse;
   }
 }
