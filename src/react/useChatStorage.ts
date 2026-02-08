@@ -3,8 +3,8 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 
 import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiChatCompletionResponse } from "../client";
-import type { ApiResponse, ToolCallEvent } from "../lib/chat/useChat/strategies/types";
+import type { LlmapiMessage, LlmapiChatCompletionResponse, LlmapiToolCallEvent } from "../client";
+import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
 import {
   Message,
   Conversation,
@@ -1081,7 +1081,7 @@ export function useChatStorage(
    * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
    */
   const extractSourcesFromToolCallEvents = useCallback(
-    (toolCallEvents?: ToolCallEvent[]): SearchSource[] => {
+    (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
@@ -1186,7 +1186,7 @@ export function useChatStorage(
       content: string,
       address: string,
       conversationId: string,
-      toolCallEvents?: ToolCallEvent[]
+      toolCallEvents?: LlmapiToolCallEvent[]
     ): Promise<{
       fileIds: string[];
       cleanedContent: string;

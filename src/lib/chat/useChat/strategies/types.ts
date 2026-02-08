@@ -17,35 +17,13 @@ import type { ProcessChunkResult } from "../utils";
 export type ApiType = "responses" | "completions";
 
 /**
- * Tool call event captured during streaming (from server-side MCP tool execution).
- * This is an SDK extension — the server streams these during execution but
- * they are not part of the generated OpenAPI response types.
- */
-export interface ToolCallEvent {
-  id?: string;
-  name?: string;
-  arguments?: string;
-  output?: string;
-}
-
-/**
- * SDK extension fields appended to API responses during streaming.
- */
-export interface ApiResponseExtensions {
-  tool_call_events?: ToolCallEvent[];
-}
-
-/**
  * Union type for API responses - raw pass-through from server.
  * Responses API returns LlmapiResponseResponse (with output[]).
  * Completions API returns LlmapiChatCompletionResponse (with choices[]).
- *
- * Both are extended with SDK-specific fields (tool_call_events) that are
- * populated during streaming but not present in the generated OpenAPI types.
  */
 export type ApiResponse =
-  | (LlmapiResponseResponse & ApiResponseExtensions)
-  | (LlmapiChatCompletionResponse & ApiResponseExtensions);
+  | LlmapiResponseResponse
+  | LlmapiChatCompletionResponse;
 
 /**
  * Arguments for building API request body
