@@ -2,7 +2,7 @@
 
 > **HandlersListAppsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:199](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L199)
+Defined in: [src/client/types.gen.ts:196](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L196)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:199](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **apps**: [`HandlersAppResponse`](HandlersAppResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:200](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L200)
+Defined in: [src/client/types.gen.ts:197](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L197)

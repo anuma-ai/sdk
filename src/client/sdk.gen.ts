@@ -105,7 +105,7 @@ export const deleteApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends bool
 /**
  * Get API key by ID
  *
- * Returns a single API key by its ID. Requires admin API key.
+ * Returns a single API key by its ID with wallet balance details. Requires admin API key.
  */
 export const getApiV1AdminAppsByAppIdApiKeysById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysByIdData, ThrowOnError>) => {
     return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, ThrowOnError>({
@@ -221,7 +221,7 @@ export const postApiV1ChatCompletions = <ThrowOnError extends boolean = false>(o
 /**
  * Get configuration
  *
- * Returns public configuration including contract addresses, payment model, and registered apps
+ * Returns public configuration including contract addresses and registered apps
  */
 export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ConfigData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ConfigResponses, GetApiV1ConfigErrors, ThrowOnError>({

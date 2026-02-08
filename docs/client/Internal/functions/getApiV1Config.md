@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:226](https://github.com/zeta-chain/ai-sdk/blo
 
 Get configuration
 
-Returns public configuration including contract addresses, payment model, and registered apps
+Returns public configuration including contract addresses and registered apps
 
 ## Type Parameters
 

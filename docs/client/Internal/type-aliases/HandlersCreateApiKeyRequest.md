@@ -2,7 +2,7 @@
 
 > **HandlersCreateApiKeyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:125](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L125)
+Defined in: [src/client/types.gen.ts:122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L122)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:125](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L126)
+Defined in: [src/client/types.gen.ts:123](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L123)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:126](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **is\_test**: `boolean`
 
-Defined in: [src/client/types.gen.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L130)
+Defined in: [src/client/types.gen.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L127)
 
 If true, generates anuma\_test\_ prefix; otherwise anuma\_live\_
 
@@ -28,7 +28,7 @@ If true, generates anuma\_test\_ prefix; otherwise anuma\_live\_
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L131)
+Defined in: [src/client/types.gen.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L128)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:131](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L132)
+Defined in: [src/client/types.gen.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L129)

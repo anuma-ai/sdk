@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCustomerPortalError** = [`PostApiV1SubscriptionsCustomerPortalErrors`](PostApiV1SubscriptionsCustomerPortalErrors.md)\[keyof [`PostApiV1SubscriptionsCustomerPortalErrors`](PostApiV1SubscriptionsCustomerPortalErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1928](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1928)
+Defined in: [src/client/types.gen.ts:1985](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1985)
