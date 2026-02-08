@@ -481,3 +481,13 @@ export {
   storeDrivePendingMessage,
   getAndClearDrivePendingMessage,
 } from "../lib/auth/google-drive";
+
+export { useSTT } from "./useSTT";
+export type {
+  UseSTTOptions,
+  UseSTTResult,
+  STTError,
+  STTErrorCode,
+  TranscriptionSegment,
+  RecordingMode,
+} from "../lib/stt/types";
