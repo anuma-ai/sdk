@@ -84,6 +84,7 @@ function ChatComponent() {
 | [usePdf](Hooks/usePdf.md) | React hook for extracting text from PDF files. |
 | [useProjects](Hooks/useProjects.md) | A React hook for managing projects (conversation groups). |
 | [useSettings](Hooks/useSettings.md) | A React hook for managing user settings with automatic persistence using WatermelonDB. |
+| [useSpeechToText](Hooks/useSpeechToText.md) | React hook for on-device speech-to-text using Whisper via a Web Worker. |
 | [useSubscription](Hooks/useSubscription.md) | React hook for managing subscription status and billing operations. Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions. |
 | [useTools](Hooks/useTools.md) | React hook for fetching and caching server-side tools. |
 
