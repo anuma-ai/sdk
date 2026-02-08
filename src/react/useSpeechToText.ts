@@ -182,10 +182,10 @@ export function useSpeechToText(
   // Process recorded audio
   const processRecording = useCallback(
     async (chunks: Blob[], mimeType: string) => {
+      setIsTranscribing(true);
       try {
         const blob = new Blob(chunks, { type: mimeType });
         const audioData = await decodeAudioBlob(blob);
-        setIsTranscribing(true);
 
         const worker = ensureWorker();
         worker.postMessage(
@@ -322,7 +322,7 @@ export function useSpeechToText(
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  // Cleanup on unmount (keep worker alive for reuse if component remounts)
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (
@@ -335,6 +335,10 @@ export function useSpeechToText(
       stopAudioLevelPolling();
       cleanupAudioContext();
       stopTimer();
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
     };
   }, [stopMediaTracks, stopAudioLevelPolling, cleanupAudioContext, stopTimer]);
 
