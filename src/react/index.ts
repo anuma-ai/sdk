@@ -481,3 +481,13 @@ export {
   storeDrivePendingMessage,
   getAndClearDrivePendingMessage,
 } from "../lib/auth/google-drive";
+
+// Speech-to-text (on-device Whisper via Web Worker)
+export { useSpeechToText } from "./useSpeechToText";
+export type {
+  UseSpeechToTextOptions,
+  UseSpeechToTextResult,
+  WhisperWorkerIncoming,
+  WhisperWorkerOutgoing,
+} from "../lib/speechToText";
+export { decodeAudioBlob, getSupportedMimeType } from "../lib/speechToText";
