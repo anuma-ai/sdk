@@ -97,6 +97,7 @@ export function useCredits(
   const [packs, setPacks] = useState<HandlersCreditPack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const loadingCountRef = useRef(0);
 
   const getTokenRef = useRef(getToken);
   const baseUrlRef = useRef(baseUrl);
@@ -116,6 +117,16 @@ export function useCredits(
         abortControllerRef.current = null;
       }
     };
+  }, []);
+
+  const startLoading = useCallback(() => {
+    loadingCountRef.current++;
+    setIsLoading(true);
+  }, []);
+
+  const stopLoading = useCallback(() => {
+    loadingCountRef.current = Math.max(0, loadingCountRef.current - 1);
+    setIsLoading(loadingCountRef.current > 0);
   }, []);
 
   const getHeaders = useCallback(async (): Promise<Record<string, string>> => {
@@ -145,7 +156,7 @@ export function useCredits(
     abortControllerRef.current = abortController;
     const signal = abortController.signal;
 
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -170,14 +181,12 @@ export function useCredits(
       if (err instanceof Error && err.name === "AbortError") return;
       handleError(err);
     } finally {
-      if (!signal.aborted) {
-        setIsLoading(false);
-      }
+      stopLoading();
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
       }
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const refetch = useCallback(async () => {
     setBalance(null);
@@ -185,7 +194,7 @@ export function useCredits(
   }, [fetchBalance]);
 
   const fetchPacks = useCallback(async () => {
-    setIsLoading(true);
+    startLoading();
     setError(null);
 
     try {
@@ -206,13 +215,13 @@ export function useCredits(
     } catch (err) {
       handleError(err);
     } finally {
-      setIsLoading(false);
+      stopLoading();
     }
-  }, [getHeaders, handleError]);
+  }, [getHeaders, handleError, startLoading, stopLoading]);
 
   const claimDailyCredits =
     useCallback(async (): Promise<HandlersClaimDailyCreditsResponse | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -237,16 +246,16 @@ export function useCredits(
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
-    }, [getHeaders, handleError, fetchBalance]);
+    }, [getHeaders, handleError, fetchBalance, startLoading, stopLoading]);
 
   const purchaseCredits = useCallback(
     async (
       credits: number,
       opts?: { successUrl?: string; cancelUrl?: string }
     ): Promise<string | null> => {
-      setIsLoading(true);
+      startLoading();
       setError(null);
 
       try {
@@ -273,10 +282,10 @@ export function useCredits(
         handleError(err);
         return null;
       } finally {
-        setIsLoading(false);
+        stopLoading();
       }
     },
-    [getHeaders, handleError]
+    [getHeaders, handleError, startLoading, stopLoading]
   );
 
   const hasFetchedRef = useRef(false);
