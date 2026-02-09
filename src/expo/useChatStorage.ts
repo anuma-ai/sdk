@@ -653,7 +653,7 @@ export function useChatStorage(
 
       // Extract user message content for storage
       const extracted = extractUserMessageFromMessages(messages);
-      if (!extracted || !extracted.content) {
+      if (!extracted || (!extracted.content && !extracted.files?.length)) {
         return {
           data: null,
           error: "No user message found in messages array",
