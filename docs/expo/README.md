@@ -377,6 +377,24 @@ Re-exports [UpdateMemoryOptions](../react/Internal/type-aliases/UpdateMemoryOpti
 
 ***
 
+### useCredits
+
+Re-exports [useCredits](../react/Hooks/useCredits.md)
+
+***
+
+### UseCreditsOptions
+
+Re-exports [UseCreditsOptions](../react/Internal/type-aliases/UseCreditsOptions.md)
+
+***
+
+### UseCreditsResult
+
+Re-exports [UseCreditsResult](../react/Internal/type-aliases/UseCreditsResult.md)
+
+***
+
 ### useModels
 
 Re-exports [useModels](../react/Hooks/useModels.md)
