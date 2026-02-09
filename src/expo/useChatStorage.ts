@@ -51,6 +51,7 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
 import {
   deleteMediaByConversationOp,
+  createMediaBatchOp,
 } from "../lib/db/media";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
@@ -323,6 +324,13 @@ export function useChatStorage(
         embeddedWalletSigner: encCtx.embeddedWalletSigner,
       };
 
+      const mCtx = {
+        database: ctx.database,
+        walletAddress: encCtx.walletAddress,
+        signMessage: encCtx.signMessage,
+        embeddedWalletSigner: encCtx.embeddedWalletSigner,
+      };
+
       switch (operation.type) {
         case "createConversation":
           await createConversationOp(ctx, operation.payload as Parameters<typeof createConversationOp>[1]);
@@ -332,6 +340,9 @@ export function useChatStorage(
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
+          break;
+        case "createMediaBatch":
+          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
           break;
         default:
           console.warn(`[QueueManager] Unknown operation type: ${operation.type}`);
@@ -415,14 +426,14 @@ export function useChatStorage(
     refreshQueueStatus();
   }, [walletAddress, enableQueue, refreshQueueStatus]);
 
-  async function writeOrQueue<T>(
+  const writeOrQueue = useCallback(async <T>(
     opType: QueuedOperationType,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: Record<string, any>,
     directWrite: () => Promise<T>,
     makeSynthetic: () => T,
     dependencies: string[] = [],
-  ): Promise<{ result: T; queued: boolean; queueId?: string }> {
+  ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
     if (isEncryptionReady()) {
       const result = await directWrite();
       return { result, queued: false };
@@ -447,7 +458,7 @@ export function useChatStorage(
     }
     const result = await directWrite();
     return { result, queued: false };
-  }
+  }, [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]);
 
   /**
    * Embed a message asynchronously (fire and forget)
@@ -527,7 +538,7 @@ export function useChatStorage(
       setCurrentConversationId(result.conversationId);
       return result;
     },
-    [storageCtx, defaultConversationTitle, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
+    [storageCtx, defaultConversationTitle, writeOrQueue]
   );
 
   /**
@@ -563,7 +574,7 @@ export function useChatStorage(
       );
       return result;
     },
-    [storageCtx, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
+    [storageCtx, writeOrQueue]
   );
 
   /**

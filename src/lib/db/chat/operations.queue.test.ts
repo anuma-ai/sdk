@@ -29,7 +29,7 @@ describe("Synthetic Constructors", () => {
       const result = makeSyntheticStoredMessage(opts);
 
       expect(result.uniqueId).toMatch(/^queued_/);
-      expect(result.messageId).toBe(-1);
+      expect(result.messageId).toBe(Number.MAX_SAFE_INTEGER);
       expect(result.conversationId).toBe("conv_123");
       expect(result.role).toBe("user");
       expect(result.content).toBe("Hello, world!");
@@ -255,6 +255,6 @@ describe("Queue Integration with Synthetic Constructors", () => {
     expect(synthetic.sources).toEqual([{ title: "Ref", url: "https://example.com" }]);
     // Synthetic markers
     expect(synthetic.uniqueId).toMatch(/^queued_/);
-    expect(synthetic.messageId).toBe(-1);
+    expect(synthetic.messageId).toBe(Number.MAX_SAFE_INTEGER);
   });
 });

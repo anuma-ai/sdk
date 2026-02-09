@@ -44,13 +44,24 @@ describe("Chat Encryption Utilities", () => {
   });
 
   describe("isEncrypted", () => {
-    it("should return true for encrypted strings", () => {
-      expect(isEncrypted("enc:v2:abc123")).toBe(true);
+    it("should return true for valid encrypted strings", () => {
+      // Valid: prefix + 56+ hex chars (24 IV + 32+ ciphertext)
+      const validHex = "a".repeat(56);
+      expect(isEncrypted(`enc:v2:${validHex}`)).toBe(true);
     });
 
     it("should return false for plaintext", () => {
       expect(isEncrypted("hello world")).toBe(false);
       expect(isEncrypted("")).toBe(false);
+    });
+
+    it("should return false for prefix with too-short payload", () => {
+      expect(isEncrypted("enc:v2:abc123")).toBe(false);
+    });
+
+    it("should return false for prefix with non-hex payload", () => {
+      const nonHex = "g".repeat(56);
+      expect(isEncrypted(`enc:v2:${nonHex}`)).toBe(false);
     });
   });
 

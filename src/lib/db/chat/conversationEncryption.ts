@@ -1,65 +1,7 @@
-import { decryptData, requestEncryptionKey, encryptData } from "../../../react/useEncryption";
+import { requestEncryptionKey } from "../../../react/useEncryption";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 import type { CreateConversationOptions, StoredConversation } from "./types";
-
-const ENCRYPTION_PREFIX = "enc:v2:";
-
-/**
- * Checks if a string value is encrypted (has the enc:v2: prefix)
- */
-function isEncrypted(value: string): boolean {
-  return value.startsWith(ENCRYPTION_PREFIX);
-}
-
-/**
- * Encrypts a field value and adds the encryption prefix.
- * Uses random IV encryption for maximum security.
- */
-async function encryptField(
-  value: string,
-  address: string,
-  signMessage?: SignMessageFn,
-  embeddedWalletSigner?: EmbeddedWalletSignerFn
-): Promise<string> {
-  if (!value) return value;
-  if (!address || !signMessage) return value;
-
-  // Skip encryption if already encrypted (prevents double encryption)
-  if (isEncrypted(value)) {
-    return value;
-  }
-
-  try {
-    await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
-    const encrypted = await encryptData(value, address);
-    return `${ENCRYPTION_PREFIX}${encrypted}`;
-  } catch (error) {
-    console.warn("Failed to encrypt field, storing as plaintext:", error);
-    return value;
-  }
-}
-
-/**
- * Decrypts a field value by removing the prefix and decrypting.
- * Returns the original value if not encrypted or if decryption fails.
- */
-async function decryptField(
-  value: string,
-  address: string
-): Promise<string> {
-  if (!value || !isEncrypted(value)) {
-    return value;
-  }
-
-  try {
-    const encryptedData = value.slice(ENCRYPTION_PREFIX.length);
-    return await decryptData(encryptedData, address);
-  } catch (error) {
-    // If decryption fails, return the original value (backwards compatibility)
-    console.warn("Failed to decrypt field, returning as-is:", error);
-    return value;
-  }
-}
+import { encryptField, decryptField } from "../encryption-utils";
 
 /**
  * Encrypts conversation title before storage.
@@ -77,13 +19,15 @@ export async function encryptConversationFields(
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<CreateConversationOptions> {
   if (!address || !signMessage) {
-    // No encryption if wallet address not provided
     return conversation;
   }
 
   try {
+    // Request encryption key once for all fields
+    await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
+
     const encryptedTitle = conversation.title
-      ? await encryptField(conversation.title, address, signMessage, embeddedWalletSigner)
+      ? await encryptField(conversation.title, address, signMessage, embeddedWalletSigner, true)
       : conversation.title;
 
     return {
@@ -91,9 +35,8 @@ export async function encryptConversationFields(
       title: encryptedTitle,
     };
   } catch (error) {
-    // If encryption fails, return original conversation (backwards compatibility)
-    console.warn("Failed to encrypt conversation fields, storing as plaintext:", error);
-    return conversation;
+    console.warn("Failed to encrypt conversation fields:", error);
+    throw error;
   }
 }
 
@@ -107,16 +50,13 @@ export async function decryptConversationFields(
   embeddedWalletSigner?: EmbeddedWalletSignerFn
 ): Promise<StoredConversation> {
   if (!address) {
-    // No decryption if wallet address not provided
     return conversation;
   }
 
-  // Request encryption key if needed (allows decryption even if key not in memory)
   if (signMessage) {
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      // If key request fails, continue anyway - decryptField will handle errors gracefully
       console.warn("Failed to request encryption key for decryption:", error);
     }
   }

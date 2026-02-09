@@ -636,13 +636,16 @@ export async function searchMediaOp(
   const mediaCollection = ctx.database.get<Media>("media");
   const queryLower = query.toLowerCase();
 
-  // Fetch all non-deleted media for this wallet, decrypt, and filter in memory.
+  // Fetch recent non-deleted media for this wallet, decrypt, and filter in memory.
   // SQL LIKE cannot match encrypted field content, so we must decrypt first.
+  // Capped at 500 most recent records to prevent memory blowup at scale.
+  const MAX_SEARCH_RECORDS = 500;
   const allResults = await mediaCollection
     .query(
       Q.where("wallet_address", walletAddress),
       Q.where("is_deleted", false),
       Q.sortBy("created_at", Q.desc),
+      Q.take(MAX_SEARCH_RECORDS),
     )
     .fetch();
 

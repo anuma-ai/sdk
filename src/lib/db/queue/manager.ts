@@ -11,6 +11,7 @@
  * - Max 1000 operations per wallet to prevent memory leaks
  */
 
+import { v7 as uuidv7 } from "uuid";
 import type {
   QueuedOperation,
   QueuedOperationType,
@@ -34,9 +35,8 @@ const OPERATION_PRIORITY: Record<QueuedOperationType, number> = {
   updateMediaMessageId: 5,
 };
 
-let idCounter = 0;
 function generateQueueId(): string {
-  return `queue_${Date.now()}_${++idCounter}`;
+  return `queue_${uuidv7()}`;
 }
 
 /**

@@ -728,6 +728,8 @@ export function useChatStorage(
 
   // Track synthetic conversation IDs so ensureConversation doesn't fail for queued conversations
   const syntheticConvIdsRef = useRef<Set<string>>(new Set());
+  // Track convId -> queueId so message creation can depend on the queued conversation
+  const syntheticConvQueueIdsRef = useRef<Map<string, string>>(new Map());
 
   // Transfer pending ops to QueueManager when walletAddress becomes available
   useEffect(() => {
@@ -745,14 +747,14 @@ export function useChatStorage(
    * Routes a DB write through the queue when encryption key isn't ready,
    * or executes it directly when the key is available.
    */
-  async function writeOrQueue<T>(
+  const writeOrQueue = useCallback(async <T>(
     opType: QueuedOperationType,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: Record<string, any>,
     directWrite: () => Promise<T>,
     makeSynthetic: () => T,
     dependencies: string[] = [],
-  ): Promise<{ result: T; queued: boolean; queueId?: string }> {
+  ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
     // Key available — direct write
     if (isEncryptionReady()) {
       const result = await directWrite();
@@ -787,7 +789,7 @@ export function useChatStorage(
     // No encryption context at all — direct write
     const result = await directWrite();
     return { result, queued: false };
-  }
+  }, [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]);
 
   // Helper to embed a message after creation (non-blocking)
   // Uses chunking for long messages to improve semantic search precision
@@ -878,7 +880,7 @@ export function useChatStorage(
    */
   const createConversation = useCallback(
     async (opts?: CreateConversationOptions): Promise<StoredConversation> => {
-      const { result, queued } = await writeOrQueue(
+      const { result, queued, queueId } = await writeOrQueue(
         "createConversation",
         { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
         () => createConversationOp(storageCtx, opts, defaultConversationTitle),
@@ -886,11 +888,14 @@ export function useChatStorage(
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
+        if (queueId) {
+          syntheticConvQueueIdsRef.current.set(result.conversationId, queueId);
+        }
       }
       setCurrentConversationId(result.conversationId);
       return result;
     },
-    [storageCtx, defaultConversationTitle, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
+    [storageCtx, defaultConversationTitle, writeOrQueue]
   );
 
   /**
@@ -926,7 +931,7 @@ export function useChatStorage(
       );
       return result;
     },
-    [storageCtx, isEncryptionReady, enableQueue, walletAddress, getWalletAddress]
+    [storageCtx, writeOrQueue]
   );
 
   /**
@@ -1834,7 +1839,9 @@ export function useChatStorage(
           () => createMessageOp(storageCtx, userMsgOpts),
           () => makeSyntheticStoredMessage(userMsgOpts),
           // Depend on queued conversation if applicable
-          convId && syntheticConvIdsRef.current.has(convId) ? [] : [],
+          convId && syntheticConvQueueIdsRef.current.has(convId)
+            ? [syntheticConvQueueIdsRef.current.get(convId)!]
+            : [],
         );
         storedUserMessage = userMsgResult.result;
         userMsgQueueId = userMsgResult.queueId;

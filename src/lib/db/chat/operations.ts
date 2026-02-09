@@ -788,7 +788,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
   const now = new Date();
   return {
     uniqueId: `queued_${uuidv7()}`,
-    messageId: -1, // Unknown until flushed — DB generates sequential count
+    messageId: Number.MAX_SAFE_INTEGER, // Placeholder — DB assigns real sequential ID on flush
     conversationId: opts.conversationId,
     role: opts.role,
     content: opts.content,
