@@ -2,7 +2,7 @@
 
 > **HandlersUpdateApiKeyRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L311)
+Defined in: [src/client/types.gen.ts:378](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L378)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:311](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:312](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L312)
+Defined in: [src/client/types.gen.ts:379](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L379)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:312](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:313](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L313)
+Defined in: [src/client/types.gen.ts:380](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L380)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:313](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:314](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L314)
+Defined in: [src/client/types.gen.ts:381](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L381)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:314](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:315](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L315)
+Defined in: [src/client/types.gen.ts:382](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L382)

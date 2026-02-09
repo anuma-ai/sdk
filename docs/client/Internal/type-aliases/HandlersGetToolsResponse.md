@@ -2,7 +2,7 @@
 
 > **HandlersGetToolsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L170)
+Defined in: [src/client/types.gen.ts:224](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L224)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:170](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L171)
+Defined in: [src/client/types.gen.ts:225](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L225)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:171](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **tools**: `object`
 
-Defined in: [src/client/types.gen.ts:172](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L172)
+Defined in: [src/client/types.gen.ts:226](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L226)
 
 **Index Signature**
 

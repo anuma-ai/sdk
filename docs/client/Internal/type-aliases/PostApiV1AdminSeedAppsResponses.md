@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSeedAppsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1635](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1635)
+Defined in: [src/client/types.gen.ts:1698](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1698)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1635](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersSeedAppsResponse`](HandlersSeedAppsResponse.md)
 
-Defined in: [src/client/types.gen.ts:1639](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1639)
+Defined in: [src/client/types.gen.ts:1702](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1702)
 
 OK

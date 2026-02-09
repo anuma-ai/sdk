@@ -298,6 +298,9 @@ export type {
   UseSubscriptionResult,
 } from "./useSubscription";
 
+export { useCredits } from "./useCredits";
+export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
+
 // Memory retrieval (semantic search over past messages)
 export {
   createMemoryRetrievalTool,

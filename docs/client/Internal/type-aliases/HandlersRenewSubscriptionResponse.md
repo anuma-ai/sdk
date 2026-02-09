@@ -2,7 +2,7 @@
 
 > **HandlersRenewSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:204](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L204)
+Defined in: [src/client/types.gen.ts:258](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L258)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:204](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:205](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L205)
+Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L259)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:205](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:206](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L206)
+Defined in: [src/client/types.gen.ts:260](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L260)

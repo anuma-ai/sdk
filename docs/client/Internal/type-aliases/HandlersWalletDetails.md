@@ -2,7 +2,7 @@
 
 > **HandlersWalletDetails** = `object`
 
-Defined in: [src/client/types.gen.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L330)
+Defined in: [src/client/types.gen.ts:397](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L397)
 
 Wallet account details
 
@@ -12,7 +12,7 @@ Wallet account details
 
 > `optional` **account\_created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:334](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L334)
+Defined in: [src/client/types.gen.ts:401](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L401)
 
 When account was first created
 
@@ -22,7 +22,7 @@ When account was first created
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L335)
+Defined in: [src/client/types.gen.ts:402](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L402)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:335](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **balance\_updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L339)
+Defined in: [src/client/types.gen.ts:406](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L406)
 
 When balance was last synced from chain
 
@@ -40,7 +40,7 @@ When balance was last synced from chain
 
 > `optional` **cached\_balance\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L343)
+Defined in: [src/client/types.gen.ts:410](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L410)
 
 Balance in micro-dollars (USD \* 1,000,000)
 
@@ -50,7 +50,7 @@ Balance in micro-dollars (USD \* 1,000,000)
 
 > `optional` **enrolled\_app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:347](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L347)
+Defined in: [src/client/types.gen.ts:414](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L414)
 
 App ID for enrollment (0 if not enrolled)
 
@@ -60,19 +60,9 @@ App ID for enrollment (0 if not enrolled)
 
 > `optional` **is\_enrolled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:351](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L351)
+Defined in: [src/client/types.gen.ts:418](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L418)
 
 Whether enrolled in cost-limit model
-
-***
-
-### last\_credit\_reset\_at?
-
-> `optional` **last\_credit\_reset\_at**: `string`
-
-Defined in: [src/client/types.gen.ts:355](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L355)
-
-Last credit reset timestamp
 
 ***
 
@@ -80,7 +70,7 @@ Last credit reset timestamp
 
 > `optional` **pending\_cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L359)
+Defined in: [src/client/types.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L422)
 
 In-flight request holds in micro-dollars
 
@@ -90,7 +80,7 @@ In-flight request holds in micro-dollars
 
 > `optional` **pro\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:363](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L363)
+Defined in: [src/client/types.gen.ts:426](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L426)
 
 When user became Pro subscriber
 
@@ -100,6 +90,6 @@ When user became Pro subscriber
 
 > `optional` **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:367](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L367)
+Defined in: [src/client/types.gen.ts:430](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L430)
 
 "basic" or "pro"
