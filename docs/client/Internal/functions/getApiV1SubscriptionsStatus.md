@@ -2,7 +2,7 @@
 
 > **getApiV1SubscriptionsStatus**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1SubscriptionsStatusData`](../type-aliases/GetApiV1SubscriptionsStatusData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1SubscriptionsStatusResponses`](../type-aliases/GetApiV1SubscriptionsStatusResponses.md), [`GetApiV1SubscriptionsStatusErrors`](../type-aliases/GetApiV1SubscriptionsStatusErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:350](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L350)
+Defined in: [src/client/sdk.gen.ts:402](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L402)
 
 Get subscription status
 

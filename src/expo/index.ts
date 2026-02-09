@@ -97,6 +97,8 @@ export type {
 } from "./useChatStorage";
 export { useModels } from "../react/useModels";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
+export { useCredits } from "../react/useCredits";
+export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 
 // Memory storage hooks
 export { useMemoryStorage } from "./useMemoryStorage";

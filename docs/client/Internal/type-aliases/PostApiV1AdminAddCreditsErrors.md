@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAddCreditsErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1106)
+Defined in: [src/client/types.gen.ts:1169](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1169)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1110](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1110)
+Defined in: [src/client/types.gen.ts:1173](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1173)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1114](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1114)
+Defined in: [src/client/types.gen.ts:1177](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1177)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1118)
+Defined in: [src/client/types.gen.ts:1181](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1181)
 
 Not Found
 
@@ -40,6 +40,6 @@ Not Found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1122)
+Defined in: [src/client/types.gen.ts:1185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1185)
 
 Internal Server Error

@@ -40,6 +40,16 @@
 | [GetApiV1ConfigErrors](Internal/type-aliases/GetApiV1ConfigErrors.md) | - |
 | [GetApiV1ConfigResponse](Internal/type-aliases/GetApiV1ConfigResponse.md) | - |
 | [GetApiV1ConfigResponses](Internal/type-aliases/GetApiV1ConfigResponses.md) | - |
+| [GetApiV1CreditsBalanceData](Internal/type-aliases/GetApiV1CreditsBalanceData.md) | - |
+| [GetApiV1CreditsBalanceError](Internal/type-aliases/GetApiV1CreditsBalanceError.md) | - |
+| [GetApiV1CreditsBalanceErrors](Internal/type-aliases/GetApiV1CreditsBalanceErrors.md) | - |
+| [GetApiV1CreditsBalanceResponse](Internal/type-aliases/GetApiV1CreditsBalanceResponse.md) | - |
+| [GetApiV1CreditsBalanceResponses](Internal/type-aliases/GetApiV1CreditsBalanceResponses.md) | - |
+| [GetApiV1CreditsPacksData](Internal/type-aliases/GetApiV1CreditsPacksData.md) | - |
+| [GetApiV1CreditsPacksError](Internal/type-aliases/GetApiV1CreditsPacksError.md) | - |
+| [GetApiV1CreditsPacksErrors](Internal/type-aliases/GetApiV1CreditsPacksErrors.md) | - |
+| [GetApiV1CreditsPacksResponse](Internal/type-aliases/GetApiV1CreditsPacksResponse.md) | - |
+| [GetApiV1CreditsPacksResponses](Internal/type-aliases/GetApiV1CreditsPacksResponses.md) | - |
 | [GetApiV1DocsSwaggerJsonData](Internal/type-aliases/GetApiV1DocsSwaggerJsonData.md) | - |
 | [GetApiV1DocsSwaggerJsonResponse](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponse.md) | - |
 | [GetApiV1DocsSwaggerJsonResponses](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponses.md) | - |
@@ -53,6 +63,11 @@
 | [GetApiV1SubscriptionsStatusErrors](Internal/type-aliases/GetApiV1SubscriptionsStatusErrors.md) | - |
 | [GetApiV1SubscriptionsStatusResponse](Internal/type-aliases/GetApiV1SubscriptionsStatusResponse.md) | - |
 | [GetApiV1SubscriptionsStatusResponses](Internal/type-aliases/GetApiV1SubscriptionsStatusResponses.md) | - |
+| [GetApiV1TasksData](Internal/type-aliases/GetApiV1TasksData.md) | - |
+| [GetApiV1TasksError](Internal/type-aliases/GetApiV1TasksError.md) | - |
+| [GetApiV1TasksErrors](Internal/type-aliases/GetApiV1TasksErrors.md) | - |
+| [GetApiV1TasksResponse](Internal/type-aliases/GetApiV1TasksResponse.md) | - |
+| [GetApiV1TasksResponses](Internal/type-aliases/GetApiV1TasksResponses.md) | - |
 | [GetApiV1ToolsData](Internal/type-aliases/GetApiV1ToolsData.md) | - |
 | [GetApiV1ToolsError](Internal/type-aliases/GetApiV1ToolsError.md) | - |
 | [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
@@ -71,11 +86,16 @@
 | [HandlersAppResponse](Internal/type-aliases/HandlersAppResponse.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
+| [HandlersClaimDailyCreditsResponse](Internal/type-aliases/HandlersClaimDailyCreditsResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
 | [HandlersCreateApiKeyRequest](Internal/type-aliases/HandlersCreateApiKeyRequest.md) | - |
 | [HandlersCreateAppRequest](Internal/type-aliases/HandlersCreateAppRequest.md) | - |
 | [HandlersCreateCheckoutSessionRequest](Internal/type-aliases/HandlersCreateCheckoutSessionRequest.md) | - |
+| [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
+| [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
+| [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
+| [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
 | [HandlersGeneratedApiKey](Internal/type-aliases/HandlersGeneratedApiKey.md) | - |
@@ -93,6 +113,7 @@
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
 | [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
+| [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
@@ -169,6 +190,16 @@
 | [PostApiV1ChatCompletionsErrors](Internal/type-aliases/PostApiV1ChatCompletionsErrors.md) | - |
 | [PostApiV1ChatCompletionsResponse](Internal/type-aliases/PostApiV1ChatCompletionsResponse.md) | - |
 | [PostApiV1ChatCompletionsResponses](Internal/type-aliases/PostApiV1ChatCompletionsResponses.md) | - |
+| [PostApiV1CreditsClaimDailyData](Internal/type-aliases/PostApiV1CreditsClaimDailyData.md) | - |
+| [PostApiV1CreditsClaimDailyError](Internal/type-aliases/PostApiV1CreditsClaimDailyError.md) | - |
+| [PostApiV1CreditsClaimDailyErrors](Internal/type-aliases/PostApiV1CreditsClaimDailyErrors.md) | - |
+| [PostApiV1CreditsClaimDailyResponse](Internal/type-aliases/PostApiV1CreditsClaimDailyResponse.md) | - |
+| [PostApiV1CreditsClaimDailyResponses](Internal/type-aliases/PostApiV1CreditsClaimDailyResponses.md) | - |
+| [PostApiV1CreditsPurchaseData](Internal/type-aliases/PostApiV1CreditsPurchaseData.md) | - |
+| [PostApiV1CreditsPurchaseError](Internal/type-aliases/PostApiV1CreditsPurchaseError.md) | - |
+| [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
+| [PostApiV1CreditsPurchaseResponse](Internal/type-aliases/PostApiV1CreditsPurchaseResponse.md) | - |
+| [PostApiV1CreditsPurchaseResponses](Internal/type-aliases/PostApiV1CreditsPurchaseResponses.md) | - |
 | [PostApiV1EmbeddingsData](Internal/type-aliases/PostApiV1EmbeddingsData.md) | - |
 | [PostApiV1EmbeddingsError](Internal/type-aliases/PostApiV1EmbeddingsError.md) | - |
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
@@ -242,9 +273,12 @@
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
+| [getApiV1CreditsBalance](Internal/functions/getApiV1CreditsBalance.md) | Get credit balance |
+| [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
+| [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
 | [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
@@ -253,6 +287,8 @@
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
+| [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
+| [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |

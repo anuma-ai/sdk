@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCancelError** = [`PostApiV1SubscriptionsCancelErrors`](PostApiV1SubscriptionsCancelErrors.md)\[keyof [`PostApiV1SubscriptionsCancelErrors`](PostApiV1SubscriptionsCancelErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1909](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1909)
+Defined in: [src/client/types.gen.ts:2107](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2107)

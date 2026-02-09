@@ -2,7 +2,7 @@
 
 > **HandlersSetSubscriptionTierResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:258](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L258)
+Defined in: [src/client/types.gen.ts:312](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L312)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:258](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L259)
+Defined in: [src/client/types.gen.ts:313](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L313)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:259](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:260](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L260)
+Defined in: [src/client/types.gen.ts:314](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L314)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:260](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:261](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L261)
+Defined in: [src/client/types.gen.ts:315](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L315)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:261](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:262](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L262)
+Defined in: [src/client/types.gen.ts:316](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L316)

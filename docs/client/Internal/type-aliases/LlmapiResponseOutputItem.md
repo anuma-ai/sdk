@@ -2,7 +2,7 @@
 
 > **LlmapiResponseOutputItem** = `object`
 
-Defined in: [src/client/types.gen.ts:851](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L851)
+Defined in: [src/client/types.gen.ts:914](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L914)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:851](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:855](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L855)
+Defined in: [src/client/types.gen.ts:918](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L918)
 
 Arguments is the function arguments for function\_call and mcp\_call types
 
@@ -20,7 +20,7 @@ Arguments is the function arguments for function\_call and mcp\_call types
 
 > `optional` **call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:859](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L859)
+Defined in: [src/client/types.gen.ts:922](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L922)
 
 CallID is the call ID for function\_call and mcp\_call types
 
@@ -30,7 +30,7 @@ CallID is the call ID for function\_call and mcp\_call types
 
 > `optional` **content**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:863](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L863)
+Defined in: [src/client/types.gen.ts:926](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L926)
 
 Content is the content array for message and reasoning types
 
@@ -40,7 +40,7 @@ Content is the content array for message and reasoning types
 
 > `optional` **error**: `string`
 
-Defined in: [src/client/types.gen.ts:867](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L867)
+Defined in: [src/client/types.gen.ts:930](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L930)
 
 Error is the MCP error message for mcp\_call types
 
@@ -50,7 +50,7 @@ Error is the MCP error message for mcp\_call types
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
+Defined in: [src/client/types.gen.ts:934](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L934)
 
 ID is the unique identifier for this output item
 
@@ -60,7 +60,7 @@ ID is the unique identifier for this output item
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:875](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L875)
+Defined in: [src/client/types.gen.ts:938](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L938)
 
 Name is the function name for function\_call and mcp\_call types
 
@@ -70,7 +70,7 @@ Name is the function name for function\_call and mcp\_call types
 
 > `optional` **output**: `string`
 
-Defined in: [src/client/types.gen.ts:879](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L879)
+Defined in: [src/client/types.gen.ts:942](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L942)
 
 Output is the MCP tool output for mcp\_call types
 
@@ -80,7 +80,7 @@ Output is the MCP tool output for mcp\_call types
 
 > `optional` **role**: `string`
 
-Defined in: [src/client/types.gen.ts:883](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L883)
+Defined in: [src/client/types.gen.ts:946](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L946)
 
 Role is the role for message types (e.g., "assistant")
 
@@ -90,7 +90,7 @@ Role is the role for message types (e.g., "assistant")
 
 > `optional` **server\_label**: `string`
 
-Defined in: [src/client/types.gen.ts:887](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L887)
+Defined in: [src/client/types.gen.ts:950](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L950)
 
 ServerLabel is the MCP server label for mcp\_call and mcp\_list\_tools types
 
@@ -100,7 +100,7 @@ ServerLabel is the MCP server label for mcp\_call and mcp\_list\_tools types
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:891](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L891)
+Defined in: [src/client/types.gen.ts:954](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L954)
 
 Status is the status of this output item (e.g., "completed")
 
@@ -110,7 +110,7 @@ Status is the status of this output item (e.g., "completed")
 
 > `optional` **summary**: [`LlmapiResponseOutputContent`](LlmapiResponseOutputContent.md)\[]
 
-Defined in: [src/client/types.gen.ts:895](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L895)
+Defined in: [src/client/types.gen.ts:958](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L958)
 
 Summary is the reasoning summary for reasoning types
 
@@ -120,7 +120,7 @@ Summary is the reasoning summary for reasoning types
 
 > `optional` **tools**: [`LlmapiMcpTool`](LlmapiMcpTool.md)\[]
 
-Defined in: [src/client/types.gen.ts:899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L899)
+Defined in: [src/client/types.gen.ts:962](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L962)
 
 Tools is the list of available tools for mcp\_list\_tools types
 
@@ -130,6 +130,6 @@ Tools is the list of available tools for mcp\_list\_tools types
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L903)
+Defined in: [src/client/types.gen.ts:966](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L966)
 
 Type is the output item type (e.g., "message", "function\_call", "reasoning", "mcp\_call")
