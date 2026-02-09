@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageArgs** = `BaseSendMessageWithStorageArgs` & `object`
 
-Defined in: [src/expo/useChatStorage.ts:148](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L148)
+Defined in: [src/expo/useChatStorage.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L149)
 
 Arguments for sendMessage with storage (Expo version)
 

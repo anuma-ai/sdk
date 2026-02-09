@@ -2,7 +2,7 @@
 
 > **getMediaCountOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `mediaType?`: [`MediaType`](../type-aliases/MediaType.md)): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:663](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L663)
+Defined in: [src/lib/db/media/operations.ts:666](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L666)
 
 Get media count for a user.
 
