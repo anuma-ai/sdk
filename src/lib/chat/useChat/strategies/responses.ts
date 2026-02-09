@@ -66,13 +66,15 @@ export class ResponsesStrategy implements ApiStrategy {
     // Handle response.completed event - extract usage and mark tool calls as completed
     if (typedChunk.type === "response.completed") {
       if (typedChunk.response?.usage) {
+        const u = typedChunk.response.usage;
+        const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
+        const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
         accumulator.usage = {
           ...accumulator.usage,
-          prompt_tokens: typedChunk.response.usage.input_tokens,
-          completion_tokens: typedChunk.response.usage.output_tokens,
-          total_tokens:
-            (typedChunk.response.usage.input_tokens || 0) +
-            (typedChunk.response.usage.output_tokens || 0),
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: promptTokens + completionTokens,
+          ...(u.cost_micro_usd != null && { cost_micro_usd: u.cost_micro_usd }),
         };
       }
 
