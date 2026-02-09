@@ -70,6 +70,7 @@ function ChatComponent() {
 | [useBackup](Hooks/useBackup.md) | Unified React hook for backup and restore functionality. |
 | [useBackupAuth](Hooks/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
+| [useCredits](Hooks/useCredits.md) | React hook for managing credits: checking balance, claiming daily credits, browsing packs, and purchasing credits. |
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
 | [useEncryption](Hooks/useEncryption.md) | Hook that provides encryption key management for securing local data. |

@@ -2,7 +2,7 @@
 
 > **HandlersExchangeRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L154)
+Defined in: [src/client/types.gen.ts:208](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L208)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/b
 
 > **code**: `string`
 
-Defined in: [src/client/types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L155)
+Defined in: [src/client/types.gen.ts:209](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L209)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:155](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **redirect\_uri**: `string`
 
-Defined in: [src/client/types.gen.ts:159](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L159)
+Defined in: [src/client/types.gen.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L213)
 
 Optional - uses config default if not provided

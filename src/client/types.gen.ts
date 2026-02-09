@@ -100,6 +100,19 @@ export type HandlersCheckoutSessionResponse = {
     url?: string;
 };
 
+export type HandlersClaimDailyCreditsResponse = {
+    /**
+     * Credits awarded (1 credit = $0.01)
+     */
+    credits_awarded?: number;
+    message?: string;
+    /**
+     * ISO8601 timestamp when next claim is available
+     */
+    next_claim_at?: string;
+    success?: boolean;
+};
+
 export type HandlersConfigResponse = {
     /**
      * Apps is the list of active apps with their escrow contracts
@@ -143,8 +156,49 @@ export type HandlersCreateCheckoutSessionRequest = {
     success_url?: string;
 };
 
+export type HandlersCreateCreditPackCheckoutRequest = {
+    cancel_url?: string;
+    credits?: number;
+    success_url?: string;
+};
+
 export type HandlersCreateCustomerPortalRequest = {
     return_url?: string;
+};
+
+export type HandlersCreditBalanceResponse = {
+    /**
+     * Available credits (1 credit = $0.01)
+     */
+    available_credits?: number;
+    can_claim_daily?: boolean;
+    /**
+     * Whether enrolled on-chain
+     */
+    is_enrolled?: boolean;
+    last_claim_at?: string;
+    /**
+     * Total credits ever received (1 credit = $0.01)
+     */
+    lifetime_credits?: number;
+    next_claim_at?: string;
+    /**
+     * "basic" or "pro"
+     */
+    subscription_tier?: string;
+    wallet_address?: string;
+};
+
+export type HandlersCreditPack = {
+    bonus_percent?: number;
+    credits?: number;
+    currency?: string;
+    pro_credits?: number;
+    unit_amount?: number;
+};
+
+export type HandlersCreditPacksResponse = {
+    packs?: Array<HandlersCreditPack>;
 };
 
 export type HandlersCustomerPortalResponse = {
@@ -281,6 +335,19 @@ export type HandlersSubscriptionStatusResponse = {
     status?: string;
 };
 
+export type HandlersTaskResponse = {
+    /**
+     * 1 credit = $0.01
+     */
+    amount_credits?: number;
+    /**
+     * null for one-time tasks
+     */
+    cooldown_secs?: number;
+    description?: string;
+    type?: string;
+};
+
 export type HandlersTokenResponse = {
     access_token?: string;
     /**
@@ -349,10 +416,6 @@ export type HandlersWalletDetails = {
      * Whether enrolled in cost-limit model
      */
     is_enrolled?: boolean;
-    /**
-     * Last credit reset timestamp
-     */
-    last_credit_reset_at?: string;
     /**
      * In-flight request holds in micro-dollars
      */
@@ -1748,6 +1811,141 @@ export type GetApiV1ConfigResponses = {
 
 export type GetApiV1ConfigResponse = GetApiV1ConfigResponses[keyof GetApiV1ConfigResponses];
 
+export type GetApiV1CreditsBalanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/balance';
+};
+
+export type GetApiV1CreditsBalanceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Account not found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1CreditsBalanceError = GetApiV1CreditsBalanceErrors[keyof GetApiV1CreditsBalanceErrors];
+
+export type GetApiV1CreditsBalanceResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCreditBalanceResponse;
+};
+
+export type GetApiV1CreditsBalanceResponse = GetApiV1CreditsBalanceResponses[keyof GetApiV1CreditsBalanceResponses];
+
+export type PostApiV1CreditsClaimDailyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/claim-daily';
+};
+
+export type PostApiV1CreditsClaimDailyErrors = {
+    /**
+     * Already claimed today
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Account not found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1CreditsClaimDailyError = PostApiV1CreditsClaimDailyErrors[keyof PostApiV1CreditsClaimDailyErrors];
+
+export type PostApiV1CreditsClaimDailyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersClaimDailyCreditsResponse;
+};
+
+export type PostApiV1CreditsClaimDailyResponse = PostApiV1CreditsClaimDailyResponses[keyof PostApiV1CreditsClaimDailyResponses];
+
+export type GetApiV1CreditsPacksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/packs';
+};
+
+export type GetApiV1CreditsPacksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1CreditsPacksError = GetApiV1CreditsPacksErrors[keyof GetApiV1CreditsPacksErrors];
+
+export type GetApiV1CreditsPacksResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCreditPacksResponse;
+};
+
+export type GetApiV1CreditsPacksResponse = GetApiV1CreditsPacksResponses[keyof GetApiV1CreditsPacksResponses];
+
+export type PostApiV1CreditsPurchaseData = {
+    /**
+     * Credit pack checkout request
+     */
+    body: HandlersCreateCreditPackCheckoutRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/purchase';
+};
+
+export type PostApiV1CreditsPurchaseErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1CreditsPurchaseError = PostApiV1CreditsPurchaseErrors[keyof PostApiV1CreditsPurchaseErrors];
+
+export type PostApiV1CreditsPurchaseResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostApiV1CreditsPurchaseResponse = PostApiV1CreditsPurchaseResponses[keyof PostApiV1CreditsPurchaseResponses];
+
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;
     path?: never;
@@ -2093,6 +2291,31 @@ export type PostApiV1SubscriptionsWebhookResponses = {
 };
 
 export type PostApiV1SubscriptionsWebhookResponse = PostApiV1SubscriptionsWebhookResponses[keyof PostApiV1SubscriptionsWebhookResponses];
+
+export type GetApiV1TasksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/tasks';
+};
+
+export type GetApiV1TasksErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1TasksError = GetApiV1TasksErrors[keyof GetApiV1TasksErrors];
+
+export type GetApiV1TasksResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersTaskResponse>;
+};
+
+export type GetApiV1TasksResponse = GetApiV1TasksResponses[keyof GetApiV1TasksResponses];
 
 export type GetApiV1ToolsData = {
     body?: never;

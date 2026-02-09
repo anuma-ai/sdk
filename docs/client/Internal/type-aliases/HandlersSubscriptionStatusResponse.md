@@ -2,7 +2,7 @@
 
 > **HandlersSubscriptionStatusResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:265](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L265)
+Defined in: [src/client/types.gen.ts:319](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L319)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:265](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **cancel\_at\_period\_end**: `boolean`
 
-Defined in: [src/client/types.gen.ts:269](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L269)
+Defined in: [src/client/types.gen.ts:323](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L323)
 
 true if scheduled to cancel
 
@@ -20,7 +20,7 @@ true if scheduled to cancel
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:273](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L273)
+Defined in: [src/client/types.gen.ts:327](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L327)
 
 Unix timestamp, only present if subscribed
 
@@ -30,7 +30,7 @@ Unix timestamp, only present if subscribed
 
 > `optional` **plan**: `string`
 
-Defined in: [src/client/types.gen.ts:277](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L277)
+Defined in: [src/client/types.gen.ts:331](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L331)
 
 "free" | "pro"
 
@@ -40,6 +40,6 @@ Defined in: [src/client/types.gen.ts:277](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:281](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L281)
+Defined in: [src/client/types.gen.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L335)
 
 "none" | "active" | "canceling" | "past\_due" | "canceled"

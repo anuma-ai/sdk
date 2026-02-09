@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:530](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L530)
+Defined in: [src/client/types.gen.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L593)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:530](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **dimensions**: `number`
 
-Defined in: [src/client/types.gen.ts:534](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L534)
+Defined in: [src/client/types.gen.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L597)
 
 Dimensions is the number of dimensions the resulting output embeddings should have (optional)
 
@@ -20,7 +20,7 @@ Dimensions is the number of dimensions the resulting output embeddings should ha
 
 > `optional` **encoding\_format**: `string`
 
-Defined in: [src/client/types.gen.ts:538](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L538)
+Defined in: [src/client/types.gen.ts:601](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L601)
 
 EncodingFormat is the format to return the embeddings in (optional: "float" or "base64")
 
@@ -30,7 +30,7 @@ EncodingFormat is the format to return the embeddings in (optional: "float" or "
 
 > **input**: `unknown`
 
-Defined in: [src/client/types.gen.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L542)
+Defined in: [src/client/types.gen.ts:605](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L605)
 
 Input text or tokens to embed (can be string, \[]string, \[]int, or \[]\[]int)
 
@@ -40,6 +40,6 @@ Input text or tokens to embed (can be string, \[]string, \[]int, or \[]\[]int)
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:546](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L546)
+Defined in: [src/client/types.gen.ts:609](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L609)
 
 Model identifier in 'provider/model' format

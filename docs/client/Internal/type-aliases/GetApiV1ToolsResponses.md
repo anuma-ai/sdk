@@ -2,7 +2,7 @@
 
 > **GetApiV1ToolsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2113](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2113)
+Defined in: [src/client/types.gen.ts:2336](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2336)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2113](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersGetToolsResponse`](HandlersGetToolsResponse.md)
 
-Defined in: [src/client/types.gen.ts:2117](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2117)
+Defined in: [src/client/types.gen.ts:2340](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2340)
 
 OK

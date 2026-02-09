@@ -2,7 +2,7 @@
 
 > **HandlersHealthResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:177](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L177)
+Defined in: [src/client/types.gen.ts:231](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L231)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:177](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L181)
+Defined in: [src/client/types.gen.ts:235](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L235)
 
 Status indicates the service health status
 
@@ -20,7 +20,7 @@ Status indicates the service health status
 
 > `optional` **timestamp**: `number`
 
-Defined in: [src/client/types.gen.ts:185](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L185)
+Defined in: [src/client/types.gen.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L239)
 
 Timestamp is the Unix timestamp of the response
 
@@ -30,6 +30,6 @@ Timestamp is the Unix timestamp of the response
 
 > `optional` **version**: `string`
 
-Defined in: [src/client/types.gen.ts:189](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L189)
+Defined in: [src/client/types.gen.ts:243](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L243)
 
 Version is the current API version

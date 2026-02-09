@@ -2,7 +2,7 @@
 
 > **postAuthOauthByProviderRevoke**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderRevokeData`](../type-aliases/PostAuthOauthByProviderRevokeData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderRevokeResponses`](../type-aliases/PostAuthOauthByProviderRevokeResponses.md), [`PostAuthOauthByProviderRevokeErrors`](../type-aliases/PostAuthOauthByProviderRevokeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L422)
+Defined in: [src/client/sdk.gen.ts:486](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L486)
 
 Revoke OAuth token
 

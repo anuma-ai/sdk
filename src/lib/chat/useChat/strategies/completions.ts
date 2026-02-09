@@ -422,6 +422,7 @@ export class CompletionsStrategy implements ApiStrategy {
             prompt_tokens: accumulator.usage.prompt_tokens,
             completion_tokens: accumulator.usage.completion_tokens,
             total_tokens: accumulator.usage.total_tokens,
+            cost_micro_usd: accumulator.usage.cost_micro_usd,
           }
         : undefined,
     };
