@@ -21,7 +21,9 @@ export type ApiType = "responses" | "completions";
  * Responses API returns LlmapiResponseResponse (with output[]).
  * Completions API returns LlmapiChatCompletionResponse (with choices[]).
  */
-export type ApiResponse = LlmapiResponseResponse | LlmapiChatCompletionResponse;
+export type ApiResponse =
+  | LlmapiResponseResponse
+  | LlmapiChatCompletionResponse;
 
 /**
  * Arguments for building API request body

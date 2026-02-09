@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/expo/useChatStorage.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L124)
+Defined in: [src/expo/useChatStorage.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L170)
 
 Result returned by useChatStorage hook (Expo version)
 
@@ -11,6 +11,20 @@ Extends base result with Expo-specific sendMessage signature.
 * `BaseUseChatStorageResult`
 
 ## Properties
+
+### clearQueue()
+
+> **clearQueue**: () => `void`
+
+Defined in: [src/expo/useChatStorage.ts:199](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L199)
+
+Clear all queued operations without writing them.
+
+**Returns**
+
+`void`
+
+***
 
 ### conversationId
 
@@ -69,7 +83,7 @@ Defined in: [src/lib/db/chat/types.ts:563](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../../../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/expo/useChatStorage.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L145)
+Defined in: [src/expo/useChatStorage.ts:191](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L191)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -161,6 +175,20 @@ Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/
 **Inherited from**
 
 `BaseUseChatStorageResult.deleteConversation`
+
+***
+
+### flushQueue()
+
+> **flushQueue**: () => `Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
+
+Defined in: [src/expo/useChatStorage.ts:196](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L196)
+
+Manually flush all queued operations for the current wallet.
+
+**Returns**
+
+`Promise`<[`FlushResult`](../../../react/Internal/interfaces/FlushResult.md)>
 
 ***
 
@@ -274,11 +302,21 @@ Defined in: [src/lib/db/chat/types.ts:559](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### queueStatus
+
+> **queueStatus**: [`QueueStatus`](../../../react/Internal/interfaces/QueueStatus.md)
+
+Defined in: [src/expo/useChatStorage.ts:202](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L202)
+
+Current status of the write queue.
+
+***
+
 ### sendMessage()
 
 > **sendMessage**: (`args`: [`SendMessageWithStorageArgs`](../type-aliases/SendMessageWithStorageArgs.md)) => `Promise`<`BaseSendMessageWithStorageResult`>
 
-Defined in: [src/expo/useChatStorage.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L126)
+Defined in: [src/expo/useChatStorage.ts:172](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L172)
 
 Send a message and automatically store it (Expo version)
 

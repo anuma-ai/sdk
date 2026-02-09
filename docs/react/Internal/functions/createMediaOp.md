@@ -2,7 +2,7 @@
 
 > **createMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `options`: [`CreateMediaOptions`](../interfaces/CreateMediaOptions.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)>
 
-Defined in: [src/lib/db/media/operations.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L62)
+Defined in: [src/lib/db/media/operations.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L83)
 
 Create a new media record.
 

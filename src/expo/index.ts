@@ -100,6 +100,25 @@ export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { useCredits } from "../react/useCredits";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 
+// Encryption and queue
+export {
+  useEncryption,
+  requestEncryptionKey,
+  hasEncryptionKey,
+  clearEncryptionKey,
+  clearAllEncryptionKeys,
+  onKeyAvailable,
+} from "../react/useEncryption";
+export type {
+  SignMessageFn,
+  EmbeddedWalletSignerFn,
+} from "../react/useEncryption";
+export { queueManager, QueueManager, WalletPoller } from "../lib/db/queue";
+export type {
+  QueueStatus,
+  FlushResult,
+} from "../lib/db/queue";
+
 // Memory storage hooks
 export { useMemoryStorage } from "./useMemoryStorage";
 export type {

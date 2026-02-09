@@ -2,7 +2,7 @@
 
 > **deleteMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/media/operations.ts:279](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L279)
+Defined in: [src/lib/db/media/operations.ts:334](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L334)
 
 Soft delete a media record.
 Clears source\_url, removes file from OPFS, but keeps all metadata.

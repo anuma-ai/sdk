@@ -2,7 +2,7 @@
 
 > **getRecentMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:555](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L555)
+Defined in: [src/lib/db/media/operations.ts:615](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L615)
 
 Get recent media for library homepage.
 

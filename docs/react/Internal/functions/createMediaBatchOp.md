@@ -2,7 +2,7 @@
 
 > **createMediaBatchOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `optionsArray`: [`CreateMediaOptions`](../interfaces/CreateMediaOptions.md)\[]): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L102)
+Defined in: [src/lib/db/media/operations.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L133)
 
 Create multiple media records in a batch.
 

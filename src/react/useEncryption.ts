@@ -11,6 +11,52 @@ export const SIGN_MESSAGE =
 const encryptionKeyStore = new Map<string, string>();
 
 /**
+ * Callbacks to notify when an encryption key becomes available for a wallet.
+ * Used by the queue system to auto-flush operations once keys are ready.
+ */
+const keyAvailableCallbacks = new Map<string, Set<() => void>>();
+
+/**
+ * Register a callback that fires when an encryption key becomes available for an address.
+ * If the key is already available, the callback fires immediately.
+ * @returns Unsubscribe function
+ */
+export function onKeyAvailable(address: string, callback: () => void): () => void {
+  // If key is already available, fire immediately
+  if (encryptionKeyStore.has(address)) {
+    try { callback(); } catch { /* ignore */ }
+    // Still register for future re-availability (e.g., after key clear + re-derive)
+  }
+
+  let callbacks = keyAvailableCallbacks.get(address);
+  if (!callbacks) {
+    callbacks = new Set();
+    keyAvailableCallbacks.set(address, callbacks);
+  }
+  callbacks.add(callback);
+
+  return () => {
+    callbacks!.delete(callback);
+    if (callbacks!.size === 0) {
+      keyAvailableCallbacks.delete(address);
+    }
+  };
+}
+
+/**
+ * Notify all registered listeners that an encryption key is now available.
+ * Called internally after requestEncryptionKey succeeds.
+ */
+function notifyKeyAvailable(address: string): void {
+  const callbacks = keyAvailableCallbacks.get(address);
+  if (callbacks) {
+    for (const cb of callbacks) {
+      try { cb(); } catch { /* ignore listener errors */ }
+    }
+  }
+}
+
+/**
  * In-memory storage for ECDH key pairs.
  * Key pairs are stored per wallet address and only persist for the session.
  * Private keys are never stored to disk and are not accessible to XSS attacks after page reload.
@@ -604,6 +650,9 @@ export async function requestEncryptionKey(
 
   // Store the derived key in memory
   setStoredKey(walletAddress, encryptionKey);
+
+  // Notify listeners that key is now available (triggers queue flush, etc.)
+  notifyKeyAvailable(walletAddress);
 }
 
 /**

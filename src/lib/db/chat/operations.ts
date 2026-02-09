@@ -1,5 +1,6 @@
 import { Q } from "@nozbe/watermelondb";
 import type { Database, Collection } from "@nozbe/watermelondb";
+import { v7 as uuidv7 } from "uuid";
 
 import { Message, Conversation } from "./models";
 import {
@@ -14,8 +15,11 @@ import {
   type ChunkSearchResult,
   generateConversationId,
 } from "./types";
+import { encryptMessageFields, decryptMessageFields } from "./encryption";
+import { encryptConversationFields, decryptConversationFields } from "./conversationEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
-export function messageToStored(message: Message): StoredMessage {
+export function messageToStoredRaw(message: Message): StoredMessage {
   // Use _getRaw for conversationId to ensure reliable raw column access
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const convId = (message as any)._getRaw("conversation_id") as string;
@@ -43,7 +47,26 @@ export function messageToStored(message: Message): StoredMessage {
   };
 }
 
-export function conversationToStored(
+/**
+ * Converts a Message model to StoredMessage, decrypting fields if encryption context is available.
+ */
+export async function messageToStored(
+  message: Message,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<StoredMessage> {
+  const baseMessage = messageToStoredRaw(message);
+
+  // Decrypt fields if wallet address provided
+  if (walletAddress) {
+    return await decryptMessageFields(baseMessage, walletAddress, signMessage, embeddedWalletSigner);
+  }
+
+  return baseMessage;
+}
+
+export function conversationToStoredRaw(
   conversation: Conversation
 ): StoredConversation {
   return {
@@ -57,10 +80,35 @@ export function conversationToStored(
   };
 }
 
+/**
+ * Converts a Conversation model to StoredConversation, decrypting fields if encryption context is available.
+ */
+export async function conversationToStored(
+  conversation: Conversation,
+  walletAddress?: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<StoredConversation> {
+  const baseConversation = conversationToStoredRaw(conversation);
+
+  // Decrypt fields if wallet address provided
+  if (walletAddress) {
+    return await decryptConversationFields(baseConversation, walletAddress, signMessage, embeddedWalletSigner);
+  }
+
+  return baseConversation;
+}
+
 export interface StorageOperationsContext {
   database: Database;
   messagesCollection: Collection<Message>;
   conversationsCollection: Collection<Conversation>;
+  /** Wallet address for encryption (optional - when present, enables field-level encryption) */
+  walletAddress?: string;
+  /** Function to sign a message for encryption key derivation */
+  signMessage?: SignMessageFn;
+  /** Function for silent signing with embedded wallets */
+  embeddedWalletSigner?: EmbeddedWalletSignerFn;
 }
 
 export async function createConversationOp(
@@ -71,16 +119,22 @@ export async function createConversationOp(
   const convId = opts?.conversationId || generateConversationId();
   const title = opts?.title || defaultTitle;
 
+  // Encrypt conversation fields if encryption context is available
+  const convOpts: CreateConversationOptions = { conversationId: convId, title, projectId: opts?.projectId };
+  const encryptedOpts = ctx.walletAddress && ctx.signMessage
+    ? await encryptConversationFields(convOpts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : convOpts;
+
   const created = await ctx.database.write(async () => {
     return await ctx.conversationsCollection.create((conv) => {
       conv._setRaw("conversation_id", convId);
-      conv._setRaw("title", title);
+      conv._setRaw("title", encryptedOpts.title || title);
       if (opts?.projectId) conv._setRaw("project_id", opts.projectId);
       conv._setRaw("is_deleted", false);
     });
   });
 
-  return conversationToStored(created);
+  return conversationToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function getConversationOp(
@@ -91,7 +145,9 @@ export async function getConversationOp(
     .query(Q.where("conversation_id", id), Q.where("is_deleted", false))
     .fetch();
 
-  return results.length > 0 ? conversationToStored(results[0]) : null;
+  return results.length > 0
+    ? await conversationToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : null;
 }
 
 export async function getConversationsOp(
@@ -101,7 +157,9 @@ export async function getConversationsOp(
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
     .fetch();
 
-  return results.map(conversationToStored);
+  return Promise.all(
+    results.map((conv) => conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 export async function updateConversationTitleOp(
@@ -114,9 +172,15 @@ export async function updateConversationTitleOp(
     .fetch();
 
   if (results.length > 0) {
+    // Encrypt title if encryption context is available
+    const encryptedOpts = ctx.walletAddress && ctx.signMessage
+      ? await encryptConversationFields({ title }, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      : { title };
+    const encryptedTitle = encryptedOpts.title || title;
+
     await ctx.database.write(async () => {
       await results[0].update((conv) => {
-        conv._setRaw("title", title);
+        conv._setRaw("title", encryptedTitle);
       });
     });
     return true;
@@ -187,7 +251,9 @@ export async function getConversationsByProjectOp(
     )
     .fetch();
 
-  return results.map(conversationToStored);
+  return Promise.all(
+    results.map((conv) => conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 export async function getMessagesOp(
@@ -198,7 +264,9 @@ export async function getMessagesOp(
     .query(Q.where("conversation_id", convId), Q.sortBy("message_id", Q.asc))
     .fetch();
 
-  return results.map(messageToStored);
+  return Promise.all(
+    results.map((msg) => messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 export async function getMessageCountOp(
@@ -270,31 +338,54 @@ export async function createMessageOp(
   const existingCount = await getMessageCountOp(ctx, opts.conversationId);
   const messageId = existingCount + 1;
 
+  // Encrypt message fields if encryption context is available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const encryptedOpts: any = ctx.walletAddress && ctx.signMessage
+    ? await encryptMessageFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : opts;
+
   const created = await ctx.database.write(async () => {
     return await ctx.messagesCollection.create((msg) => {
       msg._setRaw("message_id", messageId);
-      msg._setRaw("conversation_id", opts.conversationId);
-      msg._setRaw("role", opts.role);
-      msg._setRaw("content", opts.content);
-      if (opts.model) msg._setRaw("model", opts.model);
-      if (opts.files) msg._setRaw("files", JSON.stringify(opts.files));
-      if (opts.fileIds) msg._setRaw("file_ids", JSON.stringify(opts.fileIds));
-      if (opts.usage) msg._setRaw("usage", JSON.stringify(opts.usage));
-      if (opts.sources) msg._setRaw("sources", JSON.stringify(opts.sources));
-      if (opts.responseDuration !== undefined)
-        msg._setRaw("response_duration", opts.responseDuration);
-      if (opts.vector) msg._setRaw("vector", JSON.stringify(opts.vector));
-      if (opts.embeddingModel)
-        msg._setRaw("embedding_model", opts.embeddingModel);
-      if (opts.wasStopped) msg._setRaw("was_stopped", opts.wasStopped);
-      if (opts.error) msg._setRaw("error", opts.error);
-      if (opts.thoughtProcess)
-        msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
-      if (opts.thinking) msg._setRaw("thinking", opts.thinking);
+      msg._setRaw("conversation_id", encryptedOpts.conversationId);
+      msg._setRaw("role", encryptedOpts.role);
+      msg._setRaw("content", encryptedOpts.content);
+      if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.files) msg._setRaw("files", JSON.stringify(encryptedOpts.files));
+      if (encryptedOpts.fileIds) msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
+      if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
+      if (encryptedOpts.sources) {
+        // Sources may already be encrypted as a string, or may be an object to serialize
+        const sourcesValue = typeof encryptedOpts.sources === 'string'
+          ? encryptedOpts.sources
+          : JSON.stringify(encryptedOpts.sources);
+        msg._setRaw("sources", sourcesValue);
+      }
+      if (encryptedOpts.responseDuration !== undefined)
+        msg._setRaw("response_duration", encryptedOpts.responseDuration);
+      if (encryptedOpts.vector) {
+        // Vector may already be encrypted as a string, or may be an array to serialize
+        const vectorValue = typeof encryptedOpts.vector === 'string'
+          ? encryptedOpts.vector
+          : JSON.stringify(encryptedOpts.vector);
+        msg._setRaw("vector", vectorValue);
+      }
+      if (encryptedOpts.embeddingModel)
+        msg._setRaw("embedding_model", encryptedOpts.embeddingModel);
+      if (encryptedOpts.wasStopped) msg._setRaw("was_stopped", encryptedOpts.wasStopped);
+      if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error);
+      if (encryptedOpts.thoughtProcess) {
+        // ThoughtProcess may already be encrypted as a string, or may be an object to serialize
+        const tpValue = typeof encryptedOpts.thoughtProcess === 'string'
+          ? encryptedOpts.thoughtProcess
+          : JSON.stringify(encryptedOpts.thoughtProcess);
+        msg._setRaw("thought_process", tpValue);
+      }
+      if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking);
     });
   });
 
-  return messageToStored(created);
+  return messageToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function updateMessageEmbeddingOp(
@@ -310,6 +401,9 @@ export async function updateMessageEmbeddingOp(
     return null;
   }
 
+  // Note: Embeddings are stored unencrypted as they are not user-generated content
+  // and are used for vector similarity search. They are only encrypted when stored
+  // as part of a full message via createMessageOp/updateMessageOp.
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("vector", JSON.stringify(vector));
@@ -317,7 +411,7 @@ export async function updateMessageEmbeddingOp(
     });
   });
 
-  return messageToStored(message);
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function updateMessageChunksOp(
@@ -333,6 +427,8 @@ export async function updateMessageChunksOp(
     return null;
   }
 
+  // Note: Chunks contain embeddings used for vector search, stored unencrypted
+  // for the same reasons as updateMessageEmbeddingOp.
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("chunks", JSON.stringify(chunks));
@@ -340,7 +436,7 @@ export async function updateMessageChunksOp(
     });
   });
 
-  return messageToStored(message);
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function updateMessageErrorOp(
@@ -355,13 +451,14 @@ export async function updateMessageErrorOp(
     return null;
   }
 
+  // Error strings are not encrypted (they are system-generated, not user content)
   await ctx.database.write(async () => {
     await message.update((msg) => {
       msg._setRaw("error", error);
     });
   });
 
-  return messageToStored(message);
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function updateMessageOp(
@@ -376,36 +473,54 @@ export async function updateMessageOp(
     return null;
   }
 
+  // Encrypt update fields if encryption context is available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const encryptedOpts: any = ctx.walletAddress && ctx.signMessage
+    ? await encryptMessageFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    : opts;
+
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      if (opts.content !== undefined) msg._setRaw("content", opts.content);
-      if (opts.model !== undefined) msg._setRaw("model", opts.model);
-      if (opts.files !== undefined)
-        msg._setRaw("files", JSON.stringify(opts.files));
-      if (opts.fileIds !== undefined)
-        msg._setRaw("file_ids", JSON.stringify(opts.fileIds));
-      if (opts.usage !== undefined)
-        msg._setRaw("usage", JSON.stringify(opts.usage));
-      if (opts.sources !== undefined)
-        msg._setRaw("sources", JSON.stringify(opts.sources));
-      if (opts.responseDuration !== undefined)
-        msg._setRaw("response_duration", opts.responseDuration);
-      if (opts.vector !== undefined)
-        msg._setRaw("vector", JSON.stringify(opts.vector));
-      if (opts.embeddingModel !== undefined)
-        msg._setRaw("embedding_model", opts.embeddingModel);
-      if (opts.wasStopped !== undefined)
-        msg._setRaw("was_stopped", opts.wasStopped);
-      if (opts.error !== undefined)
-        msg._setRaw("error", opts.error === null ? "" : opts.error);
-      if (opts.thoughtProcess !== undefined)
-        msg._setRaw("thought_process", JSON.stringify(opts.thoughtProcess));
-      if (opts.thinking !== undefined)
-        msg._setRaw("thinking", opts.thinking === null ? "" : opts.thinking);
+      if (encryptedOpts.content !== undefined) msg._setRaw("content", encryptedOpts.content);
+      if (encryptedOpts.model !== undefined) msg._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.files !== undefined)
+        msg._setRaw("files", JSON.stringify(encryptedOpts.files));
+      if (encryptedOpts.fileIds !== undefined)
+        msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
+      if (encryptedOpts.usage !== undefined)
+        msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
+      if (encryptedOpts.sources !== undefined) {
+        const sourcesValue = typeof encryptedOpts.sources === 'string'
+          ? encryptedOpts.sources
+          : JSON.stringify(encryptedOpts.sources);
+        msg._setRaw("sources", sourcesValue);
+      }
+      if (encryptedOpts.responseDuration !== undefined)
+        msg._setRaw("response_duration", encryptedOpts.responseDuration);
+      if (encryptedOpts.vector !== undefined) {
+        const vectorValue = typeof encryptedOpts.vector === 'string'
+          ? encryptedOpts.vector
+          : JSON.stringify(encryptedOpts.vector);
+        msg._setRaw("vector", vectorValue);
+      }
+      if (encryptedOpts.embeddingModel !== undefined)
+        msg._setRaw("embedding_model", encryptedOpts.embeddingModel);
+      if (encryptedOpts.wasStopped !== undefined)
+        msg._setRaw("was_stopped", encryptedOpts.wasStopped);
+      if (encryptedOpts.error !== undefined)
+        msg._setRaw("error", encryptedOpts.error === null ? "" : encryptedOpts.error);
+      if (encryptedOpts.thoughtProcess !== undefined) {
+        const tpValue = typeof encryptedOpts.thoughtProcess === 'string'
+          ? encryptedOpts.thoughtProcess
+          : JSON.stringify(encryptedOpts.thoughtProcess);
+        msg._setRaw("thought_process", tpValue);
+      }
+      if (encryptedOpts.thinking !== undefined)
+        msg._setRaw("thinking", encryptedOpts.thinking === null ? "" : encryptedOpts.thinking);
     });
   });
 
-  return messageToStored(message);
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -455,6 +570,8 @@ export async function searchMessagesOp(
 
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
+  const matchPromises: Promise<StoredMessageWithSimilarity | null>[] = [];
+
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -466,14 +583,18 @@ export async function searchMessagesOp(
 
     const similarity = cosineSimilarity(queryVector, messageVector);
     if (similarity >= minSimilarity) {
-      resultsWithSimilarity.push({
-        ...messageToStored(message),
-        similarity,
-      });
+      matchPromises.push(
+        messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
+          (stored) => ({ ...stored, similarity })
+        )
+      );
     }
   }
 
-  return resultsWithSimilarity
+  const resolvedResults = await Promise.all(matchPromises);
+  const validResults = resolvedResults.filter((r): r is StoredMessageWithSimilarity => r !== null);
+
+  return validResults
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
 }
@@ -510,7 +631,7 @@ export async function searchChunksOp(
     .query(...queryConditions)
     .fetch();
 
-  const results: ChunkSearchResult[] = [];
+  const chunkMatchPromises: Promise<ChunkSearchResult>[] = [];
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
@@ -527,11 +648,11 @@ export async function searchChunksOp(
 
         const similarity = cosineSimilarity(queryVector, chunk.vector);
         if (similarity >= minSimilarity) {
-          results.push({
-            chunkText: chunk.text,
-            message: messageToStored(message),
-            similarity,
-          });
+          chunkMatchPromises.push(
+            messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
+              (stored) => ({ chunkText: chunk.text, message: stored, similarity })
+            )
+          );
         }
       }
     } else {
@@ -541,14 +662,16 @@ export async function searchChunksOp(
 
       const similarity = cosineSimilarity(queryVector, messageVector);
       if (similarity >= minSimilarity) {
-        results.push({
-          chunkText: message.content,
-          message: messageToStored(message),
-          similarity,
-        });
+        chunkMatchPromises.push(
+          messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
+            (stored) => ({ chunkText: message.content, message: stored, similarity })
+          )
+        );
       }
     }
   }
+
+  const results = await Promise.all(chunkMatchPromises);
 
   return results
     .sort((a, b) => b.similarity - a.similarity)
@@ -576,14 +699,16 @@ export async function getMessagesWithEmbeddingsOp(
     .query(...queryConditions)
     .fetch();
 
-  return messages
-    .filter((m) => {
-      // Use _getRaw for reliable raw column access
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const msgConvId = (m as any)._getRaw("conversation_id") as string;
-      return m.vector && m.vector.length > 0 && activeConversationIds.has(msgConvId);
-    })
-    .map(messageToStored);
+  const filtered = messages.filter((m) => {
+    // Use _getRaw for reliable raw column access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const msgConvId = (m as any)._getRaw("conversation_id") as string;
+    return m.vector && m.vector.length > 0 && activeConversationIds.has(msgConvId);
+  });
+
+  return Promise.all(
+    filtered.map((msg) => messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+  );
 }
 
 /**
@@ -652,4 +777,54 @@ export async function getAllFilesOp(
   }
 
   return filesWithContext;
+}
+
+/**
+ * Create a synthetic StoredMessage from CreateMessageOptions without a DB round-trip.
+ * Used when writes are queued (encryption key not yet available).
+ * The uniqueId is temporary and will be replaced when the operation is flushed.
+ */
+export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMessage {
+  const now = new Date();
+  return {
+    uniqueId: `queued_${uuidv7()}`,
+    messageId: Number.MAX_SAFE_INTEGER, // Placeholder — DB assigns real sequential ID on flush
+    conversationId: opts.conversationId,
+    role: opts.role,
+    content: opts.content,
+    model: opts.model,
+    files: opts.files,
+    fileIds: opts.fileIds,
+    createdAt: now,
+    updatedAt: now,
+    vector: opts.vector,
+    embeddingModel: opts.embeddingModel,
+    usage: opts.usage,
+    sources: opts.sources,
+    responseDuration: opts.responseDuration,
+    wasStopped: opts.wasStopped,
+    error: opts.error,
+    thoughtProcess: opts.thoughtProcess,
+    thinking: opts.thinking,
+  };
+}
+
+/**
+ * Create a synthetic StoredConversation from CreateConversationOptions without a DB round-trip.
+ * Used when writes are queued (encryption key not yet available).
+ */
+export function makeSyntheticStoredConversation(
+  opts?: CreateConversationOptions,
+  defaultTitle?: string
+): StoredConversation {
+  const now = new Date();
+  return {
+    uniqueId: `queued_${uuidv7()}`,
+    conversationId: opts?.conversationId || generateConversationId(),
+    title: opts?.title || defaultTitle || "New Conversation",
+    projectId: opts?.projectId,
+    createdAt: now,
+    updatedAt: now,
+    isDeleted: false,
+  };
 }

@@ -10,7 +10,7 @@ import {
   generateProjectId,
 } from "./types";
 import type { StoredConversation } from "../chat/types";
-import { conversationToStored } from "../chat/operations";
+import { conversationToStoredRaw } from "../chat/operations";
 
 export function projectToStored(project: Project): StoredProject {
   return {
@@ -161,7 +161,7 @@ export async function getProjectConversationsOp(
     )
     .fetch();
 
-  return results.map(conversationToStored);
+  return results.map(conversationToStoredRaw);
 }
 
 /**

@@ -2,7 +2,7 @@
 
 > **deleteMediaByMessageOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `messageId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:665](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L665)
+Defined in: [src/lib/db/media/operations.ts:743](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L743)
 
 Delete all media for a message (when message is deleted).
 Clears source\_url, removes files from OPFS, but keeps all metadata.

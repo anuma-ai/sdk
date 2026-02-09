@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
-import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import type { LlmapiMessage } from "../client";
 import {
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
   type BaseUseChatResult,
   type AccumulatedToolCall,
   type ApiType,
+  type ApiResponse,
   createStreamAccumulator,
   validateMessages,
   validateModel,
@@ -64,13 +65,13 @@ type SendMessageArgs = BaseSendMessageArgs & {
 
 type SendMessageResult =
   | {
-      data: LlmapiResponseResponse;
+      data: ApiResponse;
       error: null;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
     }
   | {
-      data: LlmapiResponseResponse | null;
+      data: ApiResponse | null;
       error: string;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;

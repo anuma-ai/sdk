@@ -71,6 +71,7 @@ export {
   hasKeyPair,
   clearKeyPair,
   clearAllKeyPairs,
+  onKeyAvailable,
 } from "./useEncryption";
 export type {
   SignMessageFn,
@@ -78,6 +79,17 @@ export type {
   EmbeddedWalletSignerFn,
   UseEncryptionResult,
 } from "./useEncryption";
+
+// Write queue for encryption-pending operations
+export { queueManager, QueueManager, WalletPoller } from "../lib/db/queue";
+export type {
+  QueueStatus,
+  FlushResult,
+  QueueEncryptionContext,
+  QueuedOperation,
+  QueuedOperationType,
+  OperationExecutor,
+} from "../lib/db/queue";
 
 export { useChatStorage } from "./useChatStorage";
 export type {

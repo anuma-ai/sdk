@@ -167,10 +167,25 @@ export interface MediaFilterOptions {
 }
 
 /**
+ * Function type for the signMessage function (from Privy).
+ * Re-declared here to avoid importing from react module in types.
+ */
+type MediaSignMessageFn = (
+  message: string,
+  options?: { showWalletUIs?: boolean }
+) => Promise<string>;
+
+/**
  * Context required for media database operations.
  */
 export interface MediaOperationsContext {
   database: Database;
+  /** Wallet address for encryption (optional - when present, enables field-level encryption) */
+  walletAddress?: string;
+  /** Function to sign a message for encryption key derivation */
+  signMessage?: MediaSignMessageFn;
+  /** Function for silent signing with embedded wallets */
+  embeddedWalletSigner?: MediaSignMessageFn;
 }
 
 // Utility functions

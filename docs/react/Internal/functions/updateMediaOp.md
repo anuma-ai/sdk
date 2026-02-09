@@ -2,7 +2,7 @@
 
 > **updateMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`, `options`: [`UpdateMediaOptions`](../interfaces/UpdateMediaOptions.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md) | `null`>
 
-Defined in: [src/lib/db/media/operations.ts:189](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L189)
+Defined in: [src/lib/db/media/operations.ts:242](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L242)
 
 Update a media record.
 

@@ -2,7 +2,7 @@
 
 > **getMediaByMessageOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `messageId`: `string`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:461](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L461)
+Defined in: [src/lib/db/media/operations.ts:517](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L517)
 
 Get media by message.
 

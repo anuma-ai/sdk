@@ -2,7 +2,7 @@
 
 > **deleteMediaByConversationOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `conversationId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:628](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L628)
+Defined in: [src/lib/db/media/operations.ts:706](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L706)
 
 Delete all media for a conversation (when conversation is deleted).
 Clears source\_url, removes files from OPFS, but keeps all metadata.

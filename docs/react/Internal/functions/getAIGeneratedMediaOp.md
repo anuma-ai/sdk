@@ -2,7 +2,7 @@
 
 > **getAIGeneratedMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:521](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L521)
+Defined in: [src/lib/db/media/operations.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L581)
 
 Get AI-generated media for a user.
 

@@ -2,7 +2,7 @@
 
 > **updateConversationProjectOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `id`: `string`, `projectId`: `string` | `null`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/operations.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L154)
+Defined in: [src/lib/db/chat/operations.ts:218](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L218)
 
 Update a conversation's project assignment.
 Pass null to remove the conversation from any project.
