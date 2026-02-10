@@ -1169,7 +1169,7 @@ export function useChatStorage(
 
                     let snippet = outputStr.slice(matchEnd, snippetEnd)
                       .replace(/\{ts:\d+\}/g, "") // Remove timestamps like {ts:123}
-                      .replace(/#{1,6}\s*/g, "") // Remove markdown headers
+                      .replace(/^#{1,6}\s*/gm, "") // Remove markdown headers (anchored to line start)
                       .replace(/\*{1,2}/g, "") // Remove bold/italic markers
                       .replace(/\|[^|\n]+\|/g, "") // Remove table cells
                       .replace(/\n{2,}/g, " ") // Collapse multiple newlines
