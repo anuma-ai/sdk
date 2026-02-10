@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:606](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L606)
+Defined in: [src/lib/db/chat/operations.ts:629](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L629)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
