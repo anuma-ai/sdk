@@ -20,9 +20,32 @@ import { encryptConversationFields, decryptConversationFields } from "./conversa
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
 export function messageToStoredRaw(message: Message): StoredMessage {
-  // Use _getRaw for conversationId to ensure reliable raw column access
+  // Use _getRaw for fields that may be encrypted - the @json decorator fails on encrypted strings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const convId = (message as any)._getRaw("conversation_id") as string;
+  const raw = message as any;
+  const convId = raw._getRaw("conversation_id") as string;
+
+  // For JSON fields that may be encrypted, get raw value and parse if not encrypted
+  const parseJsonField = <T>(rawValue: unknown): T | undefined => {
+    if (!rawValue) return undefined;
+    if (typeof rawValue === 'string') {
+      // If encrypted, return the string for later decryption
+      if (rawValue.startsWith('enc:')) return rawValue as T;
+      // Otherwise parse as JSON
+      try {
+        return JSON.parse(rawValue) as T;
+      } catch {
+        return undefined;
+      }
+    }
+    return rawValue as T;
+  };
+
+  const sourcesRaw = raw._getRaw("sources");
+  const vectorRaw = raw._getRaw("vector");
+  const chunksRaw = raw._getRaw("chunks");
+  const thoughtProcessRaw = raw._getRaw("thought_process");
+
   return {
     uniqueId: message.id,
     messageId: message.messageId,
@@ -34,15 +57,15 @@ export function messageToStoredRaw(message: Message): StoredMessage {
     fileIds: message.fileIds,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
-    vector: message.vector,
+    vector: parseJsonField(vectorRaw),
     embeddingModel: message.embeddingModel,
-    chunks: message.chunks,
+    chunks: parseJsonField(chunksRaw),
     usage: message.usage,
-    sources: message.sources,
+    sources: parseJsonField(sourcesRaw),
     responseDuration: message.responseDuration,
     wasStopped: message.wasStopped,
     error: message.error,
-    thoughtProcess: message.thoughtProcess,
+    thoughtProcess: parseJsonField(thoughtProcessRaw),
     thinking: message.thinking,
   };
 }
