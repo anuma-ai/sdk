@@ -17,6 +17,10 @@ import {
   requestEncryptionKey,
   hasEncryptionKey,
   SIGN_MESSAGE,
+  encryptData,
+  decryptData,
+  encryptDataDeterministic,
+  getEncryptionKey,
 } from "./useEncryption";
 import type { SignMessageFn } from "./useEncryption";
 
@@ -781,6 +785,110 @@ describe("useEncryption - Key Pair Generation", () => {
       const publicKey1 = await exportPublicKey(address, mockSignMessage);
       const publicKey2 = await exportPublicKey(address, mockSignMessage);
       expect(publicKey1).toBe(publicKey2);
+    });
+  });
+
+  describe("HKDF Key Derivation (v3)", () => {
+    it("should derive both legacy and HKDF keys from the same signature", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Both v2 and v3 keys should be available
+      const v2Key = await getEncryptionKey(address, "v2");
+      const v3Key = await getEncryptionKey(address, "v3");
+
+      expect(v2Key).toBeDefined();
+      expect(v3Key).toBeDefined();
+      // They should be different CryptoKey objects (different key material)
+      expect(v2Key).not.toBe(v3Key);
+    });
+
+    it("should produce deterministic HKDF keys", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+      const signature = createMockSignature(SIGN_MESSAGE);
+      const signMessageWithSig: SignMessageFn = async () => signature;
+
+      // Derive keys
+      await act(async () => {
+        await requestEncryptionKey(address, signMessageWithSig);
+      });
+
+      const encrypted1 = await encryptDataDeterministic("test data", address);
+
+      // Clear and re-derive with same signature
+      clearEncryptionKey(address);
+      await act(async () => {
+        await requestEncryptionKey(address, signMessageWithSig);
+      });
+
+      const encrypted2 = await encryptDataDeterministic("test data", address);
+
+      // Same signature should produce same key, hence same deterministic ciphertext
+      expect(encrypted1).toBe(encrypted2);
+    });
+
+    it("should produce different output than legacy SHA-256 key (domain separation)", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Encrypt with v3 (HKDF) key
+      const v3Encrypted = await encryptDataDeterministic("domain test", address, "v3");
+      // Encrypt with v2 (legacy SHA-256) key
+      const v2Encrypted = await encryptDataDeterministic("domain test", address, "v2");
+
+      // Different keys should produce different ciphertext
+      expect(v3Encrypted).not.toBe(v2Encrypted);
+    });
+
+    it("should encrypt with v3 key by default and decrypt correctly", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Use deterministic encryption to avoid crypto.getRandomValues context issues
+      const plaintext = "Hello, HKDF encryption!";
+      const encrypted = await encryptDataDeterministic(plaintext, address);
+      const decrypted = await decryptData(encrypted, address);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("should decrypt v2-encrypted data with v2 version parameter", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Encrypt deterministically with legacy v2 key
+      const plaintext = "Legacy encrypted data";
+      const encrypted = await encryptDataDeterministic(plaintext, address, "v2");
+
+      // Decrypt with v2 version parameter
+      const decrypted = await decryptData(encrypted, address, "v2");
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("should fail to decrypt v2-encrypted data with v3 key", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Encrypt deterministically with legacy v2 key
+      const encrypted = await encryptDataDeterministic("Legacy data", address, "v2");
+
+      // Attempting to decrypt with v3 key should fail
+      await expect(decryptData(encrypted, address, "v3")).rejects.toThrow();
     });
   });
 });

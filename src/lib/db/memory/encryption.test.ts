@@ -7,6 +7,9 @@ import {
   decryptMemoryFields,
   encryptNamespaceForQuery,
   encryptKeyForQuery,
+  encryptNamespaceForDualQuery,
+  encryptKeyForDualQuery,
+  encryptValueForDualQuery,
 } from "./encryption";
 import { requestEncryptionKey, clearAllEncryptionKeys } from "../../../react/useEncryption";
 import type { SignMessageFn } from "../../../react/useEncryption";
@@ -55,6 +58,11 @@ describe("Memory Encryption Utilities", () => {
       expect(isEncrypted("enc:v2:")).toBe(true);
     });
 
+    it("should return true for encrypted strings with enc:v3: prefix", () => {
+      expect(isEncrypted("enc:v3:abc123")).toBe(true);
+      expect(isEncrypted("enc:v3:")).toBe(true);
+    });
+
     it("should return false for plaintext strings", () => {
       expect(isEncrypted("plaintext")).toBe(false);
       expect(isEncrypted("")).toBe(false);
@@ -63,13 +71,13 @@ describe("Memory Encryption Utilities", () => {
   });
 
   describe("encryptField", () => {
-    it("should encrypt a field and add prefix", async () => {
+    it("should encrypt a field and add v3 prefix", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
-      
+
       const plaintext = "sensitive data";
       const encrypted = await encryptField(plaintext, testAddress, mockSignMessage);
-      
-      expect(encrypted).toMatch(/^enc:v2:/);
+
+      expect(encrypted).toMatch(/^enc:v3:/);
       expect(encrypted).not.toBe(plaintext);
       expect(isEncrypted(encrypted)).toBe(true);
     });
@@ -422,7 +430,7 @@ describe("Memory Encryption Utilities", () => {
   describe("Double Encryption Prevention", () => {
     it("should not double-encrypt already encrypted values", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
-      
+
       const memory: CreateMemoryOptions = {
         type: "preference",
         namespace: "user",
@@ -435,16 +443,16 @@ describe("Memory Encryption Utilities", () => {
 
       // Encrypt once
       const encrypted1 = await encryptMemoryFields(memory, testAddress, mockSignMessage);
-      
+
       // Try to encrypt again (simulating the updateMemoryOp scenario)
       const encrypted2 = await encryptMemoryFields(encrypted1, testAddress, mockSignMessage);
-      
+
       // Should be the same (not double-encrypted)
       expect(encrypted2.namespace).toBe(encrypted1.namespace);
       expect(encrypted2.key).toBe(encrypted1.key);
       expect(encrypted2.value).toBe(encrypted1.value);
       expect(encrypted2.rawEvidence).toBe(encrypted1.rawEvidence);
-      
+
       // Should still be decryptable
       const decrypted = await decryptMemoryFields(encrypted2, testAddress);
       expect(decrypted.namespace).toBe(memory.namespace);
@@ -456,7 +464,7 @@ describe("Memory Encryption Utilities", () => {
     it("should decrypt with signMessage when key not in memory", async () => {
       // Clear all keys to simulate key not in memory
       clearAllEncryptionKeys();
-      
+
       const memory: CreateMemoryOptions = {
         type: "preference",
         namespace: "user",
@@ -469,17 +477,121 @@ describe("Memory Encryption Utilities", () => {
 
       // Encrypt with signMessage (this will request the key)
       const encrypted = await encryptMemoryFields(memory, testAddress, mockSignMessage);
-      
+
       // Clear keys again
       clearAllEncryptionKeys();
-      
+
       // Decrypt with signMessage (should request key and succeed)
       const decrypted = await decryptMemoryFields(encrypted, testAddress, mockSignMessage);
-      
+
       expect(decrypted.namespace).toBe(memory.namespace);
       expect(decrypted.key).toBe(memory.key);
       expect(decrypted.value).toBe(memory.value);
       expect(decrypted.rawEvidence).toBe(memory.rawEvidence);
+    });
+  });
+
+  describe("Dual-Query Helpers", () => {
+    it("should return both v3 and v2 encrypted values for namespace", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const [v3, v2] = await encryptNamespaceForDualQuery("user", testAddress, mockSignMessage);
+
+      expect(v3).toMatch(/^enc:v3:/);
+      expect(v2).toMatch(/^enc:v2:/);
+      expect(v3).not.toBe(v2);
+      expect(isEncrypted(v3)).toBe(true);
+      expect(isEncrypted(v2)).toBe(true);
+    });
+
+    it("should return both v3 and v2 encrypted values for key", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const [v3, v2] = await encryptKeyForDualQuery("favorite_color", testAddress, mockSignMessage);
+
+      expect(v3).toMatch(/^enc:v3:/);
+      expect(v2).toMatch(/^enc:v2:/);
+      expect(v3).not.toBe(v2);
+    });
+
+    it("should return both v3 and v2 encrypted values for value", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const [v3, v2] = await encryptValueForDualQuery("blue", testAddress, mockSignMessage);
+
+      expect(v3).toMatch(/^enc:v3:/);
+      expect(v2).toMatch(/^enc:v2:/);
+      expect(v3).not.toBe(v2);
+    });
+
+    it("should return plaintext pairs when no address provided", async () => {
+      const [v3, v2] = await encryptNamespaceForDualQuery("user", "", undefined);
+
+      expect(v3).toBe("user");
+      expect(v2).toBe("user");
+    });
+
+    it("should produce deterministic v3 and v2 values", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const [v3a, v2a] = await encryptNamespaceForDualQuery("user", testAddress, mockSignMessage);
+      const [v3b, v2b] = await encryptNamespaceForDualQuery("user", testAddress, mockSignMessage);
+
+      expect(v3a).toBe(v3b);
+      expect(v2a).toBe(v2b);
+    });
+  });
+
+  describe("v2 to v3 Migration", () => {
+    it("should decrypt v2-encrypted memory fields", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      // Simulate data that was encrypted with v2 key
+      const { encryptDataDeterministic, getEncryptionKey: getKeyFn } = await import("../../../react/useEncryption");
+
+      // Encrypt with v2 key explicitly
+      const v2Namespace = `enc:v2:${await encryptDataDeterministic("user", testAddress, "v2")}`;
+      const v2Key = `enc:v2:${await encryptDataDeterministic("favorite_color", testAddress, "v2")}`;
+      const v2Value = `enc:v2:${await encryptDataDeterministic("blue", testAddress, "v2")}`;
+      const v2Evidence = `enc:v2:${await encryptDataDeterministic("User said blue", testAddress, "v2")}`;
+
+      const v2Memory = {
+        type: "preference" as const,
+        namespace: v2Namespace,
+        key: v2Key,
+        value: v2Value,
+        rawEvidence: v2Evidence,
+        confidence: 0.9,
+        pii: false,
+      };
+
+      const decrypted = await decryptMemoryFields(v2Memory, testAddress);
+
+      expect(decrypted.namespace).toBe("user");
+      expect(decrypted.key).toBe("favorite_color");
+      expect(decrypted.value).toBe("blue");
+      expect(decrypted.rawEvidence).toBe("User said blue");
+    });
+
+    it("should write new data with v3 prefix", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      const memory: CreateMemoryOptions = {
+        type: "preference",
+        namespace: "user",
+        key: "favorite_color",
+        value: "red",
+        rawEvidence: "User said red",
+        confidence: 0.8,
+        pii: false,
+      };
+
+      const encrypted = await encryptMemoryFields(memory, testAddress, mockSignMessage);
+
+      expect(encrypted.namespace).toMatch(/^enc:v3:/);
+      expect(encrypted.key).toMatch(/^enc:v3:/);
+      expect(encrypted.value).toMatch(/^enc:v3:/);
+      expect(encrypted.rawEvidence).toMatch(/^enc:v3:/);
     });
   });
 });

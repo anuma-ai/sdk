@@ -989,9 +989,16 @@ export function useChatStorage(
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
-                  
-                  // Read and decrypt the file
-                  const result = await readEncryptedFile(fileId, encryptionKey);
+                  // Read and decrypt the file (try current key, fall back to legacy)
+                  let result = await readEncryptedFile(fileId, encryptionKey);
+                  if (!result) {
+                    try {
+                      const legacyKey = await getEncryptionKey(walletAddress, "v2");
+                      result = await readEncryptedFile(fileId, legacyKey);
+                    } catch {
+                      // Legacy key not available or decrypt failed
+                    }
+                  }
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
                   }

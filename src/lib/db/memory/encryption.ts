@@ -1,14 +1,17 @@
 import { decryptData, requestEncryptionKey, encryptDataDeterministic } from "../../../react/useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
+import type { SignMessageFn, EmbeddedWalletSignerFn, EncryptionKeyVersion } from "../../../react/useEncryption";
 import type { CreateMemoryOptions, StoredMemory, MemoryItem } from "./types";
 
-const ENCRYPTION_PREFIX = "enc:v2:";
+/** Legacy prefix for SHA-256 derived key encryption */
+const ENCRYPTION_PREFIX_V2 = "enc:v2:";
+/** Current prefix for HKDF derived key encryption (default for new writes) */
+const ENCRYPTION_PREFIX = "enc:v3:";
 
 /**
- * Checks if a string value is encrypted (has the enc:v2: prefix)
+ * Checks if a string value is encrypted (has the enc:v2: or enc:v3: prefix)
  */
 export function isEncrypted(value: string): boolean {
-  return value.startsWith(ENCRYPTION_PREFIX);
+  return value.startsWith("enc:v3:") || value.startsWith("enc:v2:");
 }
 
 /**
@@ -29,8 +32,8 @@ export async function encryptField(
 }
 
 /**
- * Decrypts a field value by removing the prefix and decrypting
- * Returns the original value if not encrypted or if decryption fails
+ * Decrypts a field value by detecting the version prefix and using the appropriate key.
+ * Returns the original value if not encrypted or if decryption fails.
  */
 export async function decryptField(
   value: string,
@@ -39,10 +42,22 @@ export async function decryptField(
   if (!value || !isEncrypted(value)) {
     return value;
   }
-  
+
+  let version: EncryptionKeyVersion;
+  let encryptedData: string;
+
+  if (value.startsWith("enc:v3:")) {
+    version = "v3";
+    encryptedData = value.slice("enc:v3:".length);
+  } else if (value.startsWith("enc:v2:")) {
+    version = "v2";
+    encryptedData = value.slice("enc:v2:".length);
+  } else {
+    return value; // plaintext
+  }
+
   try {
-    const encryptedData = value.slice(ENCRYPTION_PREFIX.length);
-    return await decryptData(encryptedData, address);
+    return await decryptData(encryptedData, address, version);
   } catch (error) {
     // If decryption fails, return the original value (backwards compatibility)
     console.warn("Failed to decrypt field, returning as-is:", error);
@@ -161,7 +176,7 @@ async function encryptFieldDeterministic(
 
 /**
  * Encrypts a namespace for querying (used when searching by namespace)
- * Uses deterministic encryption so queries work
+ * Uses deterministic encryption so queries work. Returns the v3 encrypted value.
  */
 export async function encryptNamespaceForQuery(
   namespace: string,
@@ -177,7 +192,7 @@ export async function encryptNamespaceForQuery(
 
 /**
  * Encrypts a key for querying (used when searching by key)
- * Uses deterministic encryption so queries work
+ * Uses deterministic encryption so queries work. Returns the v3 encrypted value.
  */
 export async function encryptKeyForQuery(
   key: string,
@@ -193,7 +208,7 @@ export async function encryptKeyForQuery(
 
 /**
  * Encrypts a value for querying (used when generating unique keys)
- * Uses deterministic encryption so unique key generation works
+ * Uses deterministic encryption so unique key generation works. Returns the v3 encrypted value.
  */
 export async function encryptValueForQuery(
   value: string,
@@ -205,4 +220,89 @@ export async function encryptValueForQuery(
     return value;
   }
   return await encryptFieldDeterministic(value, address, signMessage, embeddedWalletSigner);
+}
+
+/**
+ * Encrypts a field with the legacy v2 key for dual-query support.
+ * Used to query both v2 and v3 encrypted values during migration.
+ */
+async function encryptFieldDeterministicLegacy(
+  value: string,
+  address: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<string> {
+  if (!value) return value;
+  if (!address || !signMessage) return value;
+
+  if (isEncrypted(value)) {
+    return value;
+  }
+
+  try {
+    await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
+    const encrypted = await encryptDataDeterministic(value, address, "v2");
+    return `${ENCRYPTION_PREFIX_V2}${encrypted}`;
+  } catch (error) {
+    console.warn("Failed to encrypt field deterministically (legacy), storing as plaintext:", error);
+    return value;
+  }
+}
+
+/**
+ * Encrypts a namespace for dual-query (returns both v3 and v2 encrypted values).
+ * Used during migration to query both encryption versions.
+ */
+export async function encryptNamespaceForDualQuery(
+  namespace: string,
+  address: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<[string, string]> {
+  if (!address || !signMessage) {
+    return [namespace, namespace];
+  }
+  const [v3, v2] = await Promise.all([
+    encryptFieldDeterministic(namespace, address, signMessage, embeddedWalletSigner),
+    encryptFieldDeterministicLegacy(namespace, address, signMessage, embeddedWalletSigner),
+  ]);
+  return [v3, v2];
+}
+
+/**
+ * Encrypts a key for dual-query (returns both v3 and v2 encrypted values).
+ */
+export async function encryptKeyForDualQuery(
+  key: string,
+  address: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<[string, string]> {
+  if (!address || !signMessage) {
+    return [key, key];
+  }
+  const [v3, v2] = await Promise.all([
+    encryptFieldDeterministic(key, address, signMessage, embeddedWalletSigner),
+    encryptFieldDeterministicLegacy(key, address, signMessage, embeddedWalletSigner),
+  ]);
+  return [v3, v2];
+}
+
+/**
+ * Encrypts a value for dual-query (returns both v3 and v2 encrypted values).
+ */
+export async function encryptValueForDualQuery(
+  value: string,
+  address: string,
+  signMessage?: SignMessageFn,
+  embeddedWalletSigner?: EmbeddedWalletSignerFn
+): Promise<[string, string]> {
+  if (!address || !signMessage) {
+    return [value, value];
+  }
+  const [v3, v2] = await Promise.all([
+    encryptFieldDeterministic(value, address, signMessage, embeddedWalletSigner),
+    encryptFieldDeterministicLegacy(value, address, signMessage, embeddedWalletSigner),
+  ]);
+  return [v3, v2];
 }

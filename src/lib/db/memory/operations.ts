@@ -18,6 +18,9 @@ import {
   encryptNamespaceForQuery,
   encryptKeyForQuery,
   encryptValueForQuery,
+  encryptNamespaceForDualQuery,
+  encryptKeyForDualQuery,
+  encryptValueForDualQuery,
 } from "./encryption";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
@@ -90,49 +93,34 @@ export async function getMemoriesByNamespaceOp(
   ctx: MemoryStorageOperationsContext,
   namespace: string
 ): Promise<StoredMemory[]> {
-  // Query for both encrypted and plaintext namespaces when encryption is enabled
-  // to maintain backwards compatibility with legacy plaintext data
-  const queries = [];
-  
+  // Query for encrypted (v3, v2) and plaintext namespaces when encryption is enabled
+  // to maintain backwards compatibility with legacy data
+  let results: Memory[];
+
   if (ctx.walletAddress && ctx.signMessage) {
-    // Query for encrypted namespace
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("namespace", encryptedNamespace),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
-    // Also query for plaintext namespace (legacy data)
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("namespace", namespace),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
+    const [v3Ns, v2Ns] = await encryptNamespaceForDualQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    // Query for v3, v2, and plaintext namespaces in one query
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("namespace", Q.oneOf([v3Ns, v2Ns, namespace])),
+        Q.where("is_deleted", false),
+        Q.sortBy("created_at", Q.desc)
+      )
+      .fetch();
   } else {
     // No encryption - only query plaintext
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("namespace", namespace),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("namespace", namespace),
+        Q.where("is_deleted", false),
+        Q.sortBy("created_at", Q.desc)
+      )
+      .fetch();
   }
 
-  const allResults = await Promise.all(queries);
-  // Deduplicate by uniqueId (in case same memory exists in both formats)
+  // Deduplicate by uniqueId (in case same memory exists in multiple formats)
   const uniqueResults = Array.from(
-    new Map(allResults.flat().map((m) => [m.id, m])).values()
+    new Map(results.map((m) => [m.id, m])).values()
   );
 
   return Promise.all(
@@ -145,53 +133,37 @@ export async function getMemoriesByKeyOp(
   namespace: string,
   key: string
 ): Promise<StoredMemory[]> {
-  // Query for both encrypted and plaintext composite keys when encryption is enabled
-  // to maintain backwards compatibility with legacy plaintext data
-  const queries = [];
-  
+  // Query for encrypted (v3, v2) and plaintext composite keys when encryption is enabled
+  let results: Memory[];
+
   if (ctx.walletAddress && ctx.signMessage) {
-    // Query for encrypted composite key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedCompositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("composite_key", encryptedCompositeKey),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
-    // Also query for plaintext composite key (legacy data)
+    const [v3Ns, v2Ns] = await encryptNamespaceForDualQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Key, v2Key] = await encryptKeyForDualQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const v3CompositeKey = generateCompositeKey(v3Ns, v3Key);
+    const v2CompositeKey = generateCompositeKey(v2Ns, v2Key);
     const plaintextCompositeKey = generateCompositeKey(namespace, key);
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("composite_key", plaintextCompositeKey),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
+
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("composite_key", Q.oneOf([v3CompositeKey, v2CompositeKey, plaintextCompositeKey])),
+        Q.where("is_deleted", false),
+        Q.sortBy("created_at", Q.desc)
+      )
+      .fetch();
   } else {
-    // No encryption - only query plaintext
     const compositeKey = generateCompositeKey(namespace, key);
-    queries.push(
-      ctx.memoriesCollection
-        .query(
-          Q.where("composite_key", compositeKey),
-          Q.where("is_deleted", false),
-          Q.sortBy("created_at", Q.desc)
-        )
-        .fetch()
-    );
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("composite_key", compositeKey),
+        Q.where("is_deleted", false),
+        Q.sortBy("created_at", Q.desc)
+      )
+      .fetch();
   }
 
-  const allResults = await Promise.all(queries);
-  // Deduplicate by uniqueId (in case same memory exists in both formats)
+  // Deduplicate by uniqueId
   const uniqueResults = Array.from(
-    new Map(allResults.flat().map((m) => [m.id, m])).values()
+    new Map(results.map((m) => [m.id, m])).values()
   );
 
   return Promise.all(
@@ -205,31 +177,26 @@ export async function getMemoryByUniqueKeyOp(
   key: string,
   value: string
 ): Promise<StoredMemory | null> {
-  // Query for both encrypted and plaintext unique keys when encryption is enabled
-  // to maintain backwards compatibility with legacy plaintext data
+  // Query for encrypted (v3, v2) and plaintext unique keys when encryption is enabled
   if (ctx.walletAddress && ctx.signMessage) {
-    // Query for encrypted unique key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedUniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
-    
-    let results = await ctx.memoriesCollection
-      .query(Q.where("unique_key", encryptedUniqueKey), Q.where("is_deleted", false))
-      .fetch();
+    const [v3Ns, v2Ns] = await encryptNamespaceForDualQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Key, v2Key] = await encryptKeyForDualQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Val, v2Val] = await encryptValueForDualQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 
-    // If no encrypted match, also check plaintext unique key (legacy data)
-    if (results.length === 0) {
-      const plaintextUniqueKey = generateUniqueKey(namespace, key, value);
-      results = await ctx.memoriesCollection
-        .query(Q.where("unique_key", plaintextUniqueKey), Q.where("is_deleted", false))
-        .fetch();
-    }
+    const v3UniqueKey = generateUniqueKey(v3Ns, v3Key, v3Val);
+    const v2UniqueKey = generateUniqueKey(v2Ns, v2Key, v2Val);
+    const plaintextUniqueKey = generateUniqueKey(namespace, key, value);
+
+    const results = await ctx.memoriesCollection
+      .query(
+        Q.where("unique_key", Q.oneOf([v3UniqueKey, v2UniqueKey, plaintextUniqueKey])),
+        Q.where("is_deleted", false)
+      )
+      .fetch();
 
     if (results.length === 0) return null;
     return await memoryToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
   } else {
-    // No encryption - only query plaintext
     const uniqueKey = generateUniqueKey(namespace, key, value);
     const results = await ctx.memoriesCollection
       .query(Q.where("unique_key", uniqueKey), Q.where("is_deleted", false))
@@ -252,19 +219,24 @@ export async function saveMemoryOp(
   const compositeKey = generateCompositeKey(memoryToStore.namespace, memoryToStore.key);
   const uniqueKey = generateUniqueKey(memoryToStore.namespace, memoryToStore.key, memoryToStore.value);
 
-  const result = await ctx.database.write(async () => {
-    // Check for existing memory with encrypted unique key
-    let existing = await ctx.memoriesCollection
-      .query(Q.where("unique_key", uniqueKey))
-      .fetch();
+  // Build list of unique keys to check for existing records (v3, v2, and plaintext)
+  const uniqueKeysToCheck = [uniqueKey];
+  if (ctx.walletAddress && ctx.signMessage) {
+    // Also check for v2 encrypted and plaintext unique keys (legacy data)
+    const [, v2Ns] = await encryptNamespaceForDualQuery(opts.namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [, v2Key] = await encryptKeyForDualQuery(opts.key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [, v2Val] = await encryptValueForDualQuery(opts.value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const v2UniqueKey = generateUniqueKey(v2Ns, v2Key, v2Val);
+    const plaintextUniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
+    if (v2UniqueKey !== uniqueKey) uniqueKeysToCheck.push(v2UniqueKey);
+    if (plaintextUniqueKey !== uniqueKey && plaintextUniqueKey !== v2UniqueKey) uniqueKeysToCheck.push(plaintextUniqueKey);
+  }
 
-    // If encryption enabled and no encrypted match, also check plaintext unique key (legacy data)
-    if (existing.length === 0 && ctx.walletAddress && ctx.signMessage) {
-      const plaintextUniqueKey = generateUniqueKey(opts.namespace, opts.key, opts.value);
-      existing = await ctx.memoriesCollection
-        .query(Q.where("unique_key", plaintextUniqueKey))
-        .fetch();
-    }
+  const result = await ctx.database.write(async () => {
+    // Check for existing memory with any version of the unique key
+    const existing = await ctx.memoriesCollection
+      .query(Q.where("unique_key", Q.oneOf(uniqueKeysToCheck)))
+      .fetch();
 
     if (existing.length > 0) {
       const existingMemory = existing[0];
@@ -503,30 +475,22 @@ export async function deleteMemoryOp(
   key: string,
   value: string
 ): Promise<void> {
-  // Query for both encrypted and plaintext unique keys when encryption is enabled
-  // to maintain backwards compatibility with legacy plaintext data
+  // Query for encrypted (v3, v2) and plaintext unique keys when encryption is enabled
   let results: Memory[] = [];
-  
-  if (ctx.walletAddress && ctx.signMessage) {
-    // Query for encrypted unique key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedValue = await encryptValueForQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedUniqueKey = generateUniqueKey(encryptedNamespace, encryptedKey, encryptedValue);
-    
-    results = await ctx.memoriesCollection
-      .query(Q.where("unique_key", encryptedUniqueKey))
-      .fetch();
 
-    // If no encrypted match, also check plaintext unique key (legacy data)
-    if (results.length === 0) {
-      const plaintextUniqueKey = generateUniqueKey(namespace, key, value);
-      results = await ctx.memoriesCollection
-        .query(Q.where("unique_key", plaintextUniqueKey))
-        .fetch();
-    }
+  if (ctx.walletAddress && ctx.signMessage) {
+    const [v3Ns, v2Ns] = await encryptNamespaceForDualQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Key, v2Key] = await encryptKeyForDualQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Val, v2Val] = await encryptValueForDualQuery(value, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+
+    const v3UniqueKey = generateUniqueKey(v3Ns, v3Key, v3Val);
+    const v2UniqueKey = generateUniqueKey(v2Ns, v2Key, v2Val);
+    const plaintextUniqueKey = generateUniqueKey(namespace, key, value);
+
+    results = await ctx.memoriesCollection
+      .query(Q.where("unique_key", Q.oneOf([v3UniqueKey, v2UniqueKey, plaintextUniqueKey])))
+      .fetch();
   } else {
-    // No encryption - only query plaintext
     const uniqueKey = generateUniqueKey(namespace, key, value);
     results = await ctx.memoriesCollection
       .query(Q.where("unique_key", uniqueKey))
@@ -547,41 +511,35 @@ export async function deleteMemoriesByKeyOp(
   namespace: string,
   key: string
 ): Promise<void> {
-  // Query for both encrypted and plaintext composite keys when encryption is enabled
-  // to maintain backwards compatibility with legacy plaintext data
-  const queries = [];
-  
+  // Query for encrypted (v3, v2) and plaintext composite keys when encryption is enabled
+  let results: Memory[];
+
   if (ctx.walletAddress && ctx.signMessage) {
-    // Query for encrypted composite key
-    const encryptedNamespace = await encryptNamespaceForQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedKey = await encryptKeyForQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
-    const encryptedCompositeKey = generateCompositeKey(encryptedNamespace, encryptedKey);
-    queries.push(
-      ctx.memoriesCollection
-        .query(Q.where("composite_key", encryptedCompositeKey), Q.where("is_deleted", false))
-        .fetch()
-    );
-    // Also query for plaintext composite key (legacy data)
+    const [v3Ns, v2Ns] = await encryptNamespaceForDualQuery(namespace, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const [v3Key, v2Key] = await encryptKeyForDualQuery(key, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+    const v3CompositeKey = generateCompositeKey(v3Ns, v3Key);
+    const v2CompositeKey = generateCompositeKey(v2Ns, v2Key);
     const plaintextCompositeKey = generateCompositeKey(namespace, key);
-    queries.push(
-      ctx.memoriesCollection
-        .query(Q.where("composite_key", plaintextCompositeKey), Q.where("is_deleted", false))
-        .fetch()
-    );
+
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("composite_key", Q.oneOf([v3CompositeKey, v2CompositeKey, plaintextCompositeKey])),
+        Q.where("is_deleted", false)
+      )
+      .fetch();
   } else {
-    // No encryption - only query plaintext
     const compositeKey = generateCompositeKey(namespace, key);
-    queries.push(
-      ctx.memoriesCollection
-        .query(Q.where("composite_key", compositeKey), Q.where("is_deleted", false))
-        .fetch()
-    );
+    results = await ctx.memoriesCollection
+      .query(
+        Q.where("composite_key", compositeKey),
+        Q.where("is_deleted", false)
+      )
+      .fetch();
   }
 
-  const allResults = await Promise.all(queries);
-  // Deduplicate by uniqueId (in case same memory exists in both formats)
+  // Deduplicate by uniqueId
   const uniqueResults = Array.from(
-    new Map(allResults.flat().map((m) => [m.id, m])).values()
+    new Map(results.map((m) => [m.id, m])).values()
   );
 
   await ctx.database.write(async () => {

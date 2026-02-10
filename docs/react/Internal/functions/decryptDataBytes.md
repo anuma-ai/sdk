@@ -1,8 +1,8 @@
 # decryptDataBytes
 
-> **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
+> **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
-Defined in: [src/react/useEncryption.ts:538](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L538)
+Defined in: [src/react/useEncryption.ts:614](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L614)
 
 Decrypts data and returns as Uint8Array (for binary data)
 
@@ -13,6 +13,7 @@ Decrypts data and returns as Uint8Array (for binary data)
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Default value</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -30,6 +31,11 @@ Decrypts data and returns as Uint8Array (for binary data)
 </td>
 <td>
 
+`undefined`
+
+</td>
+<td>
+
 Encrypted data as hex string (IV + ciphertext + auth tag)
 
 </td>
@@ -43,6 +49,33 @@ Encrypted data as hex string (IV + ciphertext + auth tag)
 <td>
 
 `string`
+
+</td>
+<td>
+
+`undefined`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`version`
+
+</td>
+<td>
+
+`EncryptionKeyVersion`
+
+</td>
+<td>
+
+`"v3"`
 
 </td>
 <td>
