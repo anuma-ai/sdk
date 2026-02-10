@@ -1093,16 +1093,12 @@ export function useChatStorage(
 
         if (toolCallEvents) {
           for (const toolCallEvent of toolCallEvents) {
-            // Currently only BraveSearchMCP returns structured source data
-            // Other search tools (PerplexityMCP, etc.) may need similar handling
+            const outputStr = toolCallEvent.output || "";
+
+            // BraveSearchMCP returns concatenated JSON objects
             if (toolCallEvent.name?.includes("BraveSearchMCP")) {
               try {
-                // The output is a concatenated JSON string of search results
-                // Parse each result object from the output
-                const outputStr = toolCallEvent.output || "";
-
                 // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
-                // If search results contain nested objects, this regex will fail silently
                 const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
                 let match: RegExpExecArray | null;
 
@@ -1138,11 +1134,69 @@ export function useChatStorage(
                 // Ignore tool call event parse errors
               }
             }
+
+            // PerplexityMCP returns markdown-formatted text:
+            // 1. **Title**
+            //    URL: https://...
+            //    [description]
+            //    Date: YYYY-MM-DD
+            if (toolCallEvent.name?.includes("PerplexityMCP")) {
+              try {
+                // Match each numbered result block
+                // Pattern: digit(s). **title**\n   URL: url
+                const resultPattern = /(\d+)\.\s+\*\*([^*]+)\*\*\s*\n\s*URL:\s*(https?:\/\/[^\s\n]+)/g;
+                let match: RegExpExecArray | null;
+
+                while ((match = resultPattern.exec(outputStr)) !== null) {
+                  const title = match[2]?.trim();
+                  const url = match[3]?.trim();
+
+                  if (url && !seenUrls.has(url)) {
+                    seenUrls.add(url);
+
+                    // Find the snippet - text between URL and next numbered item or Date line
+                    const matchEnd = match.index + match[0].length;
+                    const nextResultMatch = outputStr.slice(matchEnd).match(/\n\d+\.\s+\*\*/);
+                    const dateMatch = outputStr.slice(matchEnd).match(/\n\s*Date:\s*\d{4}-\d{2}-\d{2}/);
+
+                    let snippetEnd = outputStr.length;
+                    if (nextResultMatch?.index !== undefined) {
+                      snippetEnd = Math.min(snippetEnd, matchEnd + nextResultMatch.index);
+                    }
+                    if (dateMatch?.index !== undefined) {
+                      snippetEnd = Math.min(snippetEnd, matchEnd + dateMatch.index);
+                    }
+
+                    let snippet = outputStr.slice(matchEnd, snippetEnd)
+                      .replace(/\{ts:\d+\}/g, "") // Remove timestamps like {ts:123}
+                      .replace(/#{1,6}\s*/g, "") // Remove markdown headers
+                      .replace(/\*{1,2}/g, "") // Remove bold/italic markers
+                      .replace(/\|[^|\n]+\|/g, "") // Remove table cells
+                      .replace(/\n{2,}/g, " ") // Collapse multiple newlines
+                      .replace(/\s{2,}/g, " ") // Collapse multiple spaces
+                      .trim();
+
+                    // Limit snippet length and add ellipsis if truncated
+                    if (snippet.length > 250) {
+                      snippet = snippet.slice(0, 250).trim() + "...";
+                    }
+
+                    extractedSources.push({
+                      title: title || undefined,
+                      url,
+                      snippet: snippet || undefined,
+                    });
+                  }
+                }
+              } catch {
+                // Ignore Perplexity parse errors
+              }
+            }
           }
         }
 
         return extractedSources;
-      } catch (err) {
+      } catch {
         return []; // Return empty array if error occurs
       }
     },
