@@ -75,6 +75,7 @@ export interface ChatCompletionUsage {
   completionTokens?: number;
   totalTokens?: number;
   costMicroUsd?: number;
+  creditsUsed?: number;
 }
 
 export interface SearchSource {
@@ -585,6 +586,7 @@ export function convertUsageToStored(
     completionTokens: usage.completion_tokens,
     totalTokens: usage.total_tokens,
     costMicroUsd: usage.cost_micro_usd,
+    creditsUsed: usage.credits_used,
   };
 }
 
