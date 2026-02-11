@@ -51,6 +51,8 @@ export interface UseVoiceResult {
   isTranscribing: boolean;
   /** Transcribe a recording. Uses the last recording if none provided. */
   transcribe: (recording?: VoiceRecording) => Promise<TranscriptionResult>;
+  /** Preload the Whisper model so transcription starts instantly later */
+  preloadModel: () => Promise<void>;
   /** Whether the Whisper model has been loaded */
   isModelLoaded: boolean;
   /** Whether the Whisper model is currently loading/downloading */
@@ -216,6 +218,10 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     }
   }, [getModelName, options?.onModelProgress]);
 
+  const preloadModel = useCallback(async () => {
+    await loadPipeline();
+  }, [loadPipeline]);
+
   const startRecording = useCallback(async () => {
     setError(null);
     setRecording(null);
@@ -334,6 +340,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     stopRecording,
     isTranscribing,
     transcribe,
+    preloadModel,
     isModelLoaded,
     isLoadingModel,
     recording,
