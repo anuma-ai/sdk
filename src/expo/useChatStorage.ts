@@ -35,7 +35,7 @@ import {
   makeSyntheticStoredConversation,
 } from "../lib/db/chat";
 import {
-  getServerTools,
+  selectServerSideTools,
   filterServerTools,
   mergeTools,
   type ServerTool,
@@ -835,7 +835,7 @@ export function useChatStorage(
           !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
           try {
-            const allServerTools = await getServerTools({
+            const allServerTools = await selectServerSideTools({
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
@@ -1011,7 +1011,7 @@ export function useChatStorage(
         !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
-          const allServerTools = await getServerTools({
+          const allServerTools = await selectServerSideTools({
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,

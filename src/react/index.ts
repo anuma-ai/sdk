@@ -354,7 +354,7 @@ export {
 // Server-side tools caching utilities
 export {
   clearServerToolsCache,
-  getServerTools,
+  selectServerSideTools,
   getCachedServerTools,
   getToolsChecksum,
   shouldRefreshTools,

@@ -31,7 +31,7 @@ export {
   getToolsChecksum,
   shouldRefreshTools,
   fetchServerToolsFromApi,
-  getServerTools,
+  selectServerSideTools,
   filterServerTools,
   mergeTools,
   findMatchingTools,

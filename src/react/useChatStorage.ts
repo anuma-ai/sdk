@@ -73,7 +73,7 @@ import {
 import { onKeyAvailable } from "./useEncryption";
 import { preprocessFiles } from "../lib/processors";
 import {
-  getServerTools,
+  selectServerSideTools,
   filterServerTools,
   mergeTools,
   shouldRefreshTools,
@@ -1627,7 +1627,7 @@ export function useChatStorage(
           !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
         ) {
           try {
-            const allServerTools = await getServerTools({
+            const allServerTools = await selectServerSideTools({
               baseUrl,
               cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
               getToken,
@@ -1705,7 +1705,7 @@ export function useChatStorage(
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+          selectServerSideTools({ baseUrl, getToken, forceRefresh: true }).catch(
             () => {}
           );
         }
@@ -1959,7 +1959,7 @@ export function useChatStorage(
         !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
       ) {
         try {
-          const allServerTools = await getServerTools({
+          const allServerTools = await selectServerSideTools({
             baseUrl,
             cacheExpirationMs: serverToolsConfig?.cacheExpirationMs,
             getToken,
@@ -2321,7 +2321,7 @@ export function useChatStorage(
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
+        selectServerSideTools({ baseUrl, getToken, forceRefresh: true }).catch(
           () => {}
         );
       }

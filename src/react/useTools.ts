@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_URL } from "../clientConfig";
 import {
   type ServerTool,
-  getServerTools,
+  selectServerSideTools,
   filterServerTools,
   getToolsChecksum,
   shouldRefreshTools,
@@ -106,7 +106,7 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
     setError(null);
 
     try {
-      const fetchedTools = await getServerTools({
+      const fetchedTools = await selectServerSideTools({
         getToken: getTokenRef.current,
         baseUrl: baseUrlRef.current,
         forceRefresh,

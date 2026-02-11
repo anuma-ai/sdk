@@ -373,7 +373,7 @@ export async function fetchServerToolsFromApi(
  * 3. Otherwise, fetch from API, cache, and return
  * 4. On fetch failure, return cached tools if available (stale-while-error)
  */
-export async function getServerTools(
+export async function selectServerSideTools(
   options: ServerToolsOptions
 ): Promise<ServerTool[]> {
   const {
@@ -767,7 +767,7 @@ export async function getToolsForPrompt(
   }
 
   // Fetch tools (with caching)
-  const tools = await getServerTools({
+  const tools = await selectServerSideTools({
     getToken,
     apiKey,
     baseUrl,
