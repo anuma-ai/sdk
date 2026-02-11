@@ -67,6 +67,8 @@ function ChatComponent() {
 | [UseEncryptionResult](Hooks/UseEncryptionResult.md) | Result returned by the useEncryption hook. |
 | [UseOCRResult](Hooks/UseOCRResult.md) | Result returned by the useOCR hook. |
 | [UsePdfResult](Hooks/UsePdfResult.md) | Result returned by the usePdf hook. |
+| [UseVoiceOptions](Hooks/UseVoiceOptions.md) | Options for the useVoice hook. |
+| [UseVoiceResult](Hooks/UseVoiceResult.md) | Result returned by the useVoice hook. |
 | [useBackup](Hooks/useBackup.md) | Unified React hook for backup and restore functionality. |
 | [useBackupAuth](Hooks/useBackupAuth.md) | Hook to access unified backup authentication state and methods. |
 | [useChat](Hooks/useChat.md) | A React hook for managing chat completions with authentication. |
@@ -87,6 +89,7 @@ function ChatComponent() {
 | [useSettings](Hooks/useSettings.md) | A React hook for managing user settings with automatic persistence using WatermelonDB. |
 | [useSubscription](Hooks/useSubscription.md) | React hook for managing subscription status and billing operations. Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions. |
 | [useTools](Hooks/useTools.md) | React hook for fetching and caching server-side tools. |
+| [useVoice](Hooks/useVoice.md) | React hook for recording voice and transcribing it on-device using Whisper. |
 
 ## Other
 

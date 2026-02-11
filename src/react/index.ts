@@ -283,6 +283,14 @@ export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
 export type { OCRFile, UseOCRResult } from "./useOCR";
+export { useVoice } from "./useVoice";
+export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
+export type {
+  WhisperModel,
+  VoiceRecording,
+  TranscriptionResult,
+  ModelLoadProgress,
+} from "../lib/voice";
 
 // File processors for preprocessing attachments
 export {
