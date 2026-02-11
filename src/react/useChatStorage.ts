@@ -94,6 +94,7 @@ import {
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { getFriendlyModelName } from "../lib/models";
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -105,32 +106,6 @@ async function blobToDataUri(blob: Blob): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-}
-
-/**
- * Get a friendly model name for display in conversation history.
- * Maps model IDs to user-friendly provider names.
- */
-function getFriendlyModelName(model?: string): string {
-  if (!model) return "AI";
-
-  const modelLower = model.toLowerCase();
-
-  // Pattern-based matching for common providers
-  const patterns: [string[], string][] = [
-    [["grok"], "Grok"],
-    [["claude", "anthropic"], "Claude"],
-    [["gpt", "openai"], "GPT"],
-    [["gemini"], "Gemini"],
-    [["cerebras", "fireworks", "kimi"], "Anuma"],
-    [["dall-e"], "DALL-E"],
-  ];
-
-  const match = patterns.find(([keywords]) =>
-    keywords.some((k) => modelLower.includes(k))
-  );
-
-  return match?.[1] ?? "AI";
 }
 
 /**
