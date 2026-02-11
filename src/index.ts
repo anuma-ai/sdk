@@ -90,3 +90,7 @@
  * @module
  */
 export * from "./client";
+export {
+  getToolsForPrompt,
+  type GetToolsForPromptOptions,
+} from "./lib/tools";

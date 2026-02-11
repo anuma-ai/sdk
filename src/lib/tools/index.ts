@@ -14,10 +14,12 @@ export {
   type ParsedServerToolsResponse,
   type ToolMatchResult,
   type ToolMatchOptions,
+  type GetToolsForPromptOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
   SERVER_TOOLS_CACHE_KEY,
   CACHE_VERSION,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   // Functions
   convertServerToolsResponse,
   toCompletionsFormat,
@@ -33,4 +35,5 @@ export {
   filterServerTools,
   mergeTools,
   findMatchingTools,
+  getToolsForPrompt,
 } from "./serverTools";

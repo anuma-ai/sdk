@@ -77,6 +77,7 @@ import {
   filterServerTools,
   mergeTools,
   shouldRefreshTools,
+  MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ServerTool,
 } from "../lib/tools";
 import {
@@ -89,9 +90,6 @@ import {
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
-
-// Lower threshold for tool filtering - short prompts like "draw a cat" should work
-const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
 import { getFriendlyModelName } from "../lib/models";

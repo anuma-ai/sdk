@@ -8,6 +8,15 @@
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
 import { cosineSimilarity } from "../db/memory/types";
+import {
+  shouldChunkMessage,
+  chunkText,
+  DEFAULT_CHUNK_SIZE,
+} from "../memoryRetrieval/chunking";
+import {
+  generateEmbedding,
+  generateEmbeddings,
+} from "../memoryRetrieval/embeddings";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -96,8 +105,10 @@ export interface ServerToolsOptions {
   cacheExpirationMs?: number;
   /** Force refresh even if cache is valid */
   forceRefresh?: boolean;
-  /** Authentication token getter */
-  getToken: () => Promise<string | null>;
+  /** Authentication token getter (uses Authorization: Bearer header) */
+  getToken?: () => Promise<string | null>;
+  /** Direct API key for server-side usage (uses X-API-Key header) */
+  apiKey?: string;
 }
 
 /** Default cache expiration: 1 day */
@@ -108,6 +119,9 @@ export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
 export const CACHE_VERSION = "1.3";
+
+/** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
+export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 
 /**
  * Type guard to check if tool is in new format (has schema property)
@@ -367,6 +381,7 @@ export async function getServerTools(
     cacheExpirationMs = DEFAULT_CACHE_EXPIRATION_MS,
     forceRefresh = false,
     getToken,
+    apiKey,
   } = options;
 
   // Check cache first (unless forcing refresh)
@@ -379,6 +394,34 @@ export async function getServerTools(
 
   // Try to fetch fresh tools
   try {
+    // Import BASE_URL dynamically to avoid circular dependencies
+    const { BASE_URL } = await import("../../clientConfig");
+    const effectiveBaseUrl = baseUrl ?? BASE_URL;
+
+    if (apiKey) {
+      // API key auth: fetch directly with X-API-Key header
+      const response = await fetch(`${effectiveBaseUrl}/api/v1/tools`, {
+        method: "GET",
+        headers: {
+          "X-API-Key": apiKey,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch server tools: ${response.status}`);
+      }
+      const data = (await response.json()) as ServerToolsResponse;
+      const { tools, checksum } = convertServerToolsResponse(data);
+      cacheServerTools(tools, checksum);
+      return tools;
+    }
+
+    if (!getToken) {
+      // eslint-disable-next-line no-console
+      console.warn("[serverTools] No auth method available for fetching tools");
+      return cached?.tools ?? [];
+    }
+
     const token = await getToken();
     if (!token) {
       // No token available - return cached if available, otherwise empty
@@ -386,10 +429,6 @@ export async function getServerTools(
       console.warn("[serverTools] No auth token available for fetching tools");
       return cached?.tools ?? [];
     }
-
-    // Import BASE_URL dynamically to avoid circular dependencies
-    const { BASE_URL } = await import("../../clientConfig");
-    const effectiveBaseUrl = baseUrl ?? BASE_URL;
 
     const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
     cacheServerTools(tools, checksum);
@@ -649,4 +688,132 @@ export function findMatchingTools(
   return results
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
+}
+
+/**
+ * Options for getToolsForPrompt
+ */
+export interface GetToolsForPromptOptions {
+  /** The user prompt to match tools against */
+  prompt: string;
+  /** Function to get auth token (uses Authorization: Bearer header) */
+  getToken?: () => Promise<string | null>;
+  /** Direct API key for server-side usage (uses X-API-Key header) */
+  apiKey?: string;
+  /** Base URL for the API */
+  baseUrl?: string;
+  /** Cache expiration in ms (default: 24h) */
+  cacheExpirationMs?: number;
+  /** Force refresh tools cache */
+  forceRefresh?: boolean;
+  /** Embedding model to use */
+  embeddingModel?: string;
+  /** Max tools to return (default: 10) */
+  limit?: number;
+  /** Minimum cosine similarity 0-1 (default: 0.3) */
+  minSimilarity?: number;
+  /** API format for returned tools (default: "responses") */
+  apiType?: "responses" | "completions";
+}
+
+/**
+ * Select server tools that are semantically relevant to a prompt.
+ *
+ * Fetches available tools (with caching), generates embeddings for the prompt,
+ * runs cosine-similarity matching, and returns tool schemas in the requested
+ * API format (Responses or Completions).
+ *
+ * @example
+ * ```ts
+ * import { getToolsForPrompt } from "@reverbia/sdk/tools";
+ *
+ * const tools = await getToolsForPrompt({
+ *   prompt: "Draw me a cat",
+ *   getToken: async () => identityToken,
+ * });
+ *
+ * const response = await postApiV1Responses({
+ *   body: {
+ *     messages: [{ role: "user", content: [{ type: "text", text: "Draw me a cat" }] }],
+ *     model: "gpt-4o-mini",
+ *     tools,
+ *   },
+ *   headers: { Authorization: `Bearer ${identityToken}` },
+ * });
+ * ```
+ */
+export async function getToolsForPrompt(
+  options: GetToolsForPromptOptions
+): Promise<Array<Record<string, unknown>>> {
+  const {
+    prompt,
+    getToken,
+    apiKey,
+    baseUrl,
+    cacheExpirationMs,
+    forceRefresh,
+    embeddingModel,
+    limit,
+    minSimilarity,
+    apiType = "responses",
+  } = options;
+
+  if (!getToken && !apiKey) {
+    throw new Error("Either getToken or apiKey must be provided");
+  }
+
+  if (prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    return [];
+  }
+
+  // Fetch tools (with caching)
+  const tools = await getServerTools({
+    getToken,
+    apiKey,
+    baseUrl,
+    cacheExpirationMs,
+    forceRefresh,
+  });
+
+  if (tools.length === 0) {
+    return [];
+  }
+
+  // Generate embeddings for the prompt
+  const embeddingOptions = {
+    getToken,
+    apiKey,
+    baseUrl,
+    model: embeddingModel,
+  };
+
+  let promptEmbeddings: number[] | number[][];
+  if (shouldChunkMessage(prompt, DEFAULT_CHUNK_SIZE)) {
+    const chunks = chunkText(prompt);
+    promptEmbeddings = await generateEmbeddings(
+      chunks.map((c) => c.text),
+      embeddingOptions
+    );
+  } else {
+    promptEmbeddings = await generateEmbedding(prompt, embeddingOptions);
+  }
+
+  // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
+  const matchOptions: ToolMatchOptions = {};
+  if (limit !== undefined) matchOptions.limit = limit;
+  if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
+  const matches = findMatchingTools(promptEmbeddings, tools, matchOptions);
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  // Format for the requested API type (strips embeddings)
+  const matchedTools = matches.map((m) => m.tool);
+  if (apiType === "completions") {
+    return matchedTools.map(
+      (t) => toCompletionsFormat(t) as unknown as Record<string, unknown>
+    );
+  }
+  return matchedTools.map(toResponsesFormat);
 }
