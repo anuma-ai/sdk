@@ -26,6 +26,8 @@ export type StreamingChunk = {
     usage?: {
       input_tokens?: number;
       output_tokens?: number;
+      cost_micro_usd?: number;
+      credits_used?: number;
     };
     /** Checksum of tools used to generate this response */
     tools_checksum?: string;

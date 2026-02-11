@@ -547,13 +547,14 @@ export function processStreamingChunk(
   // Handle response.completed event - extract usage from response object
   if (chunk.type === "response.completed") {
     if (chunk.response?.usage) {
+      const u = chunk.response.usage;
       accumulator.usage = {
         ...accumulator.usage,
-        prompt_tokens: chunk.response.usage.input_tokens,
-        completion_tokens: chunk.response.usage.output_tokens,
-        total_tokens:
-          (chunk.response.usage.input_tokens || 0) +
-          (chunk.response.usage.output_tokens || 0),
+        prompt_tokens: u.input_tokens,
+        completion_tokens: u.output_tokens,
+        total_tokens: (u.input_tokens || 0) + (u.output_tokens || 0),
+        ...(u.cost_micro_usd != null && { cost_micro_usd: u.cost_micro_usd }),
+        ...(u.credits_used != null && { credits_used: u.credits_used }),
       };
     }
 

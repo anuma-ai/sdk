@@ -20,6 +20,14 @@ Defined in: [src/lib/db/chat/types.ts:77](https://github.com/zeta-chain/ai-sdk/b
 
 ***
 
+### creditsUsed?
+
+> `optional` **creditsUsed**: `number`
+
+Defined in: [src/lib/db/chat/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L78)
+
+***
+
 ### promptTokens?
 
 > `optional` **promptTokens**: `number`

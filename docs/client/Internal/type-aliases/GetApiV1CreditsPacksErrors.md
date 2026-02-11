@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsPacksErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1891](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1891)
+Defined in: [src/client/types.gen.ts:1915](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1915)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1891](https://github.com/zeta-chain/ai-sdk/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1895](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1895)
+Defined in: [src/client/types.gen.ts:1919](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1919)
 
 Unauthorized
 
@@ -20,6 +20,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1899)
+Defined in: [src/client/types.gen.ts:1923](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1923)
 
 Internal Server Error

@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderExchangeErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:2360](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2360)
+Defined in: [src/client/types.gen.ts:2417](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2417)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2360](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2364](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2364)
+Defined in: [src/client/types.gen.ts:2421](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2421)
 
 Bad Request
 
@@ -20,6 +20,6 @@ Bad Request
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2368](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2368)
+Defined in: [src/client/types.gen.ts:2425](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2425)
 
 Internal Server Error

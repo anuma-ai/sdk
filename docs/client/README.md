@@ -113,6 +113,7 @@
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
 | [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
+| [HandlersSyncSnagResponse](Internal/type-aliases/HandlersSyncSnagResponse.md) | - |
 | [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
@@ -200,6 +201,11 @@
 | [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
 | [PostApiV1CreditsPurchaseResponse](Internal/type-aliases/PostApiV1CreditsPurchaseResponse.md) | - |
 | [PostApiV1CreditsPurchaseResponses](Internal/type-aliases/PostApiV1CreditsPurchaseResponses.md) | - |
+| [PostApiV1CreditsSyncSnagData](Internal/type-aliases/PostApiV1CreditsSyncSnagData.md) | - |
+| [PostApiV1CreditsSyncSnagError](Internal/type-aliases/PostApiV1CreditsSyncSnagError.md) | - |
+| [PostApiV1CreditsSyncSnagErrors](Internal/type-aliases/PostApiV1CreditsSyncSnagErrors.md) | - |
+| [PostApiV1CreditsSyncSnagResponse](Internal/type-aliases/PostApiV1CreditsSyncSnagResponse.md) | - |
+| [PostApiV1CreditsSyncSnagResponses](Internal/type-aliases/PostApiV1CreditsSyncSnagResponses.md) | - |
 | [PostApiV1EmbeddingsData](Internal/type-aliases/PostApiV1EmbeddingsData.md) | - |
 | [PostApiV1EmbeddingsError](Internal/type-aliases/PostApiV1EmbeddingsError.md) | - |
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
@@ -289,6 +295,7 @@
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
+| [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |

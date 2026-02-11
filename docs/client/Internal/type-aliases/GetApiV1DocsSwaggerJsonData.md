@@ -2,7 +2,7 @@
 
 > **GetApiV1DocsSwaggerJsonData** = `object`
 
-Defined in: [src/client/types.gen.ts:1949](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1949)
+Defined in: [src/client/types.gen.ts:2006](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2006)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1949](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1950](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1950)
+Defined in: [src/client/types.gen.ts:2007](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2007)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1950](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1951](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1951)
+Defined in: [src/client/types.gen.ts:2008](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2008)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1951](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1952](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1952)
+Defined in: [src/client/types.gen.ts:2009](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2009)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1952](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/docs/swagger.json"`
 
-Defined in: [src/client/types.gen.ts:1953](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1953)
+Defined in: [src/client/types.gen.ts:2010](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2010)

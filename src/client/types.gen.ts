@@ -52,15 +52,7 @@ export type HandlersAddCreditsResponse = {
      */
     escrow_contract?: string;
     message?: string;
-    /**
-     * New cost limit in credits (from contract)
-     */
-    new_cost_limit?: string;
     success?: boolean;
-    /**
-     * Transaction hash if on-chain
-     */
-    tx_hash?: string;
     user_address?: string;
 };
 
@@ -335,6 +327,14 @@ export type HandlersSubscriptionStatusResponse = {
     status?: string;
 };
 
+export type HandlersSyncSnagResponse = {
+    credits_awarded?: number;
+    message?: string;
+    next_sync_at?: string;
+    success?: boolean;
+    total_converted?: number;
+};
+
 export type HandlersTaskResponse = {
     /**
      * 1 credit = $0.01
@@ -528,6 +528,10 @@ export type LlmapiChatCompletionUsage = {
      */
     cost_micro_usd?: number;
     /**
+     * CreditsUsed is the number of credits consumed by this completion (ceiling of cost / MicroUSDPerCredit)
+     */
+    credits_used?: number;
+    /**
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
@@ -634,6 +638,10 @@ export type LlmapiEmbeddingUsage = {
      * CostMicroUSD is the inference cost for this embedding request
      */
     cost_micro_usd?: number;
+    /**
+     * CreditsUsed is the number of credits consumed by this embedding request
+     */
+    credits_used?: number;
     /**
      * PromptTokens is the number of tokens in the prompt
      */
@@ -1074,6 +1082,10 @@ export type LlmapiResponseUsage = {
      * CostMicroUSD is the cost of this response in micro-dollars (USD × 1,000,000)
      */
     cost_micro_usd?: number;
+    /**
+     * CreditsUsed is the number of credits consumed by this response
+     */
+    credits_used?: number;
     /**
      * PromptTokens is the number of tokens in the prompt
      */
@@ -1813,6 +1825,12 @@ export type GetApiV1ConfigResponse = GetApiV1ConfigResponses[keyof GetApiV1Confi
 
 export type GetApiV1CreditsBalanceData = {
     body?: never;
+    headers?: {
+        /**
+         * IANA timezone (e.g., America/New_York)
+         */
+        'X-Timezone'?: string;
+    };
     path?: never;
     query?: never;
     url: '/api/v1/credits/balance';
@@ -1846,6 +1864,12 @@ export type GetApiV1CreditsBalanceResponse = GetApiV1CreditsBalanceResponses[key
 
 export type PostApiV1CreditsClaimDailyData = {
     body?: never;
+    headers?: {
+        /**
+         * IANA timezone (e.g., America/New_York)
+         */
+        'X-Timezone'?: string;
+    };
     path?: never;
     query?: never;
     url: '/api/v1/credits/claim-daily';
@@ -1853,7 +1877,7 @@ export type PostApiV1CreditsClaimDailyData = {
 
 export type PostApiV1CreditsClaimDailyErrors = {
     /**
-     * Already claimed today
+     * Already claimed today or invalid timezone
      */
     400: ResponseErrorResponse;
     /**
@@ -1945,6 +1969,39 @@ export type PostApiV1CreditsPurchaseResponses = {
 };
 
 export type PostApiV1CreditsPurchaseResponse = PostApiV1CreditsPurchaseResponses[keyof PostApiV1CreditsPurchaseResponses];
+
+export type PostApiV1CreditsSyncSnagData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/sync-snag';
+};
+
+export type PostApiV1CreditsSyncSnagErrors = {
+    /**
+     * Cooldown not expired
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1CreditsSyncSnagError = PostApiV1CreditsSyncSnagErrors[keyof PostApiV1CreditsSyncSnagErrors];
+
+export type PostApiV1CreditsSyncSnagResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSyncSnagResponse;
+};
+
+export type PostApiV1CreditsSyncSnagResponse = PostApiV1CreditsSyncSnagResponses[keyof PostApiV1CreditsSyncSnagResponses];
 
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;

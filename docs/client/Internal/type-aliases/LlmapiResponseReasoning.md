@@ -2,7 +2,7 @@
 
 > **LlmapiResponseReasoning** = `object`
 
-Defined in: [src/client/types.gen.ts:972](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L972)
+Defined in: [src/client/types.gen.ts:980](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L980)
 
 Reasoning configures reasoning for o-series and other reasoning models
 
@@ -12,7 +12,7 @@ Reasoning configures reasoning for o-series and other reasoning models
 
 > `optional` **effort**: `string`
 
-Defined in: [src/client/types.gen.ts:976](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L976)
+Defined in: [src/client/types.gen.ts:984](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L984)
 
 Effort controls reasoning effort: "low", "medium", or "high"
 
@@ -22,6 +22,6 @@ Effort controls reasoning effort: "low", "medium", or "high"
 
 > `optional` **summary**: `string`
 
-Defined in: [src/client/types.gen.ts:980](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L980)
+Defined in: [src/client/types.gen.ts:988](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L988)
 
 Summary controls reasoning summary: "auto", "concise", or "detailed"

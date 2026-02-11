@@ -2,7 +2,7 @@
 
 > **getApiV1Tasks**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1TasksData`](../type-aliases/GetApiV1TasksData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1TasksResponses`](../type-aliases/GetApiV1TasksResponses.md), [`GetApiV1TasksErrors`](../type-aliases/GetApiV1TasksErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:430](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L430)
+Defined in: [src/client/sdk.gen.ts:442](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L442)
 
 Get available tasks
 

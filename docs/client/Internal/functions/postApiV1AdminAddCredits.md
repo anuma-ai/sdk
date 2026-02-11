@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:26](https://github.com/zeta-chain/ai-sdk/blob
 
 Add credits to user
 
-Adds credits to a user's cost limit on-chain. Requires admin API key and ADMIN\_ROLE on smart contract. Optionally specify escrow\_contract for custom escrow contracts.
+Adds credits to a user's account. The settlement worker will handle on-chain enrollment when processing requests.
 
 ## Type Parameters
 
