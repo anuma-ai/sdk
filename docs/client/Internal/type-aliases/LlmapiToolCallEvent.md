@@ -2,7 +2,7 @@
 
 > **LlmapiToolCallEvent** = `object`
 
-Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1118)
+Defined in: [src/client/types.gen.ts:1130](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1130)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1119)
+Defined in: [src/client/types.gen.ts:1131](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1131)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1120)
+Defined in: [src/client/types.gen.ts:1132](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1132)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1121](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1121)
+Defined in: [src/client/types.gen.ts:1133](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1133)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1121](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **output**: `string`
 
-Defined in: [src/client/types.gen.ts:1122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1122)
+Defined in: [src/client/types.gen.ts:1134](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1134)

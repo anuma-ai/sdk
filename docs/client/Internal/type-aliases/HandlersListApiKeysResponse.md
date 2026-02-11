@@ -2,7 +2,7 @@
 
 > **HandlersListApiKeysResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:246](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L246)
+Defined in: [src/client/types.gen.ts:238](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L238)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:246](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **api\_keys**: [`HandlersApiKeyResponse`](HandlersApiKeyResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:247](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L247)
+Defined in: [src/client/types.gen.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L239)

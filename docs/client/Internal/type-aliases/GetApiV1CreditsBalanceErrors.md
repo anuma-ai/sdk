@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1821](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1821)
+Defined in: [src/client/types.gen.ts:1839](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1839)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1821](https://github.com/zeta-chain/ai-sdk/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1825](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1825)
+Defined in: [src/client/types.gen.ts:1843](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1843)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1829](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1829)
+Defined in: [src/client/types.gen.ts:1847](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1847)
 
 Account not found
 
@@ -30,6 +30,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1833](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1833)
+Defined in: [src/client/types.gen.ts:1851](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1851)
 
 Internal Server Error

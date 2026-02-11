@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsPurchaseResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1940](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1940)
+Defined in: [src/client/types.gen.ts:1964](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1964)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1940](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersCheckoutSessionResponse`](HandlersCheckoutSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:1944](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1944)
+Defined in: [src/client/types.gen.ts:1968](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1968)
 
 OK

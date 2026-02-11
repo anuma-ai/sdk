@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blo
 
 Create credit pack checkout session
 
-Creates a Stripe Checkout Session for purchasing a one-time credit pack and returns the checkout URL. Pro users receive a 10% bonus.
+Creates a Stripe Checkout Session for purchasing a one-time credit pack and returns the checkout URL. Pro users are charged using the Pro product with bonus credits.
 
 ## Type Parameters
 

@@ -1,6 +1,6 @@
 # MessageChunk
 
-Defined in: [src/lib/db/chat/types.ts:141](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L141)
+Defined in: [src/lib/db/chat/types.ts:142](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L142)
 
 A chunk of a message with its own embedding for fine-grained search
 
@@ -10,7 +10,7 @@ A chunk of a message with its own embedding for fine-grained search
 
 > **endOffset**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:149](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L149)
+Defined in: [src/lib/db/chat/types.ts:150](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L150)
 
 Character offset where this chunk ends in the original message
 
@@ -20,7 +20,7 @@ Character offset where this chunk ends in the original message
 
 > **startOffset**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L147)
+Defined in: [src/lib/db/chat/types.ts:148](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L148)
 
 Character offset where this chunk starts in the original message
 
@@ -30,7 +30,7 @@ Character offset where this chunk starts in the original message
 
 > **text**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L143)
+Defined in: [src/lib/db/chat/types.ts:144](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L144)
 
 The chunk text
 
@@ -40,6 +40,6 @@ The chunk text
 
 > **vector**: `number`\[]
 
-Defined in: [src/lib/db/chat/types.ts:145](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L145)
+Defined in: [src/lib/db/chat/types.ts:146](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L146)
 
 Embedding vector for this chunk
