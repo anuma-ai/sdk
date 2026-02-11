@@ -2,7 +2,7 @@
 
 > **useVoice**(`options?`: [`UseVoiceOptions`](UseVoiceOptions.md)): [`UseVoiceResult`](UseVoiceResult.md)
 
-Defined in: [src/react/useVoice.ts:141](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L141)
+Defined in: [src/react/useVoice.ts:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L143)
 
 React hook for recording voice and transcribing it on-device using Whisper.
 
