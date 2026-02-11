@@ -373,7 +373,7 @@ export async function fetchServerToolsFromApi(
  * 3. Otherwise, fetch from API, cache, and return
  * 4. On fetch failure, return cached tools if available (stale-while-error)
  */
-export async function selectServerSideTools(
+export async function getServerTools(
   options: ServerToolsOptions
 ): Promise<ServerTool[]> {
   const {
@@ -691,9 +691,9 @@ export function findMatchingTools(
 }
 
 /**
- * Options for getToolsForPrompt
+ * Options for selectServerSideTools
  */
-export interface GetToolsForPromptOptions {
+export interface SelectServerSideToolsOptions {
   /** The user prompt to match tools against */
   prompt: string;
   /** Function to get auth token (uses Authorization: Bearer header) */
@@ -725,9 +725,9 @@ export interface GetToolsForPromptOptions {
  *
  * @example
  * ```ts
- * import { getToolsForPrompt } from "@reverbia/sdk/tools";
+ * import { selectServerSideTools } from "@reverbia/sdk/tools";
  *
- * const tools = await getToolsForPrompt({
+ * const tools = await selectServerSideTools({
  *   prompt: "Draw me a cat",
  *   getToken: async () => identityToken,
  * });
@@ -742,8 +742,8 @@ export interface GetToolsForPromptOptions {
  * });
  * ```
  */
-export async function getToolsForPrompt(
-  options: GetToolsForPromptOptions
+export async function selectServerSideTools(
+  options: SelectServerSideToolsOptions
 ): Promise<Array<Record<string, unknown>>> {
   const {
     prompt,
@@ -767,7 +767,7 @@ export async function getToolsForPrompt(
   }
 
   // Fetch tools (with caching)
-  const tools = await selectServerSideTools({
+  const tools = await getServerTools({
     getToken,
     apiKey,
     baseUrl,

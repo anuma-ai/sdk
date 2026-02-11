@@ -91,6 +91,6 @@
  */
 export * from "./client";
 export {
-  getToolsForPrompt,
-  type GetToolsForPromptOptions,
+  selectServerSideTools,
+  type SelectServerSideToolsOptions,
 } from "./lib/tools";

@@ -1,6 +1,6 @@
-# selectServerSideTools
+# getServerTools
 
-> **selectServerSideTools**(`options`: [`ServerToolsOptions`](../interfaces/ServerToolsOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
+> **getServerTools**(`options`: [`ServerToolsOptions`](../interfaces/ServerToolsOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
 
 Defined in: [src/lib/tools/serverTools.ts:376](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L376)
 

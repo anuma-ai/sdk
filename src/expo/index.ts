@@ -180,7 +180,7 @@ export {
 // Server-side tools caching utilities
 export {
   clearServerToolsCache,
-  selectServerSideTools,
+  getServerTools,
   getCachedServerTools,
   DEFAULT_CACHE_EXPIRATION_MS,
 } from "../lib/tools";

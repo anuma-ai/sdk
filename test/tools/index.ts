@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * getToolsForPrompt integration test
+ * selectServerSideTools integration test
  *
  * Usage:
  *   tsx test/tools/index.ts "generate an image of a cat"
@@ -10,7 +10,7 @@
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
-import { getToolsForPrompt } from "../../src/lib/tools/serverTools.js";
+import { selectServerSideTools } from "../../src/lib/tools/serverTools.js";
 
 const { values: args, positionals } = parseArgs({
   options: {
@@ -49,7 +49,7 @@ async function main() {
     console.log(`Min sim:  ${minSimilarity}`);
   console.log();
 
-  const tools = await getToolsForPrompt({
+  const tools = await selectServerSideTools({
     prompt,
     apiKey,
     baseUrl,

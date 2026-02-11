@@ -14,7 +14,7 @@ export {
   type ParsedServerToolsResponse,
   type ToolMatchResult,
   type ToolMatchOptions,
-  type GetToolsForPromptOptions,
+  type SelectServerSideToolsOptions,
   // Constants
   DEFAULT_CACHE_EXPIRATION_MS,
   SERVER_TOOLS_CACHE_KEY,
@@ -31,9 +31,9 @@ export {
   getToolsChecksum,
   shouldRefreshTools,
   fetchServerToolsFromApi,
-  selectServerSideTools,
+  getServerTools,
   filterServerTools,
   mergeTools,
   findMatchingTools,
-  getToolsForPrompt,
+  selectServerSideTools,
 } from "./serverTools";

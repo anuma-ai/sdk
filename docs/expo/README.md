@@ -263,9 +263,9 @@ Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerToo
 
 ***
 
-### selectServerSideTools
+### getServerTools
 
-Re-exports [selectServerSideTools](../react/Internal/functions/selectServerSideTools.md)
+Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
 
 ***
 
