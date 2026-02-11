@@ -108,6 +108,32 @@ async function blobToDataUri(blob: Blob): Promise<string> {
 }
 
 /**
+ * Get a friendly model name for display in conversation history.
+ * Maps model IDs to user-friendly provider names.
+ */
+function getFriendlyModelName(model?: string): string {
+  if (!model) return "AI";
+
+  const modelLower = model.toLowerCase();
+
+  // Pattern-based matching for common providers
+  const patterns: [string[], string][] = [
+    [["grok"], "Grok"],
+    [["claude", "anthropic"], "Claude"],
+    [["gpt", "openai"], "GPT"],
+    [["gemini"], "Gemini"],
+    [["cerebras", "fireworks", "kimi"], "Anuma"],
+    [["dall-e"], "DALL-E"],
+  ];
+
+  const match = patterns.find(([keywords]) =>
+    keywords.some((k) => modelLower.includes(k))
+  );
+
+  return match?.[1] ?? "AI";
+}
+
+/**
  * Convert StoredMessage to LlmapiMessage format.
  * If a file has a sourceUrl, includes it as an image_url part (only for non-assistant messages).
  * If encryptionKey is provided and files are stored in OPFS, reads them and converts to data URIs.
@@ -201,6 +227,12 @@ async function storedToLlmapiMessage(
 
   // Clean up extra whitespace from removed placeholders
   textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
+
+  // Add model prefix for assistant messages so the AI knows which model generated each response
+  if (stored.role === "assistant" && textContent) {
+    const modelName = getFriendlyModelName(stored.model);
+    textContent = `[Response from ${modelName}]\n${textContent}`;
+  }
 
   const content: LlmapiMessage["content"] = [
     { type: "text", text: textContent },
