@@ -9,6 +9,7 @@ export const SIGN_MESSAGE =
  * and are not accessible to XSS attacks after page reload.
  */
 const encryptionKeyStore = new Map<string, string>();
+const SESSION_KEY_PREFIX = "enc_key_";
 
 /**
  * Cache for imported CryptoKey objects.
@@ -76,7 +77,20 @@ const keyPairStore = new Map<string, CryptoKeyPair>();
  * @returns The stored key hex string or null if not available
  */
 function getStoredKey(address: string): string | null {
-  return encryptionKeyStore.get(address) ?? null;
+  const memoryKey = encryptionKeyStore.get(address);
+  if (memoryKey) return memoryKey;
+
+  try {
+    const sessionKey = sessionStorage.getItem(SESSION_KEY_PREFIX + address);
+    if (sessionKey) {
+      encryptionKeyStore.set(address, sessionKey);
+      return sessionKey;
+    }
+  } catch {
+    // sessionStorage unavailable (private browsing, React Native, etc.)
+  }
+
+  return null;
 }
 
 /**
@@ -86,6 +100,11 @@ function getStoredKey(address: string): string | null {
  */
 function setStoredKey(address: string, keyHex: string): void {
   encryptionKeyStore.set(address, keyHex);
+  try {
+    sessionStorage.setItem(SESSION_KEY_PREFIX + address, keyHex);
+  } catch {
+    // sessionStorage unavailable (private browsing, React Native, etc.)
+  }
 }
 
 /**
@@ -95,6 +114,11 @@ function setStoredKey(address: string, keyHex: string): void {
 export function clearEncryptionKey(address: string): void {
   encryptionKeyStore.delete(address);
   cryptoKeyCache.delete(address);
+  try {
+    sessionStorage.removeItem(SESSION_KEY_PREFIX + address);
+  } catch {
+    // sessionStorage unavailable (private browsing, React Native, etc.)
+  }
 }
 
 /**
@@ -103,6 +127,20 @@ export function clearEncryptionKey(address: string): void {
 export function clearAllEncryptionKeys(): void {
   encryptionKeyStore.clear();
   cryptoKeyCache.clear();
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(SESSION_KEY_PREFIX)) {
+        keysToRemove.push(key);
+      }
+    }
+    for (const key of keysToRemove) {
+      sessionStorage.removeItem(key);
+    }
+  } catch {
+    // sessionStorage unavailable (private browsing, React Native, etc.)
+  }
 }
 
 /**
