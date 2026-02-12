@@ -1,4 +1,4 @@
-import { requestEncryptionKey } from "../../../react/useEncryption";
+import { requestEncryptionKey, hasEncryptionKey } from "../../../react/useEncryption";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 import type { CreateConversationOptions, StoredConversation } from "./types";
 import { encryptField, decryptField } from "../encryption-utils";
@@ -53,12 +53,10 @@ export async function decryptConversationFields(
     return conversation;
   }
 
-  if (signMessage) {
-    try {
-      await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
-    } catch (error) {
-      console.warn("Failed to request encryption key for decryption:", error);
-    }
+  // Key not yet derived — return encrypted fields as-is.
+  // The caller (EncryptionKeyProvider) will re-fetch once the key is ready.
+  if (!hasEncryptionKey(address)) {
+    return conversation;
   }
 
   const decryptedTitle = await decryptField(conversation.title, address);

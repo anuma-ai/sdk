@@ -1,4 +1,4 @@
-import { decryptData, requestEncryptionKey, encryptDataDeterministic } from "../../../react/useEncryption";
+import { decryptData, requestEncryptionKey, encryptDataDeterministic, hasEncryptionKey } from "../../../react/useEncryption";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 import type { CreateMemoryOptions, StoredMemory, MemoryItem } from "./types";
 
@@ -103,17 +103,13 @@ export async function decryptMemoryFields(
     // No decryption if wallet address not provided
     return memory;
   }
-  
-  // Request encryption key if needed (allows decryption even if key not in memory)
-  if (signMessage) {
-    try {
-      await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
-    } catch (error) {
-      // If key request fails, continue anyway - decryptField will handle errors gracefully
-      console.warn("Failed to request encryption key for decryption:", error);
-    }
+
+  // Key not yet derived — return encrypted fields as-is.
+  // The caller (EncryptionKeyProvider) will re-fetch once the key is ready.
+  if (!hasEncryptionKey(address)) {
+    return memory;
   }
-  
+
   const [decryptedNamespace, decryptedKey, decryptedValue, decryptedRawEvidence] =
     await Promise.all([
       decryptField(memory.namespace, address),
