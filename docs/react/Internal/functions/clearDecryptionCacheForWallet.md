@@ -2,7 +2,7 @@
 
 > **clearDecryptionCacheForWallet**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/chat/lazyDecryption.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L104)
+Defined in: [src/lib/db/chat/lazyDecryption.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L111)
 
 Clear decryption cache for a specific wallet.
 

@@ -2,7 +2,7 @@
 
 > **hasKeyPair**(`address`: `string`): `boolean`
 
-Defined in: [src/react/useEncryption.ts:1149](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1149)
+Defined in: [src/react/useEncryption.ts:1103](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1103)
 
 Checks if a key pair exists in memory for the given wallet address
 

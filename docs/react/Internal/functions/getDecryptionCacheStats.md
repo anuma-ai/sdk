@@ -2,7 +2,7 @@
 
 > **getDecryptionCacheStats**(): `object`
 
-Defined in: [src/lib/db/chat/lazyDecryption.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L124)
+Defined in: [src/lib/db/chat/lazyDecryption.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L131)
 
 Get cache statistics for debugging
 

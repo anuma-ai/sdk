@@ -2,7 +2,7 @@
 
 > **invalidateConversationCache**(`walletAddress`: `string`, `uniqueId`: `string`): `void`
 
-Defined in: [src/lib/db/chat/lazyDecryption.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L117)
+Defined in: [src/lib/db/chat/lazyDecryption.ts:124](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/lazyDecryption.ts#L124)
 
 Invalidate cache for a specific conversation (e.g., after update)
 
