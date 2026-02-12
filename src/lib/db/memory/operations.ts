@@ -241,13 +241,19 @@ export async function saveMemoryOp(
     if (existing.length > 0) {
       const existingMemory = existing[0];
 
-      // Compare with encrypted values for embedding preservation check
+      // Decrypt existing memory to compare plaintext values, avoiding
+      // false mismatches when v2 ciphertext differs from v3 ciphertext
+      const decryptedExisting = ctx.walletAddress
+        ? await memoryToStored(existingMemory, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+        : { value: existingMemory.value, rawEvidence: existingMemory.rawEvidence,
+            type: existingMemory.type, namespace: existingMemory.namespace, key: existingMemory.key };
+
       const shouldPreserveEmbedding =
-        existingMemory.value === memoryToStore.value &&
-        existingMemory.rawEvidence === memoryToStore.rawEvidence &&
-        existingMemory.type === memoryToStore.type &&
-        existingMemory.namespace === memoryToStore.namespace &&
-        existingMemory.key === memoryToStore.key &&
+        decryptedExisting.value === opts.value &&
+        decryptedExisting.rawEvidence === opts.rawEvidence &&
+        decryptedExisting.type === opts.type &&
+        decryptedExisting.namespace === opts.namespace &&
+        decryptedExisting.key === opts.key &&
         existingMemory.embedding !== undefined &&
         existingMemory.embedding.length > 0 &&
         !opts.embedding;
@@ -390,14 +396,14 @@ export async function updateMemoryOp(
     }
   }
 
-  // Compare with encrypted values for embedding preservation check
-  // Check if content fields (value, rawEvidence, type, namespace, key) are unchanged
+  // Compare plaintext values for embedding preservation check, avoiding
+  // false mismatches when v2 ciphertext differs from v3 ciphertext
   const contentFieldsUnchanged =
-    memory.value === memoryToStore.value &&
-    memory.rawEvidence === memoryToStore.rawEvidence &&
-    memory.type === memoryToStore.type &&
-    memory.namespace === memoryToStore.namespace &&
-    memory.key === memoryToStore.key;
+    decryptedMemory.value === completeMemory.value &&
+    decryptedMemory.rawEvidence === completeMemory.rawEvidence &&
+    decryptedMemory.type === completeMemory.type &&
+    decryptedMemory.namespace === completeMemory.namespace &&
+    decryptedMemory.key === completeMemory.key;
 
   const shouldPreserveEmbedding =
     contentFieldsUnchanged &&
