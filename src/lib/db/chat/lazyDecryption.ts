@@ -77,7 +77,14 @@ export async function decryptConversationLazy(
   // Check cache first
   const cached = conversationDecryptionCache.get(cacheKey);
   if (cached) {
-    return cached;
+    // Verify the cached version is not stale by comparing updatedAt
+    const cachedTime = cached.updatedAt?.getTime() ?? 0;
+    const providedTime = conversation.updatedAt?.getTime() ?? 0;
+    if (cachedTime >= providedTime) {
+      return cached;
+    }
+    // Cache is stale, invalidate and re-decrypt below
+    conversationDecryptionCache.delete(cacheKey);
   }
 
   // Decrypt the conversation

@@ -465,34 +465,7 @@ export async function encryptData(
   }
 
   const key = await getEncryptionKey(address);
-
-  // Convert plaintext to Uint8Array if it's a string
-  const plaintextBytes =
-    typeof plaintext === "string"
-      ? new TextEncoder().encode(plaintext)
-      : plaintext;
-
-  // Generate a random 12-byte IV (initialization vector)
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  // Encrypt the data
-  const encryptedData = await crypto.subtle.encrypt(
-    {
-      name: "AES-GCM",
-      iv: iv,
-    },
-    key,
-    plaintextBytes.buffer as ArrayBuffer
-  );
-
-  // Combine IV + encrypted data (which includes auth tag)
-  const encryptedBytes = new Uint8Array(encryptedData);
-  const combined = new Uint8Array(iv.length + encryptedBytes.length);
-  combined.set(iv, 0);
-  combined.set(encryptedBytes, iv.length);
-
-  // Return as hex string
-  return bytesToHex(combined);
+  return encryptDataWithKey(plaintext, key);
 }
 
 /**
@@ -529,26 +502,7 @@ export async function decryptData(
   address: string
 ): Promise<string> {
   const key = await getEncryptionKey(address);
-
-  // Convert hex to bytes
-  const combined = hexToBytes(encryptedHex);
-
-  // Extract IV (first 12 bytes) and encrypted data (rest)
-  const iv = combined.slice(0, 12);
-  const encryptedData = combined.slice(12);
-
-  // Decrypt the data
-  const decryptedData = await crypto.subtle.decrypt(
-    {
-      name: "AES-GCM",
-      iv: iv,
-    },
-    key,
-    encryptedData
-  );
-
-  // Convert decrypted bytes to string
-  return new TextDecoder().decode(decryptedData);
+  return decryptDataWithKey(encryptedHex, key);
 }
 
 /**
