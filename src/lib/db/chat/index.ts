@@ -32,9 +32,7 @@ export {
 export {
   type StorageOperationsContext,
   messageToStored,
-  messageToStoredRaw,
   conversationToStored,
-  conversationToStoredRaw,
   createConversationOp,
   getConversationOp,
   getConversationsOp,
@@ -58,3 +56,14 @@ export {
   makeSyntheticStoredMessage,
   makeSyntheticStoredConversation,
 } from "./operations";
+
+// Lazy decryption utilities (conversation only)
+export {
+  decryptConversationLazy,
+  isConversationCached,
+  getCachedConversation,
+  clearDecryptionCache,
+  clearDecryptionCacheForWallet,
+  invalidateConversationCache,
+  getDecryptionCacheStats,
+} from "./lazyDecryption";

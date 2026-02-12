@@ -11,6 +11,13 @@ export const SIGN_MESSAGE =
 const encryptionKeyStore = new Map<string, string>();
 
 /**
+ * Cache for imported CryptoKey objects.
+ * Avoids re-importing the same key on every encrypt/decrypt operation.
+ * Keys are cached per wallet address and cleared when the encryption key is cleared.
+ */
+const cryptoKeyCache = new Map<string, CryptoKey>();
+
+/**
  * Callbacks to notify when an encryption key becomes available for a wallet.
  * Used by the queue system to auto-flush operations once keys are ready.
  */
@@ -87,6 +94,7 @@ function setStoredKey(address: string, keyHex: string): void {
  */
 export function clearEncryptionKey(address: string): void {
   encryptionKeyStore.delete(address);
+  cryptoKeyCache.delete(address);
 }
 
 /**
@@ -94,6 +102,7 @@ export function clearEncryptionKey(address: string): void {
  */
 export function clearAllEncryptionKeys(): void {
   encryptionKeyStore.clear();
+  cryptoKeyCache.clear();
 }
 
 /**
@@ -331,12 +340,19 @@ async function createPKCS8PrivateKey(
 /**
  * Gets the encryption key from in-memory storage and imports it as a CryptoKey.
  * The key must have been previously requested via requestEncryptionKey.
+ * Uses a cache to avoid re-importing the same key on every call.
  *
  * @param address - The wallet address
  * @returns The CryptoKey for AES-GCM encryption/decryption
  * @throws Error if the key hasn't been requested yet
  */
 export async function getEncryptionKey(address: string): Promise<CryptoKey> {
+  // Check cache first for performance
+  const cachedKey = cryptoKeyCache.get(address);
+  if (cachedKey) {
+    return cachedKey;
+  }
+
   const keyHex = getStoredKey(address);
   if (!keyHex) {
     throw new Error(
@@ -347,13 +363,18 @@ export async function getEncryptionKey(address: string): Promise<CryptoKey> {
   const keyBytes = hexToBytes(keyHex);
 
   // Import the key for AES-GCM encryption
-  return crypto.subtle.importKey(
+  const cryptoKey = await crypto.subtle.importKey(
     "raw",
     keyBytes.buffer as ArrayBuffer,
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"]
   );
+
+  // Cache the imported key for future use
+  cryptoKeyCache.set(address, cryptoKey);
+
+  return cryptoKey;
 }
 
 /**
@@ -566,6 +587,151 @@ export async function decryptDataBytes(
  */
 export function hasEncryptionKey(address: string): boolean {
   return getStoredKey(address) !== null;
+}
+
+/**
+ * Encrypts data using a pre-fetched CryptoKey.
+ * Use this for batch operations to avoid repeated key lookups.
+ *
+ * @param plaintext - The data to encrypt (string or Uint8Array)
+ * @param key - The CryptoKey for AES-GCM encryption
+ * @returns Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @internal
+ */
+export async function encryptDataWithKey(
+  plaintext: string | Uint8Array,
+  key: CryptoKey
+): Promise<string> {
+  // Convert plaintext to Uint8Array if it's a string
+  const plaintextBytes =
+    typeof plaintext === "string"
+      ? new TextEncoder().encode(plaintext)
+      : plaintext;
+
+  // Generate a random 12-byte IV (initialization vector)
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Encrypt the data
+  const encryptedData = await crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+    },
+    key,
+    plaintextBytes.buffer as ArrayBuffer
+  );
+
+  // Combine IV + encrypted data (which includes auth tag)
+  const encryptedBytes = new Uint8Array(encryptedData);
+  const combined = new Uint8Array(iv.length + encryptedBytes.length);
+  combined.set(iv, 0);
+  combined.set(encryptedBytes, iv.length);
+
+  // Return as hex string
+  return bytesToHex(combined);
+}
+
+/**
+ * Decrypts data using a pre-fetched CryptoKey.
+ * Use this for batch operations to avoid repeated key lookups.
+ *
+ * @param encryptedHex - Encrypted data as hex string (IV + ciphertext + auth tag)
+ * @param key - The CryptoKey for AES-GCM decryption
+ * @returns Decrypted data as string
+ * @internal
+ */
+export async function decryptDataWithKey(
+  encryptedHex: string,
+  key: CryptoKey
+): Promise<string> {
+  // Convert hex to bytes
+  const combined = hexToBytes(encryptedHex);
+
+  // Extract IV (first 12 bytes) and encrypted data (rest)
+  const iv = combined.slice(0, 12);
+  const encryptedData = combined.slice(12);
+
+  // Decrypt the data
+  const decryptedData = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv,
+    },
+    key,
+    encryptedData
+  );
+
+  // Convert decrypted bytes to string
+  return new TextDecoder().decode(decryptedData);
+}
+
+/**
+ * Batch encrypt multiple values efficiently with a single key lookup.
+ * Much faster than calling encryptData for each value individually.
+ *
+ * @param values - Array of plaintext values to encrypt
+ * @param address - The wallet address associated with the encryption key
+ * @returns Array of encrypted values as hex strings
+ * @throws Error if encryption key is not found in memory
+ *
+ * @example
+ * ```tsx
+ * const encrypted = await encryptDataBatch(
+ *   ["secret1", "secret2", "secret3"],
+ *   walletAddress
+ * );
+ * ```
+ *
+ * @category Encryption
+ */
+export async function encryptDataBatch(
+  values: (string | Uint8Array)[],
+  address: string
+): Promise<string[]> {
+  // Validate wallet address format
+  if (!isValidWalletAddress(address)) {
+    throw new Error(
+      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
+    );
+  }
+
+  // Get key once for all operations
+  const key = await getEncryptionKey(address);
+
+  // Encrypt all values in parallel
+  return Promise.all(values.map((value) => encryptDataWithKey(value, key)));
+}
+
+/**
+ * Batch decrypt multiple values efficiently with a single key lookup.
+ * Much faster than calling decryptData for each value individually.
+ *
+ * @param encryptedValues - Array of encrypted hex strings
+ * @param address - The wallet address associated with the encryption key
+ * @returns Array of decrypted plaintext values
+ * @throws Error if encryption key is not found in memory or decryption fails
+ *
+ * @example
+ * ```tsx
+ * const decrypted = await decryptDataBatch(
+ *   [encrypted1, encrypted2, encrypted3],
+ *   walletAddress
+ * );
+ * ```
+ *
+ * @category Encryption
+ */
+export async function decryptDataBatch(
+  encryptedValues: string[],
+  address: string
+): Promise<string[]> {
+  // Get key once for all operations
+  const key = await getEncryptionKey(address);
+
+  // Decrypt all values in parallel
+  return Promise.all(
+    encryptedValues.map((value) => decryptDataWithKey(value, key))
+  );
 }
 
 /**
