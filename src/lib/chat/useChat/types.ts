@@ -26,6 +26,8 @@ export type StreamingChunk = {
     usage?: {
       input_tokens?: number;
       output_tokens?: number;
+      cost_micro_usd?: number;
+      credits_used?: number;
     };
     /** Checksum of tools used to generate this response */
     tools_checksum?: string;
@@ -202,7 +204,7 @@ export type BaseUseChatOptions = {
    * Fast models can return text faster than is comfortable to read — smoothing
    * buffers incoming chunks and releases them at a consistent, adaptive pace.
    *
-   * - `true` or omitted: enabled with defaults (30→200 chars/sec over 3s)
+   * - `true` or omitted: enabled with defaults (200→400 chars/sec over 3s)
    * - `false`: disabled, callbacks fire immediately with raw chunks
    * - `StreamSmoothingConfig`: custom speed/ramp configuration
    *

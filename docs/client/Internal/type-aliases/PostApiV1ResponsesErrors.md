@@ -2,7 +2,7 @@
 
 > **PostApiV1ResponsesErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:2059](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2059)
+Defined in: [src/client/types.gen.ts:2116](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2116)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2059](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2063](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2063)
+Defined in: [src/client/types.gen.ts:2120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2120)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2067](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2067)
+Defined in: [src/client/types.gen.ts:2124](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2124)
 
 Model provider rate limit exceeded
 
@@ -30,6 +30,6 @@ Model provider rate limit exceeded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2071](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2071)
+Defined in: [src/client/types.gen.ts:2128](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2128)
 
 Internal Server Error

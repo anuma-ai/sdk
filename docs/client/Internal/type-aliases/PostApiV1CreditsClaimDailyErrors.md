@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1854](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1854)
+Defined in: [src/client/types.gen.ts:1878](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1878)
 
 ## Properties
 
@@ -10,9 +10,9 @@ Defined in: [src/client/types.gen.ts:1854](https://github.com/zeta-chain/ai-sdk/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1858](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1858)
+Defined in: [src/client/types.gen.ts:1882](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1882)
 
-Already claimed today
+Already claimed today or invalid timezone
 
 ***
 
@@ -20,7 +20,7 @@ Already claimed today
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1862](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1862)
+Defined in: [src/client/types.gen.ts:1886](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1886)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1866](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1866)
+Defined in: [src/client/types.gen.ts:1890](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1890)
 
 Account not found
 
@@ -40,6 +40,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1870](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1870)
+Defined in: [src/client/types.gen.ts:1894](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1894)
 
 Internal Server Error

@@ -92,7 +92,6 @@ import {
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
-import { getFriendlyModelName } from "../lib/models";
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -200,12 +199,6 @@ async function storedToLlmapiMessage(
 
   // Clean up extra whitespace from removed placeholders
   textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
-
-  // Add model prefix for assistant messages so the AI knows which model generated each response
-  if (stored.role === "assistant" && textContent) {
-    const modelName = getFriendlyModelName(stored.model);
-    textContent = `[Response from ${modelName}]\n${textContent}`;
-  }
 
   const content: LlmapiMessage["content"] = [
     { type: "text", text: textContent },

@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceData** = `object`
 
-Defined in: [src/client/types.gen.ts:1814](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1814)
+Defined in: [src/client/types.gen.ts:1826](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1826)
 
 ## Properties
 
@@ -10,7 +10,21 @@ Defined in: [src/client/types.gen.ts:1814](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1815](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1815)
+Defined in: [src/client/types.gen.ts:1827](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1827)
+
+***
+
+### headers?
+
+> `optional` **headers**: `object`
+
+Defined in: [src/client/types.gen.ts:1828](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1828)
+
+**X-Timezone?**
+
+> `optional` **X-Timezone**: `string`
+
+IANA timezone (e.g., America/New\_York)
 
 ***
 
@@ -18,7 +32,7 @@ Defined in: [src/client/types.gen.ts:1815](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1816](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1816)
+Defined in: [src/client/types.gen.ts:1834](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1834)
 
 ***
 
@@ -26,7 +40,7 @@ Defined in: [src/client/types.gen.ts:1816](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1817](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1817)
+Defined in: [src/client/types.gen.ts:1835](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1835)
 
 ***
 
@@ -34,4 +48,4 @@ Defined in: [src/client/types.gen.ts:1817](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/credits/balance"`
 
-Defined in: [src/client/types.gen.ts:1818](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1818)
+Defined in: [src/client/types.gen.ts:1836](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1836)

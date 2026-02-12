@@ -2,7 +2,7 @@
 
 > **postApiV1Responses**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ResponsesData`](../type-aliases/PostApiV1ResponsesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ResponsesResponses`](../type-aliases/PostApiV1ResponsesResponses.md), [`PostApiV1ResponsesErrors`](../type-aliases/PostApiV1ResponsesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L330)
+Defined in: [src/client/sdk.gen.ts:342](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L342)
 
 Create response
 

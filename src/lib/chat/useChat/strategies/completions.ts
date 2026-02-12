@@ -76,6 +76,7 @@ type CompletionsStreamingChunk = {
     completion_tokens?: number;
     total_tokens?: number;
     cost_micro_usd?: number;
+    credits_used?: number;
   };
 };
 
@@ -170,6 +171,7 @@ export class CompletionsStrategy implements ApiStrategy {
         completion_tokens: typedChunk.usage.completion_tokens,
         total_tokens: typedChunk.usage.total_tokens,
         cost_micro_usd: typedChunk.usage.cost_micro_usd,
+        credits_used: typedChunk.usage.credits_used,
       };
     }
 
@@ -423,6 +425,7 @@ export class CompletionsStrategy implements ApiStrategy {
             completion_tokens: accumulator.usage.completion_tokens,
             total_tokens: accumulator.usage.total_tokens,
             cost_micro_usd: accumulator.usage.cost_micro_usd,
+            credits_used: accumulator.usage.credits_used,
           }
         : undefined,
     };

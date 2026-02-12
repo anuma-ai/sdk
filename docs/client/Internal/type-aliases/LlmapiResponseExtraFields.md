@@ -2,7 +2,7 @@
 
 > **LlmapiResponseExtraFields** = `object`
 
-Defined in: [src/client/types.gen.ts:869](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L869)
+Defined in: [src/client/types.gen.ts:877](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L877)
 
 ExtraFields contains additional metadata
 
@@ -12,7 +12,7 @@ ExtraFields contains additional metadata
 
 > `optional` **latency**: `number`
 
-Defined in: [src/client/types.gen.ts:873](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L873)
+Defined in: [src/client/types.gen.ts:881](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L881)
 
 Latency is the request latency in milliseconds
 
@@ -22,7 +22,7 @@ Latency is the request latency in milliseconds
 
 > `optional` **model\_requested**: `string`
 
-Defined in: [src/client/types.gen.ts:877](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L877)
+Defined in: [src/client/types.gen.ts:885](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L885)
 
 ModelRequested is the model that was requested
 
@@ -32,7 +32,7 @@ ModelRequested is the model that was requested
 
 > `optional` **provider**: `string`
 
-Defined in: [src/client/types.gen.ts:881](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L881)
+Defined in: [src/client/types.gen.ts:889](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L889)
 
 Provider is the LLM provider used (e.g., "openai", "anthropic")
 
@@ -42,6 +42,6 @@ Provider is the LLM provider used (e.g., "openai", "anthropic")
 
 > `optional` **request\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:885](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L885)
+Defined in: [src/client/types.gen.ts:893](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L893)
 
 RequestType is always "responses"

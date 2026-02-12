@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:238](https://github.com/zeta-chain/ai-sdk/blo
 
 Get credit balance
 
-Returns the credit balance and related information for the authenticated user
+Returns the credit balance and related information for the authenticated user. Optionally accepts X-Timezone header for accurate next claim time calculation.
 
 ## Type Parameters
 

@@ -64,7 +64,6 @@ import {
   type QueuedOperation,
   type QueuedOperationType,
 } from "../lib/db/queue";
-import { getFriendlyModelName } from "../lib/models";
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -72,16 +71,9 @@ import { getFriendlyModelName } from "../lib/models";
  * ai-portal doesn't support image_url in assistant messages for /chat/completions.
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
-  let textContent = stored.content;
-
-  // Add model prefix for assistant messages so the AI knows which model generated each response
-  if (stored.role === "assistant" && textContent) {
-    const modelName = getFriendlyModelName(stored.model);
-    textContent = `[Response from ${modelName}]\n${textContent}`;
-  }
 
   const content: LlmapiMessage["content"] = [
-    { type: "text", text: textContent },
+    { type: "text", text: stored.content },
   ];
 
   // Add file image parts if present (only for non-assistant messages)
