@@ -9,9 +9,9 @@ export type StreamSmoothingConfig = {
   enabled: boolean;
   /** Minimum chars/sec at the start of streaming. Default: 60 */
   minSpeed?: number;
-  /** Maximum chars/sec after ramp completes. Default: 120 */
+  /** Maximum chars/sec after ramp completes. Default: 600 */
   maxSpeed?: number;
-  /** Duration in ms to ramp from minSpeed to maxSpeed. Default: 3000 */
+  /** Duration in ms to ramp from minSpeed to maxSpeed. Default: 4000 */
   rampDuration?: number;
 };
 
@@ -59,8 +59,8 @@ export class StreamSmoother {
     if (typeof config === "boolean" || config === undefined) {
       this.enabled = config !== false;
       this.minSpeed = 60;
-      this.maxSpeed = 400;
-      this.rampDuration = 3000;
+      this.maxSpeed = 600;
+      this.rampDuration = 4000;
     } else {
       this.enabled = config.enabled !== false;
       this.minSpeed = config.minSpeed ?? 60;
