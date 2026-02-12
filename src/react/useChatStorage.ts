@@ -1844,7 +1844,12 @@ export function useChatStorage(
         }
         // Batch: collect all fileIds across all messages, resolve once
         const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
-        const allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
+        let allMedia: StoredMedia[] = [];
+        try {
+          allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
+        } catch {
+          // IndexedDB / decryption failure — degrade gracefully (no image URLs)
+        }
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
