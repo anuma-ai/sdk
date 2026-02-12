@@ -191,7 +191,7 @@ export type BaseUseChatOptions = {
    * Fast models can return text faster than is comfortable to read — smoothing
    * buffers incoming chunks and releases them at a consistent, adaptive pace.
    *
-   * - `true` or omitted: enabled with defaults (30→200 chars/sec over 3s)
+   * - `true` or omitted: enabled with defaults (30→120 chars/sec over 3s)
    * - `false`: disabled, callbacks fire immediately with raw chunks
    * - `StreamSmoothingConfig`: custom speed/ramp configuration
    *
