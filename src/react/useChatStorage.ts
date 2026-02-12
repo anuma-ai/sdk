@@ -1249,11 +1249,19 @@ export function useChatStorage(
       return new Promise((resolve) => {
         const img = new Image();
         const url = URL.createObjectURL(blob);
+
+        const timeoutId = setTimeout(() => {
+          URL.revokeObjectURL(url);
+          resolve(undefined);
+        }, 10_000);
+
         img.onload = () => {
+          clearTimeout(timeoutId);
           URL.revokeObjectURL(url);
           resolve({ width: img.naturalWidth, height: img.naturalHeight });
         };
         img.onerror = () => {
+          clearTimeout(timeoutId);
           URL.revokeObjectURL(url);
           resolve(undefined);
         };
@@ -1304,8 +1312,13 @@ export function useChatStorage(
               if (url) {
                 urls.push({ url, model });
               }
-            } catch {
-              // Ignore JSON parse errors
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                "[extractAndStoreEncryptedMCPImages] Failed to parse tool call output:",
+                toolCallEvent.name,
+                err
+              );
             }
           }
         }
@@ -1349,7 +1362,7 @@ export function useChatStorage(
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
             try {
               const response = await fetch(url, {
@@ -1418,6 +1431,13 @@ export function useChatStorage(
               sourceUrl: url,
               dimensions,
             });
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+              "[extractAndStoreEncryptedMCPImages] Failed to download image:",
+              url,
+              result.reason
+            );
           }
         });
 
@@ -1513,7 +1533,7 @@ export function useChatStorage(
             } else {
               // Fetch external URL
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 30000);
+              const timeoutId = setTimeout(() => controller.abort(), 60_000);
               try {
                 const response = await fetch(file.url, {
                   signal: controller.signal,
