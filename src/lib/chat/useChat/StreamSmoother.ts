@@ -7,9 +7,9 @@
 export type StreamSmoothingConfig = {
   /** Whether smoothing is enabled. Default: true */
   enabled: boolean;
-  /** Minimum chars/sec at the start of streaming. Default: 30 */
+  /** Minimum chars/sec at the start of streaming. Default: 200 */
   minSpeed?: number;
-  /** Maximum chars/sec after ramp completes. Default: 200 */
+  /** Maximum chars/sec after ramp completes. Default: 400 */
   maxSpeed?: number;
   /** Duration in ms to ramp from minSpeed to maxSpeed. Default: 3000 */
   rampDuration?: number;
@@ -17,12 +17,6 @@ export type StreamSmoothingConfig = {
 
 /** Default tick interval in ms (~60fps) */
 const TICK_INTERVAL = 16;
-
-/** Buffer size (chars) before we start boosting speed */
-const BUFFER_THRESHOLD = 50;
-
-/** How quickly to drain excess buffer (ms) - lower = more aggressive */
-const EXCESS_DRAIN_TIME = 500;
 
 /**
  * Buffers incoming streaming text and releases it at an adaptive rate.
@@ -50,6 +44,7 @@ export class StreamSmoother {
   private timer: ReturnType<typeof setInterval> | null = null;
   private startTime = 0;
   private destroyed = false;
+  private flushResolve: (() => void) | null = null;
 
   private readonly enabled: boolean;
   private readonly minSpeed: number;
@@ -63,13 +58,13 @@ export class StreamSmoother {
     this.callback = callback;
     if (typeof config === "boolean" || config === undefined) {
       this.enabled = config !== false;
-      this.minSpeed = 30;
-      this.maxSpeed = 200;
+      this.minSpeed = 200;
+      this.maxSpeed = 400;
       this.rampDuration = 3000;
     } else {
       this.enabled = config.enabled !== false;
-      this.minSpeed = config.minSpeed ?? 30;
-      this.maxSpeed = config.maxSpeed ?? 200;
+      this.minSpeed = config.minSpeed ?? 200;
+      this.maxSpeed = config.maxSpeed ?? 400;
       this.rampDuration = config.rampDuration ?? 3000;
     }
   }
@@ -90,18 +85,22 @@ export class StreamSmoother {
   }
 
   /**
-   * Immediately release all remaining buffered text.
-   * Call this when the stream finishes.
+   * Wait for the buffer to drain naturally at the current smoothing pace.
+   * Call this when the stream finishes. Resolves once all buffered text
+   * has been released through the normal tick cycle.
    */
-  flush(): void {
-    if (this.destroyed) return;
-    this.stopTimer();
-
-    if (this.buffer.length > 0) {
-      const text = this.buffer;
-      this.buffer = "";
-      this.callback(text);
+  flush(): Promise<void> {
+    if (this.destroyed || this.buffer.length === 0) {
+      this.stopTimer();
+      return Promise.resolve();
     }
+
+    // Ensure the timer is running so the buffer keeps draining
+    this.ensureTimer();
+
+    return new Promise((resolve) => {
+      this.flushResolve = resolve;
+    });
   }
 
   /**
@@ -112,6 +111,10 @@ export class StreamSmoother {
     this.destroyed = true;
     this.stopTimer();
     this.buffer = "";
+    if (this.flushResolve) {
+      this.flushResolve();
+      this.flushResolve = null;
+    }
   }
 
   /** Start the release timer if not already running */
@@ -152,28 +155,19 @@ export class StreamSmoother {
 
     if (this.buffer.length === 0) {
       this.stopTimer();
+      if (this.flushResolve) {
+        this.flushResolve();
+        this.flushResolve = null;
+      }
     }
   }
 
-  /** Calculate current output speed based on elapsed time and buffer size */
+  /** Calculate current output speed based on elapsed time */
   private getCurrentSpeed(elapsed: number): number {
-    // Base speed from time-based ramp
-    let speed: number;
     if (elapsed >= this.rampDuration) {
-      speed = this.maxSpeed;
-    } else {
-      const progress = elapsed / this.rampDuration;
-      speed = this.minSpeed + (this.maxSpeed - this.minSpeed) * progress;
+      return this.maxSpeed;
     }
-
-    // Boost speed if buffer is growing too large
-    if (this.buffer.length > BUFFER_THRESHOLD) {
-      const excess = this.buffer.length - BUFFER_THRESHOLD;
-      // Calculate extra speed needed to drain excess over EXCESS_DRAIN_TIME
-      const excessDrainRate = (excess / EXCESS_DRAIN_TIME) * 1000;
-      speed += excessDrainRate;
-    }
-
-    return speed;
+    const progress = elapsed / this.rampDuration;
+    return this.minSpeed + (this.maxSpeed - this.minSpeed) * progress;
   }
 }

@@ -87,7 +87,7 @@ describe("StreamSmoother", () => {
   });
 
   describe("flush", () => {
-    it("releases all remaining buffer immediately", () => {
+    it("drains remaining buffer at smoothed pace", async () => {
       const received: string[] = [];
       const smoother = new StreamSmoother(
         (text) => received.push(text),
@@ -102,17 +102,22 @@ describe("StreamSmoother", () => {
       const beforeFlush = received.join("").length;
       expect(beforeFlush).toBeLessThan(1000);
 
-      // Flush should release everything
-      smoother.flush();
+      // Flush returns a promise that resolves when buffer is drained
+      const flushPromise = smoother.flush();
+
+      // Advance enough time for all chars to drain (1000 chars at 10 chars/sec = 100s)
+      vi.advanceTimersByTime(200_000);
+      await flushPromise;
+
       const afterFlush = received.join("").length;
       expect(afterFlush).toBe(1000);
     });
 
-    it("does nothing if buffer is empty", () => {
+    it("resolves immediately if buffer is empty", async () => {
       const callback = vi.fn();
       const smoother = new StreamSmoother(callback, { enabled: true });
 
-      smoother.flush();
+      await smoother.flush();
       expect(callback).not.toHaveBeenCalled();
     });
   });
@@ -201,28 +206,7 @@ describe("StreamSmoother", () => {
       expect(lateTotal).toBeGreaterThan(earlyTotal);
     });
 
-    it("boosts speed when buffer grows large", () => {
-      const chunks: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => chunks.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 100, rampDuration: 2000 }
-      );
-
-      // Push a large buffer that exceeds threshold (50 chars)
-      smoother.push("a".repeat(500));
-
-      // Even at start of ramp, large buffer should boost speed significantly
-      // Without boost: 10 chars/sec * 0.1s = 1 char
-      // With boost for 450 excess chars: (450/500)*1000 = 900 chars/sec extra
-      vi.advanceTimersByTime(100);
-      const total = chunks.join("").length;
-
-      // Should have released much more than the base 1 char
-      expect(total).toBeGreaterThan(50);
-
-      smoother.destroy();
-    });
-  });
+});
 
   describe("empty push", () => {
     it("ignores empty string", () => {

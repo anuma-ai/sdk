@@ -410,9 +410,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           throw sseError;
         }
 
-        // Flush any remaining buffered content before building final response
-        contentSmoother.flush();
-        thinkingSmoother.flush();
+        // Wait for smoothers to drain remaining buffered content
+        await contentSmoother.flush();
+        await thinkingSmoother.flush();
 
         // Build the final response
         const response = strategy.buildFinalResponse(accumulator);
@@ -692,9 +692,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               throw sseError;
             }
 
-            // Flush any remaining buffered content
-            contContentSmoother.flush();
-            contThinkingSmoother.flush();
+            // Wait for smoothers to drain remaining buffered content
+            await contContentSmoother.flush();
+            await contThinkingSmoother.flush();
 
             // Build final response from continuation
             const finalResponse = strategy.buildFinalResponse(

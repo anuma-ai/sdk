@@ -347,10 +347,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             if (xhr.status >= 200 && xhr.status < 300) {
-              // Flush any remaining buffered content before building response
-              contentSmoother.flush();
-              thinkingSmoother.flush();
-
+              // Wait for smoothers to drain remaining buffered content
+              Promise.all([contentSmoother.flush(), thinkingSmoother.flush()]).then(async () => {
               const response = strategy.buildFinalResponse(accumulator);
 
               // Check for tool calls and handle them
@@ -571,10 +569,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               continuationXhr.status >= 200 &&
                               continuationXhr.status < 300
                             ) {
-                              // Flush remaining buffered content
-                              contContentSmoother.flush();
-                              contThinkingSmoother.flush();
-
+                              // Wait for smoothers to drain remaining buffered content
+                              Promise.all([contContentSmoother.flush(), contThinkingSmoother.flush()]).then(() => {
                               const finalResponse =
                                 strategy.buildFinalResponse(
                                   continuationAccumulator
@@ -583,6 +579,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                                 data: finalResponse,
                                 error: null,
                               });
+                              }); // end flush .then()
                             } else {
                               contContentSmoother.destroy();
                               contThinkingSmoother.destroy();
@@ -657,6 +654,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               setIsLoading(false);
               if (onFinish) onFinish(response);
               resolve({ data: response, error: null });
+              }); // end flush .then()
             } else {
               contentSmoother.destroy();
               thinkingSmoother.destroy();
