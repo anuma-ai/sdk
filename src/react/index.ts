@@ -64,6 +64,11 @@ export {
   encryptData,
   decryptData,
   decryptDataBytes,
+  // Batch operations for performance (single key lookup)
+  encryptDataBatch,
+  decryptDataBatch,
+  encryptDataWithKey,
+  decryptDataWithKey,
   clearEncryptionKey,
   clearAllEncryptionKeys,
   requestKeyPair,

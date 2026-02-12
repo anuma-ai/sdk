@@ -58,7 +58,9 @@ function ChatComponent() {
 | Function | Description |
 | ------ | ------ |
 | [decryptData](Encryption/decryptData.md) | Decrypts data using AES-GCM with the stored encryption key. |
+| [decryptDataBatch](Encryption/decryptDataBatch.md) | Batch decrypt multiple values efficiently with a single key lookup. Much faster than calling decryptData for each value individually. |
 | [encryptData](Encryption/encryptData.md) | Encrypts data using AES-GCM with the stored encryption key. |
+| [encryptDataBatch](Encryption/encryptDataBatch.md) | Batch encrypt multiple values efficiently with a single key lookup. Much faster than calling encryptData for each value individually. |
 
 ## Hooks
 

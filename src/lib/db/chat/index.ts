@@ -32,9 +32,7 @@ export {
 export {
   type StorageOperationsContext,
   messageToStored,
-  messageToStoredRaw,
   conversationToStored,
-  conversationToStoredRaw,
   createConversationOp,
   getConversationOp,
   getConversationsOp,
@@ -58,3 +56,4 @@ export {
   makeSyntheticStoredMessage,
   makeSyntheticStoredConversation,
 } from "./operations";
+
