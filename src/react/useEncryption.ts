@@ -205,7 +205,7 @@ async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
       name: "HKDF",
       hash: "SHA-256",
       salt: new Uint8Array(32), // Zero salt (HKDF spec: uses hash-length zero buffer)
-      info: new TextEncoder().encode("reverbia-sdk-aes-gcm-v3"),
+      info: new TextEncoder().encode("anuma-sdk-aes-gcm-v3"),
     },
     hkdfKey,
     256
