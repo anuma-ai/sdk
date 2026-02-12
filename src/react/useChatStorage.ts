@@ -61,6 +61,7 @@ import {
   getMediaTypeFromMime,
   getMediaByIdsOp,
   type CreateMediaOptions,
+  type StoredMedia,
 } from "../lib/db/media";
 import {
   queueManager,
@@ -1841,7 +1842,12 @@ export function useChatStorage(
             // Failed to get encryption key for history
           }
         }
-        const resolveMediaByIds = (ids: string[]) => getMediaByIdsOp(mediaCtx, ids);
+        // Batch: collect all fileIds across all messages, resolve once
+        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        const allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
+        const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
+        const resolveMediaByIds = (ids: string[]) =>
+          Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
           limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
         );
