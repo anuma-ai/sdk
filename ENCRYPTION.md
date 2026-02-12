@@ -1,6 +1,6 @@
 # Encryption at Rest - Migration Guide
 
-This guide explains how to enable field-level encryption at rest in applications using `@reverbia/sdk`. All sensitive data stored in IndexedDB (messages, conversation titles, media metadata) is encrypted using AES-GCM with wallet-derived keys.
+This guide explains how to enable field-level encryption at rest in applications using `@anuma/sdk`. All sensitive data stored in IndexedDB (messages, conversation titles, media metadata) is encrypted using AES-GCM with wallet-derived keys.
 
 ## Overview
 
@@ -29,7 +29,7 @@ This guide explains how to enable field-level encryption at rest in applications
 Pass `walletAddress` and `signMessage` to `useChatStorage`:
 
 ```tsx
-import { useChatStorage } from "@reverbia/sdk/react";
+import { useChatStorage } from "@anuma/sdk/react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 
 function Chat({ database }) {
@@ -70,7 +70,7 @@ That's it. No other code changes are needed.
 ### Minimum Change (Expo / React Native)
 
 ```tsx
-import { useChatStorage } from "@reverbia/sdk/expo";
+import { useChatStorage } from "@anuma/sdk/expo";
 
 const {
   sendMessage,
@@ -207,7 +207,7 @@ These callbacks are implemented in **your client app**, not in the SDK. The SDK 
 For custom integrations outside of `useChatStorage`:
 
 ```tsx
-import { onKeyAvailable, requestEncryptionKey } from "@reverbia/sdk/react";
+import { onKeyAvailable, requestEncryptionKey } from "@anuma/sdk/react";
 
 // Register a callback that fires when the key becomes available
 const unsubscribe = onKeyAvailable(walletAddress, () => {
@@ -224,7 +224,7 @@ unsubscribe();
 For advanced scenarios where you need to queue custom operations:
 
 ```tsx
-import { queueManager } from "@reverbia/sdk/react";
+import { queueManager } from "@anuma/sdk/react";
 
 // Queue a custom operation
 const opId = queueManager.queueOperation(
@@ -248,7 +248,7 @@ const unsub = queueManager.onQueueChange(walletAddress, () => {
 If you need to detect wallet availability outside of `useChatStorage`:
 
 ```tsx
-import { WalletPoller } from "@reverbia/sdk/react";
+import { WalletPoller } from "@anuma/sdk/react";
 
 const poller = new WalletPoller();
 const stopPolling = poller.startPolling(

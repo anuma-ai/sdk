@@ -15,7 +15,7 @@ Must be used within a DropboxAuthProvider.
 ## Example
 
 ```tsx
-import { useDropboxAuth } from "@reverbia/sdk/react";
+import { useDropboxAuth } from "@anuma/sdk/react";
 
 function DropboxButton() {
   const { isAuthenticated, isConfigured, requestAccess, logout } = useDropboxAuth();

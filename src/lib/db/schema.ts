@@ -46,7 +46,7 @@ export const SDK_SCHEMA_VERSION = 12;
  * ```typescript
  * import { Database } from '@nozbe/watermelondb';
  * import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
- * import { sdkSchema, sdkMigrations, sdkModelClasses } from '@reverbia/sdk/react';
+ * import { sdkSchema, sdkMigrations, sdkModelClasses } from '@anuma/sdk/react';
  *
  * const adapter = new LokiJSAdapter({
  *   schema: sdkSchema,
@@ -389,7 +389,7 @@ export const sdkMigrations = schemaMigrations({
  * @example
  * ```typescript
  * import { Database } from '@nozbe/watermelondb';
- * import { sdkSchema, sdkMigrations, sdkModelClasses } from '@reverbia/sdk/react';
+ * import { sdkSchema, sdkMigrations, sdkModelClasses } from '@anuma/sdk/react';
  *
  * const database = new Database({
  *   adapter,

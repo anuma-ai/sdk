@@ -68,7 +68,7 @@ export interface UseDropboxBackupResult {
  *
  * @example
  * ```tsx
- * import { useDropboxBackup } from "@reverbia/sdk/react";
+ * import { useDropboxBackup } from "@anuma/sdk/react";
  *
  * function BackupButton() {
  *   const { backup, restore, isConfigured } = useDropboxBackup({

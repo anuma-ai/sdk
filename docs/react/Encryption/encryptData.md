@@ -71,7 +71,7 @@ Error if encryption key is not found in memory
 ## Example
 
 ```tsx
-import { encryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+import { encryptData, requestEncryptionKey } from "@anuma/sdk/react";
 
 // First, ensure encryption key exists
 await requestEncryptionKey(walletAddress);

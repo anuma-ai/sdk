@@ -41,7 +41,7 @@ It handles the OAuth 2.0 Authorization Code flow with refresh tokens.
 ## Example
 
 ```tsx
-import { DropboxAuthProvider } from "@reverbia/sdk/react";
+import { DropboxAuthProvider } from "@anuma/sdk/react";
 
 function App() {
   return (

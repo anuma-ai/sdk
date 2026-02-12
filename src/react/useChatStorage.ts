@@ -444,7 +444,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @example
  * ```tsx
  * import { Database } from '@nozbe/watermelondb';
- * import { useChatStorage } from '@reverbia/sdk/react';
+ * import { useChatStorage } from '@anuma/sdk/react';
  *
  * function ChatComponent({ database }: { database: Database }) {
  *   const {

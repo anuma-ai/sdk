@@ -91,7 +91,7 @@ Examples:
 
 Environment Variables:
   PORTAL_API_KEY      Required for LLM calls
-  REVERBIA_API_URL    Optional: Override API URL
+  ANUMA_API_URL    Optional: Override API URL
 
 Cache:
   Dataset files are cached in ~/.cache/longmemeval/
@@ -136,7 +136,7 @@ async function main(): Promise<void> {
 
   const apiKey = process.env.PORTAL_API_KEY;
   const baseUrl =
-    process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
+    process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     console.error(

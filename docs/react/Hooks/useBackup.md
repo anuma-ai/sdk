@@ -186,7 +186,7 @@ Current user address (null if not signed in)
 ## Example
 
 ```tsx
-import { useBackup } from "@reverbia/sdk/react";
+import { useBackup } from "@anuma/sdk/react";
 
 function BackupManager() {
   const { dropbox, googleDrive, hasAnyProvider } = useBackup({

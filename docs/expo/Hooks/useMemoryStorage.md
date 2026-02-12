@@ -220,7 +220,7 @@ An object containing memory state, methods, and storage operations
 
 ```tsx
 import { Database } from '@nozbe/watermelondb';
-import { useMemoryStorage } from '@reverbia/sdk/expo';
+import { useMemoryStorage } from '@anuma/sdk/expo';
 
 function MemoryScreen({ database }: { database: Database }) {
   const {

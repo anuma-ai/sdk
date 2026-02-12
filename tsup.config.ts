@@ -24,7 +24,7 @@ export default defineConfig([
     },
   },
   // Expo/React Native entry - lightweight, no pdfjs-dist
-  // Use this for Expo/React Native: import { useChat } from "@reverbia/sdk/expo"
+  // Use this for Expo/React Native: import { useChat } from "@anuma/sdk/expo"
   {
     entry: ["src/expo/index.ts"],
     format: ["esm", "cjs"],
@@ -41,7 +41,7 @@ export default defineConfig([
         name: "rewrite-client-import",
         setup(build) {
           build.onResolve({ filter: /^\.\.\/client$/ }, () => {
-            return { path: "@reverbia/sdk", external: true };
+            return { path: "@anuma/sdk", external: true };
           });
         },
       },
@@ -63,7 +63,7 @@ export default defineConfig([
         name: "rewrite-client-import",
         setup(build) {
           build.onResolve({ filter: /^\.\.\/client$/ }, () => {
-            return { path: "@reverbia/sdk", external: true };
+            return { path: "@anuma/sdk", external: true };
           });
         },
       },

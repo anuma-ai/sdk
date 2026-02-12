@@ -97,7 +97,7 @@ export async function runQuickEval(fixtures: Fixtures, options: Partial<EvalOpti
 
 export async function runFullEval(fixtures: Fixtures, options: Partial<EvalOptions> = {}): Promise<EvaluationSummary> {
   const apiKey = process.env.PORTAL_API_KEY;
-  const baseUrl = process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
+  const baseUrl = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     throw new Error(

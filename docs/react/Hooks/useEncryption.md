@@ -89,7 +89,7 @@ Functions to request encryption keys and manage key pairs
 
 ```tsx
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+import { useEncryption, encryptData, decryptData } from "@anuma/sdk/react";
 
 function SecureComponent() {
   const { user, signMessage } = usePrivy();
@@ -142,7 +142,7 @@ function SecureComponent() {
 ```tsx
 // Standard usage with external wallets (shows confirmation modal)
 import { usePrivy } from "@privy-io/react-auth";
-import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+import { useEncryption, encryptData, decryptData } from "@anuma/sdk/react";
 
 function SecureComponent() {
   const { user, signMessage } = usePrivy();
@@ -161,7 +161,7 @@ function SecureComponent() {
 ```tsx
 // ECDH key pair generation for end-to-end encryption
 import { usePrivy } from "@privy-io/react-auth";
-import { useEncryption } from "@reverbia/sdk/react";
+import { useEncryption } from "@anuma/sdk/react";
 
 function E2EEComponent() {
   const { signMessage } = usePrivy();

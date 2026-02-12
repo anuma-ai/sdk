@@ -41,7 +41,7 @@ It handles the OAuth 2.0 Authorization Code flow with refresh tokens.
 ## Example
 
 ```tsx
-import { GoogleDriveAuthProvider } from "@reverbia/sdk/react";
+import { GoogleDriveAuthProvider } from "@anuma/sdk/react";
 
 function App() {
   return (

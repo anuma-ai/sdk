@@ -13,7 +13,7 @@ your Database instance.
 
 ```typescript
 import { Database } from '@nozbe/watermelondb';
-import { sdkSchema, sdkMigrations, sdkModelClasses } from '@reverbia/sdk/react';
+import { sdkSchema, sdkMigrations, sdkModelClasses } from '@anuma/sdk/react';
 
 const database = new Database({
   adapter,

@@ -152,7 +152,7 @@ Current user address (null if not signed in)
 ## Example
 
 ```tsx
-import { useDropboxBackup } from "@reverbia/sdk/react";
+import { useDropboxBackup } from "@anuma/sdk/react";
 
 function BackupButton() {
   const { backup, restore, isConfigured } = useDropboxBackup({

@@ -123,7 +123,7 @@ const BackupAuthContext = createContext<BackupAuthContextValue | null>(null);
  *
  * @example
  * ```tsx
- * import { BackupAuthProvider } from "@reverbia/sdk/react";
+ * import { BackupAuthProvider } from "@anuma/sdk/react";
  *
  * function App() {
  *   return (
@@ -481,7 +481,7 @@ export function BackupAuthProvider({
  *
  * @example
  * ```tsx
- * import { useBackupAuth } from "@reverbia/sdk/react";
+ * import { useBackupAuth } from "@anuma/sdk/react";
  *
  * function BackupSettings() {
  *   const { dropbox, googleDrive, logoutAll } = useBackupAuth();

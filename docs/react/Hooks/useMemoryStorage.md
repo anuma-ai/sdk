@@ -221,7 +221,7 @@ An object containing memory state, methods, and storage operations
 
 ```tsx
 import { Database } from '@nozbe/watermelondb';
-import { useMemoryStorage } from '@reverbia/sdk/react';
+import { useMemoryStorage } from '@anuma/sdk/react';
 
 function MemoryComponent({ database }: { database: Database }) {
   const {

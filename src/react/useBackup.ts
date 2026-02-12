@@ -126,7 +126,7 @@ export interface UseBackupResult {
  *
  * @example
  * ```tsx
- * import { useBackup } from "@reverbia/sdk/react";
+ * import { useBackup } from "@anuma/sdk/react";
  *
  * function BackupManager() {
  *   const { dropbox, googleDrive, hasAnyProvider } = useBackup({

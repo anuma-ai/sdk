@@ -1,5 +1,5 @@
 /**
- * # @reverbia/sdk
+ * # @anuma/sdk
  *
  * A TypeScript SDK that empowers developers to build AI-powered applications. It
  * enables you to send prompts to LLMs with streaming support, manage long-term
@@ -8,7 +8,7 @@
  * ## Installation
  *
  * ```bash
- * pnpm install @reverbia/sdk@next
+ * pnpm install @anuma/sdk@next
  * ```
  *
  * > **Note:** Currently, the SDK is pre-release so all new versions are released
@@ -37,10 +37,10 @@
  *
  * ## Quick Start
  *
- * For React applications, use the hooks from `@reverbia/sdk/react`:
+ * For React applications, use the hooks from `@anuma/sdk/react`:
  *
  * ```typescript
- * import { useChat } from "@reverbia/sdk/react";
+ * import { useChat } from "@anuma/sdk/react";
  *
  * const { sendMessage, isLoading, stop } = useChat({
  *   getToken: async () => identityToken || null,
@@ -55,12 +55,12 @@
  * });
  * ```
  *
- * For React Native/Expo, use `@reverbia/sdk/expo` instead.
+ * For React Native/Expo, use `@anuma/sdk/expo` instead.
  *
  * For direct API access without React hooks, use the functions from this package:
  *
  * ```typescript
- * import { postApiV1Responses } from "@reverbia/sdk";
+ * import { postApiV1Responses } from "@anuma/sdk";
  *
  * const response = await postApiV1Responses({
  *   body: {
@@ -75,12 +75,12 @@
  *
  * ## Available Packages
  *
- * - `@reverbia/sdk` - Core SDK with direct API access functions
- * - `@reverbia/sdk/react` - React hooks for web applications
- * - `@reverbia/sdk/expo` - React hooks optimized for React Native/Expo
- * - `@reverbia/sdk/next` - Next.js utilities
- * - `@reverbia/sdk/vercel` - Vercel platform utilities
- * - `@reverbia/sdk/polyfills` - Polyfills for React Native environments
+ * - `@anuma/sdk` - Core SDK with direct API access functions
+ * - `@anuma/sdk/react` - React hooks for web applications
+ * - `@anuma/sdk/expo` - React hooks optimized for React Native/Expo
+ * - `@anuma/sdk/next` - Next.js utilities
+ * - `@anuma/sdk/vercel` - Vercel platform utilities
+ * - `@anuma/sdk/polyfills` - Polyfills for React Native environments
  *
  * ## Example Usage
  *

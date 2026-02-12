@@ -2,7 +2,7 @@
 
 React Native hooks for building AI-powered mobile applications.
 
-The `@reverbia/sdk/expo` package provides React hooks optimized for
+The `@anuma/sdk/expo` package provides React hooks optimized for
 Expo and React Native environments. These hooks exclude web-only
 dependencies (like pdfjs-dist) that aren't compatible with React Native.
 
@@ -14,7 +14,7 @@ See the polyfills module documentation for complete setup instructions.
 Quick setup summary:
 
 ```bash
-pnpm install @reverbia/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
+pnpm install @anuma/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
 ```
 
 Then create an entrypoint file with all required polyfills. See
@@ -23,7 +23,7 @@ working example.
 
 ## Differences from React Package
 
-The Expo package is a lightweight subset of `@reverbia/sdk/react`:
+The Expo package is a lightweight subset of `@anuma/sdk/react`:
 
 * No PDF text extraction (pdfjs-dist is web-only)
 * Uses XMLHttpRequest for streaming (fetch streaming isn't supported in RN)
@@ -49,7 +49,7 @@ const { getIdentityToken } = useIdentityToken();
 
 ```tsx
 import { useIdentityToken } from "@privy-io/expo";
-import { useChat } from "@reverbia/sdk/expo";
+import { useChat } from "@anuma/sdk/expo";
 
 function ChatScreen() {
   const { getIdentityToken } = useIdentityToken();

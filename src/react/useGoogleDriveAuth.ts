@@ -76,7 +76,7 @@ const GoogleDriveAuthContext =
  *
  * @example
  * ```tsx
- * import { GoogleDriveAuthProvider } from "@reverbia/sdk/react";
+ * import { GoogleDriveAuthProvider } from "@anuma/sdk/react";
  *
  * function App() {
  *   return (
@@ -212,7 +212,7 @@ export function GoogleDriveAuthProvider({
  *
  * @example
  * ```tsx
- * import { useGoogleDriveAuth } from "@reverbia/sdk/react";
+ * import { useGoogleDriveAuth } from "@anuma/sdk/react";
  *
  * function GoogleDriveButton() {
  *   const { isAuthenticated, isConfigured, requestAccess, logout } = useGoogleDriveAuth();

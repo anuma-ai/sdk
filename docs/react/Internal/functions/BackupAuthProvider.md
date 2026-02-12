@@ -42,7 +42,7 @@ refresh tokens for both providers.
 ## Example
 
 ```tsx
-import { BackupAuthProvider } from "@reverbia/sdk/react";
+import { BackupAuthProvider } from "@anuma/sdk/react";
 
 function App() {
   return (

@@ -15,7 +15,7 @@
  *   startCalendarAuth,
  *   handleCalendarCallback,
  *   getValidCalendarToken,
- * } from "@reverbia/sdk/react";
+ * } from "@anuma/sdk/react";
  *
  * // Start OAuth flow
  * await startCalendarAuth(clientId, "/auth/callback");
@@ -37,7 +37,7 @@
  *   startDriveAuth,
  *   handleDriveCallback,
  *   getValidDriveToken,
- * } from "@reverbia/sdk/react";
+ * } from "@anuma/sdk/react";
  *
  * // Start OAuth flow
  * await startDriveAuth(clientId, "/auth/callback");

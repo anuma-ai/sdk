@@ -71,7 +71,7 @@ export type UseMemoryStorageResult = BaseUseMemoryStorageResult;
  * @example
  * ```tsx
  * import { Database } from '@nozbe/watermelondb';
- * import { useMemoryStorage } from '@reverbia/sdk/react';
+ * import { useMemoryStorage } from '@anuma/sdk/react';
  *
  * function MemoryComponent({ database }: { database: Database }) {
  *   const {

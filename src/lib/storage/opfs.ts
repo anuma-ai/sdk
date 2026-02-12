@@ -44,7 +44,7 @@ export function isOPFSSupported(): boolean {
  */
 async function getSDKDirectory(): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
-  return root.getDirectoryHandle("reverbia-sdk-files", { create: true });
+  return root.getDirectoryHandle("anuma-sdk-files", { create: true });
 }
 
 /**

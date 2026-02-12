@@ -47,7 +47,7 @@ Examples:
 
 Environment Variables (for --full mode):
   PORTAL_API_KEY      Required for embedding generation
-  REVERBIA_API_URL    Optional: Override API URL
+  ANUMA_API_URL    Optional: Override API URL
 `);
 }
 
