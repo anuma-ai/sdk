@@ -164,14 +164,6 @@ export {
   getConversationsByProjectOp,
   searchChunksOp,
   searchMessagesOp,
-  // Lazy decryption utilities (conversation only)
-  decryptConversationLazy,
-  isConversationCached,
-  getCachedConversation,
-  clearDecryptionCache,
-  clearDecryptionCacheForWallet,
-  invalidateConversationCache,
-  getDecryptionCacheStats,
 } from "../lib/db/chat";
 
 // Project storage exports

@@ -57,13 +57,3 @@ export {
   makeSyntheticStoredConversation,
 } from "./operations";
 
-// Lazy decryption utilities (conversation only)
-export {
-  decryptConversationLazy,
-  isConversationCached,
-  getCachedConversation,
-  clearDecryptionCache,
-  clearDecryptionCacheForWallet,
-  invalidateConversationCache,
-  getDecryptionCacheStats,
-} from "./lazyDecryption";
