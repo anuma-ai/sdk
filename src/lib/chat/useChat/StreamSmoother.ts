@@ -7,9 +7,9 @@
 export type StreamSmoothingConfig = {
   /** Whether smoothing is enabled. Default: true */
   enabled: boolean;
-  /** Minimum chars/sec at the start of streaming. Default: 200 */
+  /** Minimum chars/sec at the start of streaming. Default: 60 */
   minSpeed?: number;
-  /** Maximum chars/sec after ramp completes. Default: 400 */
+  /** Maximum chars/sec after ramp completes. Default: 120 */
   maxSpeed?: number;
   /** Duration in ms to ramp from minSpeed to maxSpeed. Default: 3000 */
   rampDuration?: number;
@@ -44,6 +44,7 @@ export class StreamSmoother {
   private timer: ReturnType<typeof setInterval> | null = null;
   private startTime = 0;
   private destroyed = false;
+  private drainResolve: (() => void) | null = null;
 
   private readonly enabled: boolean;
   private readonly minSpeed: number;
@@ -57,12 +58,12 @@ export class StreamSmoother {
     this.callback = callback;
     if (typeof config === "boolean" || config === undefined) {
       this.enabled = config !== false;
-      this.minSpeed = 200;
+      this.minSpeed = 60;
       this.maxSpeed = 400;
       this.rampDuration = 3000;
     } else {
       this.enabled = config.enabled !== false;
-      this.minSpeed = config.minSpeed ?? 200;
+      this.minSpeed = config.minSpeed ?? 60;
       this.maxSpeed = config.maxSpeed ?? 400;
       this.rampDuration = config.rampDuration ?? 3000;
     }
@@ -85,7 +86,7 @@ export class StreamSmoother {
 
   /**
    * Immediately release all remaining buffered text.
-   * Call this when the stream finishes.
+   * Call this when the stream finishes and you don't need pacing.
    */
   flush(): void {
     if (this.destroyed) return;
@@ -96,6 +97,32 @@ export class StreamSmoother {
       this.buffer = "";
       this.callback(text);
     }
+
+    this.resolveDrain();
+  }
+
+  /**
+   * Continue pacing the remaining buffer at maxSpeed, then resolve.
+   * Call this when the stream ends to keep the smooth output going
+   * instead of dumping everything at once.
+   */
+  drain(): Promise<void> {
+    if (this.destroyed || !this.enabled) {
+      this.flush();
+      return Promise.resolve();
+    }
+
+    if (this.buffer.length === 0) {
+      this.stopTimer();
+      return Promise.resolve();
+    }
+
+    // Ensure the timer is running to drain the buffer
+    this.ensureTimer();
+
+    return new Promise<void>((resolve) => {
+      this.drainResolve = resolve;
+    });
   }
 
   /**
@@ -106,6 +133,7 @@ export class StreamSmoother {
     this.destroyed = true;
     this.stopTimer();
     this.buffer = "";
+    this.resolveDrain();
   }
 
   /** Start the release timer if not already running */
@@ -127,10 +155,20 @@ export class StreamSmoother {
     }
   }
 
+  /** Resolve the drain promise if one is pending */
+  private resolveDrain(): void {
+    if (this.drainResolve) {
+      const resolve = this.drainResolve;
+      this.drainResolve = null;
+      resolve();
+    }
+  }
+
   /** Release a calculated number of characters from the buffer */
   private tick(): void {
     if (this.destroyed || this.buffer.length === 0) {
       this.stopTimer();
+      this.resolveDrain();
       return;
     }
 
@@ -146,6 +184,7 @@ export class StreamSmoother {
 
     if (this.buffer.length === 0) {
       this.stopTimer();
+      this.resolveDrain();
     }
   }
 

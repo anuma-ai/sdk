@@ -410,9 +410,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           throw sseError;
         }
 
-        // Flush any remaining buffered content before building final response
-        contentSmoother.flush();
-        thinkingSmoother.flush();
+        // Drain remaining buffered content smoothly before building final response
+        await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
 
         // Build the final response
         const response = strategy.buildFinalResponse(accumulator);
@@ -463,7 +462,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               "tools"
             );
 
-            // Output tool execution info to thinking section
+            // Output tool execution info to thinking section (via smoother)
             if (onThinking || globalOnThinking) {
               const toolInfo = toolCallsToExecute
                 .map((tc) => {
@@ -478,9 +477,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   }
                 })
                 .join(", ");
-              const thinkingText = `\nExecuting tool: ${toolInfo}\n`;
-              if (onThinking) onThinking(thinkingText);
-              if (globalOnThinking) globalOnThinking(thinkingText);
+              thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
             }
 
             // Execute all tools in parallel
@@ -521,7 +518,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               executionResults.length
             );
 
-            // Output tool execution results to thinking section
+            // Output tool execution results to thinking section (via smoother)
             if (onThinking || globalOnThinking) {
               const resultsText = executionResults
                 .map((r) => {
@@ -535,9 +532,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   return `${r.name}: ${resultStr}`;
                 })
                 .join("\n");
-              const thinkingText = `${resultsText}\n`;
-              if (onThinking) onThinking(thinkingText);
-              if (globalOnThinking) globalOnThinking(thinkingText);
+              thinkingSmoother.push(`${resultsText}\n`);
             }
 
             // Build tool result messages to send back to the model
@@ -692,9 +687,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               throw sseError;
             }
 
-            // Flush any remaining buffered content
-            contContentSmoother.flush();
-            contThinkingSmoother.flush();
+            // Drain remaining buffered content smoothly
+            await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
 
             // Build final response from continuation
             const finalResponse = strategy.buildFinalResponse(
