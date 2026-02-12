@@ -1,6 +1,6 @@
 # UseVoiceOptions
 
-Defined in: [src/react/useVoice.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L15)
+Defined in: [src/react/useVoice.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L57)
 
 Options for the useVoice hook.
 
@@ -10,7 +10,7 @@ Options for the useVoice hook.
 
 > `optional` **language**: `string`
 
-Defined in: [src/react/useVoice.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L31)
+Defined in: [src/react/useVoice.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L73)
 
 Language code for transcription (e.g. "en", "es", "fr").
 If omitted, Whisper auto-detects the language.
@@ -21,7 +21,7 @@ If omitted, Whisper auto-detects the language.
 
 > `optional` **model**: [`WhisperModel`](../Internal/type-aliases/WhisperModel.md)
 
-Defined in: [src/react/useVoice.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L26)
+Defined in: [src/react/useVoice.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L68)
 
 Whisper model to use for transcription.
 Larger models are more accurate but slower to download and run.
@@ -44,7 +44,7 @@ Append `.en` for English-only variants (slightly faster).
 
 > `optional` **onModelProgress**: (`progress`: [`ModelLoadProgress`](../Internal/interfaces/ModelLoadProgress.md)) => `void`
 
-Defined in: [src/react/useVoice.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L36)
+Defined in: [src/react/useVoice.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L78)
 
 Called during model download with progress updates.
 Useful for showing a download progress bar on first use.
