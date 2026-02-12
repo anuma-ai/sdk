@@ -64,8 +64,8 @@ export class StreamSmoother {
     } else {
       this.enabled = config.enabled !== false;
       this.minSpeed = config.minSpeed ?? 60;
-      this.maxSpeed = config.maxSpeed ?? 400;
-      this.rampDuration = config.rampDuration ?? 3000;
+      this.maxSpeed = config.maxSpeed ?? 600;
+      this.rampDuration = config.rampDuration ?? 4000;
     }
   }
 

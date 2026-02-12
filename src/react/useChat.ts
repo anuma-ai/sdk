@@ -535,6 +535,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               thinkingSmoother.push(`${resultsText}\n`);
             }
 
+            // Drain the thinking smoother to ensure tool info is fully delivered
+            // before creating continuation smoothers (prevents interleaved output)
+            await thinkingSmoother.drain();
+
             // Build tool result messages to send back to the model
             const toolResultMessages: LlmapiMessage[] = [];
 
