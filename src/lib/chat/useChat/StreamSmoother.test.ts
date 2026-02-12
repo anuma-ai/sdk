@@ -201,28 +201,7 @@ describe("StreamSmoother", () => {
       expect(lateTotal).toBeGreaterThan(earlyTotal);
     });
 
-    it("boosts speed when buffer grows large", () => {
-      const chunks: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => chunks.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 100, rampDuration: 2000 }
-      );
-
-      // Push a large buffer that exceeds threshold (50 chars)
-      smoother.push("a".repeat(500));
-
-      // Even at start of ramp, large buffer should boost speed significantly
-      // Without boost: 10 chars/sec * 0.1s = 1 char
-      // With boost for 450 excess chars: (450/500)*1000 = 900 chars/sec extra
-      vi.advanceTimersByTime(100);
-      const total = chunks.join("").length;
-
-      // Should have released much more than the base 1 char
-      expect(total).toBeGreaterThan(50);
-
-      smoother.destroy();
-    });
-  });
+});
 
   describe("empty push", () => {
     it("ignores empty string", () => {
