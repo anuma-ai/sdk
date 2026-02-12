@@ -6,11 +6,25 @@ Result returned by the useVoice hook.
 
 ## Properties
 
+### disposeModel()
+
+> **disposeModel**: () => `Promise`<`void`>
+
+Defined in: [src/react/useVoice.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L57)
+
+Dispose the loaded model to free WASM memory. Useful on memory-constrained devices (mobile).
+
+**Returns**
+
+`Promise`<`void`>
+
+***
+
 ### error
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useVoice.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L65)
+Defined in: [src/react/useVoice.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L67)
 
 Error from the last operation
 
@@ -20,7 +34,7 @@ Error from the last operation
 
 > **isLoadingModel**: `boolean`
 
-Defined in: [src/react/useVoice.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L59)
+Defined in: [src/react/useVoice.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L61)
 
 Whether the Whisper model is currently loading/downloading
 
@@ -30,7 +44,7 @@ Whether the Whisper model is currently loading/downloading
 
 > **isModelLoaded**: `boolean`
 
-Defined in: [src/react/useVoice.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L57)
+Defined in: [src/react/useVoice.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L59)
 
 Whether the Whisper model has been loaded
 
@@ -74,7 +88,7 @@ Preload the Whisper model so transcription starts instantly later
 
 > **recording**: [`VoiceRecording`](../Internal/interfaces/VoiceRecording.md) | `null`
 
-Defined in: [src/react/useVoice.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L61)
+Defined in: [src/react/useVoice.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L63)
 
 The last recording
 
@@ -151,6 +165,6 @@ Transcribe a recording. Uses the last recording if none provided.
 
 > **transcription**: [`TranscriptionResult`](../Internal/interfaces/TranscriptionResult.md) | `null`
 
-Defined in: [src/react/useVoice.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L63)
+Defined in: [src/react/useVoice.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L65)
 
 The last transcription result

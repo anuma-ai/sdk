@@ -53,6 +53,8 @@ export interface UseVoiceResult {
   transcribe: (recording?: VoiceRecording) => Promise<TranscriptionResult>;
   /** Preload the Whisper model so transcription starts instantly later */
   preloadModel: () => Promise<void>;
+  /** Dispose the loaded model to free WASM memory. Useful on memory-constrained devices (mobile). */
+  disposeModel: () => Promise<void>;
   /** Whether the Whisper model has been loaded */
   isModelLoaded: boolean;
   /** Whether the Whisper model is currently loading/downloading */
@@ -65,10 +67,13 @@ export interface UseVoiceResult {
   error: Error | null;
 }
 
-type Pipeline = (
+type Pipeline = ((
   audio: Float32Array,
   options?: Record<string, unknown>
-) => Promise<{ text: string; chunks?: Array<{ text: string; timestamp: [number, number] }> }>;
+) => Promise<{
+  text: string;
+  chunks?: Array<{ text: string; timestamp: [number, number] }>;
+}>) & { dispose?: () => Promise<void> };
 
 const SUPPORTED_MIME_TYPES = [
   "audio/webm;codecs=opus",
@@ -222,6 +227,16 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     await loadPipeline();
   }, [loadPipeline]);
 
+  const disposeModel = useCallback(async () => {
+    const pipe = pipelineRef.current;
+    if (pipe?.dispose) {
+      await pipe.dispose();
+    }
+    pipelineRef.current = null;
+    modelNameRef.current = null;
+    setIsModelLoaded(false);
+  }, []);
+
   const startRecording = useCallback(async () => {
     setError(null);
     setRecording(null);
@@ -341,6 +356,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     isTranscribing,
     transcribe,
     preloadModel,
+    disposeModel,
     isModelLoaded,
     isLoadingModel,
     recording,
