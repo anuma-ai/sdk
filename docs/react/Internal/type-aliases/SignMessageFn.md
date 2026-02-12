@@ -2,7 +2,7 @@
 
 > **SignMessageFn** = (`message`: `string`, `options?`: [`SignMessageOptions`](../interfaces/SignMessageOptions.md)) => `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:583](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L583)
+Defined in: [src/react/useEncryption.ts:749](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L749)
 
 Type for the signMessage function that client must provide.
 This is typically from Privy's useSignMessage hook.

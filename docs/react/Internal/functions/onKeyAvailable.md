@@ -2,7 +2,7 @@
 
 > **onKeyAvailable**(`address`: `string`, `callback`: () => `void`): () => `void`
 
-Defined in: [src/react/useEncryption.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L24)
+Defined in: [src/react/useEncryption.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L31)
 
 Register a callback that fires when an encryption key becomes available for an address.
 If the key is already available, the callback fires immediately.
