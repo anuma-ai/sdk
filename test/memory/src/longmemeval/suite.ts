@@ -179,6 +179,9 @@ export async function callChatCompletion(
         }
       }
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000);
+
       const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
         method: "POST",
         headers: {
@@ -186,7 +189,10 @@ export async function callChatCompletion(
           "X-API-Key": api.apiKey,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) {
         lastStatus = response.status;
