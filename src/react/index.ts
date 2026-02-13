@@ -186,26 +186,8 @@ export {
 } from "../lib/db/project";
 export { useProjects } from "./useProjects";
 export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
 export { useFiles } from "./useFiles";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
-export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {
@@ -349,12 +331,6 @@ export type {
   ChunkingOptions,
   TextChunk,
 } from "../lib/memoryRetrieval";
-
-export {
-  formatMemoriesForChat,
-  createMemoryContextSystemMessage,
-  extractConversationContext,
-} from "../lib/memory/chat";
 
 // Server-side tools caching utilities
 export {

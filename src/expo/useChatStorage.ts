@@ -47,7 +47,7 @@ import {
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
 import {
   deleteMediaByConversationOp,

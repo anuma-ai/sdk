@@ -9,7 +9,6 @@ import type Model from "@nozbe/watermelondb/Model";
 import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
 import { Project } from "./project/models";
-import { Memory } from "./memory/models";
 import { Media } from "./media/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
@@ -29,8 +28,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v10: Added projects table and project_id column to conversations table
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
+ * - v13: Removed memories table (memory storage feature removed)
  */
-export const SDK_SCHEMA_VERSION = 12;
+export const SDK_SCHEMA_VERSION = 13;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -38,7 +38,6 @@ export const SDK_SCHEMA_VERSION = 12;
  * This unified schema includes all tables needed by the SDK:
  * - `history`: Chat message storage with embeddings and metadata
  * - `conversations`: Conversation metadata and organization
- * - `memories`: Persistent memory storage with semantic search
  * - `modelPreferences`: User model preferences (deprecated, use userPreferences)
  * - `userPreferences`: Unified user preferences (profile, personality, models)
  *
@@ -109,26 +108,6 @@ export const sdkSchema = appSchema({
         { name: "name", type: "string" },
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
-        { name: "is_deleted", type: "boolean", isIndexed: true },
-      ],
-    }),
-    // Memory storage tables
-    tableSchema({
-      name: "memories",
-      columns: [
-        { name: "type", type: "string", isIndexed: true },
-        { name: "namespace", type: "string", isIndexed: true },
-        { name: "key", type: "string", isIndexed: true },
-        { name: "value", type: "string" },
-        { name: "raw_evidence", type: "string" },
-        { name: "confidence", type: "number" },
-        { name: "pii", type: "boolean", isIndexed: true },
-        { name: "composite_key", type: "string", isIndexed: true },
-        { name: "unique_key", type: "string", isIndexed: true },
-        { name: "created_at", type: "number", isIndexed: true },
-        { name: "updated_at", type: "number" },
-        { name: "embedding", type: "string", isOptional: true },
-        { name: "embedding_model", type: "string", isOptional: true },
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
@@ -213,6 +192,7 @@ export const sdkSchema = appSchema({
  * - v9 → v10: Added `projects` table and `project_id` column to conversations
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
+ * - v12 → v13: Removed `memories` table (memory storage feature removed)
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -377,6 +357,13 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v12 -> v13: Removed memories table (memory storage feature removed)
+    {
+      toVersion: 13,
+      steps: [
+        unsafeExecuteSql("DROP TABLE IF EXISTS memories;"),
+      ],
+    },
   ],
 });
 
@@ -401,7 +388,6 @@ export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
   Project,
-  Memory,
   Media,
   ModelPreference,
   UserPreference,

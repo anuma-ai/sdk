@@ -95,7 +95,7 @@ import {
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 
 /**
  * Helper to convert a Blob to a data URI.
