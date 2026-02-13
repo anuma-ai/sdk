@@ -1851,8 +1851,9 @@ export function useChatStorage(
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
-        } catch {
-          // IndexedDB / decryption failure — degrade gracefully (no image URLs)
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[sendMessage] Failed to resolve media for history (image URLs will be missing):", err);
         }
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>

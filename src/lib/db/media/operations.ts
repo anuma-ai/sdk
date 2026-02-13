@@ -558,9 +558,19 @@ export async function getMediaByIdsOp(
   const orderedMedia = mediaIds
     .map((id) => mediaMap.get(id))
     .filter((m): m is Media => m !== undefined);
-  return Promise.all(
+  // Use allSettled so one decryption failure doesn't lose the entire batch
+  const settled = await Promise.allSettled(
     orderedMedia.map((m) => mediaToStored(m, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
   );
+  return settled
+    .filter((r): r is PromiseFulfilledResult<StoredMedia> => {
+      if (r.status === "rejected") {
+        // eslint-disable-next-line no-console
+        console.warn("[getMediaByIdsOp] Failed to decrypt media record:", r.reason);
+      }
+      return r.status === "fulfilled";
+    })
+    .map((r) => r.value);
 }
 
 /**
