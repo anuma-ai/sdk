@@ -790,6 +790,12 @@ export async function requestEncryptionKey(
     );
   }
 
+  // Clear keys belonging to other addresses (user switch without explicit logout)
+  const otherAddresses = [...knownAddresses].filter(a => a !== walletAddress);
+  for (const addr of otherAddresses) {
+    clearEncryptionKey(addr);
+  }
+
   // Check if key already exists in memory or IndexedDB
   if (knownAddresses.has(walletAddress)) {
     return; // Key already exists, no need to sign again

@@ -821,16 +821,13 @@ describe("useEncryption - Key Pair Generation", () => {
     });
 
     it("should remove all keys from IndexedDB on clearAllEncryptionKeys", async () => {
-      const address1 = "0x1111111111111111111111111111111111111111";
-      const address2 = "0x2222222222222222222222222222222222222222";
+      const address = "0x1111111111111111111111111111111111111111";
 
       await act(async () => {
-        await requestEncryptionKey(address1, mockSignMessage);
-        await requestEncryptionKey(address2, mockSignMessage);
+        await requestEncryptionKey(address, mockSignMessage);
       });
 
-      expect(hasEncryptionKey(address1)).toBe(true);
-      expect(hasEncryptionKey(address2)).toBe(true);
+      expect(hasEncryptionKey(address)).toBe(true);
 
       clearAllEncryptionKeys();
 
@@ -840,8 +837,7 @@ describe("useEncryption - Key Pair Generation", () => {
       // Verify IndexedDB is also cleared
       _resetInMemoryForTesting();
       await initEncryptionKeys();
-      expect(hasEncryptionKey(address1)).toBe(false);
-      expect(hasEncryptionKey(address2)).toBe(false);
+      expect(hasEncryptionKey(address)).toBe(false);
     });
 
     it("hasEncryptionKey returns true synchronously after initEncryptionKeys", async () => {
@@ -861,6 +857,108 @@ describe("useEncryption - Key Pair Generation", () => {
       // Should be synchronous — no await needed
       const result = hasEncryptionKey(address);
       expect(result).toBe(true);
+    });
+
+    it("should persist key across simulated tab close (no cleanup on unload)", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+      const plaintext = new TextEncoder().encode("secret data for persistence test");
+
+      // Derive key and encrypt some data using crypto.subtle directly
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+      const keyBefore = await getEncryptionKey(address);
+      const iv = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        keyBefore,
+        plaintext
+      );
+
+      // Simulate tab close + reopen: clear in-memory, restore from IndexedDB
+      _resetInMemoryForTesting();
+      await initEncryptionKeys();
+
+      // The restored key should decrypt data encrypted before the "tab close"
+      const keyAfter = await getEncryptionKey(address);
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        keyAfter,
+        ciphertext
+      );
+      expect(new TextDecoder().decode(decrypted)).toBe("secret data for persistence test");
+    });
+
+    it("should skip signing when key exists in IndexedDB after refresh", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      // First call: derives key, calls signer
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+      expect(mockSignMessage).toHaveBeenCalledTimes(1);
+
+      // Simulate refresh: clear in-memory, restore from IndexedDB
+      _resetInMemoryForTesting();
+      await initEncryptionKeys();
+
+      // Second call: key exists in memory (loaded from IndexedDB), should NOT sign again
+      mockSignMessage.mockClear();
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+      expect(mockSignMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("User Isolation", () => {
+    it("should clear other users' keys when a new user requests a key", async () => {
+      const userA = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+      const userB = "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+
+      // User A derives a key
+      await act(async () => {
+        await requestEncryptionKey(userA, mockSignMessage);
+      });
+      expect(hasEncryptionKey(userA)).toBe(true);
+
+      // User B derives a key (simulates user switch without explicit logout)
+      await act(async () => {
+        await requestEncryptionKey(userB, mockSignMessage);
+      });
+
+      // User B's key should exist, User A's should be cleared
+      expect(hasEncryptionKey(userB)).toBe(true);
+      expect(hasEncryptionKey(userA)).toBe(false);
+    });
+
+    it("should clear other users' keys from IndexedDB on user switch", async () => {
+      const userA = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+      const userB = "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+
+      // User A derives a key
+      await act(async () => {
+        await requestEncryptionKey(userA, mockSignMessage);
+      });
+
+      // Allow IndexedDB write to complete
+      await new Promise((r) => setTimeout(r, 50));
+
+      // User B derives a key
+      await act(async () => {
+        await requestEncryptionKey(userB, mockSignMessage);
+      });
+
+      // Allow IndexedDB cleanup to complete
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Simulate refresh: clear in-memory, restore from IndexedDB
+      _resetInMemoryForTesting();
+      await initEncryptionKeys();
+
+      // Only User B's key should survive in IndexedDB
+      expect(hasEncryptionKey(userB)).toBe(true);
+      expect(hasEncryptionKey(userA)).toBe(false);
     });
   });
 
