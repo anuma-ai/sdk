@@ -155,6 +155,25 @@ export {
   generateConversationId,
 } from "../lib/db/chat";
 
+// Memory vault
+export {
+  VaultMemory as StoredVaultMemoryModel,
+  type StoredVaultMemory,
+  type CreateVaultMemoryOptions,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  type VaultSaveOperation,
+  type MemoryVaultToolOptions,
+} from "../lib/memoryVault";
+
 // Server-side tools caching utilities
 export {
   clearServerToolsCache,

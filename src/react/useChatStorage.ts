@@ -92,6 +92,18 @@ import {
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 
+import {
+  type VaultMemoryOperationsContext,
+  type StoredVaultMemory,
+  getAllVaultMemoriesOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+import { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  createMemoryVaultTool as createMemoryVaultToolBase,
+  type MemoryVaultToolOptions,
+} from "../lib/memoryVault";
+
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
@@ -446,6 +458,27 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   ) => ToolConfig;
 
   /**
+   * Create a memory vault tool for LLM to save/update persistent memories.
+   * The tool is pre-configured with the hook's vault context and encryption.
+   *
+   * @param options - Optional configuration (onSave callback for confirmation)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /**
+   * Get all vault memories for context injection.
+   * Returns non-deleted memories sorted by creation date (newest first).
+   */
+  getVaultMemories: () => Promise<StoredVaultMemory[]>;
+
+  /**
+   * Delete a vault memory by its ID (soft delete).
+   * @returns true if the memory was found and deleted
+   */
+  deleteVaultMemory: (id: string) => Promise<boolean>;
+
+  /**
    * Manually flush all queued operations for the current wallet.
    * Operations are encrypted and written to the database.
    * Requires the encryption key to be available.
@@ -628,6 +661,22 @@ export function useChatStorage(
       embeddedWalletSigner,
     }),
     [database, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // Memory vault operations context
+  const vaultMemoryCollection = useMemo(
+    () => database.get<VaultMemory>("memory_vault"),
+    [database]
+  );
+  const vaultCtx = useMemo<VaultMemoryOperationsContext>(
+    () => ({
+      database,
+      vaultMemoryCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    }),
+    [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   // ── Queue Management ──
@@ -890,6 +939,36 @@ export function useChatStorage(
       );
     },
     [storageCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create a memory vault tool pre-configured with hook's vault context and encryption
+   */
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      return createMemoryVaultToolBase(vaultCtx, options);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Get all vault memories (for injecting as context into messages)
+   */
+  const getVaultMemories = useCallback(
+    (): Promise<StoredVaultMemory[]> => {
+      return getAllVaultMemoriesOp(vaultCtx);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Delete a vault memory by ID (for manual deletion from UI)
+   */
+  const deleteVaultMemory = useCallback(
+    (id: string): Promise<boolean> => {
+      return deleteVaultMemoryOp(vaultCtx, id);
+    },
+    [vaultCtx]
   );
 
   // Use the underlying useChat hook
@@ -2440,6 +2519,9 @@ export function useChatStorage(
     getMessages,
     getAllFiles,
     createMemoryRetrievalTool,
+    createMemoryVaultTool,
+    getVaultMemories,
+    deleteVaultMemory,
     flushQueue,
     clearQueue,
     queueStatus,

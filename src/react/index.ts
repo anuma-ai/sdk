@@ -188,6 +188,25 @@ export { useProjects } from "./useProjects";
 export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useFiles } from "./useFiles";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
+// Memory vault
+export {
+  VaultMemory as StoredVaultMemoryModel,
+  type StoredVaultMemory,
+  type CreateVaultMemoryOptions,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  type VaultSaveOperation,
+  type MemoryVaultToolOptions,
+} from "../lib/memoryVault";
+
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {

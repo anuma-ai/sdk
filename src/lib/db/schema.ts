@@ -10,6 +10,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
 import { Project } from "./project/models";
 import { Media } from "./media/models";
+import { VaultMemory } from "./memoryVault/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
 
@@ -29,8 +30,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
  * - v13: Removed memories table (memory storage feature removed)
+ * - v14: Added memory_vault table for persistent memory vault
  */
-export const SDK_SCHEMA_VERSION = 13;
+export const SDK_SCHEMA_VERSION = 14;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -38,6 +40,7 @@ export const SDK_SCHEMA_VERSION = 13;
  * This unified schema includes all tables needed by the SDK:
  * - `history`: Chat message storage with embeddings and metadata
  * - `conversations`: Conversation metadata and organization
+ * - `memory_vault`: Persistent memory vault for curated facts
  * - `modelPreferences`: User model preferences (deprecated, use userPreferences)
  * - `userPreferences`: Unified user preferences (profile, personality, models)
  *
@@ -138,6 +141,16 @@ export const sdkSchema = appSchema({
         { name: "updated_at", type: "number" },
       ],
     }),
+    // Memory vault storage
+    tableSchema({
+      name: "memory_vault",
+      columns: [
+        { name: "content", type: "string" },
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number" },
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+      ],
+    }),
     // Media library storage (images, videos, audio, documents)
     tableSchema({
       name: "media",
@@ -193,6 +206,7 @@ export const sdkSchema = appSchema({
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
  * - v12 → v13: Removed `memories` table (memory storage feature removed)
+ * - v13 → v14: Added `memory_vault` table for persistent memory vault
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -364,6 +378,21 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql("DROP TABLE IF EXISTS memories;"),
       ],
     },
+    // v13 -> v14: Added memory_vault table for persistent memory vault
+    {
+      toVersion: 14,
+      steps: [
+        createTable({
+          name: "memory_vault",
+          columns: [
+            { name: "content", type: "string" },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -388,6 +417,7 @@ export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
   Project,
+  VaultMemory,
   Media,
   ModelPreference,
   UserPreference,
