@@ -199,6 +199,17 @@ async function storedToLlmapiMessage(
     }
   );
 
+  // Fallback: for assistant messages with files whose sourceUrls weren't resolved
+  // via placeholders (legacy messages stored before placeholder insertion was added),
+  // append image references so the LLM has context about previously generated images.
+  if (stored.role === "assistant" && fileUrlMap.size > 0) {
+    for (const [, sourceUrl] of fileUrlMap) {
+      if (!textContent.includes(sourceUrl)) {
+        textContent += `\n![image](${sourceUrl})`;
+      }
+    }
+  }
+
   // Clean up extra whitespace from removed placeholders
   textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -1269,7 +1280,10 @@ export function useChatStorage(
         // Extract image URLs from tool_call_events
         const urls: Array<{ url: string; model: string }> = [];
         for (const toolCallEvent of toolCallEvents || []) {
-          if (toolCallEvent.name === "AnumaImageMCP_generate_cloud_image") {
+          if (
+            toolCallEvent.name === "AnumaImageMCP_generate_cloud_image" ||
+            toolCallEvent.name === "AnumaImageMCP_edit_cloud_image"
+          ) {
             try {
               const output = JSON.parse(toolCallEvent.output || "{}");
               const { model, url } = output;
@@ -1430,6 +1444,15 @@ export function useChatStorage(
                 }
               }
             }
+          }
+        }
+
+        // Insert __SDKFILE__ placeholders for each successfully stored image.
+        // Since R2 URLs were already removed from content, append placeholders so that
+        // storedToLlmapiMessage() can later resolve them back to sourceUrls for the LLM.
+        for (const opt of mediaOptions) {
+          if (opt.mediaId && createdMediaIds.includes(opt.mediaId)) {
+            cleanedContent += `\n${createFilePlaceholder(opt.mediaId)}`;
           }
         }
 
