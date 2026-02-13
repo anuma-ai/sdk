@@ -77,6 +77,7 @@ export {
   clearKeyPair,
   clearAllKeyPairs,
   onKeyAvailable,
+  initEncryptionKeys,
 } from "./useEncryption";
 export type {
   SignMessageFn,
