@@ -203,8 +203,14 @@ export {
 } from "../lib/db/memoryVault";
 export {
   createMemoryVaultTool,
+  createMemoryVaultSearchTool,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  hashContent,
   type VaultSaveOperation,
   type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
 } from "../lib/memoryVault";
 
 export { useSettings } from "./useSettings";

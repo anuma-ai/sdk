@@ -21,3 +21,15 @@ export type {
   VaultSaveOperation,
   MemoryVaultToolOptions,
 } from "./tool";
+
+export {
+  createMemoryVaultSearchTool,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  hashContent,
+} from "./searchTool";
+
+export type {
+  VaultEmbeddingCache,
+  MemoryVaultSearchOptions,
+} from "./searchTool";

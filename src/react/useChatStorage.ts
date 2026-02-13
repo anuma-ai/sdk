@@ -101,7 +101,12 @@ import {
 import { VaultMemory } from "../lib/db/memoryVault/models";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
+  createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
   type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
 } from "../lib/memoryVault";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
@@ -465,6 +470,24 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @returns A ToolConfig that can be passed to sendMessage's clientTools
    */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /**
+   * Create a memory vault search tool for LLM to search vault memories
+   * using semantic similarity. Pre-configured with vault context, auth, and
+   * a shared embedding cache that is pre-populated on init.
+   *
+   * @param searchOptions - Optional search configuration (limit, minSimilarity)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultSearchTool: (
+    searchOptions?: MemoryVaultSearchOptions
+  ) => ToolConfig;
+
+  /**
+   * The shared vault embedding cache. Use this to eagerly embed content
+   * when saving vault memories (via eagerEmbedContent).
+   */
+  vaultEmbeddingCache: VaultEmbeddingCache;
 
   /**
    * Get all vault memories for context injection.
@@ -969,6 +992,46 @@ export function useChatStorage(
       return deleteVaultMemoryOp(vaultCtx, id);
     },
     [vaultCtx]
+  );
+
+  /**
+   * Shared embedding cache for vault memories.
+   * Pre-populated on init so that search only needs to embed the query.
+   */
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(new Map());
+
+  // Pre-embed vault memories on mount
+  useEffect(() => {
+    if (!getToken) return;
+    (async () => {
+      try {
+        await preEmbedVaultMemories(
+          vaultCtx,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        );
+      } catch {
+        // Non-critical: embeddings will be generated on first search
+      }
+    })();
+  }, [vaultCtx, getToken, baseUrl, embeddingModel]);
+
+  /**
+   * Create a vault search tool pre-configured with hook's context, auth, and cache
+   */
+  const createMemoryVaultSearchTool = useCallback(
+    (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for memory vault search tool");
+      }
+      return createMemoryVaultSearchToolBase(
+        vaultCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingCacheRef.current,
+        searchOptions
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook
@@ -2520,6 +2583,8 @@ export function useChatStorage(
     getAllFiles,
     createMemoryRetrievalTool,
     createMemoryVaultTool,
+    createMemoryVaultSearchTool,
+    vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,
     deleteVaultMemory,
     flushQueue,
