@@ -6,9 +6,6 @@ import {
   loadAllEntries as idbLoadAllEntries,
   removeKey as idbRemoveKey,
   removeAllKeys as idbRemoveAllKeys,
-  cleanStaleKeys as idbCleanStaleKeys,
-  updateHeartbeat as idbUpdateHeartbeat,
-  getTabId,
 } from "./encryptionKeyStorage";
 
 export const SIGN_MESSAGE =
@@ -83,24 +80,22 @@ const keyPairStore = new Map<string, CryptoKeyPair>();
 
 /**
  * Stores a CryptoKey for a wallet address in memory and persists to IndexedDB.
+ * Broadcasts availability to sibling tabs after the IndexedDB write commits.
  * @param address - The wallet address
  * @param cryptoKey - The non-extractable CryptoKey
  */
-function setStoredKey(address: string, cryptoKey: CryptoKey): void {
+async function setStoredKey(address: string, cryptoKey: CryptoKey): Promise<void> {
   cryptoKeyCache.set(address, cryptoKey);
   knownAddresses.add(address);
 
-  // Persist to IndexedDB (fire-and-forget)
+  // Persist to IndexedDB — await so the broadcast only fires after commit
   try {
-    const tabId = getTabId();
-    idbStoreKey(address, cryptoKey, tabId).catch(() => {
-      // IndexedDB unavailable (React Native, private browsing, etc.)
-    });
+    await idbStoreKey(address, cryptoKey);
   } catch {
-    // getTabId or idbStoreKey threw synchronously
+    // IndexedDB unavailable (React Native, private browsing, etc.)
   }
 
-  // Notify sibling tabs via BroadcastChannel
+  // Notify sibling tabs via BroadcastChannel (after IDB commit)
   try {
     const bc = new BroadcastChannel("reverbia-encryption-keys");
     bc.postMessage({ type: "key-available", address });
@@ -830,8 +825,8 @@ export async function requestEncryptionKey(
   // Derive non-extractable CryptoKey from signature
   const cryptoKey = await deriveKeyFromSignature(signature);
 
-  // Store the CryptoKey in memory + IndexedDB
-  setStoredKey(walletAddress, cryptoKey);
+  // Store the CryptoKey in memory + IndexedDB (awaits IDB commit)
+  await setStoredKey(walletAddress, cryptoKey);
 
   // Notify listeners that key is now available (triggers queue flush, etc.)
   notifyKeyAvailable(walletAddress);
@@ -1189,39 +1184,25 @@ export function _resetInMemoryForTesting(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Lifecycle: init, heartbeat, multi-tab coordination, cleanup
+// Lifecycle: init, multi-tab coordination
 // ---------------------------------------------------------------------------
-
-/** Heartbeat interval handle (set by initEncryptionKeys). */
-let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
 /** BroadcastChannel for multi-tab key notifications. */
 let keyChannel: BroadcastChannel | null = null;
-
-/** Default stale-key threshold: 5 minutes without heartbeat. */
-const STALE_KEY_THRESHOLD_MS = 5 * 60 * 1000;
-
-/** Heartbeat interval: 30 seconds. */
-const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 
 /**
  * Initialize encryption key state from IndexedDB.
  * Call this early in the app lifecycle (e.g., in a root-level effect).
  *
  * - Loads all IndexedDB entries into `knownAddresses` and `cryptoKeyCache`
- * - Purges stale entries (crashed tabs)
- * - Starts a heartbeat timer
  * - Listens for BroadcastChannel messages from sibling tabs
+ *
+ * Keys persist in IndexedDB until explicitly cleared via `clearEncryptionKey()`
+ * or `clearAllEncryptionKeys()` (e.g., on logout). The non-extractable CryptoKey
+ * handles cannot be exported, so persistence carries no additional risk.
  */
 export async function initEncryptionKeys(): Promise<void> {
-  // 1. Clean stale entries from crashed tabs
-  try {
-    await idbCleanStaleKeys(STALE_KEY_THRESHOLD_MS);
-  } catch {
-    // IndexedDB unavailable
-  }
-
-  // 2. Load surviving entries into in-memory caches
+  // 1. Load entries into in-memory caches
   try {
     const entries = await idbLoadAllEntries();
     for (const entry of entries) {
@@ -1232,17 +1213,7 @@ export async function initEncryptionKeys(): Promise<void> {
     // IndexedDB unavailable
   }
 
-  // 3. Start heartbeat (idempotent)
-  if (!heartbeatInterval) {
-    heartbeatInterval = setInterval(() => {
-      const tabId = getTabId();
-      for (const address of knownAddresses) {
-        idbUpdateHeartbeat(address, tabId).catch(() => {});
-      }
-    }, HEARTBEAT_INTERVAL_MS);
-  }
-
-  // 4. Listen for sibling tab key notifications
+  // 2. Listen for sibling tab key notifications
   try {
     if (!keyChannel) {
       keyChannel = new BroadcastChannel("reverbia-encryption-keys");
@@ -1267,28 +1238,6 @@ export async function initEncryptionKeys(): Promise<void> {
     }
   } catch {
     // BroadcastChannel unavailable
-  }
-
-  // 5. Best-effort cleanup on tab close
-  if (typeof window !== "undefined") {
-    window.addEventListener("beforeunload", () => {
-      // Clean up our entries. This is best-effort — heartbeat handles the rest.
-      for (const address of knownAddresses) {
-        try {
-          idbRemoveKey(address).catch(() => {});
-        } catch {
-          // Ignore
-        }
-      }
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
-      }
-      if (keyChannel) {
-        keyChannel.close();
-        keyChannel = null;
-      }
-    });
   }
 }
 
@@ -1329,12 +1278,12 @@ export interface UseEncryptionResult {
  * - **Non-extractable**: CryptoKey cannot be exported — `exportKey()` throws
  * - **Deterministic**: Same wallet + signature always generates same key
  * - **XSS-resistant**: Attacker can use key in-situ but cannot exfiltrate raw bytes
- * - **Tab lifecycle**: Heartbeat + stale cleanup handles crashed/closed tabs
+ * - **Persistent**: Keys survive page refreshes via IndexedDB, cleared only on explicit logout
  *
  * ## Initialization
  *
  * Call `initEncryptionKeys()` early in the app lifecycle to restore keys from
- * IndexedDB, start the heartbeat, and enable multi-tab coordination.
+ * IndexedDB and enable multi-tab coordination.
  *
  * ## Embedded Wallet Support
  *
