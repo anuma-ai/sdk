@@ -198,9 +198,11 @@ export function createMemoryVaultSearchTool(
           );
 
         scored.sort((a, b) => b.similarity - a.similarity);
-        const topResults = scored.slice(0, requestLimit);
+        const topResults = scored
+          .filter((r) => r.similarity >= minSimilarity)
+          .slice(0, requestLimit);
 
-        if (topResults.length === 0 || topResults[0].similarity < minSimilarity) {
+        if (topResults.length === 0) {
           return "No relevant memories found in the vault.";
         }
 
