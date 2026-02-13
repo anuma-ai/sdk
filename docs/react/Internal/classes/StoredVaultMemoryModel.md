@@ -1,6 +1,6 @@
-# StoredMemoryModel
+# StoredVaultMemoryModel
 
-Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L5)
+Defined in: [src/lib/db/memoryVault/models.ts:4](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L4)
 
 ## Extends
 
@@ -10,7 +10,7 @@ Defined in: [src/lib/db/memory/models.ts:5](https://github.com/zeta-chain/ai-sdk
 
 ### Constructor
 
-> **new StoredMemoryModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `Memory`
+> **new StoredVaultMemoryModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `VaultMemory`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
 
@@ -53,7 +53,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Returns**
 
-`Memory`
+`VaultMemory`
 
 **Inherited from**
 
@@ -133,19 +133,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### compositeKey
+### content
 
-> **compositeKey**: `string`
+> **content**: `string`
 
-Defined in: [src/lib/db/memory/models.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L15)
-
-***
-
-### confidence
-
-> **confidence**: `number`
-
-Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L13)
+Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L7)
 
 ***
 
@@ -153,23 +145,7 @@ Defined in: [src/lib/db/memory/models.ts:13](https://github.com/zeta-chain/ai-sd
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memory/models.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L17)
-
-***
-
-### embedding?
-
-> `optional` **embedding**: `number`\[]
-
-Defined in: [src/lib/db/memory/models.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L19)
-
-***
-
-### embeddingModel?
-
-> `optional` **embeddingModel**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L20)
+Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L8)
 
 ***
 
@@ -177,55 +153,7 @@ Defined in: [src/lib/db/memory/models.ts:20](https://github.com/zeta-chain/ai-sd
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memory/models.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L21)
-
-***
-
-### key
-
-> **key**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L10)
-
-***
-
-### namespace
-
-> **namespace**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L9)
-
-***
-
-### pii
-
-> **pii**: `boolean`
-
-Defined in: [src/lib/db/memory/models.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L14)
-
-***
-
-### rawEvidence
-
-> **rawEvidence**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L12)
-
-***
-
-### type
-
-> **type**: [`MemoryType`](../type-aliases/MemoryType.md)
-
-Defined in: [src/lib/db/memory/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L8)
-
-***
-
-### uniqueKey
-
-> **uniqueKey**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L16)
+Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L10)
 
 ***
 
@@ -233,15 +161,7 @@ Defined in: [src/lib/db/memory/models.ts:16](https://github.com/zeta-chain/ai-sd
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memory/models.ts:18](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L18)
-
-***
-
-### value
-
-> **value**: `string`
-
-Defined in: [src/lib/db/memory/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L11)
+Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L9)
 
 ***
 
@@ -271,9 +191,9 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### table
 
-> `static` **table**: `string` = `"memories"`
+> `static` **table**: `string` = `"memory_vault"`
 
-Defined in: [src/lib/db/memory/models.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memory/models.ts#L6)
+Defined in: [src/lib/db/memoryVault/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L5)
 
 **Overrides**
 
@@ -939,13 +859,13 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### observe()
 
-> **observe**(): `Observable`<`Memory`>
+> **observe**(): `Observable`<`VaultMemory`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:84
 
 **Returns**
 
-`Observable`<`Memory`>
+`Observable`<`VaultMemory`>
 
 **Inherited from**
 
@@ -1088,7 +1008,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### update()
 
-> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`Memory`>
+> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`VaultMemory`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
 
@@ -1119,7 +1039,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Returns**
 
-`Promise`<`Memory`>
+`Promise`<`VaultMemory`>
 
 **Inherited from**
 

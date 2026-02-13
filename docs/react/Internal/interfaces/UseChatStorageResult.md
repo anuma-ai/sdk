@@ -1,6 +1,6 @@
 # UseChatStorageResult
 
-Defined in: [src/react/useChatStorage.ts:388](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L388)
+Defined in: [src/react/useChatStorage.ts:407](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L407)
 
 Result returned by useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base result with React-specific sendMessage signature.
 
 > **clearQueue**: () => `void`
 
-Defined in: [src/react/useChatStorage.ts:459](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L459)
+Defined in: [src/react/useChatStorage.ts:528](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L528)
 
 Clear all queued operations for the current wallet.
 Discards pending operations without writing them.
@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:562](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L562)
+Defined in: [src/lib/db/chat/types.ts:561](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L561)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:562](https://github.com/zeta-chain/ai-sdk/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:564](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L564)
+Defined in: [src/lib/db/chat/types.ts:563](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L563)
 
 **Parameters**
 
@@ -84,7 +84,7 @@ Defined in: [src/lib/db/chat/types.ts:564](https://github.com/zeta-chain/ai-sdk/
 
 > **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
 
-Defined in: [src/react/useChatStorage.ts:444](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L444)
+Defined in: [src/react/useChatStorage.ts:463](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L463)
 
 Create a memory retrieval tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
@@ -138,11 +138,147 @@ await sendMessage({
 
 ***
 
+### createMemoryVaultSearchTool()
+
+> **createMemoryVaultSearchTool**: (`searchOptions?`: [`MemoryVaultSearchOptions`](MemoryVaultSearchOptions.md)) => `ToolConfig`
+
+Defined in: [src/react/useChatStorage.ts:484](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L484)
+
+Create a memory vault search tool for LLM to search vault memories
+using semantic similarity. Pre-configured with vault context, auth, and
+a shared embedding cache that is pre-populated on init.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`searchOptions?`
+
+</td>
+<td>
+
+[`MemoryVaultSearchOptions`](MemoryVaultSearchOptions.md)
+
+</td>
+<td>
+
+Optional search configuration (limit, minSimilarity)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`ToolConfig`
+
+A ToolConfig that can be passed to sendMessage's clientTools
+
+***
+
+### createMemoryVaultTool()
+
+> **createMemoryVaultTool**: (`options?`: [`MemoryVaultToolOptions`](MemoryVaultToolOptions.md)) => `ToolConfig`
+
+Defined in: [src/react/useChatStorage.ts:474](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L474)
+
+Create a memory vault tool for LLM to save/update persistent memories.
+The tool is pre-configured with the hook's vault context and encryption.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+[`MemoryVaultToolOptions`](MemoryVaultToolOptions.md)
+
+</td>
+<td>
+
+Optional configuration (onSave callback for confirmation)
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`ToolConfig`
+
+A ToolConfig that can be passed to sendMessage's clientTools
+
+***
+
+### createVaultMemory()
+
+> **createVaultMemory**: (`content`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
+
+Defined in: [src/react/useChatStorage.ts:503](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L503)
+
+Create a new vault memory with the given content.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`content`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)>
+
+***
+
 ### deleteConversation()
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:570](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L570)
+Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L569)
 
 **Parameters**
 
@@ -179,11 +315,52 @@ Defined in: [src/lib/db/chat/types.ts:570](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### deleteVaultMemory()
+
+> **deleteVaultMemory**: (`id`: `string`) => `Promise`<`boolean`>
+
+Defined in: [src/react/useChatStorage.ts:515](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L515)
+
+Delete a vault memory by its ID (soft delete).
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`boolean`>
+
+true if the memory was found and deleted
+
+***
+
 ### flushQueue()
 
 > **flushQueue**: () => `Promise`<[`FlushResult`](FlushResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:453](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L453)
+Defined in: [src/react/useChatStorage.ts:522](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L522)
 
 Manually flush all queued operations for the current wallet.
 Operations are encrypted and written to the database.
@@ -199,7 +376,7 @@ Requires the encryption key to be available.
 
 > **getAllFiles**: (`options?`: `object`) => `Promise`<[`StoredFileWithContext`](StoredFileWithContext.md)\[]>
 
-Defined in: [src/react/useChatStorage.ts:424](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L424)
+Defined in: [src/react/useChatStorage.ts:443](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L443)
 
 Get all files from all conversations, sorted by creation date (newest first).
 Returns files with conversation context for building file browser UIs.
@@ -263,7 +440,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L567)
+Defined in: [src/lib/db/chat/types.ts:566](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L566)
 
 **Parameters**
 
@@ -304,7 +481,7 @@ Defined in: [src/lib/db/chat/types.ts:567](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L568)
+Defined in: [src/lib/db/chat/types.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L567)
 
 **Returns**
 
@@ -320,7 +497,7 @@ Defined in: [src/lib/db/chat/types.ts:568](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:571](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L571)
+Defined in: [src/lib/db/chat/types.ts:570](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L570)
 
 **Parameters**
 
@@ -357,11 +534,26 @@ Defined in: [src/lib/db/chat/types.ts:571](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### getVaultMemories()
+
+> **getVaultMemories**: () => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
+
+Defined in: [src/react/useChatStorage.ts:498](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L498)
+
+Get all vault memories for context injection.
+Returns non-deleted memories sorted by creation date (newest first).
+
+**Returns**
+
+`Promise`<[`StoredVaultMemory`](StoredVaultMemory.md)\[]>
+
+***
+
 ### isLoading
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:560](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L560)
+Defined in: [src/lib/db/chat/types.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L559)
 
 **Inherited from**
 
@@ -373,7 +565,7 @@ Defined in: [src/lib/db/chat/types.ts:560](https://github.com/zeta-chain/ai-sdk/
 
 > **queueStatus**: [`QueueStatus`](QueueStatus.md)
 
-Defined in: [src/react/useChatStorage.ts:464](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L464)
+Defined in: [src/react/useChatStorage.ts:533](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L533)
 
 Current status of the write queue.
 
@@ -383,7 +575,7 @@ Current status of the write queue.
 
 > **sendMessage**: (`args`: `object`) => `Promise`<[`SendMessageWithStorageResult`](../type-aliases/SendMessageWithStorageResult.md)>
 
-Defined in: [src/react/useChatStorage.ts:417](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L417)
+Defined in: [src/react/useChatStorage.ts:436](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L436)
 
 Sends a message to the AI and automatically persists both the user message
 and assistant response to the database.
@@ -1005,7 +1197,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:563](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L563)
+Defined in: [src/lib/db/chat/types.ts:562](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L562)
 
 **Parameters**
 
@@ -1046,7 +1238,7 @@ Defined in: [src/lib/db/chat/types.ts:563](https://github.com/zeta-chain/ai-sdk/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:561](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L561)
+Defined in: [src/lib/db/chat/types.ts:560](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L560)
 
 **Returns**
 
@@ -1062,7 +1254,7 @@ Defined in: [src/lib/db/chat/types.ts:561](https://github.com/zeta-chain/ai-sdk/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L569)
+Defined in: [src/lib/db/chat/types.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L568)
 
 **Parameters**
 
@@ -1108,3 +1300,67 @@ Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/
 **Inherited from**
 
 `BaseUseChatStorageResult.updateConversationTitle`
+
+***
+
+### updateVaultMemory()
+
+> **updateVaultMemory**: (`id`: `string`, `content`: `string`) => `Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
+
+Defined in: [src/react/useChatStorage.ts:509](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L509)
+
+Update an existing vault memory's content.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`id`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`content`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<[`StoredVaultMemory`](StoredVaultMemory.md) | `null`>
+
+the updated memory, or null if not found
+
+***
+
+### vaultEmbeddingCache
+
+> **vaultEmbeddingCache**: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
+
+Defined in: [src/react/useChatStorage.ts:492](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L492)
+
+The shared vault embedding cache. Use this to eagerly embed content
+when saving vault memories (via eagerEmbedContent).
