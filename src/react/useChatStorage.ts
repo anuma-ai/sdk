@@ -1469,6 +1469,15 @@ export function useChatStorage(
           }
         }
 
+        // Insert __SDKFILE__ placeholders for each successfully stored image.
+        // Since R2 URLs were already removed from content, append placeholders so that
+        // storedToLlmapiMessage() can later resolve them back to sourceUrls for the LLM.
+        for (const opt of mediaOptions) {
+          if (opt.mediaId && createdMediaIds.includes(opt.mediaId)) {
+            cleanedContent += `\n${createFilePlaceholder(opt.mediaId)}`;
+          }
+        }
+
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
         // Still clean MCP URLs to prevent broken links even on error
