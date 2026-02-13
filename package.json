@@ -63,7 +63,11 @@
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
-    "generate": "pnpm run spec && pnpm run docs"
+    "generate": "pnpm run spec && pnpm run docs",
+    "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
+    "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
+    "eval:longmemeval": "tsx test/memory/longmemeval.ts",
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
   },
   "repository": {
     "type": "git",
