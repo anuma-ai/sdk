@@ -98,25 +98,6 @@ export interface LongMemEvalOptions {
   skipUnsupported?: boolean;
 }
 
-/** Cached embeddings for chunked LongMemEval sessions */
-export interface LongMemEvalChunkEmbeddingsCache {
-  version: string;
-  model: string;
-  variant: "s" | "m";
-  entries: Record<
-    string,
-    {
-      chunks: Array<{
-        sessionIndex: number;
-        messageIndex: number;
-        role: "user" | "assistant";
-        contentHash: string;
-        embedding: number[];
-      }>;
-    }
-  >;
-}
-
 /** API configuration for LLM and embedding calls */
 export interface ApiConfig {
   apiKey: string;

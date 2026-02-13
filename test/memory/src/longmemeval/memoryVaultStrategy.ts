@@ -203,15 +203,8 @@ export async function processEntryMemoryVault(
     );
 
     // Step 5: Two-step LLM flow
-    const systemPrompt = `You are a memory assistant. Your single goal is to answer the user's question as accurately as possible.
-Today is ${entry.question_date}.
-
-Use the vault search tool to find relevant memories about the user.
-When answering relative-time questions (e.g., "today," "yesterday," "X days ago"), interpret them relative to the question date above, not the real current date.
-Use the retrieved vault memories as evidence and answer directly. Do not include reasoning in your answer.
-If the question asks for a number or count, respond with only the number.
-If the information is not present, say "I don't have that information."
-In your final answer, do not ask the user any questions; just give your best answer.`;
+    const systemPrompt = `Today is ${entry.question_date}.
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
 
     // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
     // Chat Completions API expects "parameters". Remap for the API call.
@@ -248,10 +241,12 @@ In your final answer, do not ask the user any questions; just give your best ans
     const retrievedVaultIds = new Set<string>();
 
     try {
+      // Force tool use — in a real conversation the LLM would naturally call
+      // the tool, but this eval sends a bare question with no prior context.
       logProgress("Calling LLM (step 1)...");
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
-        toolChoice: "auto",
+        toolChoice: "required",
         maxTokens: 500,
       });
       clearProgress();
@@ -289,9 +284,13 @@ In your final answer, do not ask the user any questions; just give your best ans
           });
           (transcript.toolResults as any[]).push({ text: toolResultStr });
 
-          // Build followup with tool results
-          const followupContent = [
-            entry.question,
+          // Include search results in the system message so the LLM treats
+          // them as authoritative context. This avoids role: "tool" messages
+          // which not all providers support (e.g. Gemini via OpenAI compat).
+          const secondSystemPrompt = [
+            systemPrompt,
+            "",
+            "The following are entries from the user's memory vault, retrieved by a search. Use them to answer the user's question.",
             "",
             toolResultStr,
           ].join("\n");
@@ -300,8 +299,8 @@ In your final answer, do not ask the user any questions; just give your best ans
           const secondResponse = await callChatCompletion(
             api,
             [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: followupContent },
+              { role: "system", content: secondSystemPrompt },
+              { role: "user", content: entry.question },
             ],
             { maxTokens: 500 }
           );

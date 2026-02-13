@@ -3,25 +3,26 @@
  *
  * Tests the SDK's on-demand memory retrieval from conversations.
  * Stores LongMemEval sessions as messages in WatermelonDB, chunks and embeds
- * them using the SDK's pipeline, then searches via createMemoryRetrievalTool.
+ * them using the SDK's chunkAndEmbedAllMessages, then searches via
+ * createMemoryRetrievalTool.
  */
 
 import type { Database } from "@nozbe/watermelondb";
 import {
   createConversationOp,
   createMessageOp,
-  updateMessageChunksOp,
+  searchChunksOp,
   type StorageOperationsContext,
 } from "../../../../src/lib/db/chat/operations.js";
-import type { MessageChunk } from "../../../../src/lib/db/chat/types.js";
 import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
-import { chunkText } from "../../../../src/lib/memoryRetrieval/chunking.js";
+import {
+  chunkAndEmbedAllMessages,
+  generateEmbedding,
+} from "../../../../src/lib/memoryRetrieval/embeddings.js";
 import { createMemoryRetrievalTool } from "../../../../src/lib/memoryRetrieval/tool.js";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryRetrieval/constants.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalResult,
-  LongMemEvalChunkEmbeddingsCache,
   ApiConfig,
 } from "./types.js";
 import {
@@ -29,9 +30,6 @@ import {
   selectSessions,
   callChatCompletion,
   evaluateAnswer,
-  generateEmbeddingsBatch,
-  generateSingleEmbedding,
-  hashChunkContent,
   saveTranscript,
   logProgress,
   clearProgress,
@@ -53,14 +51,13 @@ function createStorageContext(db: Database): StorageOperationsContext {
  *
  * Flow:
  * 1. Store each haystack session as a conversation with messages in WatermelonDB
- * 2. Chunk and embed all messages using SDK's chunkText + generateEmbeddings
+ * 2. Chunk and embed all messages using SDK's chunkAndEmbedAllMessages
  * 3. Search via createMemoryRetrievalTool's executor
  * 4. Two-step LLM flow: question -> tool call -> answer
  */
 export async function processEntryMemoryEngine(
   entry: LongMemEvalEntry,
   api: ApiConfig,
-  cache: LongMemEvalChunkEmbeddingsCache,
   verbose: boolean,
   maxSessions?: number
 ): Promise<LongMemEvalResult> {
@@ -111,181 +108,24 @@ export async function processEntryMemoryEngine(
     }
     clearProgress();
 
-    // Step 2: Chunk and embed all messages
-    // Use the embedding cache to avoid re-computing across runs
-    const entryCache = cache.entries[entry.question_id];
-    const cachedIndex = new Map<string, number[]>();
-    if (entryCache) {
-      for (const c of entryCache.chunks) {
-        const key = `${c.sessionIndex}:${c.messageIndex}:${c.role}:${c.contentHash}`;
-        cachedIndex.set(key, c.embedding);
-      }
-    }
-
-    // Fetch all stored messages and chunk + embed them
-    const allMessages = await storageCtx.messagesCollection.query().fetch();
-    let embeddedCount = 0;
-    const totalMessages = allMessages.length;
-    const BATCH_SIZE = 96;
-
-    // Collect all chunks that need embedding
-    const pendingChunks: Array<{
-      messageId: string;
-      chunks: Array<{ text: string; startOffset: number; endOffset: number }>;
-      sessionIndex: number;
-      messageIndex: number;
-      role: string;
-      content: string;
-    }> = [];
-
-    // Track message -> (sessionIndex, messageIndex) for cache key
-    // We need to figure out sessionIndex and messageIndex from the conversation mapping
-    const convMessages = new Map<string, number>(); // convId -> message count
-
-    for (const message of allMessages) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const convId = (message as any)._getRaw("conversation_id") as string;
-      const content = message.content;
-      const role = message.role;
-      const count = convMessages.get(convId) || 0;
-      convMessages.set(convId, count + 1);
-
-      // Figure out session index from conv -> session mapping
-      const sessionId = convToSession.get(convId);
-      const sessionIndex = sessionId
-        ? entry.haystack_session_ids.indexOf(sessionId)
-        : -1;
-      const messageIndex = count; // 0-indexed within this conversation
-
-      // Chunk the message content using SDK's chunking
-      const textChunks = chunkText(content);
-      const contentHash = hashChunkContent(role as "user" | "assistant", content);
-
-      // Check cache for this chunk's embedding
-      const cacheKey = `${sessionIndex}:${messageIndex}:${role}:${contentHash}`;
-      const cachedEmbedding = cachedIndex.get(cacheKey);
-
-      if (cachedEmbedding && cachedEmbedding.length > 0) {
-        // Use cached embedding — for simplicity, apply the same embedding to all
-        // chunks of this message (the cache stores per-message, not per-chunk)
-        const messageChunks: MessageChunk[] = textChunks.map((tc) => ({
-          text: tc.text,
-          vector: cachedEmbedding,
-          startOffset: tc.startOffset,
-          endOffset: tc.endOffset,
-        }));
-        await updateMessageChunksOp(
-          storageCtx,
-          message.id,
-          messageChunks,
-          DEFAULT_API_EMBEDDING_MODEL
-        );
-        embeddedCount++;
-      } else {
-        pendingChunks.push({
-          messageId: message.id,
-          chunks: textChunks,
-          sessionIndex,
-          messageIndex,
-          role,
-          content,
-        });
-      }
-    }
-
-    // Batch embed pending chunks
-    if (pendingChunks.length > 0) {
-      // Flatten all chunk texts for batch embedding
-      const allChunkTexts: string[] = [];
-      const chunkMapping: Array<{ pendingIdx: number; chunkIdx: number }> = [];
-
-      for (let pi = 0; pi < pendingChunks.length; pi++) {
-        for (let ci = 0; ci < pendingChunks[pi].chunks.length; ci++) {
-          allChunkTexts.push(pendingChunks[pi].chunks[ci].text);
-          chunkMapping.push({ pendingIdx: pi, chunkIdx: ci });
-        }
-      }
-
-      logProgress(`Embedding ${allChunkTexts.length} chunks...`);
-
-      // Generate embeddings in batches
-      const allEmbeddings: number[][] = [];
-      for (let i = 0; i < allChunkTexts.length; i += BATCH_SIZE) {
-        const batchTexts = allChunkTexts.slice(i, i + BATCH_SIZE);
-        logProgress(`Embedding chunks: ${i + batchTexts.length}/${allChunkTexts.length}`);
-        const batchEmbeddings = await generateEmbeddingsBatch(batchTexts, api);
-        allEmbeddings.push(...batchEmbeddings);
-      }
-
-      // Assign embeddings back and store
-      // Group by pending message
-      const messageChunkMap = new Map<number, MessageChunk[]>();
-      for (let i = 0; i < chunkMapping.length; i++) {
-        const { pendingIdx, chunkIdx } = chunkMapping[i];
-        const pending = pendingChunks[pendingIdx];
-        const chunk = pending.chunks[chunkIdx];
-        const embedding = allEmbeddings[i] || [];
-
-        if (!messageChunkMap.has(pendingIdx)) {
-          messageChunkMap.set(pendingIdx, []);
-        }
-        messageChunkMap.get(pendingIdx)!.push({
-          text: chunk.text,
-          vector: embedding,
-          startOffset: chunk.startOffset,
-          endOffset: chunk.endOffset,
-        });
-      }
-
-      for (const [pendingIdx, messageChunks] of messageChunkMap) {
-        const pending = pendingChunks[pendingIdx];
-        await updateMessageChunksOp(
-          storageCtx,
-          pending.messageId,
-          messageChunks,
-          DEFAULT_API_EMBEDDING_MODEL
-        );
-
-        // Update cache with the first chunk's embedding (for cache key compatibility)
-        const contentHash = hashChunkContent(
-          pending.role as "user" | "assistant",
-          pending.content
-        );
-        const cacheKey = `${pending.sessionIndex}:${pending.messageIndex}:${pending.role}:${contentHash}`;
-        const firstEmb = messageChunks[0]?.vector;
-        if (firstEmb && firstEmb.length > 0) {
-          cachedIndex.set(cacheKey, firstEmb);
-        }
-
-        embeddedCount++;
-      }
-    }
-
-    clearProgress();
-    if (verbose) {
-      console.log(`  Embedded ${embeddedCount}/${totalMessages} messages`);
-    }
-
-    // Update the disk cache
-    const updatedCacheChunks: LongMemEvalChunkEmbeddingsCache["entries"][string]["chunks"] = [];
-    for (const [key, emb] of cachedIndex) {
-      const parts = key.split(":");
-      updatedCacheChunks.push({
-        sessionIndex: parseInt(parts[0], 10),
-        messageIndex: parseInt(parts[1], 10),
-        role: parts[2] as "user" | "assistant",
-        contentHash: parts[3],
-        embedding: emb,
-      });
-    }
-    cache.entries[entry.question_id] = { chunks: updatedCacheChunks };
-
-    // Step 3: Create the retrieval tool via SDK
+    // Step 2: Chunk and embed all messages using SDK's pipeline
     const embeddingOptions = {
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
     };
 
+    logProgress("Chunking and embedding messages...");
+    const embeddedCount = await chunkAndEmbedAllMessages(
+      storageCtx,
+      embeddingOptions
+    );
+    clearProgress();
+
+    if (verbose) {
+      console.log(`  Embedded ${embeddedCount} messages`);
+    }
+
+    // Step 3: Create the retrieval tool via SDK
     const retrievalTool = createMemoryRetrievalTool(storageCtx, embeddingOptions, {
       topK: 12,
       minSimilarity: 0.1,
@@ -293,17 +133,12 @@ export async function processEntryMemoryEngine(
     });
 
     // Step 4: Two-step LLM flow
-    const systemPrompt = `You are a memory assistant. Your single goal is to answer the user's question as accurately as possible.
-Today is ${entry.question_date}.
-
-Use the search tool if the question may rely on past conversation details.
-The tool searches both user and assistant messages by default.
-Use top_k=12 unless there is a strong reason to use fewer.
-When answering relative-time questions (e.g., "today," "yesterday," "X days ago"), interpret them relative to the question date above, not the real current date.
-Use the retrieved chunks as evidence and answer directly. Do not include reasoning in your answer.
-If the question asks for a number or count, respond with only the number.
-If the information is not present, say "I don't have that information."
-In your final answer, do not ask the user any questions; just give your best answer.`;
+    // The SDK relies on tool descriptions to guide usage, so we don't coach
+    // the LLM on how to use the tool. We do provide the context that a real
+    // conversation assistant would have: the date and the fact that retrieved
+    // results are from the user's own past conversations.
+    const systemPrompt = `Today is ${entry.question_date}.
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
 
     // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
     // Chat Completions API expects "parameters". Remap for the API call.
@@ -340,10 +175,12 @@ In your final answer, do not ask the user any questions; just give your best ans
     const retrievedConvIds = new Set<string>();
 
     try {
+      // Force tool use — in a real conversation the LLM would naturally call
+      // the tool, but this eval sends a bare question with no prior context.
       logProgress("Calling LLM (step 1)...");
       const firstResponse = await callChatCompletion(api, baseMessages, {
         tools: [toolDef],
-        toolChoice: "auto",
+        toolChoice: "required",
         maxTokens: 500,
       });
       clearProgress();
@@ -367,13 +204,6 @@ In your final answer, do not ask the user any questions; just give your best ans
           clearProgress();
           const toolResultStr = typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
 
-          // Parse conversation IDs from results for retrieval metrics
-          // The tool output contains lines like: [1] (user, 2024-01-01, similarity: 0.85)
-          // We need to map back. The SDK's searchChunksOp returns conversationId in results
-          // but the formatted output doesn't include it. We'll parse what we can.
-          // For now, we use the tool executor return and trust the metrics come from
-          // mapping conversation IDs that appear in the formatted results.
-
           (transcript.toolCalls as any[]).push({
             id: toolCall.id,
             name: toolCall.function?.name,
@@ -381,9 +211,13 @@ In your final answer, do not ask the user any questions; just give your best ans
           });
           (transcript.toolResults as any[]).push({ text: toolResultStr });
 
-          // Build followup message with tool results
-          const followupContent = [
-            entry.question,
+          // Include search results in the system message so the LLM treats
+          // them as authoritative context. This avoids role: "tool" messages
+          // which not all providers support (e.g. Gemini via OpenAI compat).
+          const secondSystemPrompt = [
+            systemPrompt,
+            "",
+            "The following are excerpts from the user's past conversations, retrieved by a memory search. Use them to answer the user's question.",
             "",
             toolResultStr,
           ].join("\n");
@@ -392,8 +226,8 @@ In your final answer, do not ask the user any questions; just give your best ans
           const secondResponse = await callChatCompletion(
             api,
             [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: followupContent },
+              { role: "system", content: secondSystemPrompt },
+              { role: "user", content: entry.question },
             ],
             { maxTokens: 500 }
           );
@@ -413,12 +247,10 @@ In your final answer, do not ask the user any questions; just give your best ans
 
     transcript.finalAnswer = generatedAnswer;
 
-    // For retrieval metrics, we use a heuristic: search directly to get session IDs
-    // The tool executor doesn't expose structured results, so we do a parallel search
+    // Compute retrieval metrics using SDK's generateEmbedding + searchChunksOp
     logProgress("Computing retrieval metrics...");
-    const queryEmbedding = await generateSingleEmbedding(entry.question, api);
-    if (queryEmbedding.length > 0) {
-      const { searchChunksOp } = await import("../../../../src/lib/db/chat/operations.js");
+    try {
+      const queryEmbedding = await generateEmbedding(entry.question, embeddingOptions);
       const rawResults = await searchChunksOp(storageCtx, queryEmbedding, {
         limit: 12,
         minSimilarity: 0.1,
@@ -427,6 +259,8 @@ In your final answer, do not ask the user any questions; just give your best ans
         const convId = r.message.conversationId;
         if (convId) retrievedConvIds.add(convId);
       }
+    } catch (error) {
+      console.error("Retrieval metrics failed:", error);
     }
     clearProgress();
 
@@ -494,7 +328,6 @@ In your final answer, do not ask the user any questions; just give your best ans
       strategy: "memory-engine",
     };
   } catch (error) {
-    const elapsed = performance.now() - startTime;
     clearProgress();
     throw error;
   }

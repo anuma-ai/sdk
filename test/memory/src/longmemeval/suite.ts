@@ -7,7 +7,6 @@
 
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import {
@@ -15,7 +14,6 @@ import {
   sdkMigrations,
   sdkModelClasses,
 } from "../../../../src/lib/db/schema.js";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryRetrieval/constants.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -24,7 +22,6 @@ import type {
   LongMemEvalComparisonSummary,
   LongMemEvalOptions,
   LongMemEvalQuestionType,
-  LongMemEvalChunkEmbeddingsCache,
   ApiConfig,
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
@@ -107,16 +104,7 @@ export function extractJsonFromResponse(content: string): string {
   return jsonStr;
 }
 
-// ── Caching helpers ──
-
-function safeModelName(model: string): string {
-  return model.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-}
-
-export function getChunkCachePath(variant: "s" | "m", model: string): string {
-  const filename = `longmemeval_chunk_embeddings_${variant}_${safeModelName(model)}.json`;
-  return join(getCacheDirectory(), filename);
-}
+// ── Transcript helpers ──
 
 export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
@@ -133,34 +121,6 @@ export async function transcriptMatchesModel(
   } catch {
     return false;
   }
-}
-
-export async function loadChunkEmbeddingCache(
-  variant: "s" | "m",
-  model: string
-): Promise<LongMemEvalChunkEmbeddingsCache> {
-  const cachePath = getChunkCachePath(variant, model);
-  try {
-    const data = await readFile(cachePath, "utf-8");
-    const parsed = JSON.parse(data) as LongMemEvalChunkEmbeddingsCache;
-    if (parsed.model !== model || parsed.variant !== variant) {
-      return { version: "1", model, variant, entries: {} };
-    }
-    return parsed;
-  } catch {
-    return { version: "1", model, variant, entries: {} };
-  }
-}
-
-export async function saveChunkEmbeddingCache(
-  cache: LongMemEvalChunkEmbeddingsCache
-): Promise<void> {
-  const cachePath = getChunkCachePath(cache.variant, cache.model);
-  await writeFile(cachePath, JSON.stringify(cache));
-}
-
-export function hashChunkContent(role: "user" | "assistant", content: string): string {
-  return createHash("sha1").update(`${role}|${content}`).digest("hex");
 }
 
 export async function saveTranscript(
@@ -188,10 +148,10 @@ function sleep(ms: number): Promise<void> {
 
 export async function callChatCompletion(
   api: ApiConfig,
-  messages: Array<{ role: string; content?: string; tool_calls?: any }>,
+  messages: Array<{ role: string; content?: string; tool_calls?: any; tool_call_id?: string }>,
   options?: {
     tools?: Array<{ type: "function"; function: any }>;
-    toolChoice?: string;
+    toolChoice?: string | Record<string, unknown>;
     maxTokens?: number;
   }
 ): Promise<{
@@ -217,9 +177,6 @@ export async function callChatCompletion(
         if (options?.toolChoice) {
           payload.tool_choice = options.toolChoice;
         }
-      } else if (options?.toolChoice) {
-        payload.tools = [];
-        payload.tool_choice = options.toolChoice;
       }
 
       const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
@@ -409,47 +366,6 @@ If no memories to extract, return: {"items": []}`;
   }
 }
 
-export async function generateEmbeddingsBatch(
-  texts: string[],
-  api: ApiConfig
-): Promise<number[][]> {
-  if (texts.length === 0) return [];
-
-  try {
-    const response = await fetch(`${api.baseUrl}/api/v1/embeddings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: DEFAULT_API_EMBEDDING_MODEL,
-        input: texts,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Embedding API error: ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      data: Array<{ embedding: number[] }>;
-    };
-    return data.data.map((item) => item.embedding);
-  } catch (error) {
-    console.error("Batch embedding generation failed:", error);
-    return texts.map(() => []);
-  }
-}
-
-export async function generateSingleEmbedding(
-  text: string,
-  api: ApiConfig
-): Promise<number[]> {
-  const [embedding] = await generateEmbeddingsBatch([text], api);
-  return embedding || [];
-}
-
 // ── Progress logging ──
 
 export function logProgress(message: string): void {
@@ -600,11 +516,6 @@ export async function runLongMemEval(
   if (options.maxSessions) console.log(`Max sessions per question: ${options.maxSessions}`);
   console.log("");
 
-  // Load embedding caches for strategies that need them
-  const chunkCache = strategies.includes("memory-engine")
-    ? await loadChunkEmbeddingCache(options.variant, DEFAULT_API_EMBEDDING_MODEL)
-    : undefined;
-
   const summaries: Record<string, LongMemEvalSummary> = {};
 
   for (const strat of strategies) {
@@ -620,7 +531,7 @@ export async function runLongMemEval(
       console.log(`[${i + 1}/${entries.length}] ${entry.question_id}`);
 
       try {
-        if (strat === "memory-engine" && options.skipExisting) {
+        if (options.skipExisting) {
           const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
           if (hasTranscript) {
             console.log("  ↷ Skipping (existing transcript for same model)");
@@ -633,7 +544,6 @@ export async function runLongMemEval(
           result = await processEntryMemoryEngine(
             entry,
             { ...api, llmModel },
-            chunkCache!,
             options.verbose || false,
             options.maxSessions
           );
@@ -652,11 +562,6 @@ export async function runLongMemEval(
         console.log(
           `  ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
         );
-
-        // Save chunk cache periodically for engine strategy
-        if (strat === "memory-engine" && chunkCache) {
-          await saveChunkEmbeddingCache(chunkCache);
-        }
       } catch (error) {
         console.error(`  ✗ Error processing ${entry.question_id}:`, error);
         results.push({
