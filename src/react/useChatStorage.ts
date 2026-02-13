@@ -59,7 +59,9 @@ import {
   hardDeleteMediaOp,
   generateMediaId,
   getMediaTypeFromMime,
+  getMediaByIdsOp,
   type CreateMediaOptions,
+  type StoredMedia,
 } from "../lib/db/media";
 import {
   queueManager,
@@ -115,7 +117,8 @@ async function blobToDataUri(blob: Blob): Promise<string> {
  */
 async function storedToLlmapiMessage(
   stored: StoredMessage,
-  encryptionKey?: CryptoKey
+  encryptionKey?: CryptoKey,
+  resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
 ): Promise<LlmapiMessage> {
   let textContent = stored.content;
 
@@ -170,6 +173,21 @@ async function storedToLlmapiMessage(
     }
   }
 
+  // Resolve fileIds from media table for messages using the new storage format
+  // (where the deprecated stored.files is empty and fileIds references the media table)
+  if (stored.fileIds?.length && resolveMediaByIds) {
+    try {
+      const mediaItems = await resolveMediaByIds(stored.fileIds);
+      for (const media of mediaItems) {
+        if (media.sourceUrl) {
+          fileUrlMap.set(media.mediaId, media.sourceUrl);
+        }
+      }
+    } catch {
+      // Don't fail message conversion if media resolution fails
+    }
+  }
+
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
@@ -199,14 +217,18 @@ async function storedToLlmapiMessage(
     }
   );
 
-  // Fallback: for assistant messages with files whose sourceUrls weren't resolved
-  // via placeholders (legacy messages stored before placeholder insertion was added),
-  // append image references so the LLM has context about previously generated images.
+  // For assistant messages with resolved image URLs that aren't already in the content,
+  // append them as markdown images so the LLM can reference them
+  // (e.g., when user asks to edit a previously generated image)
   if (stored.role === "assistant" && fileUrlMap.size > 0) {
-    for (const [, sourceUrl] of fileUrlMap) {
-      if (!textContent.includes(sourceUrl)) {
-        textContent += `\n![image](${sourceUrl})`;
-      }
+    const unreferencedImages = [...fileUrlMap.entries()].filter(
+      ([, url]) => !textContent.includes(url)
+    );
+    if (unreferencedImages.length > 0) {
+      const imageMarkdown = unreferencedImages
+        .map(([, url]) => `![Generated image](${url})`)
+        .join("\n");
+      textContent = textContent + "\n\n" + imageMarkdown;
     }
   }
 
@@ -1849,8 +1871,19 @@ export function useChatStorage(
             // Failed to get encryption key for history
           }
         }
+        // Batch: collect all fileIds across all messages, resolve once
+        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        let allMedia: StoredMedia[] = [];
+        try {
+          allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
+        } catch {
+          // IndexedDB / decryption failure — degrade gracefully (no image URLs)
+        }
+        const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
+        const resolveMediaByIds = (ids: string[]) =>
+          Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
-          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey))
+          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
         );
         messagesToSend = [...historyMessages, ...messages];
       } else {
