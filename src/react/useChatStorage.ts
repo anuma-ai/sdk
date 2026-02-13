@@ -96,6 +96,7 @@ import {
   type VaultMemoryOperationsContext,
   type StoredVaultMemory,
   getAllVaultMemoriesOp,
+  createVaultMemoryOp,
   deleteVaultMemoryOp,
 } from "../lib/db/memoryVault";
 import { VaultMemory } from "../lib/db/memoryVault/models";
@@ -494,6 +495,11 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * Returns non-deleted memories sorted by creation date (newest first).
    */
   getVaultMemories: () => Promise<StoredVaultMemory[]>;
+
+  /**
+   * Create a new vault memory with the given content.
+   */
+  createVaultMemory: (content: string) => Promise<StoredVaultMemory>;
 
   /**
    * Delete a vault memory by its ID (soft delete).
@@ -980,6 +986,16 @@ export function useChatStorage(
   const getVaultMemories = useCallback(
     (): Promise<StoredVaultMemory[]> => {
       return getAllVaultMemoriesOp(vaultCtx);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Create a new vault memory (for manual creation from UI)
+   */
+  const createVaultMemory = useCallback(
+    (content: string): Promise<StoredVaultMemory> => {
+      return createVaultMemoryOp(vaultCtx, { content });
     },
     [vaultCtx]
   );
@@ -2586,6 +2602,7 @@ export function useChatStorage(
     createMemoryVaultSearchTool,
     vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
     getVaultMemories,
+    createVaultMemory,
     deleteVaultMemory,
     flushQueue,
     clearQueue,
