@@ -74,7 +74,9 @@ export async function decryptMediaFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn("Failed to request encryption key for decryption:", error);
+      // eslint-disable-next-line no-console
+      console.warn("[decryptMediaFields] Failed to request encryption key, returning raw media:", error);
+      return media;
     }
   }
 

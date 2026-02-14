@@ -2,7 +2,7 @@
 
 > **getUserUploadedMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:592](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L592)
+Defined in: [src/lib/db/media/operations.ts:602](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L602)
 
 Get user-uploaded media.
 
