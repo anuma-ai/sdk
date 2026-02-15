@@ -39,6 +39,7 @@ export class Message extends Model {
   @text("error") error?: string;
   @json("thought_process", (json) => json) thoughtProcess?: ActivityPhase[];
   @text("thinking") thinking?: string;
+  @text("parent_message_id") parentMessageId?: string;
 }
 
 export class Conversation extends Model {

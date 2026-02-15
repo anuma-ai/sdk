@@ -1286,18 +1286,21 @@ export function useChatStorage(
       cleanedContent: string;
     }> => {
       try {
-        // Extract image URLs from tool_call_events
+        // Extract image URLs from tool_call_events (supports prefixed and unprefixed tool names)
+        const imageToolNames = new Set([
+          "AnumaImageMCP_generate_cloud_image",
+          "AnumaImageMCP_edit_cloud_image",
+          "generate_cloud_image",
+          "edit_cloud_image",
+        ]);
         const urls: Array<{ url: string; model: string }> = [];
         for (const toolCallEvent of toolCallEvents || []) {
-          if (
-            toolCallEvent.name === "AnumaImageMCP_generate_cloud_image" ||
-            toolCallEvent.name === "AnumaImageMCP_edit_cloud_image"
-          ) {
+          if (toolCallEvent.name && imageToolNames.has(toolCallEvent.name)) {
             try {
               const output = JSON.parse(toolCallEvent.output || "{}");
               const { model, url } = output;
               if (url) {
-                urls.push({ url, model });
+                urls.push({ url, model: model || "image" });
               }
             } catch (err) {
               // eslint-disable-next-line no-console
@@ -1306,6 +1309,27 @@ export function useChatStorage(
                 toolCallEvent.name,
                 err
               );
+            }
+          }
+        }
+
+        // Fallback: extract MCP image URLs from content when tool_call_events yields none
+        // (handles API response format changes or when URLs are embedded in markdown/HTML)
+        if (urls.length === 0 && content) {
+          const escaped = MCP_R2_DOMAIN.replace(/\./g, "\\.");
+          const urlPattern = new RegExp(
+            `https://${escaped}[^\\s"'<>)\\]]+`,
+            "gi"
+          );
+          const matches = content.match(urlPattern);
+          if (matches) {
+            const seen = new Set<string>();
+            for (const url of matches) {
+              const normalized = url.replace(/[)"'>\s]+$/, "");
+              if (!seen.has(normalized)) {
+                seen.add(normalized);
+                urls.push({ url: normalized, model: "image" });
+              }
             }
           }
         }
@@ -1629,6 +1653,7 @@ export function useChatStorage(
         onThinking,
         apiType: requestApiType,
         conversationId: explicitConversationId,
+        parentMessageId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -1934,6 +1959,7 @@ export function useChatStorage(
         model,
         // Store extracted file content in thinking field for retrieval in follow-up messages
         thinking: fileContextForRequest,
+        parentMessageId,
       };
 
       let storedUserMessage: StoredMessage;
@@ -2313,6 +2339,7 @@ export function useChatStorage(
         sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
         thinking: thinkingContent,
+        parentMessageId: storedUserMessage.uniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;

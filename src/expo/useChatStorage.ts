@@ -799,6 +799,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        parentMessageId,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -961,6 +962,7 @@ export function useChatStorage(
         content: contentForStorage,
         files: sanitizedFiles,
         model,
+        parentMessageId,
       };
 
       let storedUserMessage: StoredMessage;
@@ -1269,6 +1271,7 @@ export function useChatStorage(
         sources: combinedSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         thinking: thinkingContent,
+        parentMessageId: storedUserMessage.uniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;

@@ -29,8 +29,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v10: Added projects table and project_id column to conversations table
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
+ * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
  */
-export const SDK_SCHEMA_VERSION = 12;
+export const SDK_SCHEMA_VERSION = 13;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -88,6 +89,7 @@ export const sdkSchema = appSchema({
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
+        { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
       ],
     }),
     tableSchema({
@@ -213,6 +215,7 @@ export const sdkSchema = appSchema({
  * - v9 → v10: Added `projects` table and `project_id` column to conversations
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
+ * - v12 → v13: Added `parent_message_id` column to history table for message branching
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -373,6 +376,18 @@ export const sdkMigrations = schemaMigrations({
           table: "history",
           columns: [
             { name: "chunks", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v12 -> v13: Added parent_message_id column for message branching (edit/regenerate)
+    {
+      toVersion: 13,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "parent_message_id", type: "string", isOptional: true },
           ],
         }),
       ],
