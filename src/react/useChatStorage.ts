@@ -2193,6 +2193,7 @@ export function useChatStorage(
               wasStopped: true,
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
+              parentMessageId: storedUserMessage.uniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2249,6 +2250,7 @@ export function useChatStorage(
             responseDuration,
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
+            parentMessageId: storedUserMessage.uniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2339,6 +2341,9 @@ export function useChatStorage(
         sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
         thinking: thinkingContent,
+        // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
+        // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
+        // isn't updated. The client-side mergeParentMessageIds handles this on reload.
         parentMessageId: storedUserMessage.uniqueId,
       };
 
