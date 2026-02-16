@@ -12,7 +12,7 @@ import type { EmbeddingOptions } from "../memoryRetrieval/types";
 import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
 
 /**
- * Embedding cache keyed by content hash. Stores pre-computed embeddings
+ * Embedding cache keyed by content string. Stores pre-computed embeddings
  * so that search only needs to embed the query, not the vault entries.
  */
 export type VaultEmbeddingCache = Map<string, number[]>;
@@ -45,17 +45,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
- * Hash content string to a short key (djb2) for the embedding cache.
- */
-export function hashContent(content: string): string {
-  let hash = 5381;
-  for (let i = 0; i < content.length; i++) {
-    hash = ((hash << 5) + hash + content.charCodeAt(i)) | 0;
-  }
-  return hash.toString(36);
-}
-
-/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -68,7 +57,7 @@ export async function preEmbedVaultMemories(
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
   for (const m of memories) {
-    const key = hashContent(m.content);
+    const key = m.content;
     if (!cache.has(key)) {
       uncachedTexts.push(m.content);
       uncachedKeys.push(key);
@@ -92,7 +81,7 @@ export async function eagerEmbedContent(
   cache: VaultEmbeddingCache
 ): Promise<void> {
   const embedding = await generateEmbedding(content, embeddingOptions);
-  cache.set(hashContent(content), embedding);
+  cache.set(content, embedding);
 }
 
 /**
@@ -164,7 +153,7 @@ export function createMemoryVaultSearchTool(
         const uncachedTexts: string[] = [];
         const uncachedIndices: number[] = [];
         for (let i = 0; i < memories.length; i++) {
-          if (!cache.has(hashContent(memories[i].content))) {
+          if (!cache.has(memories[i].content)) {
             uncachedTexts.push(memories[i].content);
             uncachedIndices.push(i);
           }
@@ -176,7 +165,7 @@ export function createMemoryVaultSearchTool(
           );
           for (let j = 0; j < uncachedTexts.length; j++) {
             cache.set(
-              hashContent(memories[uncachedIndices[j]].content),
+              memories[uncachedIndices[j]].content,
               newEmbeddings[j]
             );
           }
@@ -185,7 +174,7 @@ export function createMemoryVaultSearchTool(
         // Score each memory by cosine similarity
         const scored = memories
           .map((m) => {
-            const embedding = cache.get(hashContent(m.content));
+            const embedding = cache.get(m.content);
             if (!embedding) return null;
             return {
               uniqueId: m.uniqueId,

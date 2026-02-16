@@ -13,7 +13,7 @@ import {
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
 import type { EmbeddingOptions } from "../memoryRetrieval/types";
-import { eagerEmbedContent, hashContent, type VaultEmbeddingCache } from "./searchTool";
+import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
 /**
  * Describes a pending vault save operation for UI confirmation.
@@ -153,7 +153,7 @@ export function createMemoryVaultTool(
           // Sync embedding cache: evict stale entry, embed new content
           if (embeddingOptions && cache) {
             if (previousContent) {
-              cache.delete(hashContent(previousContent));
+              cache.delete(previousContent);
             }
             eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
           }

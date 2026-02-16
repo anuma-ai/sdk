@@ -26,7 +26,6 @@ export {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   eagerEmbedContent,
-  hashContent,
 } from "./searchTool";
 
 export type {

@@ -107,7 +107,6 @@ import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   preEmbedVaultMemories,
   eagerEmbedContent,
-  hashContent,
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
   type MemoryVaultSearchOptions,
@@ -1032,7 +1031,7 @@ export function useChatStorage(
       const result = await updateVaultMemoryOp(vaultCtx, id, { content });
       if (result && getToken) {
         if (existing) {
-          vaultEmbeddingCacheRef.current.delete(hashContent(existing.content));
+          vaultEmbeddingCacheRef.current.delete(existing.content);
         }
         eagerEmbedContent(
           content,
@@ -1053,7 +1052,7 @@ export function useChatStorage(
       const existing = await getVaultMemoryOp(vaultCtx, id);
       const result = await deleteVaultMemoryOp(vaultCtx, id);
       if (result && existing) {
-        vaultEmbeddingCacheRef.current.delete(hashContent(existing.content));
+        vaultEmbeddingCacheRef.current.delete(existing.content);
       }
       return result;
     },
