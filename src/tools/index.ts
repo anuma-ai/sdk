@@ -61,6 +61,18 @@ export type {
   CalendarEvent,
 } from "./googleCalendar";
 
+// UI Interaction tool factories
+export {
+  createInteractiveTool,
+  createDisplayTool,
+} from "./uiInteraction";
+export type {
+  UIInteractionContext,
+  CreateUIToolsOptions,
+  InteractiveToolConfig,
+  DisplayToolConfig,
+} from "./uiInteraction";
+
 // Google Drive exports
 export {
   createGoogleDriveSearchTool,
