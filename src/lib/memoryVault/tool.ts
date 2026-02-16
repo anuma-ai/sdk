@@ -12,6 +12,8 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
+import type { EmbeddingOptions } from "../memoryRetrieval/types";
+import { eagerEmbedContent, hashContent, type VaultEmbeddingCache } from "./searchTool";
 
 /**
  * Describes a pending vault save operation for UI confirmation.
@@ -69,7 +71,9 @@ export interface MemoryVaultToolOptions {
  */
 export function createMemoryVaultTool(
   vaultCtx: VaultMemoryOperationsContext,
-  options?: MemoryVaultToolOptions
+  options?: MemoryVaultToolOptions,
+  embeddingOptions?: EmbeddingOptions,
+  cache?: VaultEmbeddingCache
 ): ToolConfig {
   const hasOnSave = !!options?.onSave;
 
@@ -146,9 +150,20 @@ export function createMemoryVaultTool(
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }
+          // Sync embedding cache: evict stale entry, embed new content
+          if (embeddingOptions && cache) {
+            if (previousContent) {
+              cache.delete(hashContent(previousContent));
+            }
+            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+          }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
           const created = await createVaultMemoryOp(vaultCtx, { content });
+          // Eagerly embed the new memory so it's searchable immediately
+          if (embeddingOptions && cache) {
+            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+          }
           return `Memory saved successfully (ID: ${created.uniqueId}).`;
         }
       } catch (error) {

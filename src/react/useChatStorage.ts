@@ -97,6 +97,7 @@ import {
   type StoredVaultMemory,
   getAllVaultMemoriesOp,
   createVaultMemoryOp,
+  getVaultMemoryOp,
   updateVaultMemoryOp,
   deleteVaultMemoryOp,
 } from "../lib/db/memoryVault";
@@ -106,6 +107,7 @@ import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  hashContent,
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
   type MemoryVaultSearchOptions,
@@ -982,9 +984,15 @@ export function useChatStorage(
    */
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
-      return createMemoryVaultToolBase(vaultCtx, options);
+      const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
+      return createMemoryVaultToolBase(
+        vaultCtx,
+        options,
+        embOpts,
+        embOpts ? vaultEmbeddingCacheRef.current : undefined
+      );
     },
-    [vaultCtx]
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -1001,28 +1009,53 @@ export function useChatStorage(
    * Create a new vault memory (for manual creation from UI)
    */
   const createVaultMemory = useCallback(
-    (content: string): Promise<StoredVaultMemory> => {
-      return createVaultMemoryOp(vaultCtx, { content });
+    async (content: string): Promise<StoredVaultMemory> => {
+      const result = await createVaultMemoryOp(vaultCtx, { content });
+      if (getToken) {
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
     },
-    [vaultCtx]
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
    * Update a vault memory's content (for manual editing from UI)
    */
   const updateVaultMemory = useCallback(
-    (id: string, content: string): Promise<StoredVaultMemory | null> => {
-      return updateVaultMemoryOp(vaultCtx, id, { content });
+    async (id: string, content: string): Promise<StoredVaultMemory | null> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await updateVaultMemoryOp(vaultCtx, id, { content });
+      if (result && getToken) {
+        if (existing) {
+          vaultEmbeddingCacheRef.current.delete(hashContent(existing.content));
+        }
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
     },
-    [vaultCtx]
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   /**
    * Delete a vault memory by ID (for manual deletion from UI)
    */
   const deleteVaultMemory = useCallback(
-    (id: string): Promise<boolean> => {
-      return deleteVaultMemoryOp(vaultCtx, id);
+    async (id: string): Promise<boolean> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await deleteVaultMemoryOp(vaultCtx, id);
+      if (result && existing) {
+        vaultEmbeddingCacheRef.current.delete(hashContent(existing.content));
+      }
+      return result;
     },
     [vaultCtx]
   );
