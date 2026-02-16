@@ -56,6 +56,19 @@
  * @module react
  */
 export { useChat } from "./useChat";
+
+// UI Interaction infrastructure
+export {
+  UIInteractionProvider,
+  useUIInteraction,
+} from "./useUIInteraction";
+export type {
+  PendingInteraction,
+  UIInteractionContextValue,
+  UIInteractionProviderProps,
+  InteractionType,
+} from "./useUIInteraction";
+
 export {
   useEncryption,
   requestEncryptionKey,
