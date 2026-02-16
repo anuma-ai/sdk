@@ -1,8 +1,8 @@
 # createMemoryVaultTool
 
-> **createMemoryVaultTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: [`MemoryVaultToolOptions`](../interfaces/MemoryVaultToolOptions.md)): `ToolConfig`
+> **createMemoryVaultTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: [`MemoryVaultToolOptions`](../interfaces/MemoryVaultToolOptions.md), `embeddingOptions?`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache?`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/tool.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L70)
+Defined in: [src/lib/memoryVault/tool.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L72)
 
 Creates a memory vault tool for use with chat completions.
 
@@ -51,6 +51,40 @@ Vault operations context for database access
 <td>
 
 Optional configuration (onSave callback for confirmation)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`embeddingOptions?`
+
+</td>
+<td>
+
+[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`cache?`
+
+</td>
+<td>
+
+[`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

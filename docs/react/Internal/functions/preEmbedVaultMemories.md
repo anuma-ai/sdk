@@ -2,7 +2,7 @@
 
 > **preEmbedVaultMemories**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `Promise`<`void`>
 
-Defined in: [src/lib/memoryVault/searchTool.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/searchTool.ts#L62)
+Defined in: [src/lib/memoryVault/searchTool.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/searchTool.ts#L51)
 
 Pre-embed all vault memories that are not yet in the cache.
 Call this at init time so searches are instant.

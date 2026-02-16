@@ -2,7 +2,7 @@
 
 > **getMediaByModelOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `model`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:603](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L603)
+Defined in: [src/lib/db/media/operations.ts:613](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L613)
 
 Get media by AI model.
 

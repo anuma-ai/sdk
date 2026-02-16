@@ -609,12 +609,6 @@ function cleanMCPUrlsFromContent(content: string): string {
     ""
   );
 
-  // Remove any remaining raw MCP URLs (including truncated ones)
-  cleaned = cleaned.replace(
-    new RegExp(`https://${escapedDomain}[^\\s"'<>)]*`, "g"),
-    ""
-  );
-
   // Clean up extra whitespace and newlines
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -1499,13 +1493,6 @@ export function useChatStorage(
       cleanedContent: string;
     }> => {
       try {
-        // Pattern to match any URL from the MCP R2 domain (including truncated ones)
-        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
-        const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
-          "g"
-        );
-
         // Extract image URLs from tool_call_events
         const urls: Array<{ url: string; model: string }> = [];
         for (const toolCallEvent of toolCallEvents || []) {
@@ -1550,9 +1537,6 @@ export function useChatStorage(
           ),
           ""
         );
-
-        // Remove any remaining raw MCP URLs (including truncated ones)
-        cleanedContent = cleanedContent.replace(MCP_IMAGE_URL_PATTERN, "");
 
         // Clean up extra whitespace and newlines
         cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
@@ -2074,8 +2058,9 @@ export function useChatStorage(
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
-        } catch {
-          // IndexedDB / decryption failure — degrade gracefully (no image URLs)
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[sendMessage] Failed to resolve media for history (image URLs will be missing):", err);
         }
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
@@ -2518,10 +2503,10 @@ export function useChatStorage(
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
-      } else {
-        // Safety fallback: clean MCP URLs from content to prevent broken links
-        cleanedContent = cleanMCPUrlsFromContent(cleanedContent);
       }
+      // When encryption isn't ready, leave R2 URLs in content.
+      // They remain valid for 3 days (presigned) and let the LLM
+      // reference images for editing. No permanent data loss.
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {

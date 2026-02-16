@@ -1,6 +1,6 @@
 # MemoryVaultToolOptions
 
-Defined in: [src/lib/memoryVault/tool.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L33)
+Defined in: [src/lib/memoryVault/tool.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L35)
 
 Options for creating a memory vault tool.
 
@@ -10,7 +10,7 @@ Options for creating a memory vault tool.
 
 > `optional` **onSave**: (`operation`: [`VaultSaveOperation`](VaultSaveOperation.md)) => `Promise`<`boolean`>
 
-Defined in: [src/lib/memoryVault/tool.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L42)
+Defined in: [src/lib/memoryVault/tool.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L44)
 
 Callback invoked before each save operation.
 Return `true` to confirm the save, `false` to cancel it.
