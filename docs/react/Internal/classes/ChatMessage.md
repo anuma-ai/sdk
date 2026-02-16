@@ -219,6 +219,14 @@ Defined in: [src/lib/db/chat/models.ts:25](https://github.com/zeta-chain/ai-sdk/
 
 ***
 
+### parentMessageId?
+
+> `optional` **parentMessageId**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/models.ts#L42)
+
+***
+
 ### responseDuration?
 
 > `optional` **responseDuration**: `number`

@@ -67,6 +67,7 @@ export function messageToStoredRaw(message: Message): StoredMessage {
     error: message.error,
     thoughtProcess: parseJsonField(thoughtProcessRaw),
     thinking: message.thinking,
+    parentMessageId: message.parentMessageId,
   };
 }
 
@@ -406,6 +407,7 @@ export async function createMessageOp(
         msg._setRaw("thought_process", tpValue);
       }
       if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking);
+      if (encryptedOpts.parentMessageId) msg._setRaw("parent_message_id", encryptedOpts.parentMessageId);
     });
   });
 
@@ -830,6 +832,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
     error: opts.error,
     thoughtProcess: opts.thoughtProcess,
     thinking: opts.thinking,
+    parentMessageId: opts.parentMessageId,
   };
 }
 
