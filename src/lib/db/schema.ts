@@ -29,8 +29,8 @@ import { UserPreference } from "./userPreferences/models";
  * - v10: Added projects table and project_id column to conversations table
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
- * - v13: Removed memories table (memory storage feature removed)
- * - v14: Added memory_vault table for persistent memory vault
+ * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
+ * - v14: Replaced memories table with memory_vault table for persistent memory vault
  */
 export const SDK_SCHEMA_VERSION = 14;
 
@@ -90,6 +90,7 @@ export const sdkSchema = appSchema({
         { name: "error", type: "string", isOptional: true },
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
+        { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
       ],
     }),
     tableSchema({
@@ -205,8 +206,8 @@ export const sdkSchema = appSchema({
  * - v9 → v10: Added `projects` table and `project_id` column to conversations
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
- * - v12 → v13: Removed `memories` table (memory storage feature removed)
- * - v13 → v14: Added `memory_vault` table for persistent memory vault
+ * - v12 → v13: Added `parent_message_id` column to history table for message branching
+ * - v13 → v14: Replaced `memories` table with `memory_vault` table for persistent memory vault
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -371,17 +372,23 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v12 -> v13: Removed memories table (memory storage feature removed)
+    // v12 -> v13: Added parent_message_id column for message branching (edit/regenerate)
     {
       toVersion: 13,
       steps: [
-        unsafeExecuteSql("DROP TABLE IF EXISTS memories;"),
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "parent_message_id", type: "string", isOptional: true },
+          ],
+        }),
       ],
     },
-    // v13 -> v14: Added memory_vault table for persistent memory vault
+    // v13 -> v14: Replaced memories table with memory_vault table
     {
       toVersion: 14,
       steps: [
+        unsafeExecuteSql("DROP TABLE IF EXISTS memories;"),
         createTable({
           name: "memory_vault",
           columns: [

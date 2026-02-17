@@ -1,6 +1,6 @@
 # StoredMessageWithSimilarity
 
-Defined in: [src/lib/db/chat/types.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L134)
+Defined in: [src/lib/db/chat/types.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L136)
 
 ## Extends
 
@@ -138,6 +138,20 @@ Defined in: [src/lib/db/chat/types.ts:93](https://github.com/zeta-chain/ai-sdk/b
 
 ***
 
+### parentMessageId?
+
+> `optional` **parentMessageId**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L114)
+
+Parent message ID for branching (edit/regenerate). Null for root messages.
+
+**Inherited from**
+
+[`StoredMessage`](StoredMessage.md).[`parentMessageId`](StoredMessage.md#parentmessageid)
+
+***
+
 ### responseDuration?
 
 > `optional` **responseDuration**: `number`
@@ -166,7 +180,7 @@ Defined in: [src/lib/db/chat/types.ts:91](https://github.com/zeta-chain/ai-sdk/b
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L135)
+Defined in: [src/lib/db/chat/types.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L137)
 
 ***
 

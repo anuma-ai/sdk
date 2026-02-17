@@ -19,5 +19,5 @@ Version history:
 * v10: Added projects table and project\_id column to conversations table
 * v11: Added media table for library feature, added file\_ids column to history table
 * v12: Added chunks column to history table for sub-message semantic search
-* v13: Removed memories table (memory storage feature removed)
-* v14: Added memory\_vault table for persistent memory vault
+* v13: Added parent\_message\_id column to history table for message branching (edit/regenerate)
+* v14: Replaced memories table with memory\_vault table for persistent memory vault

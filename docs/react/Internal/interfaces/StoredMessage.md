@@ -98,6 +98,16 @@ Defined in: [src/lib/db/chat/types.ts:93](https://github.com/zeta-chain/ai-sdk/b
 
 ***
 
+### parentMessageId?
+
+> `optional` **parentMessageId**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L114)
+
+Parent message ID for branching (edit/regenerate). Null for root messages.
+
+***
+
 ### responseDuration?
 
 > `optional` **responseDuration**: `number`

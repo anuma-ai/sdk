@@ -110,6 +110,8 @@ export interface StoredMessage {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string;
+  /** Parent message ID for branching (edit/regenerate). Null for root messages. */
+  parentMessageId?: string;
 }
 
 export interface ActivityPhase {
@@ -194,6 +196,8 @@ export interface CreateMessageOptions {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string;
+  /** Parent message ID for branching (edit/regenerate). */
+  parentMessageId?: string;
 }
 
 export interface CreateConversationOptions {
@@ -525,6 +529,9 @@ export interface BaseSendMessageWithStorageArgs {
    * Use this to display thinking progress in the UI.
    */
   onThinking?: (chunk: string) => void;
+
+  /** Parent message ID for branching (edit/regenerate). Sets on the user message. */
+  parentMessageId?: string;
 }
 
 export interface BaseSendMessageSuccessResult {

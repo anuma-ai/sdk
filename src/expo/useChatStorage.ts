@@ -865,6 +865,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        parentMessageId,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1027,6 +1028,7 @@ export function useChatStorage(
         content: contentForStorage,
         files: sanitizedFiles,
         model,
+        parentMessageId,
       };
 
       let storedUserMessage: StoredMessage;
@@ -1198,6 +1200,7 @@ export function useChatStorage(
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
+              parentMessageId: storedUserMessage.uniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
             embedMessageAsync(storedAssistantMessage);
@@ -1254,6 +1257,7 @@ export function useChatStorage(
             sources,
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
+            parentMessageId: storedUserMessage.uniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -1335,6 +1339,10 @@ export function useChatStorage(
         sources: combinedSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         thinking: thinkingContent,
+        // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
+        // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
+        // isn't updated. The client-side mergeParentMessageIds handles this on reload.
+        parentMessageId: storedUserMessage.uniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
