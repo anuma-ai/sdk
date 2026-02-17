@@ -15,8 +15,9 @@ import {
   type ChunkSearchResult,
   generateConversationId,
 } from "./types";
-import { encryptMessageFields, decryptMessageFields } from "./encryption";
+import { encryptMessageFields, decryptMessageFields, isEncrypted } from "./encryption";
 import { encryptConversationFields, decryptConversationFields } from "./conversationEncryption";
+import { decryptJsonField } from "../encryption-utils";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
 export function messageToStoredRaw(message: Message): StoredMessage {
@@ -549,6 +550,30 @@ export async function updateMessageOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/**
+ * Reads a JSON field from a WatermelonDB model using _getRaw, handling encrypted values.
+ * The @json decorator fails on encrypted strings, so this uses _getRaw + manual parsing.
+ */
+async function readJsonField<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  model: any,
+  column: string,
+  walletAddress?: string,
+): Promise<T | undefined> {
+  const raw = model._getRaw(column) as string | undefined;
+  if (!raw) return undefined;
+
+  if (walletAddress && isEncrypted(raw)) {
+    return await decryptJsonField<T>(raw, walletAddress);
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
 
@@ -604,7 +629,7 @@ export async function searchMessagesOp(
     const msgConvId = (message as any)._getRaw("conversation_id") as string;
     if (!activeConversationIds.has(msgConvId)) continue;
 
-    const messageVector = message.vector;
+    const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
     if (!messageVector || messageVector.length === 0) continue;
 
     const similarity = cosineSimilarity(queryVector, messageVector);
@@ -665,7 +690,8 @@ export async function searchChunksOp(
     const msgConvId = (message as any)._getRaw("conversation_id") as string;
     if (!activeConversationIds.has(msgConvId)) continue;
 
-    const chunks = message.chunks;
+    // Use _getRaw to read JSON fields that may be encrypted - the @json decorator fails on encrypted strings
+    const chunks = await readJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
 
     // If message has chunks, search through them
     if (chunks && chunks.length > 0) {
@@ -683,14 +709,14 @@ export async function searchChunksOp(
       }
     } else {
       // Fallback to whole message vector if no chunks
-      const messageVector = message.vector;
+      const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
       if (!messageVector || messageVector.length === 0) continue;
 
       const similarity = cosineSimilarity(queryVector, messageVector);
       if (similarity >= minSimilarity) {
         chunkMatchPromises.push(
           messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
-            (stored) => ({ chunkText: message.content, message: stored, similarity })
+            (stored) => ({ chunkText: stored.content, message: stored, similarity })
           )
         );
       }
@@ -726,10 +752,12 @@ export async function getMessagesWithEmbeddingsOp(
     .fetch();
 
   const filtered = messages.filter((m) => {
-    // Use _getRaw for reliable raw column access
+    // Use _getRaw for reliable raw column access - the @json decorator fails on encrypted strings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msgConvId = (m as any)._getRaw("conversation_id") as string;
-    return m.vector && m.vector.length > 0 && activeConversationIds.has(msgConvId);
+    const raw = m as any;
+    const msgConvId = raw._getRaw("conversation_id") as string;
+    const vectorRaw = raw._getRaw("vector") as string | undefined;
+    return vectorRaw && vectorRaw.length > 0 && activeConversationIds.has(msgConvId);
   });
 
   return Promise.all(
