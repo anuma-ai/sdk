@@ -70,7 +70,7 @@ export function messageToStoredRaw(message: Message): StoredMessage {
     thoughtProcess: parseJsonField(thoughtProcessRaw),
     thinking: message.thinking,
     parentMessageId: message.parentMessageId,
-    feedback: message.feedback,
+    feedback: message.feedback || null,
   };
 }
 
@@ -514,7 +514,7 @@ export async function updateMessageFeedbackOp(
   // Feedback is not encrypted (it's not user-generated content, just a flag)
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      msg._setRaw("feedback", feedback === null ? "" : feedback);
+      msg._setRaw("feedback", feedback ?? null);
     });
   });
 
@@ -578,7 +578,7 @@ export async function updateMessageOp(
       if (encryptedOpts.thinking !== undefined)
         msg._setRaw("thinking", encryptedOpts.thinking === null ? "" : encryptedOpts.thinking);
       if (encryptedOpts.feedback !== undefined)
-        msg._setRaw("feedback", encryptedOpts.feedback === null ? "" : encryptedOpts.feedback);
+        msg._setRaw("feedback", encryptedOpts.feedback);
     });
   });
 
