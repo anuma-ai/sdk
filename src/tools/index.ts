@@ -1,6 +1,6 @@
 /**
  * The `@reverbia/sdk/tools` package provides AI tool configurations for
- * integrating with external services like Google Calendar and Google Drive.
+ * integrating with external services like Google Calendar, Google Drive, and Notion.
  *
  * These tools enable your AI to interact with user data on their behalf,
  * with proper authentication and permission handling.
@@ -40,6 +40,20 @@
  * const driveTools = createDriveTools(
  *   () => getAccessToken('drive'),
  *   () => requestAccess('drive')
+ * );
+ * ```
+ *
+ * ## Notion MCP Tools
+ *
+ * Notion tools use the Model Context Protocol (MCP) to communicate with
+ * Notion's hosted MCP server. No direct API calls needed.
+ *
+ * ```typescript
+ * import { createNotionTools } from "@reverbia/sdk/tools";
+ *
+ * const notionTools = createNotionTools(
+ *   () => getNotionAccessToken(walletAddress, clientId),
+ *   () => requestNotionAccess()
  * );
  * ```
  *
@@ -86,3 +100,23 @@ export type {
   ListRecentFilesArgs,
   GetFileContentArgs,
 } from "./googleDrive";
+
+// Notion MCP exports
+export {
+  createNotionSearchTool,
+  createNotionReadPageTool,
+  createNotionCreatePageTool,
+  createNotionQueryDataSourceTool,
+  createNotionAppendContentTool,
+  createNotionTools,
+  getMCPEndpoints,
+  callNotionMCPTool,
+} from "./notion";
+export type {
+  NotionSearchArgs,
+  NotionRetrievePageArgs,
+  NotionCreatePageArgs,
+  NotionQueryDataSourceArgs,
+  NotionGetPageMarkdownArgs,
+  NotionAppendBlockArgs,
+} from "./notion";
