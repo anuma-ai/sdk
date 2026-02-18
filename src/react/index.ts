@@ -221,6 +221,8 @@ export {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
   type VaultSaveOperation,
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,

@@ -11,6 +11,8 @@ import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import type { EmbeddingOptions } from "../memoryRetrieval/types";
 import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
 
+export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
+
 /**
  * Embedding cache keyed by content string. Stores pre-computed embeddings
  * so that search only needs to embed the query, not the vault entries.

@@ -3,8 +3,8 @@ import { createMemoryVaultTool } from "./tool";
 import {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
-  type VaultEmbeddingCache,
 } from "./searchTool";
+import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryRetrieval/types";
@@ -47,7 +47,7 @@ function makeMemory(id: string, content: string): StoredVaultMemory {
 
 describe("embedding cache lifecycle", () => {
   it("maintains cache consistency across pre-embed → create → update → search", async () => {
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
 
     // Step 1: Pre-embed existing memories (simulates mount)
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([

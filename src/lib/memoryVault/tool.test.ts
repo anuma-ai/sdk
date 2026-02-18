@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMemoryVaultTool } from "./tool";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
-import type { VaultEmbeddingCache } from "./searchTool";
+import { createVaultEmbeddingCache } from "./lruCache";
 
 vi.mock("../db/memoryVault/operations", () => ({
   createVaultMemoryOp: vi.fn(),
@@ -208,7 +208,7 @@ describe("createMemoryVaultTool", () => {
 
   describe("eager embedding", () => {
     const embeddingOptions = { apiKey: "test-key" };
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
 
     beforeEach(() => {
       cache.clear();

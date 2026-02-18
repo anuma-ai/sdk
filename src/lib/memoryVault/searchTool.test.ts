@@ -3,8 +3,8 @@ import {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   eagerEmbedContent,
-  type VaultEmbeddingCache,
 } from "./searchTool";
+import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryRetrieval/types";
@@ -51,7 +51,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("cats are great", [1, 0, 0]); // cos = 1.0
     cache.set("dogs are fun", [0.5, 0.5, 0]); // cos ≈ 0.71
     cache.set("birds can fly", [0, 1, 0]); // cos = 0.0
@@ -80,7 +80,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("high relevance", [1, 0, 0]); // similarity = 1.0
     cache.set("low relevance", [0, 1, 0]); // similarity = 0.0
 
@@ -103,7 +103,7 @@ describe("createMemoryVaultSearchTool", () => {
     ]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("unrelated", [0, 1, 0]);
 
     const tool = createMemoryVaultSearchTool(
@@ -126,7 +126,7 @@ describe("createMemoryVaultSearchTool", () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
     vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("cached content", [1, 0, 0]);
 
     const tool = createMemoryVaultSearchTool(
@@ -153,7 +153,7 @@ describe("createMemoryVaultSearchTool", () => {
       new Error("API rate limit")
     );
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("content", [1, 0, 0]);
 
     const tool = createMemoryVaultSearchTool(
@@ -182,7 +182,7 @@ describe("preEmbedVaultMemories", () => {
       [0, 1, 0],
     ]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
 
     expect(cache.get("first")).toEqual([1, 0, 0]);
@@ -196,7 +196,7 @@ describe("preEmbedVaultMemories", () => {
     ]);
     vi.mocked(generateEmbeddings).mockResolvedValue([[0, 1, 0]]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     cache.set("cached", [1, 0, 0]);
 
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
@@ -214,7 +214,7 @@ describe("eagerEmbedContent", () => {
   it("generates an embedding and stores it in the cache", async () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 2, 3]);
 
-    const cache: VaultEmbeddingCache = new Map();
+    const cache = createVaultEmbeddingCache();
     await eagerEmbedContent("new memory text", mockEmbeddingOptions, cache);
 
     expect(generateEmbedding).toHaveBeenCalledWith(

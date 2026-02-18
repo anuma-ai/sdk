@@ -26,6 +26,8 @@ export {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
 } from "./searchTool";
 
 export type {

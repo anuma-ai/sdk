@@ -107,6 +107,7 @@ import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  createVaultEmbeddingCache,
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
   type MemoryVaultSearchOptions,
@@ -1057,7 +1058,7 @@ export function useChatStorage(
    * Shared embedding cache for vault memories.
    * Pre-populated on init so that search only needs to embed the query.
    */
-  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(new Map());
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
   // Pre-embed vault memories on mount
   useEffect(() => {
