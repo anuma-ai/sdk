@@ -172,11 +172,13 @@ export {
   type ChunkSearchResult,
   type ServerToolsFilter,
   type ServerToolsFilterFn,
+  type MessageFeedback,
   generateConversationId,
   updateConversationProjectOp,
   getConversationsByProjectOp,
   searchChunksOp,
   searchMessagesOp,
+  updateMessageFeedbackOp,
 } from "../lib/db/chat";
 
 // Project storage exports

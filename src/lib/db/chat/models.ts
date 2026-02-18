@@ -8,6 +8,7 @@ import type {
   SearchSource,
   ActivityPhase,
   MessageChunk,
+  MessageFeedback,
 } from "./types";
 
 export class Message extends Model {
@@ -40,6 +41,7 @@ export class Message extends Model {
   @json("thought_process", (json) => json) thoughtProcess?: ActivityPhase[];
   @text("thinking") thinking?: string;
   @text("parent_message_id") parentMessageId?: string;
+  @text("feedback") feedback?: MessageFeedback;
 }
 
 export class Conversation extends Model {

@@ -1,6 +1,6 @@
 # StoredFileWithContext
 
-Defined in: [src/lib/db/chat/types.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L171)
+Defined in: [src/lib/db/chat/types.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L181)
 
 File metadata with conversation context for file browsing.
 Extends FileMetadata with information about where the file was used.
@@ -15,7 +15,7 @@ Extends FileMetadata with information about where the file was used.
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:173](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L173)
+Defined in: [src/lib/db/chat/types.ts:183](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L183)
 
 ID of the conversation where this file was attached
 
@@ -25,7 +25,7 @@ ID of the conversation where this file was attached
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/types.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L175)
+Defined in: [src/lib/db/chat/types.ts:185](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L185)
 
 Timestamp when the file was stored (from the message)
 
@@ -35,7 +35,7 @@ Timestamp when the file was stored (from the message)
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L48)
+Defined in: [src/lib/db/chat/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L56)
 
 Unique identifier for the file (used as OPFS key for cached files)
 
@@ -49,7 +49,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **messageRole**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:177](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L177)
+Defined in: [src/lib/db/chat/types.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L187)
 
 Role of the message that contains this file
 
@@ -59,7 +59,7 @@ Role of the message that contains this file
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L50)
+Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
 
 Display name of the file
 
@@ -73,7 +73,7 @@ Display name of the file
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L54)
+Defined in: [src/lib/db/chat/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L62)
 
 File size in bytes
 
@@ -87,7 +87,7 @@ File size in bytes
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L70)
+Defined in: [src/lib/db/chat/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L78)
 
 Original external URL for files downloaded and cached locally (e.g., from MCP R2).
 Used purely for URL→OPFS mapping to enable fallback when the source returns 404.
@@ -105,7 +105,7 @@ The file content is served from OPFS using the `id` field.
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L52)
+Defined in: [src/lib/db/chat/types.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L60)
 
 MIME type (e.g., "image/png")
 
@@ -119,7 +119,7 @@ MIME type (e.g., "image/png")
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L62)
+Defined in: [src/lib/db/chat/types.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L70)
 
 Content URL to include when sending this message to the AI.
 When present, this URL is added as an `image_url` content part.
