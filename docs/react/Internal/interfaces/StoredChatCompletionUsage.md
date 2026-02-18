@@ -1,6 +1,6 @@
 # StoredChatCompletionUsage
 
-Defined in: [src/lib/db/chat/types.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L73)
+Defined in: [src/lib/db/chat/types.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L81)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:73](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **completionTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L75)
+Defined in: [src/lib/db/chat/types.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L83)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:75](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **costMicroUsd**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L77)
+Defined in: [src/lib/db/chat/types.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L85)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:77](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **creditsUsed**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L78)
+Defined in: [src/lib/db/chat/types.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L86)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/chat/types.ts:78](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **promptTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L74)
+Defined in: [src/lib/db/chat/types.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L82)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/db/chat/types.ts:74](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **totalTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L76)
+Defined in: [src/lib/db/chat/types.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L84)

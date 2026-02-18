@@ -30,8 +30,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v11: Added media table for library feature, added file_ids column to history table
  * - v12: Added chunks column to history table for sub-message semantic search
  * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
+ * - v14: Added feedback column to history table for like/dislike on responses
  */
-export const SDK_SCHEMA_VERSION = 13;
+export const SDK_SCHEMA_VERSION = 14;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -90,6 +91,7 @@ export const sdkSchema = appSchema({
         { name: "thought_process", type: "string", isOptional: true }, // JSON stringified ActivityPhase[]
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
+        { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
       ],
     }),
     tableSchema({
@@ -216,6 +218,7 @@ export const sdkSchema = appSchema({
  * - v10 → v11: Added `media` table for library feature, added `file_ids` column to history
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
  * - v12 → v13: Added `parent_message_id` column to history table for message branching
+ * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -388,6 +391,18 @@ export const sdkMigrations = schemaMigrations({
           table: "history",
           columns: [
             { name: "parent_message_id", type: "string", isOptional: true },
+          ],
+        }),
+      ],
+    },
+    // v13 -> v14: Added feedback column to history for like/dislike on responses
+    {
+      toVersion: 14,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [
+            { name: "feedback", type: "string", isOptional: true },
           ],
         }),
       ],

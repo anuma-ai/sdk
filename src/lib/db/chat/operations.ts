@@ -13,6 +13,7 @@ import {
   type UpdateMessageOptions,
   type MessageChunk,
   type ChunkSearchResult,
+  type MessageFeedback,
   generateConversationId,
 } from "./types";
 import { encryptMessageFields, decryptMessageFields, isEncrypted } from "./encryption";
@@ -69,6 +70,7 @@ export function messageToStoredRaw(message: Message): StoredMessage {
     thoughtProcess: parseJsonField(thoughtProcessRaw),
     thinking: message.thinking,
     parentMessageId: message.parentMessageId,
+    feedback: message.feedback || null,
   };
 }
 
@@ -488,6 +490,37 @@ export async function updateMessageErrorOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+/**
+ * Update the feedback (like/dislike) for a message.
+ * Each regenerated response can have its own independent feedback.
+ *
+ * @param ctx - Storage operations context
+ * @param uniqueId - The unique ID of the message to update
+ * @param feedback - 'like', 'dislike', or null to clear feedback
+ * @returns The updated message or null if not found
+ */
+export async function updateMessageFeedbackOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  feedback: MessageFeedback
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  // Feedback is not encrypted (it's not user-generated content, just a flag)
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("feedback", feedback ?? null);
+    });
+  });
+
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
 export async function updateMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
@@ -544,6 +577,8 @@ export async function updateMessageOp(
       }
       if (encryptedOpts.thinking !== undefined)
         msg._setRaw("thinking", encryptedOpts.thinking === null ? "" : encryptedOpts.thinking);
+      if (encryptedOpts.feedback !== undefined)
+        msg._setRaw("feedback", encryptedOpts.feedback);
     });
   });
 

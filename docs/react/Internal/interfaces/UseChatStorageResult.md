@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L569)
+Defined in: [src/lib/db/chat/types.ts:581](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L581)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:569](https://github.com/zeta-chain/ai-sdk/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:571](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L571)
+Defined in: [src/lib/db/chat/types.ts:583](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L583)
 
 **Parameters**
 
@@ -142,7 +142,7 @@ await sendMessage({
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:577](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L577)
+Defined in: [src/lib/db/chat/types.ts:589](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L589)
 
 **Parameters**
 
@@ -263,7 +263,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:574](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L574)
+Defined in: [src/lib/db/chat/types.ts:586](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L586)
 
 **Parameters**
 
@@ -304,7 +304,7 @@ Defined in: [src/lib/db/chat/types.ts:574](https://github.com/zeta-chain/ai-sdk/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:575](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L575)
+Defined in: [src/lib/db/chat/types.ts:587](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L587)
 
 **Returns**
 
@@ -320,7 +320,7 @@ Defined in: [src/lib/db/chat/types.ts:575](https://github.com/zeta-chain/ai-sdk/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:578](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L578)
+Defined in: [src/lib/db/chat/types.ts:590](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L590)
 
 **Parameters**
 
@@ -361,7 +361,7 @@ Defined in: [src/lib/db/chat/types.ts:578](https://github.com/zeta-chain/ai-sdk/
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L567)
+Defined in: [src/lib/db/chat/types.ts:579](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L579)
 
 **Inherited from**
 
@@ -1022,7 +1022,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:570](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L570)
+Defined in: [src/lib/db/chat/types.ts:582](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L582)
 
 **Parameters**
 
@@ -1063,7 +1063,7 @@ Defined in: [src/lib/db/chat/types.ts:570](https://github.com/zeta-chain/ai-sdk/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:568](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L568)
+Defined in: [src/lib/db/chat/types.ts:580](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L580)
 
 **Returns**
 
@@ -1079,7 +1079,7 @@ Defined in: [src/lib/db/chat/types.ts:568](https://github.com/zeta-chain/ai-sdk/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:576](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L576)
+Defined in: [src/lib/db/chat/types.ts:588](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L588)
 
 **Parameters**
 
