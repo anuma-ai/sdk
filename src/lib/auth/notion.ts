@@ -1,18 +1,21 @@
 /**
- * Notion MCP OAuth 2.0 with PKCE (Proof Key for Code Exchange)
+ * Notion MCP OAuth 2.0 with PKCE and Dynamic Client Registration (RFC 7591)
  *
  * This is a fully client-side OAuth implementation - NO BACKEND REQUIRED.
+ * Uses Dynamic Client Registration - no pre-configured client ID needed.
  * PKCE eliminates the need for a client secret by using a code verifier/challenge pair.
  *
  * Tokens are encrypted using the user's wallet-derived encryption key before storage,
  * ensuring privacy-first token persistence.
  *
  * Flow:
- * 1. Generate code_verifier (random string) and code_challenge (SHA-256 hash)
- * 2. Redirect to Notion OAuth with code_challenge
- * 3. User approves access
- * 4. Exchange auth code + code_verifier for tokens (no secret needed)
- * 5. Encrypt and store tokens in localStorage using wallet-derived key
+ * 1. Discover OAuth endpoints from /.well-known/ URLs
+ * 2. Dynamically register client (RFC 7591) to get client_id
+ * 3. Generate code_verifier (random string) and code_challenge (SHA-256 hash)
+ * 4. Redirect to Notion OAuth with code_challenge
+ * 5. User approves access
+ * 6. Exchange auth code + code_verifier for tokens (no secret needed)
+ * 7. Encrypt and store tokens in localStorage using wallet-derived key
  *
  * @see https://developers.notion.com/guides/mcp/build-mcp-client
  */
@@ -30,11 +33,17 @@ const PKCE_STORAGE_KEY = "notion_oauth_pkce";
 const RETURN_URL_KEY = "notion_return_url";
 const PENDING_MESSAGE_KEY = "notion_pending_message";
 const CLIENT_REGISTRATION_KEY = "notion_oauth_client";
+const OAUTH_METADATA_KEY = "notion_oauth_metadata";
 
-// Notion OAuth endpoints
+// Notion MCP endpoints for discovery
 const NOTION_MCP_BASE = "https://mcp.notion.com";
-const NOTION_OAUTH_AUTHORIZE = "https://api.notion.com/v1/oauth/authorize";
-const NOTION_OAUTH_TOKEN = "https://api.notion.com/v1/oauth/token";
+const WELL_KNOWN_RESOURCE = `${NOTION_MCP_BASE}/.well-known/oauth-protected-resource`;
+
+// Fallback OAuth endpoints (used if discovery fails)
+const FALLBACK_AUTH_SERVER = "https://api.notion.com";
+const FALLBACK_OAUTH_AUTHORIZE = "https://api.notion.com/v1/oauth/authorize";
+const FALLBACK_OAUTH_TOKEN = "https://api.notion.com/v1/oauth/token";
+const FALLBACK_REGISTRATION = "https://api.notion.com/v1/oauth/register";
 
 // Encrypted storage prefix
 const ENCRYPTED_PREFIX = "enc:oauth:";
@@ -47,11 +56,175 @@ interface StoredTokenData {
   scope?: string;
 }
 
-// Client registration data
+// Client registration data (from dynamic registration)
 interface ClientRegistration {
   clientId: string;
   clientSecret?: string;
   registeredAt: number;
+  redirectUri: string;
+}
+
+// OAuth server metadata (from discovery)
+interface OAuthMetadata {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  registration_endpoint?: string;
+  scopes_supported?: string[];
+  response_types_supported?: string[];
+  code_challenge_methods_supported?: string[];
+}
+
+// Resource server metadata
+interface ResourceMetadata {
+  resource: string;
+  authorization_servers: string[];
+}
+
+// ============================================================================
+// OAUTH DISCOVERY (RFC 8414)
+// ============================================================================
+
+/**
+ * Discover OAuth server metadata from well-known endpoints
+ * This follows the OAuth 2.0 Authorization Server Metadata spec (RFC 8414)
+ */
+async function discoverOAuthMetadata(): Promise<OAuthMetadata> {
+  try {
+    // Step 1: Get protected resource metadata to find authorization server
+    const resourceResponse = await fetch(WELL_KNOWN_RESOURCE);
+    if (!resourceResponse.ok) {
+      throw new Error(`Resource discovery failed: ${resourceResponse.status}`);
+    }
+    const resourceData: ResourceMetadata = await resourceResponse.json();
+
+    // Get the authorization server URL
+    const authServer = resourceData.authorization_servers?.[0];
+    if (!authServer) {
+      throw new Error("No authorization server found in resource metadata");
+    }
+
+    // Step 2: Get authorization server metadata
+    const authServerMetadataUrl = `${authServer}/.well-known/oauth-authorization-server`;
+    const metadataResponse = await fetch(authServerMetadataUrl);
+    if (!metadataResponse.ok) {
+      throw new Error(`Auth server metadata fetch failed: ${metadataResponse.status}`);
+    }
+
+    const metadata: OAuthMetadata = await metadataResponse.json();
+
+    // Cache metadata for future use
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(OAUTH_METADATA_KEY, JSON.stringify(metadata));
+    }
+
+    return metadata;
+  } catch (error) {
+    console.warn("OAuth discovery failed, using fallback endpoints:", error);
+
+    // Return fallback metadata
+    return {
+      authorization_endpoint: FALLBACK_OAUTH_AUTHORIZE,
+      token_endpoint: FALLBACK_OAUTH_TOKEN,
+      registration_endpoint: FALLBACK_REGISTRATION,
+      code_challenge_methods_supported: ["S256"],
+    };
+  }
+}
+
+/**
+ * Get cached OAuth metadata or discover it
+ */
+async function getOAuthMetadata(): Promise<OAuthMetadata> {
+  if (typeof window !== "undefined") {
+    const cached = sessionStorage.getItem(OAUTH_METADATA_KEY);
+    if (cached) {
+      try {
+        return JSON.parse(cached) as OAuthMetadata;
+      } catch {
+        // Invalid cache, re-discover
+      }
+    }
+  }
+  return discoverOAuthMetadata();
+}
+
+// ============================================================================
+// DYNAMIC CLIENT REGISTRATION (RFC 7591)
+// ============================================================================
+
+/**
+ * Register a new OAuth client dynamically
+ * This follows RFC 7591 - OAuth 2.0 Dynamic Client Registration
+ */
+async function registerClient(
+  registrationEndpoint: string,
+  redirectUri: string
+): Promise<ClientRegistration> {
+  const clientName = "Reverbia";
+
+  const registrationRequest = {
+    client_name: clientName,
+    redirect_uris: [redirectUri],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none", // Public client (PKCE)
+  };
+
+  const response = await fetch(registrationEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(registrationRequest),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      `Client registration failed: ${response.status} - ${JSON.stringify(errorData)}`
+    );
+  }
+
+  const data = await response.json();
+
+  if (!data.client_id) {
+    throw new Error("No client_id in registration response");
+  }
+
+  const registration: ClientRegistration = {
+    clientId: data.client_id,
+    clientSecret: data.client_secret,
+    registeredAt: Date.now(),
+    redirectUri,
+  };
+
+  // Store registration for reuse
+  storeClientRegistration(registration);
+
+  return registration;
+}
+
+/**
+ * Ensure we have a valid client registration for the given redirect URI
+ * Returns existing registration if valid, or registers a new client
+ */
+async function ensureClientRegistration(
+  redirectUri: string
+): Promise<ClientRegistration> {
+  // Check for existing registration
+  const existing = getClientRegistration();
+  if (existing && existing.redirectUri === redirectUri) {
+    return existing;
+  }
+
+  // Need to register a new client
+  const metadata = await getOAuthMetadata();
+
+  if (!metadata.registration_endpoint) {
+    throw new Error("OAuth server does not support dynamic client registration");
+  }
+
+  return registerClient(metadata.registration_endpoint, redirectUri);
 }
 
 // ============================================================================
@@ -311,42 +484,25 @@ function storeClientRegistration(registration: ClientRegistration): void {
   localStorage.setItem(CLIENT_REGISTRATION_KEY, JSON.stringify(registration));
 }
 
-/**
- * Ensure client is registered (stores the provided client ID)
- */
-async function ensureClientRegistration(
-  clientId: string
-): Promise<ClientRegistration> {
-  const existing = getClientRegistration();
-  if (existing && existing.clientId === clientId) {
-    return existing;
-  }
-
-  const registration: ClientRegistration = {
-    clientId,
-    registeredAt: Date.now(),
-  };
-  storeClientRegistration(registration);
-
-  return registration;
-}
-
 // ============================================================================
 // OAUTH FLOW
 // ============================================================================
 
 /**
- * Start the Notion OAuth flow with PKCE
+ * Start the Notion OAuth flow with PKCE and Dynamic Client Registration
  * Redirects to Notion authorization page
  *
- * @param clientId - Your Notion OAuth client ID
+ * No client ID needed - uses dynamic registration (RFC 7591)
+ *
  * @param callbackPath - The path for OAuth callback (e.g., "/auth/notion/callback")
  */
-export async function startNotionAuth(
-  clientId: string,
-  callbackPath: string
-): Promise<never> {
-  await ensureClientRegistration(clientId);
+export async function startNotionAuth(callbackPath: string): Promise<never> {
+  // Get redirect URI and ensure client is registered
+  const redirectUri = getRedirectUri(callbackPath);
+  const registration = await ensureClientRegistration(redirectUri);
+
+  // Get OAuth metadata for authorization endpoint
+  const metadata = await getOAuthMetadata();
 
   // Generate PKCE values
   const codeVerifier = generateCodeVerifier();
@@ -357,10 +513,9 @@ export async function startNotionAuth(
   storePKCEState({ codeVerifier, codeChallenge, state });
   storeNotionReturnUrl();
 
-  // Build authorization URL
-  const redirectUri = getRedirectUri(callbackPath);
+  // Build authorization URL using discovered endpoint and registered client
   const params = new URLSearchParams({
-    client_id: clientId,
+    client_id: registration.clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     state,
@@ -369,7 +524,7 @@ export async function startNotionAuth(
     owner: "user",
   });
 
-  window.location.href = `${NOTION_OAUTH_AUTHORIZE}?${params.toString()}`;
+  window.location.href = `${metadata.authorization_endpoint}?${params.toString()}`;
 
   return new Promise(() => {});
 }
@@ -406,12 +561,10 @@ export function isNotionCallback(callbackPath: string): boolean {
  *
  * @param callbackPath - The callback path used during authorization
  * @param walletAddress - Wallet address for token encryption (optional)
- * @param clientId - Your Notion OAuth client ID
  */
 export async function handleNotionCallback(
   callbackPath: string,
-  walletAddress: string | undefined,
-  clientId: string
+  walletAddress: string | undefined
 ): Promise<string | null> {
   if (typeof window === "undefined") return null;
 
@@ -432,21 +585,33 @@ export async function handleNotionCallback(
     throw new Error("Invalid OAuth state - possible CSRF attack");
   }
 
+  // Get stored client registration (created during startNotionAuth)
+  const registration = getClientRegistration();
+  if (!registration) {
+    throw new Error("No client registration found - OAuth flow may have been interrupted");
+  }
+
+  // Get OAuth metadata for token endpoint
+  const metadata = await getOAuthMetadata();
+
   // Exchange code for tokens (direct to Notion - no backend needed)
   const redirectUri = getRedirectUri(callbackPath);
 
-  const tokenResponse = await fetch(NOTION_OAUTH_TOKEN, {
+  // Build form-urlencoded body (required by Notion's token endpoint)
+  const tokenBody = new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+    client_id: registration.clientId,
+    code_verifier: pkceState.codeVerifier,
+  });
+
+  const tokenResponse = await fetch(metadata.token_endpoint, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: JSON.stringify({
-      grant_type: "authorization_code",
-      code,
-      redirect_uri: redirectUri,
-      client_id: clientId,
-      code_verifier: pkceState.codeVerifier,
-    }),
+    body: tokenBody.toString(),
   });
 
   if (!tokenResponse.ok) {
@@ -486,25 +651,37 @@ export async function handleNotionCallback(
  * Refresh the access token using the refresh token
  */
 export async function refreshNotionToken(
-  walletAddress: string | undefined,
-  clientId: string
+  walletAddress: string | undefined
 ): Promise<string | null> {
   const storedData = await getStoredTokenData(walletAddress);
   const refreshToken = storedData?.refreshToken;
 
   if (!refreshToken) return null;
 
+  // Get stored client registration
+  const registration = getClientRegistration();
+  if (!registration) {
+    console.error("No client registration found for token refresh");
+    return null;
+  }
+
+  // Get OAuth metadata for token endpoint
+  const metadata = await getOAuthMetadata();
+
   try {
-    const response = await fetch(NOTION_OAUTH_TOKEN, {
+    // Build form-urlencoded body (required by Notion's token endpoint)
+    const refreshBody = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: registration.clientId,
+    });
+
+    const response = await fetch(metadata.token_endpoint, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-        client_id: clientId,
-      }),
+      body: refreshBody.toString(),
     });
 
     if (!response.ok) {
@@ -550,8 +727,7 @@ export async function refreshNotionToken(
  * Get a valid access token, refreshing if necessary
  */
 export async function getNotionAccessToken(
-  walletAddress: string | undefined,
-  clientId: string
+  walletAddress: string | undefined
 ): Promise<string | null> {
   const storedData = await getStoredTokenData(walletAddress);
 
@@ -566,7 +742,7 @@ export async function getNotionAccessToken(
 
   // Try to refresh
   if (storedData.refreshToken) {
-    const refreshedToken = await refreshNotionToken(walletAddress, clientId);
+    const refreshedToken = await refreshNotionToken(walletAddress);
     if (refreshedToken) {
       return refreshedToken;
     }

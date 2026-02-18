@@ -19,16 +19,131 @@ const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
 const MCP_SSE_ENDPOINT = "https://mcp.notion.com/sse";
 
 // ============================================================================
-// MCP CLIENT
+// MCP CLIENT WITH SESSION MANAGEMENT
 // ============================================================================
 
 let requestIdCounter = 0;
+
+// Session cache: token -> sessionId
+const sessionCache = new Map<string, string>();
 
 /**
  * Generate a unique request ID for JSON-RPC
  */
 function generateRequestId(): number {
   return ++requestIdCounter;
+}
+
+/**
+ * Parse SSE (Server-Sent Events) response to extract JSON-RPC data
+ */
+function parseSSEResponse(text: string): unknown {
+  const lines = text.split("\n");
+  let jsonData = "";
+
+  for (const line of lines) {
+    if (line.startsWith("data: ")) {
+      jsonData += line.slice(6);
+    }
+  }
+
+  if (!jsonData) {
+    throw new Error("No data found in SSE response");
+  }
+
+  return JSON.parse(jsonData);
+}
+
+/**
+ * Parse response body - handles both JSON and SSE formats
+ */
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const contentType = response.headers.get("Content-Type") || "";
+  const text = await response.text();
+
+  // If it's SSE format, parse it
+  if (
+    contentType.includes("text/event-stream") ||
+    text.startsWith("event:") ||
+    text.startsWith("data:")
+  ) {
+    return parseSSEResponse(text);
+  }
+
+  // Otherwise parse as JSON
+  return JSON.parse(text);
+}
+
+/**
+ * Initialize an MCP session and get a session ID
+ */
+async function initializeMCPSession(accessToken: string): Promise<string> {
+  const requestId = generateRequestId();
+
+  const initRequest = {
+    jsonrpc: "2.0",
+    id: requestId,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: {
+        name: "Reverbia",
+        version: "1.0.0",
+      },
+    },
+  };
+
+  const response = await fetch(MCP_HTTP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(initRequest),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    );
+  }
+
+  // Get session ID from response header
+  const sessionId = response.headers.get("Mcp-Session-Id");
+  if (!sessionId) {
+    throw new Error("No Mcp-Session-Id returned from initialization");
+  }
+
+  // Cache the session
+  sessionCache.set(accessToken, sessionId);
+
+  // Parse and validate response (handles both JSON and SSE)
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<
+    string,
+    unknown
+  >;
+  if (jsonRpcResponse.error) {
+    const err = jsonRpcResponse.error as Record<string, unknown>;
+    throw new Error(
+      `MCP initialization error: ${err.message || JSON.stringify(err)}`
+    );
+  }
+
+  return sessionId;
+}
+
+/**
+ * Get or create an MCP session for the given access token
+ */
+async function ensureMCPSession(accessToken: string): Promise<string> {
+  const cached = sessionCache.get(accessToken);
+  if (cached) {
+    return cached;
+  }
+  return initializeMCPSession(accessToken);
 }
 
 /**
@@ -43,6 +158,9 @@ async function callMCPTool<T>(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<T> {
+  // Ensure we have a session
+  const sessionId = await ensureMCPSession(accessToken);
+
   const requestId = generateRequestId();
 
   const jsonRpcRequest = {
@@ -59,12 +177,51 @@ async function callMCPTool<T>(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
       Authorization: `Bearer ${accessToken}`,
+      "Mcp-Session-Id": sessionId,
     },
     body: JSON.stringify(jsonRpcRequest),
   });
 
   if (!response.ok) {
+    // If session expired, try to re-initialize
+    if (response.status === 400 || response.status === 401) {
+      sessionCache.delete(accessToken);
+      // Retry with new session
+      const newSessionId = await initializeMCPSession(accessToken);
+
+      const retryResponse = await fetch(MCP_HTTP_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          Authorization: `Bearer ${accessToken}`,
+          "Mcp-Session-Id": newSessionId,
+        },
+        body: JSON.stringify(jsonRpcRequest),
+      });
+
+      if (!retryResponse.ok) {
+        const errorBody = await retryResponse.text().catch(() => "");
+        throw new Error(
+          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+        );
+      }
+
+      const retryJsonRpcResponse = (await parseResponseBody(
+        retryResponse
+      )) as Record<string, unknown>;
+      if (retryJsonRpcResponse.error) {
+        const err = retryJsonRpcResponse.error as Record<string, unknown>;
+        throw new Error(
+          `MCP tool error: ${err.message || JSON.stringify(err)}`
+        );
+      }
+
+      return retryJsonRpcResponse.result as T;
+    }
+
     // Try to get error details from response
     const errorBody = await response.text().catch(() => "");
     throw new Error(
@@ -72,13 +229,15 @@ async function callMCPTool<T>(
     );
   }
 
-  const jsonRpcResponse = await response.json();
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<
+    string,
+    unknown
+  >;
 
   // Check for JSON-RPC error
   if (jsonRpcResponse.error) {
-    throw new Error(
-      `MCP tool error: ${jsonRpcResponse.error.message || JSON.stringify(jsonRpcResponse.error)}`
-    );
+    const err = jsonRpcResponse.error as Record<string, unknown>;
+    throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
   }
 
   return jsonRpcResponse.result as T;
@@ -152,7 +311,8 @@ export function createNotionSearchTool(
         properties: {
           query: {
             type: "string",
-            description: "Search query to match against page and database titles",
+            description:
+              "Search query to match against page and database titles (required, min 1 character)",
           },
           filter: {
             type: "string",
@@ -164,6 +324,7 @@ export function createNotionSearchTool(
             description: "Maximum number of results (default: 10, max: 100)",
           },
         },
+        required: ["query"],
       },
     },
     executor: async (args: Record<string, unknown>) => {
@@ -186,7 +347,7 @@ export function createNotionSearchTool(
       }
 
       try {
-        return await callMCPTool(token, "search-notion", mcpArgs);
+        return await callMCPTool(token, "notion-search", mcpArgs as Record<string, unknown>);
       } catch (error) {
         return `Error searching Notion: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -236,27 +397,14 @@ export function createNotionReadPageTool(
       }
 
       const pageId = args.page_id as string;
-      const includeContent = args.include_content !== false;
 
       try {
-        // Get page metadata
-        const metadata = await callMCPTool(token, "retrieve-a-page", {
-          page_id: pageId,
+        // Use notion-fetch to get page content
+        const result = await callMCPTool(token, "notion-fetch", {
+          resource_uri: `notion://page/${pageId}`,
         });
 
-        if (includeContent) {
-          // Get page content as markdown
-          const content = await callMCPTool(token, "get-a-page-as-markdown", {
-            page_id: pageId,
-          });
-
-          return {
-            metadata,
-            content,
-          };
-        }
-
-        return metadata;
+        return result;
       } catch (error) {
         return `Error reading Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -338,7 +486,7 @@ export function createNotionCreatePageTool(
           mcpArgs.markdown = content;
         }
 
-        return await callMCPTool(token, "create-a-page", mcpArgs);
+        return await callMCPTool(token, "notion-create-pages", mcpArgs);
       } catch (error) {
         return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -405,7 +553,7 @@ export function createNotionQueryDataSourceTool(
       }
 
       try {
-        return await callMCPTool(token, "query-data-source", args);
+        return await callMCPTool(token, "notion-query-data-sources", args);
       } catch (error) {
         return `Error querying Notion database: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -459,8 +607,8 @@ export function createNotionAppendContentTool(
       const content = args.content as string;
 
       try {
-        return await callMCPTool(token, "append-a-block", {
-          block_id: pageId,
+        return await callMCPTool(token, "notion-update-page", {
+          page_id: pageId,
           markdown: content,
         });
       } catch (error) {
