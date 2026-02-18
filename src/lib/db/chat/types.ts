@@ -36,6 +36,14 @@ export type ServerToolsFilter = string[] | ServerToolsFilterFn;
 export type ChatRole = "user" | "assistant" | "system";
 
 /**
+ * Feedback type for message like/dislike.
+ * - 'like': User liked the response (thumbs up)
+ * - 'dislike': User disliked the response (thumbs down)
+ * - null/undefined: No feedback given
+ */
+export type MessageFeedback = "like" | "dislike" | null;
+
+/**
  * Metadata for files attached to messages.
  *
  * Note the distinction between `url` and `sourceUrl`:
@@ -112,6 +120,8 @@ export interface StoredMessage {
   thinking?: string;
   /** Parent message ID for branching (edit/regenerate). Null for root messages. */
   parentMessageId?: string;
+  /** User feedback: 'like', 'dislike', or null for no feedback */
+  feedback?: MessageFeedback;
 }
 
 export interface ActivityPhase {
@@ -224,6 +234,8 @@ export interface UpdateMessageOptions {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string | null;
+  /** User feedback: 'like', 'dislike', or null for no feedback */
+  feedback?: MessageFeedback | null;
 }
 
 // Hook types

@@ -24,7 +24,7 @@ Data URL or blob URL containing file content
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L47)
+Defined in: [src/lib/db/chat/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L55)
 
 Unique identifier for the file (used as OPFS key for cached files)
 
@@ -38,7 +38,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L49)
+Defined in: [src/lib/db/chat/types.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L57)
 
 Display name of the file
 
@@ -52,7 +52,7 @@ Display name of the file
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L53)
+Defined in: [src/lib/db/chat/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L61)
 
 File size in bytes
 
@@ -66,7 +66,7 @@ File size in bytes
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L69)
+Defined in: [src/lib/db/chat/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L77)
 
 Original external URL for files downloaded and cached locally (e.g., from MCP R2).
 Used purely for URL→OPFS mapping to enable fallback when the source returns 404.
@@ -84,7 +84,7 @@ The file content is served from OPFS using the `id` field.
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L51)
+Defined in: [src/lib/db/chat/types.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L59)
 
 MIME type (e.g., "image/png")
 
@@ -98,7 +98,7 @@ MIME type (e.g., "image/png")
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L61)
+Defined in: [src/lib/db/chat/types.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L69)
 
 Content URL to include when sending this message to the AI.
 When present, this URL is added as an `image_url` content part.

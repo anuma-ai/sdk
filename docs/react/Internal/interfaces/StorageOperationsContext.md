@@ -1,6 +1,6 @@
 # StorageOperationsContext
 
-Defined in: [src/lib/db/chat/operations.ts:126](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L126)
+Defined in: [src/lib/db/chat/operations.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L129)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/operations.ts:126](https://github.com/zeta-chain/ai
 
 > **conversationsCollection**: `Collection`<[`ChatConversation`](../classes/ChatConversation.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L129)
+Defined in: [src/lib/db/chat/operations.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L132)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/operations.ts:129](https://github.com/zeta-chain/ai
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/operations.ts:127](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L127)
+Defined in: [src/lib/db/chat/operations.ts:130](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L130)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/operations.ts:127](https://github.com/zeta-chain/ai
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/db/chat/operations.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L135)
+Defined in: [src/lib/db/chat/operations.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L138)
 
 Function for silent signing with embedded wallets
 
@@ -34,7 +34,7 @@ Function for silent signing with embedded wallets
 
 > **messagesCollection**: `Collection`<[`ChatMessage`](../classes/ChatMessage.md)>
 
-Defined in: [src/lib/db/chat/operations.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L128)
+Defined in: [src/lib/db/chat/operations.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L131)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/chat/operations.ts:128](https://github.com/zeta-chain/ai
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/db/chat/operations.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L133)
+Defined in: [src/lib/db/chat/operations.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L136)
 
 Function to sign a message for encryption key derivation
 
@@ -52,6 +52,6 @@ Function to sign a message for encryption key derivation
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/chat/operations.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L131)
+Defined in: [src/lib/db/chat/operations.ts:134](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L134)
 
 Wallet address for encryption (optional - when present, enables field-level encryption)
