@@ -125,6 +125,7 @@ export {
   clearNotionToken,
   hasNotionCredentials,
   migrateNotionToken,
+  migrateNotionClientRegistration,
   storeNotionReturnUrl,
   getAndClearNotionReturnUrl,
   storeNotionPendingMessage,

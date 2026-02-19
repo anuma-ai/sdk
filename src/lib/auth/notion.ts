@@ -47,6 +47,18 @@ const PENDING_MESSAGE_KEY = "notion_pending_message";
 const CLIENT_REGISTRATION_KEY = "notion_oauth_client";
 const OAUTH_METADATA_KEY = "notion_oauth_metadata";
 
+/**
+ * Get wallet-scoped storage key for client registration.
+ * With wallet: "notion_oauth_client:{walletAddress}" (per-user isolation)
+ * Without wallet: "notion_oauth_client" (fallback for sessionStorage / legacy)
+ */
+function getClientRegistrationStorageKey(walletAddress?: string): string {
+  if (walletAddress) {
+    return `${CLIENT_REGISTRATION_KEY}:${walletAddress}`;
+  }
+  return CLIENT_REGISTRATION_KEY;
+}
+
 // Notion MCP endpoints for discovery
 const NOTION_MCP_BASE = "https://mcp.notion.com";
 const WELL_KNOWN_RESOURCE = `${NOTION_MCP_BASE}/.well-known/oauth-protected-resource`;
@@ -174,7 +186,8 @@ async function getOAuthMetadata(): Promise<OAuthMetadata> {
  */
 async function registerClient(
   registrationEndpoint: string,
-  redirectUri: string
+  redirectUri: string,
+  walletAddress?: string
 ): Promise<ClientRegistration> {
   const clientName = "Reverbia";
 
@@ -214,8 +227,8 @@ async function registerClient(
     redirectUri,
   };
 
-  // Store registration for reuse
-  storeClientRegistration(registration);
+  // Store registration for reuse (encrypted if wallet available)
+  await storeClientRegistration(registration, walletAddress);
 
   return registration;
 }
@@ -225,11 +238,17 @@ async function registerClient(
  * Returns existing registration if valid, or registers a new client
  */
 async function ensureClientRegistration(
-  redirectUri: string
+  redirectUri: string,
+  walletAddress?: string
 ): Promise<ClientRegistration> {
   // Check for existing registration
-  const existing = getClientRegistration();
+  const existing = await getClientRegistration(walletAddress);
   if (existing && existing.redirectUri === redirectUri) {
+    // Always write a sessionStorage copy so the callback page can read it
+    // even if the encryption key isn't initialized yet after the redirect.
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(CLIENT_REGISTRATION_KEY, JSON.stringify(existing));
+    }
     return existing;
   }
 
@@ -240,7 +259,7 @@ async function ensureClientRegistration(
     throw new Error("OAuth server does not support dynamic client registration");
   }
 
-  return registerClient(metadata.registration_endpoint, redirectUri);
+  return registerClient(metadata.registration_endpoint, redirectUri, walletAddress);
 }
 
 // ============================================================================
@@ -481,31 +500,154 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
   }
 }
 
+/**
+ * Migrate unencrypted client registration to encrypted format.
+ * Call this when wallet/encryption key becomes available.
+ *
+ * Checks two sources:
+ * 1. sessionStorage fallback (from startNotionAuth when wallet was unavailable)
+ * 2. Legacy plain-text localStorage (from before encryption was added)
+ */
+export async function migrateNotionClientRegistration(
+  walletAddress: string
+): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
+
+  try {
+    // Source 1: sessionStorage fallback
+    const sessionStored = sessionStorage.getItem(CLIENT_REGISTRATION_KEY);
+
+    // Source 2: legacy unencrypted localStorage
+    const legacyStored = localStorage.getItem(CLIENT_REGISTRATION_KEY);
+    const isLegacyUnencrypted =
+      legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+
+    // Pick the freshest source (prefer sessionStorage if both exist)
+    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    if (!unencryptedJson) return false;
+
+    // Check if we already have an encrypted registration for this wallet
+    const scopedKey = getClientRegistrationStorageKey(walletAddress);
+    const existingEncrypted = localStorage.getItem(scopedKey);
+    if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
+      // Already migrated -- just clean up unencrypted sources
+      sessionStorage.removeItem(CLIENT_REGISTRATION_KEY);
+      if (isLegacyUnencrypted) {
+        localStorage.removeItem(CLIENT_REGISTRATION_KEY);
+      }
+      return true;
+    }
+
+    // Parse and re-store with encryption
+    const data = JSON.parse(unencryptedJson) as ClientRegistration;
+    await storeClientRegistration(data, walletAddress);
+
+    // Verify encryption succeeded
+    const migrated = localStorage.getItem(scopedKey);
+    if (!migrated?.startsWith(ENCRYPTED_PREFIX)) {
+      return false;
+    }
+
+    // Clear unencrypted sources only after confirmed migration
+    sessionStorage.removeItem(CLIENT_REGISTRATION_KEY);
+    if (isLegacyUnencrypted) {
+      localStorage.removeItem(CLIENT_REGISTRATION_KEY);
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================================
 // CLIENT REGISTRATION
 // ============================================================================
 
 /**
- * Get stored client registration
+ * Get stored client registration with decryption using wallet-derived CryptoKey
+ *
+ * @param walletAddress - Wallet address to get the decryption key
  */
-function getClientRegistration(): ClientRegistration | null {
+async function getClientRegistration(
+  walletAddress?: string
+): Promise<ClientRegistration | null> {
   if (typeof window === "undefined") return null;
 
   try {
-    const stored = localStorage.getItem(CLIENT_REGISTRATION_KEY);
-    if (!stored) return null;
-    return JSON.parse(stored) as ClientRegistration;
+    // Check encrypted storage first (localStorage, wallet-scoped key)
+    const scopedKey = getClientRegistrationStorageKey(walletAddress);
+    const stored = localStorage.getItem(scopedKey);
+
+    if (stored?.startsWith(ENCRYPTED_PREFIX)) {
+      if (walletAddress && hasEncryptionKey(walletAddress)) {
+        try {
+          const cryptoKey = await getEncryptionKey(walletAddress);
+          const encrypted = stored.slice(ENCRYPTED_PREFIX.length);
+          const decrypted = await decryptDataWithKey(encrypted, cryptoKey);
+          const data = JSON.parse(decrypted) as ClientRegistration;
+          if (data.clientId) {
+            return data;
+          }
+        } catch {
+          // Decryption failed, fall through to sessionStorage
+        }
+      }
+      // Key not ready or decryption failed — fall through to sessionStorage
+    }
+
+    // Check for unencrypted data in localStorage (legacy / pre-migration)
+    if (stored && !stored.startsWith(ENCRYPTED_PREFIX)) {
+      const data = JSON.parse(stored) as ClientRegistration;
+      if (!data.clientId) return null;
+      return data;
+    }
+
+    // Check sessionStorage fallback
+    const sessionStored = sessionStorage.getItem(CLIENT_REGISTRATION_KEY);
+    if (sessionStored) {
+      const data = JSON.parse(sessionStored) as ClientRegistration;
+      if (!data.clientId) return null;
+      return data;
+    }
+
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Store client registration
+ * Store client registration with encryption using wallet-derived CryptoKey
+ *
+ * @param registration - Client registration data to store
+ * @param walletAddress - Wallet address to get the encryption key
  */
-function storeClientRegistration(registration: ClientRegistration): void {
+async function storeClientRegistration(
+  registration: ClientRegistration,
+  walletAddress?: string
+): Promise<void> {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLIENT_REGISTRATION_KEY, JSON.stringify(registration));
+
+  const json = JSON.stringify(registration);
+
+  // Always store in sessionStorage so the registration survives the OAuth
+  // redirect even if the encryption key isn't available yet on the callback page.
+  // Migration will clean this up once the encrypted copy is confirmed.
+  sessionStorage.setItem(CLIENT_REGISTRATION_KEY, json);
+
+  // Also store encrypted in localStorage for persistence across sessions
+  if (walletAddress && hasEncryptionKey(walletAddress)) {
+    try {
+      const cryptoKey = await getEncryptionKey(walletAddress);
+      const encrypted = await encryptDataWithKey(json, cryptoKey);
+      const scopedKey = getClientRegistrationStorageKey(walletAddress);
+      localStorage.setItem(scopedKey, `${ENCRYPTED_PREFIX}${encrypted}`);
+    } catch {
+      // Encryption failed; sessionStorage fallback is already in place
+    }
+  }
 }
 
 // ============================================================================
@@ -520,10 +662,13 @@ function storeClientRegistration(registration: ClientRegistration): void {
  *
  * @param callbackPath - The path for OAuth callback (e.g., "/auth/notion/callback")
  */
-export async function startNotionAuth(callbackPath: string): Promise<never> {
+export async function startNotionAuth(
+  callbackPath: string,
+  walletAddress?: string
+): Promise<never> {
   // Get redirect URI and ensure client is registered
   const redirectUri = getRedirectUri(callbackPath);
-  const registration = await ensureClientRegistration(redirectUri);
+  const registration = await ensureClientRegistration(redirectUri, walletAddress);
 
   // Get OAuth metadata for authorization endpoint
   const metadata = await getOAuthMetadata();
@@ -610,7 +755,7 @@ export async function handleNotionCallback(
   }
 
   // Get stored client registration (created during startNotionAuth)
-  const registration = getClientRegistration();
+  const registration = await getClientRegistration(walletAddress);
   if (!registration) {
     throw new Error("No client registration found - OAuth flow may have been interrupted");
   }
@@ -694,7 +839,7 @@ export async function refreshNotionToken(
   if (!refreshToken) return null;
 
   // Get stored client registration
-  const registration = getClientRegistration();
+  const registration = await getClientRegistration(walletAddress);
   if (!registration) {
     // No client registration found, user needs to re-authenticate
     return null;
@@ -724,7 +869,7 @@ export async function refreshNotionToken(
 
       // If invalid_grant, user needs to re-authenticate
       if (errorData.error === "invalid_grant") {
-        clearNotionToken();
+        clearNotionToken(walletAddress);
         return null;
       }
 
@@ -763,7 +908,7 @@ export async function refreshNotionToken(
     return tokenData.access_token;
   } catch {
     // Refresh failed, clearing stored token
-    clearNotionToken();
+    clearNotionToken(walletAddress);
     return null;
   }
 }
@@ -795,13 +940,6 @@ export async function getNotionAccessToken(
     if (refreshedToken) {
       return refreshedToken;
     }
-  }
-
-  // Fallback: return token if no expiry info
-  if (storedData.accessToken && !storedData.expiresAt) {
-    cachedAccessToken = storedData.accessToken;
-    cachedExpiresAt = null;
-    return storedData.accessToken;
   }
 
   cachedAccessToken = null;
@@ -841,7 +979,12 @@ export function hasNotionCredentials(walletAddress?: string): boolean {
  */
 export function revokeNotionAccess(walletAddress?: string): void {
   clearNotionToken(walletAddress);
+  // Clear wallet-scoped encrypted client registration
+  localStorage.removeItem(getClientRegistrationStorageKey(walletAddress));
+  // Clear legacy unencrypted client registration
   localStorage.removeItem(CLIENT_REGISTRATION_KEY);
+  // Clear sessionStorage fallback
+  sessionStorage.removeItem(CLIENT_REGISTRATION_KEY);
 }
 
 // ============================================================================
