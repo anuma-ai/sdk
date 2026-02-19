@@ -138,6 +138,20 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
     );
   }
 
+  // Send required notifications/initialized to complete the MCP handshake
+  await fetch(MCP_HTTP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "Mcp-Session-Id": sessionId,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    }),
+  });
+
   // Cache only after successful validation
   sessionCache.set(accessToken, sessionId);
 
