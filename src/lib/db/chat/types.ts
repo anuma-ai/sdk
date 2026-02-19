@@ -536,6 +536,9 @@ export interface BaseSendMessageWithStorageArgs {
    */
   thinking?: LlmapiThinkingOptions;
 
+  /** User-selected image generation model for server-side enforcement. */
+  imageModel?: string;
+
   /**
    * Per-request callback for thinking/reasoning chunks.
    * Called with delta chunks as the model "thinks" through a problem.

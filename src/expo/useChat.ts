@@ -190,6 +190,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       toolChoice,
       reasoning,
       thinking,
+      imageModel,
       apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       const effectiveApiType = requestApiType ?? defaultApiType;
@@ -626,6 +627,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               toolChoice,
                               reasoning,
                               thinking,
+                              imageModel,
                             });
 
                           continuationXhr.send(
@@ -695,6 +697,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             toolChoice,
             reasoning,
             thinking,
+            imageModel,
           });
 
           // Debug: Log the full request body to see image format
