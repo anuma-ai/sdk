@@ -22,7 +22,7 @@ const MCP_SSE_ENDPOINT = "https://mcp.notion.com/sse";
 // MCP CLIENT WITH SESSION MANAGEMENT
 // ============================================================================
 
-let requestIdCounter = 0;
+let requestIdCounter = Math.floor(Math.random() * 1000000);
 
 // Session cache: token -> sessionId
 const sessionCache = new Map<string, string>();
@@ -282,8 +282,6 @@ export interface NotionMovePagesArgs {
   page_or_database_ids: string[];
   new_parent: Record<string, unknown>;
 }
-
-
 
 // ============================================================================
 // SEARCH TOOL
