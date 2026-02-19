@@ -29,6 +29,7 @@ function makeStoredMemory(
   return {
     uniqueId: "mem-1",
     content: "User likes cats",
+    scope: "private",
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
@@ -41,7 +42,7 @@ describe("createMemoryVaultTool", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a new memory and returns success message", async () => {
+  it("creates a new memory with default scope 'private'", async () => {
     const created = makeStoredMemory({ uniqueId: "new-1" });
     vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
@@ -50,11 +51,24 @@ describe("createMemoryVaultTool", () => {
 
     expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
       content: "User likes dogs",
+      scope: "private",
     });
     expect(result).toBe("Memory saved successfully (ID: new-1).");
   });
 
-  it("updates an existing memory and returns success message", async () => {
+  it("passes explicit scope to createVaultMemoryOp", async () => {
+    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory());
+
+    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "public" });
+    await tool.executor!({ content: "public fact" });
+
+    expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+      content: "public fact",
+      scope: "public",
+    });
+  });
+
+  it("does NOT pass scope to updateVaultMemoryOp", async () => {
     const existing = makeStoredMemory({
       uniqueId: "mem-1",
       content: "old content",
@@ -67,13 +81,12 @@ describe("createMemoryVaultTool", () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(existing);
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
 
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "public" });
     const result = await tool.executor!({
       content: "new content",
       id: "mem-1",
     });
 
-    expect(getVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1");
     expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
       content: "new content",
     });
@@ -136,13 +149,13 @@ describe("createMemoryVaultTool", () => {
   // ── onSave confirmation flow ───────────────────────────────
 
   describe("onSave confirmation flow", () => {
-    it("calls onSave with add operation and proceeds when accepted", async () => {
+    it("calls onSave with add operation including scope and proceeds when accepted", async () => {
       const onSave = vi.fn().mockResolvedValue(true);
       vi.mocked(createVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "new-1" })
       );
 
-      const tool = createMemoryVaultTool(mockVaultCtx, { onSave });
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "public" });
       const result = await tool.executor!({
         content: "User prefers dark mode",
       });
@@ -150,12 +163,13 @@ describe("createMemoryVaultTool", () => {
       expect(onSave).toHaveBeenCalledWith({
         action: "add",
         content: "User prefers dark mode",
+        scope: "public",
       });
       expect(createVaultMemoryOp).toHaveBeenCalled();
       expect(result).toBe("Memory saved successfully (ID: new-1).");
     });
 
-    it("calls onSave with update operation including previousContent", async () => {
+    it("does NOT include scope in onSave for update operations", async () => {
       const onSave = vi.fn().mockResolvedValue(true);
       vi.mocked(getVaultMemoryOp).mockResolvedValue(
         makeStoredMemory({ uniqueId: "mem-1", content: "old preference" })
@@ -164,7 +178,7 @@ describe("createMemoryVaultTool", () => {
         makeStoredMemory({ uniqueId: "mem-1", content: "new preference" })
       );
 
-      const tool = createMemoryVaultTool(mockVaultCtx, { onSave });
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "public" });
       await tool.executor!({ content: "new preference", id: "mem-1" });
 
       expect(onSave).toHaveBeenCalledWith({

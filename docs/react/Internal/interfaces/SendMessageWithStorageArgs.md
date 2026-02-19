@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:340](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L340)
+Defined in: [src/react/useChatStorage.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L339)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:355](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L355)
+Defined in: [src/react/useChatStorage.ts:354](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L354)
 
 Override the API type for this specific request.
 
@@ -46,7 +46,7 @@ These tools run in the browser/app and can have JavaScript executor functions.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:363](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L363)
+Defined in: [src/react/useChatStorage.ts:362](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L362)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -113,7 +113,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:346](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L346)
+Defined in: [src/react/useChatStorage.ts:345](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L345)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.

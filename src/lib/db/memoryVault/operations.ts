@@ -24,6 +24,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
   return {
     uniqueId: memory.id,
     content: memory.content,
+    scope: memory.scope,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -47,6 +48,7 @@ export async function createVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   opts: CreateVaultMemoryOptions
 ): Promise<StoredVaultMemory> {
+  const scope = opts.scope ?? "private";
   const encryptedContent =
     ctx.walletAddress && ctx.signMessage
       ? await encryptVaultMemoryContent(
@@ -60,6 +62,7 @@ export async function createVaultMemoryOp(
   const created = await ctx.database.write(async () => {
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
+      record._setRaw("scope", scope);
       record._setRaw("is_deleted", false);
     });
   });
@@ -91,10 +94,16 @@ export async function getVaultMemoryOp(
 }
 
 export async function getAllVaultMemoriesOp(
-  ctx: VaultMemoryOperationsContext
+  ctx: VaultMemoryOperationsContext,
+  options?: { scopes?: string[] }
 ): Promise<StoredVaultMemory[]> {
+  const conditions = [
+    Q.where("is_deleted", false),
+    ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    Q.sortBy("created_at", Q.desc),
+  ];
   const results = await ctx.vaultMemoryCollection
-    .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
+    .query(...conditions)
     .fetch();
 
   return Promise.all(
@@ -131,6 +140,9 @@ export async function updateVaultMemoryOp(
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("content", encryptedContent);
+        if (opts.scope !== undefined) {
+          r._setRaw("scope", opts.scope);
+        }
       });
     });
 

@@ -24,6 +24,7 @@ export type {
 
 export {
   createMemoryVaultSearchTool,
+  searchVaultMemories,
   preEmbedVaultMemories,
   eagerEmbedContent,
   createVaultEmbeddingCache,
@@ -31,6 +32,7 @@ export {
 } from "./searchTool";
 
 export type {
+  VaultSearchResult,
   VaultEmbeddingCache,
   MemoryVaultSearchOptions,
 } from "./searchTool";

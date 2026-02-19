@@ -23,6 +23,8 @@ export interface VaultSaveOperation {
   action: "add" | "update";
   /** The memory content to save */
   content: string;
+  /** The scope of the memory (only present for add operations) */
+  scope?: string;
   /** The ID of the memory being updated (only present for updates) */
   id?: string;
   /** The previous content of the memory (only present for updates, for diff display) */
@@ -42,6 +44,12 @@ export interface MemoryVaultToolOptions {
    * autoExecute: false so the host app can handle it via onToolCall.
    */
   onSave?: (operation: VaultSaveOperation) => Promise<boolean>;
+
+  /**
+   * Scope to assign to new memories. Defaults to "private".
+   * This is injected by the client, not controlled by the LLM.
+   */
+  scope?: string;
 }
 
 /**
@@ -128,9 +136,11 @@ export function createMemoryVaultTool(
         }
 
         // Build the operation descriptor for the confirmation callback
+        const scope = options?.scope ?? "private";
         const operation: VaultSaveOperation = {
           action: isUpdate ? "update" : "add",
           content,
+          ...(!isUpdate && { scope }),
           ...(isUpdate && { id, previousContent }),
         };
 
@@ -159,7 +169,7 @@ export function createMemoryVaultTool(
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
-          const created = await createVaultMemoryOp(vaultCtx, { content });
+          const created = await createVaultMemoryOp(vaultCtx, { content, scope });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
             eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});

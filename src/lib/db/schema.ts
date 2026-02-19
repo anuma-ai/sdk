@@ -32,8 +32,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
  * - v14: Added feedback column to history table for like/dislike on responses
  * - v15: Replaced memories table with memory_vault table for persistent memory vault
+ * - v16: Added scope column to memory_vault table for memory partitioning
  */
-export const SDK_SCHEMA_VERSION = 15;
+export const SDK_SCHEMA_VERSION = 16;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -149,6 +150,7 @@ export const sdkSchema = appSchema({
       name: "memory_vault",
       columns: [
         { name: "content", type: "string" },
+        { name: "scope", type: "string", isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
@@ -211,6 +213,7 @@ export const sdkSchema = appSchema({
  * - v12 → v13: Added `parent_message_id` column to history table for message branching
  * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
+ * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -413,6 +416,19 @@ export const sdkMigrations = schemaMigrations({
             { name: "is_deleted", type: "boolean", isIndexed: true },
           ],
         }),
+      ],
+    },
+    // v15 -> v16: Added scope column to memory_vault for memory partitioning
+    {
+      toVersion: 16,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "scope", type: "string", isIndexed: true }],
+        }),
+        unsafeExecuteSql(
+          "UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';"
+        ),
       ],
     },
   ],
