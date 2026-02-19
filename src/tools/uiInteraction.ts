@@ -260,5 +260,6 @@ export function createDisplayTool<TArgs = any, TResult = any>(
       return result;
     },
     autoExecute: true,
+    skipContinuation: true,
   };
 }

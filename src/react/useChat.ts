@@ -547,6 +547,29 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             // before creating continuation smoothers (prevents interleaved output)
             await thinkingSmoother.drain();
 
+            // If all executed tools have skipContinuation, don't send results
+            // back to the model. This prevents display-only tools (charts, weather)
+            // from triggering redundant continuation requests.
+            const allSkipContinuation = toolCallsToExecute.every(
+              (tc) => executorMap.get(tc.name)?.skipContinuation === true
+            );
+
+            if (allSkipContinuation) {
+              console.log("[Tool Debug] All tools have skipContinuation, returning without continuation");
+              const response = strategy.buildFinalResponse(accumulator);
+              if (onFinish) {
+                onFinish(response);
+              }
+              return {
+                data: response,
+                error: null,
+                toolsChecksum: accumulator.toolsChecksum,
+                autoExecutedToolResults: executionResults
+                  .filter((r) => !r.error && r.name)
+                  .map((r) => ({ name: r.name!, result: r.result })),
+              };
+            }
+
             // Build tool result messages to send back to the model
             const toolResultMessages: LlmapiMessage[] = [];
 
