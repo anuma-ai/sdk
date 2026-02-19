@@ -352,6 +352,8 @@ export type SendMessageWithStorageResult =
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
+      /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
+      autoExecutedToolResults?: { name: string; result: any }[];
     }
   | {
       data: ApiResponse;
@@ -2329,6 +2331,51 @@ export function useChatStorage(
       // They remain valid for 3 days (presigned) and let the LLM
       // reference images for editing. No permanent data loss.
 
+      // Store auto-executed tool results (e.g. display_chart) as a user message
+      // so they persist across page refreshes and can be rendered by the app.
+      const autoToolResults = (result as any).autoExecutedToolResults as
+        | { name: string; result: any }[]
+        | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolSummary = autoToolResults
+          .map(
+            (r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`
+          )
+          .join("\n\n");
+        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        try {
+          await writeOrQueue(
+            "createMessage",
+            {
+              conversationId: convId,
+              role: "user",
+              content: toolResultContent,
+              model: "",
+              parentMessageId: storedUserMessage.uniqueId,
+            },
+            () =>
+              createMessageOp(storageCtx, {
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            () =>
+              makeSyntheticStoredMessage({
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            userMsgQueueId ? [userMsgQueueId] : []
+          );
+        } catch {
+          // Non-critical — the tool result will still be available in memory
+        }
+      }
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
@@ -2410,6 +2457,7 @@ export function useChatStorage(
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        autoExecutedToolResults: (result as any).autoExecutedToolResults,
       };
     },
     [

@@ -313,17 +313,6 @@ export {
   deleteMediaByMessageOp,
 } from "../lib/db/media";
 
-// Display interaction storage (resolved display tool outputs, e.g. charts)
-export {
-  DisplayInteraction,
-  type StoredDisplayInteraction,
-  type CreateDisplayInteractionOptions,
-  type DisplayInteractionOperationsContext,
-  generateDisplayInteractionId,
-  createDisplayInteractionOp,
-  getDisplayInteractionsByConversationOp,
-  deleteDisplayInteractionsByConversationOp,
-} from "../lib/db/displayInteraction";
 
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";

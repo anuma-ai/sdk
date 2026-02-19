@@ -13,7 +13,7 @@ import { Memory } from "./memory/models";
 import { Media } from "./media/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
-import { DisplayInteraction } from "./displayInteraction/models";
+
 
 /**
  * Current combined schema version for all SDK storage modules.
@@ -474,5 +474,4 @@ export const sdkModelClasses: Class<Model>[] = [
   Media,
   ModelPreference,
   UserPreference,
-  DisplayInteraction,
 ];

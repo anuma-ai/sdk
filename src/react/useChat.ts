@@ -63,12 +63,20 @@ type SendMessageArgs = BaseSendMessageArgs & {
   apiType?: ApiType;
 };
 
+/** A tool result from an auto-executed tool (e.g. display tools). */
+type AutoExecutedToolResult = {
+  name: string;
+  result: any;
+};
+
 type SendMessageResult =
   | {
       data: ApiResponse;
       error: null;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** Results from tools that were auto-executed by the SDK */
+      autoExecutedToolResults?: AutoExecutedToolResult[];
     }
   | {
       data: ApiResponse | null;
@@ -706,6 +714,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               data: finalResponse,
               error: null,
               toolsChecksum: continuationAccumulator.toolsChecksum,
+              autoExecutedToolResults: executionResults
+                .filter((r) => !r.error && r.name)
+                .map((r) => ({ name: r.name!, result: r.result })),
             };
           }
         }
