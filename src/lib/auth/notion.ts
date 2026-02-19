@@ -29,6 +29,18 @@ import {
 
 // Storage keys
 const TOKEN_STORAGE_KEY = "oauth_token_notion";
+
+/**
+ * Get wallet-scoped storage key for localStorage.
+ * With wallet: "oauth_token_notion:{walletAddress}" (per-user isolation)
+ * Without wallet: "oauth_token_notion" (fallback for sessionStorage / legacy)
+ */
+function getTokenStorageKey(walletAddress?: string): string {
+  if (walletAddress) {
+    return `${TOKEN_STORAGE_KEY}:${walletAddress}`;
+  }
+  return TOKEN_STORAGE_KEY;
+}
 const PKCE_STORAGE_KEY = "notion_oauth_pkce";
 const RETURN_URL_KEY = "notion_return_url";
 const PENDING_MESSAGE_KEY = "notion_pending_message";
@@ -334,7 +346,7 @@ async function storeTokenData(
       const cryptoKey = await getEncryptionKey(walletAddress);
       // Encrypt using the CryptoKey
       const encrypted = await encryptDataWithKey(json, cryptoKey);
-      localStorage.setItem(TOKEN_STORAGE_KEY, `${ENCRYPTED_PREFIX}${encrypted}`);
+      localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
       return;
     } catch {
       // Encryption failed, fall through to sessionStorage
@@ -360,8 +372,8 @@ async function getStoredTokenData(
   if (typeof window === "undefined") return null;
 
   try {
-    // Check encrypted storage first (localStorage)
-    const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    // Check encrypted storage first (localStorage, wallet-scoped key)
+    const stored = localStorage.getItem(getTokenStorageKey(walletAddress));
     if (stored?.startsWith(ENCRYPTED_PREFIX)) {
       if (!walletAddress) {
         // Encrypted token found but no wallet address to decrypt
@@ -406,9 +418,9 @@ async function getStoredTokenData(
 /**
  * Clear stored token data from all storage locations
  */
-export function clearNotionToken(): void {
+export function clearNotionToken(walletAddress?: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(getTokenStorageKey(walletAddress));
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   cachedAccessToken = null;
   cachedExpiresAt = null;
@@ -443,9 +455,10 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
 
     // If localStorage has a stale encrypted token, remove it so the fresh
     // sessionStorage token takes precedence during migration.
-    const localStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const scopedKey = getTokenStorageKey(walletAddress);
+    const localStored = localStorage.getItem(scopedKey);
     if (localStored?.startsWith(ENCRYPTED_PREFIX)) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(scopedKey);
     }
 
     // Migrate: encrypt and move to localStorage
@@ -453,7 +466,7 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
     await storeTokenData(data, walletAddress);
 
     // Verify encryption succeeded (token landed in localStorage, not sessionStorage fallback)
-    const migrated = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const migrated = localStorage.getItem(scopedKey);
     if (!migrated?.startsWith(ENCRYPTED_PREFIX)) {
       return false;
     }
@@ -813,10 +826,10 @@ export function getValidNotionToken(): string | null {
 /**
  * Check if we have any stored Notion credentials
  */
-export function hasNotionCredentials(): boolean {
+export function hasNotionCredentials(walletAddress?: string): boolean {
   if (typeof window === "undefined") return false;
 
-  const localStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const localStored = localStorage.getItem(getTokenStorageKey(walletAddress));
   const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 
   return !!(localStored || sessionStored);
@@ -826,8 +839,8 @@ export function hasNotionCredentials(): boolean {
  * Revoke Notion access (clears local tokens)
  * Note: User must revoke via Notion settings for complete revocation
  */
-export function revokeNotionAccess(): void {
-  clearNotionToken();
+export function revokeNotionAccess(walletAddress?: string): void {
+  clearNotionToken(walletAddress);
   localStorage.removeItem(CLIENT_REGISTRATION_KEY);
 }
 
