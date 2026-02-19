@@ -352,7 +352,7 @@ function getAndClearPKCEState(): PKCEState | null {
  */
 async function storeTokenData(
   data: StoredTokenData,
-  walletAddress: string
+  walletAddress?: string
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
@@ -394,30 +394,18 @@ async function getStoredTokenData(
     // Check encrypted storage first (localStorage, wallet-scoped key)
     const stored = localStorage.getItem(getTokenStorageKey(walletAddress));
     if (stored?.startsWith(ENCRYPTED_PREFIX)) {
-      if (!walletAddress) {
-        // Encrypted token found but no wallet address to decrypt
-        return null;
+      if (walletAddress && hasEncryptionKey(walletAddress)) {
+        try {
+          const cryptoKey = await getEncryptionKey(walletAddress);
+          const encrypted = stored.slice(ENCRYPTED_PREFIX.length);
+          const decrypted = await decryptDataWithKey(encrypted, cryptoKey);
+          const data = JSON.parse(decrypted) as StoredTokenData;
+          if (data.accessToken) return data;
+        } catch {
+          // Decryption failed, fall through to sessionStorage
+        }
       }
-
-      // Check if we have the encryption key to decrypt
-      if (!hasEncryptionKey(walletAddress)) {
-        // Encryption key not yet available
-        return null;
-      }
-
-      try {
-        // Get the CryptoKey derived from wallet signature
-        const cryptoKey = await getEncryptionKey(walletAddress);
-        const encrypted = stored.slice(ENCRYPTED_PREFIX.length);
-        // Decrypt using the CryptoKey
-        const decrypted = await decryptDataWithKey(encrypted, cryptoKey);
-        const data = JSON.parse(decrypted) as StoredTokenData;
-        if (!data.accessToken) return null;
-        return data;
-      } catch {
-        // Decryption failed, token may be corrupted
-        return null;
-      }
+      // No wallet, key not ready, or decryption failed — fall through to sessionStorage
     }
 
     // Check unencrypted storage (sessionStorage fallback)
@@ -810,12 +798,7 @@ export async function handleNotionCallback(
   }
 
   // Store tokens (encrypted if wallet available, sessionStorage otherwise)
-  if (walletAddress) {
-    await storeTokenData(storedData, walletAddress);
-  } else {
-    // No wallet, store unencrypted in sessionStorage via empty-string fallback
-    await storeTokenData(storedData, "");
-  }
+  await storeTokenData(storedData, walletAddress);
 
   // Update in-memory cache
   cachedAccessToken = tokenData.access_token;
@@ -895,11 +878,7 @@ export async function refreshNotionToken(
       newStoredData.expiresAt = Date.now() + DEFAULT_TOKEN_EXPIRY_SECONDS * 1000;
     }
 
-    if (walletAddress) {
-      await storeTokenData(newStoredData, walletAddress);
-    } else {
-      await storeTokenData(newStoredData, "");
-    }
+    await storeTokenData(newStoredData, walletAddress);
 
     // Update in-memory cache
     cachedAccessToken = tokenData.access_token;

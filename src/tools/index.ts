@@ -126,5 +126,4 @@ export type {
   NotionCreatePagesArgs,
   NotionUpdatePageArgs,
   NotionMovePagesArgs,
-
 } from "./notion";

@@ -40,7 +40,8 @@ function generateRequestId(): number {
 function parseSSEResponse(text: string): unknown {
   // Split into individual SSE events (separated by blank lines)
   const events = text.split(/\n\n+/);
-  let jsonData = "";
+  // Use the last non-empty event (MCP sends one JSON-RPC response per request)
+  let lastEventData = "";
 
   for (const event of events) {
     const dataLines: string[] = [];
@@ -52,15 +53,16 @@ function parseSSEResponse(text: string): unknown {
       }
     }
     if (dataLines.length > 0) {
-      jsonData = dataLines.join("\n");
+      // Per SSE spec, multiple data fields within one event are joined with \n
+      lastEventData = dataLines.join("\n");
     }
   }
 
-  if (!jsonData) {
+  if (!lastEventData) {
     throw new Error("No data found in SSE response");
   }
 
-  return JSON.parse(jsonData);
+  return JSON.parse(lastEventData);
 }
 
 /**
