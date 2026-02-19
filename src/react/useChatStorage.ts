@@ -92,10 +92,33 @@ import {
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 
+import {
+  type VaultMemoryOperationsContext,
+  type StoredVaultMemory,
+  getAllVaultMemoriesOp,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+import { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  createMemoryVaultTool as createMemoryVaultToolBase,
+  createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
+  searchVaultMemories as searchVaultMemoriesBase,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  createVaultEmbeddingCache,
+  type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
+  type VaultSearchResult,
+} from "../lib/memoryVault";
+
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -446,6 +469,73 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   ) => ToolConfig;
 
   /**
+   * Create a memory vault tool for LLM to save/update persistent memories.
+   * The tool is pre-configured with the hook's vault context and encryption.
+   *
+   * @param options - Optional configuration (onSave callback for confirmation)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /**
+   * Create a memory vault search tool for LLM to search vault memories
+   * using semantic similarity. Pre-configured with vault context, auth, and
+   * a shared embedding cache that is pre-populated on init.
+   *
+   * @param searchOptions - Optional search configuration (limit, minSimilarity)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultSearchTool: (
+    searchOptions?: MemoryVaultSearchOptions
+  ) => ToolConfig;
+
+  /**
+   * Search vault memories programmatically using semantic similarity.
+   * Returns structured results sorted by descending similarity.
+   * Gracefully returns [] when auth is unavailable.
+   *
+   * @param query - Natural language search query
+   * @param searchOptions - Optional search configuration (limit, minSimilarity, scopes)
+   */
+  searchVaultMemories: (
+    query: string,
+    searchOptions?: MemoryVaultSearchOptions
+  ) => Promise<VaultSearchResult[]>;
+
+  /**
+   * The shared vault embedding cache. Use this to eagerly embed content
+   * when saving vault memories (via eagerEmbedContent).
+   */
+  vaultEmbeddingCache: VaultEmbeddingCache;
+
+  /**
+   * Get all vault memories for context injection.
+   * Returns non-deleted memories sorted by creation date (newest first).
+   * @param options - Optional filtering (scopes to include)
+   */
+  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+
+  /**
+   * Create a new vault memory with the given content.
+   * @param content - The memory text
+   * @param scope - Optional scope (defaults to "private")
+   */
+  createVaultMemory: (content: string, scope?: string) => Promise<StoredVaultMemory>;
+
+  /**
+   * Update an existing vault memory's content.
+   * @param scope - Optional new scope for the memory
+   * @returns the updated memory, or null if not found
+   */
+  updateVaultMemory: (id: string, content: string, scope?: string) => Promise<StoredVaultMemory | null>;
+
+  /**
+   * Delete a vault memory by its ID (soft delete).
+   * @returns true if the memory was found and deleted
+   */
+  deleteVaultMemory: (id: string) => Promise<boolean>;
+
+  /**
    * Manually flush all queued operations for the current wallet.
    * Operations are encrypted and written to the database.
    * Requires the encryption key to be available.
@@ -622,6 +712,22 @@ export function useChatStorage(
       embeddedWalletSigner,
     }),
     [database, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // Memory vault operations context
+  const vaultMemoryCollection = useMemo(
+    () => database.get<VaultMemory>("memory_vault"),
+    [database]
+  );
+  const vaultCtx = useMemo<VaultMemoryOperationsContext>(
+    () => ({
+      database,
+      vaultMemoryCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    }),
+    [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   // ── Queue Management ──
@@ -884,6 +990,146 @@ export function useChatStorage(
       );
     },
     [storageCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create a memory vault tool pre-configured with hook's vault context and encryption
+   */
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
+      return createMemoryVaultToolBase(
+        vaultCtx,
+        options,
+        embOpts,
+        embOpts ? vaultEmbeddingCacheRef.current : undefined
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Get all vault memories (for injecting as context into messages)
+   */
+  const getVaultMemories = useCallback(
+    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+      return getAllVaultMemoriesOp(vaultCtx, options);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Create a new vault memory (for manual creation from UI)
+   */
+  const createVaultMemory = useCallback(
+    async (content: string, scope?: string): Promise<StoredVaultMemory> => {
+      const result = await createVaultMemoryOp(vaultCtx, { content, scope });
+      if (getToken) {
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Update a vault memory's content (for manual editing from UI)
+   */
+  const updateVaultMemory = useCallback(
+    async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope });
+      if (result && getToken) {
+        if (existing) {
+          vaultEmbeddingCacheRef.current.delete(existing.content);
+        }
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Delete a vault memory by ID (for manual deletion from UI)
+   */
+  const deleteVaultMemory = useCallback(
+    async (id: string): Promise<boolean> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await deleteVaultMemoryOp(vaultCtx, id);
+      if (result && existing) {
+        vaultEmbeddingCacheRef.current.delete(existing.content);
+      }
+      return result;
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Shared embedding cache for vault memories.
+   * Pre-populated on init so that search only needs to embed the query.
+   */
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
+
+  // Pre-embed vault memories on mount
+  useEffect(() => {
+    if (!getToken) return;
+    (async () => {
+      try {
+        await preEmbedVaultMemories(
+          vaultCtx,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        );
+      } catch {
+        // Non-critical: embeddings will be generated on first search
+      }
+    })();
+  }, [vaultCtx, getToken, baseUrl, embeddingModel]);
+
+  /**
+   * Create a vault search tool pre-configured with hook's context, auth, and cache
+   */
+  const createMemoryVaultSearchTool = useCallback(
+    (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for memory vault search tool");
+      }
+      return createMemoryVaultSearchToolBase(
+        vaultCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingCacheRef.current,
+        searchOptions
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Search vault memories programmatically (e.g., for pre-retrieval injection).
+   * Returns [] instead of throwing when getToken is null — pre-retrieval should
+   * never crash the submit path.
+   */
+  const searchVaultMemoriesFn = useCallback(
+    async (query: string, searchOptions?: MemoryVaultSearchOptions): Promise<VaultSearchResult[]> => {
+      if (!getToken) return [];
+      return searchVaultMemoriesBase(
+        query,
+        vaultCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingCacheRef.current,
+        searchOptions
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook
@@ -1651,6 +1897,7 @@ export function useChatStorage(
         reasoning,
         thinking,
         onThinking,
+        imageModel,
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
@@ -1753,6 +2000,7 @@ export function useChatStorage(
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
         });
 
@@ -2139,6 +2387,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         onThinking,
         apiType: requestApiType,
       });
@@ -2457,6 +2706,14 @@ export function useChatStorage(
     getMessages,
     getAllFiles,
     createMemoryRetrievalTool,
+    createMemoryVaultTool,
+    createMemoryVaultSearchTool,
+    searchVaultMemories: searchVaultMemoriesFn,
+    vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
+    getVaultMemories,
+    createVaultMemory,
+    updateVaultMemory,
+    deleteVaultMemory,
     flushQueue,
     clearQueue,
     queueStatus,

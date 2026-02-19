@@ -35,7 +35,7 @@ type SendMessageArgs = BaseSendMessageArgs & {
   onThinking?: (chunk: string) => void;
   /**
    * Memory context to inject as a system message.
-   * This is typically formatted memories from useMemoryStorage.
+   * This is typically context from memory retrieval or other sources.
    */
   memoryContext?: string;
   /**
@@ -190,6 +190,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       toolChoice,
       reasoning,
       thinking,
+      imageModel,
       apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       const effectiveApiType = requestApiType ?? defaultApiType;
@@ -626,6 +627,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                               toolChoice,
                               reasoning,
                               thinking,
+                              imageModel,
                             });
 
                           continuationXhr.send(
@@ -695,6 +697,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             toolChoice,
             reasoning,
             thinking,
+            imageModel,
           });
 
           // Debug: Log the full request body to see image format

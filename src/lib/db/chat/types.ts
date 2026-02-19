@@ -8,7 +8,6 @@ import type {
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
 } from "../../../client";
-import type { StoredMemory } from "../memory/types";
 import type { ServerTool } from "../../tools";
 import type { ServerToolCallEvent } from "../../chat/useChat/utils";
 
@@ -130,7 +129,7 @@ export interface ActivityPhase {
   label: string;
   timestamp: number;
   status: "pending" | "active" | "completed";
-  data?: StoredMemory[];
+  data?: unknown[];
 }
 
 export interface StoredConversation {
@@ -535,6 +534,9 @@ export interface BaseSendMessageWithStorageArgs {
    * before generating the final response.
    */
   thinking?: LlmapiThinkingOptions;
+
+  /** User-selected image generation model for server-side enforcement. */
+  imageModel?: string;
 
   /**
    * Per-request callback for thinking/reasoning chunks.

@@ -6,7 +6,7 @@
 
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import {
   type StorageOperationsContext,
   updateMessageEmbeddingOp,

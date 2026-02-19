@@ -9,8 +9,8 @@ import type Model from "@nozbe/watermelondb/Model";
 import type { Class } from "@nozbe/watermelondb/types";
 import { Message, Conversation } from "./chat/models";
 import { Project } from "./project/models";
-import { Memory } from "./memory/models";
 import { Media } from "./media/models";
+import { VaultMemory } from "./memoryVault/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
 
@@ -31,8 +31,10 @@ import { UserPreference } from "./userPreferences/models";
  * - v12: Added chunks column to history table for sub-message semantic search
  * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
  * - v14: Added feedback column to history table for like/dislike on responses
+ * - v15: Replaced memories table with memory_vault table for persistent memory vault
+ * - v16: Added scope column to memory_vault table for memory partitioning
  */
-export const SDK_SCHEMA_VERSION = 14;
+export const SDK_SCHEMA_VERSION = 16;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -40,7 +42,7 @@ export const SDK_SCHEMA_VERSION = 14;
  * This unified schema includes all tables needed by the SDK:
  * - `history`: Chat message storage with embeddings and metadata
  * - `conversations`: Conversation metadata and organization
- * - `memories`: Persistent memory storage with semantic search
+ * - `memory_vault`: Persistent memory vault for curated facts
  * - `modelPreferences`: User model preferences (deprecated, use userPreferences)
  * - `userPreferences`: Unified user preferences (profile, personality, models)
  *
@@ -116,26 +118,6 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
-    // Memory storage tables
-    tableSchema({
-      name: "memories",
-      columns: [
-        { name: "type", type: "string", isIndexed: true },
-        { name: "namespace", type: "string", isIndexed: true },
-        { name: "key", type: "string", isIndexed: true },
-        { name: "value", type: "string" },
-        { name: "raw_evidence", type: "string" },
-        { name: "confidence", type: "number" },
-        { name: "pii", type: "boolean", isIndexed: true },
-        { name: "composite_key", type: "string", isIndexed: true },
-        { name: "unique_key", type: "string", isIndexed: true },
-        { name: "created_at", type: "number", isIndexed: true },
-        { name: "updated_at", type: "number" },
-        { name: "embedding", type: "string", isOptional: true },
-        { name: "embedding_model", type: "string", isOptional: true },
-        { name: "is_deleted", type: "boolean", isIndexed: true },
-      ],
-    }),
     // Settings storage tables (deprecated - use userPreferences)
     tableSchema({
       name: "modelPreferences",
@@ -161,6 +143,17 @@ export const sdkSchema = appSchema({
         // Timestamps
         { name: "created_at", type: "number" },
         { name: "updated_at", type: "number" },
+      ],
+    }),
+    // Memory vault storage
+    tableSchema({
+      name: "memory_vault",
+      columns: [
+        { name: "content", type: "string" },
+        { name: "scope", type: "string", isIndexed: true },
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number" },
+        { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
     // Media library storage (images, videos, audio, documents)
@@ -219,6 +212,8 @@ export const sdkSchema = appSchema({
  * - v11 → v12: Added `chunks` column to history table for sub-message semantic search
  * - v12 → v13: Added `parent_message_id` column to history table for message branching
  * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
+ * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
+ * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -407,6 +402,35 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v14 -> v15: Replaced memories table with memory_vault table
+    {
+      toVersion: 15,
+      steps: [
+        unsafeExecuteSql("DROP TABLE IF EXISTS memories;"),
+        createTable({
+          name: "memory_vault",
+          columns: [
+            { name: "content", type: "string" },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    // v15 -> v16: Added scope column to memory_vault for memory partitioning
+    {
+      toVersion: 16,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "scope", type: "string", isIndexed: true }],
+        }),
+        unsafeExecuteSql(
+          "UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';"
+        ),
+      ],
+    },
   ],
 });
 
@@ -431,7 +455,7 @@ export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
   Project,
-  Memory,
+  VaultMemory,
   Media,
   ModelPreference,
   UserPreference,
