@@ -66,14 +66,14 @@
  *   getNotionAccessToken,
  * } from "@reverbia/sdk/react";
  *
- * // Start OAuth flow (redirects to Notion)
- * await startNotionAuth(clientId, "/auth/notion/callback");
+ * // Start OAuth flow (redirects to Notion, uses Dynamic Client Registration)
+ * await startNotionAuth("/auth/notion/callback");
  *
  * // Handle callback (exchange code for tokens)
- * await handleNotionCallback("/auth/notion/callback", walletAddress, clientId);
+ * await handleNotionCallback("/auth/notion/callback", walletAddress);
  *
  * // Get token for MCP calls
- * const token = await getNotionAccessToken(walletAddress, clientId);
+ * const token = await getNotionAccessToken(walletAddress);
  * ```
  */
 

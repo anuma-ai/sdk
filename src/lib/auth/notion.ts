@@ -40,7 +40,6 @@ const NOTION_MCP_BASE = "https://mcp.notion.com";
 const WELL_KNOWN_RESOURCE = `${NOTION_MCP_BASE}/.well-known/oauth-protected-resource`;
 
 // Fallback OAuth endpoints (used if discovery fails)
-const FALLBACK_AUTH_SERVER = "https://api.notion.com";
 const FALLBACK_OAUTH_AUTHORIZE = "https://api.notion.com/v1/oauth/authorize";
 const FALLBACK_OAUTH_TOKEN = "https://api.notion.com/v1/oauth/token";
 const FALLBACK_REGISTRATION = "https://api.notion.com/v1/oauth/register";
@@ -119,9 +118,7 @@ async function discoverOAuthMetadata(): Promise<OAuthMetadata> {
 
     return metadata;
   } catch (error) {
-    console.warn("OAuth discovery failed, using fallback endpoints:", error);
-
-    // Return fallback metadata
+    // Discovery failed, use fallback endpoints
     return {
       authorization_endpoint: FALLBACK_OAUTH_AUTHORIZE,
       token_endpoint: FALLBACK_OAUTH_TOKEN,
@@ -332,8 +329,8 @@ async function storeTokenData(
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(TOKEN_STORAGE_KEY, `${ENCRYPTED_PREFIX}${encrypted}`);
       return;
-    } catch (error) {
-      console.warn("Failed to encrypt Notion token, storing temporarily:", error);
+    } catch {
+      // Encryption failed, fall through to sessionStorage
     }
   }
 
@@ -360,13 +357,13 @@ async function getStoredTokenData(
     const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (stored?.startsWith(ENCRYPTED_PREFIX)) {
       if (!walletAddress) {
-        console.warn("Encrypted Notion token found but no wallet address provided");
+        // Encrypted token found but no wallet address to decrypt
         return null;
       }
 
       // Check if we have the encryption key to decrypt
       if (!hasEncryptionKey(walletAddress)) {
-        console.warn("Encrypted Notion token found but encryption key not available");
+        // Encryption key not yet available
         return null;
       }
 
@@ -379,8 +376,8 @@ async function getStoredTokenData(
         const data = JSON.parse(decrypted) as StoredTokenData;
         if (!data.accessToken) return null;
         return data;
-      } catch (error) {
-        console.error("Failed to decrypt Notion token:", error);
+      } catch {
+        // Decryption failed, token may be corrupted
         return null;
       }
     }
@@ -451,8 +448,8 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 
     return true;
-  } catch (error) {
-    console.error("Failed to migrate Notion token:", error);
+  } catch {
+    // Migration failed, token will remain in sessionStorage
     return false;
   }
 }
@@ -639,7 +636,12 @@ export async function handleNotionCallback(
   }
 
   // Store tokens (encrypted if wallet available, sessionStorage otherwise)
-  await storeTokenData(storedData, walletAddress ?? "");
+  if (walletAddress) {
+    await storeTokenData(storedData, walletAddress);
+  } else {
+    // No wallet, store unencrypted in sessionStorage via empty-string fallback
+    await storeTokenData(storedData, "");
+  }
 
   // Clean up URL
   window.history.replaceState({}, "", window.location.pathname);
@@ -661,7 +663,7 @@ export async function refreshNotionToken(
   // Get stored client registration
   const registration = getClientRegistration();
   if (!registration) {
-    console.error("No client registration found for token refresh");
+    // No client registration found, user needs to re-authenticate
     return null;
   }
 
@@ -713,11 +715,15 @@ export async function refreshNotionToken(
       newStoredData.expiresAt = Date.now() + tokenData.expires_in * 1000;
     }
 
-    await storeTokenData(newStoredData, walletAddress ?? "");
+    if (walletAddress) {
+      await storeTokenData(newStoredData, walletAddress);
+    } else {
+      await storeTokenData(newStoredData, "");
+    }
 
     return tokenData.access_token;
-  } catch (error) {
-    console.error("Notion token refresh failed:", error);
+  } catch {
+    // Refresh failed, clearing stored token
     clearNotionToken();
     return null;
   }
