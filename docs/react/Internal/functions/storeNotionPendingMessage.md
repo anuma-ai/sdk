@@ -2,7 +2,7 @@
 
 > **storeNotionPendingMessage**(`message`: `string`): `void`
 
-Defined in: [src/lib/auth/notion.ts:1023](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L1023)
+Defined in: [src/lib/auth/notion.ts:1002](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L1002)
 
 Store a pending message to retry after OAuth completes
 

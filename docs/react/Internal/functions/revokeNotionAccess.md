@@ -2,7 +2,7 @@
 
 > **revokeNotionAccess**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/notion.ts:980](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L980)
+Defined in: [src/lib/auth/notion.ts:959](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L959)
 
 Revoke Notion access (clears local tokens)
 Note: User must revoke via Notion settings for complete revocation

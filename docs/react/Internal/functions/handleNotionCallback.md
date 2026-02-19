@@ -2,7 +2,7 @@
 
 > **handleNotionCallback**(`callbackPath`: `string`, `walletAddress`: `string` | `undefined`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/notion.ts:734](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L734)
+Defined in: [src/lib/auth/notion.ts:722](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L722)
 
 Handle the OAuth callback - exchange code for tokens
 This is done directly with Notion (no backend needed due to PKCE)
