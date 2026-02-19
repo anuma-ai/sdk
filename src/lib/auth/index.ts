@@ -119,6 +119,7 @@ export {
   handleNotionCallback,
   isNotionCallback,
   getNotionAccessToken,
+  getValidNotionToken,
   refreshNotionToken,
   revokeNotionAccess,
   clearNotionToken,

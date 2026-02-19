@@ -44,8 +44,15 @@ const FALLBACK_OAUTH_AUTHORIZE = "https://api.notion.com/v1/oauth/authorize";
 const FALLBACK_OAUTH_TOKEN = "https://api.notion.com/v1/oauth/token";
 const FALLBACK_REGISTRATION = "https://api.notion.com/v1/oauth/register";
 
+// Default token expiry (1 hour) when server doesn't provide expires_in
+const DEFAULT_TOKEN_EXPIRY_SECONDS = 3600;
+
 // Encrypted storage prefix
 const ENCRYPTED_PREFIX = "enc:oauth:";
+
+// In-memory cache for sync access (populated by async operations)
+let cachedAccessToken: string | null = null;
+let cachedExpiresAt: number | null = null;
 
 // Token storage types
 interface StoredTokenData {
@@ -403,6 +410,8 @@ export function clearNotionToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  cachedAccessToken = null;
+  cachedExpiresAt = null;
 }
 
 /**
@@ -632,6 +641,8 @@ export async function handleNotionCallback(
 
   if (tokenData.expires_in) {
     storedData.expiresAt = Date.now() + tokenData.expires_in * 1000;
+  } else {
+    storedData.expiresAt = Date.now() + DEFAULT_TOKEN_EXPIRY_SECONDS * 1000;
   }
 
   // Store tokens (encrypted if wallet available, sessionStorage otherwise)
@@ -641,6 +652,10 @@ export async function handleNotionCallback(
     // No wallet, store unencrypted in sessionStorage via empty-string fallback
     await storeTokenData(storedData, "");
   }
+
+  // Update in-memory cache
+  cachedAccessToken = tokenData.access_token;
+  cachedExpiresAt = storedData.expiresAt ?? null;
 
   // Clean up URL
   window.history.replaceState({}, "", window.location.pathname);
@@ -712,6 +727,8 @@ export async function refreshNotionToken(
 
     if (tokenData.expires_in) {
       newStoredData.expiresAt = Date.now() + tokenData.expires_in * 1000;
+    } else {
+      newStoredData.expiresAt = Date.now() + DEFAULT_TOKEN_EXPIRY_SECONDS * 1000;
     }
 
     if (walletAddress) {
@@ -719,6 +736,10 @@ export async function refreshNotionToken(
     } else {
       await storeTokenData(newStoredData, "");
     }
+
+    // Update in-memory cache
+    cachedAccessToken = tokenData.access_token;
+    cachedExpiresAt = newStoredData.expiresAt ?? null;
 
     return tokenData.access_token;
   } catch {
@@ -737,11 +758,15 @@ export async function getNotionAccessToken(
   const storedData = await getStoredTokenData(walletAddress);
 
   if (!storedData) {
+    cachedAccessToken = null;
+    cachedExpiresAt = null;
     return null;
   }
 
   // If token is not expired, use it
   if (!isTokenExpired(storedData)) {
+    cachedAccessToken = storedData.accessToken;
+    cachedExpiresAt = storedData.expiresAt ?? null;
     return storedData.accessToken;
   }
 
@@ -755,10 +780,28 @@ export async function getNotionAccessToken(
 
   // Fallback: return token if no expiry info
   if (storedData.accessToken && !storedData.expiresAt) {
+    cachedAccessToken = storedData.accessToken;
+    cachedExpiresAt = null;
     return storedData.accessToken;
   }
 
+  cachedAccessToken = null;
+  cachedExpiresAt = null;
   return null;
+}
+
+/**
+ * Synchronous getter for the current Notion access token.
+ * Reads from the in-memory cache populated by async operations
+ * (getNotionAccessToken, handleNotionCallback, refreshNotionToken).
+ * Matches the sync signature required by tool factories in src/tools/notion.ts.
+ */
+export function getValidNotionToken(): string | null {
+  if (!cachedAccessToken) return null;
+  if (cachedExpiresAt && cachedExpiresAt - 60_000 <= Date.now()) {
+    return null;
+  }
+  return cachedAccessToken;
 }
 
 /**
