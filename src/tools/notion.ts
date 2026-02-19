@@ -150,7 +150,7 @@ async function ensureMCPSession(accessToken: string): Promise<string> {
  * Call a tool on the Notion MCP server using JSON-RPC 2.0
  *
  * @param accessToken - OAuth access token for authentication
- * @param toolName - Name of the MCP tool to call (e.g., "search-notion")
+ * @param toolName - Name of the MCP tool to call
  * @param args - Arguments to pass to the tool
  */
 async function callMCPTool<T>(
@@ -248,25 +248,39 @@ async function callMCPTool<T>(
 // ============================================================================
 
 export interface NotionSearchArgs {
-  query?: string;
-  filter?: {
-    property: "object";
-    value: "page" | "database";
-  };
-  page_size?: number;
+  query: string;
+  query_type?: "internal" | "user";
+  filters?: Record<string, unknown>;
 }
 
-export interface NotionRetrievePageArgs {
-  page_id: string;
+export interface NotionFetchArgs {
+  id: string;
+  include_transcript?: boolean;
+  include_discussions?: boolean;
 }
 
-export interface NotionCreatePageArgs {
-  parent: {
-    page_id?: string;
-    database_id?: string;
+export interface NotionCreatePagesArgs {
+  pages: Array<{
+    properties: Record<string, unknown>;
+    content: string;
+  }>;
+  parent?: Record<string, unknown>;
+}
+
+export interface NotionUpdatePageArgs {
+  data: {
+    page_id: string;
+    command: string;
+    properties?: Record<string, unknown>;
+    new_str?: string;
+    selection_with_ellipsis?: string;
+    allow_deleting_content?: boolean;
   };
-  properties: Record<string, unknown>;
-  children?: Array<Record<string, unknown>>;
+}
+
+export interface NotionMovePagesArgs {
+  page_or_database_ids: string[];
+  new_parent: Record<string, unknown>;
 }
 
 export interface NotionQueryDataSourceArgs {
@@ -276,24 +290,13 @@ export interface NotionQueryDataSourceArgs {
   page_size?: number;
 }
 
-export interface NotionGetPageMarkdownArgs {
-  page_id: string;
-}
-
-export interface NotionAppendBlockArgs {
-  block_id: string;
-  children: Array<Record<string, unknown>>;
-}
-
 // ============================================================================
 // SEARCH TOOL
 // ============================================================================
 
 /**
- * Create the Notion search tool
- *
- * MCP Tool: search-notion
- * Searches pages and data sources in the user's Notion workspace
+ * MCP Tool: notion-search
+ * Semantic search over Notion workspace and connected sources, or user search
  */
 export function createNotionSearchTool(
   getAccessToken: () => string | null,
@@ -302,26 +305,44 @@ export function createNotionSearchTool(
   return {
     type: "function",
     function: {
-      name: "notion_search",
+      name: "notion-search",
       description:
-        "Search for pages and databases in the user's Notion workspace. " +
-        "Returns matching pages and databases with their IDs, titles, and URLs.",
+        "Semantic search over Notion workspace and connected sources (Slack, Google Drive, Github, Jira, etc). Can also search for users by name or email.",
       arguments: {
         type: "object",
         properties: {
           query: {
             type: "string",
             description:
-              "Search query to match against page and database titles (required, min 1 character)",
+              "Semantic search query over workspace and connected sources. For user search, a substring to match against name or email.",
           },
-          filter: {
+          query_type: {
             type: "string",
-            enum: ["page", "database"],
-            description: "Filter results to only pages or only databases",
+            enum: ["internal", "user"],
+            description:
+              "Type of search: 'internal' for workspace/content search, 'user' for user search",
           },
-          page_size: {
-            type: "number",
-            description: "Maximum number of results (default: 10, max: 100)",
+          content_search_mode: {
+            type: "string",
+            enum: ["workspace_search", "ai_search"],
+            description: "Override auto-selection of AI search vs workspace search",
+          },
+          data_source_url: {
+            type: "string",
+            description: "URL of a data source to search within",
+          },
+          page_url: {
+            type: "string",
+            description: "URL or ID of a page to search within",
+          },
+          teamspace_id: {
+            type: "string",
+            description: "ID of a teamspace to restrict search results to",
+          },
+          filters: {
+            type: "object",
+            description:
+              "Filters for search results (only for query_type 'internal'). Supports created_date_range {start_date, end_date} and created_by_user_ids array.",
           },
         },
         required: ["query"],
@@ -333,21 +354,8 @@ export function createNotionSearchTool(
         token = await requestNotionAccess();
       }
 
-      // Convert our simplified args to MCP format
-      const mcpArgs: NotionSearchArgs = {
-        query: args.query as string | undefined,
-        page_size: args.page_size as number | undefined,
-      };
-
-      if (args.filter) {
-        mcpArgs.filter = {
-          property: "object",
-          value: args.filter as "page" | "database",
-        };
-      }
-
       try {
-        return await callMCPTool(token, "notion-search", mcpArgs as Record<string, unknown>);
+        return await callMCPTool(token, "notion-search", args);
       } catch (error) {
         return `Error searching Notion: ${error instanceof Error ? error.message : String(error)}`;
       }
@@ -357,34 +365,287 @@ export function createNotionSearchTool(
 }
 
 // ============================================================================
-// READ PAGE TOOL
+// FETCH PAGE TOOL
 // ============================================================================
 
 /**
- * Create the Notion read page tool
- *
- * MCP Tool: retrieve-a-page (for metadata) + get-a-page-as-markdown (for content)
+ * MCP Tool: notion-fetch
+ * Retrieves details about a Notion entity (page or database) by URL or ID
  */
-export function createNotionReadPageTool(
+export function createNotionFetchTool(
   getAccessToken: () => string | null,
   requestNotionAccess: () => Promise<string>
 ): ToolConfig {
   return {
     type: "function",
     function: {
-      name: "notion_read_page",
+      name: "notion-fetch",
       description:
-        "Read a page from Notion. Returns the page content as markdown along with metadata.",
+        "Retrieve a Notion page or database by URL or ID. Pages return enhanced Markdown. Databases return all data sources.",
+      arguments: {
+        type: "object",
+        properties: {
+          id: {
+            type: "string",
+            description:
+              "The ID or URL of the Notion page/database. Supports notion.so URLs, Notion Sites URLs (*.notion.site), and raw UUIDs.",
+          },
+          include_transcript: {
+            type: "boolean",
+            description: "Include transcript if available",
+          },
+          include_discussions: {
+            type: "boolean",
+            description: "Include discussion counts and inline discussion markers",
+          },
+        },
+        required: ["id"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-fetch", args);
+      } catch (error) {
+        return `Error fetching Notion page: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// CREATE PAGES TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-create-pages
+ * Creates one or more Notion pages with properties and content
+ */
+export function createNotionCreatePagesTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-create-pages",
+      description:
+        "Create one or more Notion pages. All pages in a single call share the same parent. " +
+        "Properties use simplified format: title is a string, dates use date:{prop}:start format, " +
+        "checkboxes use __YES__/__NO__. Content is Notion-flavored Markdown.",
+      arguments: {
+        type: "object",
+        properties: {
+          pages: {
+            type: "array",
+            description: "Array of page objects to create (max 100)",
+            items: {
+              type: "object",
+              properties: {
+                properties: {
+                  type: "object",
+                  description:
+                    "JSON map of property names to values. Title is a string, numbers are JS numbers, " +
+                    "checkboxes use __YES__/__NO__, dates use date:{prop}:start/end/is_datetime format.",
+                },
+                content: {
+                  type: "string",
+                  description: "Page content in Notion-flavored Markdown format",
+                },
+              },
+              required: ["properties", "content"],
+            },
+          },
+          parent: {
+            type: "object",
+            description:
+              "Parent for all pages. Use {type:'page_id', page_id:'...'}, {type:'database_id', database_id:'...'}, " +
+              "or {type:'data_source_id', data_source_id:'...'}. Do NOT pass this field to create standalone private pages.",
+          },
+        },
+        required: ["pages"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-create-pages", args);
+      } catch (error) {
+        return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// UPDATE PAGE TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-update-page
+ * Update a page's properties or content using command-based operations
+ */
+export function createNotionUpdatePageTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-update-page",
+      description:
+        "Update a Notion page's properties or content. Uses command-based operations: " +
+        "'update_properties' to change properties, 'replace_content' to replace all content, " +
+        "'replace_content_range' to replace specific text, 'insert_content_after' to insert after text.",
+      arguments: {
+        type: "object",
+        properties: {
+          data: {
+            type: "object",
+            description: "Update data containing page_id and a command",
+            properties: {
+              page_id: {
+                type: "string",
+                description: "The ID of the page to update (with or without dashes)",
+              },
+              command: {
+                type: "string",
+                enum: [
+                  "update_properties",
+                  "replace_content",
+                  "replace_content_range",
+                  "insert_content_after",
+                ],
+                description: "The update command to execute",
+              },
+              properties: {
+                type: "object",
+                description:
+                  "For update_properties: JSON map of property names to values. Use null to remove a value.",
+              },
+              new_str: {
+                type: "string",
+                description:
+                  "For replace_content/replace_content_range/insert_content_after: the new content string",
+              },
+              selection_with_ellipsis: {
+                type: "string",
+                description:
+                  "For replace_content_range/insert_content_after: unique start and end snippet (~10 chars each with ellipsis)",
+              },
+              allow_deleting_content: {
+                type: "boolean",
+                description:
+                  "For replace_content/replace_content_range: allow deletion of child pages/databases",
+              },
+            },
+            required: ["page_id", "command"],
+          },
+        },
+        required: ["data"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-update-page", args);
+      } catch (error) {
+        return `Error updating Notion page: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// MOVE PAGES TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-move-pages
+ * Move one or more pages/databases to a new parent
+ */
+export function createNotionMovePagesTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-move-pages",
+      description: "Move one or more Notion pages or databases to a new parent.",
+      arguments: {
+        type: "object",
+        properties: {
+          page_or_database_ids: {
+            type: "array",
+            description: "Array of page or database IDs to move (UUIDs, max 100)",
+            items: { type: "string" },
+          },
+          new_parent: {
+            type: "object",
+            description:
+              "New parent: {type:'page_id', page_id:'...'}, {type:'database_id', database_id:'...'}, " +
+              "{type:'data_source_id', data_source_id:'...'}, or {type:'workspace'} for private pages.",
+          },
+        },
+        required: ["page_or_database_ids", "new_parent"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-move-pages", args);
+      } catch (error) {
+        return `Error moving Notion pages: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// DUPLICATE PAGE TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-duplicate-page
+ * Duplicate a Notion page (completes asynchronously)
+ */
+export function createNotionDuplicatePageTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-duplicate-page",
+      description:
+        "Duplicate a Notion page. The duplication completes asynchronously.",
       arguments: {
         type: "object",
         properties: {
           page_id: {
             type: "string",
-            description: "The ID of the Notion page to read",
-          },
-          include_content: {
-            type: "boolean",
-            description: "Whether to include page content as markdown (default: true)",
+            description: "The ID of the page to duplicate (UUID with or without dashes)",
           },
         },
         required: ["page_id"],
@@ -396,17 +657,10 @@ export function createNotionReadPageTool(
         token = await requestNotionAccess();
       }
 
-      const pageId = args.page_id as string;
-
       try {
-        // Use notion-fetch to get page content
-        const result = await callMCPTool(token, "notion-fetch", {
-          resource_uri: `notion://page/${pageId}`,
-        });
-
-        return result;
+        return await callMCPTool(token, "notion-duplicate-page", args);
       } catch (error) {
-        return `Error reading Notion page: ${error instanceof Error ? error.message : String(error)}`;
+        return `Error duplicating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
     autoExecute: true,
@@ -414,96 +668,12 @@ export function createNotionReadPageTool(
 }
 
 // ============================================================================
-// CREATE PAGE TOOL
+// QUERY DATA SOURCES TOOL
 // ============================================================================
 
 /**
- * Create the Notion create page tool
- *
- * MCP Tool: create-a-page
- */
-export function createNotionCreatePageTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
-    type: "function",
-    function: {
-      name: "notion_create_page",
-      description:
-        "Create a new page in Notion. Can create a subpage under an existing page " +
-        "or a new entry in a database. Supports markdown content.",
-      arguments: {
-        type: "object",
-        properties: {
-          parent_page_id: {
-            type: "string",
-            description: "ID of the parent page (for creating subpages)",
-          },
-          parent_database_id: {
-            type: "string",
-            description: "ID of the parent database (for creating database entries)",
-          },
-          title: {
-            type: "string",
-            description: "Title of the new page",
-          },
-          content: {
-            type: "string",
-            description: "Page content in markdown format",
-          },
-        },
-        required: ["title"],
-      },
-    },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
-
-      const parentPageId = args.parent_page_id as string | undefined;
-      const parentDatabaseId = args.parent_database_id as string | undefined;
-      const title = args.title as string;
-      const content = args.content as string | undefined;
-
-      if (!parentPageId && !parentDatabaseId) {
-        return "Error: Must specify either parent_page_id or parent_database_id";
-      }
-
-      try {
-        const mcpArgs: Record<string, unknown> = {
-          title,
-        };
-
-        if (parentPageId) {
-          mcpArgs.parent = { page_id: parentPageId };
-        } else if (parentDatabaseId) {
-          mcpArgs.parent = { database_id: parentDatabaseId };
-        }
-
-        if (content) {
-          mcpArgs.markdown = content;
-        }
-
-        return await callMCPTool(token, "notion-create-pages", mcpArgs);
-      } catch (error) {
-        return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-    autoExecute: true,
-  };
-}
-
-// ============================================================================
-// QUERY DATA SOURCE TOOL
-// ============================================================================
-
-/**
- * Create the Notion query data source tool
- *
- * MCP Tool: query-data-source
- * Queries a Notion database (data source) with filters and sorts
+ * MCP Tool: notion-query-data-sources
+ * Query a Notion database (data source) with filters and sorts
  */
 export function createNotionQueryDataSourceTool(
   getAccessToken: () => string | null,
@@ -512,35 +682,41 @@ export function createNotionQueryDataSourceTool(
   return {
     type: "function",
     function: {
-      name: "notion_query_database",
-      description:
-        "Query a Notion database (data source) to retrieve entries. " +
-        "Supports filtering and sorting by properties.",
+      name: "notion-query-data-sources",
+      description: "Query a Notion data source (database) using filters and sorts.",
       arguments: {
         type: "object",
         properties: {
           data_source_id: {
             type: "string",
-            description: "The ID of the Notion database/data source to query",
+            description: "Identifier for the Notion data source (database)",
           },
           filter: {
             type: "object",
-            description: "Filter object to narrow results (see Notion API filter docs)",
+            description: "Filter conditions for querying the data source",
           },
           sorts: {
             type: "array",
-            description: "Array of sort objects: [{property: 'Name', direction: 'ascending'}]",
+            description: "Sort criteria for results",
             items: {
               type: "object",
               properties: {
                 property: { type: "string" },
-                direction: { type: "string", enum: ["ascending", "descending"] },
+                direction: {
+                  type: "string",
+                  enum: ["ascending", "descending"],
+                },
               },
+              required: ["property", "direction"],
             },
           },
+          start_cursor: {
+            type: "string",
+            description: "Pagination cursor from previous response",
+          },
           page_size: {
-            type: "number",
-            description: "Maximum number of results (default: 10, max: 100)",
+            type: "integer",
+            description: "Number of results to return (default 100)",
           },
         },
         required: ["data_source_id"],
@@ -563,38 +739,50 @@ export function createNotionQueryDataSourceTool(
 }
 
 // ============================================================================
-// APPEND CONTENT TOOL
+// CREATE DATABASE TOOL
 // ============================================================================
 
 /**
- * Create the Notion append content tool
- *
- * MCP Tool: append-a-block
- * Appends content blocks to a page
+ * MCP Tool: notion-create-database
+ * Create a new Notion database with a properties schema
  */
-export function createNotionAppendContentTool(
+export function createNotionCreateDatabaseTool(
   getAccessToken: () => string | null,
   requestNotionAccess: () => Promise<string>
 ): ToolConfig {
   return {
     type: "function",
     function: {
-      name: "notion_append_content",
+      name: "notion-create-database",
       description:
-        "Append content to an existing Notion page. Adds new blocks at the end of the page.",
+        "Create a new Notion database with a properties schema. If no title property is provided, 'Name' is auto-added. " +
+        "Supports property types: title, rich_text, number, select, multi_select, date, people, checkbox, url, email, " +
+        "phone_number, formula, relation, rollup, status, unique_id, etc.",
       arguments: {
         type: "object",
         properties: {
-          page_id: {
-            type: "string",
-            description: "The ID of the Notion page to append content to",
+          properties: {
+            type: "object",
+            description:
+              "Property schema for the database. Each key is a property name, value defines the type.",
           },
-          content: {
-            type: "string",
-            description: "Content to append in markdown format",
+          parent: {
+            type: "object",
+            description:
+              "Parent page: {type:'page_id', page_id:'...'}. Omit for private workspace-level database.",
+          },
+          title: {
+            type: "array",
+            description: "Title of the database as rich text array (max 100)",
+            items: { type: "object" },
+          },
+          description: {
+            type: "array",
+            description: "Description of the database as rich text array (max 100)",
+            items: { type: "object" },
           },
         },
-        required: ["page_id", "content"],
+        required: ["properties"],
       },
     },
     executor: async (args: Record<string, unknown>) => {
@@ -603,16 +791,313 @@ export function createNotionAppendContentTool(
         token = await requestNotionAccess();
       }
 
-      const pageId = args.page_id as string;
-      const content = args.content as string;
+      try {
+        return await callMCPTool(token, "notion-create-database", args);
+      } catch (error) {
+        return `Error creating Notion database: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// UPDATE DATA SOURCE TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-update-data-source
+ * Update a data source's properties, name, or other attributes
+ */
+export function createNotionUpdateDataSourceTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-update-data-source",
+      description:
+        "Update a Notion data source's title, description, property schema, or other attributes. " +
+        "Use null to remove a property. Provide only 'name' to rename a property.",
+      arguments: {
+        type: "object",
+        properties: {
+          data_source_id: {
+            type: "string",
+            description:
+              "The ID of the data source to update (UUID). Can be a data source ID or database ID.",
+          },
+          title: {
+            type: "array",
+            description: "New title as rich text array (max 100)",
+            items: { type: "object" },
+          },
+          description: {
+            type: "array",
+            description: "New description as rich text array (max 100)",
+            items: { type: "object" },
+          },
+          properties: {
+            type: "object",
+            description:
+              "Property schema updates. Use null to remove, {name:'...'} to rename, or full definition to add/update.",
+          },
+          is_inline: {
+            type: "boolean",
+            description: "Whether the database is inline",
+          },
+          in_trash: {
+            type: "boolean",
+            description: "Trash the data source (requires Notion UI to undo)",
+          },
+        },
+        required: ["data_source_id"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
 
       try {
-        return await callMCPTool(token, "notion-update-page", {
-          page_id: pageId,
-          markdown: content,
-        });
+        return await callMCPTool(token, "notion-update-data-source", args);
       } catch (error) {
-        return `Error appending to Notion page: ${error instanceof Error ? error.message : String(error)}`;
+        return `Error updating Notion data source: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// CREATE COMMENT TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-create-comment
+ * Add a comment to a page, specific content, or reply to a discussion
+ */
+export function createNotionCreateCommentTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-create-comment",
+      description:
+        "Add a comment to a Notion page. Supports page-level comments, content-specific comments " +
+        "(using selection_with_ellipsis), or replies to existing discussions (using discussion_id).",
+      arguments: {
+        type: "object",
+        properties: {
+          page_id: {
+            type: "string",
+            description: "The ID of the page to comment on (with or without dashes)",
+          },
+          rich_text: {
+            type: "array",
+            description:
+              "Comment content as rich text array (max 100). Objects can be text, mention, or equation.",
+            items: {
+              type: "object",
+              properties: {
+                text: {
+                  type: "object",
+                  properties: {
+                    content: { type: "string" },
+                  },
+                  required: ["content"],
+                },
+              },
+              required: ["text"],
+            },
+          },
+          discussion_id: {
+            type: "string",
+            description: "ID or URL of an existing discussion to reply to",
+          },
+          selection_with_ellipsis: {
+            type: "string",
+            description:
+              "Unique start and end snippet (~10 chars each with ellipsis) of content to comment on",
+          },
+        },
+        required: ["page_id", "rich_text"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-create-comment", args);
+      } catch (error) {
+        return `Error creating Notion comment: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// GET COMMENTS TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-get-comments
+ * Get comments and discussions from a Notion page
+ */
+export function createNotionGetCommentsTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-get-comments",
+      description:
+        "Get comments and discussions from a Notion page. Returns discussions with full comment content.",
+      arguments: {
+        type: "object",
+        properties: {
+          page_id: {
+            type: "string",
+            description: "Identifier for the Notion page",
+          },
+          include_all_blocks: {
+            type: "boolean",
+            description: "Include discussions on child blocks (default: false)",
+          },
+          include_resolved: {
+            type: "boolean",
+            description: "Include resolved discussions (default: false)",
+          },
+          discussion_id: {
+            type: "string",
+            description:
+              "Fetch a specific discussion by ID or URL (e.g., discussion://pageId/blockId/discussionId)",
+          },
+        },
+        required: ["page_id"],
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-get-comments", args);
+      } catch (error) {
+        return `Error retrieving Notion comments: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// GET USERS TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-get-users
+ * List users in the workspace, get a specific user, or get self
+ */
+export function createNotionGetUsersTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-get-users",
+      description:
+        "List users in the Notion workspace. Supports filtering by name/email, pagination, " +
+        "fetching a specific user by ID, or fetching the current bot user (user_id: 'self').",
+      arguments: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query to filter users by name or email (case-insensitive, max 100 chars)",
+          },
+          start_cursor: {
+            type: "string",
+            description: "Cursor for pagination from previous response",
+          },
+          page_size: {
+            type: "integer",
+            description: "Number of users per page (1-100, default 100)",
+          },
+          user_id: {
+            type: "string",
+            description:
+              "Return only the user matching this ID. Pass 'self' to fetch the current bot user.",
+          },
+        },
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-get-users", args);
+      } catch (error) {
+        return `Error listing Notion users: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    },
+    autoExecute: true,
+  };
+}
+
+// ============================================================================
+// GET TEAMS TOOL
+// ============================================================================
+
+/**
+ * MCP Tool: notion-get-teams
+ * Retrieve teams (teamspaces) in the workspace
+ */
+export function createNotionGetTeamsTool(
+  getAccessToken: () => string | null,
+  requestNotionAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "notion-get-teams",
+      description:
+        "Retrieve teams (teamspaces) in the Notion workspace. Shows team names, IDs, membership status, and roles.",
+      arguments: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query to filter teams by name (case-insensitive, max 100 chars)",
+          },
+        },
+      },
+    },
+    executor: async (args: Record<string, unknown>) => {
+      let token = getAccessToken();
+      if (!token) {
+        token = await requestNotionAccess();
+      }
+
+      try {
+        return await callMCPTool(token, "notion-get-teams", args);
+      } catch (error) {
+        return `Error retrieving Notion teams: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
     autoExecute: true,
@@ -634,11 +1119,28 @@ export function createNotionTools(
   requestNotionAccess: () => Promise<string>
 ): ToolConfig[] {
   return [
+    // Search
     createNotionSearchTool(getAccessToken, requestNotionAccess),
-    createNotionReadPageTool(getAccessToken, requestNotionAccess),
-    createNotionCreatePageTool(getAccessToken, requestNotionAccess),
+
+    // Pages
+    createNotionFetchTool(getAccessToken, requestNotionAccess),
+    createNotionCreatePagesTool(getAccessToken, requestNotionAccess),
+    createNotionUpdatePageTool(getAccessToken, requestNotionAccess),
+    createNotionMovePagesTool(getAccessToken, requestNotionAccess),
+    createNotionDuplicatePageTool(getAccessToken, requestNotionAccess),
+
+    // Data Sources (Databases)
     createNotionQueryDataSourceTool(getAccessToken, requestNotionAccess),
-    createNotionAppendContentTool(getAccessToken, requestNotionAccess),
+    createNotionCreateDatabaseTool(getAccessToken, requestNotionAccess),
+    createNotionUpdateDataSourceTool(getAccessToken, requestNotionAccess),
+
+    // Comments
+    createNotionCreateCommentTool(getAccessToken, requestNotionAccess),
+    createNotionGetCommentsTool(getAccessToken, requestNotionAccess),
+
+    // Users & Teams
+    createNotionGetUsersTool(getAccessToken, requestNotionAccess),
+    createNotionGetTeamsTool(getAccessToken, requestNotionAccess),
   ];
 }
 
@@ -658,27 +1160,6 @@ export function getMCPEndpoints() {
 
 /**
  * Call any MCP tool directly (for advanced use cases)
- *
- * This allows calling any of Notion's 22 MCP tools:
- * - search-notion
- * - retrieve-a-page
- * - retrieve-a-database
- * - query-data-source
- * - retrieve-a-data-source
- * - update-a-data-source
- * - create-a-data-source
- * - list-data-source-templates
- * - create-a-page
- * - update-a-page
- * - append-a-block
- * - move-page
- * - get-a-page-as-markdown
- * - retrieve-a-block
- * - retrieve-block-children
- * - retrieve-comments
- * - create-a-comment
- * - retrieve-a-user
- * ... and more
  */
 export async function callNotionMCPTool<T>(
   accessToken: string,
