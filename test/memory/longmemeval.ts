@@ -3,8 +3,9 @@
  * LongMemEval Benchmark CLI
  *
  * Usage:
- *   pnpm eval:longmemeval              # Run with small dataset (50 sessions/question)
- *   pnpm eval:longmemeval --variant m  # Run with medium dataset (500 sessions/question)
+ *   pnpm eval:longmemeval              # Run both strategies (engine + vault)
+ *   pnpm eval:engine --variant oracle   # Memory engine only
+ *   pnpm eval:vault --variant oracle    # Memory vault only
  *   pnpm eval:longmemeval --max 10     # Run only first 10 questions
  *   pnpm eval:longmemeval --json       # Output as JSON
  *   pnpm eval:longmemeval --preload    # Download all datasets (for CI setup)
@@ -22,7 +23,13 @@ import {
   printLongMemEvalSummary,
   printLongMemEvalJson,
 } from "./src/longmemeval/index.js";
-import type { LongMemEvalOptions, LongMemEvalQuestionType } from "./src/longmemeval/types.js";
+import type {
+  LongMemEvalOptions,
+  LongMemEvalQuestionType,
+  LongMemEvalStrategy,
+  LongMemEvalSummary,
+  LongMemEvalComparisonSummary,
+} from "./src/longmemeval/types.js";
 
 const { values: args } = parseArgs({
   options: {
@@ -59,10 +66,11 @@ Options:
                               m = medium (~500 sessions per question)
                               oracle = only answer sessions (fast, for dev)
                               Default: s
-  --strategy <extracted|chunked>
+  --strategy <engine|vault|both>
                               Retrieval strategy:
-                              extracted = memory extraction (default)
-                              chunked = chunked tool search
+                              engine = memory engine (conversation chunk retrieval)
+                              vault = memory vault (extracted facts retrieval)
+                              both = run both and compare (default)
   --llm <model>               Override chat completion model
   --skip-existing             Skip entries with existing transcript for same model
   --question-id <id>          Run only the specified question id
@@ -79,15 +87,16 @@ Options:
   --stats                     Print dataset statistics and exit
   -h, --help                  Show this help message
 
+Shortcut scripts:
+  pnpm eval:engine [options]    Equivalent to --strategy engine
+  pnpm eval:vault [options]     Equivalent to --strategy vault
+
 Examples:
-  pnpm eval:longmemeval                          # Full test with small dataset
-  pnpm eval:longmemeval --variant oracle --max 5 # Fast: oracle sessions only
-  pnpm eval:longmemeval --max 2 --max-sessions 5 # Quick dev test
-  pnpm eval:longmemeval --variant m              # Full test with medium dataset
-  pnpm eval:longmemeval --strategy chunked --max 5 # Chunked tool search
-  pnpm eval:longmemeval --llm fireworks/models/gpt-oss-120b --max 5
-  pnpm eval:longmemeval --skip-existing --max 5
-  pnpm eval:longmemeval --question-id gpt4_5dcc0aab
+  pnpm eval:longmemeval                             # Both strategies, small dataset
+  pnpm eval:engine --variant oracle --max 5          # Engine only, oracle, 5 questions
+  pnpm eval:vault --variant oracle --max 5           # Vault only, oracle, 5 questions
+  pnpm eval:longmemeval --variant oracle --max 2     # Both, compare side-by-side
+  pnpm eval:longmemeval --strategy engine --verbose   # Engine with details
 
 Environment Variables:
   PORTAL_API_KEY      Required for LLM calls
@@ -96,6 +105,12 @@ Environment Variables:
 Cache:
   Dataset files are cached in ~/.cache/longmemeval/
 `);
+}
+
+function isComparison(
+  result: LongMemEvalSummary | LongMemEvalComparisonSummary
+): result is LongMemEvalComparisonSummary {
+  return "engine" in result && "vault" in result;
 }
 
 async function main(): Promise<void> {
@@ -114,7 +129,6 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Parse variant (s, m, or oracle)
   let variant: "s" | "m" | "oracle" = "s";
   if (args.variant === "m") variant = "m";
   else if (args.variant === "oracle") variant = "oracle";
@@ -147,26 +161,35 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Parse strategy
+  let strategy: LongMemEvalStrategy = "both";
   const rawStrategy = args.strategy?.toLowerCase();
-  const strategy =
-    rawStrategy === "chunked" || rawStrategy === "chunked-tool"
-      ? "chunked-tool"
-      : "extracted-memories";
+  if (rawStrategy === "engine" || rawStrategy === "memory-engine") {
+    strategy = "memory-engine";
+  } else if (rawStrategy === "vault" || rawStrategy === "memory-vault") {
+    strategy = "memory-vault";
+  } else if (rawStrategy === "both" || !rawStrategy) {
+    strategy = "both";
+  }
 
   const options: LongMemEvalOptions = {
-    variant: variant === "oracle" ? "s" : variant, // oracle uses same format as s
+    variant: variant === "oracle" ? "s" : variant,
     strategy,
     llmModel: args.llm,
     skipExisting: args["skip-existing"],
     questionId: args["question-id"],
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,
-    maxSessions: args["max-sessions"] ? parseInt(args["max-sessions"], 10) : undefined,
+    maxSessions: args["max-sessions"]
+      ? parseInt(args["max-sessions"], 10)
+      : undefined,
     questionTypes: args.types
       ? (args.types.split(",").map((t) => t.trim()) as LongMemEvalQuestionType[])
       : undefined,
     verbose: args.verbose,
     output: args.output,
-    skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
+    skipUnsupported: args["include-unsupported"]
+      ? false
+      : args["skip-unsupported"],
   };
 
   try {
@@ -174,25 +197,47 @@ async function main(): Promise<void> {
     const dataset = await loadLongMemEvalDataset(variant);
     console.log(`Loaded ${dataset.length} entries`);
 
-    const summary = await runLongMemEval(dataset, options, {
+    const result = await runLongMemEval(dataset, options, {
       apiKey,
       baseUrl,
       llmModel: "openai/gpt-4o-mini",
     });
 
-    if (args.json) {
-      printLongMemEvalJson(summary);
+    if (isComparison(result)) {
+      // Both strategies — print each summary
+      if (args.json) {
+        printLongMemEvalJson(result.engine);
+        printLongMemEvalJson(result.vault);
+      } else {
+        console.log("\n══ Memory Engine Results ══");
+        printLongMemEvalSummary(result.engine);
+        console.log("\n══ Memory Vault Results ══");
+        printLongMemEvalSummary(result.vault);
+      }
+
+      if (args.output) {
+        await writeFile(args.output, JSON.stringify(result, null, 2));
+        console.log(`\nResults written to ${args.output}`);
+      }
+
+      // Exit with non-zero if both strategies fail
+      const minAccuracy = Math.max(result.engine.accuracy, result.vault.accuracy);
+      process.exit(minAccuracy < 0.5 ? 1 : 0);
     } else {
-      printLongMemEvalSummary(summary);
-    }
+      // Single strategy
+      if (args.json) {
+        printLongMemEvalJson(result);
+      } else {
+        printLongMemEvalSummary(result);
+      }
 
-    if (args.output) {
-      await writeFile(args.output, JSON.stringify(summary, null, 2));
-      console.log(`\nResults written to ${args.output}`);
-    }
+      if (args.output) {
+        await writeFile(args.output, JSON.stringify(result, null, 2));
+        console.log(`\nResults written to ${args.output}`);
+      }
 
-    // Exit with non-zero if accuracy is below 50%
-    process.exit(summary.accuracy < 0.5 ? 1 : 0);
+      process.exit(result.accuracy < 0.5 ? 1 : 0);
+    }
   } catch (error) {
     console.error("Benchmark failed:", error);
     process.exit(1);

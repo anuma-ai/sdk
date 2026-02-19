@@ -201,26 +201,34 @@ export {
 } from "../lib/db/project";
 export { useProjects } from "./useProjects";
 export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
 export { useFiles } from "./useFiles";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
+// Memory vault
 export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
+  VaultMemory as StoredVaultMemoryModel,
+  type StoredVaultMemory,
+  type CreateVaultMemoryOptions,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  createMemoryVaultSearchTool,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  type VaultSaveOperation,
+  type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
+} from "../lib/memoryVault";
+
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {
@@ -364,12 +372,6 @@ export type {
   ChunkingOptions,
   TextChunk,
 } from "../lib/memoryRetrieval";
-
-export {
-  formatMemoriesForChat,
-  createMemoryContextSystemMessage,
-  extractConversationContext,
-} from "../lib/memory/chat";
 
 // Server-side tools caching utilities
 export {
