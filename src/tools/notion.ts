@@ -38,12 +38,21 @@ function generateRequestId(): number {
  * Parse SSE (Server-Sent Events) response to extract JSON-RPC data
  */
 function parseSSEResponse(text: string): unknown {
-  const lines = text.split("\n");
+  // Split into individual SSE events (separated by blank lines)
+  const events = text.split(/\n\n+/);
   let jsonData = "";
 
-  for (const line of lines) {
-    if (line.startsWith("data: ")) {
-      jsonData += line.slice(6);
+  for (const event of events) {
+    const dataLines: string[] = [];
+    for (const line of event.split("\n")) {
+      if (line.startsWith("data: ")) {
+        dataLines.push(line.slice(6));
+      } else if (line.startsWith("data:")) {
+        dataLines.push(line.slice(5));
+      }
+    }
+    if (dataLines.length > 0) {
+      jsonData = dataLines.join("\n");
     }
   }
 
@@ -117,10 +126,7 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
     throw new Error("No Mcp-Session-Id returned from initialization");
   }
 
-  // Cache the session
-  sessionCache.set(accessToken, sessionId);
-
-  // Parse and validate response (handles both JSON and SSE)
+  // Parse and validate response before caching (handles both JSON and SSE)
   const jsonRpcResponse = (await parseResponseBody(response)) as Record<
     string,
     unknown
@@ -131,6 +137,9 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
       `MCP initialization error: ${err.message || JSON.stringify(err)}`
     );
   }
+
+  // Cache only after successful validation
+  sessionCache.set(accessToken, sessionId);
 
   return sessionId;
 }

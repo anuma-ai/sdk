@@ -432,12 +432,11 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
     const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
     if (!sessionStored) return false;
 
-    // Check if localStorage already has encrypted version
+    // If localStorage has a stale encrypted token, remove it so the fresh
+    // sessionStorage token takes precedence during migration.
     const localStored = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (localStored?.startsWith(ENCRYPTED_PREFIX)) {
-      // Already encrypted, just clean up session
-      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-      return false;
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
 
     // Migrate: encrypt and move to localStorage
