@@ -13,6 +13,7 @@ import { Memory } from "./memory/models";
 import { Media } from "./media/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
+import { DisplayInteraction } from "./displayInteraction/models";
 
 /**
  * Current combined schema version for all SDK storage modules.
@@ -31,8 +32,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v12: Added chunks column to history table for sub-message semantic search
  * - v13: Added parent_message_id column to history table for message branching (edit/regenerate)
  * - v14: Added feedback column to history table for like/dislike on responses
+ * - v15: Added display_interactions table for persisting display tool outputs (e.g. charts)
  */
-export const SDK_SCHEMA_VERSION = 14;
+export const SDK_SCHEMA_VERSION = 15;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -160,6 +162,24 @@ export const sdkSchema = appSchema({
         { name: "personality", type: "string", isOptional: true },
         // Timestamps
         { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
+      ],
+    }),
+    // Display interaction storage (resolved display tool outputs, e.g. charts)
+    tableSchema({
+      name: "display_interactions",
+      columns: [
+        // Identity
+        { name: "interaction_id", type: "string", isIndexed: true },
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "message_id", type: "string", isOptional: true, isIndexed: true },
+        // Tool metadata
+        { name: "display_type", type: "string" },
+        { name: "tool_version", type: "number" },
+        // Result payload (JSON string)
+        { name: "result", type: "string" },
+        // Timestamps
+        { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
       ],
     }),
@@ -407,6 +427,25 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v14 -> v15: Added display_interactions table for persisting display tool outputs
+    {
+      toVersion: 15,
+      steps: [
+        createTable({
+          name: "display_interactions",
+          columns: [
+            { name: "interaction_id", type: "string", isIndexed: true },
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "message_id", type: "string", isOptional: true, isIndexed: true },
+            { name: "display_type", type: "string" },
+            { name: "tool_version", type: "number" },
+            { name: "result", type: "string" },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -435,4 +474,5 @@ export const sdkModelClasses: Class<Model>[] = [
   Media,
   ModelPreference,
   UserPreference,
+  DisplayInteraction,
 ];

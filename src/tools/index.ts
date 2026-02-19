@@ -65,12 +65,14 @@ export type {
 export {
   createInteractiveTool,
   createDisplayTool,
+  migrateDisplayResult,
 } from "./uiInteraction";
 export type {
   UIInteractionContext,
   CreateUIToolsOptions,
   InteractiveToolConfig,
   DisplayToolConfig,
+  DisplayToolMigrations,
 } from "./uiInteraction";
 
 // Chart display tool
