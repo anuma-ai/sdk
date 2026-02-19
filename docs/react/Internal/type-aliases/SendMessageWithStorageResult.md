@@ -2,7 +2,7 @@
 
 > **SendMessageWithStorageResult** = { `assistantMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); `data`: `ApiResponse`; `error`: `null`; `userMessage`: [`StoredMessage`](../interfaces/StoredMessage.md); } | { `assistantMessage?`: `undefined`; `data`: `ApiResponse`; `error`: `null`; `skipped`: `true`; `userMessage?`: `undefined`; } | { `assistantMessage?`: `undefined`; `data`: `null`; `error`: `string`; `userMessage?`: [`StoredMessage`](../interfaces/StoredMessage.md); }
 
-Defined in: [src/react/useChatStorage.ts:349](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L349)
+Defined in: [src/react/useChatStorage.ts:370](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L370)
 
 Result from sendMessage with storage (React version)
 The `data` field contains the raw server response which includes `tools_checksum`.
