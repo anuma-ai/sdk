@@ -73,6 +73,10 @@ export type {
   DisplayToolConfig,
 } from "./uiInteraction";
 
+// Chart display tool
+export { createChartTool } from "./chart";
+export type { ChartDataPoint, DisplayChartResult } from "./chart";
+
 // Google Drive exports
 export {
   createGoogleDriveSearchTool,

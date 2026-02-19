@@ -57,6 +57,18 @@
  */
 export { useChat } from "./useChat";
 
+// Chart display components
+export {
+  ChartCard,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+} from "./chart";
+export type { ChartConfig, ChartCardProps } from "./chart";
+
 // UI Interaction infrastructure
 export {
   UIInteractionProvider,
