@@ -283,12 +283,7 @@ export interface NotionMovePagesArgs {
   new_parent: Record<string, unknown>;
 }
 
-export interface NotionQueryDataSourceArgs {
-  data_source_id: string;
-  filter?: Record<string, unknown>;
-  sorts?: Array<{ property: string; direction: "ascending" | "descending" }>;
-  page_size?: number;
-}
+
 
 // ============================================================================
 // SEARCH TOOL
@@ -661,77 +656,6 @@ export function createNotionDuplicatePageTool(
         return await callMCPTool(token, "notion-duplicate-page", args);
       } catch (error) {
         return `Error duplicating Notion page: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
-    autoExecute: true,
-  };
-}
-
-// ============================================================================
-// QUERY DATA SOURCES TOOL
-// ============================================================================
-
-/**
- * MCP Tool: notion-query-data-sources
- * Query a Notion database (data source) with filters and sorts
- */
-export function createNotionQueryDataSourceTool(
-  getAccessToken: () => string | null,
-  requestNotionAccess: () => Promise<string>
-): ToolConfig {
-  return {
-    type: "function",
-    function: {
-      name: "notion-query-data-sources",
-      description: "Query a Notion data source (database) using filters and sorts.",
-      arguments: {
-        type: "object",
-        properties: {
-          data_source_id: {
-            type: "string",
-            description: "Identifier for the Notion data source (database)",
-          },
-          filter: {
-            type: "object",
-            description: "Filter conditions for querying the data source",
-          },
-          sorts: {
-            type: "array",
-            description: "Sort criteria for results",
-            items: {
-              type: "object",
-              properties: {
-                property: { type: "string" },
-                direction: {
-                  type: "string",
-                  enum: ["ascending", "descending"],
-                },
-              },
-              required: ["property", "direction"],
-            },
-          },
-          start_cursor: {
-            type: "string",
-            description: "Pagination cursor from previous response",
-          },
-          page_size: {
-            type: "integer",
-            description: "Number of results to return (default 100)",
-          },
-        },
-        required: ["data_source_id"],
-      },
-    },
-    executor: async (args: Record<string, unknown>) => {
-      let token = getAccessToken();
-      if (!token) {
-        token = await requestNotionAccess();
-      }
-
-      try {
-        return await callMCPTool(token, "notion-query-data-sources", args);
-      } catch (error) {
-        return `Error querying Notion database: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
     autoExecute: true,
@@ -1130,7 +1054,7 @@ export function createNotionTools(
     createNotionDuplicatePageTool(getAccessToken, requestNotionAccess),
 
     // Data Sources (Databases)
-    createNotionQueryDataSourceTool(getAccessToken, requestNotionAccess),
+
     createNotionCreateDatabaseTool(getAccessToken, requestNotionAccess),
     createNotionUpdateDataSourceTool(getAccessToken, requestNotionAccess),
 

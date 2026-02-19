@@ -109,7 +109,7 @@ export {
   createNotionUpdatePageTool,
   createNotionMovePagesTool,
   createNotionDuplicatePageTool,
-  createNotionQueryDataSourceTool,
+
   createNotionCreateDatabaseTool,
   createNotionUpdateDataSourceTool,
   createNotionCreateCommentTool,
@@ -126,5 +126,5 @@ export type {
   NotionCreatePagesArgs,
   NotionUpdatePageArgs,
   NotionMovePagesArgs,
-  NotionQueryDataSourceArgs,
+
 } from "./notion";
