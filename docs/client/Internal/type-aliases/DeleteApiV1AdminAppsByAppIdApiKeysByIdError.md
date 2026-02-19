@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AdminAppsByAppIdApiKeysByIdError** = [`DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors`](DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors.md)\[keyof [`DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors`](DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors.md)]
 
-Defined in: [src/client/types.gen.ts:1420](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1420)
+Defined in: [src/client/types.gen.ts:1444](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1444)

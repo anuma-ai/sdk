@@ -80,7 +80,7 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@anuma/portal": "1.0.0",
+    "@anuma/portal": "1.0.0-next.20260219050241",
     "ai": "5.0.93",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",

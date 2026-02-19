@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminAppsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1237](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1237)
+Defined in: [src/client/types.gen.ts:1261](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1261)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1237](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersListAppsResponse`](HandlersListAppsResponse.md)
 
-Defined in: [src/client/types.gen.ts:1241](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1241)
+Defined in: [src/client/types.gen.ts:1265](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1265)
 
 OK

@@ -2,7 +2,7 @@
 
 > **GetApiV1AdminAppsByAppIdApiKeysByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:1433](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1433)
+Defined in: [src/client/types.gen.ts:1457](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1457)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1433](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1434](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1434)
+Defined in: [src/client/types.gen.ts:1458](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1458)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1434](https://github.com/zeta-chain/ai-sdk/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1435](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1435)
+Defined in: [src/client/types.gen.ts:1459](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1459)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:1441](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1441)
+Defined in: [src/client/types.gen.ts:1465](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1465)
 
 **app\_id**
 
@@ -52,7 +52,7 @@ API Key ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1451](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1451)
+Defined in: [src/client/types.gen.ts:1475](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1475)
 
 ***
 
@@ -60,4 +60,4 @@ Defined in: [src/client/types.gen.ts:1451](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/admin/apps/{app_id}/api-keys/{id}"`
 
-Defined in: [src/client/types.gen.ts:1452](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1452)
+Defined in: [src/client/types.gen.ts:1476](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1476)

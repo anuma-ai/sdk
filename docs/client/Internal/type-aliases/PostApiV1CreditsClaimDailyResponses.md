@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1899)
+Defined in: [src/client/types.gen.ts:1923](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1923)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersClaimDailyCreditsResponse`](HandlersClaimDailyCreditsResponse.md)
 
-Defined in: [src/client/types.gen.ts:1903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1903)
+Defined in: [src/client/types.gen.ts:1927](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1927)
 
 OK

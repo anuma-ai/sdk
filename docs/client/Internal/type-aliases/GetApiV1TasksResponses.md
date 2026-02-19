@@ -2,7 +2,7 @@
 
 > **GetApiV1TasksResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2368](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2368)
+Defined in: [src/client/types.gen.ts:2392](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2392)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2368](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersTaskResponse`](HandlersTaskResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:2372](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2372)
+Defined in: [src/client/types.gen.ts:2396](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2396)
 
 OK

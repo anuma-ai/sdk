@@ -21,8 +21,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.0.0-next.20260219050241
+        version: 1.0.0-next.20260219050241
       '@huggingface/transformers':
         specifier: ^3.0.0
         version: 3.8.1
@@ -133,8 +133,8 @@ packages:
     resolution: {integrity: sha512-6o7Y2SeO9vFKB8lArHXehNuusnpddKPk7xqL7T2/b+OvXMRIXUO1rR4wcv1hAFUAT9avGZshty3Wlua/XA7TvA==}
     engines: {node: '>=18'}
 
-  '@anuma/portal@1.0.0':
-    resolution: {integrity: sha512-nhAjhpvelSRaIQrY8nKwpumWgnNwXHgwCQhjWbFvPtbSPG0fUR2ItM9fRfuge9Oaaidw/IIQj0aEkIm8NXUuZw==}
+  '@anuma/portal@1.0.0-next.20260219050241':
+    resolution: {integrity: sha512-MTtBWgW09vW7QbIWFY7HJ8yRCkrq6Rlxs3o9DrD8zH229gmDOEiLzka61QHlq6cEyc4l1mow1leRNbQ98P8Ggg==}
 
   '@babel/code-frame@7.28.6':
     resolution: {integrity: sha512-JYgintcMjRiCvS8mMECzaEn+m3PfoQiyqukOMCCVQtoJGYJw8j/8LBJEiqkHLkfwCcs74E3pbAUFNg7d9VNJ+Q==}
@@ -5579,7 +5579,7 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@anuma/portal@1.0.0': {}
+  '@anuma/portal@1.0.0-next.20260219050241': {}
 
   '@babel/code-frame@7.28.6':
     dependencies:

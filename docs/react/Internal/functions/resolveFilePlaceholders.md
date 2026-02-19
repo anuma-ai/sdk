@@ -2,7 +2,7 @@
 
 > **resolveFilePlaceholders**(`content`: `string`, `encryptionKey`: `CryptoKey`, `blobManager`: [`BlobUrlManager`](../classes/BlobUrlManager.md)): `Promise`<`string`>
 
-Defined in: [src/lib/storage/opfs.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L335)
+Defined in: [src/lib/storage/opfs.ts:384](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L384)
 
 Resolves file placeholders in content to blob URLs.
 

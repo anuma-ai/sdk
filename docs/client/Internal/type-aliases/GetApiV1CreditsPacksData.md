@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsPacksData** = `object`
 
-Defined in: [src/client/types.gen.ts:1908](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1908)
+Defined in: [src/client/types.gen.ts:1932](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1932)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1908](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1909](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1909)
+Defined in: [src/client/types.gen.ts:1933](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1933)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1909](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1910](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1910)
+Defined in: [src/client/types.gen.ts:1934](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1934)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1910](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1911](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1911)
+Defined in: [src/client/types.gen.ts:1935](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1935)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:1911](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/credits/packs"`
 
-Defined in: [src/client/types.gen.ts:1912](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1912)
+Defined in: [src/client/types.gen.ts:1936](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1936)

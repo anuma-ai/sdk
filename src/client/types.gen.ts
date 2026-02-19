@@ -477,11 +477,19 @@ export type LlmapiChatCompletionResponse = {
      * Choices contains the completion choices
      */
     choices?: Array<LlmapiChoice>;
+    /**
+     * ClientInjectedTools are tool names the client provided in the original request.
+     */
+    client_injected_tools?: Array<string>;
     extra_fields?: LlmapiChatCompletionExtraFields;
     /**
      * ID is the completion ID
      */
     id?: string;
+    /**
+     * InferenceID is the unique identifier for this inference request
+     */
+    inference_id?: string;
     /**
      * Messages contains the full conversation history when local tools need execution.
      * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -493,6 +501,10 @@ export type LlmapiChatCompletionResponse = {
      * Model is the model used
      */
     model?: string;
+    /**
+     * PortalInjectedTools are tool names the portal's classifier added to the request.
+     */
+    portal_injected_tools?: Array<string>;
     /**
      * ToolCallEvents is an array of tool call events.
      */
@@ -619,6 +631,10 @@ export type LlmapiEmbeddingResponse = {
      */
     data?: Array<LlmapiEmbeddingData>;
     extra_fields?: LlmapiEmbeddingExtraFields;
+    /**
+     * InferenceID is the unique identifier for this inference request
+     */
+    inference_id?: string;
     /**
      * Model is the model used
      */
@@ -1021,6 +1037,10 @@ export type LlmapiResponseRequest = {
 
 export type LlmapiResponseResponse = {
     /**
+     * ClientInjectedTools are tool names the client provided in the original request.
+     */
+    client_injected_tools?: Array<string>;
+    /**
      * Created is the Unix timestamp of creation (created_at in OpenAI format)
      */
     created_at?: number;
@@ -1048,6 +1068,10 @@ export type LlmapiResponseResponse = {
      * Output is the array of output items (OpenAI Responses API format)
      */
     output?: Array<LlmapiResponseOutputItem>;
+    /**
+     * PortalInjectedTools are tool names the portal's classifier added to the request.
+     */
+    portal_injected_tools?: Array<string>;
     /**
      * ToolCallEvents is an array of tool call events.
      */
@@ -1979,13 +2003,13 @@ export type PostApiV1CreditsSyncSnagData = {
 
 export type PostApiV1CreditsSyncSnagErrors = {
     /**
-     * Cooldown not expired
-     */
-    400: ResponseErrorResponse;
-    /**
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
