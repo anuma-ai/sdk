@@ -30,7 +30,7 @@ The memory content to save
 
 > `optional` **id**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L27)
+Defined in: [src/lib/memoryVault/tool.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L29)
 
 The ID of the memory being updated (only present for updates)
 
@@ -40,6 +40,16 @@ The ID of the memory being updated (only present for updates)
 
 > `optional` **previousContent**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L29)
+Defined in: [src/lib/memoryVault/tool.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L31)
 
 The previous content of the memory (only present for updates, for diff display)
+
+***
+
+### scope?
+
+> `optional` **scope**: `string`
+
+Defined in: [src/lib/memoryVault/tool.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L27)
+
+The scope of the memory (only present for add operations)

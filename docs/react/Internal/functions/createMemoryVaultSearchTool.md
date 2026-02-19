@@ -2,7 +2,7 @@
 
 > **createMemoryVaultSearchTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/searchTool.ts#L101)
+Defined in: [src/lib/memoryVault/searchTool.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/searchTool.ts#L190)
 
 Creates a memory vault search tool for use with chat completions.
 

@@ -1,8 +1,8 @@
 # getAllVaultMemoriesOp
 
-> **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
+> **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L93)
+Defined in: [src/lib/db/memoryVault/operations.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L96)
 
 ## Parameters
 
@@ -23,6 +23,30 @@ Defined in: [src/lib/db/memoryVault/operations.ts:93](https://github.com/zeta-ch
 <td>
 
 [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.scopes?`
+
+</td>
+<td>
+
+`string`\[]
 
 </td>
 </tr>

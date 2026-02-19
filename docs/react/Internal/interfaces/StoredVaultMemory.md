@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:6](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L6)
+Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L8)
 
 ***
 
@@ -26,7 +26,17 @@ Defined in: [src/lib/db/memoryVault/types.ts:6](https://github.com/zeta-chain/ai
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L8)
+Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L10)
+
+***
+
+### scope
+
+> **scope**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L7)
+
+Scope for partitioning memories (e.g., "private", "public")
 
 ***
 
@@ -44,4 +54,4 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L7)
+Defined in: [src/lib/db/memoryVault/types.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L9)

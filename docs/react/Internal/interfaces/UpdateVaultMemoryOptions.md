@@ -1,6 +1,6 @@
 # UpdateVaultMemoryOptions
 
-Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L15)
+Defined in: [src/lib/db/memoryVault/types.ts:19](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L19)
 
 ## Properties
 
@@ -8,4 +8,14 @@ Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/zeta-chain/a
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L16)
+Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L20)
+
+***
+
+### scope?
+
+> `optional` **scope**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L22)
+
+If provided, updates the memory's scope.

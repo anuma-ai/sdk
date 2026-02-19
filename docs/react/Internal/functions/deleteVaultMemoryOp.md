@@ -2,7 +2,7 @@
 
 > **deleteVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:148](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L148)
+Defined in: [src/lib/db/memoryVault/operations.ts:160](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L160)
 
 ## Parameters
 
