@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:223](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L223)
+Defined in: [src/lib/db/schema.ts:243](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L243)
 
 Combined migrations for all SDK storage modules.
 

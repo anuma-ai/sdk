@@ -2,7 +2,7 @@
 
 > `const` **sdkSchema**: `Readonly`<{ `tables`: `TableMap`; `unsafeSql?`: (`_`: `string`, `__`: `AppSchemaUnsafeSqlKind`) => `string`; `version`: `number`; }>
 
-Defined in: [src/lib/db/schema.ts:67](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L67)
+Defined in: [src/lib/db/schema.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L69)
 
 Combined WatermelonDB schema for all SDK storage modules.
 
