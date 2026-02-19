@@ -102,6 +102,7 @@ export class CompletionsStrategy implements ApiStrategy {
       maxOutputTokens,
       tools,
       toolChoice,
+      imageModel,
     } = args;
 
     return {
@@ -112,6 +113,7 @@ export class CompletionsStrategy implements ApiStrategy {
       ...(maxOutputTokens !== undefined && { max_tokens: maxOutputTokens }),
       ...(tools && { tools }),
       ...(toolChoice && { tool_choice: toolChoice }),
+      ...(imageModel && { image_model: imageModel }),
     };
   }
 

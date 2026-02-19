@@ -27,6 +27,7 @@ export class ResponsesStrategy implements ApiStrategy {
       toolChoice,
       reasoning,
       thinking,
+      imageModel,
     } = args;
 
     return {
@@ -39,6 +40,7 @@ export class ResponsesStrategy implements ApiStrategy {
       ...(toolChoice && { tool_choice: toolChoice }),
       ...(reasoning && { reasoning }),
       ...(thinking && { thinking }),
+      ...(imageModel && { image_model: imageModel }),
     };
   }
 

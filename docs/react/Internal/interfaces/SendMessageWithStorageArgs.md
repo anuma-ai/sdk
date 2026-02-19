@@ -120,6 +120,20 @@ Useful for passing additional authentication, tracking, or feature flags.
 
 ***
 
+### imageModel?
+
+> `optional` **imageModel**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:539](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L539)
+
+User-selected image generation model for server-side enforcement.
+
+**Inherited from**
+
+`BaseSendMessageWithStorageArgs.imageModel`
+
+***
+
 ### includeHistory?
 
 > `optional` **includeHistory**: `boolean`
@@ -307,7 +321,7 @@ Use this to update UI as the response streams in.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:543](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L543)
+Defined in: [src/lib/db/chat/types.ts:546](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L546)
 
 Per-request callback for thinking/reasoning chunks.
 Called with delta chunks as the model "thinks" through a problem.
@@ -352,7 +366,7 @@ Use this to display thinking progress in the UI.
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:546](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L546)
+Defined in: [src/lib/db/chat/types.ts:549](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L549)
 
 Parent message ID for branching (edit/regenerate). Sets on the user message.
 
