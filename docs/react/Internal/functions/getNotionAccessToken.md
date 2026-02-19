@@ -2,7 +2,7 @@
 
 > **getNotionAccessToken**(`walletAddress`: `string` | `undefined`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/notion.ts:734](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L734)
+Defined in: [src/lib/auth/notion.ts:761](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L761)
 
 Get a valid access token, refreshing if necessary
 
