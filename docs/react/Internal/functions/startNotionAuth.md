@@ -2,7 +2,7 @@
 
 > **startNotionAuth**(`callbackPath`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/notion.ts:496](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L496)
+Defined in: [src/lib/auth/notion.ts:495](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L495)
 
 Start the Notion OAuth flow with PKCE and Dynamic Client Registration
 Redirects to Notion authorization page
