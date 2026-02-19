@@ -452,7 +452,13 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
     const data = JSON.parse(sessionStored) as StoredTokenData;
     await storeTokenData(data, walletAddress);
 
-    // Clear unencrypted version
+    // Verify encryption succeeded (token landed in localStorage, not sessionStorage fallback)
+    const migrated = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!migrated?.startsWith(ENCRYPTED_PREFIX)) {
+      return false;
+    }
+
+    // Clear unencrypted version only after confirmed migration
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 
     return true;
