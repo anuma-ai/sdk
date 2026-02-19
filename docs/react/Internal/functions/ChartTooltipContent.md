@@ -2,7 +2,7 @@
 
 > **ChartTooltipContent**(`__namedParameters`: `Props`<`ValueType`, `NameType`> & `object` & `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `object`): `Element` | `null`
 
-Defined in: src/react/chart.tsx:143
+Defined in: [src/react/chart.tsx:143](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/chart.tsx#L143)
 
 ## Parameters
 

@@ -2,7 +2,7 @@
 
 > **ChartContainer**(`__namedParameters`: `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `object`): `Element`
 
-Defined in: src/react/chart.tsx:102
+Defined in: [src/react/chart.tsx:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/chart.tsx#L102)
 
 ## Parameters
 
