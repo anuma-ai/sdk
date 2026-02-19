@@ -1,8 +1,8 @@
 # startNotionAuth
 
-> **startNotionAuth**(`callbackPath`: `string`): `Promise`<`never`>
+> **startNotionAuth**(`callbackPath`: `string`, `walletAddress?`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/notion.ts:523](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L523)
+Defined in: [src/lib/auth/notion.ts:665](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L665)
 
 Start the Notion OAuth flow with PKCE and Dynamic Client Registration
 Redirects to Notion authorization page
@@ -34,6 +34,23 @@ No client ID needed - uses dynamic registration (RFC 7591)
 <td>
 
 The path for OAuth callback (e.g., "/auth/notion/callback")
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

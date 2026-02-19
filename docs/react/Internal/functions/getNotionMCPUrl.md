@@ -2,7 +2,7 @@
 
 > **getNotionMCPUrl**(): `string`
 
-Defined in: [src/lib/auth/notion.ts:902](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L902)
+Defined in: [src/lib/auth/notion.ts:1045](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L1045)
 
 Get the Notion MCP server URL for tool connections
 
