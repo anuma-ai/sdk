@@ -27,6 +27,8 @@ export interface MemoryVaultSearchOptions {
   limit?: number;
   /** Minimum similarity threshold below which results are discarded (default: 0.1) */
   minSimilarity?: number;
+  /** When provided, only search memories with these scopes */
+  scopes?: string[];
 }
 
 /**
@@ -53,9 +55,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
 export async function preEmbedVaultMemories(
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
-  cache: VaultEmbeddingCache
+  cache: VaultEmbeddingCache,
+  options?: { scopes?: string[] }
 ): Promise<void> {
-  const memories = await getAllVaultMemoriesOp(vaultCtx);
+  const memories = await getAllVaultMemoriesOp(vaultCtx, options);
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
   for (const m of memories) {
@@ -84,6 +87,90 @@ export async function eagerEmbedContent(
 ): Promise<void> {
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
+}
+
+/**
+ * A single vault search result with its similarity score.
+ */
+export interface VaultSearchResult {
+  uniqueId: string;
+  content: string;
+  similarity: number;
+}
+
+/**
+ * Search vault memories by semantic similarity. Returns structured results
+ * sorted by descending similarity, filtered by threshold and limit.
+ *
+ * This is the standalone search logic extracted from `createMemoryVaultSearchTool`
+ * so it can be called programmatically (e.g., for pre-retrieval injection).
+ *
+ * @returns Sorted results (empty array on invalid input or empty vault)
+ */
+export async function searchVaultMemories(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<VaultSearchResult[]> {
+  const limit = searchOptions?.limit ?? 5;
+  const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
+  const scopes = searchOptions?.scopes;
+
+  if (!query || typeof query !== "string") {
+    return [];
+  }
+
+  const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
+  if (memories.length === 0) {
+    return [];
+  }
+
+  // Embed the query
+  const queryEmbedding = await generateEmbedding(query, embeddingOptions);
+
+  // Batch-embed any vault entries missing from cache (fallback)
+  const uncachedTexts: string[] = [];
+  const uncachedIndices: number[] = [];
+  for (let i = 0; i < memories.length; i++) {
+    if (!cache.has(memories[i].content)) {
+      uncachedTexts.push(memories[i].content);
+      uncachedIndices.push(i);
+    }
+  }
+  if (uncachedTexts.length > 0) {
+    const newEmbeddings = await generateEmbeddings(
+      uncachedTexts,
+      embeddingOptions
+    );
+    for (let j = 0; j < uncachedTexts.length; j++) {
+      cache.set(
+        memories[uncachedIndices[j]].content,
+        newEmbeddings[j]
+      );
+    }
+  }
+
+  // Score each memory by cosine similarity
+  const scored = memories
+    .map((m) => {
+      const embedding = cache.get(m.content);
+      if (!embedding) return null;
+      return {
+        uniqueId: m.uniqueId,
+        content: m.content,
+        similarity: cosineSimilarity(queryEmbedding, embedding),
+      };
+    })
+    .filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
+
+  scored.sort((a, b) => b.similarity - a.similarity);
+  return scored
+    .filter((r) => r.similarity >= minSimilarity)
+    .slice(0, limit);
 }
 
 /**
@@ -143,68 +230,35 @@ export function createMemoryVaultSearchTool(
       }
 
       try {
-        const memories = await getAllVaultMemoriesOp(vaultCtx);
+        const results = await searchVaultMemories(
+          query,
+          vaultCtx,
+          embeddingOptions,
+          cache,
+          { ...searchOptions, limit: requestLimit, minSimilarity }
+        );
+
+        // Check if vault is empty (distinct from "no matches")
+        const memories = await getAllVaultMemoriesOp(
+          vaultCtx,
+          searchOptions?.scopes?.length ? { scopes: searchOptions.scopes } : undefined
+        );
         if (memories.length === 0) {
           return "The memory vault is empty. No memories have been saved yet.";
         }
 
-        // Embed the query
-        const queryEmbedding = await generateEmbedding(query, embeddingOptions);
-
-        // Batch-embed any vault entries missing from cache (fallback)
-        const uncachedTexts: string[] = [];
-        const uncachedIndices: number[] = [];
-        for (let i = 0; i < memories.length; i++) {
-          if (!cache.has(memories[i].content)) {
-            uncachedTexts.push(memories[i].content);
-            uncachedIndices.push(i);
-          }
-        }
-        if (uncachedTexts.length > 0) {
-          const newEmbeddings = await generateEmbeddings(
-            uncachedTexts,
-            embeddingOptions
-          );
-          for (let j = 0; j < uncachedTexts.length; j++) {
-            cache.set(
-              memories[uncachedIndices[j]].content,
-              newEmbeddings[j]
-            );
-          }
-        }
-
-        // Score each memory by cosine similarity
-        const scored = memories
-          .map((m) => {
-            const embedding = cache.get(m.content);
-            if (!embedding) return null;
-            return {
-              uniqueId: m.uniqueId,
-              content: m.content,
-              similarity: cosineSimilarity(queryEmbedding, embedding),
-            };
-          })
-          .filter(
-            (r): r is NonNullable<typeof r> => r !== null
-          );
-
-        scored.sort((a, b) => b.similarity - a.similarity);
-        const topResults = scored
-          .filter((r) => r.similarity >= minSimilarity)
-          .slice(0, requestLimit);
-
-        if (topResults.length === 0) {
+        if (results.length === 0) {
           return "No relevant memories found in the vault.";
         }
 
-        const formatted = topResults
+        const formatted = results
           .map(
             (r, i) =>
               `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
           )
           .join("\n\n");
 
-        return `Found ${topResults.length} vault memories:\n\n${formatted}`;
+        return `Found ${results.length} vault memories:\n\n${formatted}`;
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unknown error";

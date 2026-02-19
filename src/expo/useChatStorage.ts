@@ -208,7 +208,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
 
   /** Get all vault memories for context injection. */
-  getVaultMemories: () => Promise<StoredVaultMemory[]>;
+  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
 
   /** Delete a vault memory by its ID (soft delete). */
   deleteVaultMemory: (id: string) => Promise<boolean>;
@@ -557,8 +557,8 @@ export function useChatStorage(
    * Get all vault memories (for injecting as context into messages)
    */
   const getVaultMemories = useCallback(
-    (): Promise<StoredVaultMemory[]> => {
-      return getAllVaultMemoriesOp(vaultCtx);
+    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+      return getAllVaultMemoriesOp(vaultCtx, options);
     },
     [vaultCtx]
   );

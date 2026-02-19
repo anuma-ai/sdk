@@ -219,6 +219,7 @@ export {
 export {
   createMemoryVaultTool,
   createMemoryVaultSearchTool,
+  searchVaultMemories,
   preEmbedVaultMemories,
   eagerEmbedContent,
   createVaultEmbeddingCache,
@@ -227,6 +228,7 @@ export {
   type MemoryVaultToolOptions,
   type VaultEmbeddingCache,
   type MemoryVaultSearchOptions,
+  type VaultSearchResult,
 } from "../lib/memoryVault";
 
 export { useSettings } from "./useSettings";
