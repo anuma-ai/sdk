@@ -31,6 +31,20 @@ export type ServerToolsFilterFn = (
  */
 export type ServerToolsFilter = string[] | ServerToolsFilterFn;
 
+/**
+ * Function type for dynamic client tools filtering based on prompt embeddings.
+ * Receives the prompt embedding(s) (or null for short messages where no embedding
+ * was generated) and all client tools, returns tool names to include.
+ *
+ * @param embeddings - Single embedding, array of embeddings, or null (short message)
+ * @param tools - All client tools passed to sendMessage
+ * @returns Array of tool names to include
+ */
+export type ClientToolsFilterFn = (
+  embeddings: number[] | number[][] | null,
+  tools: any[]
+) => string[];
+
 // Core types
 
 export type ChatRole = "user" | "assistant" | "system";
@@ -511,6 +525,20 @@ export interface BaseSendMessageWithStorageArgs {
    * }
    */
   serverTools?: ServerToolsFilter;
+
+  /**
+   * Dynamic filter for client-side tools based on prompt embeddings.
+   * Receives the prompt embedding(s) (or null for short messages) and all client tools,
+   * returns tool names to include. Tools not in the returned list are excluded from the request.
+   *
+   * @example
+   * clientToolsFilter: (embeddings, tools) => {
+   *   if (!embeddings) return []; // Short message — no client tools
+   *   const matches = findMatchingTools(embeddings, pseudoServerTools);
+   *   return matches.map(m => m.tool.name);
+   * }
+   */
+  clientToolsFilter?: ClientToolsFilterFn;
 
   /**
    * Controls which tool the model should use:

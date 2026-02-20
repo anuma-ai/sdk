@@ -159,6 +159,16 @@ Defined in: [src/react/useUIInteraction.ts:28](https://github.com/zeta-chain/ai-
 
 ***
 
+### toolVersion?
+
+> `optional` **toolVersion**: `number`
+
+Defined in: [src/react/useUIInteraction.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L30)
+
+Version of the display tool that produced this interaction (for migration on restore)
+
+***
+
 ### type
 
 > **type**: [`InteractionType`](InteractionType.md)

@@ -797,10 +797,10 @@ export function parseSSEDataLine(line: string): StreamingChunk | null {
  */
 export function createToolExecutorMap(
   tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
-): Map<string, { executor: ToolExecutor; autoExecute: boolean }> {
+): Map<string, { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }> {
   const map = new Map<
     string,
-    { executor: ToolExecutor; autoExecute: boolean }
+    { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }
   >();
 
   if (!tools) {
@@ -818,6 +818,7 @@ export function createToolExecutorMap(
       map.set(toolName, {
         executor: toolWithExecutor.executor as ToolExecutor,
         autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
+        skipContinuation: toolWithExecutor.skipContinuation === true, // Default to false
       });
     }
   }
@@ -871,8 +872,8 @@ export function toolsToApiFormat(
   }
 
   return tools.map((tool) => {
-    // Strip executor, autoExecute, and removeAfterExecution properties (client-side only)
-    const { executor, autoExecute, removeAfterExecution, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    // Strip client-side-only properties before sending to API
+    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
     return apiTool;
   });
 }

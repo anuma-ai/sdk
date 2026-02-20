@@ -65,13 +65,19 @@ export type {
 export {
   createInteractiveTool,
   createDisplayTool,
+  migrateDisplayResult,
 } from "./uiInteraction";
 export type {
   UIInteractionContext,
   CreateUIToolsOptions,
   InteractiveToolConfig,
   DisplayToolConfig,
+  DisplayToolMigrations,
 } from "./uiInteraction";
+
+// Chart display tool
+export { createChartTool } from "./chart";
+export type { ChartDataPoint, DisplayChartResult } from "./chart";
 
 // Google Drive exports
 export {

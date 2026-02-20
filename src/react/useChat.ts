@@ -63,12 +63,20 @@ type SendMessageArgs = BaseSendMessageArgs & {
   apiType?: ApiType;
 };
 
+/** A tool result from an auto-executed tool (e.g. display tools). */
+type AutoExecutedToolResult = {
+  name: string;
+  result: any;
+};
+
 type SendMessageResult =
   | {
       data: ApiResponse;
       error: null;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
+      /** Results from tools that were auto-executed by the SDK */
+      autoExecutedToolResults?: AutoExecutedToolResult[];
     }
   | {
       data: ApiResponse | null;
@@ -567,6 +575,28 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Build tool result messages to send back to the model
           const toolResultMessages: LlmapiMessage[] = [];
+
+          // If all executed tools have skipContinuation, don't send results
+          // back to the model. This prevents display-only tools (charts, weather)
+          // from triggering redundant continuation requests.
+          const allSkipContinuation = toolCallsToExecute.every(
+            (tc) => executorMap.get(tc.name)?.skipContinuation === true
+          );
+
+          if (allSkipContinuation) {
+            const skipResponse = strategy.buildFinalResponse(currentAccumulator);
+            if (onFinish) {
+              onFinish(skipResponse);
+            }
+            return {
+              data: skipResponse,
+              error: null,
+              toolsChecksum: currentAccumulator.toolsChecksum,
+              autoExecutedToolResults: executionResults
+                .filter((r) => !r.error && r.name)
+                .map((r) => ({ name: r.name!, result: r.result })),
+            };
+          }
 
           // Add the assistant's message with tool calls
           const assistantMessage: LlmapiMessage = {

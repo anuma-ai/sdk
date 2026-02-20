@@ -1,6 +1,6 @@
 # CreateMessageOptions
 
-Defined in: [src/lib/db/chat/types.ts:189](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L189)
+Defined in: [src/lib/db/chat/types.ts:203](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L203)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:189](https://github.com/zeta-chain/ai-sdk/
 
 > **content**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:192](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L192)
+Defined in: [src/lib/db/chat/types.ts:206](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L206)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:192](https://github.com/zeta-chain/ai-sdk/
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L190)
+Defined in: [src/lib/db/chat/types.ts:204](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L204)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:190](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:202](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L202)
+Defined in: [src/lib/db/chat/types.ts:216](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L216)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/chat/types.ts:202](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **error**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:205](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L205)
+Defined in: [src/lib/db/chat/types.ts:219](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L219)
 
 If set, indicates the message failed with this error
 
@@ -42,7 +42,7 @@ If set, indicates the message failed with this error
 
 > `optional` **fileIds**: `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:197](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L197)
+Defined in: [src/lib/db/chat/types.ts:211](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L211)
 
 Array of media\_id references for direct lookup in media table
 
@@ -52,7 +52,7 @@ Array of media\_id references for direct lookup in media table
 
 > `optional` **files**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:195](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L195)
+Defined in: [src/lib/db/chat/types.ts:209](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L209)
 
 **Deprecated**
 
@@ -64,7 +64,7 @@ Use fileIds with media table instead
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:193](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L193)
+Defined in: [src/lib/db/chat/types.ts:207](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L207)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: [src/lib/db/chat/types.ts:193](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:210](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L210)
+Defined in: [src/lib/db/chat/types.ts:224](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L224)
 
 Parent message ID for branching (edit/regenerate).
 
@@ -82,7 +82,7 @@ Parent message ID for branching (edit/regenerate).
 
 > `optional` **responseDuration**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:200](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L200)
+Defined in: [src/lib/db/chat/types.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L214)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: [src/lib/db/chat/types.ts:200](https://github.com/zeta-chain/ai-sdk/
 
 > **role**: [`ChatRole`](../type-aliases/ChatRole.md)
 
-Defined in: [src/lib/db/chat/types.ts:191](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L191)
+Defined in: [src/lib/db/chat/types.ts:205](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L205)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [src/lib/db/chat/types.ts:191](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **sources**: [`SearchSource`](SearchSource.md)\[]
 
-Defined in: [src/lib/db/chat/types.ts:199](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L199)
+Defined in: [src/lib/db/chat/types.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L213)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [src/lib/db/chat/types.ts:199](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **thinking**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:208](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L208)
+Defined in: [src/lib/db/chat/types.ts:222](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L222)
 
 Reasoning/thinking content from models that support extended thinking
 
@@ -116,7 +116,7 @@ Reasoning/thinking content from models that support extended thinking
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/types.ts:206](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L206)
+Defined in: [src/lib/db/chat/types.ts:220](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L220)
 
 ***
 
@@ -124,7 +124,7 @@ Defined in: [src/lib/db/chat/types.ts:206](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
 
-Defined in: [src/lib/db/chat/types.ts:198](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L198)
+Defined in: [src/lib/db/chat/types.ts:212](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L212)
 
 ***
 
@@ -132,7 +132,7 @@ Defined in: [src/lib/db/chat/types.ts:198](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **vector**: `number`\[]
 
-Defined in: [src/lib/db/chat/types.ts:201](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L201)
+Defined in: [src/lib/db/chat/types.ts:215](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L215)
 
 ***
 
@@ -140,4 +140,4 @@ Defined in: [src/lib/db/chat/types.ts:201](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **wasStopped**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:203](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L203)
+Defined in: [src/lib/db/chat/types.ts:217](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L217)

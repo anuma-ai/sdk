@@ -197,5 +197,6 @@ export function createMemoryRetrievalTool(
       }
     },
     autoExecute: true,
+    removeAfterExecution: true,
   };
 }

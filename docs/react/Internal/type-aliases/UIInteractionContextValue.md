@@ -2,7 +2,7 @@
 
 > **UIInteractionContextValue** = `object`
 
-Defined in: [src/react/useUIInteraction.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L34)
+Defined in: [src/react/useUIInteraction.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L36)
 
 Context value for UI interactions
 
@@ -12,7 +12,7 @@ Context value for UI interactions
 
 > **cancelInteraction**: (`id`: `string`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L48)
+Defined in: [src/react/useUIInteraction.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L51)
 
 **Parameters**
 
@@ -49,7 +49,7 @@ Defined in: [src/react/useUIInteraction.ts:48](https://github.com/zeta-chain/ai-
 
 > **clearInteractions**: () => `void`
 
-Defined in: [src/react/useUIInteraction.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L49)
+Defined in: [src/react/useUIInteraction.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L52)
 
 **Returns**
 
@@ -59,9 +59,9 @@ Defined in: [src/react/useUIInteraction.ts:49](https://github.com/zeta-chain/ai-
 
 ### createDisplayInteraction()
 
-> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`) => `void`
+> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`, `toolVersion?`: `number`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L41)
+Defined in: [src/react/useUIInteraction.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L43)
 
 **Parameters**
 
@@ -121,6 +121,18 @@ Defined in: [src/react/useUIInteraction.ts:41](https://github.com/zeta-chain/ai-
 
 </td>
 </tr>
+<tr>
+<td>
+
+`toolVersion?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -134,7 +146,7 @@ Defined in: [src/react/useUIInteraction.ts:41](https://github.com/zeta-chain/ai-
 
 > **createInteraction**: (`id`: `string`, `type`: [`InteractionType`](InteractionType.md), `data`: `any`) => `Promise`<`any`>
 
-Defined in: [src/react/useUIInteraction.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L36)
+Defined in: [src/react/useUIInteraction.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L38)
 
 **Parameters**
 
@@ -195,7 +207,7 @@ Defined in: [src/react/useUIInteraction.ts:36](https://github.com/zeta-chain/ai-
 
 > **getInteraction**: (`id`: `string`) => [`PendingInteraction`](PendingInteraction.md) | `undefined`
 
-Defined in: [src/react/useUIInteraction.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L50)
+Defined in: [src/react/useUIInteraction.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L53)
 
 **Parameters**
 
@@ -232,7 +244,7 @@ Defined in: [src/react/useUIInteraction.ts:50](https://github.com/zeta-chain/ai-
 
 > **pendingInteractions**: `Map`<`string`, [`PendingInteraction`](PendingInteraction.md)>
 
-Defined in: [src/react/useUIInteraction.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L35)
+Defined in: [src/react/useUIInteraction.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L37)
 
 ***
 
@@ -240,7 +252,7 @@ Defined in: [src/react/useUIInteraction.ts:35](https://github.com/zeta-chain/ai-
 
 > **resolveInteraction**: (`id`: `string`, `result`: `any`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L47)
+Defined in: [src/react/useUIInteraction.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L50)
 
 **Parameters**
 

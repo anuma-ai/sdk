@@ -2,7 +2,7 @@
 
 > **MessageFeedback** = `"like"` | `"dislike"` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L44)
+Defined in: [src/lib/db/chat/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L58)
 
 Feedback type for message like/dislike.
 

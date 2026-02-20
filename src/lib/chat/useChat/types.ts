@@ -88,6 +88,13 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    */
   autoExecute?: boolean;
   /**
+   * Whether to skip sending the tool result back to the model as a continuation.
+   * When true, the tool is executed but its result is not fed back to the model.
+   * Useful for display-only tools (charts, weather cards) that render client-side
+   * and don't need a model follow-up.
+   */
+  skipContinuation?: boolean;
+  /**
    * Whether to remove this tool from the tools list after it has been
    * successfully auto-executed. This prevents smaller models from calling
    * the same tool repeatedly in continuation requests.
