@@ -1,8 +1,8 @@
 # getCalendarAccessToken
 
-> **getCalendarAccessToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
+> **getCalendarAccessToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:292](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L292)
+Defined in: [src/lib/auth/google-calendar.ts:451](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L451)
 
 Get a valid access token, refreshing if necessary
 
@@ -25,6 +25,18 @@ Get a valid access token, refreshing if necessary
 <td>
 
 `Client`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
 
 </td>
 </tr>

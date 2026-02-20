@@ -1,11 +1,36 @@
 # getValidDriveToken
 
-> **getValidDriveToken**(): `string` | `null`
+> **getValidDriveToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:388](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L388)
+Defined in: [src/lib/auth/google-drive.ts:546](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L546)
 
-Get stored token for Drive (synchronous, for tool token getters)
+Get stored token for Drive (async, supports encrypted storage)
+
+## Parameters
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 
-`string` | `null`
+`Promise`<`string` | `null`>

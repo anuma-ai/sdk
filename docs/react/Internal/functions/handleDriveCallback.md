@@ -1,8 +1,8 @@
 # handleDriveCallback
 
-> **handleDriveCallback**(`callbackPath`: `string`, `apiClient?`: `Client`): `Promise`<`string` | `null`>
+> **handleDriveCallback**(`callbackPath`: `string`, `apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:182](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L182)
+Defined in: [src/lib/auth/google-drive.ts:334](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L334)
 
 Handle the OAuth callback - exchange code for tokens via backend
 
@@ -37,6 +37,18 @@ Handle the OAuth callback - exchange code for tokens via backend
 <td>
 
 `Client`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
 
 </td>
 </tr>

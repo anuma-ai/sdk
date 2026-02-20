@@ -1,8 +1,8 @@
 # getDriveAccessToken
 
-> **getDriveAccessToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
+> **getDriveAccessToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L293)
+Defined in: [src/lib/auth/google-drive.ts:450](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L450)
 
 Get a valid access token, refreshing if necessary
 
@@ -25,6 +25,18 @@ Get a valid access token, refreshing if necessary
 <td>
 
 `Client`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
 
 </td>
 </tr>

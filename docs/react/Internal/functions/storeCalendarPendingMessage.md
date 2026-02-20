@@ -2,7 +2,7 @@
 
 > **storeCalendarPendingMessage**(`message`: `string`): `void`
 
-Defined in: [src/lib/auth/google-calendar.ts:343](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L343)
+Defined in: [src/lib/auth/google-calendar.ts:503](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L503)
 
 Store a pending message to retry after OAuth completes
 

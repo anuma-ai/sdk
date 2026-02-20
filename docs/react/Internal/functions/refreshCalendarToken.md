@@ -1,8 +1,8 @@
 # refreshCalendarToken
 
-> **refreshCalendarToken**(`apiClient?`: `Client`): `Promise`<`string` | `null`>
+> **refreshCalendarToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:234](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L234)
+Defined in: [src/lib/auth/google-calendar.ts:389](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L389)
 
 Refresh the access token using the stored refresh token
 
@@ -25,6 +25,18 @@ Refresh the access token using the stored refresh token
 <td>
 
 `Client`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
 
 </td>
 </tr>
