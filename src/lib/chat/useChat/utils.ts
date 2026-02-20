@@ -944,7 +944,7 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, excludeServerTools, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    const { executor, autoExecute, skipContinuation, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
     return apiTool;
   });
 }

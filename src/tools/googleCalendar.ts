@@ -20,7 +20,6 @@ export interface ToolConfig {
   executor?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
   autoExecute?: boolean;
   skipContinuation?: boolean;
-  excludeServerTools?: string[];
 }
 
 export interface ListEventsArgs {

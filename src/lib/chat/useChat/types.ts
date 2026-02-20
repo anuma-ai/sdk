@@ -94,13 +94,6 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * and don't need a model follow-up.
    */
   skipContinuation?: boolean;
-  /**
-   * Server tool name prefixes to exclude when this client tool is active.
-   * Prevents the model from choosing overlapping server-side MCP tools
-   * over this client tool.
-   * e.g. ["OpenMeteoMCP_"] excludes all OpenMeteo MCP tools.
-   */
-  excludeServerTools?: string[];
 };
 
 /**
