@@ -2,7 +2,7 @@
 
 > **HandlersCreateCreditPackCheckoutRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L151)
+Defined in: [src/client/types.gen.ts:160](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L160)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:151](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:152](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L152)
+Defined in: [src/client/types.gen.ts:161](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L161)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:152](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:153](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L153)
+Defined in: [src/client/types.gen.ts:162](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L162)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:153](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:154](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L154)
+Defined in: [src/client/types.gen.ts:163](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L163)

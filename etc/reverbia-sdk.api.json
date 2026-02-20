@@ -4860,7 +4860,7 @@
             },
             {
               "kind": "Content",
-              "text": "{\n    cancel_url?: string;\n    success_url?: string;\n}"
+              "text": "{\n    cancel_url?: string;\n    interval?: string;\n    price_id?: string;\n    success_url?: string;\n    tier?: string;\n}"
             },
             {
               "kind": "Content",

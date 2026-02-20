@@ -10,7 +10,7 @@ Defined in: [src/react/useSubscription.ts:40](https://github.com/zeta-chain/ai-s
 
 > **cancelSubscription**: () => `Promise`<[`HandlersCancelSubscriptionResponse`](../../../client/Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | `null`>
 
-Defined in: [src/react/useSubscription.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L76)
+Defined in: [src/react/useSubscription.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L78)
 
 Cancel the subscription at the end of the current period
 
@@ -28,7 +28,7 @@ The cancellation response or null on error
 
 Defined in: [src/react/useSubscription.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L61)
 
-Create a Stripe checkout session for upgrading to Pro
+Create a Stripe checkout session for a subscription plan
 
 **Parameters**
 
@@ -67,7 +67,31 @@ Create a Stripe checkout session for upgrading to Pro
 <tr>
 <td>
 
+`options.interval?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.successUrl?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.tier?`
 
 </td>
 <td>
@@ -111,7 +135,7 @@ Whether any operation is in progress
 
 > **openCustomerPortal**: (`options?`: `object`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useSubscription.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L69)
+Defined in: [src/react/useSubscription.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L71)
 
 Open the Stripe customer portal for managing billing
 
@@ -178,7 +202,7 @@ Refetch the subscription status
 
 > **renewSubscription**: () => `Promise`<[`HandlersRenewSubscriptionResponse`](../../../client/Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | `null`>
 
-Defined in: [src/react/useSubscription.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L81)
+Defined in: [src/react/useSubscription.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L83)
 
 Reactivate a cancelled subscription
 
