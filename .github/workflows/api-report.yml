@@ -1,4 +1,4 @@
-name: API Report
+name: Detect API Changes
 
 on:
   pull_request:
@@ -58,4 +58,42 @@ jobs:
             gh pr edit ${{ github.event.pull_request.number }} --add-label "api-changes"
           else
             gh pr edit ${{ github.event.pull_request.number }} --remove-label "api-changes" 2>/dev/null || true
+          fi
+
+      - name: Comment API changes
+        if: steps.diff.outputs.api_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "<!-- api-report -->"
+            echo "### API Changes"
+            echo ""
+            echo "<details>"
+            echo "<summary>Diff</summary>"
+            echo ""
+            echo '```diff'
+            git diff --staged etc/
+            echo '```'
+            echo "</details>"
+          } > /tmp/api-comment.md
+
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- api-report -->")) | .id' | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/api-comment.md
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/api-comment.md
+          fi
+
+      - name: Remove API changes comment
+        if: steps.diff.outputs.api_changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- api-report -->")) | .id' | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X DELETE
           fi
