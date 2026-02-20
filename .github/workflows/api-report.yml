@@ -1,0 +1,61 @@
+name: API Report
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Generate API reports
+        run: pnpm api-report:update
+
+      - name: Check for API changes
+        id: diff
+        run: |
+          git add etc/
+          if git diff --staged --quiet etc/; then
+            echo "api_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "api_changed=true" >> "$GITHUB_OUTPUT"
+            echo "### API changes detected" >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            git diff --staged etc/ >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Update PR label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create api-changes --color e11d48 --description "PR changes the public API surface" 2>/dev/null || true
+          if [ "${{ steps.diff.outputs.api_changed }}" == "true" ]; then
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "api-changes"
+          else
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "api-changes" 2>/dev/null || true
+          fi
