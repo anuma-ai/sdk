@@ -67,7 +67,9 @@
     "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
-    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "api-report": "node scripts/api-extractor-run.mjs",
+    "api-report:update": "node scripts/api-extractor-run.mjs --local"
   },
   "repository": {
     "type": "git",
@@ -92,6 +94,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
+    "@microsoft/api-extractor": "^7.57.1",
     "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
     "@testing-library/react": "^16.3.0",
