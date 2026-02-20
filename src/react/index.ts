@@ -186,6 +186,7 @@ export {
   type ChunkSearchResult,
   type ServerToolsFilter,
   type ServerToolsFilterFn,
+  type ClientToolsFilterFn,
   type MessageFeedback,
   generateConversationId,
   updateConversationProjectOp,
