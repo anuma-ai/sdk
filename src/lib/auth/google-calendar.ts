@@ -7,6 +7,11 @@
  * This implementation requests calendar scopes to access the user's calendar:
  * - calendar.readonly: Read access to calendar events
  * - calendar.events: Create, update, and delete events
+ *
+ * Token storage supports wallet-based encryption via AES-GCM.
+ * When a walletAddress is provided and an encryption key is available,
+ * tokens are encrypted before being persisted to localStorage.
+ * Falls back to sessionStorage (plain JSON) when no wallet is available.
  */
 
 import {
@@ -15,6 +20,12 @@ import {
   postAuthOauthByProviderRevoke,
 } from "../../client/sdk.gen";
 import type { Client } from "../../client/client";
+import {
+  getEncryptionKey,
+  encryptDataWithKey,
+  decryptDataWithKey,
+  hasEncryptionKey,
+} from "../../react/useEncryption";
 
 // Use google-drive provider for backend API calls (same Google OAuth client)
 // but store tokens separately and request Calendar-specific scopes
@@ -23,6 +34,14 @@ const CODE_STORAGE_KEY = "google_calendar_oauth_state";
 const TOKEN_STORAGE_KEY = "oauth_token_google-calendar";
 const RETURN_URL_KEY = "google_calendar_return_url";
 const PENDING_MESSAGE_KEY = "google_calendar_pending_message";
+
+// Prefix for encrypted token values in storage
+const ENCRYPTED_PREFIX = "enc:oauth:";
+
+// In-memory cache for decrypted tokens (avoids decrypting on every call)
+let cachedAccessToken: string | null = null;
+let cachedExpiresAt: number | null = null;
+let cachedRefreshToken: string | null = null;
 
 // Google OAuth endpoints
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -42,38 +61,141 @@ interface StoredTokenData {
 }
 
 /**
- * Get stored token data
+ * Get the wallet-scoped storage key for token data.
+ * When a walletAddress is provided, the key is scoped to that wallet
+ * so different wallets can have independent encrypted tokens.
  */
-function getStoredTokenData(): StoredTokenData | null {
+function getTokenStorageKey(walletAddress?: string): string {
+  if (walletAddress) {
+    return `${TOKEN_STORAGE_KEY}:${walletAddress}`;
+  }
+  return TOKEN_STORAGE_KEY;
+}
+
+/**
+ * Get stored token data.
+ * Checks encrypted localStorage first, then falls back to unencrypted
+ * legacy localStorage, and finally sessionStorage.
+ */
+async function getStoredTokenData(
+  walletAddress?: string
+): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
+  // Check in-memory cache first (avoids decryption on every call)
+  if (cachedAccessToken) {
+    const cached: StoredTokenData = {
+      accessToken: cachedAccessToken,
+      refreshToken: cachedRefreshToken ?? undefined,
+      expiresAt: cachedExpiresAt ?? undefined,
+    };
+    return cached;
+  }
+
   try {
-    const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (!stored) return null;
+    // 1. Try encrypted localStorage (wallet-scoped key)
+    const scopedStored = localStorage.getItem(
+      getTokenStorageKey(walletAddress)
+    );
+    if (
+      scopedStored &&
+      scopedStored.startsWith(ENCRYPTED_PREFIX) &&
+      walletAddress &&
+      hasEncryptionKey(walletAddress)
+    ) {
+      try {
+        const encryptedData = scopedStored.slice(ENCRYPTED_PREFIX.length);
+        const cryptoKey = await getEncryptionKey(walletAddress);
+        const decryptedJson = await decryptDataWithKey(encryptedData, cryptoKey);
+        const data = JSON.parse(decryptedJson) as StoredTokenData;
+        if (!data.accessToken) return null;
+        // Populate cache
+        cachedAccessToken = data.accessToken;
+        cachedExpiresAt = data.expiresAt ?? null;
+        cachedRefreshToken = data.refreshToken ?? null;
+        return data;
+      } catch (error) {
+        console.error("Failed to decrypt Calendar OAuth token:", error);
+        // Fall through to legacy/session storage
+      }
+    }
 
-    const data = JSON.parse(stored) as StoredTokenData;
-    if (!data.accessToken) return null;
+    // 2. Fall back to sessionStorage
+    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    if (sessionStored) {
+      try {
+        const data = JSON.parse(sessionStored) as StoredTokenData;
+        if (!data.accessToken) return null;
+        cachedAccessToken = data.accessToken;
+        cachedExpiresAt = data.expiresAt ?? null;
+        cachedRefreshToken = data.refreshToken ?? null;
+        return data;
+      } catch {
+        // Invalid JSON
+      }
+    }
 
-    return data;
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Store token data
+ * Store token data.
+ * If a walletAddress is provided and an encryption key exists,
+ * encrypts the token and stores in localStorage with a wallet-scoped key.
+ * Otherwise falls back to sessionStorage with plain JSON.
  */
-function storeTokenData(data: StoredTokenData): void {
+async function storeTokenData(
+  data: StoredTokenData,
+  walletAddress?: string
+): Promise<void> {
   if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(data));
+
+  // Update in-memory cache
+  cachedAccessToken = data.accessToken;
+  cachedExpiresAt = data.expiresAt ?? null;
+  cachedRefreshToken = data.refreshToken ?? null;
+
+  const json = JSON.stringify(data);
+
+  if (walletAddress && hasEncryptionKey(walletAddress)) {
+    try {
+      const cryptoKey = await getEncryptionKey(walletAddress);
+      const encrypted = await encryptDataWithKey(json, cryptoKey);
+      localStorage.setItem(
+        getTokenStorageKey(walletAddress),
+        ENCRYPTED_PREFIX + encrypted
+      );
+      return;
+    } catch (error) {
+      console.warn(
+        "Failed to encrypt Calendar OAuth token, storing temporarily:",
+        error
+      );
+      // Fall through to sessionStorage
+    }
+  }
+
+  // Fallback: store plain JSON in sessionStorage
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
 }
 
 /**
- * Clear stored token data
+ * Clear stored token data for all storage locations
  */
-export function clearCalendarToken(): void {
+export function clearCalendarToken(walletAddress?: string): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  // Clear in-memory cache
+  cachedAccessToken = null;
+  cachedExpiresAt = null;
+  cachedRefreshToken = null;
+  localStorage.removeItem(getTokenStorageKey(walletAddress));
+  if (walletAddress) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
 /**
@@ -180,7 +302,8 @@ export function isCalendarCallback(callbackPath: string): boolean {
  */
 export async function handleCalendarCallback(
   callbackPath: string,
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
   if (typeof window === "undefined") return null;
 
@@ -215,7 +338,7 @@ export async function handleCalendarCallback(
       response.data.refresh_token,
       response.data.scope
     );
-    storeTokenData(tokenData);
+    await storeTokenData(tokenData, walletAddress);
 
     // Clean up URL
     window.history.replaceState({}, "", window.location.pathname);
@@ -232,9 +355,10 @@ export async function handleCalendarCallback(
  * Refresh the access token using the stored refresh token
  */
 export async function refreshCalendarToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const storedData = getStoredTokenData();
+  const storedData = await getStoredTokenData(walletAddress);
   const refreshToken = storedData?.refreshToken;
   if (!refreshToken) return null;
 
@@ -256,11 +380,11 @@ export async function refreshCalendarToken(
       response.data.refresh_token ?? storedData?.refreshToken,
       response.data.scope ?? storedData?.scope
     );
-    storeTokenData(tokenData);
+    await storeTokenData(tokenData, walletAddress);
 
     return response.data.access_token;
   } catch {
-    clearCalendarToken();
+    clearCalendarToken(walletAddress);
     return null;
   }
 }
@@ -268,8 +392,11 @@ export async function refreshCalendarToken(
 /**
  * Revoke the OAuth token
  */
-export async function revokeCalendarToken(apiClient?: Client): Promise<void> {
-  const tokenData = getStoredTokenData();
+export async function revokeCalendarToken(
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<void> {
+  const tokenData = await getStoredTokenData(walletAddress);
   if (!tokenData) return;
 
   try {
@@ -282,7 +409,7 @@ export async function revokeCalendarToken(apiClient?: Client): Promise<void> {
   } catch {
     // Ignore errors on revocation
   } finally {
-    clearCalendarToken();
+    clearCalendarToken(walletAddress);
   }
 }
 
@@ -290,9 +417,10 @@ export async function revokeCalendarToken(apiClient?: Client): Promise<void> {
  * Get a valid access token, refreshing if necessary
  */
 export async function getCalendarAccessToken(
-  apiClient?: Client
+  apiClient?: Client,
+  walletAddress?: string
 ): Promise<string | null> {
-  const storedData = getStoredTokenData();
+  const storedData = await getStoredTokenData(walletAddress);
 
   if (!storedData) {
     return null;
@@ -305,7 +433,7 @@ export async function getCalendarAccessToken(
 
   // Try to refresh
   if (storedData.refreshToken) {
-    const refreshedToken = await refreshCalendarToken(apiClient);
+    const refreshedToken = await refreshCalendarToken(apiClient, walletAddress);
     if (refreshedToken) {
       return refreshedToken;
     }
@@ -382,10 +510,12 @@ export async function startCalendarAuth(
 }
 
 /**
- * Get stored token for Calendar (synchronous, for tool token getters)
+ * Get stored token for Calendar (async, for tool token getters)
  */
-export function getValidCalendarToken(): string | null {
-  const data = getStoredTokenData();
+export async function getValidCalendarToken(
+  walletAddress?: string
+): Promise<string | null> {
+  const data = await getStoredTokenData(walletAddress);
   if (!data) return null;
   if (data.expiresAt && isTokenExpired(data)) {
     return null;
@@ -400,7 +530,8 @@ export async function storeCalendarToken(
   accessToken: string,
   expiresIn?: number,
   refreshToken?: string,
-  scope?: string
+  scope?: string,
+  walletAddress?: string
 ): Promise<void> {
   const tokenData = tokenResponseToStoredData(
     accessToken,
@@ -408,13 +539,63 @@ export async function storeCalendarToken(
     refreshToken,
     scope
   );
-  storeTokenData(tokenData);
+  await storeTokenData(tokenData, walletAddress);
 }
 
 /**
  * Check if we have any stored credentials
  */
-export function hasCalendarCredentials(): boolean {
-  const data = getStoredTokenData();
+export async function hasCalendarCredentials(
+  walletAddress?: string
+): Promise<boolean> {
+  const data = await getStoredTokenData(walletAddress);
   return !!(data?.accessToken || data?.refreshToken);
+}
+
+/**
+ * Migrate unencrypted Calendar tokens to encrypted wallet-scoped storage.
+ * Call this when a wallet address and encryption key become available
+ * after the initial OAuth flow.
+ *
+ * Returns true if migration was performed (or already complete), false otherwise.
+ */
+export async function migrateCalendarToken(
+  walletAddress: string
+): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
+
+  try {
+    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const isLegacyUnencrypted =
+      legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+
+    const unencryptedJson =
+      sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    if (!unencryptedJson) return false;
+
+    const scopedKey = getTokenStorageKey(walletAddress);
+    const existingEncrypted = localStorage.getItem(scopedKey);
+    if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
+      // Already migrated - just clean up plaintext remnants
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+      return true;
+    }
+
+    const data = JSON.parse(unencryptedJson) as StoredTokenData;
+    await storeTokenData(data, walletAddress);
+
+    // Verify encryption succeeded
+    const migrated = localStorage.getItem(scopedKey);
+    if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
+
+    // Clean up plaintext storage
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }

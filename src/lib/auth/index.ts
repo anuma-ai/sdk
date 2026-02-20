@@ -24,7 +24,7 @@
  * await handleCalendarCallback("/auth/callback");
  *
  * // Get token for API calls
- * const token = getValidCalendarToken();
+ * const token = await getValidCalendarToken(walletAddress);
  * ```
  *
  * ## Google Drive Auth
@@ -46,7 +46,7 @@
  * await handleDriveCallback("/auth/callback");
  *
  * // Get token for API calls
- * const token = getValidDriveToken();
+ * const token = await getValidDriveToken(walletAddress);
  * ```
  *
  * Note: For Drive backup functionality (which only needs access to app-created files),
@@ -65,6 +65,7 @@ export {
   clearCalendarToken,
   storeCalendarToken,
   hasCalendarCredentials,
+  migrateCalendarToken,
   storeCalendarReturnUrl,
   getAndClearCalendarReturnUrl,
   storeCalendarPendingMessage,
@@ -83,6 +84,7 @@ export {
   clearDriveToken,
   storeDriveToken,
   hasDriveCredentials,
+  migrateDriveToken,
   storeDriveReturnUrl,
   getAndClearDriveReturnUrl,
   storeDrivePendingMessage,
