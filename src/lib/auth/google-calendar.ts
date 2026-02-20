@@ -42,6 +42,7 @@ const ENCRYPTED_PREFIX = "enc:oauth:";
 let cachedAccessToken: string | null = null;
 let cachedExpiresAt: number | null = null;
 let cachedRefreshToken: string | null = null;
+let cachedWalletAddress: string | null = null;
 
 // Google OAuth endpoints
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -83,13 +84,23 @@ async function getStoredTokenData(
   if (typeof window === "undefined") return null;
 
   // Check in-memory cache first (avoids decryption on every call)
-  if (cachedAccessToken) {
-    const cached: StoredTokenData = {
+  if (
+    cachedAccessToken &&
+    cachedWalletAddress === (walletAddress ?? null) &&
+    (!cachedExpiresAt || cachedExpiresAt - 60000 > Date.now())
+  ) {
+    return {
       accessToken: cachedAccessToken,
       refreshToken: cachedRefreshToken ?? undefined,
       expiresAt: cachedExpiresAt ?? undefined,
     };
-    return cached;
+  }
+  // Invalidate stale cache
+  if (cachedAccessToken) {
+    cachedAccessToken = null;
+    cachedExpiresAt = null;
+    cachedRefreshToken = null;
+    cachedWalletAddress = null;
   }
 
   try {
@@ -113,6 +124,7 @@ async function getStoredTokenData(
         cachedAccessToken = data.accessToken;
         cachedExpiresAt = data.expiresAt ?? null;
         cachedRefreshToken = data.refreshToken ?? null;
+        cachedWalletAddress = walletAddress ?? null;
         return data;
       } catch (error) {
         console.error("Failed to decrypt Calendar OAuth token:", error);
@@ -129,6 +141,7 @@ async function getStoredTokenData(
         cachedAccessToken = data.accessToken;
         cachedExpiresAt = data.expiresAt ?? null;
         cachedRefreshToken = data.refreshToken ?? null;
+        cachedWalletAddress = walletAddress ?? null;
         return data;
       } catch {
         // Invalid JSON
@@ -157,6 +170,7 @@ async function storeTokenData(
   cachedAccessToken = data.accessToken;
   cachedExpiresAt = data.expiresAt ?? null;
   cachedRefreshToken = data.refreshToken ?? null;
+  cachedWalletAddress = walletAddress ?? null;
 
   const json = JSON.stringify(data);
 
@@ -191,6 +205,7 @@ export function clearCalendarToken(walletAddress?: string): void {
   cachedAccessToken = null;
   cachedExpiresAt = null;
   cachedRefreshToken = null;
+  cachedWalletAddress = null;
   localStorage.removeItem(getTokenStorageKey(walletAddress));
   if (walletAddress) {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
