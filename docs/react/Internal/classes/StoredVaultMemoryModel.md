@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/zeta-chain/a
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L8)
+Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L9)
 
 ***
 
@@ -153,7 +153,15 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/a
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L10)
+Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L11)
+
+***
+
+### scope
+
+> **scope**: `string`
+
+Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L8)
 
 ***
 
@@ -161,7 +169,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/zeta-chain/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L9)
+Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L10)
 
 ***
 
