@@ -104,10 +104,14 @@ for (const file of allFiles) {
     lines.push("- **Modified**:");
     for (const m of modified) {
       lines.push(`  - \`${m.name}\` (${labelForKind(m.kind)})`);
-      lines.push(`    \`\`\`diff`);
-      lines.push(`    - ${m.oldSignature}`);
-      lines.push(`    + ${m.newSignature}`);
-      lines.push(`    \`\`\``);
+      lines.push("```diff");
+      for (const line of m.oldSignature.split("\n")) {
+        lines.push(`- ${line}`);
+      }
+      for (const line of m.newSignature.split("\n")) {
+        lines.push(`+ ${line}`);
+      }
+      lines.push("```");
     }
   }
 
