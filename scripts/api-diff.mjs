@@ -54,7 +54,10 @@ const sections = [];
 
 for (const file of allFiles) {
   const entryPoint = file.replace(".api.json", "").replace("reverbia-sdk", "");
-  const label = entryPoint === "" ? "@reverbia/sdk" : `@reverbia/sdk/${entryPoint.slice(1)}`;
+  const label =
+    entryPoint === ""
+      ? "@reverbia/sdk"
+      : `@reverbia/sdk/${entryPoint.slice(1)}`;
 
   const oldMembers = extractMembers(path.join(oldDir, file));
   const newMembers = extractMembers(path.join(newDir, file));
@@ -86,24 +89,34 @@ for (const file of allFiles) {
     continue;
   }
 
-  const lines = [`#### ${label}`];
+  const lines = [`#### \`${label}\``];
 
   if (added.length > 0) {
-    const items = added.map((m) => `\`${m.name}\` (${labelForKind(m.kind)})`);
-    lines.push(`- **Added**: ${items.join(", ")}`);
+    lines.push("");
+    lines.push("🆕 **Added**");
+    const items = added.map(
+      (m) => `\`${m.name}\` (${labelForKind(m.kind)})`
+    );
+    lines.push(items.join(" · "));
   }
 
   if (removed.length > 0) {
+    lines.push("");
+    lines.push("❌ **Removed**");
     const items = removed.map(
       (m) => `\`${m.name}\` (${labelForKind(m.kind)})`
     );
-    lines.push(`- **Removed**: ${items.join(", ")}`);
+    lines.push(items.join(" · "));
   }
 
   if (modified.length > 0) {
-    lines.push("- **Modified**:");
+    lines.push("");
+    lines.push("✏️ **Modified**");
     for (const m of modified) {
-      lines.push(`  - \`${m.name}\` (${labelForKind(m.kind)})`);
+      lines.push("");
+      lines.push(
+        `<details>\n<summary><code>${m.name}</code> (${labelForKind(m.kind)})</summary>\n`
+      );
       lines.push("```diff");
       for (const line of m.oldSignature.split("\n")) {
         lines.push(`- ${line}`);
@@ -112,6 +125,7 @@ for (const file of allFiles) {
         lines.push(`+ ${line}`);
       }
       lines.push("```");
+      lines.push("\n</details>");
     }
   }
 
@@ -122,4 +136,4 @@ if (sections.length === 0) {
   process.exit(0);
 }
 
-console.log(sections.join("\n\n"));
+console.log(sections.join("\n\n---\n\n"));
