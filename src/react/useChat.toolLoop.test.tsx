@@ -599,4 +599,64 @@ describe("useChat multi-turn tool loop", () => {
     const continuationCall = vi.mocked(client.sse.post).mock.calls[1][0] as any;
     expect(continuationCall.body.tools).toBeUndefined();
   });
+
+  it("removes only flagged tools when mixed with non-flagged tools", async () => {
+    const saveTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "memory_save",
+        description: "Save memory",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "saved",
+      autoExecute: true,
+      removeAfterExecution: true,
+    };
+
+    const searchTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "Search the web",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "results",
+      autoExecute: true,
+      // No removeAfterExecution — should persist
+    };
+
+    // First call: model calls memory_save
+    // Second call: model responds with text
+    vi.mocked(client.sse.post)
+      .mockResolvedValueOnce(
+        makeMockStream(makeToolCallStream("memory_save", { content: "test" }))
+      )
+      .mockResolvedValueOnce(
+        makeMockStream(makeTextStream("Done!"))
+      );
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "token" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "save this" }] },
+        ],
+        model: "test-model",
+        tools: [saveTool, searchTool],
+      });
+    });
+
+    expect(client.sse.post).toHaveBeenCalledTimes(2);
+
+    // Continuation should still have web_search but not memory_save
+    const continuationCall = vi.mocked(client.sse.post).mock.calls[1][0] as any;
+    const toolNames = continuationCall.body.tools?.map(
+      (t: any) => t.function?.name
+    );
+    expect(toolNames).not.toContain("memory_save");
+    expect(toolNames).toContain("web_search");
+  });
 });

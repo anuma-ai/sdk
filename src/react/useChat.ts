@@ -426,29 +426,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
-          console.log(
-            "[Tool Debug] Tool iteration",
-            toolIteration,
-            "- Found",
-            currentAccumulator.toolCalls.size,
-            "tool calls"
-          );
-
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
           // Determine which tools to execute vs emit as events
           for (const toolCall of currentAccumulator.toolCalls.values()) {
-            console.log("[Tool Debug] Processing tool call:", toolCall.name);
             const executorConfig = executorMap.get(toolCall.name);
 
             if (executorConfig && executorConfig.autoExecute) {
-              console.log("[Tool Debug] Will auto-execute:", toolCall.name);
               toolCallsToExecute.push(toolCall);
             } else {
-              console.log(
-                "[Tool Debug] Emitting onToolCall event for:",
-                toolCall.name
-              );
               if (onToolCall) {
                 onToolCall({
                   id: toolCall.id,
@@ -466,12 +452,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (toolCallsToExecute.length === 0) {
             break;
           }
-
-          console.log(
-            "[Tool Debug] Executing",
-            toolCallsToExecute.length,
-            "tools"
-          );
 
           // Output tool execution info to thinking section (via smoother)
           if (onThinking || globalOnThinking) {
@@ -507,13 +487,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 executorConfig.executor
               );
 
-              console.log(
-                "[Tool Debug] Tool execution result for",
-                toolCall.name,
-                ":",
-                { result, error }
-              );
-
               return {
                 id: toolCall.id,
                 name: toolCall.name,
@@ -521,11 +494,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 error,
               };
             })
-          );
-
-          console.log(
-            "[Tool Debug] All tools executed, results:",
-            executionResults.length
           );
 
           // Remove tools with removeAfterExecution: true that succeeded
@@ -559,11 +527,17 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 if (apiTools.length === 0) {
                   apiTools = undefined;
                   toolChoice = undefined;
+                } else if (
+                  typeof toolChoice === "string" &&
+                  toolsToRemove.has(toolChoice)
+                ) {
+                  // Clear toolChoice if it references a removed tool
+                  toolChoice = undefined;
                 }
-                console.log(
-                  "[Tool Debug] Removed tools after execution:",
-                  Array.from(toolsToRemove)
-                );
+                // Also remove from executorMap to prevent accidental re-execution
+                for (const name of toolsToRemove) {
+                  executorMap.delete(name);
+                }
               }
             }
           }
@@ -625,11 +599,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ...currentMessages,
             ...toolResultMessages,
           ];
-
-          console.log(
-            "[Tool Debug] Continuation messages (iteration " + toolIteration + "):",
-            JSON.stringify(currentMessages, null, 2)
-          );
 
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
@@ -694,14 +663,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               }
             }
 
-            console.log(
-              "[Tool Debug] Continuation stream complete (iteration " + toolIteration + ") - accumulated content:",
-              currentAccumulator.content
-            );
-            console.log(
-              "[Tool Debug] Continuation stream complete (iteration " + toolIteration + ") - accumulated thinking:",
-              currentAccumulator.thinking
-            );
           } catch (streamErr) {
             if (isAbortError(streamErr) || abortController.signal.aborted) {
               contContentSmoother.destroy();
