@@ -36,7 +36,9 @@ jobs:
         run: pnpm pack --pack-destination /tmp/sdk-pack
 
       - name: Clone ai-examples
-        run: git clone --depth 1 https://github.com/zeta-chain/ai-examples.git /tmp/ai-examples
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh repo clone zeta-chain/ai-examples /tmp/ai-examples -- --depth 1
 
       - name: Install SDK from tarball
         working-directory: /tmp/ai-examples
