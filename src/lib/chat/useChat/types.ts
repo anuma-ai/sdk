@@ -87,6 +87,16 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * Default: true if executor is provided, false otherwise.
    */
   autoExecute?: boolean;
+  /**
+   * Whether to remove this tool from the tools list after it has been
+   * successfully auto-executed. This prevents smaller models from calling
+   * the same tool repeatedly in continuation requests.
+   *
+   * Only applies when the tool is auto-executed (has an executor and
+   * autoExecute is not false). The tool is kept if execution fails,
+   * allowing the model to retry.
+   */
+  removeAfterExecution?: boolean;
 };
 
 /**

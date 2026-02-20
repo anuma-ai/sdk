@@ -942,8 +942,8 @@ export function toolsToApiFormat(
   }
 
   return tools.map((tool) => {
-    // Strip executor and autoExecute properties (client-side only)
-    const { executor, autoExecute, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    // Strip executor, autoExecute, and removeAfterExecution properties (client-side only)
+    const { executor, autoExecute, removeAfterExecution, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
     return apiTool;
   });
 }

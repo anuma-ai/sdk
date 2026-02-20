@@ -192,7 +192,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       temperature,
       maxOutputTokens,
       tools,
-      toolChoice,
+      toolChoice: toolChoiceArg,
       reasoning,
       thinking,
       apiType: requestApiType,
@@ -306,7 +306,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let sseError: Error | null = null;
 
         // Convert tools to API format (strip executors)
-        const apiTools = toolsToApiFormat(tools);
+        let apiTools = toolsToApiFormat(tools);
+        let toolChoice = toolChoiceArg;
 
         // Build request body using the strategy
         const requestBody = strategy.buildRequestBody({
@@ -526,6 +527,46 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             "[Tool Debug] All tools executed, results:",
             executionResults.length
           );
+
+          // Remove tools with removeAfterExecution: true that succeeded
+          if (tools && apiTools) {
+            const successfullyExecutedNames = new Set<string>();
+            for (const r of executionResults) {
+              if (!r.error && "name" in r && r.name) {
+                successfullyExecutedNames.add(r.name);
+              }
+            }
+
+            if (successfullyExecutedNames.size > 0) {
+              const toolsToRemove = new Set<string>();
+              for (const t of tools) {
+                const tc = t as any;
+                const toolName: string | undefined = tc.function?.name || tc.name;
+                if (
+                  tc.removeAfterExecution === true &&
+                  toolName &&
+                  successfullyExecutedNames.has(toolName)
+                ) {
+                  toolsToRemove.add(toolName);
+                }
+              }
+
+              if (toolsToRemove.size > 0) {
+                apiTools = apiTools.filter((t) => {
+                  const name = (t as any).function?.name || (t as any).name;
+                  return !toolsToRemove.has(name);
+                });
+                if (apiTools.length === 0) {
+                  apiTools = undefined;
+                  toolChoice = undefined;
+                }
+                console.log(
+                  "[Tool Debug] Removed tools after execution:",
+                  Array.from(toolsToRemove)
+                );
+              }
+            }
+          }
 
           // Output tool execution results to thinking section (via smoother)
           if (onThinking || globalOnThinking) {

@@ -456,4 +456,147 @@ describe("useChat multi-turn tool loop", () => {
     expect(response?.error).toBe("Request aborted");
     expect(result.current.isLoading).toBe(false);
   });
+
+  // ── removeAfterExecution ─────────────────────────────────
+
+  it("removes tool from continuation request after successful execution when removeAfterExecution is true", async () => {
+    const removableTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "save_tool",
+        description: "Save tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "saved",
+      autoExecute: true,
+      removeAfterExecution: true,
+    };
+
+    vi.mocked(client.sse.post)
+      .mockResolvedValueOnce(
+        makeMockStream(makeToolCallStream("save_tool", { data: "test" }))
+      )
+      .mockResolvedValueOnce(
+        makeMockStream(makeTextStream("Memory saved!"))
+      );
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "token" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "Remember this" }] },
+        ],
+        model: "test-model",
+        tools: [removableTool],
+      });
+    });
+
+    expect(client.sse.post).toHaveBeenCalledTimes(2);
+
+    // Verify the continuation request has no tools (they were all removed)
+    const continuationCall = vi.mocked(client.sse.post).mock.calls[1][0] as any;
+    expect(continuationCall.body.tools).toBeUndefined();
+  });
+
+  it("keeps tool in continuation request when executor errors and removeAfterExecution is true", async () => {
+    const failingRemovableTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "flaky_tool",
+        description: "Flaky tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        throw new Error("Network error");
+      },
+      autoExecute: true,
+      removeAfterExecution: true,
+    };
+
+    vi.mocked(client.sse.post)
+      .mockResolvedValueOnce(
+        makeMockStream(makeToolCallStream("flaky_tool", {}))
+      )
+      .mockResolvedValueOnce(
+        makeMockStream(makeTextStream("I see the tool failed."))
+      );
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "token" })
+    );
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "Try it" }] },
+        ],
+        model: "test-model",
+        tools: [failingRemovableTool],
+      });
+    });
+
+    expect(client.sse.post).toHaveBeenCalledTimes(2);
+
+    // Tool should still be present since it failed
+    const continuationCall = vi.mocked(client.sse.post).mock.calls[1][0] as any;
+    const toolNames = continuationCall.body.tools?.map(
+      (t: any) => t.function?.name
+    );
+    expect(toolNames).toContain("flaky_tool");
+  });
+
+  it("prevents tool loop exhaustion: model keeps calling removed tool but loop stops early", async () => {
+    const saveTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "memory_save",
+        description: "Save memory",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "saved",
+      autoExecute: true,
+      removeAfterExecution: true,
+    };
+
+    // First call: model calls memory_save tool
+    // Second call: model responds with text (no tools available to call)
+    vi.mocked(client.sse.post)
+      .mockResolvedValueOnce(
+        makeMockStream(makeToolCallStream("memory_save", { content: "pasta" }))
+      )
+      .mockResolvedValueOnce(
+        makeMockStream(makeTextStream("Got it, I'll remember that!"))
+      );
+
+    const { result } = renderHook(() =>
+      useChat({ getToken: async () => "token" })
+    );
+
+    let response: SendMessageResult | undefined;
+    await act(async () => {
+      response = await result.current.sendMessage({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "remember my favorite food is pasta" },
+            ],
+          },
+        ],
+        model: "test-model",
+        tools: [saveTool],
+      });
+    });
+
+    // Only 2 SSE calls (initial + 1 continuation), not 11 (initial + 10)
+    expect(client.sse.post).toHaveBeenCalledTimes(2);
+    expect(response?.error).toBeNull();
+
+    // Verify the continuation had no tools
+    const continuationCall = vi.mocked(client.sse.post).mock.calls[1][0] as any;
+    expect(continuationCall.body.tools).toBeUndefined();
+  });
 });
