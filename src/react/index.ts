@@ -544,3 +544,23 @@ export {
   storeDrivePendingMessage,
   getAndClearDrivePendingMessage,
 } from "../lib/auth/google-drive";
+
+// Notion MCP Auth (with PKCE - fully client-side, no backend needed)
+export {
+  startNotionAuth,
+  handleNotionCallback,
+  isNotionCallback,
+  getNotionAccessToken,
+  getValidNotionToken,
+  refreshNotionToken,
+  revokeNotionAccess,
+  clearNotionToken,
+  hasNotionCredentials,
+  migrateNotionToken,
+  migrateNotionClientRegistration,
+  storeNotionReturnUrl,
+  getAndClearNotionReturnUrl,
+  storeNotionPendingMessage,
+  getAndClearNotionPendingMessage,
+  getNotionMCPUrl,
+} from "../lib/auth/notion";
