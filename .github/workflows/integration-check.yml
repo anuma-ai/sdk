@@ -1,0 +1,82 @@
+name: Integration Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build SDK
+        run: pnpm build
+
+      - name: Pack SDK
+        run: pnpm pack --pack-destination /tmp/sdk-pack
+
+      - name: Clone ai-examples
+        run: git clone --depth 1 https://github.com/zeta-chain/ai-examples.git /tmp/ai-examples
+
+      - name: Install SDK from tarball
+        working-directory: /tmp/ai-examples
+        run: |
+          corepack enable
+          pnpm install
+          SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
+          pnpm add "$SDK_TARBALL"
+
+      - name: Build ai-examples
+        id: build
+        working-directory: /tmp/ai-examples
+        continue-on-error: true
+        run: |
+          cp .env.example .env.local
+          pnpm build
+
+      - name: Comment on PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.build.outcome }}" == "success" ]; then
+            BODY="<!-- integration-check -->
+          ### Integration Check ✅
+
+          **ai-examples** builds successfully against this PR's version of the SDK."
+          else
+            BODY="<!-- integration-check -->
+          ### Integration Check ❌
+
+          **ai-examples** failed to build against this PR's version of the SDK. If this PR introduces a breaking change, the example app may need to be updated."
+          fi
+
+          echo "$BODY" > /tmp/integration-comment.md
+
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- integration-check -->")) | .id' | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/integration-comment.md
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
+          fi
