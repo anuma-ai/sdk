@@ -32,8 +32,11 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Save old API reports
-        run: cp -r etc/ /tmp/old-api-reports/
+      - name: Save base branch API reports
+        run: |
+          mkdir -p /tmp/old-api-reports
+          git fetch origin main
+          git archive origin/main -- etc/ | tar -x -C /tmp/old-api-reports --strip-components=1
 
       - name: Generate API reports
         run: pnpm api-report:update
@@ -41,8 +44,7 @@ jobs:
       - name: Check for API changes
         id: diff
         run: |
-          git add etc/
-          if git diff --staged --quiet etc/; then
+          if diff -rq /tmp/old-api-reports etc/ --include='*.api.json' > /dev/null 2>&1; then
             echo "api_changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "api_changed=true" >> "$GITHUB_OUTPUT"
