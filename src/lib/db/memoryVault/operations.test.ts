@@ -87,13 +87,13 @@ describe("createVaultMemoryOp", () => {
 
   it("uses provided scope", async () => {
     const ctx = makeCtx();
-    await createVaultMemoryOp(ctx, { content: "hello", scope: "public" });
+    await createVaultMemoryOp(ctx, { content: "hello", scope: "shared" });
 
     const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
     const builder = createFn.mock.calls[0][0];
     const setRawSpy = vi.fn();
     builder({ _setRaw: setRawSpy });
-    expect(setRawSpy).toHaveBeenCalledWith("scope", "public");
+    expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
   it("sets content and is_deleted via _setRaw", async () => {
@@ -139,7 +139,7 @@ describe("createVaultMemoryOp", () => {
 
   it("returns a StoredVaultMemory with correct fields", async () => {
     const ctx = makeCtx();
-    const result = await createVaultMemoryOp(ctx, { content: "hi", scope: "public" });
+    const result = await createVaultMemoryOp(ctx, { content: "hi", scope: "shared" });
 
     expect(result).toHaveProperty("uniqueId");
     expect(result).toHaveProperty("content");
@@ -200,7 +200,7 @@ describe("getAllVaultMemoriesOp", () => {
       vaultMemoryCollection: { query: queryFn } as any,
     });
 
-    const results = await getAllVaultMemoriesOp(ctx, { scopes: ["public"] });
+    const results = await getAllVaultMemoriesOp(ctx, { scopes: ["shared"] });
 
     expect(results).toHaveLength(1);
     // The query should have been called with conditions including Q.where for scope.
@@ -253,7 +253,7 @@ describe("updateVaultMemoryOp", () => {
 
     const result = await updateVaultMemoryOp(ctx, "mem_1", {
       content: "updated",
-      scope: "public",
+      scope: "shared",
     });
 
     expect(result).not.toBeNull();
@@ -264,7 +264,7 @@ describe("updateVaultMemoryOp", () => {
     const setRawSpy = vi.fn();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("content", "updated");
-    expect(setRawSpy).toHaveBeenCalledWith("scope", "public");
+    expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
   it("does NOT set scope when opts.scope is undefined", async () => {
@@ -357,10 +357,10 @@ describe("vaultMemoryToStored", () => {
 
   it("maps memory.scope to scope in returned object", async () => {
     const record = mockRecord();
-    // Override scope via _setRaw to simulate "public"
-    record._setRaw("scope", "public");
+    // Override scope via _setRaw to simulate "shared"
+    record._setRaw("scope", "shared");
     const result = await vaultMemoryToStored(record as any);
-    expect(result.scope).toBe("public");
+    expect(result.scope).toBe("shared");
   });
 
   it("returns raw fields without decryption when no wallet address", async () => {

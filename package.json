@@ -63,11 +63,13 @@
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
-    "generate": "pnpm run spec && pnpm run docs",
+    "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
     "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
-    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "api-report": "node scripts/api-extractor-run.mjs",
+    "api-report:update": "node scripts/api-extractor-run.mjs --local"
   },
   "repository": {
     "type": "git",
@@ -92,6 +94,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.87.2",
+    "@microsoft/api-extractor": "^7.57.1",
     "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
     "@testing-library/react": "^16.3.0",
@@ -102,6 +105,7 @@
     "playwright": "^1.57.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "recharts": "^2.15.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.14",
@@ -118,7 +122,8 @@
     "@privy-io/react-auth": "^3.7.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "react-native": ">=0.70.0"
+    "react-native": ">=0.70.0",
+    "recharts": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "@huggingface/transformers": {
@@ -134,6 +139,9 @@
       "optional": true
     },
     "@privy-io/react-auth": {
+      "optional": true
+    },
+    "recharts": {
       "optional": true
     }
   },

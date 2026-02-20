@@ -36,7 +36,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/zeta-chain/a
 
 Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/types.ts#L7)
 
-Scope for partitioning memories (e.g., "private", "public")
+Scope for partitioning memories (e.g., "private", "shared")
 
 ***
 

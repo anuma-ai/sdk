@@ -57,6 +57,18 @@
  */
 export { useChat } from "./useChat";
 
+// Chart display components
+export {
+  ChartCard,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+} from "./chart";
+export type { ChartConfig, ChartCardProps } from "./chart";
+
 // UI Interaction infrastructure
 export {
   UIInteractionProvider,
@@ -68,6 +80,8 @@ export type {
   UIInteractionProviderProps,
   InteractionType,
 } from "./useUIInteraction";
+export { migrateDisplayResult } from "../tools/uiInteraction";
+export type { DisplayToolMigrations } from "../tools/uiInteraction";
 
 export {
   useEncryption,
@@ -172,6 +186,7 @@ export {
   type ChunkSearchResult,
   type ServerToolsFilter,
   type ServerToolsFilterFn,
+  type ClientToolsFilterFn,
   type MessageFeedback,
   generateConversationId,
   updateConversationProjectOp,
@@ -308,6 +323,7 @@ export {
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
 } from "../lib/db/media";
+
 
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";

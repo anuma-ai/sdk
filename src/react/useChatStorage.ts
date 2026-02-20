@@ -375,6 +375,8 @@ export type SendMessageWithStorageResult =
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
+      /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
+      autoExecutedToolResults?: { name: string; result: any }[];
     }
   | {
       data: ApiResponse;
@@ -1892,6 +1894,7 @@ export function useChatStorage(
         temperature,
         maxOutputTokens,
         clientTools,
+        clientToolsFilter,
         serverTools: serverToolsFilter,
         toolChoice,
         reasoning,
@@ -1927,6 +1930,23 @@ export function useChatStorage(
 
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
+        const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+
+        // Generate embeddings once for both server and client tool filtering
+        let skipStorageEmbeddings: number[] | number[][] | null = null;
+        if (needsEmbeddings && getToken) {
+          const extracted = extractUserMessageFromMessages(messages);
+          const messageContent = extracted?.content || "";
+          if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+            const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+            if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+              const textChunks = chunkText(messageContent);
+              skipStorageEmbeddings = await generateEmbeddings(textChunks.map((c) => c.text), embeddingOptions);
+            } else {
+              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+            }
+          }
+        }
 
         if (
           getToken &&
@@ -1941,27 +1961,8 @@ export function useChatStorage(
             });
 
             if (isServerToolsFunction) {
-              // Function-based filtering: generate embeddings and call the function
-              const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = extracted?.content || "";
-
-              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                const embeddingOptions = {
-                  getToken,
-                  baseUrl,
-                  model: embeddingModel,
-                };
-
-                let embeddings: number[] | number[][];
-                if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
-                  const textChunks = chunkText(messageContent);
-                  const chunkTexts = textChunks.map((c) => c.text);
-                  embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-                } else {
-                  embeddings = await generateEmbedding(messageContent, embeddingOptions);
-                }
-
-                const toolNames = serverToolsFilter(embeddings, allServerTools);
+              if (skipStorageEmbeddings) {
+                const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
               // If message is too short for embeddings, don't include any server tools
@@ -1978,10 +1979,20 @@ export function useChatStorage(
           }
         }
 
-        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+        // Filter client tools if filter function provided
+        let filteredClientTools = clientTools;
+        if (clientToolsFilter && clientTools?.length) {
+          const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
+          filteredClientTools = clientTools.filter((t: any) => {
+            const name = t.function?.name || t.name;
+            return clientToolNames.includes(name);
+          });
+        }
+
+        if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
           mergedTools = mergeTools(
             filteredServerTools,
-            clientTools,
+            filteredClientTools,
             effectiveApiType
           );
         }
@@ -2268,11 +2279,28 @@ export function useChatStorage(
       let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
       let filteredServerTools: ServerTool[] = [];
 
-      // Track embeddings generated for function-based tool filtering (to reuse for message storage)
+      // Track embeddings generated for tool filtering (to reuse for message storage)
       let userMessageEmbeddings: number[] | number[][] | undefined;
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+
+      // Generate embeddings once for both server and client tool filtering
+      if (needsEmbeddings && getToken) {
+        try {
+          const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+          if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
+            const textChunks = chunkText(contentForStorage);
+            const chunkTexts = textChunks.map((c) => c.text);
+            userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
+          } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+            userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
+          }
+        } catch {
+          // Embedding generation failed — continue without semantic filtering
+        }
+      }
 
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
@@ -2287,29 +2315,12 @@ export function useChatStorage(
           });
 
           if (isServerToolsFunction) {
-            // Function-based filtering: generate embeddings and call the function
-            const embeddingOptions = {
-              getToken,
-              baseUrl,
-              model: embeddingModel,
-            };
-
-            // Generate embeddings based on message length (chunked or whole)
-            // Use lower threshold for tool filtering - short prompts like "draw a cat" should work
-            if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
-              const textChunks = chunkText(contentForStorage);
-              const chunkTexts = textChunks.map((c) => c.text);
-              userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-            } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-              userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
-            }
-
             // Call the filter function with embeddings and all tools
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
-            // If message is too short for embeddings, don't include any tools
+            // If message is too short for embeddings, don't include any server tools
             // (user explicitly provided a filter, so sending all tools defeats the purpose)
           } else {
             // Static filtering: use string array directly
@@ -2321,6 +2332,16 @@ export function useChatStorage(
         } catch {
           // Server tools are optional - continue without them
         }
+      }
+
+      // Filter client tools if filter function provided
+      let filteredClientTools = clientTools;
+      if (clientToolsFilter && clientTools?.length) {
+        const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
+        filteredClientTools = clientTools.filter((t: any) => {
+          const name = t.function?.name || t.name;
+          return clientToolNames.includes(name);
+        });
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
@@ -2363,10 +2384,10 @@ export function useChatStorage(
       }
 
       // Merge and format tools (handles both server and client tools)
-      if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+      if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
         mergedTools = mergeTools(
           filteredServerTools,
-          clientTools,
+          filteredClientTools,
           effectiveApiType
         );
       }
@@ -2578,6 +2599,51 @@ export function useChatStorage(
       // They remain valid for 3 days (presigned) and let the LLM
       // reference images for editing. No permanent data loss.
 
+      // Store auto-executed tool results (e.g. display_chart) as a user message
+      // so they persist across page refreshes and can be rendered by the app.
+      const autoToolResults = (result as any).autoExecutedToolResults as
+        | { name: string; result: any }[]
+        | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolSummary = autoToolResults
+          .map(
+            (r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`
+          )
+          .join("\n\n");
+        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        try {
+          await writeOrQueue(
+            "createMessage",
+            {
+              conversationId: convId,
+              role: "user",
+              content: toolResultContent,
+              model: "",
+              parentMessageId: storedUserMessage.uniqueId,
+            },
+            () =>
+              createMessageOp(storageCtx, {
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            () =>
+              makeSyntheticStoredMessage({
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            userMsgQueueId ? [userMsgQueueId] : []
+          );
+        } catch {
+          // Non-critical — the tool result will still be available in memory
+        }
+      }
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
@@ -2659,6 +2725,7 @@ export function useChatStorage(
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        autoExecutedToolResults: (result as any).autoExecutedToolResults,
       };
     },
     [

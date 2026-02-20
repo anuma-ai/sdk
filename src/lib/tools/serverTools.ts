@@ -458,13 +458,19 @@ function clientToolToResponsesFormat(
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
     }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
   };
 }
 
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor and autoExecute for client-side execution.
+ * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -495,6 +501,12 @@ function clientToolToCompletionsFormat(
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
+    }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
     }),
   };
 }
