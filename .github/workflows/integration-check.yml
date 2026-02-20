@@ -37,7 +37,7 @@ jobs:
 
       - name: Clone ai-examples
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.EXAMPLES_REPO_TOKEN }}
         run: gh repo clone zeta-chain/ai-examples /tmp/ai-examples -- --depth 1
 
       - name: Install SDK from tarball
