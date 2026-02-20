@@ -370,11 +370,48 @@ Defined in: [src/lib/db/chat/types.ts:592](https://github.com/zeta-chain/ai-sdk/
 
 ### getVaultMemories()
 
-> **getVaultMemories**: () => `Promise`<[`StoredVaultMemory`](../../../react/Internal/interfaces/StoredVaultMemory.md)\[]>
+> **getVaultMemories**: (`options?`: `object`) => `Promise`<[`StoredVaultMemory`](../../../react/Internal/interfaces/StoredVaultMemory.md)\[]>
 
 Defined in: [src/expo/useChatStorage.ts:211](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L211)
 
 Get all vault memories for context injection.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.scopes?`
+
+</td>
+<td>
+
+`string`\[]
+
+</td>
+</tr>
+</tbody>
+</table>
 
 **Returns**
 

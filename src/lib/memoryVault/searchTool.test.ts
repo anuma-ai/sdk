@@ -387,11 +387,11 @@ describe("preEmbedVaultMemories", () => {
 
     const cache = createVaultEmbeddingCache();
     await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache, {
-      scopes: ["private", "public"],
+      scopes: ["private", "shared"],
     });
 
     expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, {
-      scopes: ["private", "public"],
+      scopes: ["private", "shared"],
     });
   });
 

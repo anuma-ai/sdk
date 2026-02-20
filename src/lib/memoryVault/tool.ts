@@ -182,5 +182,6 @@ export function createMemoryVaultTool(
       }
     },
     autoExecute: hasOnSave,
+    removeAfterExecution: hasOnSave,
   };
 }

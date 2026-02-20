@@ -458,6 +458,9 @@ function clientToolToResponsesFormat(
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
     }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
   };
 }
 
@@ -495,6 +498,9 @@ function clientToolToCompletionsFormat(
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
     }),
   };
 }
