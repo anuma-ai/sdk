@@ -77,6 +77,7 @@ const ENCRYPTED_PREFIX = "enc:oauth:";
 // In-memory cache for sync access (populated by async operations)
 let cachedAccessToken: string | null = null;
 let cachedExpiresAt: number | null = null;
+let cachedWalletAddress: string | null = null;
 
 // Token storage types
 interface StoredTokenData {
@@ -390,6 +391,24 @@ async function getStoredTokenData(
 ): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
+  // Check in-memory cache first (avoids decryption on every call)
+  if (
+    cachedAccessToken &&
+    cachedWalletAddress === (walletAddress ?? null) &&
+    (!cachedExpiresAt || cachedExpiresAt - 60000 > Date.now())
+  ) {
+    return {
+      accessToken: cachedAccessToken,
+      expiresAt: cachedExpiresAt ?? undefined,
+    };
+  }
+  // Invalidate stale cache
+  if (cachedAccessToken) {
+    cachedAccessToken = null;
+    cachedExpiresAt = null;
+    cachedWalletAddress = null;
+  }
+
   try {
     // Check encrypted storage first (localStorage, wallet-scoped key)
     const stored = localStorage.getItem(getTokenStorageKey(walletAddress));
@@ -431,6 +450,7 @@ export function clearNotionToken(walletAddress?: string): void {
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   cachedAccessToken = null;
   cachedExpiresAt = null;
+  cachedWalletAddress = null;
 }
 
 /**
@@ -803,6 +823,7 @@ export async function handleNotionCallback(
   // Update in-memory cache
   cachedAccessToken = tokenData.access_token;
   cachedExpiresAt = storedData.expiresAt ?? null;
+  cachedWalletAddress = walletAddress ?? null;
 
   // Clean up URL
   window.history.replaceState({}, "", window.location.pathname);
@@ -883,6 +904,7 @@ export async function refreshNotionToken(
     // Update in-memory cache
     cachedAccessToken = tokenData.access_token;
     cachedExpiresAt = newStoredData.expiresAt ?? null;
+    cachedWalletAddress = walletAddress ?? null;
 
     return tokenData.access_token;
   } catch {
@@ -903,6 +925,7 @@ export async function getNotionAccessToken(
   if (!storedData) {
     cachedAccessToken = null;
     cachedExpiresAt = null;
+    cachedWalletAddress = null;
     return null;
   }
 
@@ -910,6 +933,7 @@ export async function getNotionAccessToken(
   if (!isTokenExpired(storedData)) {
     cachedAccessToken = storedData.accessToken;
     cachedExpiresAt = storedData.expiresAt ?? null;
+    cachedWalletAddress = walletAddress ?? null;
     return storedData.accessToken;
   }
 
@@ -923,6 +947,7 @@ export async function getNotionAccessToken(
 
   cachedAccessToken = null;
   cachedExpiresAt = null;
+  cachedWalletAddress = null;
   return null;
 }
 
