@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Save old API reports
+        run: cp -r etc/ /tmp/old-api-reports/
+
       - name: Generate API reports
         run: pnpm api-report:update
 
@@ -43,11 +46,11 @@ jobs:
             echo "api_changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "api_changed=true" >> "$GITHUB_OUTPUT"
-            echo "### API changes detected" >> "$GITHUB_STEP_SUMMARY"
-            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
-            git diff --staged etc/ >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Generate API diff summary
+        if: steps.diff.outputs.api_changed == 'true'
+        run: node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
 
       - name: Update PR label
         env:
@@ -69,8 +72,10 @@ jobs:
             echo "<!-- api-report -->"
             echo "### API Changes"
             echo ""
+            cat /tmp/api-summary.md
+            echo ""
             echo "<details>"
-            echo "<summary>Diff</summary>"
+            echo "<summary>Full diff</summary>"
             echo ""
             echo '```diff'
             git diff --staged etc/
