@@ -195,6 +195,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       toolChoice: toolChoiceArg,
       reasoning,
       thinking,
+      imageModel,
       apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Get the effective API type and strategy
@@ -320,6 +321,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
         });
 
         const sseResult = await client.sse.post({
@@ -610,6 +612,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             toolChoice,
             reasoning,
             thinking,
+            imageModel,
           });
 
           const continuationResult = await client.sse.post({

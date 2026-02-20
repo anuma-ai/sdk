@@ -1897,6 +1897,7 @@ export function useChatStorage(
         reasoning,
         thinking,
         onThinking,
+        imageModel,
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
@@ -1999,6 +2000,7 @@ export function useChatStorage(
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
         });
 
@@ -2385,6 +2387,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         onThinking,
         apiType: requestApiType,
       });

@@ -131,6 +131,8 @@ export type ResponsesApiOptions = {
    * Enables the model to think through complex problems step by step.
    */
   thinking?: LlmapiThinkingOptions;
+  /** User-selected image generation model for server-side enforcement. */
+  imageModel?: string;
 };
 
 /**
