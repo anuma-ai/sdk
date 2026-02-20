@@ -59,12 +59,12 @@ describe("createMemoryVaultTool", () => {
   it("passes explicit scope to createVaultMemoryOp", async () => {
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory());
 
-    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "public" });
-    await tool.executor!({ content: "public fact" });
+    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "shared" });
+    await tool.executor!({ content: "shared fact" });
 
     expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
-      content: "public fact",
-      scope: "public",
+      content: "shared fact",
+      scope: "shared",
     });
   });
 
@@ -81,7 +81,7 @@ describe("createMemoryVaultTool", () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(existing);
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
 
-    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "public" });
+    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "shared" });
     const result = await tool.executor!({
       content: "new content",
       id: "mem-1",
@@ -155,7 +155,7 @@ describe("createMemoryVaultTool", () => {
         makeStoredMemory({ uniqueId: "new-1" })
       );
 
-      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "public" });
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "shared" });
       const result = await tool.executor!({
         content: "User prefers dark mode",
       });
@@ -163,7 +163,7 @@ describe("createMemoryVaultTool", () => {
       expect(onSave).toHaveBeenCalledWith({
         action: "add",
         content: "User prefers dark mode",
-        scope: "public",
+        scope: "shared",
       });
       expect(createVaultMemoryOp).toHaveBeenCalled();
       expect(result).toBe("Memory saved successfully (ID: new-1).");
@@ -178,7 +178,7 @@ describe("createMemoryVaultTool", () => {
         makeStoredMemory({ uniqueId: "mem-1", content: "new preference" })
       );
 
-      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "public" });
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave, scope: "shared" });
       await tool.executor!({ content: "new preference", id: "mem-1" });
 
       expect(onSave).toHaveBeenCalledWith({
