@@ -53,9 +53,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh label create api-change --color e11d48 --description "PR changes the public API surface" 2>/dev/null || true
+          gh label create api-changes --color e11d48 --description "PR changes the public API surface" 2>/dev/null || true
           if [ "${{ steps.diff.outputs.api_changed }}" == "true" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "api-change"
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "api-changes"
           else
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "api-change" 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "api-changes" 2>/dev/null || true
           fi
