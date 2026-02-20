@@ -2,7 +2,7 @@
 
 > **shouldRefreshTools**(`responseChecksum`: `string` | `undefined`): `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:313](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L313)
+Defined in: [src/lib/tools/serverTools.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L311)
 
 Check if tools should be refreshed based on checksum comparison.
 Returns true if:

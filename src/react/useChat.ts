@@ -35,7 +35,7 @@ type SendMessageArgs = BaseSendMessageArgs & {
   headers?: Record<string, string>;
   /**
    * Memory context to inject as a system message.
-   * This is typically formatted memories from useMemoryStorage.
+   * This is typically context from memory retrieval or other sources.
    */
   memoryContext?: string;
   /**
@@ -200,9 +200,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       temperature,
       maxOutputTokens,
       tools,
-      toolChoice,
+      toolChoice: toolChoiceArg,
       reasoning,
       thinking,
+      imageModel,
       apiType: requestApiType,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Get the effective API type and strategy
@@ -314,7 +315,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let sseError: Error | null = null;
 
         // Convert tools to API format (strip executors)
-        const apiTools = toolsToApiFormat(tools);
+        let apiTools = toolsToApiFormat(tools);
+        let toolChoice = toolChoiceArg;
 
         // Build request body using the strategy
         const requestBody = strategy.buildRequestBody({
@@ -327,6 +329,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
         });
 
         const sseResult = await client.sse.post({
@@ -424,31 +427,24 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Build the final response
         const response = strategy.buildFinalResponse(accumulator);
 
-        // Check for tool calls and handle them
-        if (accumulator.toolCalls.size > 0) {
-          console.log(
-            "[Tool Debug] Found",
-            accumulator.toolCalls.size,
-            "tool calls"
-          );
-          const executorMap = createToolExecutorMap(tools);
+        // Multi-turn tool calling loop: handle chained tool calls (max 10 iterations)
+        const executorMap = createToolExecutorMap(tools);
+        let currentAccumulator = accumulator;
+        let currentMessages = messagesWithContext;
+        let toolIteration = 0;
+        const MAX_TOOL_ITERATIONS = 10;
+
+        while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
+          toolIteration++;
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
           // Determine which tools to execute vs emit as events
-          for (const toolCall of accumulator.toolCalls.values()) {
-            console.log("[Tool Debug] Processing tool call:", toolCall.name);
+          for (const toolCall of currentAccumulator.toolCalls.values()) {
             const executorConfig = executorMap.get(toolCall.name);
 
             if (executorConfig && executorConfig.autoExecute) {
-              // Will execute automatically
-              console.log("[Tool Debug] Will auto-execute:", toolCall.name);
               toolCallsToExecute.push(toolCall);
             } else {
-              // Emit event for manual handling
-              console.log(
-                "[Tool Debug] Emitting onToolCall event for:",
-                toolCall.name
-              );
               if (onToolCall) {
                 onToolCall({
                   id: toolCall.id,
@@ -462,286 +458,299 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
           }
 
-          // If we have tools to auto-execute, execute them and continue
-          if (toolCallsToExecute.length > 0) {
-            console.log(
-              "[Tool Debug] Executing",
-              toolCallsToExecute.length,
-              "tools"
-            );
+          // If no tools to auto-execute, break out of the loop
+          if (toolCallsToExecute.length === 0) {
+            break;
+          }
 
-            // Output tool execution info to thinking section (via smoother)
-            if (onThinking || globalOnThinking) {
-              const toolInfo = toolCallsToExecute
-                .map((tc) => {
-                  try {
-                    const args = JSON.parse(tc.arguments);
-                    const argsStr = Object.entries(args)
-                      .map(([k, v]) => `${k}=${v}`)
-                      .join(", ");
-                    return `${tc.name}(${argsStr})`;
-                  } catch {
-                    return `${tc.name}(${tc.arguments})`;
-                  }
-                })
-                .join(", ");
-              thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
-            }
-
-            // Execute all tools in parallel
-            const executionResults = await Promise.all(
-              toolCallsToExecute.map(async (toolCall) => {
-                const executorConfig = executorMap.get(toolCall.name);
-                if (!executorConfig) {
-                  return {
-                    id: toolCall.id,
-                    error: `No executor found for tool: ${toolCall.name}`,
-                  };
+          // Output tool execution info to thinking section (via smoother)
+          if (onThinking || globalOnThinking) {
+            const toolInfo = toolCallsToExecute
+              .map((tc) => {
+                try {
+                  const args = JSON.parse(tc.arguments);
+                  const argsStr = Object.entries(args)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ");
+                  return `${tc.name}(${argsStr})`;
+                } catch {
+                  return `${tc.name}(${tc.arguments})`;
                 }
+              })
+              .join(", ");
+            thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
+          }
 
-                // toolCall is already the AccumulatedToolCall from the map, use it directly
-                const { result, error } = await executeToolCall(
-                  toolCall,
-                  executorConfig.executor
-                );
-
-                console.log(
-                  "[Tool Debug] Tool execution result for",
-                  toolCall.name,
-                  ":",
-                  { result, error }
-                );
-
+          // Execute all tools in parallel
+          const executionResults = await Promise.all(
+            toolCallsToExecute.map(async (toolCall) => {
+              const executorConfig = executorMap.get(toolCall.name);
+              if (!executorConfig) {
                 return {
                   id: toolCall.id,
-                  name: toolCall.name,
-                  result,
-                  error,
+                  error: `No executor found for tool: ${toolCall.name}`,
                 };
+              }
+
+              const { result, error } = await executeToolCall(
+                toolCall,
+                executorConfig.executor
+              );
+
+              return {
+                id: toolCall.id,
+                name: toolCall.name,
+                result,
+                error,
+              };
+            })
+          );
+
+          // Remove tools with removeAfterExecution: true that succeeded
+          if (tools && apiTools) {
+            const successfullyExecutedNames = new Set<string>();
+            for (const r of executionResults) {
+              if (!r.error && "name" in r && r.name) {
+                successfullyExecutedNames.add(r.name);
+              }
+            }
+
+            if (successfullyExecutedNames.size > 0) {
+              const toolsToRemove = new Set<string>();
+              for (const t of tools) {
+                const tc = t as any;
+                const toolName: string | undefined = tc.function?.name || tc.name;
+                if (
+                  tc.removeAfterExecution === true &&
+                  toolName &&
+                  successfullyExecutedNames.has(toolName)
+                ) {
+                  toolsToRemove.add(toolName);
+                }
+              }
+
+              if (toolsToRemove.size > 0) {
+                apiTools = apiTools.filter((t) => {
+                  const name = (t as any).function?.name || (t as any).name;
+                  return !toolsToRemove.has(name);
+                });
+                if (apiTools.length === 0) {
+                  apiTools = undefined;
+                  toolChoice = undefined;
+                } else if (
+                  typeof toolChoice === "string" &&
+                  toolsToRemove.has(toolChoice)
+                ) {
+                  // Clear toolChoice if it references a removed tool
+                  toolChoice = undefined;
+                }
+                // Also remove from executorMap to prevent accidental re-execution
+                for (const name of toolsToRemove) {
+                  executorMap.delete(name);
+                }
+              }
+            }
+          }
+
+          // Output tool execution results to thinking section (via smoother)
+          if (onThinking || globalOnThinking) {
+            const resultsText = executionResults
+              .map((r) => {
+                if (r.error) {
+                  return `${r.name}: Error - ${r.error}`;
+                }
+                const resultStr =
+                  typeof r.result === "object"
+                    ? JSON.stringify(r.result)
+                    : String(r.result);
+                return `${r.name}: ${resultStr}`;
               })
-            );
+              .join("\n");
+            thinkingSmoother.push(`${resultsText}\n`);
+          }
 
-            console.log(
-              "[Tool Debug] All tools executed, results:",
-              executionResults.length
-            );
+          // Drain the thinking smoother to ensure tool info is fully delivered
+          // before creating continuation smoothers (prevents interleaved output)
+          await thinkingSmoother.drain();
 
-            // Output tool execution results to thinking section (via smoother)
-            if (onThinking || globalOnThinking) {
-              const resultsText = executionResults
-                .map((r) => {
-                  if (r.error) {
-                    return `${r.name}: Error - ${r.error}`;
-                  }
-                  const resultStr =
-                    typeof r.result === "object"
-                      ? JSON.stringify(r.result)
-                      : String(r.result);
-                  return `${r.name}: ${resultStr}`;
-                })
-                .join("\n");
-              thinkingSmoother.push(`${resultsText}\n`);
-            }
+          // Build tool result messages to send back to the model
+          const toolResultMessages: LlmapiMessage[] = [];
 
-            // Drain the thinking smoother to ensure tool info is fully delivered
-            // before creating continuation smoothers (prevents interleaved output)
-            await thinkingSmoother.drain();
+          // If all executed tools have skipContinuation, don't send results
+          // back to the model. This prevents display-only tools (charts, weather)
+          // from triggering redundant continuation requests.
+          const allSkipContinuation = toolCallsToExecute.every(
+            (tc) => executorMap.get(tc.name)?.skipContinuation === true
+          );
 
-            // If all executed tools have skipContinuation, don't send results
-            // back to the model. This prevents display-only tools (charts, weather)
-            // from triggering redundant continuation requests.
-            const allSkipContinuation = toolCallsToExecute.every(
-              (tc) => executorMap.get(tc.name)?.skipContinuation === true
-            );
-
-            if (allSkipContinuation) {
-              console.log("[Tool Debug] All tools have skipContinuation, returning without continuation");
-              const response = strategy.buildFinalResponse(accumulator);
-              if (onFinish) {
-                onFinish(response);
-              }
-              return {
-                data: response,
-                error: null,
-                toolsChecksum: accumulator.toolsChecksum,
-                autoExecutedToolResults: executionResults
-                  .filter((r) => !r.error && r.name)
-                  .map((r) => ({ name: r.name!, result: r.result })),
-              };
-            }
-
-            // Build tool result messages to send back to the model
-            const toolResultMessages: LlmapiMessage[] = [];
-
-            // Add the assistant's message with tool calls
-            const assistantMessage: LlmapiMessage = {
-              role: "assistant",
-              content: [{ type: "text", text: accumulator.content }],
-              tool_calls: toolCallsToExecute.map((tc) => ({
-                id: tc.id,
-                type: "function",
-                function: {
-                  name: tc.name,
-                  arguments: tc.arguments,
-                },
-              })),
-            };
-            toolResultMessages.push(assistantMessage);
-
-            // Add tool result messages
-            for (const execResult of executionResults) {
-              const resultContent = execResult.error
-                ? `Error: ${execResult.error}`
-                : JSON.stringify(execResult.result);
-
-              toolResultMessages.push({
-                role: "tool",
-                content: [{ type: "text", text: resultContent }],
-                tool_call_id: execResult.id,
-              } as LlmapiMessage);
-            }
-
-            // Continue the conversation with tool results
-            const continuationMessages = [
-              ...messagesWithContext,
-              ...toolResultMessages,
-            ];
-
-            console.log(
-              "[Tool Debug] Continuation messages:",
-              JSON.stringify(continuationMessages, null, 2)
-            );
-
-            // Recursive call to continue with tool results
-            // Use the same parameters but with updated messages
-            const continuationRequestBody = strategy.buildRequestBody({
-              messages: continuationMessages,
-              model: model!,
-              stream: true,
-              temperature,
-              maxOutputTokens,
-              tools: apiTools,
-              toolChoice,
-              reasoning,
-              thinking,
-            });
-
-            const continuationResult = await client.sse.post({
-              baseUrl,
-              url: strategy.endpoint,
-              body: continuationRequestBody,
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                ...headers,
-              },
-              signal: abortController.signal,
-              sseMaxRetryAttempts: 1,
-              onSseError: (error) => {
-                sseError =
-                  error instanceof Error ? error : new Error(String(error));
-              },
-            });
-
-            // Create a new accumulator for the continuation
-            const continuationAccumulator = createStreamAccumulator(model || undefined);
-
-            // Create fresh smoothers for the continuation stream
-            const contContentSmoother = new StreamSmoother((text) => {
-              if (onData) onData(text);
-              if (globalOnData) globalOnData(text);
-            }, smoothing);
-            const contThinkingSmoother = new StreamSmoother((text) => {
-              if (onThinking) onThinking(text);
-              if (globalOnThinking) globalOnThinking(text);
-            }, smoothing);
-
-            try {
-              for await (const chunk of continuationResult.stream) {
-                if (isDoneMarker(chunk)) {
-                  continue;
-                }
-
-                if (chunk && typeof chunk === "object") {
-                  const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
-                    strategy.processStreamChunk(chunk, continuationAccumulator);
-                  if (contentDelta) {
-                    contContentSmoother.push(contentDelta);
-                  }
-                  if (thinkingDelta) {
-                    contThinkingSmoother.push(thinkingDelta);
-                  }
-                  if (serverToolCall && onServerToolCall) {
-                    onServerToolCall(serverToolCall);
-                  }
-                }
-              }
-
-              console.log(
-                "[Tool Debug] Continuation stream complete - accumulated content:",
-                continuationAccumulator.content
-              );
-              console.log(
-                "[Tool Debug] Continuation stream complete - accumulated thinking:",
-                continuationAccumulator.thinking
-              );
-            } catch (streamErr) {
-              if (isAbortError(streamErr) || abortController.signal.aborted) {
-                contContentSmoother.destroy();
-                contThinkingSmoother.destroy();
-                const partialResponse = strategy.buildFinalResponse(
-                  continuationAccumulator
-                );
-                return {
-                  data: partialResponse,
-                  error: "Request aborted",
-                  toolsChecksum: continuationAccumulator.toolsChecksum,
-                };
-              }
-              contContentSmoother.destroy();
-              contThinkingSmoother.destroy();
-              throw streamErr;
-            }
-
-            if (abortController.signal.aborted) {
-              contContentSmoother.destroy();
-              contThinkingSmoother.destroy();
-              const partialResponse = strategy.buildFinalResponse(
-                continuationAccumulator
-              );
-              return {
-                data: partialResponse,
-                error: "Request aborted",
-                toolsChecksum: continuationAccumulator.toolsChecksum,
-              };
-            }
-
-            if (sseError) {
-              contContentSmoother.destroy();
-              contThinkingSmoother.destroy();
-              throw sseError;
-            }
-
-            // Drain remaining buffered content smoothly
-            await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
-
-            // Build final response from continuation
-            const finalResponse = strategy.buildFinalResponse(
-              continuationAccumulator
-            );
-
+          if (allSkipContinuation) {
+            const skipResponse = strategy.buildFinalResponse(currentAccumulator);
             if (onFinish) {
-              onFinish(finalResponse);
+              onFinish(skipResponse);
             }
             return {
-              data: finalResponse,
+              data: skipResponse,
               error: null,
-              toolsChecksum: continuationAccumulator.toolsChecksum,
+              toolsChecksum: currentAccumulator.toolsChecksum,
               autoExecutedToolResults: executionResults
                 .filter((r) => !r.error && r.name)
                 .map((r) => ({ name: r.name!, result: r.result })),
             };
           }
+
+          // Add the assistant's message with tool calls
+          const assistantMessage: LlmapiMessage = {
+            role: "assistant",
+            content: [{ type: "text", text: currentAccumulator.content }],
+            tool_calls: toolCallsToExecute.map((tc) => ({
+              id: tc.id,
+              type: "function",
+              function: {
+                name: tc.name,
+                arguments: tc.arguments,
+              },
+            })),
+          };
+          toolResultMessages.push(assistantMessage);
+
+          // Add tool result messages
+          for (const execResult of executionResults) {
+            const resultContent = execResult.error
+              ? `Error: ${execResult.error}`
+              : JSON.stringify(execResult.result);
+
+            toolResultMessages.push({
+              role: "tool",
+              content: [{ type: "text", text: resultContent }],
+              tool_call_id: execResult.id,
+            } as LlmapiMessage);
+          }
+
+          // Continue the conversation with tool results
+          currentMessages = [
+            ...currentMessages,
+            ...toolResultMessages,
+          ];
+
+          const continuationRequestBody = strategy.buildRequestBody({
+            messages: currentMessages,
+            model: model!,
+            stream: true,
+            temperature,
+            maxOutputTokens,
+            tools: apiTools,
+            toolChoice,
+            reasoning,
+            thinking,
+            imageModel,
+          });
+
+          const continuationResult = await client.sse.post({
+            baseUrl,
+            url: strategy.endpoint,
+            body: continuationRequestBody,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              ...headers,
+            },
+            signal: abortController.signal,
+            sseMaxRetryAttempts: 1,
+            onSseError: (error) => {
+              sseError =
+                error instanceof Error ? error : new Error(String(error));
+            },
+          });
+
+          // Create a new accumulator for the continuation
+          currentAccumulator = createStreamAccumulator(model || undefined);
+
+          // Create fresh smoothers for the continuation stream
+          const contContentSmoother = new StreamSmoother((text) => {
+            if (onData) onData(text);
+            if (globalOnData) globalOnData(text);
+          }, smoothing);
+          const contThinkingSmoother = new StreamSmoother((text) => {
+            if (onThinking) onThinking(text);
+            if (globalOnThinking) globalOnThinking(text);
+          }, smoothing);
+
+          try {
+            for await (const chunk of continuationResult.stream) {
+              if (isDoneMarker(chunk)) {
+                continue;
+              }
+
+              if (chunk && typeof chunk === "object") {
+                const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
+                  strategy.processStreamChunk(chunk, currentAccumulator);
+                if (contentDelta) {
+                  contContentSmoother.push(contentDelta);
+                }
+                if (thinkingDelta) {
+                  contThinkingSmoother.push(thinkingDelta);
+                }
+                if (serverToolCall && onServerToolCall) {
+                  onServerToolCall(serverToolCall);
+                }
+              }
+            }
+
+          } catch (streamErr) {
+            if (isAbortError(streamErr) || abortController.signal.aborted) {
+              contContentSmoother.destroy();
+              contThinkingSmoother.destroy();
+              const partialResponse = strategy.buildFinalResponse(
+                currentAccumulator
+              );
+              return {
+                data: partialResponse,
+                error: "Request aborted",
+                toolsChecksum: currentAccumulator.toolsChecksum,
+              };
+            }
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            throw streamErr;
+          }
+
+          if (abortController.signal.aborted) {
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            const partialResponse = strategy.buildFinalResponse(
+              currentAccumulator
+            );
+            return {
+              data: partialResponse,
+              error: "Request aborted",
+              toolsChecksum: currentAccumulator.toolsChecksum,
+            };
+          }
+
+          if (sseError) {
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            throw sseError;
+          }
+
+          // Drain remaining buffered content smoothly
+          await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);
+
+          // Loop continues: if currentAccumulator has more tool calls,
+          // the while condition will trigger another iteration
+        }
+
+        // Build final response from the last accumulator (after all tool iterations)
+        if (toolIteration > 0) {
+          const finalResponse = strategy.buildFinalResponse(currentAccumulator);
+          if (onFinish) {
+            onFinish(finalResponse);
+          }
+          return {
+            data: finalResponse,
+            error: null,
+            toolsChecksum: currentAccumulator.toolsChecksum,
+          };
         }
 
         if (onFinish) {

@@ -528,11 +528,6 @@ export function processStreamingChunk(
 ): ProcessChunkResult {
   const result: ProcessChunkResult = { content: null, thinking: null };
 
-  // Debug: Log all chunk types
-  if (chunk.type) {
-    console.log("[Tool Debug] Event type:", chunk.type);
-  }
-
   // Handle response.created event - extract ID and model from response object
   if (chunk.type === "response.created" && chunk.response) {
     if (chunk.response.id && !accumulator.responseId) {
@@ -613,17 +608,12 @@ export function processStreamingChunk(
 
   // Extract content delta from responses API format
   if (chunk.type === "response.output_text.delta") {
-    console.log("[Tool Debug] output_text.delta event - delta:", chunk.delta);
     const delta = chunk.delta;
     if (delta) {
       // Handle both string and object delta formats
       // The API may return delta as either a string or an object with OfString property
       const deltaText = typeof delta === "string" ? delta : delta.OfString;
       if (deltaText) {
-        console.log(
-          "[Tool Debug] output_text.delta - adding text:",
-          deltaText.substring(0, 50)
-        );
         accumulator.content += deltaText;
         result.content = deltaText;
       }
@@ -633,32 +623,12 @@ export function processStreamingChunk(
   // Handle tool call events
   // Event: response.output_item.added with type "function_call"
   if (chunk.type === "response.output_item.added" && chunk.item) {
-    // Debug logging
-    console.log(
-      "[Tool Debug] output_item.added:",
-      JSON.stringify(chunk.item, null, 2)
-    );
-
-    if (chunk.item.type === "message") {
-      console.log(
-        "[Tool Debug] Message output item added - ready to receive text deltas"
-      );
-    }
-
     if (chunk.item.type === "function_call") {
       // Use item.id (fc_...) as the primary key since that's what arguments events use
       const itemId = chunk.item.id || "";
       const callId = chunk.item.call_id || "";
 
       if (itemId && chunk.item.name) {
-        console.log(
-          "[Tool Debug] Detected tool call:",
-          chunk.item.name,
-          "item ID:",
-          itemId,
-          "call ID:",
-          callId
-        );
         accumulator.toolCalls.set(itemId, {
           id: callId || itemId, // Use call_id for the tool call ID
           type: "function",
@@ -679,58 +649,24 @@ export function processStreamingChunk(
 
   // Event: response.function_call_arguments.delta - streaming arguments (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.delta") {
-    console.log(
-      "[Tool Debug] Arguments delta event - item_id:",
-      chunk.item_id,
-      "call_id:",
-      chunk.call_id,
-      "args length:",
-      chunk.arguments?.length
-    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
       const existing = accumulator.toolCalls.get(itemId);
       if (existing) {
         existing.arguments += chunk.arguments;
-      } else {
-        console.log(
-          "[Tool Debug] WARNING: Tool call not found for item ID:",
-          itemId,
-          "Available keys:",
-          Array.from(accumulator.toolCalls.keys())
-        );
       }
     }
   }
 
   // Event: response.function_call_arguments.done - arguments complete (note: underscore, not dot)
   if (chunk.type === "response.function_call_arguments.done") {
-    console.log(
-      "[Tool Debug] Arguments done event - item_id:",
-      chunk.item_id,
-      "call_id:",
-      chunk.call_id,
-      "args:",
-      chunk.arguments
-    );
     // Use item_id (fc_...) to look up the tool call
     const itemId = chunk.item_id || chunk.call_id || "";
     if (itemId && chunk.arguments) {
       const existing = accumulator.toolCalls.get(itemId);
       if (existing) {
         existing.arguments = chunk.arguments;
-        console.log(
-          "[Tool Debug] Successfully updated arguments:",
-          existing.arguments
-        );
-      } else {
-        console.log(
-          "[Tool Debug] WARNING: Tool call not found for item ID:",
-          itemId,
-          "Available keys:",
-          Array.from(accumulator.toolCalls.keys())
-        );
       }
     }
   }
@@ -899,15 +835,10 @@ export async function executeToolCall(
 ): Promise<{ result?: unknown; error?: string }> {
   try {
     // Parse arguments
-    console.log(
-      "[Tool Debug] executeToolCall - raw arguments:",
-      toolCall.arguments
-    );
     let args: Record<string, unknown> = {};
     if (toolCall.arguments) {
       try {
         args = JSON.parse(toolCall.arguments);
-        console.log("[Tool Debug] executeToolCall - parsed arguments:", args);
       } catch (e) {
         return {
           error: `Failed to parse tool arguments: ${
@@ -915,8 +846,6 @@ export async function executeToolCall(
           }`,
         };
       }
-    } else {
-      console.log("[Tool Debug] executeToolCall - no arguments provided");
     }
 
     // Execute the tool
@@ -944,7 +873,7 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
     return apiTool;
   });
 }

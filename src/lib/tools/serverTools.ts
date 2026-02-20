@@ -7,8 +7,6 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
-import { cosineSimilarity } from "../db/memory/types";
-
 /** Tool parameters schema */
 interface ToolParameters {
   properties: Record<string, unknown>;
@@ -463,13 +461,16 @@ function clientToolToResponsesFormat(
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
     }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
   };
 }
 
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor, autoExecute, and skipContinuation for client-side execution.
+ * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -503,6 +504,9 @@ function clientToolToCompletionsFormat(
     }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
     }),
   };
 }
@@ -555,6 +559,29 @@ export function mergeTools(
 
   // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return dotProduct / denominator;
 }
 
 /**

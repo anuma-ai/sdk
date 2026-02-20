@@ -10,7 +10,7 @@ This unified schema includes all tables needed by the SDK:
 
 * `history`: Chat message storage with embeddings and metadata
 * `conversations`: Conversation metadata and organization
-* `memories`: Persistent memory storage with semantic search
+* `memory_vault`: Persistent memory vault for curated facts
 * `modelPreferences`: User model preferences (deprecated, use userPreferences)
 * `userPreferences`: Unified user preferences (profile, personality, models)
 

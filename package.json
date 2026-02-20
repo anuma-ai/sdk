@@ -64,7 +64,8 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
-    "eval:memory": "tsx test/memory",
+    "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
+    "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
   },

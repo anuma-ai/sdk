@@ -94,6 +94,16 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * and don't need a model follow-up.
    */
   skipContinuation?: boolean;
+  /**
+   * Whether to remove this tool from the tools list after it has been
+   * successfully auto-executed. This prevents smaller models from calling
+   * the same tool repeatedly in continuation requests.
+   *
+   * Only applies when the tool is auto-executed (has an executor and
+   * autoExecute is not false). The tool is kept if execution fails,
+   * allowing the model to retry.
+   */
+  removeAfterExecution?: boolean;
 };
 
 /**
@@ -128,6 +138,8 @@ export type ResponsesApiOptions = {
    * Enables the model to think through complex problems step by step.
    */
   thinking?: LlmapiThinkingOptions;
+  /** User-selected image generation model for server-side enforcement. */
+  imageModel?: string;
 };
 
 /**

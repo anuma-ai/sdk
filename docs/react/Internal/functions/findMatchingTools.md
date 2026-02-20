@@ -2,7 +2,7 @@
 
 > **findMatchingTools**(`promptEmbeddings`: `number`\[] | `number`\[]\[], `tools`: [`ServerTool`](../interfaces/ServerTool.md)\[], `options?`: [`ToolMatchOptions`](../interfaces/ToolMatchOptions.md)): [`ToolMatchResult`](../interfaces/ToolMatchResult.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L597)
+Defined in: [src/lib/tools/serverTools.ts:624](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L624)
 
 Find tools that semantically match prompt embedding(s).
 
