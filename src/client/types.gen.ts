@@ -145,7 +145,10 @@ export type HandlersCreateAppRequest = {
 
 export type HandlersCreateCheckoutSessionRequest = {
     cancel_url?: string;
+    interval?: string;
+    price_id?: string;
     success_url?: string;
+    tier?: string;
 };
 
 export type HandlersCreateCreditPackCheckoutRequest = {
