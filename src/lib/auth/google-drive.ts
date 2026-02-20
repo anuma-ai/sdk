@@ -76,7 +76,7 @@ function getTokenStorageKey(walletAddress?: string): string {
  *
  * Lookup order:
  * 1. Encrypted localStorage (wallet-scoped key)
- * 2. Unencrypted localStorage (legacy key without wallet)
+ * 2. Unencrypted localStorage (legacy unscoped key, pre-encryption users)
  * 3. Unencrypted sessionStorage (temporary fallback)
  */
 async function getStoredTokenData(
@@ -136,7 +136,24 @@ async function getStoredTokenData(
       }
     }
 
-    // 2. Fall back to sessionStorage
+    // 2. Try legacy unencrypted localStorage (unscoped key, pre-encryption)
+    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX)) {
+      try {
+        const data = JSON.parse(legacyStored) as StoredTokenData;
+        if (data.accessToken) {
+          cachedAccessToken = data.accessToken;
+          cachedExpiresAt = data.expiresAt ?? null;
+          cachedRefreshToken = data.refreshToken ?? null;
+          cachedWalletAddress = walletAddress ?? null;
+          return data;
+        }
+      } catch {
+        // Not valid JSON
+      }
+    }
+
+    // 3. Fall back to sessionStorage
     const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
     if (sessionStored) {
       try {
