@@ -10,7 +10,8 @@
     "reportFolder": "<projectFolder>/etc/"
   },
   "docModel": {
-    "enabled": false
+    "enabled": true,
+    "apiJsonFilePath": "<projectFolder>/etc/<unscopedPackageName>.api.json"
   },
   "dtsRollup": {
     "enabled": false
