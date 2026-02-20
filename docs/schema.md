@@ -1,16 +1,15 @@
 # Database Schema
 
-Current version: **v15**
+Current version: **v16**
 
 ## Tables
 
 - [`history`](#history)
 - [`conversations`](#conversations)
 - [`projects`](#projects)
-- [`memories`](#memories)
 - [`modelPreferences`](#modelpreferences)
 - [`userPreferences`](#userpreferences)
-- [`display_interactions`](#display-interactions)
+- [`memory_vault`](#memory-vault)
 - [`media`](#media)
 
 ## `history`
@@ -60,25 +59,6 @@ Current version: **v15**
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `memories`
-
-| Column | Type | Indexed | Optional |
-|--------|------|---------|----------|
-| `type` | string | ✓ |  |
-| `namespace` | string | ✓ |  |
-| `key` | string | ✓ |  |
-| `value` | string |  |  |
-| `raw_evidence` | string |  |  |
-| `confidence` | number |  |  |
-| `pii` | boolean | ✓ |  |
-| `composite_key` | string | ✓ |  |
-| `unique_key` | string | ✓ |  |
-| `created_at` | number | ✓ |  |
-| `updated_at` | number |  |  |
-| `embedding` | string |  | ✓ |
-| `embedding_model` | string |  | ✓ |
-| `is_deleted` | boolean | ✓ |  |
-
 ## `modelPreferences`
 
 | Column | Type | Indexed | Optional |
@@ -99,18 +79,15 @@ Current version: **v15**
 | `created_at` | number |  |  |
 | `updated_at` | number |  |  |
 
-## `display_interactions`
+## `memory_vault`
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
-| `interaction_id` | string | ✓ |  |
-| `conversation_id` | string | ✓ |  |
-| `message_id` | string | ✓ | ✓ |
-| `display_type` | string |  |  |
-| `tool_version` | number |  |  |
-| `result` | string |  |  |
+| `content` | string |  |  |
+| `scope` | string | ✓ |  |
 | `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
+| `is_deleted` | boolean | ✓ |  |
 
 ## `media`
 
@@ -138,7 +115,8 @@ Current version: **v15**
 
 | Version | Changes |
 |---------|---------|
-| v15 | Added `display_interactions` table |
+| v16 | Added `scope` to `memory_vault`; `UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';` |
+| v15 | `DROP TABLE IF EXISTS memories;`; Added `memory_vault` table |
 | v14 | Added `feedback` to `history` |
 | v13 | Added `parent_message_id` to `history` |
 | v12 | Added `chunks` to `history` |

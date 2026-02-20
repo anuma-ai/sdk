@@ -34,9 +34,8 @@ import { UserPreference } from "./userPreferences/models";
  * - v14: Added feedback column to history table for like/dislike on responses
  * - v15: Replaced memories table with memory_vault table for persistent memory vault
  * - v16: Added scope column to memory_vault table for memory partitioning
- * - v17: Added display_interactions table for persisting display tool outputs (e.g. charts)
  */
-export const SDK_SCHEMA_VERSION = 17;
+export const SDK_SCHEMA_VERSION = 16;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -188,24 +187,6 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
-    // Display interaction storage (resolved display tool outputs, e.g. charts)
-    tableSchema({
-      name: "display_interactions",
-      columns: [
-        // Identity
-        { name: "interaction_id", type: "string", isIndexed: true },
-        { name: "conversation_id", type: "string", isIndexed: true },
-        { name: "message_id", type: "string", isOptional: true, isIndexed: true },
-        // Tool metadata
-        { name: "display_type", type: "string" },
-        { name: "tool_version", type: "number" },
-        // Result payload (JSON string)
-        { name: "result", type: "string" },
-        // Timestamps
-        { name: "created_at", type: "number", isIndexed: true },
-        { name: "updated_at", type: "number" },
-      ],
-    }),
   ],
 });
 
@@ -234,7 +215,6 @@ export const sdkSchema = appSchema({
  * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
  * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
- * - v16 → v17: Added `display_interactions` table for persisting display tool outputs
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -450,25 +430,6 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';"
         ),
-      ],
-    },
-    // v16 -> v17: Added display_interactions table for persisting display tool outputs
-    {
-      toVersion: 17,
-      steps: [
-        createTable({
-          name: "display_interactions",
-          columns: [
-            { name: "interaction_id", type: "string", isIndexed: true },
-            { name: "conversation_id", type: "string", isIndexed: true },
-            { name: "message_id", type: "string", isOptional: true, isIndexed: true },
-            { name: "display_type", type: "string" },
-            { name: "tool_version", type: "number" },
-            { name: "result", type: "string" },
-            { name: "created_at", type: "number", isIndexed: true },
-            { name: "updated_at", type: "number" },
-          ],
-        }),
       ],
     },
   ],
