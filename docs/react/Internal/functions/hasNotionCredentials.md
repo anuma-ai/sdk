@@ -2,7 +2,7 @@
 
 > **hasNotionCredentials**(`walletAddress?`: `string`): `boolean`
 
-Defined in: [src/lib/auth/notion.ts:946](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L946)
+Defined in: [src/lib/auth/notion.ts:971](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L971)
 
 Check if we have any stored Notion credentials
 

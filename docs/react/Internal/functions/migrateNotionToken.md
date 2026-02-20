@@ -2,7 +2,7 @@
 
 > **migrateNotionToken**(`walletAddress`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/notion.ts:454](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L454)
+Defined in: [src/lib/auth/notion.ts:474](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L474)
 
 Migrate unencrypted tokens to encrypted format
 Call this when wallet/encryption key becomes available after OAuth
