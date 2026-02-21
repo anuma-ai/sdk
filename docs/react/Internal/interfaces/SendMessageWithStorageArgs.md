@@ -1,6 +1,6 @@
 # SendMessageWithStorageArgs
 
-Defined in: [src/react/useChatStorage.ts:342](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L342)
+Defined in: [src/react/useChatStorage.ts:425](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L425)
 
 Arguments for sendMessage with storage (React version)
 
@@ -16,7 +16,7 @@ Extends base arguments with headers and apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:357](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L357)
+Defined in: [src/react/useChatStorage.ts:440](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L440)
 
 Override the API type for this specific request.
 
@@ -72,7 +72,7 @@ clientToolsFilter: (embeddings, tools) => {
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/react/useChatStorage.ts:365](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L365)
+Defined in: [src/react/useChatStorage.ts:448](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L448)
 
 Explicitly specify the conversation ID to send this message to.
 If provided, bypasses the automatic conversation detection/creation.
@@ -139,7 +139,7 @@ If both `thoughtProcess` and `getThoughtProcess` are provided, `getThoughtProces
 
 > `optional` **headers**: `Record`<`string`, `string`>
 
-Defined in: [src/react/useChatStorage.ts:348](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L348)
+Defined in: [src/react/useChatStorage.ts:431](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L431)
 
 Custom HTTP headers to include with the API request.
 Useful for passing additional authentication, tracking, or feature flags.
@@ -150,7 +150,7 @@ Useful for passing additional authentication, tracking, or feature flags.
 
 > `optional` **imageModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L567)
+Defined in: [src/lib/db/chat/types.ts:575](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L575)
 
 User-selected image generation model for server-side enforcement.
 
@@ -215,6 +215,28 @@ Use this to limit response length and control costs.
 **Inherited from**
 
 `BaseSendMessageWithStorageArgs.maxOutputTokens`
+
+***
+
+### maxToolRounds?
+
+> `optional` **maxToolRounds**: `number`
+
+Defined in: [src/lib/db/chat/types.ts:559](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L559)
+
+Maximum number of tool execution rounds before forcing the model to respond with text.
+After this many rounds, `toolChoice` is set to `"none"` on the next continuation,
+so the model produces a text answer using whatever tool results it has gathered.
+
+**Default**
+
+```ts
+3
+```
+
+**Inherited from**
+
+`BaseSendMessageWithStorageArgs.maxToolRounds`
 
 ***
 
@@ -347,7 +369,7 @@ Use this to update UI as the response streams in.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:574](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L574)
+Defined in: [src/lib/db/chat/types.ts:582](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L582)
 
 Per-request callback for thinking/reasoning chunks.
 Called with delta chunks as the model "thinks" through a problem.
@@ -392,7 +414,7 @@ Use this to display thinking progress in the UI.
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:577](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L577)
+Defined in: [src/lib/db/chat/types.ts:585](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L585)
 
 Parent message ID for branching (edit/regenerate). Sets on the user message.
 
@@ -406,7 +428,7 @@ Parent message ID for branching (edit/regenerate). Sets on the user message.
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](../../../client/Internal/type-aliases/LlmapiResponseReasoning.md)
 
-Defined in: [src/lib/db/chat/types.ts:557](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L557)
+Defined in: [src/lib/db/chat/types.ts:565](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L565)
 
 Reasoning configuration for o-series and other reasoning models.
 Controls reasoning effort level and whether to include reasoning summary.
@@ -543,7 +565,7 @@ Lower values make output more deterministic, higher values more creative.
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](../../../client/Internal/type-aliases/LlmapiThinkingOptions.md)
 
-Defined in: [src/lib/db/chat/types.ts:564](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L564)
+Defined in: [src/lib/db/chat/types.ts:572](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L572)
 
 Extended thinking configuration for Anthropic models (Claude).
 Enables the model to think through complex problems step by step

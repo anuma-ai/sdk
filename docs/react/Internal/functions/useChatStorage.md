@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:640](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L640)
+Defined in: [src/react/useChatStorage.ts:723](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L723)
 
 ## Parameters
 

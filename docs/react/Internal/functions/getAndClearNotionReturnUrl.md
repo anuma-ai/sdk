@@ -2,7 +2,7 @@
 
 > **getAndClearNotionReturnUrl**(): `string` | `null`
 
-Defined in: [src/lib/auth/notion.ts:1017](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L1017)
+Defined in: [src/lib/auth/notion.ts:1020](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L1020)
 
 Get and clear the stored return URL
 
