@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAddCreditsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1202](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1202)
+Defined in: [src/client/types.gen.ts:1271](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1271)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1202](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersAddCreditsResponse`](HandlersAddCreditsResponse.md)
 
-Defined in: [src/client/types.gen.ts:1206](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1206)
+Defined in: [src/client/types.gen.ts:1275](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1275)
 
 OK
