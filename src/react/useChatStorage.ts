@@ -139,14 +139,22 @@ async function autoFilterClientTools(
   cache: Map<string, number[]>,
   embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
 ): Promise<any[]> {
-  // Skip if no embeddings or too few tools to bother filtering
-  if (!promptEmbeddings || clientTools.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
+  // Memory tools are always included — only filter connector tools (Notion, Google)
+  const isMemoryTool = (t: any) => {
+    const name: string = t.function?.name || t.name || "";
+    return name.startsWith("memory_vault_");
+  };
+  const alwaysInclude = clientTools.filter(isMemoryTool);
+  const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
+
+  // Skip if no embeddings or too few filterable tools
+  if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
     return clientTools;
   }
 
   // Generate embeddings for tool descriptions that aren't cached yet
   const toolsNeedingEmbeddings: { name: string; description: string }[] = [];
-  for (const t of clientTools) {
+  for (const t of filterCandidates) {
     const name: string = t.function?.name || t.name || "";
     if (name && !cache.has(name)) {
       const desc: string = t.function?.description || t.description || name;
@@ -169,7 +177,7 @@ async function autoFilterClientTools(
 
   // Build pseudo-ServerTool objects with cached embeddings for findMatchingTools
   const pseudoServerTools: ServerTool[] = [];
-  for (const t of clientTools) {
+  for (const t of filterCandidates) {
     const name: string = t.function?.name || t.name || "";
     const embedding = cache.get(name);
     if (!embedding) continue;
@@ -188,19 +196,22 @@ async function autoFilterClientTools(
   });
 
   if (matches.length === 0) {
-    // No matches above threshold — send all tools rather than none
+    // No matches above threshold — send all filterable tools + memory
     return clientTools;
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
-  console.log(
-    `[useChatStorage] Auto-filtered client tools: ${clientTools.length} → ${matchedNames.size}`,
-    `| kept: [${[...matchedNames].join(", ")}]`
-  );
-  return clientTools.filter((t: any) => {
+  const filtered = filterCandidates.filter((t: any) => {
     const name = t.function?.name || t.name;
     return name && matchedNames.has(name);
   });
+  const result = [...alwaysInclude, ...filtered];
+  console.log(
+    `[useChatStorage] Auto-filtered client tools: ${clientTools.length} → ${result.length}`,
+    `| always: [${alwaysInclude.map((t: any) => t.function?.name || t.name).join(", ")}]`,
+    `| filtered: [${[...matchedNames].join(", ")}]`
+  );
+  return result;
 }
 
 /**
