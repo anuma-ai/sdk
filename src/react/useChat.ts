@@ -201,6 +201,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice: toolChoiceArg,
+      maxToolRounds,
       reasoning,
       thinking,
       imageModel,
@@ -317,6 +318,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Convert tools to API format (strip executors)
         let apiTools = toolsToApiFormat(tools);
         let toolChoice = toolChoiceArg;
+        const effectiveMaxToolRounds = maxToolRounds ?? 3;
 
         // Build request body using the strategy
         const requestBody = strategy.buildRequestBody({
@@ -433,9 +435,23 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let currentMessages = messagesWithContext;
         let toolIteration = 0;
         const MAX_TOOL_ITERATIONS = 10;
+        // Track all tool names called across rounds (client + server/MCP)
+        // Used to strip already-called tools after maxToolRounds
+        const calledToolNames = new Set<string>();
 
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
+
+          // Track tool calls from the current accumulator (both client and server-side)
+          for (const toolCall of currentAccumulator.toolCalls.values()) {
+            calledToolNames.add(toolCall.name);
+          }
+          if (currentAccumulator.toolCallEvents) {
+            for (const event of currentAccumulator.toolCallEvents) {
+              calledToolNames.add(event.name);
+            }
+          }
+
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
           // Determine which tools to execute vs emit as events
@@ -573,17 +589,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // before creating continuation smoothers (prevents interleaved output)
           await thinkingSmoother.drain();
 
-          // Build tool result messages to send back to the model
+          // Build tool result messages to send back to the model.
+          // Filter out results from tools with skipContinuation individually,
+          // so display-only tools (charts, weather) don't get sent back while
+          // regular tools (Drive, Calendar, Notion) still do.
           const toolResultMessages: LlmapiMessage[] = [];
 
-          // If all executed tools have skipContinuation, don't send results
-          // back to the model. This prevents display-only tools (charts, weather)
-          // from triggering redundant continuation requests.
-          const allSkipContinuation = toolCallsToExecute.every(
-            (tc) => executorMap.get(tc.name)?.skipContinuation === true
+          // Separate execution results into skip and continue groups
+          const continueResults = executionResults.filter(
+            (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
           );
 
-          if (allSkipContinuation) {
+          // If ALL tools have skipContinuation, return early without continuation
+          if (continueResults.length === 0) {
             const skipResponse = strategy.buildFinalResponse(currentAccumulator);
             if (onFinish) {
               onFinish(skipResponse);
@@ -598,23 +616,30 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             };
           }
 
-          // Add the assistant's message with tool calls
+          // Build the assistant message with ONLY non-skip tool calls.
+          // The model must not see tool_call IDs for which there are no
+          // corresponding tool-role messages.
+          const continueToolCallIds = new Set(
+            continueResults.map((r) => r.id)
+          );
           const assistantMessage: LlmapiMessage = {
             role: "assistant",
             content: [{ type: "text", text: currentAccumulator.content }],
-            tool_calls: toolCallsToExecute.map((tc) => ({
-              id: tc.id,
-              type: "function",
-              function: {
-                name: tc.name,
-                arguments: tc.arguments,
-              },
-            })),
+            tool_calls: toolCallsToExecute
+              .filter((tc) => continueToolCallIds.has(tc.id))
+              .map((tc) => ({
+                id: tc.id,
+                type: "function",
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              })),
           };
           toolResultMessages.push(assistantMessage);
 
-          // Add tool result messages
-          for (const execResult of executionResults) {
+          // Add tool result messages for non-skip tools only
+          for (const execResult of continueResults) {
             const resultContent = execResult.error
               ? `Error: ${execResult.error}`
               : JSON.stringify(execResult.result);
@@ -632,14 +657,60 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ...toolResultMessages,
           ];
 
+          // After maxToolRounds, progressively strip tools to prevent loops:
+          // 1. Remove ALL client tools (those with executors) — they've had enough rounds
+          // 2. Remove server/MCP tools that were already called — no point calling again
+          // 3. If nothing left, set toolChoice to "none" and drop tools entirely
+          // This avoids sending 17 tool definitions when the model should just respond.
+          let continuationToolChoice = toolChoice;
+          let continuationApiTools = apiTools;
+          if (toolIteration >= effectiveMaxToolRounds && continuationApiTools) {
+            const beforeCount = continuationApiTools.length;
+            continuationApiTools = continuationApiTools.filter((t) => {
+              const name = (t as any).function?.name || (t as any).name;
+              // Remove all client tools (have executors — Drive, Calendar, Notion, Chart)
+              if (name && executorMap.has(name)) {
+                console.log(`[useChat] Round ${toolIteration}: removing client tool "${name}"`);
+                return false;
+              }
+              // Remove server/MCP tools that were already called in previous rounds
+              if (name && calledToolNames.has(name)) {
+                console.log(`[useChat] Round ${toolIteration}: removing already-called server tool "${name}"`);
+                return false;
+              }
+              return true;
+            });
+            const remainingNames = continuationApiTools.map(
+              (t) => (t as any).function?.name || (t as any).name
+            );
+            console.log(
+              `[useChat] Round ${toolIteration}: tool stripping ${beforeCount} → ${continuationApiTools.length}`,
+              remainingNames.length > 0 ? `| remaining: [${remainingNames.join(", ")}]` : "| all tools removed"
+            );
+            if (continuationApiTools.length === 0) {
+              continuationApiTools = undefined;
+              continuationToolChoice = "none";
+              console.log(`[useChat] Round ${toolIteration}: no tools left, forcing toolChoice="none"`);
+            }
+          } else {
+            const toolNames = continuationApiTools?.map(
+              (t) => (t as any).function?.name || (t as any).name
+            ) || [];
+            console.log(
+              `[useChat] Round ${toolIteration}/${effectiveMaxToolRounds}: sending ${toolNames.length} tools`,
+              `| toolChoice: ${continuationToolChoice || "auto"}`,
+              `| called so far: [${[...calledToolNames].join(", ")}]`
+            );
+          }
+
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
             model: model!,
             stream: true,
             temperature,
             maxOutputTokens,
-            tools: apiTools,
-            toolChoice,
+            tools: continuationApiTools,
+            toolChoice: continuationToolChoice,
             reasoning,
             thinking,
             imageModel,
