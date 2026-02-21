@@ -119,7 +119,7 @@ import {
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 // Max client tools to include after automatic semantic filtering
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 5;
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 // Minimum similarity for client tool semantic matching
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
@@ -145,13 +145,12 @@ async function autoFilterClientTools(
   }
 
   // Generate embeddings for tool descriptions that aren't cached yet
-  const toolsNeedingEmbeddings: { name: string; description: string; index: number }[] = [];
-  for (let i = 0; i < clientTools.length; i++) {
-    const t = clientTools[i];
+  const toolsNeedingEmbeddings: { name: string; description: string }[] = [];
+  for (const t of clientTools) {
     const name: string = t.function?.name || t.name || "";
     if (name && !cache.has(name)) {
       const desc: string = t.function?.description || t.description || name;
-      toolsNeedingEmbeddings.push({ name, description: desc, index: i });
+      toolsNeedingEmbeddings.push({ name, description: desc });
     }
   }
 

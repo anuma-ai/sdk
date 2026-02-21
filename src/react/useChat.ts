@@ -201,7 +201,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice: toolChoiceArg,
-      maxToolRounds,
       reasoning,
       thinking,
       imageModel,
@@ -318,8 +317,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Convert tools to API format (strip executors)
         let apiTools = toolsToApiFormat(tools);
         let toolChoice = toolChoiceArg;
-        const effectiveMaxToolRounds = maxToolRounds ?? 3;
-
         // Build request body using the strategy
         const requestBody = strategy.buildRequestBody({
           messages: messagesWithContext,
@@ -435,22 +432,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let currentMessages = messagesWithContext;
         let toolIteration = 0;
         const MAX_TOOL_ITERATIONS = 10;
-        // Track all tool names called across rounds (client + server/MCP)
-        // Used to strip already-called tools after maxToolRounds
-        const calledToolNames = new Set<string>();
-
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
-
-          // Track tool calls from the current accumulator (both client and server-side)
-          for (const toolCall of currentAccumulator.toolCalls.values()) {
-            calledToolNames.add(toolCall.name);
-          }
-          if (currentAccumulator.toolCallEvents) {
-            for (const event of currentAccumulator.toolCallEvents) {
-              calledToolNames.add(event.name);
-            }
-          }
 
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
@@ -657,60 +640,14 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             ...toolResultMessages,
           ];
 
-          // After maxToolRounds, progressively strip tools to prevent loops:
-          // 1. Remove ALL client tools (those with executors) — they've had enough rounds
-          // 2. Remove server/MCP tools that were already called — no point calling again
-          // 3. If nothing left, set toolChoice to "none" and drop tools entirely
-          // This avoids sending 17 tool definitions when the model should just respond.
-          let continuationToolChoice = toolChoice;
-          let continuationApiTools = apiTools;
-          if (toolIteration >= effectiveMaxToolRounds && continuationApiTools) {
-            const beforeCount = continuationApiTools.length;
-            continuationApiTools = continuationApiTools.filter((t) => {
-              const name = (t as any).function?.name || (t as any).name;
-              // Remove all client tools (have executors — Drive, Calendar, Notion, Chart)
-              if (name && executorMap.has(name)) {
-                console.log(`[useChat] Round ${toolIteration}: removing client tool "${name}"`);
-                return false;
-              }
-              // Remove server/MCP tools that were already called in previous rounds
-              if (name && calledToolNames.has(name)) {
-                console.log(`[useChat] Round ${toolIteration}: removing already-called server tool "${name}"`);
-                return false;
-              }
-              return true;
-            });
-            const remainingNames = continuationApiTools.map(
-              (t) => (t as any).function?.name || (t as any).name
-            );
-            console.log(
-              `[useChat] Round ${toolIteration}: tool stripping ${beforeCount} → ${continuationApiTools.length}`,
-              remainingNames.length > 0 ? `| remaining: [${remainingNames.join(", ")}]` : "| all tools removed"
-            );
-            if (continuationApiTools.length === 0) {
-              continuationApiTools = undefined;
-              continuationToolChoice = "none";
-              console.log(`[useChat] Round ${toolIteration}: no tools left, forcing toolChoice="none"`);
-            }
-          } else {
-            const toolNames = continuationApiTools?.map(
-              (t) => (t as any).function?.name || (t as any).name
-            ) || [];
-            console.log(
-              `[useChat] Round ${toolIteration}/${effectiveMaxToolRounds}: sending ${toolNames.length} tools`,
-              `| toolChoice: ${continuationToolChoice || "auto"}`,
-              `| called so far: [${[...calledToolNames].join(", ")}]`
-            );
-          }
-
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
             model: model!,
             stream: true,
             temperature,
             maxOutputTokens,
-            tools: continuationApiTools,
-            toolChoice: continuationToolChoice,
+            tools: apiTools,
+            toolChoice,
             reasoning,
             thinking,
             imageModel,
