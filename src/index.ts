@@ -90,3 +90,8 @@
  * @module
  */
 export * from "./client";
+
+/** Test type to verify API change detection. Remove after testing. */
+export type TestApiChangeDetection = {
+  verified: boolean;
+};

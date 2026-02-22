@@ -4,7 +4,8 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type HandlersApiKeyResponse = {
+/** @internal Temporarily removed to test API change detection */
+type HandlersApiKeyResponse = {
     app_id?: number;
     created_at?: string;
     /**
