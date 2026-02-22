@@ -33,7 +33,11 @@ jobs:
         run: pnpm build
 
       - name: Save old API reports
-        run: cp -r etc/ /tmp/old-api-reports/
+        run: |
+          git fetch origin main
+          git checkout origin/main -- etc/
+          cp -r etc/ /tmp/old-api-reports/
+          git checkout HEAD -- etc/
 
       - name: Generate API reports
         run: pnpm api-report:update
