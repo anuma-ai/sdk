@@ -77,6 +77,7 @@ jobs:
           fi
 
       - name: Comment API changes
+        if: steps.diff.outputs.api_changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -84,11 +85,7 @@ jobs:
             echo "<!-- api-report -->"
             echo "### API Changes"
             echo ""
-            if [ -s /tmp/api-summary.md ]; then
-              cat /tmp/api-summary.md
-            else
-              echo "No changes."
-            fi
+            cat /tmp/api-summary.md
           } > /tmp/api-comment.md
 
           COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
@@ -98,4 +95,15 @@ jobs:
             gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/api-comment.md
           else
             gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/api-comment.md
+          fi
+
+      - name: Remove API changes comment
+        if: steps.diff.outputs.api_changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- api-report -->")) | .id' | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X DELETE
           fi
