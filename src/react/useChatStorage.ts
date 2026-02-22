@@ -608,34 +608,9 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @category Hooks
  */
 
-/**
- * Removes MCP R2 image URLs from content to prevent broken links.
- * This is used when images cannot be stored locally (e.g., missing walletAddress).
- */
-function cleanMCPUrlsFromContent(content: string, domain: string): string {
-  const escapedDomain = domain.replace(/\./g, "\\.");
-
-  let cleaned = content;
-
-  // Remove HTML img tags with MCP URLs
-  cleaned = cleaned.replace(
-    new RegExp(`<img[^>]*src=["']https://${escapedDomain}[^"']*["'][^>]*>`, "gi"),
-    ""
-  );
-
-  // Remove markdown images with MCP URLs: ![alt](url)
-  cleaned = cleaned.replace(
-    new RegExp(`!\\[[^\\]]*\\]\\([\\s]*https://${escapedDomain}[^)]*\\)`, "g"),
-    ""
-  );
-
-  // Clean up extra whitespace and newlines
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
-
-  return cleaned;
-}
-
-export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
+export function useChatStorage(
+  options: UseChatStorageOptions
+): UseChatStorageResult {
   const {
     database,
     conversationId: initialConversationId,
