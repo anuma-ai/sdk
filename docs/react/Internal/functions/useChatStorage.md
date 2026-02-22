@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:627](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L627)
+Defined in: [src/react/useChatStorage.ts:642](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L642)
 
 ## Parameters
 
@@ -391,6 +391,25 @@ Function to retrieve the auth token for API requests
 Async function that returns the wallet address when available.
 Used for polling during Privy embedded wallet initialization.
 When the wallet isn't ready yet, should return null.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.mcpR2Domain?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+R2 domain for identifying MCP-generated image URLs.
+When set, enables OPFS caching of generated images.
+Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 
 </td>
 </tr>

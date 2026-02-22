@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:268](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L268)
+Defined in: [src/react/useChatStorage.ts:280](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L280)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L274)
+Defined in: [src/react/useChatStorage.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L286)
 
 Which API endpoint to use. Default: "responses"
 
@@ -29,7 +29,7 @@ Which API endpoint to use. Default: "responses"
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:267](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L267)
+Defined in: [src/lib/db/chat/types.ts:266](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L266)
 
 Automatically create a new conversation if none is set (default: true)
 
@@ -43,7 +43,7 @@ Automatically create a new conversation if none is set (default: true)
 
 > `optional` **autoEmbedMessages**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:320](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L320)
+Defined in: [src/lib/db/chat/types.ts:319](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L319)
 
 Automatically generate embeddings for messages after saving.
 Enables semantic search over past conversations via searchMessages().
@@ -64,7 +64,7 @@ true
 
 > `optional` **autoFlushOnKeyAvailable**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:323](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L323)
+Defined in: [src/react/useChatStorage.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L335)
 
 Automatically flush queued operations when the encryption key becomes
 available. Requires `enableQueue` to be true.
@@ -81,7 +81,7 @@ true
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:273](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L273)
+Defined in: [src/lib/db/chat/types.ts:272](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L272)
 
 Base URL for the chat API endpoint
 
@@ -95,7 +95,7 @@ Base URL for the chat API endpoint
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:265](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L265)
+Defined in: [src/lib/db/chat/types.ts:264](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L264)
 
 ID of an existing conversation to load and continue
 
@@ -109,7 +109,7 @@ ID of an existing conversation to load and continue
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/types.ts:263](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L263)
+Defined in: [src/lib/db/chat/types.ts:262](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L262)
 
 WatermelonDB database instance for storing conversations and messages
 
@@ -123,7 +123,7 @@ WatermelonDB database instance for storing conversations and messages
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:269](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L269)
+Defined in: [src/lib/db/chat/types.ts:268](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L268)
 
 Title for auto-created conversations (default: "New conversation")
 
@@ -137,7 +137,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/react/useChatStorage.ts:301](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L301)
+Defined in: [src/react/useChatStorage.ts:313](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L313)
 
 Function for silent signing with Privy embedded wallets.
 When provided, enables automatic encryption key derivation without
@@ -149,7 +149,7 @@ user confirmation modals.
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:325](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L325)
+Defined in: [src/lib/db/chat/types.ts:324](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L324)
 
 Embedding model to use when autoEmbedMessages is enabled.
 
@@ -169,7 +169,7 @@ DEFAULT_API_EMBEDDING_MODEL
 
 > `optional` **enableQueue**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:316](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L316)
+Defined in: [src/react/useChatStorage.ts:328](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L328)
 
 Enable the in-memory write queue for operations when encryption key
 isn't yet available. When enabled, operations are held in memory and
@@ -187,7 +187,7 @@ true
 
 > `optional` **fileProcessingOptions**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:297](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L297)
+Defined in: [src/lib/db/chat/types.ts:296](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L296)
 
 Options for file preprocessing behavior
 
@@ -319,7 +319,7 @@ Callback for progress updates
 
 > `optional` **fileProcessors**: `any`\[] | `null`
 
-Defined in: [src/lib/db/chat/types.ts:293](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L293)
+Defined in: [src/lib/db/chat/types.ts:292](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L292)
 
 File preprocessors to use for automatic text extraction.
 
@@ -337,7 +337,7 @@ File preprocessors to use for automatic text extraction.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:271](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L271)
+Defined in: [src/lib/db/chat/types.ts:270](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L270)
 
 Function to retrieve the auth token for API requests
 
@@ -355,7 +355,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useChatStorage.ts:308](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L308)
+Defined in: [src/react/useChatStorage.ts:320](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L320)
 
 Async function that returns the wallet address when available.
 Used for polling during Privy embedded wallet initialization.
@@ -367,11 +367,27 @@ When the wallet isn't ready yet, should return null.
 
 ***
 
+### mcpR2Domain?
+
+> `optional` **mcpR2Domain**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L336)
+
+R2 domain for identifying MCP-generated image URLs.
+When set, enables OPFS caching of generated images.
+Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
+
+**Inherited from**
+
+`BaseUseChatStorageOptions.mcpR2Domain`
+
+***
+
 ### minContentLength?
 
 > `optional` **minContentLength**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:331](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L331)
+Defined in: [src/lib/db/chat/types.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L330)
 
 Minimum content length required to generate embeddings.
 Messages shorter than this are skipped as they provide limited semantic value.
@@ -392,7 +408,7 @@ Messages shorter than this are skipped as they provide limited semantic value.
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:275](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L275)
+Defined in: [src/lib/db/chat/types.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L274)
 
 Callback invoked with each streamed response chunk
 
@@ -435,7 +451,7 @@ Callback invoked with each streamed response chunk
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:281](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L281)
+Defined in: [src/lib/db/chat/types.ts:280](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L280)
 
 Callback invoked when an error occurs during the request
 
@@ -478,7 +494,7 @@ Callback invoked when an error occurs during the request
 
 > `optional` **onFinish**: (`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:279](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L279)
+Defined in: [src/lib/db/chat/types.ts:278](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L278)
 
 Callback invoked when the response completes successfully
 
@@ -521,7 +537,7 @@ Callback invoked when the response completes successfully
 
 > `optional` **onServerToolCall**: (`toolCall`: `ServerToolCallEvent`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L286)
+Defined in: [src/lib/db/chat/types.ts:285](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L285)
 
 Callback invoked when a server-side tool (MCP) is called during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
@@ -565,7 +581,7 @@ Use this to show activity indicators like "Searching..." in the UI.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:277](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L277)
+Defined in: [src/lib/db/chat/types.ts:276](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L276)
 
 Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
 
@@ -608,7 +624,7 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 
 > `optional` **serverTools**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L311)
+Defined in: [src/lib/db/chat/types.ts:310](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L310)
 
 Configuration for server-side tools fetching and caching.
 Server tools are fetched from /api/v1/tools and cached in localStorage.
@@ -629,7 +645,7 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/react/useChatStorage.ts:294](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L294)
+Defined in: [src/react/useChatStorage.ts:306](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L306)
 
 Function to sign a message for encryption key derivation.
 Typically from Privy's useSignMessage hook.
@@ -641,7 +657,7 @@ Required together with walletAddress for field-level encryption.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:287](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L287)
+Defined in: [src/react/useChatStorage.ts:299](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useChatStorage.ts#L299)
 
 Wallet address for encrypted file storage and field-level encryption.
 When provided with signMessage, all sensitive message content, conversation titles,
