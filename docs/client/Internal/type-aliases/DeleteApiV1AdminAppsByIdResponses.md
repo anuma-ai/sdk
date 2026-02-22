@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByIdResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1571](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1571)
+Defined in: [src/client/types.gen.ts:1640](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1640)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1571](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: `object`
 
-Defined in: [src/client/types.gen.ts:1575](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1575)
+Defined in: [src/client/types.gen.ts:1644](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1644)
 
 OK
 

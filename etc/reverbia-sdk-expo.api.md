@@ -668,11 +668,11 @@ export class WalletPoller {
 
 // Warnings were encountered during analysis:
 //
-// dist/expo/index.d.ts:2169:5 - (ae-forgotten-export) The symbol "ApiType" needs to be exported by the entry point index.d.ts
-// dist/expo/index.d.ts:2285:5 - (ae-forgotten-export) The symbol "LlmapiModel" needs to be exported by the entry point index.d.ts
-// dist/expo/index.d.ts:2322:5 - (ae-forgotten-export) The symbol "HandlersCreditBalanceResponse" needs to be exported by the entry point index.d.ts
-// dist/expo/index.d.ts:2326:5 - (ae-forgotten-export) The symbol "HandlersCreditPack" needs to be exported by the entry point index.d.ts
-// dist/expo/index.d.ts:2347:5 - (ae-forgotten-export) The symbol "HandlersClaimDailyCreditsResponse" needs to be exported by the entry point index.d.ts
+// dist/expo/index.d.ts:2199:5 - (ae-forgotten-export) The symbol "ApiType" needs to be exported by the entry point index.d.ts
+// dist/expo/index.d.ts:2315:5 - (ae-forgotten-export) The symbol "LlmapiModel" needs to be exported by the entry point index.d.ts
+// dist/expo/index.d.ts:2352:5 - (ae-forgotten-export) The symbol "HandlersCreditBalanceResponse" needs to be exported by the entry point index.d.ts
+// dist/expo/index.d.ts:2356:5 - (ae-forgotten-export) The symbol "HandlersCreditPack" needs to be exported by the entry point index.d.ts
+// dist/expo/index.d.ts:2377:5 - (ae-forgotten-export) The symbol "HandlersClaimDailyCreditsResponse" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsPurchaseData** = `object`
 
-Defined in: [src/client/types.gen.ts:1937](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1937)
+Defined in: [src/client/types.gen.ts:2006](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2006)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1937](https://github.com/zeta-chain/ai-sdk/
 
 > **body**: [`HandlersCreateCreditPackCheckoutRequest`](HandlersCreateCreditPackCheckoutRequest.md)
 
-Defined in: [src/client/types.gen.ts:1941](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1941)
+Defined in: [src/client/types.gen.ts:2010](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2010)
 
 Credit pack checkout request
 
@@ -20,7 +20,7 @@ Credit pack checkout request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1942](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1942)
+Defined in: [src/client/types.gen.ts:2011](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2011)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1942](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1943](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1943)
+Defined in: [src/client/types.gen.ts:2012](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2012)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:1943](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/credits/purchase"`
 
-Defined in: [src/client/types.gen.ts:1944](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1944)
+Defined in: [src/client/types.gen.ts:2013](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2013)

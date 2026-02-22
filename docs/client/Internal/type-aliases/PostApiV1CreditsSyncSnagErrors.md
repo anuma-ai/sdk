@@ -2,27 +2,27 @@
 
 > **PostApiV1CreditsSyncSnagErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1980](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1980)
+Defined in: [src/client/types.gen.ts:2049](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2049)
 
 ## Properties
-
-### 400
-
-> **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
-
-Defined in: [src/client/types.gen.ts:1984](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1984)
-
-Cooldown not expired
-
-***
 
 ### 401
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1988](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1988)
+Defined in: [src/client/types.gen.ts:2053](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2053)
 
 Unauthorized
+
+***
+
+### 429
+
+> **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
+
+Defined in: [src/client/types.gen.ts:2057](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2057)
+
+Too Many Requests
 
 ***
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1992](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1992)
+Defined in: [src/client/types.gen.ts:2061](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2061)
 
 Internal Server Error

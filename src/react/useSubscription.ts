@@ -55,10 +55,12 @@ export type UseSubscriptionResult = {
    */
   refetch: () => Promise<void>;
   /**
-   * Create a Stripe checkout session for upgrading to Pro
+   * Create a Stripe checkout session for a subscription plan
    * @returns The checkout URL or null on error
    */
   createCheckoutSession: (options?: {
+    tier?: string;
+    interval?: string;
     successUrl?: string;
     cancelUrl?: string;
   }) => Promise<string | null>;
@@ -200,6 +202,8 @@ export function useSubscription(
 
   const createCheckoutSession = useCallback(
     async (opts?: {
+      tier?: string;
+      interval?: string;
       successUrl?: string;
       cancelUrl?: string;
     }): Promise<string | null> => {
@@ -213,6 +217,8 @@ export function useSubscription(
           baseUrl: baseUrlRef.current,
           headers,
           body: {
+            tier: opts?.tier,
+            interval: opts?.interval,
             success_url: opts?.successUrl,
             cancel_url: opts?.cancelUrl,
           },

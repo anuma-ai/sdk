@@ -21,6 +21,15 @@ export interface CalendarEvent {
 }
 
 // @public
+export function callNotionMCPTool<T>(accessToken: string, toolName: string, args: Record<string, unknown>): Promise<T>;
+
+// @public
+export type ChartDataPoint = Record<string, string | number>;
+
+// @public
+export function createChartTool(options: CreateUIToolsOptions): ToolConfig;
+
+// @public
 export function createChatTools(getAccessToken: () => string | null, requestCalendarAccess: () => Promise<string>): ToolConfig[];
 
 // @public
@@ -67,9 +76,60 @@ export function createGoogleDriveSearchTool(getAccessToken: () => string | null,
 export function createInteractiveTool(options: CreateUIToolsOptions, config: InteractiveToolConfig): ToolConfig;
 
 // @public
+export function createNotionCreateCommentTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionCreateDatabaseTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionCreatePagesTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionDuplicatePageTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionFetchTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionGetCommentsTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionGetTeamsTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionGetUsersTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionMovePagesTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionSearchTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionTools(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig[];
+
+// @public
+export function createNotionUpdateDataSourceTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
+export function createNotionUpdatePageTool(getAccessToken: () => string | null, requestNotionAccess: () => Promise<string>): ToolConfig;
+
+// @public
 export type CreateUIToolsOptions = {
     getContext: () => UIInteractionContext | null;
     getLastMessageId?: () => string | undefined;
+};
+
+// @public (undocumented)
+export type DisplayChartResult = {
+    chartType: "bar" | "line" | "area" | "pie";
+    title?: string;
+    data: ChartDataPoint[];
+    dataKeys: string[];
+    xAxisKey?: string;
+    colors?: Record<string, string>;
+} | {
+    error: string;
 };
 
 // @public
@@ -79,6 +139,13 @@ export type DisplayToolConfig<TArgs = any, TResult = any> = {
     parameters: Record<string, unknown>;
     displayType: string;
     execute: (args: TArgs) => Promise<TResult>;
+    version?: number;
+    migrations?: DisplayToolMigrations;
+};
+
+// @public
+export type DisplayToolMigrations = {
+    [key: `${number}->${number}`]: (data: any) => any;
 };
 
 // @public (undocumented)
@@ -111,6 +178,12 @@ export interface GetFileContentArgs {
 }
 
 // @public
+export function getMCPEndpoints(): {
+    http: string;
+    sse: string;
+};
+
+// @public
 export type InteractiveToolConfig = {
     name: string;
     description: string;
@@ -140,6 +213,61 @@ export interface ListRecentFilesArgs {
 }
 
 // @public
+export function migrateDisplayResult(result: any, fromVersion: number, toVersion: number, migrations: DisplayToolMigrations): any;
+
+// @public (undocumented)
+export interface NotionCreatePagesArgs {
+    // (undocumented)
+    pages: Array<{
+        properties: Record<string, unknown>;
+        content: string;
+    }>;
+    // (undocumented)
+    parent?: Record<string, unknown>;
+}
+
+// @public (undocumented)
+export interface NotionFetchArgs {
+    // (undocumented)
+    id: string;
+    // (undocumented)
+    include_discussions?: boolean;
+    // (undocumented)
+    include_transcript?: boolean;
+}
+
+// @public (undocumented)
+export interface NotionMovePagesArgs {
+    // (undocumented)
+    new_parent: Record<string, unknown>;
+    // (undocumented)
+    page_or_database_ids: string[];
+}
+
+// @public
+export interface NotionSearchArgs {
+    // (undocumented)
+    filters?: Record<string, unknown>;
+    // (undocumented)
+    query: string;
+    // (undocumented)
+    query_type?: "internal" | "user";
+}
+
+// @public (undocumented)
+export interface NotionUpdatePageArgs {
+    // (undocumented)
+    data: {
+        page_id: string;
+        command: string;
+        properties?: Record<string, unknown>;
+        new_str?: string;
+        selection_with_ellipsis?: string;
+        allow_deleting_content?: boolean;
+    };
+}
+
+// @public
 export interface SearchFilesArgs {
     // (undocumented)
     maxResults?: number;
@@ -162,13 +290,15 @@ export interface ToolConfig {
         arguments: Record<string, unknown>;
     };
     // (undocumented)
+    skipContinuation?: boolean;
+    // (undocumented)
     type: 'function';
 }
 
 // @public
 export type UIInteractionContext = {
     createInteraction: (id: string, type: string, data: any) => Promise<any>;
-    createDisplayInteraction: (id: string, displayType: string, data: any, result: any) => void;
+    createDisplayInteraction: (id: string, displayType: string, data: any, result: any, toolVersion?: number) => void;
 };
 
 // @public (undocumented)

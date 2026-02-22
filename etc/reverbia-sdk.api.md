@@ -577,7 +577,10 @@ export type HandlersCreateAppRequest = {
 // @public (undocumented)
 export type HandlersCreateCheckoutSessionRequest = {
     cancel_url?: string;
+    interval?: string;
+    price_id?: string;
     success_url?: string;
+    tier?: string;
 };
 
 // @public (undocumented)
@@ -1804,7 +1807,7 @@ export type ResponseErrorResponse = {
 
 // Warnings were encountered during analysis:
 //
-// dist/index.d.ts:2572:5 - (ae-forgotten-export) The symbol "Client" needs to be exported by the entry point index.d.ts
+// dist/index.d.ts:2575:5 - (ae-forgotten-export) The symbol "Client" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
