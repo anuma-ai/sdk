@@ -55,15 +55,18 @@ jobs:
       - name: Generate API reports for PR
         run: pnpm api-report:update
 
-      - name: Generate API diff summary
+      - name: Check for API changes
         id: diff
         run: |
-          node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
-          if [ -s /tmp/api-summary.md ]; then
-            echo "api_changed=true" >> "$GITHUB_OUTPUT"
-          else
+          if diff -rq /tmp/old-api-reports etc/ > /dev/null 2>&1; then
             echo "api_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "api_changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Generate API diff summary
+        if: steps.diff.outputs.api_changed == 'true'
+        run: node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
 
       - name: Update PR label
         env:
