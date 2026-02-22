@@ -138,5 +138,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# API Extractor temp files
+# API Extractor temp and output files
 temp/
+etc/
