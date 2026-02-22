@@ -41,9 +41,20 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  deleteEncryptedFile,
+  createFilePlaceholder,
+  extractFileIds,
+  BlobUrlManager,
+  extractMCPImageUrls,
+  replaceMCPUrlsWithPlaceholders,
+} from "../lib/storage";
+import {
+  deleteMediaByConversationOp,
   createMediaBatchOp,
   type CreateMediaOptions,
-  deleteMediaByConversationOp,
   generateMediaId,
   getMediaByIdsOp,
   getMediaTypeFromMime,
@@ -1242,15 +1253,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // Resolve placeholders in all messages in parallel
           const resolvedMessages = await Promise.all(
             messages.map(async (msg) => {
-              const fileIds = [...new Set(extractFileIds(msg.content))];
-              if (fileIds.length === 0) {
+              // Collect file IDs from both content placeholders and msg.fileIds
+              const contentFileIds = [...new Set(extractFileIds(msg.content))];
+              const extraFileIds = (msg.fileIds || []).filter(
+                (id) => !contentFileIds.includes(id)
+              );
+              const allFileIds = [...contentFileIds, ...extraFileIds];
+
+              if (allFileIds.length === 0) {
                 return msg;
               }
 
               // Resolve all files to blob URLs and build a map
               const fileIdToUrlMap = new Map<string, string>();
-              for (const fileId of fileIds) {
-                // Check if we already have a URL for this file
+              for (const fileId of allFileIds) {
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
@@ -1274,19 +1290,27 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 }
               }
 
-              // Replace placeholders one at a time in order to ensure correct mapping
-              // This avoids any potential issues with regex callback processing order
+              // Replace placeholders in content
               let resolvedContent = msg.content;
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
-                // Escape the placeholder for use in regex
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                // Create a non-global regex for this specific placeholder
+                const escapedPlaceholder = placeholder.replace(
+                  /[.*+?^${}()|[\]\\]/g,
+                  "\\$&"
+                );
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
-                // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
 
                 resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+              }
+
+              // Append images from msg.fileIds that weren't in content placeholders
+              // (messages stored before placeholder support was added)
+              for (const fileId of extraFileIds) {
+                const url = fileIdToUrlMap.get(fileId);
+                if (url) {
+                  resolvedContent += `\n\n![image-${fileId}](${url})`;
+                }
               }
 
               return { ...msg, content: resolvedContent };
@@ -1520,83 +1544,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       cleanedContent: string;
     }> => {
       try {
-        // Extract image URLs from tool_call_events (supports prefixed and unprefixed tool names)
-        const imageToolNames = new Set([
-          "AnumaImageMCP_generate_cloud_image",
-          "AnumaImageMCP_edit_cloud_image",
-          "generate_cloud_image",
-          "edit_cloud_image",
-        ]);
-        const urls: Array<{ url: string; model: string }> = [];
-        for (const toolCallEvent of toolCallEvents || []) {
-          if (toolCallEvent.name && imageToolNames.has(toolCallEvent.name)) {
-            try {
-              const output = JSON.parse(toolCallEvent.output || "{}");
-              const { model, url } = output;
-              if (url) {
-                urls.push({ url, model: model || "image" });
-              }
-            } catch (err) {
-              console.warn(
-                "[extractAndStoreEncryptedMCPImages] Failed to parse tool call output:",
-                toolCallEvent.name,
-                err
-              );
-            }
-          }
-        }
+        // 1. Extract image URLs using pure function
+        const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // Fallback: extract MCP image URLs from content when tool_call_events yields none
-        // (handles API response format changes or when URLs are embedded in markdown/HTML)
-        if (urls.length === 0 && content) {
-          const escaped = mcpR2Domain.replace(/\./g, "\\.");
-          const urlPattern = new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi");
-          const matches = content.match(urlPattern);
-          if (matches) {
-            const seen = new Set<string>();
-            for (const url of matches) {
-              const normalized = url.replace(/[)"'>\s]+$/, "");
-              if (!seen.has(normalized)) {
-                seen.add(normalized);
-                urls.push({ url: normalized, model: "image" });
-              }
-            }
-          }
-        }
-
-        // Clean content by removing all MCP image URLs (full and truncated)
-        let cleanedContent = content;
-
-        // Remove HTML img tags with MCP URLs
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `<img[^>]*src=["']https://${mcpR2Domain.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
-            "gi"
-          ),
-          ""
-        );
-
-        // Remove markdown images with MCP URLs: ![alt](url)
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*https://${mcpR2Domain.replace(/\./g, "\\.")}[^)]*\\)`,
-            "g"
-          ),
-          ""
-        );
-
-        // Clean up extra whitespace and newlines
-        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
-
-        // If no URLs from tool_call_events, return cleaned content only
+        // No MCP images found — strip any stale MCP URLs and return
         if (urls.length === 0) {
+          const cleanedContent = replaceMCPUrlsWithPlaceholders(
+            content,
+            new Map(),
+            mcpR2Domain
+          );
           return { fileIds: [], cleanedContent };
         }
 
+        // 2. Download images → get mediaIds
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
+        const urlToMediaIdMap = new Map<string, string>();
 
-        // Process all images in parallel
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
@@ -1620,10 +1585,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               const mimeType = blob.type || `image/${extension}`;
               const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              // Extract dimensions
               const dimensions = await getImageDimensions(blob);
 
-              // Encrypt and store in OPFS using mediaId
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
                 sourceUrl: url,
@@ -1643,14 +1606,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           })
         );
 
-        // Collect media options for successful downloads
+        // 3. Build urlToMediaId map from successful downloads
         results.forEach((result, i) => {
           const { url, model } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } = result.value;
 
-            // Prepare media record
+            urlToMediaIdMap.set(url, mediaId);
+
             mediaOptions.push({
               mediaId,
               walletAddress: address,
@@ -1673,7 +1637,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         });
 
-        // Batch create media records
+        // 4. Replace MCP URLs with __SDKFILE__ placeholders (strips failed downloads)
+        const cleanedContent = replaceMCPUrlsWithPlaceholders(
+          content,
+          urlToMediaIdMap,
+          mcpR2Domain
+        );
+
+        // 5. Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
           try {

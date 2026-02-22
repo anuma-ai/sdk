@@ -18,3 +18,11 @@ export {
   resolveFilePlaceholders,
   writeEncryptedFile,
 } from "./opfs";
+
+export {
+  // MCP image URL extraction and placeholder replacement
+  extractMCPImageUrls,
+  replaceMCPUrlsWithPlaceholders,
+  type ToolCallEvent,
+  type ExtractedImageUrl,
+} from "./mcpImages";
