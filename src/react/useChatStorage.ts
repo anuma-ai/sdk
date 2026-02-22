@@ -2611,6 +2611,7 @@ export function useChatStorage(
       signMessage,
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
+      mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
       enableQueue,
