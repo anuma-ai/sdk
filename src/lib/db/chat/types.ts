@@ -328,6 +328,12 @@ export interface BaseUseChatStorageOptions {
    * @default 10
    */
   minContentLength?: number;
+  /**
+   * R2 domain for identifying MCP-generated image URLs.
+   * When set, enables OPFS caching of generated images.
+   * Defaults to the hardcoded MCP_R2_DOMAIN from clientConfig.
+   */
+  mcpR2Domain?: string;
 }
 
 /**

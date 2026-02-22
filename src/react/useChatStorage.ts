@@ -614,8 +614,8 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * Removes MCP R2 image URLs from content to prevent broken links.
  * This is used when images cannot be stored locally (e.g., missing walletAddress).
  */
-function cleanMCPUrlsFromContent(content: string): string {
-  const escapedDomain = MCP_R2_DOMAIN.replace(/\./g, "\\.");
+function cleanMCPUrlsFromContent(content: string, domain: string): string {
+  const escapedDomain = domain.replace(/\./g, "\\.");
 
   let cleaned = content;
 
@@ -665,6 +665,7 @@ export function useChatStorage(
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
+    mcpR2Domain = MCP_R2_DOMAIN,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<
@@ -1564,7 +1565,7 @@ export function useChatStorage(
         // Fallback: extract MCP image URLs from content when tool_call_events yields none
         // (handles API response format changes or when URLs are embedded in markdown/HTML)
         if (urls.length === 0 && content) {
-          const escaped = MCP_R2_DOMAIN.replace(/\./g, "\\.");
+          const escaped = mcpR2Domain.replace(/\./g, "\\.");
           const urlPattern = new RegExp(
             `https://${escaped}[^\\s"'<>)\\]]+`,
             "gi"
@@ -1588,7 +1589,7 @@ export function useChatStorage(
         // Remove HTML img tags with MCP URLs
         cleanedContent = cleanedContent.replace(
           new RegExp(
-            `<img[^>]*src=["']https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
+            `<img[^>]*src=["']https://${mcpR2Domain.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
             "gi"
           ),
           ""
@@ -1597,7 +1598,7 @@ export function useChatStorage(
         // Remove markdown images with MCP URLs: ![alt](url)
         cleanedContent = cleanedContent.replace(
           new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^)]*\\)`,
+            `!\\[[^\\]]*\\]\\([\\s]*https://${mcpR2Domain.replace(/\./g, "\\.")}[^)]*\\)`,
             "g"
           ),
           ""
@@ -1727,11 +1728,12 @@ export function useChatStorage(
 
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        // Still clean MCP URLs to prevent broken links even on error
-        return { fileIds: [], cleanedContent: cleanMCPUrlsFromContent(content) };
+        // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
+        // so the LLM can still reference them for editing even if OPFS storage fails.
+        return { fileIds: [], cleanedContent: content };
       }
     },
-    [mediaCtx, getImageDimensions]
+    [mediaCtx, getImageDimensions, mcpR2Domain]
   );
 
   /**
@@ -2576,7 +2578,7 @@ export function useChatStorage(
 
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const extractedSources = extractSourcesFromToolCallEvents(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
+      const extractedSources = extractSourcesFromToolCallEvents(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
