@@ -2,7 +2,7 @@
 
 > **decryptDataWithKey**(`encryptedHex`: `string`, `key`: `CryptoKey`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:597](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L597)
+Defined in: [src/react/useEncryption.ts:547](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L547)
 
 **`Internal`**
 
