@@ -1640,6 +1640,8 @@ export function useChatStorage(
                 }
               }
             }
+            // Return original content to avoid orphaned __SDKFILE__ placeholders
+            return { fileIds: [], cleanedContent: content };
           }
         }
 
