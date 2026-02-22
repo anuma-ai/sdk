@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 concurrency:
@@ -15,8 +15,11 @@ concurrency:
 jobs:
   api-report:
     runs-on: ubuntu-24.04
+    if: github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,17 +35,30 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Save old API reports
-        run: cp -r etc/ /tmp/old-api-reports/
+      - name: Save baseline API reports from main
+        run: |
+          git fetch origin main
+          git checkout origin/main -- etc/
+          cp -r etc/ /tmp/old-api-reports/
+          git checkout HEAD -- etc/
 
       - name: Generate API reports
         run: pnpm api-report:update
 
-      - name: Check for API changes
-        id: diff
+      - name: Commit updated API reports
         run: |
           git add etc/
-          if git diff --staged --quiet etc/; then
+          if ! git diff --staged --quiet etc/; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "docs: update API reports [skip ci]"
+            git push
+          fi
+
+      - name: Check for API changes against main
+        id: diff
+        run: |
+          if diff -rq /tmp/old-api-reports etc/ > /dev/null 2>&1; then
             echo "api_changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "api_changed=true" >> "$GITHUB_OUTPUT"
