@@ -7,15 +7,8 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
-import {
-  chunkText,
-  DEFAULT_CHUNK_SIZE,
-  shouldChunkMessage,
-} from "../memoryRetrieval/chunking";
-import {
-  generateEmbedding,
-  generateEmbeddings,
-} from "../memoryRetrieval/embeddings";
+import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryRetrieval/chunking";
+import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -830,9 +823,7 @@ export async function selectServerSideTools(
   // Format for the requested API type (strips embeddings)
   const matchedTools = matches.map((m) => m.tool);
   if (apiType === "completions") {
-    return matchedTools.map(
-      (t) => toCompletionsFormat(t) as unknown as Record<string, unknown>
-    );
+    return matchedTools.map((t) => toCompletionsFormat(t) as unknown as Record<string, unknown>);
   }
   return matchedTools.map(toResponsesFormat);
 }

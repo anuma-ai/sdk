@@ -36,17 +36,14 @@ if (!apiKey) {
 const prompt = positionals[0] || "What's the price of ETH?";
 const apiType = args.completions ? "completions" : "responses";
 const limit = args.limit ? Number(args.limit) : undefined;
-const minSimilarity = args["min-similarity"]
-  ? Number(args["min-similarity"])
-  : undefined;
+const minSimilarity = args["min-similarity"] ? Number(args["min-similarity"]) : undefined;
 
 async function main() {
   console.log(`Base URL: ${baseUrl}`);
   console.log(`Prompt:   "${prompt}"`);
   console.log(`Format:   ${apiType}`);
   if (limit !== undefined) console.log(`Limit:    ${limit}`);
-  if (minSimilarity !== undefined)
-    console.log(`Min sim:  ${minSimilarity}`);
+  if (minSimilarity !== undefined) console.log(`Min sim:  ${minSimilarity}`);
   console.log();
 
   const tools = await selectServerSideTools({
@@ -62,9 +59,7 @@ async function main() {
 
   for (const tool of tools) {
     const name =
-      apiType === "completions"
-        ? (tool as Record<string, any>).function.name
-        : tool.name;
+      apiType === "completions" ? (tool as Record<string, any>).function.name : tool.name;
     console.log(`  ${name}`);
   }
 }

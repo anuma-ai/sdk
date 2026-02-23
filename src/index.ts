@@ -90,7 +90,4 @@
  * @module
  */
 export * from "./client";
-export {
-  selectServerSideTools,
-  type SelectServerSideToolsOptions,
-} from "./lib/tools";
+export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
