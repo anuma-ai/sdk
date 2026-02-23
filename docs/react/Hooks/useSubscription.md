@@ -2,7 +2,7 @@
 
 > **useSubscription**(`options`: `object`): [`UseSubscriptionResult`](../Internal/type-aliases/UseSubscriptionResult.md)
 
-Defined in: [src/react/useSubscription.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L89)
+Defined in: [src/react/useSubscription.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L91)
 
 React hook for managing subscription status and billing operations.
 Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions.

@@ -16,7 +16,10 @@ jobs:
   api-report:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,30 +32,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build
+      - name: Build main
         run: pnpm build
 
-      - name: Save base branch API reports
+      - name: Generate baseline API reports from main
         run: |
-          mkdir -p /tmp/old-api-reports
-          git fetch origin main
-          git archive origin/main -- etc/ | tar -x -C /tmp/old-api-reports --strip-components=1
+          pnpm api-report:update
+          cp -r etc/ /tmp/old-api-reports/
 
-      - name: Generate API reports
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          clean: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build PR branch
+        run: pnpm build
+
+      - name: Generate API reports for PR
         run: pnpm api-report:update
 
-      - name: Check for API changes
+      - name: Generate API diff summary
         id: diff
         run: |
-          if diff -rq /tmp/old-api-reports etc/ --include='*.api.json' > /dev/null 2>&1; then
-            echo "api_changed=false" >> "$GITHUB_OUTPUT"
-          else
+          node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
+          if [ -s /tmp/api-summary.md ]; then
             echo "api_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api_changed=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Generate API diff summary
-        if: steps.diff.outputs.api_changed == 'true'
-        run: node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
 
       - name: Update PR label
         env:

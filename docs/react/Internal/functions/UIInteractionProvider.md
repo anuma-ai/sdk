@@ -2,7 +2,7 @@
 
 > **UIInteractionProvider**(`__namedParameters`: [`UIInteractionProviderProps`](../type-aliases/UIInteractionProviderProps.md)): `FunctionComponentElement`<`ProviderProps`<[`UIInteractionContextValue`](../type-aliases/UIInteractionContextValue.md) | `null`>>
 
-Defined in: [src/react/useUIInteraction.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L84)
+Defined in: [src/react/useUIInteraction.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L87)
 
 Provider for managing UI interactions between LLM tools and user.
 

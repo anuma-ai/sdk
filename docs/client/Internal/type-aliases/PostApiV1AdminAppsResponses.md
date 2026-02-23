@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAppsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1279](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1279)
+Defined in: [src/client/types.gen.ts:1348](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1348)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1279](https://github.com/zeta-chain/ai-sdk/
 
 > **201**: [`HandlersAppResponse`](HandlersAppResponse.md)
 
-Defined in: [src/client/types.gen.ts:1283](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1283)
+Defined in: [src/client/types.gen.ts:1352](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1352)
 
 Created

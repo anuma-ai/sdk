@@ -2,7 +2,7 @@
 
 > **UIInteractionProviderProps** = `object`
 
-Defined in: [src/react/useUIInteraction.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L70)
+Defined in: [src/react/useUIInteraction.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L73)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useUIInteraction.ts:70](https://github.com/zeta-chain/ai-
 
 > **children**: `ReactNode`
 
-Defined in: [src/react/useUIInteraction.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L71)
+Defined in: [src/react/useUIInteraction.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L74)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/react/useUIInteraction.ts:71](https://github.com/zeta-chain/ai-
 
 > `optional` **timeout**: `number`
 
-Defined in: [src/react/useUIInteraction.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L73)
+Defined in: [src/react/useUIInteraction.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L76)
 
 Timeout in ms for pending interactions. Default: 300000 (5 minutes)
