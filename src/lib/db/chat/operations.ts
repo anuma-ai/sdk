@@ -21,7 +21,7 @@ import { encryptConversationFields, decryptConversationFields } from "./conversa
 import { decryptJsonField } from "../encryption-utils";
 import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
-export function messageToStoredRaw(message: Message): StoredMessage {
+function messageToStoredRaw(message: Message): StoredMessage {
   // Use _getRaw for fields that may be encrypted - the @json decorator fails on encrypted strings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = message as any;
@@ -77,7 +77,7 @@ export function messageToStoredRaw(message: Message): StoredMessage {
 /**
  * Converts a Message model to StoredMessage, decrypting fields if encryption context is available.
  */
-export async function messageToStored(
+async function messageToStored(
   message: Message,
   walletAddress?: string,
   signMessage?: SignMessageFn,
@@ -110,7 +110,7 @@ export function conversationToStoredRaw(
 /**
  * Converts a Conversation model to StoredConversation, decrypting fields if encryption context is available.
  */
-export async function conversationToStored(
+async function conversationToStored(
   conversation: Conversation,
   walletAddress?: string,
   signMessage?: SignMessageFn,
@@ -297,7 +297,7 @@ export async function getMessagesOp(
 }
 
 
-export async function getMessageCountOp(
+async function getMessageCountOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<number> {
@@ -336,7 +336,7 @@ export async function clearMessagesOp(
  * Clears file_ids before deletion and returns the unique ID.
  * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
-export async function deleteMessageOp(
+async function deleteMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string
 ): Promise<string | null> {
@@ -521,7 +521,7 @@ export async function updateMessageFeedbackOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
-export async function updateMessageOp(
+async function updateMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
   opts: UpdateMessageOptions
@@ -765,7 +765,7 @@ export async function searchChunksOp(
     .slice(0, limit);
 }
 
-export async function getMessagesWithEmbeddingsOp(
+async function getMessagesWithEmbeddingsOp(
   ctx: StorageOperationsContext,
   conversationId?: string
 ): Promise<StoredMessage[]> {

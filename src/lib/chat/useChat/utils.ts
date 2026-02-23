@@ -15,7 +15,7 @@ import type {
 /**
  * Validation error types
  */
-export type ValidationError =
+type ValidationError =
   | "messages_required"
   | "model_required"
   | "token_getter_required"
@@ -24,14 +24,14 @@ export type ValidationError =
 /**
  * Validation result
  */
-export type ValidationResult =
+type ValidationResult =
   | { valid: true }
   | { valid: false; error: ValidationError; message: string };
 
 /**
  * Error messages for validation errors
  */
-export const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
+const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
   messages_required: "messages are required to call sendMessage.",
   model_required: "model is required to call sendMessage.",
   token_getter_required: "Token getter function is required.",
@@ -115,7 +115,7 @@ function extractTextFromContentPart(part: LlmapiMessageContentPart): string {
  * @deprecated This function is deprecated. The API now accepts messages as an array directly.
  * This function is kept for backward compatibility but is no longer used internally.
  */
-export function messagesToInput(messages: LlmapiMessage[]): string {
+function messagesToInput(messages: LlmapiMessage[]): string {
   return messages
     .map((msg) => {
       const role = msg.role || "user";
@@ -154,7 +154,7 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
 /**
  * Result from parsing reasoning tags from content
  */
-export type ReasoningParseResult = {
+type ReasoningParseResult = {
   /** Content with reasoning tags removed */
   messageContent: string;
   /** Extracted reasoning content */
@@ -677,7 +677,7 @@ export function processStreamingChunk(
 /**
  * Builds the final response from accumulated stream data
  */
-export function buildResponseResponse(
+function buildResponseResponse(
   accumulator: StreamAccumulator
 ): LlmapiResponseResponse {
   const output: LlmapiResponseResponse["output"] = [];

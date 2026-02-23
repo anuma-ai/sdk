@@ -381,7 +381,7 @@ export async function getEncryptionKey(address: string): Promise<CryptoKey> {
  * Encrypts data deterministically using AES-GCM with a deterministic IV
  * Same plaintext + address always produces same ciphertext (for queryable fields)
  */
-export async function encryptDataDeterministic(
+async function encryptDataDeterministic(
   plaintext: string | Uint8Array,
   address: string
 ): Promise<string> {

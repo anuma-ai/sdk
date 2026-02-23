@@ -59,7 +59,7 @@ interface DropboxError {
 /**
  * Ensure the backup folder exists in Dropbox
  */
-export async function ensureBackupFolder(
+async function ensureBackupFolder(
   accessToken: string,
   folder: string = DEFAULT_BACKUP_FOLDER
 ): Promise<void> {
@@ -225,7 +225,7 @@ export async function findDropboxFile(
 /**
  * Delete a file from Dropbox
  */
-export async function deleteDropboxFile(accessToken: string, path: string): Promise<void> {
+async function deleteDropboxFile(accessToken: string, path: string): Promise<void> {
   const response = await fetch(`${DROPBOX_API_URL}/files/delete_v2`, {
     method: 'POST',
     headers: {

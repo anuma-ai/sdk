@@ -102,10 +102,10 @@ export interface ServerToolsOptions {
 export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 
 /** localStorage key for cached tools */
-export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
+const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
-export const CACHE_VERSION = "1.3";
+const CACHE_VERSION = "1.3";
 
 /**
  * Type guard to check if tool is in new format (has schema property)
@@ -142,7 +142,7 @@ export interface ParsedServerToolsResponse {
  * Supports both legacy and new API response formats.
  * Returns tools and optional checksum.
  */
-export function convertServerToolsResponse(
+function convertServerToolsResponse(
   response: ServerToolsResponse
 ): ParsedServerToolsResponse {
   // Extract tools map and checksum based on response format
@@ -183,7 +183,7 @@ export function convertServerToolsResponse(
  * Completions API tool format.
  * OpenAI Chat Completions expects: { type, function: { name, description, parameters } }
  */
-export interface CompletionsTool {
+interface CompletionsTool {
   type: "function";
   function: {
     name: string;
@@ -200,7 +200,7 @@ export interface CompletionsTool {
  * Convert ServerTool to completions API format.
  * Format: { type: "function", function: { name, description, parameters } }
  */
-export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
+function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   return {
     type: "function",
     function: {
@@ -215,7 +215,7 @@ export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
  * Convert ServerTool to responses API format.
  * Format: { type: "function", name, description, parameters }
  */
-export function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
+function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
   return {
     type: "function",
     name: tool.name,
@@ -251,7 +251,7 @@ export function getCachedServerTools(): CachedServerTools | null {
 /**
  * Check if cached tools are expired
  */
-export function isCacheExpired(
+function isCacheExpired(
   cache: CachedServerTools | null,
   expirationMs: number = DEFAULT_CACHE_EXPIRATION_MS
 ): boolean {
@@ -262,7 +262,7 @@ export function isCacheExpired(
 /**
  * Store tools in localStorage cache
  */
-export function cacheServerTools(tools: ServerTool[], checksum?: string): void {
+function cacheServerTools(tools: ServerTool[], checksum?: string): void {
   if (typeof window === "undefined") return;
 
   const cacheData: CachedServerTools = {
@@ -328,7 +328,7 @@ export function shouldRefreshTools(responseChecksum: string | undefined): boolea
 /**
  * Fetch tools from the server API
  */
-export async function fetchServerToolsFromApi(
+async function fetchServerToolsFromApi(
   baseUrl: string,
   token: string
 ): Promise<ParsedServerToolsResponse> {

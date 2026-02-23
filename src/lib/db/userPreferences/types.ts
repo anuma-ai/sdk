@@ -144,7 +144,7 @@ export interface ProfileUpdate {
 /**
  * Base options for useSettings hook
  */
-export interface BaseUseUserPreferencesOptions {
+interface BaseUseUserPreferencesOptions {
   database: Database;
   walletAddress?: string;
 }
@@ -152,7 +152,7 @@ export interface BaseUseUserPreferencesOptions {
 /**
  * Base result returned by useSettings hook
  */
-export interface BaseUseUserPreferencesResult {
+interface BaseUseUserPreferencesResult {
   userPreference: StoredUserPreference | null;
   isLoading: boolean;
   getUserPreference: (

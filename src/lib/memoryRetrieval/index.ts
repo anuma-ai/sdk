@@ -31,8 +31,6 @@ export {
   createMemoryRetrievalTool,
 } from "./tool";
 
-export { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
-
 export {
   generateEmbedding,
   generateEmbeddings,
@@ -59,7 +57,5 @@ export type {
 export type {
   MemoryRetrievalSearchOptions,
   MemoryRetrievalResult,
-  MemoryRetrievalContext,
-  MemoryRetrievalToolConfig,
   EmbeddingOptions,
 } from "./types";

@@ -534,7 +534,7 @@ export function useBackupAuth(): BackupAuthContextValue {
  *
  * @category Hooks
  */
-export function useDropboxAuthFromBackup(): ProviderAuthState {
+function useDropboxAuthFromBackup(): ProviderAuthState {
   const { dropbox } = useBackupAuth();
   return dropbox;
 }
@@ -545,7 +545,7 @@ export function useDropboxAuthFromBackup(): ProviderAuthState {
  *
  * @category Hooks
  */
-export function useGoogleDriveAuthFromBackup(): ProviderAuthState {
+function useGoogleDriveAuthFromBackup(): ProviderAuthState {
   const { googleDrive } = useBackupAuth();
   return googleDrive;
 }
@@ -556,7 +556,7 @@ export function useGoogleDriveAuthFromBackup(): ProviderAuthState {
  *
  * @category Hooks
  */
-export function useICloudAuthFromBackup(): ProviderAuthState {
+function useICloudAuthFromBackup(): ProviderAuthState {
   const { icloud } = useBackupAuth();
   return icloud;
 }

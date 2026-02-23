@@ -179,7 +179,7 @@ export async function loadCloudKit(): Promise<void> {
 /**
  * Ensure CloudKit JS is loaded, loading it if necessary
  */
-export async function ensureCloudKitLoaded(): Promise<void> {
+async function ensureCloudKitLoaded(): Promise<void> {
   if (!isCloudKitAvailable()) {
     await loadCloudKit();
   }
@@ -313,7 +313,7 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 /**
  * Wait for user to sign in to iCloud
  */
-export async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
+async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
   const container = await getContainer();
   return container.whenUserSignsIn();
 }
@@ -321,7 +321,7 @@ export async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
 /**
  * Check if user is authenticated with iCloud
  */
-export async function isICloudAuthenticated(): Promise<boolean> {
+async function isICloudAuthenticated(): Promise<boolean> {
   try {
     const userIdentity = await authenticateICloud();
     return userIdentity !== null;
@@ -507,7 +507,7 @@ export async function findICloudFile(
 /**
  * Delete a file from iCloud
  */
-export async function deleteICloudFile(recordName: string): Promise<void> {
+async function deleteICloudFile(recordName: string): Promise<void> {
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
@@ -517,7 +517,7 @@ export async function deleteICloudFile(recordName: string): Promise<void> {
 /**
  * Get iCloud user record name (unique identifier)
  */
-export async function getICloudUserRecordName(): Promise<string | null> {
+async function getICloudUserRecordName(): Promise<string | null> {
   try {
     const userIdentity = await authenticateICloud();
     return userIdentity?.userRecordName ?? null;
