@@ -527,36 +527,3 @@ export function useBackupAuth(): BackupAuthContextValue {
   }
   return context;
 }
-
-/**
- * Hook to access Dropbox authentication from BackupAuthProvider.
- * Convenience wrapper that returns only Dropbox state.
- *
- * @category Hooks
- */
-function useDropboxAuthFromBackup(): ProviderAuthState {
-  const { dropbox } = useBackupAuth();
-  return dropbox;
-}
-
-/**
- * Hook to access Google Drive authentication from BackupAuthProvider.
- * Convenience wrapper that returns only Google Drive state.
- *
- * @category Hooks
- */
-function useGoogleDriveAuthFromBackup(): ProviderAuthState {
-  const { googleDrive } = useBackupAuth();
-  return googleDrive;
-}
-
-/**
- * Hook to access iCloud authentication from BackupAuthProvider.
- * Convenience wrapper that returns only iCloud state.
- *
- * @category Hooks
- */
-function useICloudAuthFromBackup(): ProviderAuthState {
-  const { icloud } = useBackupAuth();
-  return icloud;
-}

@@ -378,56 +378,6 @@ export async function getEncryptionKey(address: string): Promise<CryptoKey> {
 }
 
 /**
- * Encrypts data deterministically using AES-GCM with a deterministic IV
- * Same plaintext + address always produces same ciphertext (for queryable fields)
- */
-async function encryptDataDeterministic(
-  plaintext: string | Uint8Array,
-  address: string
-): Promise<string> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
-
-  const key = await getEncryptionKey(address);
-
-  // Convert plaintext to Uint8Array if it's a string
-  const plaintextBytes =
-    typeof plaintext === "string"
-      ? new TextEncoder().encode(plaintext)
-      : plaintext;
-
-  // Derive deterministic IV from plaintext and address
-  const input = `${address}:${typeof plaintext === "string" ? plaintext : new TextDecoder().decode(plaintext)}`;
-  const inputBytes = new TextEncoder().encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", inputBytes.buffer);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const iv = hashBytes.slice(0, 12); // AES-GCM requires 12-byte IV
-
-  // Encrypt the data
-  const encryptedData = await crypto.subtle.encrypt(
-    {
-      name: "AES-GCM",
-      iv: iv,
-    },
-    key,
-    plaintextBytes.buffer as ArrayBuffer
-  );
-
-  // Combine IV + encrypted data (which includes auth tag)
-  const encryptedBytes = new Uint8Array(encryptedData);
-  const combined = new Uint8Array(iv.length + encryptedBytes.length);
-  combined.set(iv, 0);
-  combined.set(encryptedBytes, iv.length);
-
-  // Return as hex string
-  return bytesToHex(combined);
-}
-
-/**
  * Encrypts data using AES-GCM with the stored encryption key.
  *
  * This function uses the encryption key previously generated via `requestEncryptionKey`
