@@ -2,7 +2,7 @@
 
 > **revokeDriveToken**(`apiClient?`: `Client`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-drive.ts:272](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L272)
+Defined in: [src/lib/auth/google-drive.ts:261](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L261)
 
 Revoke the OAuth token
 

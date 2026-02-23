@@ -2,7 +2,7 @@
 
 > **getGoogleDriveStoredToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/backup/google/auth.ts:340](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/auth.ts#L340)
+Defined in: [src/lib/backup/google/auth.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/google/auth.ts#L336)
 
 Get stored token data for Google Drive
 

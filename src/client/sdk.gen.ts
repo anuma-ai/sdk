@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
+import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsSyncSnagData, PostApiV1CreditsSyncSnagErrors, PostApiV1CreditsSyncSnagResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -21,7 +21,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Add credits to user
  *
- * Adds credits to a user's cost limit on-chain. Requires admin API key and ADMIN_ROLE on smart contract. Optionally specify escrow_contract for custom escrow contracts.
+ * Adds credits to a user's account. The settlement worker will handle on-chain enrollment when processing requests.
  */
 export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminAddCreditsData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1AdminAddCreditsResponses, PostApiV1AdminAddCreditsErrors, ThrowOnError>({
@@ -189,7 +189,7 @@ export const postApiV1AdminSeedApps = <ThrowOnError extends boolean = false>(opt
 /**
  * Set user subscription tier
  *
- * Sets a user's subscription tier (basic or pro). Requires admin API key.
+ * Sets a user's subscription tier (basic, starter, or pro). Requires admin API key.
  */
 export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AdminSubscriptionTierData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1AdminSubscriptionTierResponses, PostApiV1AdminSubscriptionTierErrors, ThrowOnError>({
@@ -233,7 +233,7 @@ export const getApiV1Config = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Get credit balance
  *
- * Returns the credit balance and related information for the authenticated user
+ * Returns the credit balance and related information for the authenticated user. Optionally accepts X-Timezone header for accurate next claim time calculation.
  */
 export const getApiV1CreditsBalance = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsBalanceData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1CreditsBalanceResponses, GetApiV1CreditsBalanceErrors, ThrowOnError>({
@@ -245,7 +245,7 @@ export const getApiV1CreditsBalance = <ThrowOnError extends boolean = false>(opt
 /**
  * Claim daily credits
  *
- * Allows authenticated users to claim free daily credits. Limited to once per 24 hours.
+ * Allows authenticated users to claim free daily credits. Limited to once per calendar day in user's timezone. Requires X-Timezone header with IANA timezone (e.g., "America/New_York").
  */
 export const postApiV1CreditsClaimDaily = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1CreditsClaimDailyData, ThrowOnError>) => {
     return (options?.client ?? client).post<PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsClaimDailyErrors, ThrowOnError>({
@@ -257,7 +257,7 @@ export const postApiV1CreditsClaimDaily = <ThrowOnError extends boolean = false>
 /**
  * List available credit packs
  *
- * Returns available credit packs with prices fetched from Stripe. Pro users receive a 10% bonus on credits.
+ * Returns available credit packs with prices fetched from Stripe. Pro users receive bonus credits on the same pack.
  */
 export const getApiV1CreditsPacks = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1CreditsPacksData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1CreditsPacksResponses, GetApiV1CreditsPacksErrors, ThrowOnError>({
@@ -269,7 +269,7 @@ export const getApiV1CreditsPacks = <ThrowOnError extends boolean = false>(optio
 /**
  * Create credit pack checkout session
  *
- * Creates a Stripe Checkout Session for purchasing a one-time credit pack and returns the checkout URL. Pro users receive a 10% bonus.
+ * Creates a Stripe Checkout Session for purchasing a one-time credit pack and returns the checkout URL. Pro users are charged using the Pro product with bonus credits.
  */
 export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsPurchaseData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1CreditsPurchaseResponses, PostApiV1CreditsPurchaseErrors, ThrowOnError>({
@@ -279,6 +279,18 @@ export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * Sync Snag points
+ *
+ * Queries Snag for the user's current loyalty points and converts any new points to Portal credits using the configured conversion rate.
+ */
+export const postApiV1CreditsSyncSnag = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1CreditsSyncSnagData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1CreditsSyncSnagResponses, PostApiV1CreditsSyncSnagErrors, ThrowOnError>({
+        url: '/api/v1/credits/sync-snag',
+        ...options
     });
 };
 
@@ -353,7 +365,7 @@ export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = fals
 /**
  * Create checkout session
  *
- * Creates a Stripe Checkout Session for Pro subscription and returns the checkout URL
+ * Creates a Stripe Checkout Session for a subscription plan and returns the checkout URL. Identify the plan with either price_id directly, or tier ("starter"/"pro") + interval ("month"/"year").
  */
 export const postApiV1SubscriptionsCreateCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsCreateCheckoutSessionData, ThrowOnError>) => {
     return (options.client ?? client).post<PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCreateCheckoutSessionErrors, ThrowOnError>({
@@ -379,6 +391,18 @@ export const postApiV1SubscriptionsCustomerPortal = <ThrowOnError extends boolea
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+/**
+ * List available subscription plans
+ *
+ * Returns available subscription plans with prices fetched from Stripe.
+ */
+export const getApiV1SubscriptionsPlans = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SubscriptionsPlansData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsPlansErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/plans',
+        ...options
     });
 };
 

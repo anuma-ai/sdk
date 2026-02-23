@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:262](https://github.com/zeta-chain/ai-sdk/blo
 
 List available credit packs
 
-Returns available credit packs with prices fetched from Stripe. Pro users receive a 10% bonus on credits.
+Returns available credit packs with prices fetched from Stripe. Pro users receive bonus credits on the same pack.
 
 ## Type Parameters
 

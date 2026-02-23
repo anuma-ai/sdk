@@ -45,12 +45,14 @@ export interface LongMemEvalResult {
   retrievalPrecision: number;
   retrievalRecall: number;
   latencyMs: number;
+  strategy: "memory-engine" | "memory-vault";
   details?: Record<string, unknown>;
 }
 
 export interface LongMemEvalSummary {
   timestamp: string;
   datasetName: string;
+  strategy: "memory-engine" | "memory-vault";
   totalQuestions: number;
   correctAnswers: number;
   accuracy: number;
@@ -75,68 +77,30 @@ export interface LongMemEvalSummary {
   results: LongMemEvalResult[];
 }
 
+export interface LongMemEvalComparisonSummary {
+  engine: LongMemEvalSummary;
+  vault: LongMemEvalSummary;
+}
+
+export type LongMemEvalStrategy = "memory-engine" | "memory-vault" | "both";
+
 export interface LongMemEvalOptions {
-  /** Dataset variant: 's' (small, ~50 sessions) or 'm' (medium, ~500 sessions) */
   variant: "s" | "m";
-  /** Retrieval strategy */
-  strategy?: "extracted-memories" | "chunked-tool";
-  /** LLM model override for chat completions */
+  strategy?: LongMemEvalStrategy;
   llmModel?: string;
-  /** Skip entries that already have transcripts for the same model */
   skipExisting?: boolean;
-  /** Run only a specific question id */
   questionId?: string;
-  /** Maximum number of questions to evaluate (for quick testing) */
   maxQuestions?: number;
-  /** Maximum sessions to process per question (for dev/testing) */
   maxSessions?: number;
-  /** Question types to include (default: all) */
   questionTypes?: LongMemEvalQuestionType[];
-  /** Show verbose output */
   verbose?: boolean;
-  /** Output file path */
   output?: string;
-  /** Skip question types we don't support well */
   skipUnsupported?: boolean;
 }
 
-/** Cached embeddings for LongMemEval sessions */
-export interface LongMemEvalEmbeddingsCache {
-  version: string;
-  model: string;
-  variant: "s" | "m";
-  /** Map of question_id -> session embeddings */
-  entries: Record<
-    string,
-    {
-      /** Embeddings for extracted memories from all sessions */
-      memoryEmbeddings: Array<{
-        sessionIndex: number;
-        memoryIndex: number;
-        embedding: number[];
-        text: string;
-      }>;
-      /** Query embedding for the question */
-      queryEmbedding: number[];
-    }
-  >;
-}
-
-/** Cached embeddings for chunked LongMemEval sessions */
-export interface LongMemEvalChunkEmbeddingsCache {
-  version: string;
-  model: string;
-  variant: "s" | "m";
-  entries: Record<
-    string,
-    {
-      chunks: Array<{
-        sessionIndex: number;
-        messageIndex: number;
-        role: "user" | "assistant";
-        contentHash: string;
-        embedding: number[];
-      }>;
-    }
-  >;
+/** API configuration for LLM and embedding calls */
+export interface ApiConfig {
+  apiKey: string;
+  baseUrl: string;
+  llmModel: string;
 }

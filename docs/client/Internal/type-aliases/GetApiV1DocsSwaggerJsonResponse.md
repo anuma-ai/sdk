@@ -2,4 +2,4 @@
 
 > **GetApiV1DocsSwaggerJsonResponse** = [`GetApiV1DocsSwaggerJsonResponses`](GetApiV1DocsSwaggerJsonResponses.md)\[keyof [`GetApiV1DocsSwaggerJsonResponses`](GetApiV1DocsSwaggerJsonResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1965](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1965)
+Defined in: [src/client/types.gen.ts:2091](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2091)

@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:250](https://github.com/zeta-chain/ai-sdk/blo
 
 Claim daily credits
 
-Allows authenticated users to claim free daily credits. Limited to once per 24 hours.
+Allows authenticated users to claim free daily credits. Limited to once per calendar day in user's timezone. Requires X-Timezone header with IANA timezone (e.g., "America/New\_York").
 
 ## Type Parameters
 

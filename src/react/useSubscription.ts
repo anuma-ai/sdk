@@ -1,19 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import type {
+  HandlersCancelSubscriptionResponse,
+  HandlersRenewSubscriptionResponse,
+  HandlersSubscriptionStatusResponse,
+} from "../client";
 import {
   getApiV1SubscriptionsStatus,
+  postApiV1SubscriptionsCancel,
   postApiV1SubscriptionsCreateCheckoutSession,
   postApiV1SubscriptionsCustomerPortal,
-  postApiV1SubscriptionsCancel,
   postApiV1SubscriptionsRenew,
 } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
-import type {
-  HandlersSubscriptionStatusResponse,
-  HandlersCancelSubscriptionResponse,
-  HandlersRenewSubscriptionResponse,
-} from "../client";
 
 /**
  * @inline
@@ -55,10 +56,12 @@ export type UseSubscriptionResult = {
    */
   refetch: () => Promise<void>;
   /**
-   * Create a Stripe checkout session for upgrading to Pro
+   * Create a Stripe checkout session for a subscription plan
    * @returns The checkout URL or null on error
    */
   createCheckoutSession: (options?: {
+    tier?: string;
+    interval?: string;
     successUrl?: string;
     cancelUrl?: string;
   }) => Promise<string | null>;
@@ -66,9 +69,7 @@ export type UseSubscriptionResult = {
    * Open the Stripe customer portal for managing billing
    * @returns The portal URL or null on error
    */
-  openCustomerPortal: (options?: {
-    returnUrl?: string;
-  }) => Promise<string | null>;
+  openCustomerPortal: (options?: { returnUrl?: string }) => Promise<string | null>;
   /**
    * Cancel the subscription at the end of the current period
    * @returns The cancellation response or null on error
@@ -86,15 +87,8 @@ export type UseSubscriptionResult = {
  * Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions.
  * @category Hooks
  */
-export function useSubscription(
-  options: UseSubscriptionOptions = {}
-): UseSubscriptionResult {
-  const {
-    getToken,
-    baseUrl = BASE_URL,
-    autoFetch = true,
-    onError,
-  } = options;
+export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscriptionResult {
+  const { getToken, baseUrl = BASE_URL, autoFetch = true, onError } = options;
 
   const [status, setStatus] = useState<HandlersSubscriptionStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -200,6 +194,8 @@ export function useSubscription(
 
   const createCheckoutSession = useCallback(
     async (opts?: {
+      tier?: string;
+      interval?: string;
       successUrl?: string;
       cancelUrl?: string;
     }): Promise<string | null> => {
@@ -213,6 +209,8 @@ export function useSubscription(
           baseUrl: baseUrlRef.current,
           headers,
           body: {
+            tier: opts?.tier,
+            interval: opts?.interval,
             success_url: opts?.successUrl,
             cancel_url: opts?.cancelUrl,
           },
@@ -266,63 +264,65 @@ export function useSubscription(
     [getHeaders, handleError]
   );
 
-  const cancelSubscription = useCallback(async (): Promise<HandlersCancelSubscriptionResponse | null> => {
-    setIsLoading(true);
-    setError(null);
+  const cancelSubscription =
+    useCallback(async (): Promise<HandlersCancelSubscriptionResponse | null> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const headers = await getHeaders();
+      try {
+        const headers = await getHeaders();
 
-      const response = await postApiV1SubscriptionsCancel({
-        baseUrl: baseUrlRef.current,
-        headers,
-      });
+        const response = await postApiV1SubscriptionsCancel({
+          baseUrl: baseUrlRef.current,
+          headers,
+        });
 
-      if (response.error) {
-        const errorMsg = response.error.error ?? "Failed to cancel subscription";
-        throw new Error(errorMsg);
+        if (response.error) {
+          const errorMsg = response.error.error ?? "Failed to cancel subscription";
+          throw new Error(errorMsg);
+        }
+
+        // Refetch status after cancellation
+        await fetchStatus();
+
+        return response.data ?? null;
+      } catch (err) {
+        handleError(err);
+        return null;
+      } finally {
+        setIsLoading(false);
       }
+    }, [getHeaders, handleError, fetchStatus]);
 
-      // Refetch status after cancellation
-      await fetchStatus();
+  const renewSubscription =
+    useCallback(async (): Promise<HandlersRenewSubscriptionResponse | null> => {
+      setIsLoading(true);
+      setError(null);
 
-      return response.data ?? null;
-    } catch (err) {
-      handleError(err);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getHeaders, handleError, fetchStatus]);
+      try {
+        const headers = await getHeaders();
 
-  const renewSubscription = useCallback(async (): Promise<HandlersRenewSubscriptionResponse | null> => {
-    setIsLoading(true);
-    setError(null);
+        const response = await postApiV1SubscriptionsRenew({
+          baseUrl: baseUrlRef.current,
+          headers,
+        });
 
-    try {
-      const headers = await getHeaders();
+        if (response.error) {
+          const errorMsg = response.error.error ?? "Failed to renew subscription";
+          throw new Error(errorMsg);
+        }
 
-      const response = await postApiV1SubscriptionsRenew({
-        baseUrl: baseUrlRef.current,
-        headers,
-      });
+        // Refetch status after renewal
+        await fetchStatus();
 
-      if (response.error) {
-        const errorMsg = response.error.error ?? "Failed to renew subscription";
-        throw new Error(errorMsg);
+        return response.data ?? null;
+      } catch (err) {
+        handleError(err);
+        return null;
+      } finally {
+        setIsLoading(false);
       }
-
-      // Refetch status after renewal
-      await fetchStatus();
-
-      return response.data ?? null;
-    } catch (err) {
-      handleError(err);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getHeaders, handleError, fetchStatus]);
+    }, [getHeaders, handleError, fetchStatus]);
 
   // Only run on mount
   const hasFetchedRef = useRef(false);

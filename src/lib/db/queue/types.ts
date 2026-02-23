@@ -5,7 +5,7 @@
  * when encryption keys aren't yet available.
  */
 
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 
 /**
  * Types of database operations that can be queued.

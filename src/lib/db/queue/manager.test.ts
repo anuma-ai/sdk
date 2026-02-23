@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { QueueManager, topologicalSort } from "./manager";
-import type {
-  QueuedOperation,
-  QueueEncryptionContext,
-  OperationExecutor,
-} from "./types";
+import type { QueuedOperation, QueueEncryptionContext, OperationExecutor } from "./types";
 import type { SignMessageFn } from "../../../react/useEncryption";
 
 const testAddress = "0x1234567890123456789012345678901234567890";
@@ -25,11 +21,7 @@ describe("QueueManager", () => {
 
   describe("queueOperation", () => {
     it("should add an operation and return an id", () => {
-      const id = manager.queueOperation(
-        testAddress,
-        "createMessage",
-        { content: "hello" }
-      );
+      const id = manager.queueOperation(testAddress, "createMessage", { content: "hello" });
       expect(id).toBeTruthy();
       expect(typeof id).toBe("string");
     });
@@ -154,17 +146,12 @@ describe("QueueManager", () => {
     });
 
     it("should fail dependent operations when parent fails", async () => {
-      const parentId = manager.queueOperation(
-        testAddress,
-        "createConversation",
-        { title: "test" }
-      )!;
-      manager.queueOperation(
-        testAddress,
-        "createMessage",
-        { content: "depends on conversation" },
-        [parentId]
-      );
+      const parentId = manager.queueOperation(testAddress, "createConversation", {
+        title: "test",
+      })!;
+      manager.queueOperation(testAddress, "createMessage", { content: "depends on conversation" }, [
+        parentId,
+      ]);
 
       const executor = vi.fn(async () => {
         throw new Error("Parent failed");

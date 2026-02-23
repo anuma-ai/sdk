@@ -58,6 +58,11 @@
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
 | [GetApiV1ModelsResponse](Internal/type-aliases/GetApiV1ModelsResponse.md) | - |
 | [GetApiV1ModelsResponses](Internal/type-aliases/GetApiV1ModelsResponses.md) | - |
+| [GetApiV1SubscriptionsPlansData](Internal/type-aliases/GetApiV1SubscriptionsPlansData.md) | - |
+| [GetApiV1SubscriptionsPlansError](Internal/type-aliases/GetApiV1SubscriptionsPlansError.md) | - |
+| [GetApiV1SubscriptionsPlansErrors](Internal/type-aliases/GetApiV1SubscriptionsPlansErrors.md) | - |
+| [GetApiV1SubscriptionsPlansResponse](Internal/type-aliases/GetApiV1SubscriptionsPlansResponse.md) | - |
+| [GetApiV1SubscriptionsPlansResponses](Internal/type-aliases/GetApiV1SubscriptionsPlansResponses.md) | - |
 | [GetApiV1SubscriptionsStatusData](Internal/type-aliases/GetApiV1SubscriptionsStatusData.md) | - |
 | [GetApiV1SubscriptionsStatusError](Internal/type-aliases/GetApiV1SubscriptionsStatusError.md) | - |
 | [GetApiV1SubscriptionsStatusErrors](Internal/type-aliases/GetApiV1SubscriptionsStatusErrors.md) | - |
@@ -112,7 +117,10 @@
 | [HandlersSeedAppsResponse](Internal/type-aliases/HandlersSeedAppsResponse.md) | - |
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
 | [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
+| [HandlersSubscriptionPlan](Internal/type-aliases/HandlersSubscriptionPlan.md) | - |
+| [HandlersSubscriptionPlansResponse](Internal/type-aliases/HandlersSubscriptionPlansResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
+| [HandlersSyncSnagResponse](Internal/type-aliases/HandlersSyncSnagResponse.md) | - |
 | [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
@@ -200,6 +208,11 @@
 | [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
 | [PostApiV1CreditsPurchaseResponse](Internal/type-aliases/PostApiV1CreditsPurchaseResponse.md) | - |
 | [PostApiV1CreditsPurchaseResponses](Internal/type-aliases/PostApiV1CreditsPurchaseResponses.md) | - |
+| [PostApiV1CreditsSyncSnagData](Internal/type-aliases/PostApiV1CreditsSyncSnagData.md) | - |
+| [PostApiV1CreditsSyncSnagError](Internal/type-aliases/PostApiV1CreditsSyncSnagError.md) | - |
+| [PostApiV1CreditsSyncSnagErrors](Internal/type-aliases/PostApiV1CreditsSyncSnagErrors.md) | - |
+| [PostApiV1CreditsSyncSnagResponse](Internal/type-aliases/PostApiV1CreditsSyncSnagResponse.md) | - |
+| [PostApiV1CreditsSyncSnagResponses](Internal/type-aliases/PostApiV1CreditsSyncSnagResponses.md) | - |
 | [PostApiV1EmbeddingsData](Internal/type-aliases/PostApiV1EmbeddingsData.md) | - |
 | [PostApiV1EmbeddingsError](Internal/type-aliases/PostApiV1EmbeddingsError.md) | - |
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
@@ -277,6 +290,7 @@
 | [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
+| [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
@@ -289,6 +303,7 @@
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
+| [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |

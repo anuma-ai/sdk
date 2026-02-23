@@ -56,443 +56,463 @@
  * @module react
  */
 export { useChat } from "./useChat";
+
+// Chart display components
+export type { ChartCardProps, ChartConfig } from "./chart";
 export {
-  useEncryption,
-  requestEncryptionKey,
-  getEncryptionKey,
-  hasEncryptionKey,
-  encryptData,
-  decryptData,
-  decryptDataBytes,
-  clearEncryptionKey,
-  clearAllEncryptionKeys,
-  requestKeyPair,
-  exportPublicKey,
-  hasKeyPair,
-  clearKeyPair,
-  clearAllKeyPairs,
-  onKeyAvailable,
-} from "./useEncryption";
+  ChartCard,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "./chart";
+
+// UI Interaction infrastructure
+export type { DisplayToolMigrations } from "../tools/uiInteraction";
+export { migrateDisplayResult } from "../tools/uiInteraction";
 export type {
+  EmbeddedWalletSignerFn,
   SignMessageFn,
   SignMessageOptions,
-  EmbeddedWalletSignerFn,
   UseEncryptionResult,
 } from "./useEncryption";
+export {
+  clearAllEncryptionKeys,
+  clearAllKeyPairs,
+  clearEncryptionKey,
+  clearKeyPair,
+  decryptData,
+  decryptDataBatch,
+  decryptDataBytes,
+  decryptDataWithKey,
+  encryptData,
+  // Batch operations for performance (single key lookup)
+  encryptDataBatch,
+  encryptDataWithKey,
+  exportPublicKey,
+  getEncryptionKey,
+  hasEncryptionKey,
+  hasKeyPair,
+  onKeyAvailable,
+  requestEncryptionKey,
+  requestKeyPair,
+  useEncryption,
+} from "./useEncryption";
+export type {
+  InteractionType,
+  PendingInteraction,
+  UIInteractionContextValue,
+  UIInteractionProviderProps,
+} from "./useUIInteraction";
+export { UIInteractionProvider, useUIInteraction } from "./useUIInteraction";
 
 // Write queue for encryption-pending operations
-export { queueManager, QueueManager, WalletPoller } from "../lib/db/queue";
 export type {
-  QueueStatus,
   FlushResult,
-  QueueEncryptionContext,
+  OperationExecutor,
   QueuedOperation,
   QueuedOperationType,
-  OperationExecutor,
+  QueueEncryptionContext,
+  QueueStatus,
 } from "../lib/db/queue";
-
-export { useChatStorage } from "./useChatStorage";
+export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 export type {
-  UseChatStorageOptions,
-  UseChatStorageResult,
+  SearchMessagesOptions,
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
-  SearchMessagesOptions,
+  UseChatStorageOptions,
+  UseChatStorageResult,
 } from "./useChatStorage";
+export { useChatStorage } from "./useChatStorage";
 
 // OPFS encrypted storage utilities
 export {
-  isOPFSSupported,
-  writeEncryptedFile,
-  readEncryptedFile,
-  deleteEncryptedFile,
-  fileExists,
   BlobUrlManager,
-  resolveFilePlaceholders,
+  deleteEncryptedFile,
   extractFileIds,
   FILE_PLACEHOLDER_PREFIX,
   FILE_PLACEHOLDER_REGEX,
+  fileExists,
+  isOPFSSupported,
+  readEncryptedFile,
+  resolveFilePlaceholders,
+  writeEncryptedFile,
 } from "../lib/storage";
 
 // Consolidated SDK schema exports (recommended)
-export {
-  sdkSchema,
-  sdkMigrations,
-  sdkModelClasses,
-  SDK_SCHEMA_VERSION,
-} from "../lib/db/schema";
+export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 
 // Database manager for per-wallet isolation
-export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
 export type {
-  PlatformStorage,
-  DatabaseManagerOptions,
   DatabaseManagerLogger,
+  DatabaseManagerOptions,
+  PlatformStorage,
 } from "../lib/db/manager";
+export { DatabaseManager, webPlatformStorage } from "../lib/db/manager";
 export { useDatabaseManager } from "./useDatabaseManager";
 
 // Individual schema exports (deprecated - use sdkSchema instead)
 export {
-  /** @deprecated Use sdkSchema instead */
-  chatStorageSchema,
+  Conversation as ChatConversation,
+  Message as ChatMessage,
+  type ChatRole,
   /** @deprecated Use sdkMigrations instead */
   chatStorageMigrations,
-  Message as ChatMessage,
-  Conversation as ChatConversation,
-  type ChatRole,
-  type FileMetadata,
-  type ChatCompletionUsage as StoredChatCompletionUsage,
-  type SearchSource,
-  type StoredMessage,
-  type StoredMessageWithSimilarity,
-  type StoredConversation,
-  type StoredFileWithContext,
-  type CreateMessageOptions,
-  type CreateConversationOptions,
-  type StorageOperationsContext,
-  type MessageChunk,
+  /** @deprecated Use sdkSchema instead */
+  chatStorageSchema,
   type ChunkSearchResult,
-  type ServerToolsFilter,
-  type ServerToolsFilterFn,
+  type ClientToolsFilterFn,
+  type CreateConversationOptions,
+  type CreateMessageOptions,
+  type FileMetadata,
   generateConversationId,
-  updateConversationProjectOp,
   getConversationsByProjectOp,
+  type MessageChunk,
+  type MessageFeedback,
   searchChunksOp,
   searchMessagesOp,
+  type SearchSource,
+  type ServerToolsFilter,
+  type ServerToolsFilterFn,
+  type StorageOperationsContext,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type StoredConversation,
+  type StoredFileWithContext,
+  type StoredMessage,
+  type StoredMessageWithSimilarity,
+  updateConversationProjectOp,
+  updateMessageFeedbackOp,
 } from "../lib/db/chat";
 
 // Project storage exports
 export {
-  Project,
-  type StoredProject,
-  type CreateProjectOptions,
-  type UpdateProjectOptions,
-  generateProjectId,
-  type ProjectOperationsContext,
-  projectToStored,
   createProjectOp,
+  type CreateProjectOptions,
+  deleteProjectOp,
+  generateProjectId,
+  getProjectConversationCountOp,
+  getProjectConversationsOp,
   getProjectOp,
   getProjectsOp,
+  Project,
+  type ProjectOperationsContext,
+  projectToStored,
+  type StoredProject,
   updateProjectNameOp,
   updateProjectOp,
-  deleteProjectOp,
-  getProjectConversationsOp,
-  getProjectConversationCountOp,
+  type UpdateProjectOptions,
 } from "../lib/db/project";
-export { useProjects } from "./useProjects";
-export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
-export { useFiles } from "./useFiles";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
+export { useFiles } from "./useFiles";
+export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
+export { useProjects } from "./useProjects";
+// Memory vault
 export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
-export { useSettings } from "./useSettings";
-export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
+  createVaultMemoryOp,
+  type CreateVaultMemoryOptions,
+  deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getVaultMemoryOp,
+  type StoredVaultMemory,
+  VaultMemory as StoredVaultMemoryModel,
+  updateVaultMemoryOp,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+} from "../lib/db/memoryVault";
 export {
+  type CreateModelPreferenceOptions,
   /** @deprecated Use sdkSchema instead */
   settingsStorageSchema,
-  ModelPreference as StoredModelPreferenceModel,
   type StoredModelPreference,
-  type CreateModelPreferenceOptions,
+  ModelPreference as StoredModelPreferenceModel,
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";
+export {
+  createMemoryVaultSearchTool,
+  createMemoryVaultTool,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  type MemoryVaultSearchOptions,
+  type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories,
+  type VaultEmbeddingCache,
+  type VaultSaveOperation,
+  type VaultSearchResult,
+} from "../lib/memoryVault";
+export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
+export { useSettings } from "./useSettings";
 
 // User preferences (unified settings storage)
 export {
-  /** @deprecated Use sdkSchema instead */
-  userPreferencesStorageSchema,
-  UserPreference as StoredUserPreferenceModel,
+  type CreateUserPreferenceOptions,
+  DEFAULT_PERSONALITY_SETTINGS,
+  type PersonalitySettings,
   // Personality types
   type PersonalitySliders,
   type PersonalityStyle,
-  type PersonalitySettings,
-  DEFAULT_PERSONALITY_SETTINGS,
+  type ProfileUpdate,
   SLIDER_CONFIG,
   // User preference types
   type StoredUserPreference,
-  type CreateUserPreferenceOptions,
+  UserPreference as StoredUserPreferenceModel,
   type UpdateUserPreferenceOptions,
-  type ProfileUpdate,
+  /** @deprecated Use sdkSchema instead */
+  userPreferencesStorageSchema,
 } from "../lib/db/userPreferences";
 
 // Media library storage
 export {
-  Media as StoredMediaModel,
-  // Types
-  type MediaType,
-  type MediaRole,
-  type MediaDimensions,
-  type MediaMetadata,
-  type StoredMedia,
-  type CreateMediaOptions,
-  type UpdateMediaOptions,
-  type MediaFilterOptions,
-  type MediaOperationsContext,
-  // Utility functions
-  generateMediaId,
-  getMediaTypeFromMime,
-  isSupportedMediaType,
-  // CRUD operations
-  mediaToStored,
-  createMediaOp,
   createMediaBatchOp,
-  getMediaByIdOp,
-  getMediaBySourceUrlOp,
-  updateMediaOp,
-  updateMediaMessageIdBatchOp,
-  deleteMediaOp,
-  hardDeleteMediaOp,
-  // Library query operations
-  getMediaOp,
-  getMediaByTypeOp,
-  getImagesOp,
-  getVideosOp,
-  getAudioOp,
-  getDocumentsOp,
-  getMediaByConversationOp,
-  getMediaByMessageOp,
-  getMediaByIdsOp,
-  getMediaByRoleOp,
-  getAIGeneratedMediaOp,
-  getUserUploadedMediaOp,
-  getMediaByModelOp,
-  getRecentMediaOp,
-  searchMediaOp,
-  getMediaCountOp,
-  getMediaCountsByTypeOp,
+  createMediaOp,
+  type CreateMediaOptions,
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
+  deleteMediaOp,
+  // Utility functions
+  generateMediaId,
+  getAIGeneratedMediaOp,
+  getAudioOp,
+  getDocumentsOp,
+  getImagesOp,
+  getMediaByConversationOp,
+  getMediaByIdOp,
+  getMediaByIdsOp,
+  getMediaByMessageOp,
+  getMediaByModelOp,
+  getMediaByRoleOp,
+  getMediaBySourceUrlOp,
+  getMediaByTypeOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  // Library query operations
+  getMediaOp,
+  getMediaTypeFromMime,
+  getRecentMediaOp,
+  getUserUploadedMediaOp,
+  getVideosOp,
+  hardDeleteMediaOp,
+  isSupportedMediaType,
+  type MediaDimensions,
+  type MediaFilterOptions,
+  type MediaMetadata,
+  type MediaOperationsContext,
+  type MediaRole,
+  // CRUD operations
+  mediaToStored,
+  // Types
+  type MediaType,
+  searchMediaOp,
+  type StoredMedia,
+  Media as StoredMediaModel,
+  updateMediaMessageIdBatchOp,
+  updateMediaOp,
+  type UpdateMediaOptions,
 } from "../lib/db/media";
-
-export { usePdf } from "./usePdf";
-export type { PdfFile, UsePdfResult } from "./usePdf";
-export { useOCR } from "./useOCR";
+export type {
+  ModelLoadProgress,
+  TranscriptionResult,
+  VoiceRecording,
+  WhisperModel,
+} from "../lib/voice";
 export type { OCRFile, UseOCRResult } from "./useOCR";
+export { useOCR } from "./useOCR";
+export type { PdfFile, UsePdfResult } from "./usePdf";
+export { usePdf } from "./usePdf";
+export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
+export { useVoice } from "./useVoice";
 
 // File processors for preprocessing attachments
-export {
-  PdfProcessor,
-  ExcelProcessor,
-  WordProcessor,
-  ZipProcessor,
-  ProcessorRegistry,
-  preprocessFiles,
-} from "../lib/processors";
 export type {
   FileProcessor,
   FileWithData,
-  ProcessedFileResult,
   PreprocessingOptions,
   PreprocessingResult,
+  ProcessedFileResult,
   ZipProcessorOptions,
 } from "../lib/processors";
-export { useModels } from "./useModels";
-export type { UseModelsResult } from "./useModels";
-
-export { useSubscription } from "./useSubscription";
-export type {
-  UseSubscriptionOptions,
-  UseSubscriptionResult,
-} from "./useSubscription";
-
-export { useCredits } from "./useCredits";
+export {
+  ExcelProcessor,
+  PdfProcessor,
+  preprocessFiles,
+  ProcessorRegistry,
+  WordProcessor,
+  ZipProcessor,
+} from "../lib/processors";
 export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
+export { useCredits } from "./useCredits";
+export type { UseModelsResult } from "./useModels";
+export { useModels } from "./useModels";
+export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
+export { useSubscription } from "./useSubscription";
 
 // Memory retrieval (semantic search over past messages)
-export {
-  createMemoryRetrievalTool,
-  embedMessage,
-  embedAllMessages,
-  generateEmbedding,
-  generateEmbeddings,
-  // Chunking functions for sub-message semantic search
-  chunkAndEmbedMessage,
-  chunkAndEmbedAllMessages,
-  chunkText,
-  shouldChunkMessage,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_CHUNK_OVERLAP,
-  DEFAULT_MIN_CHUNK_SIZE,
-} from "../lib/memoryRetrieval";
 export type {
-  MemoryRetrievalSearchOptions,
-  MemoryRetrievalResult,
-  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
   ChunkingOptions,
+  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+  MemoryRetrievalResult,
+  MemoryRetrievalSearchOptions,
   TextChunk,
 } from "../lib/memoryRetrieval";
-
 export {
-  formatMemoriesForChat,
-  createMemoryContextSystemMessage,
-  extractConversationContext,
-} from "../lib/memory/chat";
+  chunkAndEmbedAllMessages,
+  // Chunking functions for sub-message semantic search
+  chunkAndEmbedMessage,
+  chunkText,
+  createMemoryRetrievalTool,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CHUNK_SIZE,
+  embedAllMessages,
+  embedMessage,
+  generateEmbedding,
+  generateEmbeddings,
+  shouldChunkMessage,
+} from "../lib/memoryRetrieval";
 
 // Server-side tools caching utilities
-export {
-  clearServerToolsCache,
-  getServerTools,
-  getCachedServerTools,
-  getToolsChecksum,
-  shouldRefreshTools,
-  findMatchingTools,
-  DEFAULT_CACHE_EXPIRATION_MS,
-} from "../lib/tools";
+export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";
+export type { GoogleDriveExportResult, GoogleDriveImportResult } from "../lib/backup/google/backup";
 export type {
-  ServerToolsOptions,
   CachedServerTools,
-  ServerToolsResponse,
   ParsedServerToolsResponse,
   ServerTool,
-  ToolMatchResult,
+  ServerToolsOptions,
+  ServerToolsResponse,
   ToolMatchOptions,
+  ToolMatchResult,
 } from "../lib/tools";
-export { useTools } from "./useTools";
-export type { UseToolsOptions, UseToolsResult } from "./useTools";
-
-export { useDropboxBackup, DEFAULT_BACKUP_FOLDER } from "./useDropboxBackup";
-export type {
-  UseDropboxBackupOptions,
-  UseDropboxBackupResult,
-} from "./useDropboxBackup";
-export type {
-  DropboxExportResult,
-  DropboxImportResult,
-} from "../lib/backup/dropbox/backup";
-
 export {
-  DropboxAuthProvider,
-  useDropboxAuth,
+  clearServerToolsCache,
+  DEFAULT_CACHE_EXPIRATION_MS,
+  findMatchingTools,
+  getCachedServerTools,
+  getServerTools,
+  getToolsChecksum,
+  shouldRefreshTools,
+} from "../lib/tools";
+export type { DropboxAuthContextValue, DropboxAuthProviderProps } from "./useDropboxAuth";
+export {
   clearToken as clearDropboxToken,
+  DropboxAuthProvider,
   hasDropboxCredentials,
+  useDropboxAuth,
 } from "./useDropboxAuth";
+export type { UseDropboxBackupOptions, UseDropboxBackupResult } from "./useDropboxBackup";
+export { DEFAULT_BACKUP_FOLDER, useDropboxBackup } from "./useDropboxBackup";
 export type {
-  DropboxAuthProviderProps,
-  DropboxAuthContextValue,
-} from "./useDropboxAuth";
-
-export {
-  GoogleDriveAuthProvider,
-  useGoogleDriveAuth,
-  getGoogleDriveStoredToken,
-  clearGoogleDriveToken,
-  hasGoogleDriveCredentials,
-} from "./useGoogleDriveAuth";
-export type {
-  GoogleDriveAuthProviderProps,
   GoogleDriveAuthContextValue,
+  GoogleDriveAuthProviderProps,
 } from "./useGoogleDriveAuth";
-
 export {
-  useGoogleDriveBackup,
-  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
-  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
-} from "./useGoogleDriveBackup";
+  clearGoogleDriveToken,
+  getGoogleDriveStoredToken,
+  GoogleDriveAuthProvider,
+  hasGoogleDriveCredentials,
+  useGoogleDriveAuth,
+} from "./useGoogleDriveAuth";
 export type {
   UseGoogleDriveBackupOptions,
   UseGoogleDriveBackupResult,
 } from "./useGoogleDriveBackup";
-export type {
-  GoogleDriveExportResult,
-  GoogleDriveImportResult,
-} from "../lib/backup/google/backup";
+export {
+  DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
+  useGoogleDriveBackup,
+} from "./useGoogleDriveBackup";
+export type { UseToolsOptions, UseToolsResult } from "./useTools";
+export { useTools } from "./useTools";
 
 // iCloud backup
+export type { ICloudExportResult, ICloudImportResult } from "../lib/backup/icloud/backup";
+export type { ICloudAuthContextValue, ICloudAuthProviderProps } from "./useICloudAuth";
 export {
+  clearICloudAuth,
+  hasICloudCredentials,
   ICloudAuthProvider,
   useICloudAuth,
-  hasICloudCredentials,
-  clearICloudAuth,
 } from "./useICloudAuth";
-export type {
-  ICloudAuthProviderProps,
-  ICloudAuthContextValue,
-} from "./useICloudAuth";
-
-export {
-  useICloudBackup,
-  DEFAULT_ICLOUD_BACKUP_FOLDER,
-} from "./useICloudBackup";
-export type {
-  UseICloudBackupOptions,
-  UseICloudBackupResult,
-} from "./useICloudBackup";
-export type {
-  ICloudExportResult,
-  ICloudImportResult,
-} from "../lib/backup/icloud/backup";
+export type { UseICloudBackupOptions, UseICloudBackupResult } from "./useICloudBackup";
+export { DEFAULT_ICLOUD_BACKUP_FOLDER, useICloudBackup } from "./useICloudBackup";
 
 // Unified backup providers and hooks
-export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 export type {
-  BackupAuthProviderProps,
-  BackupAuthContextValue,
-  ProviderAuthState,
-} from "./useBackupAuth";
-
-export {
-  useBackup,
-  DEFAULT_DROPBOX_FOLDER,
-  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
-  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
-  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
-} from "./useBackup";
-export type {
-  UseBackupOptions,
-  UseBackupResult,
-  ProviderBackupState,
   BackupOperationOptions,
   ProgressCallback,
+  ProviderBackupState,
+  UseBackupOptions,
+  UseBackupResult,
 } from "./useBackup";
+export {
+  DEFAULT_DRIVE_CONVERSATIONS_FOLDER as BACKUP_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_DRIVE_ROOT_FOLDER as BACKUP_DRIVE_ROOT_FOLDER,
+  DEFAULT_ICLOUD_FOLDER as BACKUP_ICLOUD_FOLDER,
+  DEFAULT_DROPBOX_FOLDER,
+  useBackup,
+} from "./useBackup";
+export type {
+  BackupAuthContextValue,
+  BackupAuthProviderProps,
+  ProviderAuthState,
+} from "./useBackupAuth";
+export { BackupAuthProvider, useBackupAuth } from "./useBackupAuth";
 
 // Google Calendar Auth (with calendar scopes for full calendar access)
 export {
-  startCalendarAuth,
-  handleCalendarCallback,
-  isCalendarCallback,
-  getValidCalendarToken,
+  clearCalendarToken,
+  getAndClearCalendarPendingMessage,
+  getAndClearCalendarReturnUrl,
   getCalendarAccessToken,
+  getValidCalendarToken,
+  handleCalendarCallback,
+  hasCalendarCredentials,
+  isCalendarCallback,
   refreshCalendarToken,
   revokeCalendarToken,
-  clearCalendarToken,
-  storeCalendarToken,
-  hasCalendarCredentials,
-  storeCalendarReturnUrl,
-  getAndClearCalendarReturnUrl,
+  startCalendarAuth,
   storeCalendarPendingMessage,
-  getAndClearCalendarPendingMessage,
+  storeCalendarReturnUrl,
+  storeCalendarToken,
 } from "../lib/auth/google-calendar";
 
 // Google Drive Auth (with drive.readonly scope for full read access)
 // Note: This is different from GoogleDriveAuthProvider which uses drive.file scope
 export {
-  startDriveAuth,
-  handleDriveCallback,
-  isDriveCallback,
-  getValidDriveToken,
+  clearDriveToken,
+  getAndClearDrivePendingMessage,
+  getAndClearDriveReturnUrl,
   getDriveAccessToken,
+  getValidDriveToken,
+  handleDriveCallback,
+  hasDriveCredentials,
+  isDriveCallback,
   refreshDriveToken,
   revokeDriveToken,
-  clearDriveToken,
-  storeDriveToken,
-  hasDriveCredentials,
-  storeDriveReturnUrl,
-  getAndClearDriveReturnUrl,
+  startDriveAuth,
   storeDrivePendingMessage,
-  getAndClearDrivePendingMessage,
+  storeDriveReturnUrl,
+  storeDriveToken,
 } from "../lib/auth/google-drive";
+
+// Notion MCP Auth (with PKCE - fully client-side, no backend needed)
+export {
+  clearNotionToken,
+  getAndClearNotionPendingMessage,
+  getAndClearNotionReturnUrl,
+  getNotionAccessToken,
+  getNotionMCPUrl,
+  getValidNotionToken,
+  handleNotionCallback,
+  hasNotionCredentials,
+  isNotionCallback,
+  migrateNotionClientRegistration,
+  migrateNotionToken,
+  refreshNotionToken,
+  revokeNotionAccess,
+  startNotionAuth,
+  storeNotionPendingMessage,
+  storeNotionReturnUrl,
+} from "../lib/auth/notion";

@@ -2,7 +2,7 @@
 
 > **getApiV1Tools**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ToolsResponses`](../type-aliases/GetApiV1ToolsResponses.md), [`GetApiV1ToolsErrors`](../type-aliases/GetApiV1ToolsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:442](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L442)
+Defined in: [src/client/sdk.gen.ts:466](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L466)
 
 List available tools
 

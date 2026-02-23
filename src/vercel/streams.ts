@@ -15,9 +15,7 @@ type AssistantStreamEvent =
  * @param text The assistant response text returned by the Portal API.
  * @returns A stream ready to be passed to `createUIMessageStreamResponse`.
  */
-export function createAssistantStream(
-  text: string
-): ReadableStream<AssistantStreamEvent> {
+export function createAssistantStream(text: string): ReadableStream<AssistantStreamEvent> {
   const messageId = crypto.randomUUID();
 
   return new ReadableStream({
@@ -53,9 +51,7 @@ export function createAssistantStream(
  * @param errorText A human-readable error message to display in the UI.
  * @returns A stream that, when consumed, immediately emits the error event.
  */
-export function createErrorStream(
-  errorText: string
-): ReadableStream<AssistantStreamEvent> {
+export function createErrorStream(errorText: string): ReadableStream<AssistantStreamEvent> {
   return new ReadableStream({
     start(controller) {
       controller.enqueue({

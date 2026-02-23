@@ -2,7 +2,7 @@
 
 > **LlmapiModelPerRequestLimits** = `object`
 
-Defined in: [src/client/types.gen.ts:812](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L812)
+Defined in: [src/client/types.gen.ts:871](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L871)
 
 PerRequestLimits contains rate limiting information
 
@@ -12,7 +12,7 @@ PerRequestLimits contains rate limiting information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:813](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L813)
+Defined in: [src/client/types.gen.ts:872](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L872)
 
 ***
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:813](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:814](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L814)
+Defined in: [src/client/types.gen.ts:873](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L873)

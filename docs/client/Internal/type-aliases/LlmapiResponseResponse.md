@@ -2,15 +2,25 @@
 
 > **LlmapiResponseResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1014](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1014)
+Defined in: [src/client/types.gen.ts:1078](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1078)
 
 ## Properties
+
+### client\_injected\_tools?
+
+> `optional` **client\_injected\_tools**: `string`\[]
+
+Defined in: [src/client/types.gen.ts:1082](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1082)
+
+ClientInjectedTools are tool names the client provided in the original request.
+
+***
 
 ### created\_at?
 
 > `optional` **created\_at**: `number`
 
-Defined in: [src/client/types.gen.ts:1018](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1018)
+Defined in: [src/client/types.gen.ts:1086](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1086)
 
 Created is the Unix timestamp of creation (created\_at in OpenAI format)
 
@@ -20,7 +30,7 @@ Created is the Unix timestamp of creation (created\_at in OpenAI format)
 
 > `optional` **extra\_fields**: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:1019](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1019)
+Defined in: [src/client/types.gen.ts:1087](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1087)
 
 ***
 
@@ -28,7 +38,7 @@ Defined in: [src/client/types.gen.ts:1019](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1023](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1023)
+Defined in: [src/client/types.gen.ts:1091](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1091)
 
 ID is the unique response identifier
 
@@ -38,7 +48,7 @@ ID is the unique response identifier
 
 > `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:1030](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1030)
+Defined in: [src/client/types.gen.ts:1098](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1098)
 
 Messages contains the full conversation history when local tools need execution.
 This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -51,7 +61,7 @@ plus the tool results appended.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:1034](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1034)
+Defined in: [src/client/types.gen.ts:1102](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1102)
 
 Model is the model used for generation
 
@@ -61,7 +71,7 @@ Model is the model used for generation
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:1038](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1038)
+Defined in: [src/client/types.gen.ts:1106](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1106)
 
 Object is the response type (e.g., "response")
 
@@ -71,9 +81,19 @@ Object is the response type (e.g., "response")
 
 > `optional` **output**: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:1042](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1042)
+Defined in: [src/client/types.gen.ts:1110](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1110)
 
 Output is the array of output items (OpenAI Responses API format)
+
+***
+
+### portal\_injected\_tools?
+
+> `optional` **portal\_injected\_tools**: `string`\[]
+
+Defined in: [src/client/types.gen.ts:1114](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1114)
+
+PortalInjectedTools are tool names the portal's classifier added to the request.
 
 ***
 
@@ -81,7 +101,7 @@ Output is the array of output items (OpenAI Responses API format)
 
 > `optional` **tool\_call\_events**: [`LlmapiToolCallEvent`](LlmapiToolCallEvent.md)\[]
 
-Defined in: [src/client/types.gen.ts:1046](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1046)
+Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1118)
 
 ToolCallEvents is an array of tool call events.
 
@@ -91,7 +111,7 @@ ToolCallEvents is an array of tool call events.
 
 > `optional` **tools\_checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:1050](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1050)
+Defined in: [src/client/types.gen.ts:1122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1122)
 
 ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
@@ -101,4 +121,4 @@ ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
 > `optional` **usage**: [`LlmapiResponseUsage`](LlmapiResponseUsage.md)
 
-Defined in: [src/client/types.gen.ts:1051](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1051)
+Defined in: [src/client/types.gen.ts:1123](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1123)

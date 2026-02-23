@@ -87,119 +87,101 @@
  * @module
  */
 
+export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
+export { useCredits } from "../react/useCredits";
+export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
+export { useModels } from "../react/useModels";
 export { useChat } from "./useChat";
-export { useChatStorage } from "./useChatStorage";
 export type {
-  UseChatStorageOptions,
-  UseChatStorageResult,
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
+  UseChatStorageOptions,
+  UseChatStorageResult,
 } from "./useChatStorage";
-export { useModels } from "../react/useModels";
-export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
-export { useCredits } from "../react/useCredits";
-export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
+export { useChatStorage } from "./useChatStorage";
 
 // Encryption and queue
+export type { FlushResult, QueueStatus } from "../lib/db/queue";
+export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
+export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 export {
-  useEncryption,
-  requestEncryptionKey,
-  hasEncryptionKey,
-  clearEncryptionKey,
   clearAllEncryptionKeys,
+  clearEncryptionKey,
+  hasEncryptionKey,
   onKeyAvailable,
+  requestEncryptionKey,
+  useEncryption,
 } from "../react/useEncryption";
-export type {
-  SignMessageFn,
-  EmbeddedWalletSignerFn,
-} from "../react/useEncryption";
-export { queueManager, QueueManager, WalletPoller } from "../lib/db/queue";
-export type {
-  QueueStatus,
-  FlushResult,
-} from "../lib/db/queue";
-
-// Memory storage hooks
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
 
 // Consolidated SDK schema exports (recommended)
-export {
-  sdkSchema,
-  sdkMigrations,
-  sdkModelClasses,
-  SDK_SCHEMA_VERSION,
-} from "../lib/db/schema";
+export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "../lib/db/schema";
 
 // Database manager for per-wallet isolation
-export { DatabaseManager } from "../lib/db/manager";
 export type {
-  PlatformStorage,
-  DatabaseManagerOptions,
   DatabaseManagerLogger,
+  DatabaseManagerOptions,
+  PlatformStorage,
 } from "../lib/db/manager";
+export { DatabaseManager } from "../lib/db/manager";
 
 // Re-export chat storage schema and types for database setup
 export {
-  /** @deprecated Use sdkSchema instead */
-  chatStorageSchema,
+  Conversation as ChatConversation,
+  Message as ChatMessage,
+  type ChatRole,
   /** @deprecated Use sdkMigrations instead */
   chatStorageMigrations,
-  Message as ChatMessage,
-  Conversation as ChatConversation,
-  type ChatRole,
+  /** @deprecated Use sdkSchema instead */
+  chatStorageSchema,
+  type CreateConversationOptions,
+  type CreateMessageOptions,
   type FileMetadata,
-  type ChatCompletionUsage as StoredChatCompletionUsage,
+  generateConversationId,
   type SearchSource,
+  type ChatCompletionUsage as StoredChatCompletionUsage,
+  type StoredConversation,
   type StoredMessage,
   type StoredMessageWithSimilarity,
-  type StoredConversation,
-  type CreateMessageOptions,
-  type CreateConversationOptions,
-  generateConversationId,
 } from "../lib/db/chat";
 
-// Re-export memory storage schema and types for database setup
+// Memory vault
 export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
+  createVaultMemoryOp,
+  type CreateVaultMemoryOptions,
+  deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getVaultMemoryOp,
+  type StoredVaultMemory,
+  VaultMemory as StoredVaultMemoryModel,
+  updateVaultMemoryOp,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  type MemoryVaultToolOptions,
+  type VaultSaveOperation,
+} from "../lib/memoryVault";
 
 // Server-side tools caching utilities
+export type { CachedServerTools, ServerToolsOptions, ServerToolsResponse } from "../lib/tools";
 export {
   clearServerToolsCache,
-  getServerTools,
-  getCachedServerTools,
   DEFAULT_CACHE_EXPIRATION_MS,
-} from "../lib/tools";
-export type {
-  ServerToolsOptions,
-  CachedServerTools,
-  ServerToolsResponse,
+  getCachedServerTools,
+  getServerTools,
 } from "../lib/tools";
 
 // Memory retrieval (semantic search over past messages)
+export type {
+  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
+  MemoryRetrievalResult,
+  MemoryRetrievalSearchOptions,
+} from "../lib/memoryRetrieval";
 export {
   createMemoryRetrievalTool,
-  embedMessage,
   embedAllMessages,
+  embedMessage,
   generateEmbedding,
   generateEmbeddings,
-} from "../lib/memoryRetrieval";
-export type {
-  MemoryRetrievalSearchOptions,
-  MemoryRetrievalResult,
-  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
 } from "../lib/memoryRetrieval";

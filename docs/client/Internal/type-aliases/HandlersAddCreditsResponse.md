@@ -32,31 +32,11 @@ Defined in: [src/client/types.gen.ts:54](https://github.com/zeta-chain/ai-sdk/bl
 
 ***
 
-### new\_cost\_limit?
-
-> `optional` **new\_cost\_limit**: `string`
-
-Defined in: [src/client/types.gen.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L58)
-
-New cost limit in credits (from contract)
-
-***
-
 ### success?
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L59)
-
-***
-
-### tx\_hash?
-
-> `optional` **tx\_hash**: `string`
-
-Defined in: [src/client/types.gen.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L63)
-
-Transaction hash if on-chain
+Defined in: [src/client/types.gen.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L55)
 
 ***
 
@@ -64,4 +44,4 @@ Transaction hash if on-chain
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L64)
+Defined in: [src/client/types.gen.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L56)

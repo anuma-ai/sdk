@@ -1,0 +1,108 @@
+name: Detect API Changes
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-report:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Find merge base
+        id: merge-base
+        run: echo "sha=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Build baseline from merge base
+        run: |
+          git checkout ${{ steps.merge-base.outputs.sha }}
+          pnpm install
+          pnpm build
+          pnpm api-report:update
+          cp -r etc/ /tmp/old-api-reports/
+
+      - name: Checkout PR branch
+        run: git checkout ${{ github.head_ref }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build PR branch
+        run: pnpm build
+
+      - name: Generate API reports for PR
+        run: pnpm api-report:update
+
+      - name: Generate API diff summary
+        id: diff
+        run: |
+          node scripts/api-diff.mjs /tmp/old-api-reports etc > /tmp/api-summary.md
+          if [ -s /tmp/api-summary.md ]; then
+            echo "api_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update PR label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create api-changes --color e11d48 --description "PR changes the public API surface" 2>/dev/null || true
+          if [ "${{ steps.diff.outputs.api_changed }}" == "true" ]; then
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "api-changes"
+          else
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "api-changes" 2>/dev/null || true
+          fi
+
+      - name: Comment API changes
+        if: steps.diff.outputs.api_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "<!-- api-report -->"
+            echo "### API Changes"
+            echo ""
+            cat /tmp/api-summary.md
+          } > /tmp/api-comment.md
+
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- api-report -->")) | .id' | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/api-comment.md
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/api-comment.md
+          fi
+
+      - name: Remove API changes comment
+        if: steps.diff.outputs.api_changed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- api-report -->")) | .id' | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X DELETE
+          fi

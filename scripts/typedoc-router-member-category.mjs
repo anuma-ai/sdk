@@ -55,7 +55,7 @@ class MemberCategoryRouter extends MemberRouter {
   getReflectionDirectory(reflection) {
     // Safety check: ensure we have a valid reflection
     if (!reflection || !reflection.kind) {
-      console.warn('[MemberCategoryRouter] Invalid reflection passed to getReflectionDirectory');
+      console.warn("[MemberCategoryRouter] Invalid reflection passed to getReflectionDirectory");
       return "";
     }
 
@@ -64,7 +64,9 @@ class MemberCategoryRouter extends MemberRouter {
 
     // If no kindDir mapping exists, skip this reflection
     if (!kindDir) {
-      console.warn(`[MemberCategoryRouter] No directory mapping for kind ${reflection.kind}: ${reflection.name}`);
+      console.warn(
+        `[MemberCategoryRouter] No directory mapping for kind ${reflection.kind}: ${reflection.name}`
+      );
       return "";
     }
 
@@ -72,20 +74,14 @@ class MemberCategoryRouter extends MemberRouter {
 
     if (reflection.parent) {
       if (reflection.parent.kind === ReflectionKind.Namespace) {
-        return `${this.getIdealBaseName(reflection.parent).replace(
-          /\/[^/]+$/,
-          ""
-        )}/${dir}`;
+        return `${this.getIdealBaseName(reflection.parent).replace(/\/[^/]+$/, "")}/${dir}`;
       }
 
       if (reflection.parent.kind === ReflectionKind.Module) {
         if (this.entryModule && reflection.parent.name === this.entryModule) {
           return `${this.getReflectionAlias(reflection.parent)}/${dir}`;
         }
-        return `${this.getIdealBaseName(reflection.parent).replace(
-          /\/[^/]+$/,
-          ""
-        )}/${dir}`;
+        return `${this.getIdealBaseName(reflection.parent).replace(/\/[^/]+$/, "")}/${dir}`;
       }
 
       if (reflection.parent.kind === ReflectionKind.Project) {

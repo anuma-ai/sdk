@@ -2,7 +2,7 @@
 
 > **LlmapiToolCallEvent** = `object`
 
-Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1118)
+Defined in: [src/client/types.gen.ts:1198](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1198)
 
 ## Properties
 
@@ -10,7 +10,15 @@ Defined in: [src/client/types.gen.ts:1118](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **arguments**: `string`
 
-Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1119)
+Defined in: [src/client/types.gen.ts:1199](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1199)
+
+***
+
+### cost\_micro\_usd?
+
+> `optional` **cost\_micro\_usd**: `number`
+
+Defined in: [src/client/types.gen.ts:1200](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1200)
 
 ***
 
@@ -18,7 +26,7 @@ Defined in: [src/client/types.gen.ts:1119](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1120)
+Defined in: [src/client/types.gen.ts:1201](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1201)
 
 ***
 
@@ -26,7 +34,7 @@ Defined in: [src/client/types.gen.ts:1120](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:1121](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1121)
+Defined in: [src/client/types.gen.ts:1202](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1202)
 
 ***
 
@@ -34,4 +42,4 @@ Defined in: [src/client/types.gen.ts:1121](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **output**: `string`
 
-Defined in: [src/client/types.gen.ts:1122](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1122)
+Defined in: [src/client/types.gen.ts:1203](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1203)

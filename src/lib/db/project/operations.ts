@@ -1,16 +1,16 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
 
-import { Project } from "./models";
 import { Conversation } from "../chat/models";
-import {
-  type StoredProject,
-  type CreateProjectOptions,
-  type UpdateProjectOptions,
-  generateProjectId,
-} from "./types";
-import type { StoredConversation } from "../chat/types";
 import { conversationToStoredRaw } from "../chat/operations";
+import type { StoredConversation } from "../chat/types";
+import { Project } from "./models";
+import {
+  type CreateProjectOptions,
+  generateProjectId,
+  type StoredProject,
+  type UpdateProjectOptions,
+} from "./types";
 
 export function projectToStored(project: Project): StoredProject {
   return {
@@ -68,9 +68,7 @@ export async function getProjectOp(
 /**
  * Get all non-deleted projects, sorted by creation date (newest first).
  */
-export async function getProjectsOp(
-  ctx: ProjectOperationsContext
-): Promise<StoredProject[]> {
+export async function getProjectsOp(ctx: ProjectOperationsContext): Promise<StoredProject[]> {
   const results = await ctx.projectsCollection
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
     .fetch();
@@ -127,10 +125,7 @@ export async function updateProjectOp(
 /**
  * Soft delete a project. Does not delete associated conversations.
  */
-export async function deleteProjectOp(
-  ctx: ProjectOperationsContext,
-  id: string
-): Promise<boolean> {
+export async function deleteProjectOp(ctx: ProjectOperationsContext, id: string): Promise<boolean> {
   const results = await ctx.projectsCollection
     .query(Q.where("project_id", id), Q.where("is_deleted", false))
     .fetch();

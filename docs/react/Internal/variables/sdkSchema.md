@@ -2,7 +2,7 @@
 
 > `const` **sdkSchema**: `Readonly`<{ `tables`: `TableMap`; `unsafeSql?`: (`_`: `string`, `__`: `AppSchemaUnsafeSqlKind`) => `string`; `version`: `number`; }>
 
-Defined in: [src/lib/db/schema.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L65)
+Defined in: [src/lib/db/schema.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L70)
 
 Combined WatermelonDB schema for all SDK storage modules.
 
@@ -10,7 +10,7 @@ This unified schema includes all tables needed by the SDK:
 
 * `history`: Chat message storage with embeddings and metadata
 * `conversations`: Conversation metadata and organization
-* `memories`: Persistent memory storage with semantic search
+* `memory_vault`: Persistent memory vault for curated facts
 * `modelPreferences`: User model preferences (deprecated, use userPreferences)
 * `userPreferences`: Unified user preferences (profile, personality, models)
 

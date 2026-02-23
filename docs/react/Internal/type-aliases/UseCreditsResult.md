@@ -2,7 +2,7 @@
 
 > **UseCreditsResult** = `object`
 
-Defined in: [src/react/useCredits.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L39)
+Defined in: [src/react/useCredits.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L40)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useCredits.ts:39](https://github.com/zeta-chain/ai-sdk/bl
 
 > **balance**: [`HandlersCreditBalanceResponse`](../../../client/Internal/type-aliases/HandlersCreditBalanceResponse.md) | `null`
 
-Defined in: [src/react/useCredits.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L43)
+Defined in: [src/react/useCredits.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L44)
 
 Current credit balance and related info
 
@@ -20,7 +20,7 @@ Current credit balance and related info
 
 > **claimDailyCredits**: () => `Promise`<[`HandlersClaimDailyCreditsResponse`](../../../client/Internal/type-aliases/HandlersClaimDailyCreditsResponse.md) | `null`>
 
-Defined in: [src/react/useCredits.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L68)
+Defined in: [src/react/useCredits.ts:69](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L69)
 
 Claim free daily credits (once per 24 hours)
 
@@ -36,7 +36,7 @@ The claim response or null on error
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useCredits.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L55)
+Defined in: [src/react/useCredits.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L56)
 
 Error from the last operation
 
@@ -46,7 +46,7 @@ Error from the last operation
 
 > **fetchPacks**: () => `Promise`<`void`>
 
-Defined in: [src/react/useCredits.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L63)
+Defined in: [src/react/useCredits.ts:64](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L64)
 
 Fetch available credit packs
 
@@ -60,7 +60,7 @@ Fetch available credit packs
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useCredits.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L51)
+Defined in: [src/react/useCredits.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L52)
 
 Whether any operation is in progress
 
@@ -70,7 +70,7 @@ Whether any operation is in progress
 
 > **packs**: [`HandlersCreditPack`](../../../client/Internal/type-aliases/HandlersCreditPack.md)\[]
 
-Defined in: [src/react/useCredits.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L47)
+Defined in: [src/react/useCredits.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L48)
 
 Available credit packs for purchase
 
@@ -80,7 +80,7 @@ Available credit packs for purchase
 
 > **purchaseCredits**: (`credits`: `number`, `options?`: `object`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useCredits.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L74)
+Defined in: [src/react/useCredits.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L75)
 
 Create a Stripe checkout session for purchasing a credit pack
 
@@ -178,7 +178,7 @@ The checkout URL or null on error
 
 > **refetch**: () => `Promise`<`void`>
 
-Defined in: [src/react/useCredits.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L59)
+Defined in: [src/react/useCredits.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L60)
 
 Refetch the credit balance
 

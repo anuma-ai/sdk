@@ -39,10 +39,12 @@ describe("StreamSmoother", () => {
 
     it("releases text incrementally over time", () => {
       const received: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => received.push(text),
-        { enabled: true, minSpeed: 100, maxSpeed: 100, rampDuration: 0 }
-      );
+      const smoother = new StreamSmoother((text) => received.push(text), {
+        enabled: true,
+        minSpeed: 100,
+        maxSpeed: 100,
+        rampDuration: 0,
+      });
 
       // Push 100 chars — at 100 chars/sec with 16ms ticks, each tick releases ~2 chars
       const text = "a".repeat(100);
@@ -67,10 +69,12 @@ describe("StreamSmoother", () => {
 
     it("handles multiple rapid pushes", () => {
       const received: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => received.push(text),
-        { enabled: true, minSpeed: 50, maxSpeed: 200, rampDuration: 1000 }
-      );
+      const smoother = new StreamSmoother((text) => received.push(text), {
+        enabled: true,
+        minSpeed: 50,
+        maxSpeed: 200,
+        rampDuration: 1000,
+      });
 
       smoother.push("Hello ");
       smoother.push("world ");
@@ -89,10 +93,12 @@ describe("StreamSmoother", () => {
   describe("flush", () => {
     it("releases all remaining buffer immediately", () => {
       const received: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => received.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 10, rampDuration: 0 }
-      );
+      const smoother = new StreamSmoother((text) => received.push(text), {
+        enabled: true,
+        minSpeed: 10,
+        maxSpeed: 10,
+        rampDuration: 0,
+      });
 
       const text = "a".repeat(1000);
       smoother.push(text);
@@ -168,10 +174,12 @@ describe("StreamSmoother", () => {
       const smallBuffer = "a".repeat(40);
 
       // Early smoother — measure output in first 100ms
-      const earlySmoother = new StreamSmoother(
-        (text) => earlyChunks.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 1000, rampDuration: 2000 }
-      );
+      const earlySmoother = new StreamSmoother((text) => earlyChunks.push(text), {
+        enabled: true,
+        minSpeed: 10,
+        maxSpeed: 1000,
+        rampDuration: 2000,
+      });
 
       earlySmoother.push(smallBuffer);
       // Collect first 100ms of output
@@ -180,10 +188,12 @@ describe("StreamSmoother", () => {
       earlySmoother.destroy();
 
       // Late smoother — skip to 2s into ramp, then measure 100ms
-      const lateSmoother = new StreamSmoother(
-        (text) => lateChunks.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 1000, rampDuration: 2000 }
-      );
+      const lateSmoother = new StreamSmoother((text) => lateChunks.push(text), {
+        enabled: true,
+        minSpeed: 10,
+        maxSpeed: 1000,
+        rampDuration: 2000,
+      });
 
       // Keep feeding small chunks to simulate streaming without large buffer
       lateSmoother.push(smallBuffer);
@@ -199,28 +209,6 @@ describe("StreamSmoother", () => {
       // At max speed (1000 chars/sec), 100ms should produce ~100 chars (but capped by buffer)
       // At min speed (10 chars/sec), 100ms should produce ~1 char
       expect(lateTotal).toBeGreaterThan(earlyTotal);
-    });
-
-    it("boosts speed when buffer grows large", () => {
-      const chunks: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => chunks.push(text),
-        { enabled: true, minSpeed: 10, maxSpeed: 100, rampDuration: 2000 }
-      );
-
-      // Push a large buffer that exceeds threshold (50 chars)
-      smoother.push("a".repeat(500));
-
-      // Even at start of ramp, large buffer should boost speed significantly
-      // Without boost: 10 chars/sec * 0.1s = 1 char
-      // With boost for 450 excess chars: (450/500)*1000 = 900 chars/sec extra
-      vi.advanceTimersByTime(100);
-      const total = chunks.join("").length;
-
-      // Should have released much more than the base 1 char
-      expect(total).toBeGreaterThan(50);
-
-      smoother.destroy();
     });
   });
 
@@ -240,10 +228,12 @@ describe("StreamSmoother", () => {
   describe("slow model passthrough", () => {
     it("adds minimal latency for slow streams", () => {
       const received: string[] = [];
-      const smoother = new StreamSmoother(
-        (text) => received.push(text),
-        { enabled: true, minSpeed: 30, maxSpeed: 200, rampDuration: 3000 }
-      );
+      const smoother = new StreamSmoother((text) => received.push(text), {
+        enabled: true,
+        minSpeed: 30,
+        maxSpeed: 200,
+        rampDuration: 3000,
+      });
 
       // Simulate slow model: push 1 char, wait 100ms, push 1 char, etc.
       smoother.push("H");
@@ -300,10 +290,12 @@ describe("constructor config handling", () => {
 
   it("accepts config object", () => {
     const received: string[] = [];
-    const smoother = new StreamSmoother(
-      (text) => received.push(text),
-      { enabled: true, minSpeed: 100, maxSpeed: 100, rampDuration: 0 }
-    );
+    const smoother = new StreamSmoother((text) => received.push(text), {
+      enabled: true,
+      minSpeed: 100,
+      maxSpeed: 100,
+      rampDuration: 0,
+    });
 
     smoother.push("a".repeat(100));
     vi.advanceTimersByTime(2000);

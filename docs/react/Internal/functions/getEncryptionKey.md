@@ -2,10 +2,11 @@
 
 > **getEncryptionKey**(`address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`CryptoKey`>
 
-Defined in: [src/react/useEncryption.ts:410](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L410)
+Defined in: [src/react/useEncryption.ts:405](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L405)
 
 Gets the encryption key from in-memory storage and imports it as a CryptoKey.
 The key must have been previously requested via requestEncryptionKey.
+Uses a cache to avoid re-importing the same key on every call.
 
 ## Parameters
 

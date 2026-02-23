@@ -30,7 +30,7 @@ Max file size to process in bytes (default: 10MB)
 
 > `optional` **onError**: (`fileName`: `string`, `error`: `Error`) => `void`
 
-Defined in: [src/lib/processors/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L74)
+Defined in: [src/lib/processors/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L77)
 
 Callback for errors (non-fatal)
 
@@ -81,7 +81,7 @@ Callback for errors (non-fatal)
 
 > `optional` **onProgress**: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
 
-Defined in: [src/lib/processors/types.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L71)
+Defined in: [src/lib/processors/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L74)
 
 Callback for progress updates
 
@@ -151,3 +151,13 @@ Processors to use.
 * undefined (default): Use all built-in processors
 * null or \[]: Disable preprocessing
 * FileProcessor\[]: Use specific processors
+
+***
+
+### timeoutMs?
+
+> `optional` **timeoutMs**: `number`
+
+Defined in: [src/lib/processors/types.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L71)
+
+Timeout per file in milliseconds (default: 30000). Prevents hangs from slow CDN workers or large files.

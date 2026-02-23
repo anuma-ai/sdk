@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+
 import type { LlmapiMessage } from "../client/types.gen";
 
 /**
@@ -12,16 +13,10 @@ import type { LlmapiMessage } from "../client/types.gen";
  * @param messages The UI layer conversation history received from `createUIMessageStreamResponse`.
  * @returns A clean array of Portal-ready messages, filtered to user, assistant, and system roles.
  */
-export function mapMessagesToCompletionPayload(
-  messages: UIMessage[]
-): LlmapiMessage[] {
+export function mapMessagesToCompletionPayload(messages: UIMessage[]): LlmapiMessage[] {
   return messages
     .map((message) => {
-      if (
-        message.role !== "user" &&
-        message.role !== "assistant" &&
-        message.role !== "system"
-      ) {
+      if (message.role !== "user" && message.role !== "assistant" && message.role !== "system") {
         return null;
       }
 
