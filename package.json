@@ -69,7 +69,8 @@
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
     "api-report": "node scripts/api-extractor-run.mjs",
-    "api-report:update": "node scripts/api-extractor-run.mjs --local"
+    "api-report:update": "node scripts/api-extractor-run.mjs --local",
+    "knip": "knip"
   },
   "repository": {
     "type": "git",
@@ -102,6 +103,7 @@
     "@types/react": "^19.2.6",
     "dotenv": "^17.2.3",
     "happy-dom": "^20.0.11",
+    "knip": "^5.85.0",
     "playwright": "^1.57.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
