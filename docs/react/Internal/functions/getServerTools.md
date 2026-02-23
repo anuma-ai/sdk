@@ -2,7 +2,7 @@
 
 > **getServerTools**(`options`: [`ServerToolsOptions`](../interfaces/ServerToolsOptions.md)): `Promise`<[`ServerTool`](../interfaces/ServerTool.md)\[]>
 
-Defined in: [src/lib/tools/serverTools.ts:368](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L368)
+Defined in: [src/lib/tools/serverTools.ts:361](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L361)
 
 Get server tools with caching support.
 
