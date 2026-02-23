@@ -49,10 +49,13 @@ jobs:
       - name: Run LongMemEval
         env:
           PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+          EVAL_STRATEGY: ${{ inputs.strategy }}
+          EVAL_VARIANT: ${{ inputs.variant }}
+          EVAL_MAX: ${{ inputs.max }}
         run: |
-          args="--strategy ${{ inputs.strategy }} --variant ${{ inputs.variant }} --json --output results.json"
-          if [ -n "${{ inputs.max }}" ]; then
-            args="$args --max ${{ inputs.max }}"
+          args="--strategy $EVAL_STRATEGY --variant $EVAL_VARIANT --json --output results.json"
+          if [ -n "$EVAL_MAX" ]; then
+            args="$args --max $EVAL_MAX"
           fi
           pnpm eval:longmemeval $args
 
