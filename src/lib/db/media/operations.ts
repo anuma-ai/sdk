@@ -31,7 +31,7 @@ async function tryDeleteFromOPFS(mediaId: string): Promise<void> {
 /**
  * Convert a Media model instance to a StoredMedia object (raw, without decryption).
  */
-export function mediaToStoredRaw(media: Media): StoredMedia {
+function mediaToStoredRaw(media: Media): StoredMedia {
   return {
     id: media.id,
     mediaId: media.mediaId,

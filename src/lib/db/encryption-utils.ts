@@ -3,7 +3,7 @@ import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../react/useEncry
 
 export type { SignMessageFn, EmbeddedWalletSignerFn };
 
-export const ENCRYPTION_PREFIX = "enc:v2:";
+const ENCRYPTION_PREFIX = "enc:v2:";
 
 /**
  * Checks if a string value is encrypted (has the enc:v2: prefix with valid hex payload).
