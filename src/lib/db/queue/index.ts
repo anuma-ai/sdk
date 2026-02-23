@@ -1,4 +1,4 @@
-export { QueueManager, queueManager, topologicalSort } from "./manager";
+export { QueueManager, queueManager } from "./manager";
 export { WalletPoller } from "./walletPoller";
 export type {
   QueuedOperation,

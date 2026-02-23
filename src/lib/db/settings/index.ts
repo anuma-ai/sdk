@@ -9,11 +9,7 @@ export {
 } from "./types";
 export {
   type SettingsStorageOperationsContext,
-  modelPreferenceToStored,
   getModelPreferenceOp,
-  createModelPreferenceOp,
-  updateModelPreferenceOp,
   setModelPreferenceOp,
   deleteModelPreferenceOp,
-  getAllModelPreferencesOp,
 } from "./operations";
