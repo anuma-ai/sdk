@@ -364,7 +364,7 @@ Async function to poll for wallet address during Privy initialization.
 
 > `optional` **mcpR2Domain**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:336](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L336)
+Defined in: [src/lib/db/chat/types.ts:337](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L337)
 
 R2 domain for identifying MCP-generated image URLs.
 When set, enables OPFS caching of generated images.
