@@ -50,7 +50,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      "Renders a chart inline in the chat. Supports bar, line, area, and pie charts. RULES: (1) Call this tool ONCE per request — you cannot update a chart after it renders. (2) When the user provides data in their message, call this tool immediately with that data — do NOT search or verify it. (3) Only search/fetch if the user asks for data you don't have. (4) Do NOT repeat the chart data as text in your response. Just add a brief conversational comment about the chart. Use simple alphanumeric keys without spaces (e.g. 'revenue', 'users', 'q1Sales').",
+      "Renders a chart inline in the chat. Supports bar, line, area, and pie charts. IMPORTANT: Only call this tool when the user EXPLICITLY asks for a chart, graph, plot, or visualization. Never call it proactively or for messages that don't request a chart. RULES: (1) Call this tool ONCE per request — you cannot update a chart after it renders. (2) When the user asks for a chart and provides data in their message, use that data directly — do NOT search or verify it. (3) Only search/fetch data if the user asks for a chart but doesn't provide the data. (4) Do NOT repeat the chart data as text in your response. Just add a brief conversational comment about the chart. Use simple alphanumeric keys without spaces (e.g. 'revenue', 'users', 'q1Sales').",
     parameters: {
       type: "object",
       properties: {
