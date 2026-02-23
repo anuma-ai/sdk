@@ -136,8 +136,8 @@ export class CompletionsStrategy implements ApiStrategy {
       accumulator.toolsChecksum = typedChunk.response.tools_checksum;
     }
 
-    // Capture tool_call_events if present (from server-side MCP tool execution)
-    if (typedChunk.tool_call_events && !accumulator.toolCallEvents) {
+    // Capture tool_call_events if present (skip empty arrays from early chunks)
+    if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
@@ -145,8 +145,8 @@ export class CompletionsStrategy implements ApiStrategy {
         output: event.output || "",
       }));
     }
-    // Also capture from nested response if present
-    if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+    // Also capture from nested response if present (skip empty arrays from early chunks)
+    if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",

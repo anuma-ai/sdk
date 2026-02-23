@@ -85,8 +85,8 @@ export class ResponsesStrategy implements ApiStrategy {
         accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
-      // Capture tool_call_events if present
-      if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+      // Capture tool_call_events if present (skip empty arrays from early chunks)
+      if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
         accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
           id: event.id || "",
           name: event.name || "",
@@ -124,8 +124,8 @@ export class ResponsesStrategy implements ApiStrategy {
     if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.response.tools_checksum;
     }
-    // Capture tool_call_events from top-level if present
-    if (typedChunk.tool_call_events && !accumulator.toolCallEvents) {
+    // Capture tool_call_events from top-level if present (skip empty arrays from early chunks)
+    if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
@@ -133,8 +133,8 @@ export class ResponsesStrategy implements ApiStrategy {
         output: event.output || "",
       }));
     }
-    // Also capture from nested response if present
-    if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+    // Also capture from nested response if present (skip empty arrays from early chunks)
+    if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
