@@ -120,7 +120,7 @@ const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 const CACHE_VERSION = "1.3";
 
 /** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
-export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 
 /**
  * Type guard to check if tool is in new format (has schema property)
