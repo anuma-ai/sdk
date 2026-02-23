@@ -1,0 +1,64 @@
+name: LongMemEval
+
+on:
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: "Retrieval strategy"
+        required: true
+        type: choice
+        options:
+          - both
+          - engine
+          - vault
+      variant:
+        description: "Dataset variant"
+        required: true
+        type: choice
+        default: "oracle"
+        options:
+          - oracle
+          - s
+          - m
+      max:
+        description: "Max questions (blank = all)"
+        required: false
+        type: string
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Preload datasets
+        run: pnpm eval:longmemeval --preload
+
+      - name: Run LongMemEval
+        env:
+          PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+        run: |
+          args="--strategy ${{ inputs.strategy }} --variant ${{ inputs.variant }} --json --output results.json"
+          if [ -n "${{ inputs.max }}" ]; then
+            args="$args --max ${{ inputs.max }}"
+          fi
+          pnpm eval:longmemeval $args
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longmemeval-${{ inputs.strategy }}-${{ inputs.variant }}
+          path: results.json
