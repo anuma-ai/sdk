@@ -85,5 +85,6 @@ jobs:
           if [ "${{ steps.build.outcome }}" == "success" ]; then
             gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaking-starter-app" 2>/dev/null || true
           else
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaking-starter-app"
+            gh label create "breaking-starter-app" --description "PR breaks the starter app build" --color "d93f0b" 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaking-starter-app" || true
           fi
