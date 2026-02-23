@@ -1,12 +1,14 @@
-import type { EmbeddedWalletSignerFn, EncryptionKeyVersion, SignMessageFn } from "../../react/useEncryption";
+import type {
+  EmbeddedWalletSignerFn,
+  EncryptionKeyVersion,
+  SignMessageFn,
+} from "../../react/useEncryption";
 import { decryptData, encryptData, requestEncryptionKey } from "../../react/useEncryption";
 
 export type { EmbeddedWalletSignerFn, SignMessageFn };
 
-/** Legacy prefix for SHA-256 derived key encryption */
-export const ENCRYPTION_PREFIX_V2 = "enc:v2:";
 /** Current prefix for HKDF derived key encryption (default for new writes) */
-export const ENCRYPTION_PREFIX = "enc:v3:";
+const ENCRYPTION_PREFIX = "enc:v3:";
 
 /**
  * Checks if a string value is encrypted (has the enc:v2: or enc:v3: prefix with valid hex payload).
@@ -14,8 +16,11 @@ export const ENCRYPTION_PREFIX = "enc:v3:";
  * (24 chars for 12-byte IV + 32 chars minimum for ciphertext+tag).
  */
 export function isEncrypted(value: string): boolean {
-  const prefix = value.startsWith("enc:v3:") ? "enc:v3:" :
-                 value.startsWith("enc:v2:") ? "enc:v2:" : null;
+  const prefix = value.startsWith("enc:v3:")
+    ? "enc:v3:"
+    : value.startsWith("enc:v2:")
+      ? "enc:v2:"
+      : null;
   if (!prefix) return false;
   const payload = value.slice(prefix.length);
   return payload.length >= 56 && /^[0-9a-f]+$/i.test(payload);
@@ -25,7 +30,9 @@ export function isEncrypted(value: string): boolean {
  * Detects the encryption version from a prefixed value.
  * @returns The version and encrypted data, or null if not encrypted.
  */
-function detectEncryptionVersion(value: string): { version: EncryptionKeyVersion; encryptedData: string } | null {
+function detectEncryptionVersion(
+  value: string
+): { version: EncryptionKeyVersion; encryptedData: string } | null {
   if (value.startsWith("enc:v3:")) {
     return { version: "v3", encryptedData: value.slice("enc:v3:".length) };
   }

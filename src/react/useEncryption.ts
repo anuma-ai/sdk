@@ -200,19 +200,12 @@ async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
   const sigBytes = hexToBytes(signature);
 
   // 2. SHA-256 as IKM (input keying material)
-  const ikm = await crypto.subtle.digest(
-    "SHA-256",
-    sigBytes.buffer as ArrayBuffer
-  );
+  const ikm = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
 
   // 3. Import as HKDF key
-  const hkdfKey = await crypto.subtle.importKey(
-    "raw",
-    ikm,
-    { name: "HKDF" },
-    false,
-    ["deriveBits"]
-  );
+  const hkdfKey = await crypto.subtle.importKey("raw", ikm, { name: "HKDF" }, false, [
+    "deriveBits",
+  ]);
 
   // 4. HKDF extract + expand with domain-specific info
   const derivedBits = await crypto.subtle.deriveBits(
@@ -898,11 +891,7 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
     let decryptedData: ArrayBuffer;
     try {
       const key = await getEncryptionKey(address, "v3");
-      decryptedData = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        encryptedData
-      );
+      decryptedData = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encryptedData);
     } catch {
       // Fall back to legacy key (keypair was persisted before v3 migration)
       const legacyKey = await getEncryptionKey(address, "v2");

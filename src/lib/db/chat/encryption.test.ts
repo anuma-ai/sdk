@@ -262,7 +262,8 @@ describe("Chat Encryption Utilities", () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
 
       // Manually create a v2-prefixed encrypted value using the legacy key
-      const { encryptData: encryptDataFn, getEncryptionKey: getKeyFn } = await import("../../../react/useEncryption");
+      const { encryptData: encryptDataFn, getEncryptionKey: getKeyFn } =
+        await import("../../../react/useEncryption");
 
       // Encrypt with v2 key to simulate old data
       const v2Key = await getKeyFn(testAddress, "v2");
@@ -278,7 +279,9 @@ describe("Chat Encryption Utilities", () => {
       const combined = new Uint8Array(iv.length + encryptedBytes.length);
       combined.set(iv, 0);
       combined.set(encryptedBytes, iv.length);
-      const encryptedHex = Array.from(combined).map(b => b.toString(16).padStart(2, "0")).join("");
+      const encryptedHex = Array.from(combined)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 
       const v2Message: StoredMessage = {
         uniqueId: "msg-v2",
