@@ -13,8 +13,6 @@ export {
   type UpdateUserPreferenceOptions,
   type ProfileUpdate,
   // Hook types
-  type BaseUseUserPreferencesOptions,
-  type BaseUseUserPreferencesResult,
 } from "./types";
 export {
   type UserPreferencesStorageOperationsContext,

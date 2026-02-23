@@ -204,7 +204,7 @@ export async function handleDropboxCallback(
 /**
  * Refresh the access token using the stored refresh token
  */
-export async function refreshDropboxToken(
+async function refreshDropboxToken(
   apiClient?: Client,
   walletAddress?: string
 ): Promise<string | null> {

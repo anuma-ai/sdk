@@ -70,6 +70,7 @@
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
     "api-report": "node scripts/api-extractor-run.mjs",
     "api-report:update": "node scripts/api-extractor-run.mjs --local",
+    "knip": "knip",
     "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs"
   },
   "repository": {
@@ -105,6 +106,7 @@
     "@vitest/coverage-v8": "4.0.15",
     "dotenv": "^17.2.3",
     "happy-dom": "^20.0.11",
+    "knip": "^5.85.0",
     "playwright": "^1.57.0",
     "publint": "^0.3.17",
     "react": "^19.2.1",

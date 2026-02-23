@@ -27,7 +27,7 @@ const isAuthError = (err: unknown): boolean =>
   err instanceof Error &&
   (err.message.includes("401") || err.message.includes("403"));
 
-export interface GoogleDriveBackupDeps {
+interface GoogleDriveBackupDeps {
   requestDriveAccess: () => Promise<string>;
   requestEncryptionKey: (address: string) => Promise<void>;
   /** Export a conversation to an encrypted blob */
@@ -81,7 +81,7 @@ async function getConversationsFolder(
   }
 }
 
-export async function pushConversationToDrive(
+async function pushConversationToDrive(
   database: Database,
   conversationId: string,
   userAddress: string,
