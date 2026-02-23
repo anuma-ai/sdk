@@ -1,33 +1,33 @@
 "use client";
 
-import { useCallback, useState, useMemo, useEffect } from "react";
-import { Q } from "@nozbe/watermelondb";
 import type { Database } from "@nozbe/watermelondb";
+import { Q } from "@nozbe/watermelondb";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Project,
-  type StoredProject,
-  type CreateProjectOptions,
-  type UpdateProjectOptions,
-  type ProjectOperationsContext,
-  projectToStored,
-  createProjectOp,
-  getProjectOp,
-  getProjectsOp,
-  updateProjectNameOp,
-  updateProjectOp,
-  deleteProjectOp,
-  getProjectConversationsOp,
-  getProjectConversationCountOp,
-} from "../lib/db/project";
-import {
   Conversation,
+  getConversationsByProjectOp,
   Message,
+  type StorageOperationsContext,
   type StoredConversation,
   updateConversationProjectOp,
-  getConversationsByProjectOp,
-  type StorageOperationsContext,
 } from "../lib/db/chat";
+import {
+  createProjectOp,
+  type CreateProjectOptions,
+  deleteProjectOp,
+  getProjectConversationCountOp,
+  getProjectConversationsOp,
+  getProjectOp,
+  getProjectsOp,
+  Project,
+  type ProjectOperationsContext,
+  projectToStored,
+  type StoredProject,
+  updateProjectNameOp,
+  updateProjectOp,
+  type UpdateProjectOptions,
+} from "../lib/db/project";
 
 /**
  * Options for useProjects hook.
@@ -65,10 +65,7 @@ export interface UseProjectsResult {
   /** Update a project's name */
   updateProjectName: (projectId: string, name: string) => Promise<boolean>;
   /** Update a project with partial options */
-  updateProject: (
-    projectId: string,
-    opts: UpdateProjectOptions
-  ) => Promise<boolean>;
+  updateProject: (projectId: string, opts: UpdateProjectOptions) => Promise<boolean>;
   /** Delete a project (soft delete) */
   deleteProject: (projectId: string) => Promise<boolean>;
 
@@ -78,14 +75,9 @@ export interface UseProjectsResult {
   /** Get count of conversations in a project */
   getProjectConversationCount: (projectId: string) => Promise<number>;
   /** Move a conversation to a project (or remove with null) */
-  updateConversationProject: (
-    conversationId: string,
-    projectId: string | null
-  ) => Promise<boolean>;
+  updateConversationProject: (conversationId: string, projectId: string | null) => Promise<boolean>;
   /** Get conversations by project (null = no project) */
-  getConversationsByProject: (
-    projectId: string | null
-  ) => Promise<StoredConversation[]>;
+  getConversationsByProject: (projectId: string | null) => Promise<StoredConversation[]>;
 
   // Utilities
   /** Refresh the projects list from database */
@@ -139,14 +131,16 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
 
   // State
   const [projects, setProjects] = useState<StoredProject[]>([]);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
-    initialProjectId || null
-  );
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialProjectId || null);
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [inboxProjectId, setInboxProjectId] = useState<string | null>(null);
-  const [projectsCollection, setProjectsCollection] = useState<ReturnType<typeof database.get<Project>> | null>(null);
-  const [conversationsCollection, setConversationsCollection] = useState<ReturnType<typeof database.get<Conversation>> | null>(null);
+  const [projectsCollection, setProjectsCollection] = useState<ReturnType<
+    typeof database.get<Project>
+  > | null>(null);
+  const [conversationsCollection, setConversationsCollection] = useState<ReturnType<
+    typeof database.get<Conversation>
+  > | null>(null);
 
   // Initialize collections asynchronously to handle database initialization race conditions
   useEffect(() => {
@@ -246,7 +240,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       try {
         // Look for existing Inbox project
         const allProjects = await getProjectsOp(projectCtx);
-        const existingInbox = allProjects.find(p => p.name === "Inbox");
+        const existingInbox = allProjects.find((p) => p.name === "Inbox");
 
         if (existingInbox) {
           setInboxProjectId(existingInbox.projectId);
@@ -388,10 +382,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
    * Move a conversation to a project (or remove with null)
    */
   const updateConversationProject = useCallback(
-    async (
-      conversationId: string,
-      projectId: string | null
-    ): Promise<boolean> => {
+    async (conversationId: string, projectId: string | null): Promise<boolean> => {
       if (!storageCtx) {
         return false;
       }

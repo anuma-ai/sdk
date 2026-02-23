@@ -1,9 +1,9 @@
 // Processors
-export { PdfProcessor } from "./PdfProcessor";
 export { ExcelProcessor } from "./ExcelProcessor";
+export { PdfProcessor } from "./PdfProcessor";
 export { WordProcessor } from "./WordProcessor";
-export { ZipProcessor } from "./ZipProcessor";
 export type { ZipProcessorOptions } from "./ZipProcessor";
+export { ZipProcessor } from "./ZipProcessor";
 
 // Registry
 export { ProcessorRegistry } from "./registry";
@@ -15,7 +15,7 @@ export { preprocessFiles } from "./preprocessor";
 export type {
   FileProcessor,
   FileWithData,
-  ProcessedFileResult,
   PreprocessingOptions,
   PreprocessingResult,
+  ProcessedFileResult,
 } from "./types";

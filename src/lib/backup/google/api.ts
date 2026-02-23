@@ -5,9 +5,9 @@
  * Requires an OAuth 2.0 access token with drive.file scope.
  */
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3';
-const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder';
+const DRIVE_API_URL = "https://www.googleapis.com/drive/v3";
+const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3";
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
 /**
  * Escape single quotes for Google Drive API query strings
@@ -18,9 +18,9 @@ function escapeQueryValue(value: string): string {
 }
 
 /** Default root folder name for backups */
-export const DEFAULT_ROOT_FOLDER = 'ai-chat-app';
+export const DEFAULT_ROOT_FOLDER = "ai-chat-app";
 /** Default subfolder for conversation backups */
-export const DEFAULT_CONVERSATIONS_FOLDER = 'conversations';
+export const DEFAULT_CONVERSATIONS_FOLDER = "conversations";
 
 export interface DriveFile {
   id: string;
@@ -33,12 +33,8 @@ export interface DriveFile {
 /**
  * Find or create a folder in Google Drive
  */
-async function ensureFolder(
-  accessToken: string,
-  name: string,
-  parentId?: string
-): Promise<string> {
-  const parentQuery = parentId ? `'${escapeQueryValue(parentId)}' in parents and ` : '';
+async function ensureFolder(accessToken: string, name: string, parentId?: string): Promise<string> {
+  const parentQuery = parentId ? `'${escapeQueryValue(parentId)}' in parents and ` : "";
   const query = `${parentQuery}mimeType='${FOLDER_MIME_TYPE}' and name='${escapeQueryValue(name)}' and trashed=false`;
 
   const response = await fetch(
@@ -68,10 +64,10 @@ async function ensureFolder(
   }
 
   const createResponse = await fetch(`${DRIVE_API_URL}/files`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
   });
@@ -108,15 +104,15 @@ export async function uploadFileToDrive(
   const metadata = {
     name: filename,
     parents: [folderId],
-    mimeType: 'application/json',
+    mimeType: "application/json",
   };
 
   const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', content);
+  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.append("file", content);
 
   const response = await fetch(`${DRIVE_UPLOAD_URL}/files?uploadType=multipart`, {
-    method: 'POST',
+    method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body: form,
   });
@@ -138,10 +134,10 @@ export async function updateDriveFile(
   content: Blob
 ): Promise<{ id: string; name: string }> {
   const response = await fetch(`${DRIVE_UPLOAD_URL}/files/${fileId}?uploadType=media`, {
-    method: 'PATCH',
+    method: "PATCH",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: content,
   });
@@ -157,12 +153,9 @@ export async function updateDriveFile(
 /**
  * List files in a Google Drive folder
  */
-export async function listDriveFiles(
-  accessToken: string,
-  folderId: string
-): Promise<DriveFile[]> {
+export async function listDriveFiles(accessToken: string, folderId: string): Promise<DriveFile[]> {
   const query = `'${escapeQueryValue(folderId)}' in parents and mimeType='application/json' and trashed=false`;
-  const fields = 'files(id,name,createdTime,modifiedTime,size)';
+  const fields = "files(id,name,createdTime,modifiedTime,size)";
 
   const response = await fetch(
     `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=1000`,
@@ -203,7 +196,7 @@ export async function findDriveFile(
   filename: string
 ): Promise<DriveFile | null> {
   const query = `'${escapeQueryValue(folderId)}' in parents and name='${escapeQueryValue(filename)}' and trashed=false`;
-  const fields = 'files(id,name,createdTime,modifiedTime,size)';
+  const fields = "files(id,name,createdTime,modifiedTime,size)";
 
   const response = await fetch(
     `${DRIVE_API_URL}/files?q=${encodeURIComponent(query)}&fields=${fields}&pageSize=1`,
@@ -225,7 +218,7 @@ export async function findDriveFile(
  */
 async function deleteDriveFile(accessToken: string, fileId: string): Promise<void> {
   const response = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 

@@ -2,11 +2,7 @@ import type { FileMetadata } from "../db/chat/types";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { PdfProcessor } from "./PdfProcessor";
 import { ProcessorRegistry } from "./registry";
-import type {
-  FileWithData,
-  PreprocessingOptions,
-  PreprocessingResult,
-} from "./types";
+import type { FileWithData, PreprocessingOptions, PreprocessingResult } from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
 
@@ -160,15 +156,11 @@ export async function preprocessFiles(
       }
     } catch (error) {
       errorCount++;
-      onError?.(
-        file.name,
-        error instanceof Error ? error : new Error(String(error))
-      );
+      onError?.(file.name, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
-  const extractedContent =
-    extractedTexts.length > 0 ? extractedTexts.join("\n\n---\n\n") : null;
+  const extractedContent = extractedTexts.length > 0 ? extractedTexts.join("\n\n---\n\n") : null;
 
   return {
     extractedContent,

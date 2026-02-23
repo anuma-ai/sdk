@@ -1,5 +1,5 @@
-import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
+import { v7 as uuidv7 } from "uuid";
 
 /**
  * Media type categorization for library filtering.

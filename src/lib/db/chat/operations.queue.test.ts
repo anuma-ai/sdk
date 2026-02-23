@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  makeSyntheticStoredMessage,
-  makeSyntheticStoredConversation,
-} from "./operations";
+import { makeSyntheticStoredMessage, makeSyntheticStoredConversation } from "./operations";
 import type { CreateMessageOptions, CreateConversationOptions } from "./types";
 import { QueueManager } from "../queue/manager";
 import type { QueueEncryptionContext, OperationExecutor } from "../queue/types";
@@ -131,11 +128,7 @@ describe("Queue Integration with Synthetic Constructors", () => {
     };
 
     // Queue the operation
-    const queueId = manager.queueOperation(
-      testAddress,
-      "createMessage",
-      msgOpts
-    );
+    const queueId = manager.queueOperation(testAddress, "createMessage", msgOpts);
     expect(queueId).toBeTruthy();
     expect(manager.getStatus(testAddress).pending).toBe(1);
 
@@ -160,11 +153,9 @@ describe("Queue Integration with Synthetic Constructors", () => {
 
   it("should flush operations in dependency order", async () => {
     // Queue conversation first
-    const convQueueId = manager.queueOperation(
-      testAddress,
-      "createConversation",
-      { title: "Test Conv" }
-    );
+    const convQueueId = manager.queueOperation(testAddress, "createConversation", {
+      title: "Test Conv",
+    });
 
     // Queue message depending on conversation
     const msgQueueId = manager.queueOperation(

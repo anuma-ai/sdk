@@ -1,12 +1,10 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
 
 import { ModelPreference } from "./models";
 import type { StoredModelPreference } from "./types";
 
-function modelPreferenceToStored(
-  preference: ModelPreference
-): StoredModelPreference {
+function modelPreferenceToStored(preference: ModelPreference): StoredModelPreference {
   return {
     uniqueId: preference.id,
     walletAddress: preference.walletAddress,

@@ -1,6 +1,6 @@
 /**
  * Security Tests for Dropbox OAuth Authentication
- * 
+ *
  * These tests document security vulnerabilities. They currently FAIL because the vulnerabilities exist.
  * Once the vulnerabilities are fixed, these tests should PASS, verifying the fixes work correctly.
  */
@@ -69,7 +69,7 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     vi.clearAllMocks();
     sessionStorageMock.clear();
     localStorageMock.clear();
-    
+
     // Setup OAuth state
     sessionStorageMock.setItem(
       "dropbox_oauth_state",
@@ -93,10 +93,10 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
 
   /**
    * SECURITY ISSUE: Errors in OAuth callbacks are silently caught and return null
-   * 
+   *
    * This test verifies that errors in OAuth callbacks are properly logged or thrown,
    * not silently ignored, to enable debugging and security monitoring.
-   * 
+   *
    * FIXED: Errors now return OAuthResult with error details.
    */
   it("should log or throw errors in OAuth callbacks instead of silently returning null", async () => {
@@ -124,10 +124,10 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
 
   /**
    * SECURITY ISSUE: Encryption failures are masked
-   * 
+   *
    * This test verifies that encryption failures are handled explicitly and distinguished
    * from other errors, preventing tokens from being stored unencrypted.
-   * 
+   *
    * FIXED: Encryption failures now return error result with encryption error code.
    */
   it("should handle encryption failures explicitly and distinguish them from other errors", async () => {
@@ -144,10 +144,15 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     } as any);
 
     // Mock storeTokenData to throw encryption error
-    const storeSpy = vi.spyOn(await import("../oauth/storage"), "storeTokenData")
+    const storeSpy = vi
+      .spyOn(await import("../oauth/storage"), "storeTokenData")
       .mockRejectedValue(new Error("OAuth token encryption failed: Key not available"));
 
-    const result = await handleDropboxCallback("/auth/dropbox/callback", undefined, "0x1234567890123456789012345678901234567890");
+    const result = await handleDropboxCallback(
+      "/auth/dropbox/callback",
+      undefined,
+      "0x1234567890123456789012345678901234567890"
+    );
 
     // Encryption failure should be explicitly handled with error code
     expect(result.ok).toBe(false);
@@ -161,17 +166,17 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
 
   /**
    * SECURITY ISSUE: Error details are lost
-   * 
+   *
    * This test verifies that error details are preserved for debugging and security monitoring,
    * not completely discarded when errors occur.
-   * 
+   *
    * FIXED: Error details are now preserved in OAuthResult error object.
    */
   it("should preserve error details for debugging and security monitoring", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const specificError = new Error("Network timeout after 30s");
     specificError.name = "NetworkError";
-    
+
     vi.mocked(postAuthOauthByProviderExchange).mockRejectedValue(specificError);
 
     const result = await handleDropboxCallback("/auth/dropbox/callback");
@@ -188,4 +193,3 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     consoleErrorSpy.mockRestore();
   });
 });
-

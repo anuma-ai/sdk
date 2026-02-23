@@ -1,6 +1,7 @@
 import { Database } from "@nozbe/watermelondb";
 import type { DatabaseAdapter } from "@nozbe/watermelondb/adapters/type";
-import { sdkSchema, sdkMigrations, sdkModelClasses, SDK_SCHEMA_VERSION } from "./schema";
+
+import { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from "./schema";
 
 /**
  * Version threshold for destructive migrations.
@@ -87,8 +88,7 @@ export const webPlatformStorage: PlatformStorage = {
   setItem: (key: string, value: string) => localStorage.setItem(key, value),
   removeItem: (key: string) => localStorage.removeItem(key),
   getSessionItem: (key: string) => sessionStorage.getItem(key),
-  setSessionItem: (key: string, value: string) =>
-    sessionStorage.setItem(key, value),
+  setSessionItem: (key: string, value: string) => sessionStorage.setItem(key, value),
   deleteDatabase: (name: string) =>
     new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(name);
@@ -107,19 +107,13 @@ function getDbName(prefix: string, walletAddress?: string): string {
   return walletAddress ? `${prefix}-${walletAddress}` : `${prefix}-guest`;
 }
 
-function getSchemaVersionKey(
-  prefix: string,
-  walletAddress?: string
-): string {
+function getSchemaVersionKey(prefix: string, walletAddress?: string): string {
   return walletAddress
     ? `${prefix}-schema-version-${walletAddress}`
     : `${prefix}-schema-version-guest`;
 }
 
-function getMigrationReloadKey(
-  prefix: string,
-  walletAddress?: string
-): string {
+function getMigrationReloadKey(prefix: string, walletAddress?: string): string {
   return walletAddress
     ? `${prefix}-migration-reload-${walletAddress}`
     : `${prefix}-migration-reload-guest`;
@@ -251,26 +245,15 @@ export class DatabaseManager {
    * Returns true if a destructive migration is in progress.
    */
   private handleSchemaMigration(walletAddress?: string): boolean {
-    const schemaVersionKey = getSchemaVersionKey(
-      this.dbNamePrefix,
-      walletAddress
-    );
-    const migrationReloadKey = getMigrationReloadKey(
-      this.dbNamePrefix,
-      walletAddress
-    );
+    const schemaVersionKey = getSchemaVersionKey(this.dbNamePrefix, walletAddress);
+    const migrationReloadKey = getMigrationReloadKey(this.dbNamePrefix, walletAddress);
     const dbName = this.getDbName(walletAddress);
 
     const storedVersion = this.storage.getItem(schemaVersionKey);
-    const storedVersionNum = storedVersion
-      ? parseInt(storedVersion, 10)
-      : null;
+    const storedVersionNum = storedVersion ? parseInt(storedVersion, 10) : null;
     const alreadyReloaded = this.storage.getSessionItem(migrationReloadKey);
 
-    if (
-      storedVersionNum !== null &&
-      storedVersionNum < DESTRUCTIVE_MIGRATION_VERSION
-    ) {
+    if (storedVersionNum !== null && storedVersionNum < DESTRUCTIVE_MIGRATION_VERSION) {
       this.logger.debug?.("Clearing database for schema migration", {
         component: "DatabaseManager",
         walletAddress,
@@ -289,22 +272,16 @@ export class DatabaseManager {
           this.storage.deleteDatabase(`${dbName}_loki`),
         ])
           .then(() => {
-            this.storage.setItem(
-              schemaVersionKey,
-              String(SDK_SCHEMA_VERSION)
-            );
+            this.storage.setItem(schemaVersionKey, String(SDK_SCHEMA_VERSION));
             this.onDestructiveMigration?.();
           })
           .catch((error) => {
-            this.logger.warn?.(
-              "Failed to delete databases during migration",
-              { component: "DatabaseManager", error }
-            );
+            this.logger.warn?.("Failed to delete databases during migration", {
+              component: "DatabaseManager",
+              error,
+            });
             // Still update version to prevent infinite loops
-            this.storage.setItem(
-              schemaVersionKey,
-              String(SDK_SCHEMA_VERSION)
-            );
+            this.storage.setItem(schemaVersionKey, String(SDK_SCHEMA_VERSION));
             this.onDestructiveMigration?.();
           });
 

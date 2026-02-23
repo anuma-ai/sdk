@@ -60,10 +60,7 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
       color(formatPercent(summary.accuracy), accColor) +
       `  ${progressBar(summary.accuracy)}`
   );
-  console.log(
-    `  Correct:`.padEnd(20) +
-      `${summary.correctAnswers}/${summary.totalQuestions}`
-  );
+  console.log(`  Correct:`.padEnd(20) + `${summary.correctAnswers}/${summary.totalQuestions}`);
   console.log();
 
   // By question type
@@ -85,8 +82,7 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
 
     const label = QUESTION_TYPE_LABELS[type];
     const typeAccColor = stats.accuracy >= 0.5 ? COLORS.green : COLORS.red;
-    const isUnsupported =
-      type === "temporal-reasoning" || type === "knowledge-update";
+    const isUnsupported = type === "temporal-reasoning" || type === "knowledge-update";
 
     console.log(
       `  ${label}:`.padEnd(30) +
@@ -100,12 +96,8 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   // Retrieval metrics
   console.log(color("Retrieval Quality", COLORS.bold));
   console.log("─".repeat(70));
-  console.log(
-    `  Avg Precision:`.padEnd(20) + formatPercent(summary.retrieval.avgPrecision)
-  );
-  console.log(
-    `  Avg Recall:`.padEnd(20) + formatPercent(summary.retrieval.avgRecall)
-  );
+  console.log(`  Avg Precision:`.padEnd(20) + formatPercent(summary.retrieval.avgPrecision));
+  console.log(`  Avg Recall:`.padEnd(20) + formatPercent(summary.retrieval.avgRecall));
   console.log();
 
   // Latency

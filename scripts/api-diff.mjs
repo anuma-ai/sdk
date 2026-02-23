@@ -42,22 +42,15 @@ function labelForKind(kind) {
   return labels[kind] || kind.toLowerCase();
 }
 
-const oldFiles = fs
-  .readdirSync(oldDir)
-  .filter((f) => f.endsWith(".api.json"));
-const newFiles = fs
-  .readdirSync(newDir)
-  .filter((f) => f.endsWith(".api.json"));
+const oldFiles = fs.readdirSync(oldDir).filter((f) => f.endsWith(".api.json"));
+const newFiles = fs.readdirSync(newDir).filter((f) => f.endsWith(".api.json"));
 const allFiles = [...new Set([...oldFiles, ...newFiles])].sort();
 
 const sections = [];
 
 for (const file of allFiles) {
   const entryPoint = file.replace(".api.json", "").replace("reverbia-sdk", "");
-  const label =
-    entryPoint === ""
-      ? "@reverbia/sdk"
-      : `@reverbia/sdk/${entryPoint.slice(1)}`;
+  const label = entryPoint === "" ? "@reverbia/sdk" : `@reverbia/sdk/${entryPoint.slice(1)}`;
 
   const oldMembers = extractMembers(path.join(oldDir, file));
   const newMembers = extractMembers(path.join(newDir, file));
@@ -94,18 +87,14 @@ for (const file of allFiles) {
   if (added.length > 0) {
     lines.push("");
     lines.push("🆕 **Added**");
-    const items = added.map(
-      (m) => `\`${m.name}\` (${labelForKind(m.kind)})`
-    );
+    const items = added.map((m) => `\`${m.name}\` (${labelForKind(m.kind)})`);
     lines.push(items.join(" · "));
   }
 
   if (removed.length > 0) {
     lines.push("");
     lines.push("❌ **Removed**");
-    const items = removed.map(
-      (m) => `\`${m.name}\` (${labelForKind(m.kind)})`
-    );
+    const items = removed.map((m) => `\`${m.name}\` (${labelForKind(m.kind)})`);
     lines.push(items.join(" · "));
   }
 

@@ -15,24 +15,18 @@
  * ```
  */
 
-export { createMemoryVaultTool } from "./tool";
-
 export type {
-  VaultSaveOperation,
-  MemoryVaultToolOptions,
-} from "./tool";
-
+  MemoryVaultSearchOptions,
+  VaultEmbeddingCache,
+  VaultSearchResult,
+} from "./searchTool";
 export {
   createMemoryVaultSearchTool,
-  searchVaultMemories,
-  preEmbedVaultMemories,
-  eagerEmbedContent,
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
+  eagerEmbedContent,
+  preEmbedVaultMemories,
+  searchVaultMemories,
 } from "./searchTool";
-
-export type {
-  VaultSearchResult,
-  VaultEmbeddingCache,
-  MemoryVaultSearchOptions,
-} from "./searchTool";
+export type { MemoryVaultToolOptions, VaultSaveOperation } from "./tool";
+export { createMemoryVaultTool } from "./tool";

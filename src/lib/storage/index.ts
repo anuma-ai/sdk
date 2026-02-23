@@ -3,18 +3,18 @@
  */
 
 export {
-  // OPFS utilities
-  isOPFSSupported,
-  writeEncryptedFile,
-  readEncryptedFile,
+  // Blob URL management
+  BlobUrlManager,
+  createFilePlaceholder,
   deleteEncryptedFile,
-  fileExists,
+  extractFileIds,
   // Placeholder utilities
   FILE_PLACEHOLDER_PREFIX,
   FILE_PLACEHOLDER_REGEX,
-  createFilePlaceholder,
-  extractFileIds,
+  fileExists,
+  // OPFS utilities
+  isOPFSSupported,
+  readEncryptedFile,
   resolveFilePlaceholders,
-  // Blob URL management
-  BlobUrlManager,
+  writeEncryptedFile,
 } from "./opfs";
