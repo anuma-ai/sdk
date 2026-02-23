@@ -14,7 +14,7 @@ import type {
 /**
  * Convert a UserPreference model to a StoredUserPreference object
  */
-export function userPreferenceToStored(
+function userPreferenceToStored(
   preference: UserPreference
 ): StoredUserPreference {
   return {
@@ -56,7 +56,7 @@ export async function getUserPreferenceOp(
 /**
  * Create a new user preference record
  */
-export async function createUserPreferenceOp(
+async function createUserPreferenceOp(
   ctx: UserPreferencesStorageOperationsContext,
   opts: CreateUserPreferenceOptions
 ): Promise<StoredUserPreference> {
@@ -81,7 +81,7 @@ export async function createUserPreferenceOp(
 /**
  * Update an existing user preference record
  */
-export async function updateUserPreferenceOp(
+async function updateUserPreferenceOp(
   ctx: UserPreferencesStorageOperationsContext,
   walletAddress: string,
   opts: UpdateUserPreferenceOptions
@@ -223,16 +223,6 @@ export async function deleteUserPreferenceOp(
   });
 
   return true;
-}
-
-/**
- * Get all user preferences
- */
-export async function getAllUserPreferencesOp(
-  ctx: UserPreferencesStorageOperationsContext
-): Promise<StoredUserPreference[]> {
-  const results = await ctx.userPreferencesCollection.query().fetch();
-  return results.map(userPreferenceToStored);
 }
 
 // ===== Migration Helpers =====

@@ -18,15 +18,11 @@ export {
 } from "./types";
 export {
   type UserPreferencesStorageOperationsContext,
-  userPreferenceToStored,
   getUserPreferenceOp,
-  createUserPreferenceOp,
-  updateUserPreferenceOp,
   setUserPreferenceOp,
   updateProfileOp,
   updatePersonalityOp,
   updateModelsOp,
   deleteUserPreferenceOp,
-  getAllUserPreferencesOp,
   migrateFromModelPreferencesOp,
 } from "./operations";
