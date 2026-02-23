@@ -1,6 +1,6 @@
 # ToolMatchOptions
 
-Defined in: [src/lib/tools/serverTools.ts:638](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L638)
+Defined in: [src/lib/tools/serverTools.ts:626](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L626)
 
 Options for findMatchingTools
 
@@ -10,7 +10,7 @@ Options for findMatchingTools
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:640](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L640)
+Defined in: [src/lib/tools/serverTools.ts:628](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L628)
 
 Maximum number of tools to return (default: 10)
 
@@ -20,6 +20,6 @@ Maximum number of tools to return (default: 10)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:642](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L642)
+Defined in: [src/lib/tools/serverTools.ts:630](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L630)
 
 Minimum similarity threshold 0-1 (default: 0.3)

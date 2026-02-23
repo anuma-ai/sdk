@@ -11,7 +11,7 @@
  * when sending to the API (see serverTools.ts mergeTools function).
  */
 export interface ToolConfig {
-  type: 'function';
+  type: "function";
   function: {
     name: string;
     description: string;
@@ -80,8 +80,8 @@ async function fetchCalendarEvents(
   // Build query parameters
   const params = new URLSearchParams({
     maxResults: String(maxResults),
-    singleEvents: 'true',
-    orderBy: 'startTime',
+    singleEvents: "true",
+    orderBy: "startTime",
   });
 
   // Default to next 7 days if no time range specified
@@ -89,8 +89,8 @@ async function fetchCalendarEvents(
   const defaultTimeMin = now.toISOString();
   const defaultTimeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  params.set('timeMin', ensureTimezone(timeMin || defaultTimeMin));
-  params.set('timeMax', ensureTimezone(timeMax || defaultTimeMax));
+  params.set("timeMin", ensureTimezone(timeMin || defaultTimeMin));
+  params.set("timeMax", ensureTimezone(timeMax || defaultTimeMax));
 
   try {
     const response = await fetch(
@@ -98,14 +98,14 @@ async function fetchCalendarEvents(
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );
 
     if (!response.ok) {
       if (response.status === 401) {
-        return 'Error: Calendar access not authorized. Please grant calendar permissions.';
+        return "Error: Calendar access not authorized. Please grant calendar permissions.";
       }
       const errorText = await response.text();
       return `Error: Failed to fetch calendar events (${response.status}): ${errorText}`;
@@ -122,9 +122,9 @@ async function fetchCalendarEvents(
         location?: string;
       }) => ({
         id: item.id,
-        summary: item.summary || 'No title',
-        start: item.start?.dateTime || item.start?.date || 'Unknown',
-        end: item.end?.dateTime || item.end?.date || 'Unknown',
+        summary: item.summary || "No title",
+        start: item.start?.dateTime || item.start?.date || "Unknown",
+        end: item.end?.dateTime || item.end?.date || "Unknown",
         description: item.description,
         location: item.location,
       })
@@ -132,7 +132,7 @@ async function fetchCalendarEvents(
 
     return events;
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -141,7 +141,7 @@ async function fetchCalendarEvents(
  */
 function buildEventBody(args: CreateEventArgs): Record<string, unknown> {
   const { summary, start, end, description, location, attendees } = args;
-  const isAllDay = !start.includes('T');
+  const isAllDay = !start.includes("T");
 
   const eventBody: Record<string, unknown> = {
     summary,
@@ -152,7 +152,7 @@ function buildEventBody(args: CreateEventArgs): Record<string, unknown> {
   };
 
   if (attendees && attendees.length > 0) {
-    eventBody.attendees = attendees.map(email => ({ email }));
+    eventBody.attendees = attendees.map((email) => ({ email }));
   }
 
   return eventBody;
@@ -171,9 +171,9 @@ function parseEventResponse(data: {
 }): CalendarEvent {
   return {
     id: data.id,
-    summary: data.summary || 'No title',
-    start: data.start?.dateTime || data.start?.date || 'Unknown',
-    end: data.end?.dateTime || data.end?.date || 'Unknown',
+    summary: data.summary || "No title",
+    start: data.start?.dateTime || data.start?.date || "Unknown",
+    end: data.end?.dateTime || data.end?.date || "Unknown",
     description: data.description,
     location: data.location,
   };
@@ -190,12 +190,12 @@ async function createCalendarEvent(
 
   try {
     const response = await fetch(
-      'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
       {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(eventBody),
       }
@@ -203,7 +203,7 @@ async function createCalendarEvent(
 
     if (!response.ok) {
       if (response.status === 401) {
-        return 'Error: Calendar access not authorized. Please grant calendar permissions.';
+        return "Error: Calendar access not authorized. Please grant calendar permissions.";
       }
       const errorText = await response.text();
       return `Error: Failed to create calendar event (${response.status}): ${errorText}`;
@@ -212,7 +212,7 @@ async function createCalendarEvent(
     const data = await response.json();
     return parseEventResponse(data);
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -228,17 +228,17 @@ function buildUpdateEventBody(args: UpdateEventArgs): Record<string, unknown> {
   if (location !== undefined) eventBody.location = location;
 
   if (start !== undefined) {
-    const isAllDay = !start.includes('T');
+    const isAllDay = !start.includes("T");
     eventBody.start = isAllDay ? { date: start } : { dateTime: start };
   }
 
   if (end !== undefined) {
-    const isAllDay = !end.includes('T');
+    const isAllDay = !end.includes("T");
     eventBody.end = isAllDay ? { date: end } : { dateTime: end };
   }
 
   if (attendees !== undefined) {
-    eventBody.attendees = attendees.map(email => ({ email }));
+    eventBody.attendees = attendees.map((email) => ({ email }));
   }
 
   return eventBody;
@@ -258,10 +258,10 @@ async function updateCalendarEvent(
     const response = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
       {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(eventBody),
       }
@@ -269,7 +269,7 @@ async function updateCalendarEvent(
 
     if (!response.ok) {
       if (response.status === 401) {
-        return 'Error: Calendar access not authorized. Please grant calendar permissions.';
+        return "Error: Calendar access not authorized. Please grant calendar permissions.";
       }
       if (response.status === 404) {
         return `Error: Event not found with ID: ${eventId}`;
@@ -281,7 +281,7 @@ async function updateCalendarEvent(
     const data = await response.json();
     return parseEventResponse(data);
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -294,27 +294,27 @@ export function createGoogleCalendarTool(
   requestCalendarAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_calendar_list_events',
+      name: "google_calendar_list_events",
       description:
         "Lists upcoming events from the user's Google Calendar. Returns events within a specified time range. If no time range is specified, returns events for the next 7 days.",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           timeMin: {
-            type: 'string',
+            type: "string",
             description:
               'Start of the time range (ISO 8601 format, e.g., "2024-01-15T00:00:00Z"). Defaults to now.',
           },
           timeMax: {
-            type: 'string',
+            type: "string",
             description:
               'End of the time range (ISO 8601 format, e.g., "2024-01-22T23:59:59Z"). Defaults to 7 days from now.',
           },
           maxResults: {
-            type: 'number',
-            description: 'Maximum number of events to return. Defaults to 10.',
+            type: "number",
+            description: "Maximum number of events to return. Defaults to 10.",
           },
         },
         required: [],
@@ -329,12 +329,12 @@ export function createGoogleCalendarTool(
         try {
           token = await requestCalendarAccess();
         } catch {
-          return 'Error: Failed to get calendar access. Please grant permissions when prompted.';
+          return "Error: Failed to get calendar access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Calendar access token available. Please connect your Google account.';
+        return "Error: No Google Calendar access token available. Please connect your Google account.";
       }
 
       const typedArgs: ListEventsArgs = {
@@ -358,43 +358,43 @@ export function createGoogleCalendarCreateEventTool(
   requestCalendarAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_calendar_create_event',
+      name: "google_calendar_create_event",
       description:
         "Creates a new event in the user's Google Calendar. Supports both timed events (with specific times) and all-day events (date only).",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           summary: {
-            type: 'string',
-            description: 'The title/name of the event.',
+            type: "string",
+            description: "The title/name of the event.",
           },
           start: {
-            type: 'string',
+            type: "string",
             description:
               'Start time in ISO 8601 format. For timed events use datetime format (e.g., "2024-01-15T09:00:00-05:00"). For all-day events use date format (e.g., "2024-01-15").',
           },
           end: {
-            type: 'string',
+            type: "string",
             description:
               'End time in ISO 8601 format. For timed events use datetime format (e.g., "2024-01-15T10:00:00-05:00"). For all-day events use date format (e.g., "2024-01-16", note: end date is exclusive).',
           },
           description: {
-            type: 'string',
-            description: 'Optional description or notes for the event.',
+            type: "string",
+            description: "Optional description or notes for the event.",
           },
           location: {
-            type: 'string',
-            description: 'Optional location for the event.',
+            type: "string",
+            description: "Optional location for the event.",
           },
           attendees: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Optional list of email addresses to invite as attendees.',
+            type: "array",
+            items: { type: "string" },
+            description: "Optional list of email addresses to invite as attendees.",
           },
         },
-        required: ['summary', 'start', 'end'],
+        required: ["summary", "start", "end"],
       },
     },
     executor: async (args: Record<string, unknown>): Promise<CalendarEvent | string> => {
@@ -406,12 +406,12 @@ export function createGoogleCalendarCreateEventTool(
         try {
           token = await requestCalendarAccess();
         } catch {
-          return 'Error: Failed to get calendar access. Please grant permissions when prompted.';
+          return "Error: Failed to get calendar access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Calendar access token available. Please connect your Google account.';
+        return "Error: No Google Calendar access token available. Please connect your Google account.";
       }
 
       const typedArgs: CreateEventArgs = {
@@ -438,49 +438,49 @@ export function createGoogleCalendarUpdateEventTool(
   requestCalendarAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_calendar_update_event',
+      name: "google_calendar_update_event",
       description:
         "Updates an existing event in the user's Google Calendar. Only the fields provided will be updated; other fields remain unchanged. Use google_calendar_list_events first to get the event ID.",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           eventId: {
-            type: 'string',
+            type: "string",
             description:
-              'The ID of the event to update (obtained from google_calendar_list_events).',
+              "The ID of the event to update (obtained from google_calendar_list_events).",
           },
           summary: {
-            type: 'string',
-            description: 'The new title/name of the event.',
+            type: "string",
+            description: "The new title/name of the event.",
           },
           start: {
-            type: 'string',
+            type: "string",
             description:
               'New start time in ISO 8601 format. For timed events use datetime format (e.g., "2024-01-15T09:00:00-05:00"). For all-day events use date format (e.g., "2024-01-15").',
           },
           end: {
-            type: 'string',
+            type: "string",
             description:
               'New end time in ISO 8601 format. For timed events use datetime format (e.g., "2024-01-15T10:00:00-05:00"). For all-day events use date format (e.g., "2024-01-16").',
           },
           description: {
-            type: 'string',
-            description: 'New description or notes for the event.',
+            type: "string",
+            description: "New description or notes for the event.",
           },
           location: {
-            type: 'string',
-            description: 'New location for the event.',
+            type: "string",
+            description: "New location for the event.",
           },
           attendees: {
-            type: 'array',
-            items: { type: 'string' },
+            type: "array",
+            items: { type: "string" },
             description:
-              'New list of email addresses to invite as attendees (replaces existing attendees).',
+              "New list of email addresses to invite as attendees (replaces existing attendees).",
           },
         },
-        required: ['eventId'],
+        required: ["eventId"],
       },
     },
     executor: async (args: Record<string, unknown>): Promise<CalendarEvent | string> => {
@@ -492,12 +492,12 @@ export function createGoogleCalendarUpdateEventTool(
         try {
           token = await requestCalendarAccess();
         } catch {
-          return 'Error: Failed to get calendar access. Please grant permissions when prompted.';
+          return "Error: Failed to get calendar access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Calendar access token available. Please connect your Google account.';
+        return "Error: No Google Calendar access token available. Please connect your Google account.";
       }
 
       const typedArgs: UpdateEventArgs = {

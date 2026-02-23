@@ -27,35 +27,26 @@
  * ```
  */
 
-export {
-  createMemoryRetrievalTool,
-} from "./tool";
-
-export {
-  generateEmbedding,
-  generateEmbeddings,
-  embedMessage,
-  embedAllMessages,
-  chunkAndEmbedMessage,
-  chunkAndEmbedAllMessages,
-  DEFAULT_MIN_CONTENT_LENGTH,
-} from "./embeddings";
-
+export type { ChunkingOptions, TextChunk } from "./chunking";
 export {
   chunkText,
-  shouldChunkMessage,
-  DEFAULT_CHUNK_SIZE,
   DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
+  shouldChunkMessage,
 } from "./chunking";
-
+export {
+  chunkAndEmbedAllMessages,
+  chunkAndEmbedMessage,
+  DEFAULT_MIN_CONTENT_LENGTH,
+  embedAllMessages,
+  embedMessage,
+  generateEmbedding,
+  generateEmbeddings,
+} from "./embeddings";
+export { createMemoryRetrievalTool } from "./tool";
 export type {
-  ChunkingOptions,
-  TextChunk,
-} from "./chunking";
-
-export type {
-  MemoryRetrievalSearchOptions,
-  MemoryRetrievalResult,
   EmbeddingOptions,
+  MemoryRetrievalResult,
+  MemoryRetrievalSearchOptions,
 } from "./types";

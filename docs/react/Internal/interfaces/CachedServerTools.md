@@ -1,6 +1,6 @@
 # CachedServerTools
 
-Defined in: [src/lib/tools/serverTools.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L89)
+Defined in: [src/lib/tools/serverTools.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L87)
 
 Cached tools structure stored in localStorage
 
@@ -10,7 +10,7 @@ Cached tools structure stored in localStorage
 
 > `optional` **checksum**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L94)
+Defined in: [src/lib/tools/serverTools.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L92)
 
 Checksum from the server for cache invalidation
 
@@ -20,7 +20,7 @@ Checksum from the server for cache invalidation
 
 > **timestamp**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L91)
+Defined in: [src/lib/tools/serverTools.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L89)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/tools/serverTools.ts:91](https://github.com/zeta-chain/ai-s
 
 > **tools**: [`ServerTool`](ServerTool.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L90)
+Defined in: [src/lib/tools/serverTools.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L88)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/zeta-chain/ai-s
 
 > **version**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L92)
+Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L90)

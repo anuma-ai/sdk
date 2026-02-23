@@ -9,12 +9,12 @@
  * - calendar.events: Create, update, and delete events
  */
 
+import type { Client } from "../../client/client";
 import {
   postAuthOauthByProviderExchange,
   postAuthOauthByProviderRefresh,
   postAuthOauthByProviderRevoke,
 } from "../../client/sdk.gen";
-import type { Client } from "../../client/client";
 
 // Use google-drive provider for backend API calls (same Google OAuth client)
 // but store tokens separately and request Calendar-specific scopes
@@ -79,10 +79,7 @@ export function clearCalendarToken(): void {
 /**
  * Check if the stored access token is expired
  */
-function isTokenExpired(
-  data: StoredTokenData | null,
-  bufferSeconds = 60
-): boolean {
+function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boolean {
   if (!data) return true;
   if (!data.expiresAt) return false;
   const now = Date.now();
@@ -126,9 +123,7 @@ function getRedirectUri(callbackPath: string): string {
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -170,9 +165,7 @@ export function isCalendarCallback(callbackPath: string): boolean {
   const state = url.searchParams.get("state");
   const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
   // Check if this callback is for Calendar (has our state stored)
-  return (
-    url.pathname === callbackPath && !!code && !!state && state === storedState
-  );
+  return url.pathname === callbackPath && !!code && !!state && state === storedState;
 }
 
 /**
@@ -231,9 +224,7 @@ export async function handleCalendarCallback(
 /**
  * Refresh the access token using the stored refresh token
  */
-export async function refreshCalendarToken(
-  apiClient?: Client
-): Promise<string | null> {
+export async function refreshCalendarToken(apiClient?: Client): Promise<string | null> {
   const storedData = getStoredTokenData();
   const refreshToken = storedData?.refreshToken;
   if (!refreshToken) return null;
@@ -289,9 +280,7 @@ export async function revokeCalendarToken(apiClient?: Client): Promise<void> {
 /**
  * Get a valid access token, refreshing if necessary
  */
-export async function getCalendarAccessToken(
-  apiClient?: Client
-): Promise<string | null> {
+export async function getCalendarAccessToken(apiClient?: Client): Promise<string | null> {
   const storedData = getStoredTokenData();
 
   if (!storedData) {
@@ -358,10 +347,7 @@ export function getAndClearCalendarPendingMessage(): string | null {
 /**
  * Start the OAuth flow - redirects to Google
  */
-export async function startCalendarAuth(
-  clientId: string,
-  callbackPath: string
-): Promise<never> {
+export async function startCalendarAuth(clientId: string, callbackPath: string): Promise<never> {
   const state = generateState();
   storeOAuthState(state);
   storeCalendarReturnUrl();
@@ -402,12 +388,7 @@ export async function storeCalendarToken(
   refreshToken?: string,
   scope?: string
 ): Promise<void> {
-  const tokenData = tokenResponseToStoredData(
-    accessToken,
-    expiresIn,
-    refreshToken,
-    scope
-  );
+  const tokenData = tokenResponseToStoredData(accessToken, expiresIn, refreshToken, scope);
   storeTokenData(tokenData);
 }
 

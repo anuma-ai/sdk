@@ -33,10 +33,7 @@ interface DropboxBackupDeps {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
 export interface DropboxExportResult {
@@ -73,8 +70,7 @@ async function pushConversationToDropbox(
     // Check if we can skip upload based on timestamps
     if (existingFile) {
       const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection =
-        database.get<Conversation>("conversations");
+      const conversationsCollection = database.get<Conversation>("conversations");
       const records = await conversationsCollection
         .query(Q.where("conversation_id", conversationId))
         .fetch();
@@ -89,10 +85,7 @@ async function pushConversationToDropbox(
       }
     }
 
-    const exportResult = await deps.exportConversation(
-      conversationId,
-      userAddress
-    );
+    const exportResult = await deps.exportConversation(conversationId, userAddress);
 
     if (!exportResult.success || !exportResult.blob) {
       return "failed";
@@ -134,9 +127,7 @@ export async function performDropboxExport(
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
-  const records = await conversationsCollection
-    .query(Q.where("is_deleted", false))
-    .fetch();
+  const records = await conversationsCollection.query(Q.where("is_deleted", false)).fetch();
 
   const conversations = records.map(conversationToStoredRaw);
   const total = conversations.length;
@@ -188,9 +179,7 @@ export async function performDropboxImport(
     };
   }
 
-  const jsonFiles = remoteFiles.filter((file: DropboxFile) =>
-    file.name.endsWith(".json")
-  );
+  const jsonFiles = remoteFiles.filter((file: DropboxFile) => file.name.endsWith(".json"));
   const total = jsonFiles.length;
   let restored = 0;
   let failed = 0;

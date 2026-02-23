@@ -3,7 +3,7 @@
  * This tool allows the LLM to search files in the user's Google Drive.
  */
 
-import type { ToolConfig } from './googleCalendar';
+import type { ToolConfig } from "./googleCalendar";
 
 export interface SearchFilesArgs {
   query: string;
@@ -55,29 +55,29 @@ async function searchDriveFiles(
   }
 
   // Exclude trashed files
-  driveQuery += ' and trashed = false';
+  driveQuery += " and trashed = false";
 
   const params = new URLSearchParams({
     q: driveQuery,
     pageSize: String(maxResults),
-    fields: 'files(id,name,mimeType,webViewLink,modifiedTime,size,owners)',
-    orderBy: 'modifiedTime desc',
+    fields: "files(id,name,mimeType,webViewLink,modifiedTime,size,owners)",
+    orderBy: "modifiedTime desc",
   });
 
   try {
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       if (response.status === 401) {
-        return 'Error: Google Drive access not authorized. Please grant Drive permissions.';
+        return "Error: Google Drive access not authorized. Please grant Drive permissions.";
       }
       if (response.status === 403) {
-        return 'Error: Insufficient permissions to access Google Drive. Please grant read access to your Drive.';
+        return "Error: Insufficient permissions to access Google Drive. Please grant read access to your Drive.";
       }
       const errorText = await response.text();
       return `Error: Failed to search Google Drive (${response.status}): ${errorText}`;
@@ -100,7 +100,7 @@ async function searchDriveFiles(
 
     return files;
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -113,30 +113,30 @@ export function createGoogleDriveSearchTool(
   requestDriveAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_drive_search',
+      name: "google_drive_search",
       description:
         "Searches for files in the user's Google Drive. Returns matching files with their names, types, and links. Use this to help users find documents, spreadsheets, presentations, PDFs, and other files stored in their Drive.",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           query: {
-            type: 'string',
+            type: "string",
             description:
               'The search query to find files. Searches in file names and content. Examples: "quarterly report", "budget 2024", "meeting notes".',
           },
           maxResults: {
-            type: 'number',
-            description: 'Maximum number of files to return. Defaults to 10. Maximum is 100.',
+            type: "number",
+            description: "Maximum number of files to return. Defaults to 10. Maximum is 100.",
           },
           mimeType: {
-            type: 'string',
+            type: "string",
             description:
               'Optional MIME type filter. Common types: "application/vnd.google-apps.document" (Google Docs), "application/vnd.google-apps.spreadsheet" (Sheets), "application/vnd.google-apps.presentation" (Slides), "application/pdf" (PDF files).',
           },
         },
-        required: ['query'],
+        required: ["query"],
       },
     },
     executor: async (args: Record<string, unknown>): Promise<DriveFile[] | string> => {
@@ -148,12 +148,12 @@ export function createGoogleDriveSearchTool(
         try {
           token = await requestDriveAccess();
         } catch {
-          return 'Error: Failed to get Google Drive access. Please grant permissions when prompted.';
+          return "Error: Failed to get Google Drive access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Drive access token available. Please connect your Google account.';
+        return "Error: No Google Drive access token available. Please connect your Google account.";
       }
 
       const typedArgs: SearchFilesArgs = {
@@ -183,7 +183,7 @@ async function listRecentDriveFiles(
   const { maxResults = 10, mimeType } = args;
 
   // Build the query string - only exclude trashed files
-  let driveQuery = 'trashed = false';
+  let driveQuery = "trashed = false";
 
   // Add mime type filter if specified
   if (mimeType) {
@@ -193,24 +193,24 @@ async function listRecentDriveFiles(
   const params = new URLSearchParams({
     q: driveQuery,
     pageSize: String(maxResults),
-    fields: 'files(id,name,mimeType,webViewLink,modifiedTime,size,owners)',
-    orderBy: 'modifiedTime desc',
+    fields: "files(id,name,mimeType,webViewLink,modifiedTime,size,owners)",
+    orderBy: "modifiedTime desc",
   });
 
   try {
     const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       if (response.status === 401) {
-        return 'Error: Google Drive access not authorized. Please grant Drive permissions.';
+        return "Error: Google Drive access not authorized. Please grant Drive permissions.";
       }
       if (response.status === 403) {
-        return 'Error: Insufficient permissions to access Google Drive. Please grant read access to your Drive.';
+        return "Error: Insufficient permissions to access Google Drive. Please grant read access to your Drive.";
       }
       const errorText = await response.text();
       return `Error: Failed to list Google Drive files (${response.status}): ${errorText}`;
@@ -228,12 +228,12 @@ async function listRecentDriveFiles(
     }));
 
     if (files.length === 0) {
-      return 'No recent files found in your Google Drive.';
+      return "No recent files found in your Google Drive.";
     }
 
     return files;
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -245,20 +245,20 @@ export function createGoogleDriveListRecentTool(
   requestDriveAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_drive_list_recent',
+      name: "google_drive_list_recent",
       description:
         "Lists recent files from the user's Google Drive, ordered by last modified date. Use this when the user wants to see their recent files without a specific search query.",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           maxResults: {
-            type: 'number',
-            description: 'Maximum number of files to return. Defaults to 10. Maximum is 100.',
+            type: "number",
+            description: "Maximum number of files to return. Defaults to 10. Maximum is 100.",
           },
           mimeType: {
-            type: 'string',
+            type: "string",
             description:
               'Optional MIME type filter. Common types: "application/vnd.google-apps.document" (Google Docs), "application/vnd.google-apps.spreadsheet" (Sheets), "application/vnd.google-apps.presentation" (Slides), "application/pdf" (PDF files).',
           },
@@ -275,12 +275,12 @@ export function createGoogleDriveListRecentTool(
         try {
           token = await requestDriveAccess();
         } catch {
-          return 'Error: Failed to get Google Drive access. Please grant permissions when prompted.';
+          return "Error: Failed to get Google Drive access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Drive access token available. Please connect your Google account.';
+        return "Error: No Google Drive access token available. Please connect your Google account.";
       }
 
       const typedArgs: ListRecentFilesArgs = {
@@ -313,15 +313,15 @@ async function findFileByName(accessToken: string, fileName: string): Promise<st
   const driveQuery = `name contains '${fileName.replace(/'/g, "\\'")}' and trashed = false`;
   const params = new URLSearchParams({
     q: driveQuery,
-    pageSize: '1',
-    fields: 'files(id,name)',
-    orderBy: 'modifiedTime desc',
+    pageSize: "1",
+    fields: "files(id,name)",
+    orderBy: "modifiedTime desc",
   });
 
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -335,9 +335,9 @@ async function findFileByName(accessToken: string, fileName: string): Promise<st
 
 /** Google Workspace mime types that can be exported as text */
 const GOOGLE_DOCS_EXPORT_TYPES: Record<string, string> = {
-  'application/vnd.google-apps.document': 'text/plain',
-  'application/vnd.google-apps.spreadsheet': 'text/csv',
-  'application/vnd.google-apps.presentation': 'text/plain',
+  "application/vnd.google-apps.document": "text/plain",
+  "application/vnd.google-apps.spreadsheet": "text/csv",
+  "application/vnd.google-apps.presentation": "text/plain",
 };
 
 /** Maximum content length to avoid overwhelming LLM context */
@@ -368,7 +368,7 @@ async function resolveFileId(
 
   if (fileName) {
     // eslint-disable-next-line no-console
-    console.log('[google_drive_get_content] Searching for file by name:', fileName);
+    console.log("[google_drive_get_content] Searching for file by name:", fileName);
     const foundId = await findFileByName(accessToken, fileName);
     if (!foundId) {
       return {
@@ -376,11 +376,11 @@ async function resolveFileId(
       };
     }
     // eslint-disable-next-line no-console
-    console.log('[google_drive_get_content] Found file ID:', foundId);
+    console.log("[google_drive_get_content] Found file ID:", foundId);
     return { fileId: foundId };
   }
 
-  return { error: 'Error: Please provide either a fileId or fileName to get file content.' };
+  return { error: "Error: Please provide either a fileId or fileName to get file content." };
 }
 
 /**
@@ -397,7 +397,7 @@ async function fetchFileMetadata(
 
   if (!response.ok) {
     if (response.status === 404) {
-      return { error: 'Error: File not found. Please check the file ID.' };
+      return { error: "Error: File not found. Please check the file ID." };
     }
     return { error: `Error: Failed to get file metadata (${response.status})` };
   }
@@ -421,9 +421,9 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
   }
 
   if (
-    mimeType.startsWith('text/') ||
-    mimeType === 'application/json' ||
-    mimeType === 'application/xml'
+    mimeType.startsWith("text/") ||
+    mimeType === "application/json" ||
+    mimeType === "application/xml"
   ) {
     return {
       url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -439,13 +439,13 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
  */
 function formatNonTextFileResponse(fileId: string, metadata: FileMetadata): string {
   const { name, mimeType, webViewLink } = metadata;
-  const linkInfo = webViewLink ? `\nView in Google Drive: ${webViewLink}` : '';
+  const linkInfo = webViewLink ? `\nView in Google Drive: ${webViewLink}` : "";
 
-  if (mimeType === 'application/pdf') {
+  if (mimeType === "application/pdf") {
     return `File: ${name}\nType: PDF${linkInfo}\n\nNote: PDF content cannot be extracted directly in the browser. The user can click the link above to view the PDF in Google Drive.`;
   }
 
-  if (mimeType.startsWith('image/')) {
+  if (mimeType.startsWith("image/")) {
     const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
     return `File: ${name}\nType: ${mimeType}${linkInfo}\nDirect image URL: ${directUrl}\n\nTo view this image, click the Google Drive link above or use the direct URL.`;
   }
@@ -477,10 +477,10 @@ async function fetchAndFormatContent(
   const truncated = content.length > MAX_CONTENT_LENGTH;
   const displayContent = truncated ? content.slice(0, MAX_CONTENT_LENGTH) : content;
 
-  const header = `=== File: ${metadata.name} ===\nType: ${metadata.mimeType}${isExport ? ' (exported as text)' : ''}\n\n`;
+  const header = `=== File: ${metadata.name} ===\nType: ${metadata.mimeType}${isExport ? " (exported as text)" : ""}\n\n`;
   const footer = truncated
     ? `\n\n... (content truncated, showing first ${MAX_CONTENT_LENGTH} characters of ${content.length})`
-    : '';
+    : "";
 
   return header + displayContent + footer;
 }
@@ -491,11 +491,11 @@ async function fetchAndFormatContent(
  */
 async function getDriveFileContent(accessToken: string, args: GetFileContentArgs): Promise<string> {
   // eslint-disable-next-line no-console
-  console.log('[google_drive_get_content] Starting with:', args);
+  console.log("[google_drive_get_content] Starting with:", args);
 
   // Resolve file identifier
   const fileIdResult = await resolveFileId(accessToken, args.fileId, args.fileName);
-  if ('error' in fileIdResult) {
+  if ("error" in fileIdResult) {
     return fileIdResult.error;
   }
   const { fileId } = fileIdResult;
@@ -503,13 +503,13 @@ async function getDriveFileContent(accessToken: string, args: GetFileContentArgs
   try {
     // Fetch file metadata
     const metadataResult = await fetchFileMetadata(accessToken, fileId);
-    if ('error' in metadataResult) {
+    if ("error" in metadataResult) {
       return metadataResult.error;
     }
     const { metadata } = metadataResult;
 
     // eslint-disable-next-line no-console
-    console.log('[google_drive_get_content] File metadata:', metadata);
+    console.log("[google_drive_get_content] File metadata:", metadata);
 
     // Determine content URL based on mime type
     const contentUrlResult = getContentUrl(fileId, metadata.mimeType);
@@ -525,7 +525,7 @@ async function getDriveFileContent(accessToken: string, args: GetFileContentArgs
       contentUrlResult.isExport
     );
   } catch (error) {
-    return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
   }
 }
 
@@ -537,23 +537,23 @@ export function createGoogleDriveGetContentTool(
   requestDriveAccess: () => Promise<string>
 ): ToolConfig {
   return {
-    type: 'function',
+    type: "function",
     function: {
-      name: 'google_drive_get_content',
+      name: "google_drive_get_content",
       description:
         "Gets the text content of a file from the user's Google Drive. Works with Google Docs, Sheets, Slides (exported as text/CSV), and text-based files. You can provide either a fileId (from a previous search) or a fileName to search for.",
       arguments: {
-        type: 'object',
+        type: "object",
         properties: {
           fileId: {
-            type: 'string',
+            type: "string",
             description:
-              'The unique file ID from Google Drive. Use this if you have the ID from a previous search result.',
+              "The unique file ID from Google Drive. Use this if you have the ID from a previous search result.",
           },
           fileName: {
-            type: 'string',
+            type: "string",
             description:
-              'The name (or partial name) of the file to find and read. Use this when you know the file name but not the ID.',
+              "The name (or partial name) of the file to find and read. Use this when you know the file name but not the ID.",
           },
         },
         required: [],
@@ -561,7 +561,7 @@ export function createGoogleDriveGetContentTool(
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
       // eslint-disable-next-line no-console
-      console.log('[google_drive_get_content] Executor called with args:', args);
+      console.log("[google_drive_get_content] Executor called with args:", args);
 
       // Try to get existing token first
       let token = getAccessToken();
@@ -569,16 +569,16 @@ export function createGoogleDriveGetContentTool(
       // If no token, request Drive access
       if (!token) {
         // eslint-disable-next-line no-console
-        console.log('[google_drive_get_content] No token, requesting access...');
+        console.log("[google_drive_get_content] No token, requesting access...");
         try {
           token = await requestDriveAccess();
         } catch {
-          return 'Error: Failed to get Google Drive access. Please grant permissions when prompted.';
+          return "Error: Failed to get Google Drive access. Please grant permissions when prompted.";
         }
       }
 
       if (!token) {
-        return 'Error: No Google Drive access token available. Please connect your Google account.';
+        return "Error: No Google Drive access token available. Please connect your Google account.";
       }
 
       const typedArgs: GetFileContentArgs = {
@@ -589,9 +589,9 @@ export function createGoogleDriveGetContentTool(
       const result = await getDriveFileContent(token, typedArgs);
       // eslint-disable-next-line no-console
       console.log(
-        '[google_drive_get_content] Result length:',
+        "[google_drive_get_content] Result length:",
         result.length,
-        'First 200 chars:',
+        "First 200 chars:",
         result.slice(0, 200)
       );
       return result;

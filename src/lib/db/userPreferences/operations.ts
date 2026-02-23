@@ -1,22 +1,20 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
 
-import { UserPreference } from "./models";
 import { ModelPreference } from "../settings/models";
+import { UserPreference } from "./models";
 import type {
-  StoredUserPreference,
   CreateUserPreferenceOptions,
-  UpdateUserPreferenceOptions,
-  ProfileUpdate,
   PersonalitySettings,
+  ProfileUpdate,
+  StoredUserPreference,
+  UpdateUserPreferenceOptions,
 } from "./types";
 
 /**
  * Convert a UserPreference model to a StoredUserPreference object
  */
-function userPreferenceToStored(
-  preference: UserPreference
-): StoredUserPreference {
+function userPreferenceToStored(preference: UserPreference): StoredUserPreference {
   return {
     uniqueId: preference.id,
     walletAddress: preference.walletAddress,

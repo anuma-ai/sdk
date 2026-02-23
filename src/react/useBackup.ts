@@ -5,32 +5,32 @@ import { useCallback, useMemo } from "react";
 
 import {
   DEFAULT_BACKUP_FOLDER,
-  performDropboxExport,
-  performDropboxImport,
   type DropboxExportResult,
   type DropboxImportResult,
+  performDropboxExport,
+  performDropboxImport,
 } from "../lib/backup/dropbox/backup";
 import {
   DEFAULT_CONVERSATIONS_FOLDER,
   DEFAULT_ROOT_FOLDER,
-  performGoogleDriveExport,
-  performGoogleDriveImport,
   type GoogleDriveExportResult,
   type GoogleDriveImportResult,
+  performGoogleDriveExport,
+  performGoogleDriveImport,
 } from "../lib/backup/google/backup";
 import {
   DEFAULT_BACKUP_FOLDER as DEFAULT_ICLOUD_FOLDER,
-  performICloudExport,
-  performICloudImport,
   type ICloudExportResult,
   type ICloudImportResult,
+  performICloudExport,
+  performICloudImport,
 } from "../lib/backup/icloud/backup";
 import { useBackupAuth } from "./useBackupAuth";
 
 export {
-  DEFAULT_BACKUP_FOLDER as DEFAULT_DROPBOX_FOLDER,
-  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
   DEFAULT_CONVERSATIONS_FOLDER as DEFAULT_DRIVE_CONVERSATIONS_FOLDER,
+  DEFAULT_ROOT_FOLDER as DEFAULT_DRIVE_ROOT_FOLDER,
+  DEFAULT_BACKUP_FOLDER as DEFAULT_DROPBOX_FOLDER,
   DEFAULT_ICLOUD_FOLDER,
 };
 
@@ -51,10 +51,7 @@ export interface UseBackupOptions {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
   /** Dropbox folder path for backups (default: '/ai-chat-app/conversations') */
   dropboxFolder?: string;
   /** Google Drive root folder name (default: 'ai-chat-app') */
@@ -86,11 +83,15 @@ export interface ProviderBackupState {
   /** Backup all conversations to this provider */
   backup: (
     options?: BackupOperationOptions
-  ) => Promise<DropboxExportResult | GoogleDriveExportResult | ICloudExportResult | { error: string }>;
+  ) => Promise<
+    DropboxExportResult | GoogleDriveExportResult | ICloudExportResult | { error: string }
+  >;
   /** Restore conversations from this provider */
   restore: (
     options?: BackupOperationOptions
-  ) => Promise<DropboxImportResult | GoogleDriveImportResult | ICloudImportResult | { error: string }>;
+  ) => Promise<
+    DropboxImportResult | GoogleDriveImportResult | ICloudImportResult | { error: string }
+  >;
   /** Request access to this provider (triggers OAuth if needed) */
   connect: () => Promise<string>;
   /** Disconnect from this provider */
@@ -336,10 +337,7 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         );
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to backup to Google Drive",
+          error: err instanceof Error ? err.message : "Failed to backup to Google Drive",
         };
       }
     },
@@ -382,20 +380,11 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         );
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to restore from Google Drive",
+          error: err instanceof Error ? err.message : "Failed to restore from Google Drive",
         };
       }
     },
-    [
-      userAddress,
-      googleDriveAuth,
-      googleDriveDeps,
-      googleRootFolder,
-      googleConversationsFolder,
-    ]
+    [userAddress, googleDriveAuth, googleDriveDeps, googleRootFolder, googleConversationsFolder]
   );
 
   const dropboxState: ProviderBackupState = {
@@ -446,10 +435,7 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
         );
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to backup to iCloud",
+          error: err instanceof Error ? err.message : "Failed to backup to iCloud",
         };
       }
     },
@@ -478,17 +464,10 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
       }
 
       try {
-        return await performICloudImport(
-          userAddress,
-          icloudDeps,
-          restoreOptions?.onProgress
-        );
+        return await performICloudImport(userAddress, icloudDeps, restoreOptions?.onProgress);
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to restore from iCloud",
+          error: err instanceof Error ? err.message : "Failed to restore from iCloud",
         };
       }
     },

@@ -57,9 +57,7 @@ async function downloadDataset(variant: DatasetVariant): Promise<string> {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to download dataset: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to download dataset: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.text();
@@ -111,9 +109,7 @@ export function getCacheDirectory(): string {
 /**
  * Check if a dataset is already cached
  */
-export async function isDatasetCached(
-  variant: DatasetVariant
-): Promise<boolean> {
+export async function isDatasetCached(variant: DatasetVariant): Promise<boolean> {
   return exists(getCachePath(variant));
 }
 
@@ -145,8 +141,7 @@ export function getDatasetStats(dataset: LongMemEvalDataset): {
   let totalMessages = 0;
 
   for (const entry of dataset) {
-    questionTypes[entry.question_type] =
-      (questionTypes[entry.question_type] || 0) + 1;
+    questionTypes[entry.question_type] = (questionTypes[entry.question_type] || 0) + 1;
     totalSessions += entry.haystack_sessions.length;
 
     for (const session of entry.haystack_sessions) {

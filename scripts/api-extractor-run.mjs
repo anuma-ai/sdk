@@ -26,10 +26,7 @@ for (const { name, dtsPath } of entryPoints) {
 
   configObject.mainEntryPointFilePath = path.resolve(projectRoot, dtsPath);
   configObject.apiReport.reportFileName = `${name}.api.md`;
-  configObject.docModel.apiJsonFilePath = path.resolve(
-    projectRoot,
-    `etc/${name}.api.json`
-  );
+  configObject.docModel.apiJsonFilePath = path.resolve(projectRoot, `etc/${name}.api.json`);
 
   const extractorConfig = ExtractorConfig.prepare({
     configObject,

@@ -1,4 +1,5 @@
 import mammoth from "mammoth";
+
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
@@ -42,7 +43,11 @@ export class WordProcessor implements FileProcessor {
    */
   private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
     // Handle blob URLs and HTTPS URLs via fetch
-    if (dataUrl.startsWith("blob:") || dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) {
+    if (
+      dataUrl.startsWith("blob:") ||
+      dataUrl.startsWith("http://") ||
+      dataUrl.startsWith("https://")
+    ) {
       const response = await fetch(dataUrl);
       return response.arrayBuffer();
     }

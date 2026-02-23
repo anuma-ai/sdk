@@ -12,7 +12,7 @@ Context value for UI interactions
 
 > **cancelInteraction**: (`id`: `string`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L51)
+Defined in: [src/react/useUIInteraction.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L47)
 
 **Parameters**
 
@@ -49,7 +49,7 @@ Defined in: [src/react/useUIInteraction.ts:51](https://github.com/zeta-chain/ai-
 
 > **clearInteractions**: () => `void`
 
-Defined in: [src/react/useUIInteraction.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L52)
+Defined in: [src/react/useUIInteraction.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L48)
 
 **Returns**
 
@@ -61,7 +61,7 @@ Defined in: [src/react/useUIInteraction.ts:52](https://github.com/zeta-chain/ai-
 
 > **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`, `toolVersion?`: `number`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L43)
+Defined in: [src/react/useUIInteraction.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L39)
 
 **Parameters**
 
@@ -207,7 +207,7 @@ Defined in: [src/react/useUIInteraction.ts:38](https://github.com/zeta-chain/ai-
 
 > **getInteraction**: (`id`: `string`) => [`PendingInteraction`](PendingInteraction.md) | `undefined`
 
-Defined in: [src/react/useUIInteraction.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L53)
+Defined in: [src/react/useUIInteraction.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L49)
 
 **Parameters**
 
@@ -252,7 +252,7 @@ Defined in: [src/react/useUIInteraction.ts:37](https://github.com/zeta-chain/ai-
 
 > **resolveInteraction**: (`id`: `string`, `result`: `any`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L50)
+Defined in: [src/react/useUIInteraction.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L46)
 
 **Parameters**
 

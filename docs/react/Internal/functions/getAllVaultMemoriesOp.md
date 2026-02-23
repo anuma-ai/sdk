@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L96)
+Defined in: [src/lib/db/memoryVault/operations.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/operations.ts#L89)
 
 ## Parameters
 

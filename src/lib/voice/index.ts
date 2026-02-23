@@ -1,6 +1,1 @@
-export type {
-  WhisperModel,
-  VoiceRecording,
-  TranscriptionResult,
-  ModelLoadProgress,
-} from "./types";
+export type { ModelLoadProgress, TranscriptionResult, VoiceRecording, WhisperModel } from "./types";

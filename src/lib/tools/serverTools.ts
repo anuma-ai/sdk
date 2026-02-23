@@ -44,9 +44,7 @@ interface ServerToolsResponseItemNew {
 }
 
 /** Response item can be either format */
-type ServerToolsResponseItem =
-  | ServerToolsResponseItemCurrent
-  | ServerToolsResponseItemNew;
+type ServerToolsResponseItem = ServerToolsResponseItemCurrent | ServerToolsResponseItemNew;
 
 /** Tools object mapping tool names to their definitions */
 type ServerToolsMap = {
@@ -60,9 +58,9 @@ type ServerToolsMap = {
  */
 export type ServerToolsResponse =
   | {
-    checksum: string;
-    tools: ServerToolsMap;
-  }
+      checksum: string;
+      tools: ServerToolsMap;
+    }
   | ServerToolsMap;
 
 /**
@@ -125,9 +123,7 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 /**
  * Type guard to check if tool is in new format (has schema property)
  */
-function isNewToolFormat(
-  tool: ServerToolsResponseItem
-): tool is ServerToolsResponseItemNew {
+function isNewToolFormat(tool: ServerToolsResponseItem): tool is ServerToolsResponseItemNew {
   return "schema" in tool && tool.schema !== undefined;
 }
 
@@ -157,9 +153,7 @@ export interface ParsedServerToolsResponse {
  * Supports both legacy and new API response formats.
  * Returns tools and optional checksum.
  */
-function convertServerToolsResponse(
-  response: ServerToolsResponse
-): ParsedServerToolsResponse {
+function convertServerToolsResponse(response: ServerToolsResponse): ParsedServerToolsResponse {
   // Extract tools map and checksum based on response format
   let toolsMap: ServerToolsMap;
   let checksum: string | undefined;
@@ -291,7 +285,7 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
     localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(cacheData));
   } catch (error) {
     // localStorage might be full or disabled - log but don't throw
-    // eslint-disable-next-line no-console
+
     console.warn("[serverTools] Failed to cache tools:", error);
   }
 }
@@ -324,7 +318,6 @@ export function getToolsChecksum(): string | undefined {
  * - Checksums match
  */
 export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
-
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
     return false;
@@ -372,9 +365,7 @@ async function fetchServerToolsFromApi(
  * 3. Otherwise, fetch from API, cache, and return
  * 4. On fetch failure, return cached tools if available (stale-while-error)
  */
-export async function getServerTools(
-  options: ServerToolsOptions
-): Promise<ServerTool[]> {
+export async function getServerTools(options: ServerToolsOptions): Promise<ServerTool[]> {
   const {
     baseUrl,
     cacheExpirationMs = DEFAULT_CACHE_EXPIRATION_MS,
@@ -424,7 +415,7 @@ export async function getServerTools(
     const token = await getToken();
     if (!token) {
       // No token available - return cached if available, otherwise empty
-      // eslint-disable-next-line no-console
+
       console.warn("[serverTools] No auth token available for fetching tools");
       return cached?.tools ?? [];
     }
@@ -433,12 +424,10 @@ export async function getServerTools(
     cacheServerTools(tools, checksum);
     return tools;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("[serverTools] Failed to fetch server tools:", error);
 
     // Stale-while-error: return cached tools if available
     if (cached?.tools) {
-      // eslint-disable-next-line no-console
       console.warn("[serverTools] Using stale cached tools due to fetch error");
       return cached.tools;
     }
@@ -592,8 +581,7 @@ export function mergeTools(
 
   // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
-    const name =
-      "name" in tool ? (tool.name as string) : (tool as any).function?.name;
+    const name = "name" in tool ? (tool.name as string) : (tool as any).function?.name;
     return !clientToolNames.has(name ?? "");
   });
 
@@ -719,9 +707,7 @@ export function findMatchingTools(
   }
 
   // Sort by similarity descending and limit results
-  return results
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 }
 
 /**

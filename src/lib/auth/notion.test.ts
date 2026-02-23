@@ -73,29 +73,18 @@ describe("Notion OAuth Auth", () => {
   describe("clearNotionToken", () => {
     it("clears token from localStorage and sessionStorage", () => {
       const walletAddress = "0xWALLET";
-      localStorage.setItem(
-        `oauth_token_notion:${walletAddress}`,
-        "enc:oauth:some-encrypted-data"
-      );
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      localStorage.setItem(`oauth_token_notion:${walletAddress}`, "enc:oauth:some-encrypted-data");
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       clearNotionToken(walletAddress);
 
-      expect(
-        localStorage.getItem(`oauth_token_notion:${walletAddress}`)
-      ).toBeNull();
+      expect(localStorage.getItem(`oauth_token_notion:${walletAddress}`)).toBeNull();
       expect(sessionStorage.getItem("oauth_token_notion")).toBeNull();
     });
 
     it("clears token without wallet address (legacy key)", () => {
       localStorage.setItem("oauth_token_notion", "some-data");
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       clearNotionToken();
 
@@ -110,32 +99,20 @@ describe("Notion OAuth Auth", () => {
     });
 
     it("returns true when encrypted token exists in localStorage", () => {
-      localStorage.setItem(
-        "oauth_token_notion:0xWALLET",
-        "enc:oauth:encrypted-token"
-      );
+      localStorage.setItem("oauth_token_notion:0xWALLET", "enc:oauth:encrypted-token");
 
       expect(hasNotionCredentials("0xWALLET")).toBe(true);
     });
 
     it("returns true when token exists in sessionStorage", () => {
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       expect(hasNotionCredentials()).toBe(true);
     });
 
     it("returns true when token exists in both storages", () => {
-      localStorage.setItem(
-        "oauth_token_notion:0xWALLET",
-        "enc:oauth:encrypted"
-      );
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      localStorage.setItem("oauth_token_notion:0xWALLET", "enc:oauth:encrypted");
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       expect(hasNotionCredentials("0xWALLET")).toBe(true);
     });
@@ -157,9 +134,7 @@ describe("Notion OAuth Auth", () => {
       const result = await migrateNotionToken(walletAddress);
 
       expect(result).toBe(true);
-      const stored = localStorage.getItem(
-        `oauth_token_notion:${walletAddress}`
-      );
+      const stored = localStorage.getItem(`oauth_token_notion:${walletAddress}`);
       expect(stored).toMatch(/^enc:oauth:/);
       expect(sessionStorage.getItem("oauth_token_notion")).toBeNull();
     });
@@ -171,20 +146,14 @@ describe("Notion OAuth Auth", () => {
 
     it("returns false when encryption key is not available", async () => {
       vi.mocked(hasEncryptionKey).mockReturnValueOnce(false);
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       const result = await migrateNotionToken(walletAddress);
       expect(result).toBe(false);
     });
 
     it("returns false without wallet address", async () => {
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "token" })
-      );
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
       const result = await migrateNotionToken("");
       expect(result).toBe(false);
@@ -193,10 +162,7 @@ describe("Notion OAuth Auth", () => {
     it("removes stale encrypted localStorage token before migrating", async () => {
       const scopedKey = `oauth_token_notion:${walletAddress}`;
       localStorage.setItem(scopedKey, "enc:oauth:stale-token");
-      sessionStorage.setItem(
-        "oauth_token_notion",
-        JSON.stringify({ accessToken: "fresh-token" })
-      );
+      sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "fresh-token" }));
 
       const result = await migrateNotionToken(walletAddress);
 
@@ -217,17 +183,12 @@ describe("Notion OAuth Auth", () => {
         redirectUri: "http://localhost/callback",
         registeredAt: Date.now(),
       };
-      sessionStorage.setItem(
-        clientRegistrationKey,
-        JSON.stringify(registration)
-      );
+      sessionStorage.setItem(clientRegistrationKey, JSON.stringify(registration));
 
       const result = await migrateNotionClientRegistration(walletAddress);
 
       expect(result).toBe(true);
-      const stored = localStorage.getItem(
-        `${clientRegistrationKey}:${walletAddress}`
-      );
+      const stored = localStorage.getItem(`${clientRegistrationKey}:${walletAddress}`);
       expect(stored).toMatch(/^enc:oauth:/);
       expect(sessionStorage.getItem(clientRegistrationKey)).toBeNull();
     });
@@ -238,17 +199,12 @@ describe("Notion OAuth Auth", () => {
         redirectUri: "http://localhost/callback",
         registeredAt: Date.now(),
       };
-      localStorage.setItem(
-        clientRegistrationKey,
-        JSON.stringify(registration)
-      );
+      localStorage.setItem(clientRegistrationKey, JSON.stringify(registration));
 
       const result = await migrateNotionClientRegistration(walletAddress);
 
       expect(result).toBe(true);
-      const stored = localStorage.getItem(
-        `${clientRegistrationKey}:${walletAddress}`
-      );
+      const stored = localStorage.getItem(`${clientRegistrationKey}:${walletAddress}`);
       expect(stored).toMatch(/^enc:oauth:/);
       expect(localStorage.getItem(clientRegistrationKey)).toBeNull();
     });
@@ -256,18 +212,13 @@ describe("Notion OAuth Auth", () => {
     it("cleans up unencrypted sources when encrypted version already exists", async () => {
       const scopedKey = `${clientRegistrationKey}:${walletAddress}`;
       localStorage.setItem(scopedKey, "enc:oauth:already-encrypted");
-      sessionStorage.setItem(
-        clientRegistrationKey,
-        JSON.stringify({ clientId: "c1" })
-      );
+      sessionStorage.setItem(clientRegistrationKey, JSON.stringify({ clientId: "c1" }));
 
       const result = await migrateNotionClientRegistration(walletAddress);
 
       expect(result).toBe(true);
       expect(sessionStorage.getItem(clientRegistrationKey)).toBeNull();
-      expect(localStorage.getItem(scopedKey)).toBe(
-        "enc:oauth:already-encrypted"
-      );
+      expect(localStorage.getItem(scopedKey)).toBe("enc:oauth:already-encrypted");
     });
 
     it("returns false when no unencrypted sources exist", async () => {
@@ -276,10 +227,7 @@ describe("Notion OAuth Auth", () => {
     });
 
     it("returns false without wallet address", async () => {
-      sessionStorage.setItem(
-        clientRegistrationKey,
-        JSON.stringify({ clientId: "c" })
-      );
+      sessionStorage.setItem(clientRegistrationKey, JSON.stringify({ clientId: "c" }));
 
       const result = await migrateNotionClientRegistration("");
       expect(result).toBe(false);
@@ -291,26 +239,16 @@ describe("Notion OAuth Auth", () => {
   describe("revokeNotionAccess", () => {
     it("clears all stored data for wallet", () => {
       const walletAddress = "0xREVOKE";
-      localStorage.setItem(
-        `oauth_token_notion:${walletAddress}`,
-        "enc:oauth:token"
-      );
-      localStorage.setItem(
-        `notion_oauth_client:${walletAddress}`,
-        "enc:oauth:client"
-      );
+      localStorage.setItem(`oauth_token_notion:${walletAddress}`, "enc:oauth:token");
+      localStorage.setItem(`notion_oauth_client:${walletAddress}`, "enc:oauth:client");
       localStorage.setItem("notion_oauth_client", "legacy-client");
       sessionStorage.setItem("oauth_token_notion", "session-token");
       sessionStorage.setItem("notion_oauth_client", "session-client");
 
       revokeNotionAccess(walletAddress);
 
-      expect(
-        localStorage.getItem(`oauth_token_notion:${walletAddress}`)
-      ).toBeNull();
-      expect(
-        localStorage.getItem(`notion_oauth_client:${walletAddress}`)
-      ).toBeNull();
+      expect(localStorage.getItem(`oauth_token_notion:${walletAddress}`)).toBeNull();
+      expect(localStorage.getItem(`notion_oauth_client:${walletAddress}`)).toBeNull();
       expect(localStorage.getItem("notion_oauth_client")).toBeNull();
       expect(sessionStorage.getItem("oauth_token_notion")).toBeNull();
       expect(sessionStorage.getItem("notion_oauth_client")).toBeNull();
@@ -411,9 +349,9 @@ describe("Notion OAuth Auth", () => {
       url.searchParams.set("error_description", "User denied access");
       window.history.replaceState({}, "", url.toString());
 
-      await expect(
-        handleNotionCallback(callbackPath, "0xWALLET")
-      ).rejects.toThrow("Notion OAuth error: access_denied");
+      await expect(handleNotionCallback(callbackPath, "0xWALLET")).rejects.toThrow(
+        "Notion OAuth error: access_denied"
+      );
     });
 
     it("throws when PKCE state is missing", async () => {
@@ -422,9 +360,9 @@ describe("Notion OAuth Auth", () => {
       url.searchParams.set("state", "state-abc");
       window.history.replaceState({}, "", url.toString());
 
-      await expect(
-        handleNotionCallback(callbackPath, "0xWALLET")
-      ).rejects.toThrow("Invalid OAuth state");
+      await expect(handleNotionCallback(callbackPath, "0xWALLET")).rejects.toThrow(
+        "Invalid OAuth state"
+      );
     });
 
     it("throws when state parameter does not match", async () => {
@@ -442,9 +380,9 @@ describe("Notion OAuth Auth", () => {
       url.searchParams.set("state", "wrong-state");
       window.history.replaceState({}, "", url.toString());
 
-      await expect(
-        handleNotionCallback(callbackPath, "0xWALLET")
-      ).rejects.toThrow("Invalid OAuth state");
+      await expect(handleNotionCallback(callbackPath, "0xWALLET")).rejects.toThrow(
+        "Invalid OAuth state"
+      );
     });
 
     it("throws when no client registration found", async () => {
@@ -463,9 +401,9 @@ describe("Notion OAuth Auth", () => {
       url.searchParams.set("state", state);
       window.history.replaceState({}, "", url.toString());
 
-      await expect(
-        handleNotionCallback(callbackPath, "0xWALLET")
-      ).rejects.toThrow("No client registration found");
+      await expect(handleNotionCallback(callbackPath, "0xWALLET")).rejects.toThrow(
+        "No client registration found"
+      );
     });
 
     it("exchanges code for tokens on valid callback", async () => {
@@ -562,10 +500,7 @@ describe("Notion OAuth Auth", () => {
         }),
       });
 
-      const token = await handleNotionCallback(
-        "/auth/notion/callback",
-        walletAddress
-      );
+      const token = await handleNotionCallback("/auth/notion/callback", walletAddress);
       expect(token).toBe("token-no-expiry");
     });
 
@@ -602,9 +537,9 @@ describe("Notion OAuth Auth", () => {
         json: async () => ({ error: "invalid_code" }),
       });
 
-      await expect(
-        handleNotionCallback("/auth/notion/callback", "0xFAIL")
-      ).rejects.toThrow("Token exchange failed: 400");
+      await expect(handleNotionCallback("/auth/notion/callback", "0xFAIL")).rejects.toThrow(
+        "Token exchange failed: 400"
+      );
     });
   });
 

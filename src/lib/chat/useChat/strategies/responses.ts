@@ -44,10 +44,7 @@ export class ResponsesStrategy implements ApiStrategy {
     };
   }
 
-  processStreamChunk(
-    chunk: unknown,
-    accumulator: StreamAccumulator
-  ): ProcessChunkResult {
+  processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
 
@@ -217,17 +214,14 @@ export class ResponsesStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart =
-              parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
           }
 
           // Emit deltas - only emit non-empty content to avoid false error detection
           const willEmitMessage =
-            parseResult.messageContent &&
-            parseResult.messageContent.trim().length > 0;
+            parseResult.messageContent && parseResult.messageContent.trim().length > 0;
           const willEmitReasoning =
-            parseResult.reasoningContent &&
-            parseResult.reasoningContent.trim().length > 0;
+            parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
 
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
@@ -365,10 +359,7 @@ export class ResponsesStrategy implements ApiStrategy {
       model: accumulator.responseModel,
       object: "response",
       output,
-      usage:
-        Object.keys(accumulator.usage).length > 0
-          ? accumulator.usage
-          : undefined,
+      usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
       tools_checksum: accumulator.toolsChecksum,
       tool_call_events: accumulator.toolCallEvents,
     };

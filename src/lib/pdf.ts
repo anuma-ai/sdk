@@ -28,9 +28,7 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
   }
 }
 
-export async function convertPdfToImages(
-  pdfDataUrl: string
-): Promise<string[]> {
+export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> {
   const images: string[] = [];
 
   try {

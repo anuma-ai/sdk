@@ -20,11 +20,7 @@ import {
   generateEmbedding,
 } from "../../../../src/lib/memoryRetrieval/embeddings.js";
 import { createMemoryRetrievalTool } from "../../../../src/lib/memoryRetrieval/tool.js";
-import type {
-  LongMemEvalEntry,
-  LongMemEvalResult,
-  ApiConfig,
-} from "./types.js";
+import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
 import {
   setupDatabase,
   selectSessions,
@@ -115,10 +111,7 @@ export async function processEntryMemoryEngine(
     };
 
     logProgress("Chunking and embedding messages...");
-    const embeddedCount = await chunkAndEmbedAllMessages(
-      storageCtx,
-      embeddingOptions
-    );
+    const embeddedCount = await chunkAndEmbedAllMessages(storageCtx, embeddingOptions);
     clearProgress();
 
     if (verbose) {
@@ -202,7 +195,8 @@ You are a personal assistant with access to the user's past conversation history
           logProgress("Executing search_memory tool...");
           const toolResult = await retrievalTool.executor!(args);
           clearProgress();
-          const toolResultStr = typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
+          const toolResultStr =
+            typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
 
           (transcript.toolCalls as any[]).push({
             id: toolCall.id,
@@ -276,13 +270,9 @@ You are a personal assistant with access to the user's past conversation history
     ).length;
 
     const retrievalPrecision =
-      retrievedSessionIds.size > 0
-        ? correctlyRetrieved / retrievedSessionIds.size
-        : 0;
+      retrievedSessionIds.size > 0 ? correctlyRetrieved / retrievedSessionIds.size : 0;
     const retrievalRecall =
-      expectedSessionIds.size > 0
-        ? correctlyRetrieved / expectedSessionIds.size
-        : 0;
+      expectedSessionIds.size > 0 ? correctlyRetrieved / expectedSessionIds.size : 0;
 
     transcript.retrieval = {
       precision: retrievalPrecision,
@@ -293,12 +283,7 @@ You are a personal assistant with access to the user's past conversation history
 
     // Evaluate answer
     logProgress("Evaluating answer...");
-    const isCorrect = await evaluateAnswer(
-      entry.question,
-      entry.answer,
-      generatedAnswer,
-      api
-    );
+    const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
     clearProgress();
 
     transcript.isCorrect = isCorrect;

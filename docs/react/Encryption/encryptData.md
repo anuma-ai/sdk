@@ -2,7 +2,7 @@
 
 > **encryptData**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `address`: `string`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:406](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L406)
+Defined in: [src/react/useEncryption.ts:390](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L390)
 
 Encrypts data using AES-GCM with the stored encryption key.
 

@@ -1,7 +1,7 @@
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
+import { decryptField, encryptField } from "../encryption-utils";
 import type { CreateConversationOptions, StoredConversation } from "./types";
-import { encryptField, decryptField } from "../encryption-utils";
 
 /**
  * Encrypts conversation title before storage.

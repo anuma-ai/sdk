@@ -2,7 +2,7 @@
 
 > **getValidNotionToken**(): `string` | `null`
 
-Defined in: [src/lib/auth/notion.ts:960](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L960)
+Defined in: [src/lib/auth/notion.ts:940](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L940)
 
 Synchronous getter for the current Notion access token.
 Reads from the in-memory cache populated by async operations

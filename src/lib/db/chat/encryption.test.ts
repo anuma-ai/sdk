@@ -128,7 +128,7 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(message, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
 
       expect(encrypted.content).not.toBe(message.content);
       expect(isEncrypted(encrypted.content)).toBe(true);
@@ -163,7 +163,7 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(message, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
 
       // JSON fields should be encrypted strings
       expect(typeof encrypted.sources).toBe("string");
@@ -186,7 +186,7 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(original, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(original, testAddress, mockSignMessage)) as any;
 
       // Create a StoredMessage-like object from encrypted data
       const storedMessage: StoredMessage = {

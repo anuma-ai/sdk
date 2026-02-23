@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { LlmapiModel } from "../client";
 import { getApiV1Models } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
-import type { LlmapiModel } from "../client";
 
 /**
  * @inline

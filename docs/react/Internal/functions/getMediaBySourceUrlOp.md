@@ -2,7 +2,7 @@
 
 > **getMediaBySourceUrlOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `sourceUrl`: `string`, `walletAddress`: `string`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md) | `null`>
 
-Defined in: [src/lib/db/media/operations.ts:220](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L220)
+Defined in: [src/lib/db/media/operations.ts:224](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L224)
 
 Get a media record by its source URL.
 Note: When encryption is enabled, sourceUrl is encrypted and this query
