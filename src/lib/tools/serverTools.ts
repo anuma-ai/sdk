@@ -7,7 +7,6 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
-import { cosineSimilarity } from "../db/memory/types";
 import {
   shouldChunkMessage,
   chunkText,
@@ -115,10 +114,10 @@ export interface ServerToolsOptions {
 export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 
 /** localStorage key for cached tools */
-export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
+const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
-export const CACHE_VERSION = "1.3";
+const CACHE_VERSION = "1.3";
 
 /** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
 export const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
@@ -158,7 +157,7 @@ export interface ParsedServerToolsResponse {
  * Supports both legacy and new API response formats.
  * Returns tools and optional checksum.
  */
-export function convertServerToolsResponse(
+function convertServerToolsResponse(
   response: ServerToolsResponse
 ): ParsedServerToolsResponse {
   // Extract tools map and checksum based on response format
@@ -199,7 +198,7 @@ export function convertServerToolsResponse(
  * Completions API tool format.
  * OpenAI Chat Completions expects: { type, function: { name, description, parameters } }
  */
-export interface CompletionsTool {
+interface CompletionsTool {
   type: "function";
   function: {
     name: string;
@@ -216,7 +215,7 @@ export interface CompletionsTool {
  * Convert ServerTool to completions API format.
  * Format: { type: "function", function: { name, description, parameters } }
  */
-export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
+function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   return {
     type: "function",
     function: {
@@ -231,7 +230,7 @@ export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
  * Convert ServerTool to responses API format.
  * Format: { type: "function", name, description, parameters }
  */
-export function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
+function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
   return {
     type: "function",
     name: tool.name,
@@ -267,7 +266,7 @@ export function getCachedServerTools(): CachedServerTools | null {
 /**
  * Check if cached tools are expired
  */
-export function isCacheExpired(
+function isCacheExpired(
   cache: CachedServerTools | null,
   expirationMs: number = DEFAULT_CACHE_EXPIRATION_MS
 ): boolean {
@@ -278,7 +277,7 @@ export function isCacheExpired(
 /**
  * Store tools in localStorage cache
  */
-export function cacheServerTools(tools: ServerTool[], checksum?: string): void {
+function cacheServerTools(tools: ServerTool[], checksum?: string): void {
   if (typeof window === "undefined") return;
 
   const cacheData: CachedServerTools = {
@@ -344,7 +343,7 @@ export function shouldRefreshTools(responseChecksum: string | undefined): boolea
 /**
  * Fetch tools from the server API
  */
-export async function fetchServerToolsFromApi(
+async function fetchServerToolsFromApi(
   baseUrl: string,
   token: string
 ): Promise<ParsedServerToolsResponse> {
@@ -499,13 +498,19 @@ function clientToolToResponsesFormat(
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
     }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
   };
 }
 
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor and autoExecute for client-side execution.
+ * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -536,6 +541,12 @@ function clientToolToCompletionsFormat(
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
+    }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
     }),
   };
 }
@@ -588,6 +599,29 @@ export function mergeTools(
 
   // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return dotProduct / denominator;
 }
 
 /**

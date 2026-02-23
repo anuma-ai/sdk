@@ -1,6 +1,6 @@
 /**
  * The `@reverbia/sdk/tools` package provides AI tool configurations for
- * integrating with external services like Google Calendar and Google Drive.
+ * integrating with external services like Google Calendar, Google Drive, and Notion.
  *
  * These tools enable your AI to interact with user data on their behalf,
  * with proper authentication and permission handling.
@@ -43,6 +43,20 @@
  * );
  * ```
  *
+ * ## Notion MCP Tools
+ *
+ * Notion tools use the Model Context Protocol (MCP) to communicate with
+ * Notion's hosted MCP server. No direct API calls needed.
+ *
+ * ```typescript
+ * import { createNotionTools } from "@reverbia/sdk/tools";
+ *
+ * const notionTools = createNotionTools(
+ *   () => getNotionAccessToken(walletAddress, clientId),
+ *   () => requestNotionAccess()
+ * );
+ * ```
+ *
  * @module tools
  */
 
@@ -61,6 +75,24 @@ export type {
   CalendarEvent,
 } from "./googleCalendar";
 
+// UI Interaction tool factories
+export {
+  createInteractiveTool,
+  createDisplayTool,
+  migrateDisplayResult,
+} from "./uiInteraction";
+export type {
+  UIInteractionContext,
+  CreateUIToolsOptions,
+  InteractiveToolConfig,
+  DisplayToolConfig,
+  DisplayToolMigrations,
+} from "./uiInteraction";
+
+// Chart display tool
+export { createChartTool } from "./chart";
+export type { ChartDataPoint, DisplayChartResult } from "./chart";
+
 // Google Drive exports
 export {
   createGoogleDriveSearchTool,
@@ -74,3 +106,30 @@ export type {
   ListRecentFilesArgs,
   GetFileContentArgs,
 } from "./googleDrive";
+
+// Notion MCP exports
+export {
+  createNotionSearchTool,
+  createNotionFetchTool,
+  createNotionCreatePagesTool,
+  createNotionUpdatePageTool,
+  createNotionMovePagesTool,
+  createNotionDuplicatePageTool,
+
+  createNotionCreateDatabaseTool,
+  createNotionUpdateDataSourceTool,
+  createNotionCreateCommentTool,
+  createNotionGetCommentsTool,
+  createNotionGetUsersTool,
+  createNotionGetTeamsTool,
+  createNotionTools,
+  getMCPEndpoints,
+  callNotionMCPTool,
+} from "./notion";
+export type {
+  NotionSearchArgs,
+  NotionFetchArgs,
+  NotionCreatePagesArgs,
+  NotionUpdatePageArgs,
+  NotionMovePagesArgs,
+} from "./notion";

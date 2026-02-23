@@ -63,10 +63,15 @@
     "build": "tsup",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
-    "generate": "pnpm run spec && pnpm run docs",
-    "eval:memory": "tsx test/memory",
+    "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
+    "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
+    "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
-    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload"
+    "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "api-report": "node scripts/api-extractor-run.mjs",
+    "api-report:update": "node scripts/api-extractor-run.mjs --local",
+    "knip": "knip",
+    "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs"
   },
   "repository": {
     "type": "git",
@@ -80,7 +85,7 @@
   },
   "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
   "dependencies": {
-    "@reverbia/portal": "1.0.0-next.20260211161039",
+    "@anuma/portal": "1.0.0-next.20260220225437",
     "ai": "5.0.93",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",
@@ -90,17 +95,23 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
     "@hey-api/openapi-ts": "0.87.2",
+    "@microsoft/api-extractor": "^7.57.1",
     "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.6",
+    "@vitest/coverage-v8": "4.0.15",
     "dotenv": "^17.2.3",
     "happy-dom": "^20.0.11",
+    "knip": "^5.85.0",
     "playwright": "^1.57.0",
+    "publint": "^0.3.17",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "recharts": "^2.15.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.14",
@@ -117,7 +128,8 @@
     "@privy-io/react-auth": "^3.7.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "react-native": ">=0.70.0"
+    "react-native": ">=0.70.0",
+    "recharts": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "@huggingface/transformers": {
@@ -133,6 +145,9 @@
       "optional": true
     },
     "@privy-io/react-auth": {
+      "optional": true
+    },
+    "recharts": {
       "optional": true
     }
   },

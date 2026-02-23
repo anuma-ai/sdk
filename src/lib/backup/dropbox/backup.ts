@@ -24,7 +24,7 @@ const isAuthError = (err: unknown): boolean =>
   err instanceof Error &&
   (err.message.includes("401") || err.message.includes("invalid_access_token"));
 
-export interface DropboxBackupDeps {
+interface DropboxBackupDeps {
   requestDropboxAccess: () => Promise<string>;
   requestEncryptionKey: (address: string) => Promise<void>;
   /** Export a conversation to an encrypted blob */
@@ -55,7 +55,7 @@ export interface DropboxImportResult {
   noBackupsFound?: boolean;
 }
 
-export async function pushConversationToDropbox(
+async function pushConversationToDropbox(
   database: Database,
   conversationId: string,
   userAddress: string,

@@ -44,6 +44,7 @@ export async function preprocessFiles(
     processors = undefined, // undefined means use defaults
     keepOriginalFiles = true,
     maxFileSizeBytes = 10 * 1024 * 1024, // 10MB
+    timeoutMs = 30_000, // 30s per file
     onProgress,
     onError,
   } = options;
@@ -137,7 +138,12 @@ export async function preprocessFiles(
         dataUrl: file.url,
       };
 
-      const result = await processor.process(fileWithData);
+      const result = await Promise.race([
+        processor.process(fileWithData),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timed out processing ${file.name}`)), timeoutMs)
+        ),
+      ]);
 
       if (result && result.extractedText.trim()) {
         // Format the extracted content

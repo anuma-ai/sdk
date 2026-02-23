@@ -59,7 +59,9 @@ import {
   hardDeleteMediaOp,
   generateMediaId,
   getMediaTypeFromMime,
+  getMediaByIdsOp,
   type CreateMediaOptions,
+  type StoredMedia,
 } from "../lib/db/media";
 import {
   queueManager,
@@ -77,7 +79,6 @@ import {
   filterServerTools,
   mergeTools,
   shouldRefreshTools,
-  MIN_CONTENT_LENGTH_FOR_TOOLS,
   type ServerTool,
 } from "../lib/tools";
 import {
@@ -90,8 +91,34 @@ import {
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
+
+import {
+  type VaultMemoryOperationsContext,
+  type StoredVaultMemory,
+  getAllVaultMemoriesOp,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+import { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  createMemoryVaultTool as createMemoryVaultToolBase,
+  createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
+  searchVaultMemories as searchVaultMemoriesBase,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  createVaultEmbeddingCache,
+  type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
+  type VaultSearchResult,
+} from "../lib/memoryVault";
+
+// Lower threshold for tool filtering - short prompts like "draw a cat" should work
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -113,7 +140,8 @@ async function blobToDataUri(blob: Blob): Promise<string> {
  */
 async function storedToLlmapiMessage(
   stored: StoredMessage,
-  encryptionKey?: CryptoKey
+  encryptionKey?: CryptoKey,
+  resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
 ): Promise<LlmapiMessage> {
   let textContent = stored.content;
 
@@ -168,6 +196,21 @@ async function storedToLlmapiMessage(
     }
   }
 
+  // Resolve fileIds from media table for messages using the new storage format
+  // (where the deprecated stored.files is empty and fileIds references the media table)
+  if (stored.fileIds?.length && resolveMediaByIds) {
+    try {
+      const mediaItems = await resolveMediaByIds(stored.fileIds);
+      for (const media of mediaItems) {
+        if (media.sourceUrl) {
+          fileUrlMap.set(media.mediaId, media.sourceUrl);
+        }
+      }
+    } catch {
+      // Don't fail message conversion if media resolution fails
+    }
+  }
+
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
   textContent = textContent.replace(
@@ -196,6 +239,21 @@ async function storedToLlmapiMessage(
       return "";
     }
   );
+
+  // For assistant messages with resolved image URLs that aren't already in the content,
+  // append them as markdown images so the LLM can reference them
+  // (e.g., when user asks to edit a previously generated image)
+  if (stored.role === "assistant" && fileUrlMap.size > 0) {
+    const unreferencedImages = [...fileUrlMap.entries()].filter(
+      ([, url]) => !textContent.includes(url)
+    );
+    if (unreferencedImages.length > 0) {
+      const imageMarkdown = unreferencedImages
+        .map(([, url]) => `![Generated image](${url})`)
+        .join("\n");
+      textContent = textContent + "\n\n" + imageMarkdown;
+    }
+  }
 
   // Clean up extra whitespace from removed placeholders
   textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
@@ -317,6 +375,8 @@ export type SendMessageWithStorageResult =
       error: null;
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
+      /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
+      autoExecutedToolResults?: { name: string; result: any }[];
     }
   | {
       data: ApiResponse;
@@ -409,6 +469,73 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   createMemoryRetrievalTool: (
     searchOptions?: Partial<MemoryRetrievalSearchOptions>
   ) => ToolConfig;
+
+  /**
+   * Create a memory vault tool for LLM to save/update persistent memories.
+   * The tool is pre-configured with the hook's vault context and encryption.
+   *
+   * @param options - Optional configuration (onSave callback for confirmation)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /**
+   * Create a memory vault search tool for LLM to search vault memories
+   * using semantic similarity. Pre-configured with vault context, auth, and
+   * a shared embedding cache that is pre-populated on init.
+   *
+   * @param searchOptions - Optional search configuration (limit, minSimilarity)
+   * @returns A ToolConfig that can be passed to sendMessage's clientTools
+   */
+  createMemoryVaultSearchTool: (
+    searchOptions?: MemoryVaultSearchOptions
+  ) => ToolConfig;
+
+  /**
+   * Search vault memories programmatically using semantic similarity.
+   * Returns structured results sorted by descending similarity.
+   * Gracefully returns [] when auth is unavailable.
+   *
+   * @param query - Natural language search query
+   * @param searchOptions - Optional search configuration (limit, minSimilarity, scopes)
+   */
+  searchVaultMemories: (
+    query: string,
+    searchOptions?: MemoryVaultSearchOptions
+  ) => Promise<VaultSearchResult[]>;
+
+  /**
+   * The shared vault embedding cache. Use this to eagerly embed content
+   * when saving vault memories (via eagerEmbedContent).
+   */
+  vaultEmbeddingCache: VaultEmbeddingCache;
+
+  /**
+   * Get all vault memories for context injection.
+   * Returns non-deleted memories sorted by creation date (newest first).
+   * @param options - Optional filtering (scopes to include)
+   */
+  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+
+  /**
+   * Create a new vault memory with the given content.
+   * @param content - The memory text
+   * @param scope - Optional scope (defaults to "private")
+   */
+  createVaultMemory: (content: string, scope?: string) => Promise<StoredVaultMemory>;
+
+  /**
+   * Update an existing vault memory's content.
+   * @param scope - Optional new scope for the memory
+   * @returns the updated memory, or null if not found
+   */
+  updateVaultMemory: (id: string, content: string, scope?: string) => Promise<StoredVaultMemory | null>;
+
+  /**
+   * Delete a vault memory by its ID (soft delete).
+   * @returns true if the memory was found and deleted
+   */
+  deleteVaultMemory: (id: string) => Promise<boolean>;
 
   /**
    * Manually flush all queued operations for the current wallet.
@@ -504,12 +631,6 @@ function cleanMCPUrlsFromContent(content: string): string {
     ""
   );
 
-  // Remove any remaining raw MCP URLs (including truncated ones)
-  cleaned = cleaned.replace(
-    new RegExp(`https://${escapedDomain}[^\\s"'<>)]*`, "g"),
-    ""
-  );
-
   // Clean up extra whitespace and newlines
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -593,6 +714,22 @@ export function useChatStorage(
       embeddedWalletSigner,
     }),
     [database, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // Memory vault operations context
+  const vaultMemoryCollection = useMemo(
+    () => database.get<VaultMemory>("memory_vault"),
+    [database]
+  );
+  const vaultCtx = useMemo<VaultMemoryOperationsContext>(
+    () => ({
+      database,
+      vaultMemoryCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    }),
+    [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   // ── Queue Management ──
@@ -855,6 +992,146 @@ export function useChatStorage(
       );
     },
     [storageCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create a memory vault tool pre-configured with hook's vault context and encryption
+   */
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
+      return createMemoryVaultToolBase(
+        vaultCtx,
+        options,
+        embOpts,
+        embOpts ? vaultEmbeddingCacheRef.current : undefined
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Get all vault memories (for injecting as context into messages)
+   */
+  const getVaultMemories = useCallback(
+    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+      return getAllVaultMemoriesOp(vaultCtx, options);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Create a new vault memory (for manual creation from UI)
+   */
+  const createVaultMemory = useCallback(
+    async (content: string, scope?: string): Promise<StoredVaultMemory> => {
+      const result = await createVaultMemoryOp(vaultCtx, { content, scope });
+      if (getToken) {
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Update a vault memory's content (for manual editing from UI)
+   */
+  const updateVaultMemory = useCallback(
+    async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope });
+      if (result && getToken) {
+        if (existing) {
+          vaultEmbeddingCacheRef.current.delete(existing.content);
+        }
+        eagerEmbedContent(
+          content,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        ).catch(() => {});
+      }
+      return result;
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Delete a vault memory by ID (for manual deletion from UI)
+   */
+  const deleteVaultMemory = useCallback(
+    async (id: string): Promise<boolean> => {
+      const existing = await getVaultMemoryOp(vaultCtx, id);
+      const result = await deleteVaultMemoryOp(vaultCtx, id);
+      if (result && existing) {
+        vaultEmbeddingCacheRef.current.delete(existing.content);
+      }
+      return result;
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Shared embedding cache for vault memories.
+   * Pre-populated on init so that search only needs to embed the query.
+   */
+  const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
+
+  // Pre-embed vault memories on mount
+  useEffect(() => {
+    if (!getToken) return;
+    (async () => {
+      try {
+        await preEmbedVaultMemories(
+          vaultCtx,
+          { getToken, baseUrl, model: embeddingModel },
+          vaultEmbeddingCacheRef.current
+        );
+      } catch {
+        // Non-critical: embeddings will be generated on first search
+      }
+    })();
+  }, [vaultCtx, getToken, baseUrl, embeddingModel]);
+
+  /**
+   * Create a vault search tool pre-configured with hook's context, auth, and cache
+   */
+  const createMemoryVaultSearchTool = useCallback(
+    (searchOptions?: MemoryVaultSearchOptions): ToolConfig => {
+      if (!getToken) {
+        throw new Error("getToken is required for memory vault search tool");
+      }
+      return createMemoryVaultSearchToolBase(
+        vaultCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingCacheRef.current,
+        searchOptions
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Search vault memories programmatically (e.g., for pre-retrieval injection).
+   * Returns [] instead of throwing when getToken is null — pre-retrieval should
+   * never crash the submit path.
+   */
+  const searchVaultMemoriesFn = useCallback(
+    async (query: string, searchOptions?: MemoryVaultSearchOptions): Promise<VaultSearchResult[]> => {
+      if (!getToken) return [];
+      return searchVaultMemoriesBase(
+        query,
+        vaultCtx,
+        { getToken, baseUrl, model: embeddingModel },
+        vaultEmbeddingCacheRef.current,
+        searchOptions
+      );
+    },
+    [vaultCtx, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook
@@ -1214,11 +1491,19 @@ export function useChatStorage(
       return new Promise((resolve) => {
         const img = new Image();
         const url = URL.createObjectURL(blob);
+
+        const timeoutId = setTimeout(() => {
+          URL.revokeObjectURL(url);
+          resolve(undefined);
+        }, 10_000);
+
         img.onload = () => {
+          clearTimeout(timeoutId);
           URL.revokeObjectURL(url);
           resolve({ width: img.naturalWidth, height: img.naturalHeight });
         };
         img.onerror = () => {
+          clearTimeout(timeoutId);
           URL.revokeObjectURL(url);
           resolve(undefined);
         };
@@ -1249,25 +1534,50 @@ export function useChatStorage(
       cleanedContent: string;
     }> => {
       try {
-        // Pattern to match any URL from the MCP R2 domain (including truncated ones)
-        // Stops at quotes, angle brackets, whitespace, or closing parens to handle HTML attributes
-        const MCP_IMAGE_URL_PATTERN = new RegExp(
-          `https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^\\s"'<>)]*`,
-          "g"
-        );
-
-        // Extract image URLs from tool_call_events
+        // Extract image URLs from tool_call_events (supports prefixed and unprefixed tool names)
+        const imageToolNames = new Set([
+          "AnumaImageMCP_generate_cloud_image",
+          "AnumaImageMCP_edit_cloud_image",
+          "generate_cloud_image",
+          "edit_cloud_image",
+        ]);
         const urls: Array<{ url: string; model: string }> = [];
         for (const toolCallEvent of toolCallEvents || []) {
-          if (toolCallEvent.name === "AnumaImageMCP_generate_cloud_image") {
+          if (toolCallEvent.name && imageToolNames.has(toolCallEvent.name)) {
             try {
               const output = JSON.parse(toolCallEvent.output || "{}");
               const { model, url } = output;
               if (url) {
-                urls.push({ url, model });
+                urls.push({ url, model: model || "image" });
               }
-            } catch {
-              // Ignore JSON parse errors
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                "[extractAndStoreEncryptedMCPImages] Failed to parse tool call output:",
+                toolCallEvent.name,
+                err
+              );
+            }
+          }
+        }
+
+        // Fallback: extract MCP image URLs from content when tool_call_events yields none
+        // (handles API response format changes or when URLs are embedded in markdown/HTML)
+        if (urls.length === 0 && content) {
+          const escaped = MCP_R2_DOMAIN.replace(/\./g, "\\.");
+          const urlPattern = new RegExp(
+            `https://${escaped}[^\\s"'<>)\\]]+`,
+            "gi"
+          );
+          const matches = content.match(urlPattern);
+          if (matches) {
+            const seen = new Set<string>();
+            for (const url of matches) {
+              const normalized = url.replace(/[)"'>\s]+$/, "");
+              if (!seen.has(normalized)) {
+                seen.add(normalized);
+                urls.push({ url: normalized, model: "image" });
+              }
             }
           }
         }
@@ -1293,9 +1603,6 @@ export function useChatStorage(
           ""
         );
 
-        // Remove any remaining raw MCP URLs (including truncated ones)
-        cleanedContent = cleanedContent.replace(MCP_IMAGE_URL_PATTERN, "");
-
         // Clean up extra whitespace and newlines
         cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -1311,7 +1618,7 @@ export function useChatStorage(
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 60_000);
 
             try {
               const response = await fetch(url, {
@@ -1380,6 +1687,13 @@ export function useChatStorage(
               sourceUrl: url,
               dimensions,
             });
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn(
+              "[extractAndStoreEncryptedMCPImages] Failed to download image:",
+              url,
+              result.reason
+            );
           }
         });
 
@@ -1475,7 +1789,7 @@ export function useChatStorage(
             } else {
               // Fetch external URL
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 30000);
+              const timeoutId = setTimeout(() => controller.abort(), 60_000);
               try {
                 const response = await fetch(file.url, {
                   signal: controller.signal,
@@ -1580,13 +1894,16 @@ export function useChatStorage(
         temperature,
         maxOutputTokens,
         clientTools,
+        clientToolsFilter,
         serverTools: serverToolsFilter,
         toolChoice,
         reasoning,
         thinking,
         onThinking,
+        imageModel,
         apiType: requestApiType,
         conversationId: explicitConversationId,
+        parentMessageId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -1613,6 +1930,23 @@ export function useChatStorage(
 
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
+        const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+
+        // Generate embeddings once for both server and client tool filtering
+        let skipStorageEmbeddings: number[] | number[][] | null = null;
+        if (needsEmbeddings && getToken) {
+          const extracted = extractUserMessageFromMessages(messages);
+          const messageContent = extracted?.content || "";
+          if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+            const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+            if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
+              const textChunks = chunkText(messageContent);
+              skipStorageEmbeddings = await generateEmbeddings(textChunks.map((c) => c.text), embeddingOptions);
+            } else {
+              skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
+            }
+          }
+        }
 
         if (
           getToken &&
@@ -1627,27 +1961,8 @@ export function useChatStorage(
             });
 
             if (isServerToolsFunction) {
-              // Function-based filtering: generate embeddings and call the function
-              const extracted = extractUserMessageFromMessages(messages);
-              const messageContent = extracted?.content || "";
-
-              if (messageContent.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-                const embeddingOptions = {
-                  getToken,
-                  baseUrl,
-                  model: embeddingModel,
-                };
-
-                let embeddings: number[] | number[][];
-                if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
-                  const textChunks = chunkText(messageContent);
-                  const chunkTexts = textChunks.map((c) => c.text);
-                  embeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-                } else {
-                  embeddings = await generateEmbedding(messageContent, embeddingOptions);
-                }
-
-                const toolNames = serverToolsFilter(embeddings, allServerTools);
+              if (skipStorageEmbeddings) {
+                const toolNames = serverToolsFilter(skipStorageEmbeddings, allServerTools);
                 filteredServerTools = filterServerTools(allServerTools, toolNames);
               }
               // If message is too short for embeddings, don't include any server tools
@@ -1664,10 +1979,20 @@ export function useChatStorage(
           }
         }
 
-        if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+        // Filter client tools if filter function provided
+        let filteredClientTools = clientTools;
+        if (clientToolsFilter && clientTools?.length) {
+          const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
+          filteredClientTools = clientTools.filter((t: any) => {
+            const name = t.function?.name || t.name;
+            return clientToolNames.includes(name);
+          });
+        }
+
+        if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
           mergedTools = mergeTools(
             filteredServerTools,
-            clientTools,
+            filteredClientTools,
             effectiveApiType
           );
         }
@@ -1686,6 +2011,7 @@ export function useChatStorage(
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
         });
 
@@ -1804,8 +2130,20 @@ export function useChatStorage(
             // Failed to get encryption key for history
           }
         }
+        // Batch: collect all fileIds across all messages, resolve once
+        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        let allMedia: StoredMedia[] = [];
+        try {
+          allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("[sendMessage] Failed to resolve media for history (image URLs will be missing):", err);
+        }
+        const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
+        const resolveMediaByIds = (ids: string[]) =>
+          Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
-          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey))
+          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
         );
         messagesToSend = [...historyMessages, ...messages];
       } else {
@@ -1880,6 +2218,7 @@ export function useChatStorage(
         model,
         // Store extracted file content in thinking field for retrieval in follow-up messages
         thinking: fileContextForRequest,
+        parentMessageId,
       };
 
       let storedUserMessage: StoredMessage;
@@ -1940,11 +2279,28 @@ export function useChatStorage(
       let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
       let filteredServerTools: ServerTool[] = [];
 
-      // Track embeddings generated for function-based tool filtering (to reuse for message storage)
+      // Track embeddings generated for tool filtering (to reuse for message storage)
       let userMessageEmbeddings: number[] | number[][] | undefined;
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+
+      // Generate embeddings once for both server and client tool filtering
+      if (needsEmbeddings && getToken) {
+        try {
+          const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
+          if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
+            const textChunks = chunkText(contentForStorage);
+            const chunkTexts = textChunks.map((c) => c.text);
+            userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
+          } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
+            userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
+          }
+        } catch {
+          // Embedding generation failed — continue without semantic filtering
+        }
+      }
 
       // Skip server tools fetch if serverTools is explicitly empty array
       if (
@@ -1959,29 +2315,12 @@ export function useChatStorage(
           });
 
           if (isServerToolsFunction) {
-            // Function-based filtering: generate embeddings and call the function
-            const embeddingOptions = {
-              getToken,
-              baseUrl,
-              model: embeddingModel,
-            };
-
-            // Generate embeddings based on message length (chunked or whole)
-            // Use lower threshold for tool filtering - short prompts like "draw a cat" should work
-            if (shouldChunkMessage(contentForStorage, DEFAULT_CHUNK_SIZE)) {
-              const textChunks = chunkText(contentForStorage);
-              const chunkTexts = textChunks.map((c) => c.text);
-              userMessageEmbeddings = await generateEmbeddings(chunkTexts, embeddingOptions);
-            } else if (contentForStorage.length >= MIN_CONTENT_LENGTH_FOR_TOOLS) {
-              userMessageEmbeddings = await generateEmbedding(contentForStorage, embeddingOptions);
-            }
-
             // Call the filter function with embeddings and all tools
             if (userMessageEmbeddings) {
               const toolNames = serverToolsFilter(userMessageEmbeddings, allServerTools);
               filteredServerTools = filterServerTools(allServerTools, toolNames);
             }
-            // If message is too short for embeddings, don't include any tools
+            // If message is too short for embeddings, don't include any server tools
             // (user explicitly provided a filter, so sending all tools defeats the purpose)
           } else {
             // Static filtering: use string array directly
@@ -1993,6 +2332,16 @@ export function useChatStorage(
         } catch {
           // Server tools are optional - continue without them
         }
+      }
+
+      // Filter client tools if filter function provided
+      let filteredClientTools = clientTools;
+      if (clientToolsFilter && clientTools?.length) {
+        const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
+        filteredClientTools = clientTools.filter((t: any) => {
+          const name = t.function?.name || t.name;
+          return clientToolNames.includes(name);
+        });
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
@@ -2035,10 +2384,10 @@ export function useChatStorage(
       }
 
       // Merge and format tools (handles both server and client tools)
-      if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
+      if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
         mergedTools = mergeTools(
           filteredServerTools,
-          clientTools,
+          filteredClientTools,
           effectiveApiType
         );
       }
@@ -2059,6 +2408,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         onThinking,
         apiType: requestApiType,
       });
@@ -2113,6 +2463,7 @@ export function useChatStorage(
               wasStopped: true,
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
+              parentMessageId: storedUserMessage.uniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2169,6 +2520,7 @@ export function useChatStorage(
             responseDuration,
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
+            parentMessageId: storedUserMessage.uniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2242,9 +2594,54 @@ export function useChatStorage(
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
-      } else {
-        // Safety fallback: clean MCP URLs from content to prevent broken links
-        cleanedContent = cleanMCPUrlsFromContent(cleanedContent);
+      }
+      // When encryption isn't ready, leave R2 URLs in content.
+      // They remain valid for 3 days (presigned) and let the LLM
+      // reference images for editing. No permanent data loss.
+
+      // Store auto-executed tool results (e.g. display_chart) as a user message
+      // so they persist across page refreshes and can be rendered by the app.
+      const autoToolResults = (result as any).autoExecutedToolResults as
+        | { name: string; result: any }[]
+        | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolSummary = autoToolResults
+          .map(
+            (r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`
+          )
+          .join("\n\n");
+        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        try {
+          await writeOrQueue(
+            "createMessage",
+            {
+              conversationId: convId,
+              role: "user",
+              content: toolResultContent,
+              model: "",
+              parentMessageId: storedUserMessage.uniqueId,
+            },
+            () =>
+              createMessageOp(storageCtx, {
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            () =>
+              makeSyntheticStoredMessage({
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedUserMessage.uniqueId,
+              }),
+            userMsgQueueId ? [userMsgQueueId] : []
+          );
+        } catch {
+          // Non-critical — the tool result will still be available in memory
+        }
       }
 
       // Store the assistant message
@@ -2259,6 +2656,10 @@ export function useChatStorage(
         sources: extractedSources,
         thoughtProcess: resolveThoughtProcess(),
         thinking: thinkingContent,
+        // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
+        // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
+        // isn't updated. The client-side mergeParentMessageIds handles this on reload.
+        parentMessageId: storedUserMessage.uniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -2324,6 +2725,7 @@ export function useChatStorage(
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
+        autoExecutedToolResults: (result as any).autoExecutedToolResults,
       };
     },
     [
@@ -2371,6 +2773,14 @@ export function useChatStorage(
     getMessages,
     getAllFiles,
     createMemoryRetrievalTool,
+    createMemoryVaultTool,
+    createMemoryVaultSearchTool,
+    searchVaultMemories: searchVaultMemoriesFn,
+    vaultEmbeddingCache: vaultEmbeddingCacheRef.current,
+    getVaultMemories,
+    createVaultMemory,
+    updateVaultMemory,
+    deleteVaultMemory,
     flushQueue,
     clearQueue,
     queueStatus,

@@ -56,6 +56,33 @@
  * @module react
  */
 export { useChat } from "./useChat";
+
+// Chart display components
+export {
+  ChartCard,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+} from "./chart";
+export type { ChartConfig, ChartCardProps } from "./chart";
+
+// UI Interaction infrastructure
+export {
+  UIInteractionProvider,
+  useUIInteraction,
+} from "./useUIInteraction";
+export type {
+  PendingInteraction,
+  UIInteractionContextValue,
+  UIInteractionProviderProps,
+  InteractionType,
+} from "./useUIInteraction";
+export { migrateDisplayResult } from "../tools/uiInteraction";
+export type { DisplayToolMigrations } from "../tools/uiInteraction";
+
 export {
   useEncryption,
   requestEncryptionKey,
@@ -64,6 +91,11 @@ export {
   encryptData,
   decryptData,
   decryptDataBytes,
+  // Batch operations for performance (single key lookup)
+  encryptDataBatch,
+  decryptDataBatch,
+  encryptDataWithKey,
+  decryptDataWithKey,
   clearEncryptionKey,
   clearAllEncryptionKeys,
   requestKeyPair,
@@ -154,11 +186,14 @@ export {
   type ChunkSearchResult,
   type ServerToolsFilter,
   type ServerToolsFilterFn,
+  type ClientToolsFilterFn,
+  type MessageFeedback,
   generateConversationId,
   updateConversationProjectOp,
   getConversationsByProjectOp,
   searchChunksOp,
   searchMessagesOp,
+  updateMessageFeedbackOp,
 } from "../lib/db/chat";
 
 // Project storage exports
@@ -181,26 +216,36 @@ export {
 } from "../lib/db/project";
 export { useProjects } from "./useProjects";
 export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
 export { useFiles } from "./useFiles";
 export type { UseFilesOptions, UseFilesResult } from "./useFiles";
+// Memory vault
 export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
+  VaultMemory as StoredVaultMemoryModel,
+  type StoredVaultMemory,
+  type CreateVaultMemoryOptions,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  createMemoryVaultSearchTool,
+  searchVaultMemories,
+  preEmbedVaultMemories,
+  eagerEmbedContent,
+  createVaultEmbeddingCache,
+  DEFAULT_VAULT_CACHE_SIZE,
+  type VaultSaveOperation,
+  type MemoryVaultToolOptions,
+  type VaultEmbeddingCache,
+  type MemoryVaultSearchOptions,
+  type VaultSearchResult,
+} from "../lib/memoryVault";
+
 export { useSettings } from "./useSettings";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export {
@@ -279,6 +324,7 @@ export {
   deleteMediaByMessageOp,
 } from "../lib/db/media";
 
+
 export { usePdf } from "./usePdf";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { useOCR } from "./useOCR";
@@ -344,12 +390,6 @@ export type {
   ChunkingOptions,
   TextChunk,
 } from "../lib/memoryRetrieval";
-
-export {
-  formatMemoriesForChat,
-  createMemoryContextSystemMessage,
-  extractConversationContext,
-} from "../lib/memory/chat";
 
 // Server-side tools caching utilities
 export {
@@ -504,3 +544,23 @@ export {
   storeDrivePendingMessage,
   getAndClearDrivePendingMessage,
 } from "../lib/auth/google-drive";
+
+// Notion MCP Auth (with PKCE - fully client-side, no backend needed)
+export {
+  startNotionAuth,
+  handleNotionCallback,
+  isNotionCallback,
+  getNotionAccessToken,
+  getValidNotionToken,
+  refreshNotionToken,
+  revokeNotionAccess,
+  clearNotionToken,
+  hasNotionCredentials,
+  migrateNotionToken,
+  migrateNotionClientRegistration,
+  storeNotionReturnUrl,
+  getAndClearNotionReturnUrl,
+  storeNotionPendingMessage,
+  getAndClearNotionPendingMessage,
+  getNotionMCPUrl,
+} from "../lib/auth/notion";

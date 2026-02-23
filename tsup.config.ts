@@ -52,7 +52,7 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react", "@privy-io/react-auth", "@huggingface/transformers"],
+    external: ["react", "@privy-io/react-auth", "@huggingface/transformers", "recharts"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

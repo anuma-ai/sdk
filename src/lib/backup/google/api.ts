@@ -33,7 +33,7 @@ export interface DriveFile {
 /**
  * Find or create a folder in Google Drive
  */
-export async function ensureFolder(
+async function ensureFolder(
   accessToken: string,
   name: string,
   parentId?: string
@@ -223,7 +223,7 @@ export async function findDriveFile(
 /**
  * Delete a file from Google Drive
  */
-export async function deleteDriveFile(accessToken: string, fileId: string): Promise<void> {
+async function deleteDriveFile(accessToken: string, fileId: string): Promise<void> {
   const response = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` },

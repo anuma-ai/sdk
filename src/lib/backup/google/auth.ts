@@ -210,7 +210,7 @@ export async function handleGoogleDriveCallback(
 /**
  * Refresh the access token using the stored refresh token
  */
-export async function refreshGoogleDriveToken(
+async function refreshGoogleDriveToken(
   apiClient?: Client,
   walletAddress?: string
 ): Promise<string | null> {

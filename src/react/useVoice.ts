@@ -1,12 +1,54 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   WhisperModel,
   VoiceRecording,
   TranscriptionResult,
   ModelLoadProgress,
 } from "../lib/voice";
+
+// Minimal Web Speech API types — only what we use.
+// Safari exposes this under the webkit prefix.
+interface NativeSpeechRecognitionEvent {
+  readonly resultIndex: number;
+  readonly results: {
+    readonly length: number;
+    [index: number]: {
+      readonly isFinal: boolean;
+      readonly length: number;
+      [index: number]: { readonly transcript: string; readonly confidence: number };
+    };
+  };
+}
+
+interface NativeSpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: NativeSpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+}
+
+type NativeSpeechRecognitionCtor = new () => NativeSpeechRecognitionInstance;
+
+/**
+ * Get the on-device SpeechRecognition constructor, if available.
+ * Only returns non-null on iOS where recognition runs entirely on-device.
+ * Chrome/Edge send audio to Google servers — excluded for privacy.
+ */
+function getOnDeviceSpeechRecognition(): NativeSpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) return null;
+  const SR =
+    (window as unknown as Record<string, unknown>).SpeechRecognition ??
+    (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+  return (SR as NativeSpeechRecognitionCtor) ?? null;
+}
 
 /**
  * Options for the useVoice hook.
@@ -53,6 +95,8 @@ export interface UseVoiceResult {
   transcribe: (recording?: VoiceRecording) => Promise<TranscriptionResult>;
   /** Preload the Whisper model so transcription starts instantly later */
   preloadModel: () => Promise<void>;
+  /** Dispose the loaded model to free WASM memory. Useful on memory-constrained devices (mobile). */
+  disposeModel: () => Promise<void>;
   /** Whether the Whisper model has been loaded */
   isModelLoaded: boolean;
   /** Whether the Whisper model is currently loading/downloading */
@@ -63,12 +107,25 @@ export interface UseVoiceResult {
   transcription: TranscriptionResult | null;
   /** Error from the last operation */
   error: Error | null;
+  /** Whether on-device speech recognition is available (iOS Safari). No audio leaves the device. */
+  nativeSpeechAvailable: boolean;
+  /** Start on-device speech recognition. Call stopNativeTranscription() to get the result. */
+  startNativeTranscription: () => void;
+  /** Stop on-device speech recognition and return the accumulated text. */
+  stopNativeTranscription: () => Promise<TranscriptionResult>;
+  /** Abort on-device speech recognition without returning a result. */
+  abortNativeTranscription: () => void;
+  /** Whether on-device speech recognition is currently listening. */
+  isNativeListening: boolean;
 }
 
-type Pipeline = (
+type Pipeline = ((
   audio: Float32Array,
   options?: Record<string, unknown>
-) => Promise<{ text: string; chunks?: Array<{ text: string; timestamp: [number, number] }> }>;
+) => Promise<{
+  text: string;
+  chunks?: Array<{ text: string; timestamp: [number, number] }>;
+}>) & { dispose?: () => Promise<void> };
 
 const SUPPORTED_MIME_TYPES = [
   "audio/webm;codecs=opus",
@@ -222,6 +279,16 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     await loadPipeline();
   }, [loadPipeline]);
 
+  const disposeModel = useCallback(async () => {
+    const pipe = pipelineRef.current;
+    if (pipe?.dispose) {
+      await pipe.dispose();
+    }
+    pipelineRef.current = null;
+    modelNameRef.current = null;
+    setIsModelLoaded(false);
+  }, []);
+
   const startRecording = useCallback(async () => {
     setError(null);
     setRecording(null);
@@ -334,6 +401,87 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     [recording, loadPipeline, options?.language]
   );
 
+  // --- Native on-device speech recognition (iOS Safari) ---
+  const nativeSpeechAvailable = useMemo(
+    () => getOnDeviceSpeechRecognition() !== null,
+    []
+  );
+  const [isNativeListening, setIsNativeListening] = useState(false);
+  const nativeRecognitionRef = useRef<NativeSpeechRecognitionInstance | null>(
+    null
+  );
+  const nativeTextRef = useRef("");
+  const nativeResolveRef = useRef<
+    ((result: TranscriptionResult) => void) | null
+  >(null);
+
+  const startNativeTranscription = useCallback(() => {
+    const SR = getOnDeviceSpeechRecognition();
+    if (!SR) return;
+
+    nativeTextRef.current = "";
+    setError(null);
+
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = options?.language ?? "";
+
+    recognition.onresult = (event: NativeSpeechRecognitionEvent) => {
+      let text = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result && result.isFinal && result[0]) {
+          text += result[0].transcript + " ";
+        }
+      }
+      nativeTextRef.current = text.trim();
+    };
+
+    recognition.onerror = (event: { error: string }) => {
+      if (event.error !== "aborted" && event.error !== "no-speech") {
+        setError(new Error(`Speech recognition error: ${event.error}`));
+      }
+    };
+
+    recognition.onend = () => {
+      setIsNativeListening(false);
+      nativeRecognitionRef.current = null;
+      const resolve = nativeResolveRef.current;
+      if (resolve) {
+        nativeResolveRef.current = null;
+        resolve({ text: nativeTextRef.current });
+      }
+    };
+
+    nativeRecognitionRef.current = recognition;
+    recognition.start();
+    setIsNativeListening(true);
+  }, [options?.language]);
+
+  const stopNativeTranscription =
+    useCallback((): Promise<TranscriptionResult> => {
+      return new Promise((resolve) => {
+        const recognition = nativeRecognitionRef.current;
+        if (!recognition) {
+          resolve({ text: nativeTextRef.current || "" });
+          return;
+        }
+        nativeResolveRef.current = resolve;
+        recognition.stop();
+      });
+    }, []);
+
+  const abortNativeTranscription = useCallback(() => {
+    const recognition = nativeRecognitionRef.current;
+    if (recognition) {
+      nativeResolveRef.current = null;
+      recognition.abort();
+      nativeRecognitionRef.current = null;
+      setIsNativeListening(false);
+    }
+  }, []);
+
   return {
     isRecording,
     startRecording,
@@ -341,10 +489,16 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     isTranscribing,
     transcribe,
     preloadModel,
+    disposeModel,
     isModelLoaded,
     isLoadingModel,
     recording,
     transcription,
     error,
+    nativeSpeechAvailable,
+    startNativeTranscription,
+    stopNativeTranscription,
+    abortNativeTranscription,
+    isNativeListening,
   };
 }

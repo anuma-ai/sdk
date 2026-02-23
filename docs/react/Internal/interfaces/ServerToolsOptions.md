@@ -1,26 +1,16 @@
 # ServerToolsOptions
 
-Defined in: [src/lib/tools/serverTools.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L101)
+Defined in: [src/lib/tools/serverTools.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L90)
 
 Options for fetching server tools
 
 ## Properties
 
-### apiKey?
-
-> `optional` **apiKey**: `string`
-
-Defined in: [src/lib/tools/serverTools.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L111)
-
-Direct API key for server-side usage (uses X-API-Key header)
-
-***
-
 ### baseUrl?
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L103)
+Defined in: [src/lib/tools/serverTools.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L92)
 
 Base URL for the API (defaults to BASE\_URL from clientConfig)
 
@@ -30,7 +20,7 @@ Base URL for the API (defaults to BASE\_URL from clientConfig)
 
 > `optional` **cacheExpirationMs**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L105)
+Defined in: [src/lib/tools/serverTools.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L94)
 
 Cache expiration time in milliseconds (default: 5 minutes)
 
@@ -40,19 +30,19 @@ Cache expiration time in milliseconds (default: 5 minutes)
 
 > `optional` **forceRefresh**: `boolean`
 
-Defined in: [src/lib/tools/serverTools.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L107)
+Defined in: [src/lib/tools/serverTools.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L96)
 
 Force refresh even if cache is valid
 
 ***
 
-### getToken()?
+### getToken()
 
-> `optional` **getToken**: () => `Promise`<`string` | `null`>
+> **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/tools/serverTools.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L109)
+Defined in: [src/lib/tools/serverTools.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L98)
 
-Authentication token getter (uses Authorization: Bearer header)
+Authentication token getter
 
 **Returns**
 

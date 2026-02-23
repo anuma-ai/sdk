@@ -26,7 +26,7 @@ const isAuthError = (err: unknown): boolean =>
     err.message.includes("NOT_AUTHENTICATED") ||
     err.message.includes("sign in"));
 
-export interface ICloudBackupDeps {
+interface ICloudBackupDeps {
   requestICloudAccess: () => Promise<void>;
   requestEncryptionKey: (address: string) => Promise<void>;
   /** Export a conversation to an encrypted blob */
@@ -57,7 +57,7 @@ export interface ICloudImportResult {
   noBackupsFound?: boolean;
 }
 
-export async function pushConversationToICloud(
+async function pushConversationToICloud(
   database: Database,
   conversationId: string,
   userAddress: string,

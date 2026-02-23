@@ -57,7 +57,5 @@ export type {
 export type {
   MemoryRetrievalSearchOptions,
   MemoryRetrievalResult,
-  MemoryRetrievalContext,
-  MemoryRetrievalToolConfig,
   EmbeddingOptions,
 } from "./types";

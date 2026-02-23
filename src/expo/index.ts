@@ -119,13 +119,6 @@ export type {
   FlushResult,
 } from "../lib/db/queue";
 
-// Memory storage hooks
-export { useMemoryStorage } from "./useMemoryStorage";
-export type {
-  UseMemoryStorageOptions,
-  UseMemoryStorageResult,
-} from "./useMemoryStorage";
-
 // Consolidated SDK schema exports (recommended)
 export {
   sdkSchema,
@@ -162,20 +155,24 @@ export {
   generateConversationId,
 } from "../lib/db/chat";
 
-// Re-export memory storage schema and types for database setup
+// Memory vault
 export {
-  /** @deprecated Use sdkSchema instead */
-  memoryStorageSchema,
-  Memory as StoredMemoryModel,
-  type MemoryType,
-  type MemoryItem,
-  type StoredMemory,
-  type StoredMemoryWithSimilarity,
-  type CreateMemoryOptions,
-  type UpdateMemoryOptions,
-  generateCompositeKey,
-  generateUniqueKey,
-} from "../lib/db/memory";
+  VaultMemory as StoredVaultMemoryModel,
+  type StoredVaultMemory,
+  type CreateVaultMemoryOptions,
+  type UpdateVaultMemoryOptions,
+  type VaultMemoryOperationsContext,
+  createVaultMemoryOp,
+  getVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  updateVaultMemoryOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+export {
+  createMemoryVaultTool,
+  type VaultSaveOperation,
+  type MemoryVaultToolOptions,
+} from "../lib/memoryVault";
 
 // Server-side tools caching utilities
 export {

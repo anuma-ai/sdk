@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsWebhookData** = `object`
 
-Defined in: [src/client/types.gen.ts:2317](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2317)
+Defined in: [src/client/types.gen.ts:2411](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2411)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2317](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `object`
 
-Defined in: [src/client/types.gen.ts:2318](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2318)
+Defined in: [src/client/types.gen.ts:2412](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2412)
 
 **Index Signature**
 
@@ -22,7 +22,7 @@ Defined in: [src/client/types.gen.ts:2318](https://github.com/zeta-chain/ai-sdk/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:2321](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2321)
+Defined in: [src/client/types.gen.ts:2415](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2415)
 
 **Stripe-Signature**
 
@@ -36,7 +36,7 @@ Stripe webhook signature
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:2327](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2327)
+Defined in: [src/client/types.gen.ts:2421](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2421)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [src/client/types.gen.ts:2327](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2328](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2328)
+Defined in: [src/client/types.gen.ts:2422](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2422)
 
 ***
 
@@ -52,4 +52,4 @@ Defined in: [src/client/types.gen.ts:2328](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/subscriptions/webhook"`
 
-Defined in: [src/client/types.gen.ts:2329](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2329)
+Defined in: [src/client/types.gen.ts:2423](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2423)

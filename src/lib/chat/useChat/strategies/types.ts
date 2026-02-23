@@ -39,6 +39,7 @@ export interface BuildRequestBodyArgs {
   // Responses-only options (ignored by completions strategy)
   reasoning?: LlmapiResponseReasoning;
   thinking?: LlmapiThinkingOptions;
+  imageModel?: string;
 }
 
 /**

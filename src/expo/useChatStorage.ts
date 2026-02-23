@@ -47,8 +47,19 @@ import {
   DEFAULT_MIN_CONTENT_LENGTH,
 } from "../lib/memoryRetrieval";
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memory/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
+import {
+  type VaultMemoryOperationsContext,
+  type StoredVaultMemory,
+  getAllVaultMemoriesOp,
+  deleteVaultMemoryOp,
+} from "../lib/db/memoryVault";
+import { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  createMemoryVaultTool as createMemoryVaultToolBase,
+  type MemoryVaultToolOptions,
+} from "../lib/memoryVault";
 import {
   deleteMediaByConversationOp,
   createMediaBatchOp,
@@ -193,6 +204,15 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     searchOptions?: Partial<MemoryRetrievalSearchOptions>
   ) => ToolConfig;
 
+  /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
+  createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
+
+  /** Get all vault memories for context injection. */
+  getVaultMemories: (options?: { scopes?: string[] }) => Promise<StoredVaultMemory[]>;
+
+  /** Delete a vault memory by its ID (soft delete). */
+  deleteVaultMemory: (id: string) => Promise<boolean>;
+
   /** Manually flush all queued operations for the current wallet. */
   flushQueue: () => Promise<FlushResult>;
 
@@ -299,6 +319,22 @@ export function useChatStorage(
       embeddedWalletSigner,
     }),
     [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
+  );
+
+  // Memory vault operations context
+  const vaultMemoryCollection = useMemo(
+    () => database.get<VaultMemory>("memory_vault"),
+    [database]
+  );
+  const vaultCtx = useMemo<VaultMemoryOperationsContext>(
+    () => ({
+      database,
+      vaultMemoryCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    }),
+    [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
 
   // ── Queue Management ──
@@ -505,6 +541,36 @@ export function useChatStorage(
       );
     },
     [storageCtx, getToken, baseUrl, embeddingModel]
+  );
+
+  /**
+   * Create a memory vault tool pre-configured with hook's vault context and encryption
+   */
+  const createMemoryVaultTool = useCallback(
+    (options?: MemoryVaultToolOptions): ToolConfig => {
+      return createMemoryVaultToolBase(vaultCtx, options);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Get all vault memories (for injecting as context into messages)
+   */
+  const getVaultMemories = useCallback(
+    (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
+      return getAllVaultMemoriesOp(vaultCtx, options);
+    },
+    [vaultCtx]
+  );
+
+  /**
+   * Delete a vault memory by ID (for manual deletion from UI)
+   */
+  const deleteVaultMemory = useCallback(
+    (id: string): Promise<boolean> => {
+      return deleteVaultMemoryOp(vaultCtx, id);
+    },
+    [vaultCtx]
   );
 
   // Use the underlying useChat hook (Expo version - no tools, no local chat)
@@ -799,6 +865,7 @@ export function useChatStorage(
         toolChoice,
         reasoning,
         thinking,
+        parentMessageId,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -961,6 +1028,7 @@ export function useChatStorage(
         content: contentForStorage,
         files: sanitizedFiles,
         model,
+        parentMessageId,
       };
 
       let storedUserMessage: StoredMessage;
@@ -1132,6 +1200,7 @@ export function useChatStorage(
               sources,
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
+              parentMessageId: storedUserMessage.uniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
             embedMessageAsync(storedAssistantMessage);
@@ -1188,6 +1257,7 @@ export function useChatStorage(
             sources,
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
+            parentMessageId: storedUserMessage.uniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -1269,6 +1339,10 @@ export function useChatStorage(
         sources: combinedSources,
         thoughtProcess: finalizeThoughtProcess(thoughtProcess),
         thinking: thinkingContent,
+        // Note: when queued (encryption key not ready), storedUserMessage.uniqueId is a
+        // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
+        // isn't updated. The client-side mergeParentMessageIds handles this on reload.
+        parentMessageId: storedUserMessage.uniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -1320,6 +1394,9 @@ export function useChatStorage(
     deleteConversation,
     getMessages,
     createMemoryRetrievalTool,
+    createMemoryVaultTool,
+    getVaultMemories,
+    deleteVaultMemory,
     flushQueue,
     clearQueue,
     queueStatus,

@@ -24,7 +24,6 @@ export {
 // Operations - CRUD
 export {
   mediaToStored,
-  mediaToStoredRaw,
   createMediaOp,
   createMediaBatchOp,
   getMediaByIdOp,
