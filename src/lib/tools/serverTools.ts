@@ -796,7 +796,7 @@ export async function selectServerSideTools(
     throw new Error("Either getToken or apiKey must be provided");
   }
 
-  if (prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+  if (!prompt || prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
     return [];
   }
 
