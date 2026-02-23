@@ -2,6 +2,6 @@
 
 > `const` **DEFAULT\_CACHE\_EXPIRATION\_MS**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L102)
+Defined in: [src/lib/tools/serverTools.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L100)
 
 Default cache expiration: 1 day

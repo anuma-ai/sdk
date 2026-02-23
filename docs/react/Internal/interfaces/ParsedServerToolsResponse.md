@@ -1,6 +1,6 @@
 # ParsedServerToolsResponse
 
-Defined in: [src/lib/tools/serverTools.ts:135](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L135)
+Defined in: [src/lib/tools/serverTools.ts:131](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L131)
 
 Result of parsing server tools response
 
@@ -10,7 +10,7 @@ Result of parsing server tools response
 
 > `optional` **checksum**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L137)
+Defined in: [src/lib/tools/serverTools.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L133)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/tools/serverTools.ts:137](https://github.com/zeta-chain/ai-
 
 > **tools**: [`ServerTool`](ServerTool.md)\[]
 
-Defined in: [src/lib/tools/serverTools.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L136)
+Defined in: [src/lib/tools/serverTools.ts:132](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L132)

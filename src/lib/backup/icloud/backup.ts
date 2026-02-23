@@ -35,10 +35,7 @@ interface ICloudBackupDeps {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
 export interface ICloudExportResult {
@@ -73,8 +70,7 @@ async function pushConversationToICloud(
     // Check if we can skip upload based on timestamps
     if (existingFile) {
       const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection =
-        database.get<Conversation>("conversations");
+      const conversationsCollection = database.get<Conversation>("conversations");
       const records = await conversationsCollection
         .query(Q.where("conversation_id", conversationId))
         .fetch();
@@ -89,10 +85,7 @@ async function pushConversationToICloud(
       }
     }
 
-    const exportResult = await deps.exportConversation(
-      conversationId,
-      userAddress
-    );
+    const exportResult = await deps.exportConversation(conversationId, userAddress);
 
     if (!exportResult.success || !exportResult.blob) {
       return "failed";
@@ -105,13 +98,7 @@ async function pushConversationToICloud(
       // Try to re-authenticate once
       try {
         await deps.requestICloudAccess();
-        return pushConversationToICloud(
-          database,
-          conversationId,
-          userAddress,
-          deps,
-          true
-        );
+        return pushConversationToICloud(database, conversationId, userAddress, deps, true);
       } catch {
         return "failed";
       }
@@ -130,9 +117,7 @@ export async function performICloudExport(
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
-  const records = await conversationsCollection
-    .query(Q.where("is_deleted", false))
-    .fetch();
+  const records = await conversationsCollection.query(Q.where("is_deleted", false)).fetch();
 
   const conversations = records.map(conversationToStoredRaw);
   const total = conversations.length;
@@ -148,12 +133,7 @@ export async function performICloudExport(
     const conv = conversations[i];
     onProgress?.(i + 1, total);
 
-    const result = await pushConversationToICloud(
-      database,
-      conv.conversationId,
-      userAddress,
-      deps
-    );
+    const result = await pushConversationToICloud(database, conv.conversationId, userAddress, deps);
 
     if (result === "uploaded") uploaded++;
     if (result === "skipped") skipped++;
@@ -180,9 +160,7 @@ export async function performICloudImport(
     };
   }
 
-  const jsonFiles = remoteFiles.filter((file: ICloudFile) =>
-    file.filename.endsWith(".json")
-  );
+  const jsonFiles = remoteFiles.filter((file: ICloudFile) => file.filename.endsWith(".json"));
   const total = jsonFiles.length;
   let restored = 0;
   let failed = 0;

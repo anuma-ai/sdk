@@ -2,7 +2,7 @@
 
 > **ServerToolsFilter** = `string`\[] | [`ServerToolsFilterFn`](ServerToolsFilterFn.md)
 
-Defined in: [src/lib/db/chat/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L32)
+Defined in: [src/lib/db/chat/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L33)
 
 Server tools filter: static list of names or dynamic function.
 

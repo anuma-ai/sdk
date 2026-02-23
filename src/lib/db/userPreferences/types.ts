@@ -155,9 +155,7 @@ interface BaseUseUserPreferencesOptions {
 interface BaseUseUserPreferencesResult {
   userPreference: StoredUserPreference | null;
   isLoading: boolean;
-  getUserPreference: (
-    walletAddress: string
-  ) => Promise<StoredUserPreference | null>;
+  getUserPreference: (walletAddress: string) => Promise<StoredUserPreference | null>;
   setUserPreference: (
     walletAddress: string,
     options: UpdateUserPreferenceOptions
@@ -170,9 +168,6 @@ interface BaseUseUserPreferencesResult {
     walletAddress: string,
     personality: PersonalitySettings
   ) => Promise<StoredUserPreference | null>;
-  updateModels: (
-    walletAddress: string,
-    models: string
-  ) => Promise<StoredUserPreference | null>;
+  updateModels: (walletAddress: string, models: string) => Promise<StoredUserPreference | null>;
   deleteUserPreference: (walletAddress: string) => Promise<boolean>;
 }

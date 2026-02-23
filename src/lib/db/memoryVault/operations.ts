@@ -1,16 +1,14 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../encryption-utils";
+
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../encryption-utils";
+import { decryptVaultMemoryFields, encryptVaultMemoryContent } from "./encryption";
 import type { VaultMemory } from "./models";
 import type {
-  StoredVaultMemory,
   CreateVaultMemoryOptions,
+  StoredVaultMemory,
   UpdateVaultMemoryOptions,
 } from "./types";
-import {
-  encryptVaultMemoryContent,
-  decryptVaultMemoryFields,
-} from "./encryption";
 
 export interface VaultMemoryOperationsContext {
   database: Database;
@@ -67,12 +65,7 @@ export async function createVaultMemoryOp(
     });
   });
 
-  return vaultMemoryToStored(
-    created,
-    ctx.walletAddress,
-    ctx.signMessage,
-    ctx.embeddedWalletSigner
-  );
+  return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
 export async function getVaultMemoryOp(
@@ -102,18 +95,11 @@ export async function getAllVaultMemoriesOp(
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     Q.sortBy("created_at", Q.desc),
   ];
-  const results = await ctx.vaultMemoryCollection
-    .query(...conditions)
-    .fetch();
+  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
 
   return Promise.all(
     results.map((record) =>
-      vaultMemoryToStored(
-        record,
-        ctx.walletAddress,
-        ctx.signMessage,
-        ctx.embeddedWalletSigner
-      )
+      vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
     )
   );
 }

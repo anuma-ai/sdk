@@ -21,11 +21,10 @@ import {
   uploadFileToDrive,
 } from "./api";
 
-export { DEFAULT_ROOT_FOLDER, DEFAULT_CONVERSATIONS_FOLDER };
+export { DEFAULT_CONVERSATIONS_FOLDER, DEFAULT_ROOT_FOLDER };
 
 const isAuthError = (err: unknown): boolean =>
-  err instanceof Error &&
-  (err.message.includes("401") || err.message.includes("403"));
+  err instanceof Error && (err.message.includes("401") || err.message.includes("403"));
 
 interface GoogleDriveBackupDeps {
   requestDriveAccess: () => Promise<string>;
@@ -36,10 +35,7 @@ interface GoogleDriveBackupDeps {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
 export interface GoogleDriveExportResult {
@@ -109,8 +105,7 @@ async function pushConversationToDrive(
     // Check if we can skip upload based on timestamps
     if (existingFile) {
       const { Q } = await import("@nozbe/watermelondb");
-      const conversationsCollection =
-        database.get<Conversation>("conversations");
+      const conversationsCollection = database.get<Conversation>("conversations");
       const records = await conversationsCollection
         .query(Q.where("conversation_id", conversationId))
         .fetch();
@@ -125,10 +120,7 @@ async function pushConversationToDrive(
       }
     }
 
-    const exportResult = await deps.exportConversation(
-      conversationId,
-      userAddress
-    );
+    const exportResult = await deps.exportConversation(conversationId, userAddress);
 
     if (!exportResult.success || !exportResult.blob) {
       return "failed";
@@ -137,12 +129,7 @@ async function pushConversationToDrive(
     if (existingFile) {
       await updateDriveFile(activeToken, existingFile.id, exportResult.blob);
     } else {
-      await uploadFileToDrive(
-        activeToken,
-        folderId,
-        exportResult.blob,
-        filename
-      );
+      await uploadFileToDrive(activeToken, folderId, exportResult.blob, filename);
     }
     return "uploaded";
   } catch (err) {
@@ -192,9 +179,7 @@ export async function performGoogleDriveExport(
 
   const { Q } = await import("@nozbe/watermelondb");
   const conversationsCollection = database.get<Conversation>("conversations");
-  const records = await conversationsCollection
-    .query(Q.where("is_deleted", false))
-    .fetch();
+  const records = await conversationsCollection.query(Q.where("is_deleted", false)).fetch();
 
   const conversations = records.map(conversationToStoredRaw);
   const total = conversations.length;
@@ -265,9 +250,7 @@ export async function performGoogleDriveImport(
     };
   }
 
-  const jsonFiles = remoteFiles.filter((file: DriveFile) =>
-    file.name.endsWith(".json")
-  );
+  const jsonFiles = remoteFiles.filter((file: DriveFile) => file.name.endsWith(".json"));
   const total = jsonFiles.length;
   let restored = 0;
   let failed = 0;

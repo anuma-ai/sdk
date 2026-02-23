@@ -2,7 +2,7 @@
 
 > **encryptDataBatch**(`values`: (`string` | `Uint8Array`<`ArrayBufferLike`>)\[], `address`: `string`): `Promise`<`string`\[]>
 
-Defined in: [src/react/useEncryption.ts:591](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L591)
+Defined in: [src/react/useEncryption.ts:564](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L564)
 
 Batch encrypt multiple values efficiently with a single key lookup.
 Much faster than calling encryptData for each value individually.

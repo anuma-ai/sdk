@@ -129,15 +129,10 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   }
 
   // Parse and validate response before caching (handles both JSON and SSE)
-  const jsonRpcResponse = (await parseResponseBody(response)) as Record<
-    string,
-    unknown
-  >;
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
-    throw new Error(
-      `MCP initialization error: ${err.message || JSON.stringify(err)}`
-    );
+    throw new Error(`MCP initialization error: ${err.message || JSON.stringify(err)}`);
   }
 
   // Send required notifications/initialized to complete the MCP handshake
@@ -234,14 +229,13 @@ async function callMCPTool<T>(
         );
       }
 
-      const retryJsonRpcResponse = (await parseResponseBody(
-        retryResponse
-      )) as Record<string, unknown>;
+      const retryJsonRpcResponse = (await parseResponseBody(retryResponse)) as Record<
+        string,
+        unknown
+      >;
       if (retryJsonRpcResponse.error) {
         const err = retryJsonRpcResponse.error as Record<string, unknown>;
-        throw new Error(
-          `MCP tool error: ${err.message || JSON.stringify(err)}`
-        );
+        throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
       }
 
       return retryJsonRpcResponse.result as T;
@@ -254,10 +248,7 @@ async function callMCPTool<T>(
     );
   }
 
-  const jsonRpcResponse = (await parseResponseBody(response)) as Record<
-    string,
-    unknown
-  >;
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
 
   // Check for JSON-RPC error
   if (jsonRpcResponse.error) {
@@ -656,8 +647,7 @@ export function createNotionDuplicatePageTool(
     type: "function",
     function: {
       name: "notion-duplicate-page",
-      description:
-        "Duplicate a Notion page. The duplication completes asynchronously.",
+      description: "Duplicate a Notion page. The duplication completes asynchronously.",
       arguments: {
         type: "object",
         properties: {
@@ -973,7 +963,8 @@ export function createNotionGetUsersTool(
         properties: {
           query: {
             type: "string",
-            description: "Search query to filter users by name or email (case-insensitive, max 100 chars)",
+            description:
+              "Search query to filter users by name or email (case-insensitive, max 100 chars)",
           },
           start_cursor: {
             type: "string",

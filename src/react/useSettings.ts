@@ -1,33 +1,32 @@
 "use client";
 
 import { Q } from "@nozbe/watermelondb";
-import { useCallback, useState, useMemo, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  ModelPreference,
-  type StoredModelPreference,
-  type SettingsStorageOperationsContext,
   type BaseUseSettingsOptions,
   type BaseUseSettingsResult,
-  getModelPreferenceOp,
-  setModelPreferenceOp,
   deleteModelPreferenceOp,
+  getModelPreferenceOp,
+  ModelPreference,
+  setModelPreferenceOp,
+  type SettingsStorageOperationsContext,
+  type StoredModelPreference,
 } from "../lib/db/settings";
-
 import {
-  UserPreference,
-  type StoredUserPreference,
-  type UpdateUserPreferenceOptions,
-  type ProfileUpdate,
-  type PersonalitySettings,
-  type UserPreferencesStorageOperationsContext,
-  getUserPreferenceOp,
-  setUserPreferenceOp,
-  updateProfileOp,
-  updatePersonalityOp,
-  updateModelsOp,
   deleteUserPreferenceOp,
+  getUserPreferenceOp,
   migrateFromModelPreferencesOp,
+  type PersonalitySettings,
+  type ProfileUpdate,
+  setUserPreferenceOp,
+  type StoredUserPreference,
+  updateModelsOp,
+  updatePersonalityOp,
+  updateProfileOp,
+  type UpdateUserPreferenceOptions,
+  UserPreference,
+  type UserPreferencesStorageOperationsContext,
 } from "../lib/db/userPreferences";
 
 /**
@@ -43,9 +42,7 @@ export interface UseSettingsOptions extends BaseUseSettingsOptions {}
 export interface UseSettingsResult extends BaseUseSettingsResult {
   // New unified API
   userPreference: StoredUserPreference | null;
-  getUserPreference: (
-    walletAddress: string
-  ) => Promise<StoredUserPreference | null>;
+  getUserPreference: (walletAddress: string) => Promise<StoredUserPreference | null>;
   setUserPreference: (
     walletAddress: string,
     options: UpdateUserPreferenceOptions
@@ -58,10 +55,7 @@ export interface UseSettingsResult extends BaseUseSettingsResult {
     walletAddress: string,
     personality: PersonalitySettings
   ) => Promise<StoredUserPreference | null>;
-  updateModels: (
-    walletAddress: string,
-    models: string
-  ) => Promise<StoredUserPreference | null>;
+  updateModels: (walletAddress: string, models: string) => Promise<StoredUserPreference | null>;
   deleteUserPreference: (walletAddress: string) => Promise<boolean>;
 }
 
@@ -117,12 +111,10 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
   const { database, walletAddress } = options;
 
   // Legacy state (deprecated)
-  const [modelPreference, setModelPreferenceState] =
-    useState<StoredModelPreference | null>(null);
+  const [modelPreference, setModelPreferenceState] = useState<StoredModelPreference | null>(null);
 
   // New unified state
-  const [userPreference, setUserPreferenceState] =
-    useState<StoredUserPreference | null>(null);
+  const [userPreference, setUserPreferenceState] = useState<StoredUserPreference | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -169,9 +161,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getModelPreferenceOp(legacyStorageCtx, address);
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx]
@@ -182,26 +172,17 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * @deprecated Use setUserPreference instead
    */
   const setModelPreference = useCallback(
-    async (
-      address: string,
-      models?: string
-    ): Promise<StoredModelPreference | null> => {
+    async (address: string, models?: string): Promise<StoredModelPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
-        const result = await setModelPreferenceOp(
-          legacyStorageCtx,
-          address,
-          models
-        );
+        const result = await setModelPreferenceOp(legacyStorageCtx, address, models);
         // Update local state if this is for the current wallet
         if (walletAddress && address === walletAddress) {
           setModelPreferenceState(result);
         }
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx, walletAddress]
@@ -222,9 +203,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx, walletAddress]
@@ -242,9 +221,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getUserPreferenceOp(storageCtx, address);
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx]
@@ -254,10 +231,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * Set (create or update) user preference
    */
   const setUserPreference = useCallback(
-    async (
-      address: string,
-      opts: UpdateUserPreferenceOptions
-    ): Promise<StoredUserPreference> => {
+    async (address: string, opts: UpdateUserPreferenceOptions): Promise<StoredUserPreference> => {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await setUserPreferenceOp(storageCtx, address, opts);
@@ -267,9 +241,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -279,10 +251,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * Update only profile fields (nickname, occupation, description)
    */
   const updateProfile = useCallback(
-    async (
-      address: string,
-      profile: ProfileUpdate
-    ): Promise<StoredUserPreference | null> => {
+    async (address: string, profile: ProfileUpdate): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await updateProfileOp(storageCtx, address, profile);
@@ -292,9 +261,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -310,20 +277,14 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     ): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
-        const result = await updatePersonalityOp(
-          storageCtx,
-          address,
-          personality
-        );
+        const result = await updatePersonalityOp(storageCtx, address, personality);
         // Update local state if this is for the current wallet
         if (result && walletAddress && address === walletAddress) {
           setUserPreferenceState(result);
         }
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -333,10 +294,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
    * Update only model preferences
    */
   const updateModels = useCallback(
-    async (
-      address: string,
-      models: string
-    ): Promise<StoredUserPreference | null> => {
+    async (address: string, models: string): Promise<StoredUserPreference | null> => {
       try {
         if (!address) throw new Error("Wallet address is required");
         const result = await updateModelsOp(storageCtx, address, models);
@@ -346,9 +304,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -368,9 +324,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
-        throw new Error(
-          error instanceof Error ? error.message : "An unknown error occurred"
-        );
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -394,10 +348,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
 
         // If not found, try to migrate from old modelPreferences
         if (!preference) {
-          preference = await migrateFromModelPreferencesOp(
-            storageCtx,
-            walletAddress
-          );
+          preference = await migrateFromModelPreferencesOp(storageCtx, walletAddress);
         }
 
         if (!cancelled) {
@@ -405,10 +356,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
 
         // Also load legacy modelPreference for backward compat
-        const legacyPreference = await getModelPreferenceOp(
-          legacyStorageCtx,
-          walletAddress
-        );
+        const legacyPreference = await getModelPreferenceOp(legacyStorageCtx, walletAddress);
         if (!cancelled) {
           setModelPreferenceState(legacyPreference);
         }

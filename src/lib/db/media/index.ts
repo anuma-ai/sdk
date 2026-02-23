@@ -3,56 +3,52 @@ export { Media } from "./models";
 
 // Types
 export type {
-  MediaType,
-  MediaRole,
-  MediaDimensions,
-  MediaMetadata,
-  StoredMedia,
   CreateMediaOptions,
-  UpdateMediaOptions,
+  MediaDimensions,
   MediaFilterOptions,
+  MediaMetadata,
   MediaOperationsContext,
+  MediaRole,
+  MediaType,
+  StoredMedia,
+  UpdateMediaOptions,
 } from "./types";
 
 // Utility functions
-export {
-  generateMediaId,
-  getMediaTypeFromMime,
-  isSupportedMediaType,
-} from "./types";
+export { generateMediaId, getMediaTypeFromMime, isSupportedMediaType } from "./types";
 
 // Operations - CRUD
 export {
-  mediaToStored,
-  createMediaOp,
   createMediaBatchOp,
+  createMediaOp,
+  deleteMediaOp,
   getMediaByIdOp,
   getMediaBySourceUrlOp,
-  updateMediaOp,
-  updateMediaMessageIdBatchOp,
-  deleteMediaOp,
   hardDeleteMediaOp,
+  mediaToStored,
+  updateMediaMessageIdBatchOp,
+  updateMediaOp,
 } from "./operations";
 
 // Operations - Library queries
 export {
-  getMediaOp,
-  getMediaByTypeOp,
-  getImagesOp,
-  getVideosOp,
-  getAudioOp,
-  getDocumentsOp,
-  getMediaByConversationOp,
-  getMediaByMessageOp,
-  getMediaByIdsOp,
-  getMediaByRoleOp,
-  getAIGeneratedMediaOp,
-  getUserUploadedMediaOp,
-  getMediaByModelOp,
-  getRecentMediaOp,
-  searchMediaOp,
-  getMediaCountOp,
-  getMediaCountsByTypeOp,
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
+  getAIGeneratedMediaOp,
+  getAudioOp,
+  getDocumentsOp,
+  getImagesOp,
+  getMediaByConversationOp,
+  getMediaByIdsOp,
+  getMediaByMessageOp,
+  getMediaByModelOp,
+  getMediaByRoleOp,
+  getMediaByTypeOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  getMediaOp,
+  getRecentMediaOp,
+  getUserUploadedMediaOp,
+  getVideosOp,
+  searchMediaOp,
 } from "./operations";

@@ -10,7 +10,7 @@ Options for useGoogleDriveBackup hook
 
 > `optional` **conversationsFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L42)
+Defined in: [src/react/useGoogleDriveBackup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L39)
 
 Subfolder for conversations (default: 'conversations')
 
@@ -171,7 +171,7 @@ Request encryption key for the user address
 
 > `optional` **rootFolder**: `string`
 
-Defined in: [src/react/useGoogleDriveBackup.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L40)
+Defined in: [src/react/useGoogleDriveBackup.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L37)
 
 Root folder name in Google Drive (default: 'ai-chat-app')
 

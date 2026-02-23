@@ -1,8 +1,5 @@
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
-import {
-  schemaMigrations,
-  addColumns,
-} from "@nozbe/watermelondb/Schema/migrations";
+import { addColumns, schemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
   version: 6,
@@ -68,9 +65,7 @@ export const chatStorageMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "thought_process", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "thought_process", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -79,9 +74,7 @@ export const chatStorageMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "thinking", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "thinking", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -90,9 +83,7 @@ export const chatStorageMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "chunks", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "chunks", type: "string", isOptional: true }],
         }),
       ],
     },

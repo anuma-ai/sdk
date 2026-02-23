@@ -13,8 +13,8 @@ import {
 
 import {
   authenticateICloud,
-  configureCloudKit,
   type CloudKitConfig,
+  configureCloudKit,
   DEFAULT_CONTAINER_ID,
   isCloudKitAvailable,
   loadCloudKit,
@@ -149,9 +149,7 @@ export function ICloudAuthProvider({
       setIsAuthenticated(true);
       setUserRecordName(userIdentity.userRecordName);
     } catch (err) {
-      throw new Error(
-        err instanceof Error ? err.message : "Failed to sign in to iCloud"
-      );
+      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [isAuthenticated, isConfigured]);
 

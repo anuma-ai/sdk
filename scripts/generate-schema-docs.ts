@@ -57,9 +57,7 @@ function generate(): string {
   lines.push("|---------|---------|");
 
   for (const migration of [...(sdkMigrations.sortedMigrations as any[])].reverse()) {
-    const changes = (migration.steps as any[])
-      .map((step: any) => describeStep(step))
-      .join("; ");
+    const changes = (migration.steps as any[]).map((step: any) => describeStep(step)).join("; ");
     lines.push(`| v${migration.toVersion} | ${changes} |`);
   }
 

@@ -65,10 +65,7 @@ function splitIntoSentences(text: string): string[] {
  * 3. Create chunk with overlap from previous chunk
  * 4. Handle edge cases (very long sentences, short texts)
  */
-export function chunkText(
-  text: string,
-  options?: ChunkingOptions
-): TextChunk[] {
+export function chunkText(text: string, options?: ChunkingOptions): TextChunk[] {
   const {
     chunkSize = DEFAULT_CHUNK_SIZE,
     chunkOverlap: requestedOverlap = DEFAULT_CHUNK_OVERLAP,

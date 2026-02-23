@@ -2,7 +2,7 @@
 
 > **clearNotionToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/notion.ts:447](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L447)
+Defined in: [src/lib/auth/notion.ts:440](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L440)
 
 Clear stored token data from all storage locations
 

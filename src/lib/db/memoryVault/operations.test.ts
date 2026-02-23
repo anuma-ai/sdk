@@ -11,9 +11,7 @@ import {
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
-  encryptVaultMemoryContent: vi.fn(
-    async (content: string) => `encrypted:${content}`
-  ),
+  encryptVaultMemoryContent: vi.fn(async (content: string) => `encrypted:${content}`),
   decryptVaultMemoryFields: vi.fn(async (memory: any) => ({
     ...memory,
     content: memory.content.replace("encrypted:", ""),
@@ -33,22 +31,38 @@ function mockRecord(overrides: Record<string, any> = {}) {
   };
   return {
     id: overrides.id ?? "mem_1",
-    get content() { return raw.content; },
-    get scope() { return raw.scope; },
-    get createdAt() { return raw.created_at; },
-    get updatedAt() { return raw.updated_at; },
-    get isDeleted() { return raw.is_deleted; },
+    get content() {
+      return raw.content;
+    },
+    get scope() {
+      return raw.scope;
+    },
+    get createdAt() {
+      return raw.created_at;
+    },
+    get updatedAt() {
+      return raw.updated_at;
+    },
+    get isDeleted() {
+      return raw.is_deleted;
+    },
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
     update: vi.fn(async (updater: (r: any) => void) => {
-      updater({ _setRaw: (k: string, v: any) => { raw[k] = v; } });
+      updater({
+        _setRaw: (k: string, v: any) => {
+          raw[k] = v;
+        },
+      });
     }),
     ...overrides,
   };
 }
 
-function makeCtx(overrides: Partial<VaultMemoryOperationsContext> = {}): VaultMemoryOperationsContext {
+function makeCtx(
+  overrides: Partial<VaultMemoryOperationsContext> = {}
+): VaultMemoryOperationsContext {
   return {
     database: {
       write: vi.fn(async (cb: () => any) => cb()),
@@ -173,7 +187,9 @@ describe("getVaultMemoryOp", () => {
   it("returns null when find throws (not found)", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("not found"); }),
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
       } as any,
     });
     const result = await getVaultMemoryOp(ctx, "nonexistent");
@@ -299,7 +315,9 @@ describe("updateVaultMemoryOp", () => {
   it("returns null when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("not found"); }),
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
       } as any,
     });
 
@@ -343,7 +361,9 @@ describe("deleteVaultMemoryOp", () => {
   it("returns false when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("nope"); }),
+        find: vi.fn(async () => {
+          throw new Error("nope");
+        }),
       } as any,
     });
 
@@ -374,11 +394,7 @@ describe("vaultMemoryToStored", () => {
   it("decrypts content when wallet address is provided", async () => {
     const record = mockRecord();
     record._setRaw("content", "encrypted:secret");
-    const result = await vaultMemoryToStored(
-      record as any,
-      "0xabc",
-      vi.fn() as any
-    );
+    const result = await vaultMemoryToStored(record as any, "0xabc", vi.fn() as any);
     // The mock decryptVaultMemoryFields removes "encrypted:" prefix
     expect(result.content).toBe("secret");
   });

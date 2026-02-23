@@ -3,19 +3,20 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 import {
-  Bar,
-  BarChart,
-  Line,
-  LineChart,
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Cell,
 } from "recharts";
+
 import type { DisplayChartResult } from "../tools/chart";
 
 // ---------------------------------------------------------------------------
@@ -58,16 +59,8 @@ function useChart() {
 // ChartStyle – injects CSS variables for colors
 // ---------------------------------------------------------------------------
 
-export function ChartStyle({
-  id,
-  config,
-}: {
-  id: string;
-  config: ChartConfig;
-}) {
-  const colorConfig = Object.entries(config).filter(
-    ([, cfg]) => cfg.theme || cfg.color
-  );
+export function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
+  const colorConfig = Object.entries(config).filter(([, cfg]) => cfg.theme || cfg.color);
 
   if (!colorConfig.length) return null;
 
@@ -80,9 +73,7 @@ export function ChartStyle({
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color;
+    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
     return color ? `  --color-${key}: ${color};` : null;
   })
   .join("\n")}
@@ -107,9 +98,7 @@ export function ChartContainer({
   ...props
 }: React.ComponentProps<"div"> & {
   config: ChartConfig;
-  children: React.ComponentProps<
-    typeof RechartsPrimitive.ResponsiveContainer
-  >["children"];
+  children: React.ComponentProps<typeof RechartsPrimitive.ResponsiveContainer>["children"];
 }) {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
@@ -126,9 +115,7 @@ export function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
+        <RechartsPrimitive.ResponsiveContainer>{children}</RechartsPrimitive.ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   );
@@ -171,15 +158,11 @@ export function ChartTooltipContent({
     const key = `${labelKey || item?.dataKey || item?.name || "value"}`;
     const itemConfig = getPayloadConfigFromPayload(config, item, key);
     const value =
-      !labelKey && typeof label === "string"
-        ? config[label as keyof typeof config]?.label || label
-        : itemConfig?.label;
+      !labelKey && typeof label === "string" ? config[label]?.label || label : itemConfig?.label;
 
     if (labelFormatter) {
       return (
-        <div className={cx("font-medium", labelClassName)}>
-          {labelFormatter(value, payload)}
-        </div>
+        <div className={cx("font-medium", labelClassName)}>{labelFormatter(value, payload)}</div>
       );
     }
 
@@ -231,9 +214,7 @@ export function ChartTooltipContent({
                             indicator === "line" && "w-1",
                             indicator === "dashed" &&
                               "w-0 border-[1.5px] border-dashed bg-transparent",
-                            nestLabel &&
-                              indicator === "dashed" &&
-                              "my-0.5"
+                            nestLabel && indicator === "dashed" && "my-0.5"
                           )}
                           style={
                             {
@@ -332,40 +313,27 @@ export function ChartLegendContent({
 // Helper: extract item config from a recharts payload
 // ---------------------------------------------------------------------------
 
-function getPayloadConfigFromPayload(
-  config: ChartConfig,
-  payload: unknown,
-  key: string
-) {
+function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {
   if (typeof payload !== "object" || payload === null) return undefined;
 
   const payloadPayload =
-    "payload" in payload &&
-    typeof payload.payload === "object" &&
-    payload.payload !== null
+    "payload" in payload && typeof payload.payload === "object" && payload.payload !== null
       ? payload.payload
       : undefined;
 
   let configLabelKey: string = key;
 
-  if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === "string"
-  ) {
+  if (key in payload && typeof payload[key as keyof typeof payload] === "string") {
     configLabelKey = payload[key as keyof typeof payload] as string;
   } else if (
     payloadPayload &&
     key in payloadPayload &&
     typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
   ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string;
+    configLabelKey = payloadPayload[key as keyof typeof payloadPayload] as string;
   }
 
-  return configLabelKey in config
-    ? config[configLabelKey]
-    : config[key as keyof typeof config];
+  return configLabelKey in config ? config[configLabelKey] : config[key];
 }
 
 // ---------------------------------------------------------------------------
@@ -384,10 +352,7 @@ const DEFAULT_COLORS = [
   "var(--chart-5)",
 ];
 
-function buildChartConfig(
-  dataKeys: string[],
-  colors?: Record<string, string>
-): ChartConfig {
+function buildChartConfig(dataKeys: string[], colors?: Record<string, string>): ChartConfig {
   const config: ChartConfig = {};
   dataKeys.forEach((key, i) => {
     config[key] = {
@@ -424,51 +389,29 @@ export function ChartCard({ data }: ChartCardProps) {
       <div className="rounded-xl bg-sidebar dark:bg-card px-5 py-4">
         {title && <p className="text-sm font-medium mb-3">{title}</p>}
         {ready ? (
-          <ChartContainer
-            config={chartConfig}
-            className="aspect-auto h-[250px] w-full"
-          >
+          <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
             {chartType === "bar" ? (
               <BarChart data={chartData}>
                 <CartesianGrid vertical={false} />
                 {xAxisKey && (
-                  <XAxis
-                    dataKey={xAxisKey}
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
+                  <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                {dataKeys.length > 1 && (
-                  <ChartLegend content={<ChartLegendContent />} />
-                )}
+                {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
-                  <Bar
-                    key={key}
-                    dataKey={key}
-                    fill={`var(--color-${key})`}
-                    radius={4}
-                  />
+                  <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
                 ))}
               </BarChart>
             ) : chartType === "line" ? (
               <LineChart data={chartData}>
                 <CartesianGrid vertical={false} />
                 {xAxisKey && (
-                  <XAxis
-                    dataKey={xAxisKey}
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
+                  <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                {dataKeys.length > 1 && (
-                  <ChartLegend content={<ChartLegendContent />} />
-                )}
+                {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
                   <Line
                     key={key}
@@ -483,18 +426,11 @@ export function ChartCard({ data }: ChartCardProps) {
               <AreaChart data={chartData}>
                 <CartesianGrid vertical={false} />
                 {xAxisKey && (
-                  <XAxis
-                    dataKey={xAxisKey}
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
+                  <XAxis dataKey={xAxisKey} tickLine={false} axisLine={false} tickMargin={8} />
                 )}
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                {dataKeys.length > 1 && (
-                  <ChartLegend content={<ChartLegendContent />} />
-                )}
+                {dataKeys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
                 {dataKeys.map((key) => (
                   <Area
                     key={key}
@@ -517,17 +453,10 @@ export function ChartCard({ data }: ChartCardProps) {
                   outerRadius={80}
                 >
                   {chartData.map((_, index) => (
-                    <Cell
-                      key={index}
-                      fill={DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
-                    />
+                    <Cell key={index} fill={DEFAULT_COLORS[index % DEFAULT_COLORS.length]} />
                   ))}
                 </Pie>
-                <ChartLegend
-                  content={
-                    <ChartLegendContent nameKey={xAxisKey || "name"} />
-                  }
-                />
+                <ChartLegend content={<ChartLegendContent nameKey={xAxisKey || "name"} />} />
               </PieChart>
             )}
           </ChartContainer>

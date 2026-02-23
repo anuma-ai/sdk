@@ -12,13 +12,14 @@
  */
 
 import { v7 as uuidv7 } from "uuid";
+
 import type {
+  FlushResult,
+  OperationExecutor,
   QueuedOperation,
   QueuedOperationType,
-  QueueStatus,
-  FlushResult,
   QueueEncryptionContext,
-  OperationExecutor,
+  QueueStatus,
 } from "./types";
 
 const MAX_OPERATIONS_PER_WALLET = 1000;
@@ -243,14 +244,10 @@ export class QueueManager {
         }
 
         // Check if all dependencies are met
-        const depsUnmet = op.dependencies.some(
-          (depId) => !succeededSet.has(depId)
-        );
+        const depsUnmet = op.dependencies.some((depId) => !succeededSet.has(depId));
         if (depsUnmet) {
           // If a dependency failed, this operation also fails
-          const depFailed = op.dependencies.some((depId) =>
-            failed.some((f) => f.id === depId)
-          );
+          const depFailed = op.dependencies.some((depId) => failed.some((f) => f.id === depId));
           if (depFailed) {
             failed.push({
               id: op.id,
@@ -294,9 +291,7 @@ export class QueueManager {
           walletQueue.delete(op.id);
         } else {
           const errorMsg =
-            lastError instanceof Error
-              ? lastError.message
-              : String(lastError ?? "Unknown error");
+            lastError instanceof Error ? lastError.message : String(lastError ?? "Unknown error");
           failed.push({ id: op.id, error: errorMsg });
           this.moveToFailed(walletAddress, op);
           walletQueue.delete(op.id);
@@ -351,8 +346,8 @@ export class QueueManager {
     walletListeners.add(callback);
 
     return () => {
-      walletListeners!.delete(callback);
-      if (walletListeners!.size === 0) {
+      walletListeners.delete(callback);
+      if (walletListeners.size === 0) {
         this.listeners.delete(walletAddress);
       }
     };
