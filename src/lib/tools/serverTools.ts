@@ -737,7 +737,7 @@ export interface SelectServerSideToolsOptions {
  *
  * @example
  * ```ts
- * import { selectServerSideTools } from "@reverbia/sdk/tools";
+ * import { selectServerSideTools } from "@anuma/sdk/tools";
  *
  * const tools = await selectServerSideTools({
  *   prompt: "Draw me a cat",

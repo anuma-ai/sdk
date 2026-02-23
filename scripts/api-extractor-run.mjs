@@ -6,13 +6,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 const entryPoints = [
-  { name: "reverbia-sdk", dtsPath: "dist/index.d.ts" },
-  { name: "reverbia-sdk-react", dtsPath: "dist/react/index.d.ts" },
-  { name: "reverbia-sdk-expo", dtsPath: "dist/expo/index.d.ts" },
-  { name: "reverbia-sdk-polyfills", dtsPath: "dist/polyfills/index.d.ts" },
-  { name: "reverbia-sdk-vercel", dtsPath: "dist/vercel/index.d.ts" },
-  { name: "reverbia-sdk-next", dtsPath: "dist/next/index.d.ts" },
-  { name: "reverbia-sdk-tools", dtsPath: "dist/tools/index.d.ts" },
+  { name: "anuma-sdk", dtsPath: "dist/index.d.ts" },
+  { name: "anuma-sdk-react", dtsPath: "dist/react/index.d.ts" },
+  { name: "anuma-sdk-expo", dtsPath: "dist/expo/index.d.ts" },
+  { name: "anuma-sdk-polyfills", dtsPath: "dist/polyfills/index.d.ts" },
+  { name: "anuma-sdk-vercel", dtsPath: "dist/vercel/index.d.ts" },
+  { name: "anuma-sdk-next", dtsPath: "dist/next/index.d.ts" },
+  { name: "anuma-sdk-tools", dtsPath: "dist/tools/index.d.ts" },
 ];
 
 const localBuild = process.argv.includes("--local");

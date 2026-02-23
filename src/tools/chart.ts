@@ -38,7 +38,7 @@ export type DisplayChartResult =
  *
  * @example
  * ```typescript
- * import { createChartTool } from "@reverbia/sdk/tools";
+ * import { createChartTool } from "@anuma/sdk/tools";
  *
  * const chartTool = createChartTool({
  *   getContext: () => uiInteraction,

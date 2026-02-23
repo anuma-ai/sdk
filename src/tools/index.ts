@@ -49,7 +49,7 @@
  * Notion's hosted MCP server. No direct API calls needed.
  *
  * ```typescript
- * import { createNotionTools } from "@reverbia/sdk/tools";
+ * import { createNotionTools } from "@anuma/sdk/tools";
  *
  * const notionTools = createNotionTools(
  *   () => getNotionAccessToken(walletAddress, clientId),
