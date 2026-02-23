@@ -1,0 +1,35 @@
+name: Check Exports
+
+# Validates that the package exports map and types resolve correctly for
+# ESM and CJS consumers. Catches broken import paths and type resolution
+# issues that are invisible during development but break published consumers.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-exports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Check Exports
+        run: pnpm check-exports
