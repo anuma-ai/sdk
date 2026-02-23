@@ -2,7 +2,7 @@
 
 > **clearAllKeyPairs**(): `void`
 
-Defined in: [src/react/useEncryption.ts:1132](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1132)
+Defined in: [src/react/useEncryption.ts:1121](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L1121)
 
 Clears all key pairs from memory
 

@@ -2,7 +2,7 @@
 
 > **encryptDataWithKey**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `key`: `CryptoKey`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:567](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L567)
+Defined in: [src/react/useEncryption.ts:560](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L560)
 
 **`Internal`**
 
