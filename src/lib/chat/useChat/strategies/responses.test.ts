@@ -45,10 +45,7 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
 
   it("captures tool_call_events from top-level chunk", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].id).toBe("evt_1");
@@ -56,10 +53,7 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
 
   it("captures tool_call_events from nested response", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { response: { tool_call_events: sampleEvents } },
-      acc
-    );
+    strategy.processStreamChunk({ response: { tool_call_events: sampleEvents } }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].arguments).toBe('{"prompt":"cat"}');
@@ -69,19 +63,13 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
     const acc = createAccumulator();
 
     // First chunk: empty array (e.g., from an early streaming event)
-    strategy.processStreamChunk(
-      { tool_call_events: [] },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: [] }, acc);
 
     // Empty array should NOT have been stored
     expect(acc.toolCallEvents).toBeUndefined();
 
     // Second chunk: real events arrive later
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     // Real events should now be captured
     expect(acc.toolCallEvents).toHaveLength(1);
@@ -92,20 +80,12 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
     const acc = createAccumulator();
 
     // First chunk: real events
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
-    const secondEvents = [
-      { id: "evt_2", name: "edit_cloud_image", arguments: "{}", output: "{}" },
-    ];
+    const secondEvents = [{ id: "evt_2", name: "edit_cloud_image", arguments: "{}", output: "{}" }];
 
     // Second chunk: different events — should be ignored
-    strategy.processStreamChunk(
-      { tool_call_events: secondEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: secondEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].id).toBe("evt_1");
@@ -113,10 +93,7 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
 
   it("preserves all fields (id, name, arguments, output)", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     const event = acc.toolCallEvents![0];
     expect(event.id).toBe("evt_1");

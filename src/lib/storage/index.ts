@@ -23,6 +23,4 @@ export {
   // MCP image URL extraction and placeholder replacement
   extractMCPImageUrls,
   replaceMCPUrlsWithPlaceholders,
-  type ToolCallEvent,
-  type ExtractedImageUrl,
 } from "./mcpImages";

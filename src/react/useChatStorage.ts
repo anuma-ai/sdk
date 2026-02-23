@@ -105,15 +105,6 @@ import {
 } from "../lib/memoryVault";
 import { preprocessFiles } from "../lib/processors";
 import {
-  BlobUrlManager,
-  createFilePlaceholder,
-  deleteEncryptedFile,
-  extractFileIds,
-  isOPFSSupported,
-  readEncryptedFile,
-  writeEncryptedFile,
-} from "../lib/storage";
-import {
   filterServerTools,
   getServerTools,
   mergeTools,
@@ -608,9 +599,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @category Hooks
  */
 
-export function useChatStorage(
-  options: UseChatStorageOptions
-): UseChatStorageResult {
+export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
     conversationId: initialConversationId,
@@ -1230,9 +1219,7 @@ export function useChatStorage(
             messages.map(async (msg) => {
               // Collect file IDs from both content placeholders and msg.fileIds
               const contentFileIds = [...new Set(extractFileIds(msg.content))];
-              const extraFileIds = (msg.fileIds || []).filter(
-                (id) => !contentFileIds.includes(id)
-              );
+              const extraFileIds = (msg.fileIds || []).filter((id) => !contentFileIds.includes(id));
               const allFileIds = [...contentFileIds, ...extraFileIds];
 
               if (allFileIds.length === 0) {
@@ -1269,10 +1256,7 @@ export function useChatStorage(
               let resolvedContent = msg.content;
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
-                const escapedPlaceholder = placeholder.replace(
-                  /[.*+?^${}()|[\]\\]/g,
-                  "\\$&"
-                );
+                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
                 const replacement = `![image-${fileId}](${url})`;
 
@@ -1524,11 +1508,7 @@ export function useChatStorage(
 
         // No MCP images found — strip any stale MCP URLs and return
         if (urls.length === 0) {
-          const cleanedContent = replaceMCPUrlsWithPlaceholders(
-            content,
-            new Map(),
-            mcpR2Domain
-          );
+          const cleanedContent = replaceMCPUrlsWithPlaceholders(content, new Map(), mcpR2Domain);
           return { fileIds: [], cleanedContent };
         }
 

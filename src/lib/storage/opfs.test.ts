@@ -3,9 +3,7 @@ import { createFilePlaceholder, extractFileIds } from "./opfs";
 
 describe("createFilePlaceholder", () => {
   it("creates __SDKFILE__mediaId__ format", () => {
-    expect(createFilePlaceholder("media_abc123")).toBe(
-      "__SDKFILE__media_abc123__"
-    );
+    expect(createFilePlaceholder("media_abc123")).toBe("__SDKFILE__media_abc123__");
   });
 
   it("handles hyphens and underscores in mediaId", () => {
@@ -26,13 +24,8 @@ describe("extractFileIds", () => {
   });
 
   it("handles multiple placeholders", () => {
-    const content =
-      "__SDKFILE__media_1__ and __SDKFILE__media_2__ and __SDKFILE__media_3__";
-    expect(extractFileIds(content)).toEqual([
-      "media_1",
-      "media_2",
-      "media_3",
-    ]);
+    const content = "__SDKFILE__media_1__ and __SDKFILE__media_2__ and __SDKFILE__media_3__";
+    expect(extractFileIds(content)).toEqual(["media_1", "media_2", "media_3"]);
   });
 
   it("deduplicates IDs", () => {

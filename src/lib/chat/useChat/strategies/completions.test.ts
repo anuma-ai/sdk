@@ -27,10 +27,7 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
 
   it("captures tool_call_events from top-level chunk", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].name).toBe("generate_cloud_image");
@@ -39,10 +36,7 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
 
   it("captures tool_call_events from nested response", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { response: { tool_call_events: sampleEvents } },
-      acc
-    );
+    strategy.processStreamChunk({ response: { tool_call_events: sampleEvents } }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].arguments).toBe('{"prompt":"cat"}');
@@ -69,19 +63,13 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
     const acc = createAccumulator();
 
     // First chunk: empty array
-    strategy.processStreamChunk(
-      { tool_call_events: [] },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: [] }, acc);
 
     // Empty array should NOT have been stored
     expect(acc.toolCallEvents).toBeUndefined();
 
     // Second chunk: real events
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].name).toBe("generate_cloud_image");
@@ -90,19 +78,11 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
   it("does not overwrite existing non-empty tool_call_events", () => {
     const acc = createAccumulator();
 
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
-    const secondEvents = [
-      { id: "evt_2", name: "edit_cloud_image", arguments: "{}", output: "{}" },
-    ];
+    const secondEvents = [{ id: "evt_2", name: "edit_cloud_image", arguments: "{}", output: "{}" }];
 
-    strategy.processStreamChunk(
-      { tool_call_events: secondEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: secondEvents }, acc);
 
     expect(acc.toolCallEvents).toHaveLength(1);
     expect(acc.toolCallEvents![0].id).toBe("evt_1");
@@ -110,10 +90,7 @@ describe("CompletionsStrategy.processStreamChunk - tool_call_events", () => {
 
   it("preserves all fields (id, name, arguments, output)", () => {
     const acc = createAccumulator();
-    strategy.processStreamChunk(
-      { tool_call_events: sampleEvents },
-      acc
-    );
+    strategy.processStreamChunk({ tool_call_events: sampleEvents }, acc);
 
     const event = acc.toolCallEvents![0];
     expect(event.id).toBe("evt_1");

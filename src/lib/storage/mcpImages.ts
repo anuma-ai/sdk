@@ -8,13 +8,13 @@
 import { createFilePlaceholder } from "./opfs";
 
 /** Minimal tool call event shape needed for URL extraction. */
-export interface ToolCallEvent {
+interface ToolCallEvent {
   name?: string;
   output?: string;
 }
 
 /** Extracted image URL with its associated model. */
-export interface ExtractedImageUrl {
+interface ExtractedImageUrl {
   url: string;
   model: string;
 }
@@ -65,10 +65,7 @@ export function extractMCPImageUrls(
   // Fallback: regex-match MCP R2 URLs in content when tool_call_events yield nothing
   if (urls.length === 0 && content) {
     const escaped = mcpR2Domain.replace(/\./g, "\\.");
-    const urlPattern = new RegExp(
-      `https://${escaped}[^\\s"'<>)\\]]+`,
-      "gi"
-    );
+    const urlPattern = new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi");
     const matches = content.match(urlPattern);
     if (matches) {
       const seen = new Set<string>();
@@ -109,10 +106,7 @@ export function replaceMCPUrlsWithPlaceholders(
 
   // 1. Replace markdown images: ![alt](mcpUrl) → ![alt](__SDKFILE__mediaId__)
   result = result.replace(
-    new RegExp(
-      `!\\[([^\\]]*)\\]\\([\\s]*(https://${escapedDomain}[^)]*?)\\)`,
-      "g"
-    ),
+    new RegExp(`!\\[([^\\]]*)\\]\\([\\s]*(https://${escapedDomain}[^)]*?)\\)`, "g"),
     (_match, alt: string, url: string) => {
       const mediaId = findMediaIdForUrl(url, urlToMediaIdMap);
       if (mediaId) {
@@ -125,10 +119,7 @@ export function replaceMCPUrlsWithPlaceholders(
 
   // 2. Replace HTML img tags: <img src="mcpUrl" ...> → placeholder markdown
   result = result.replace(
-    new RegExp(
-      `<img[^>]*src=["'](https://${escapedDomain}[^"']*?)["'][^>]*>`,
-      "gi"
-    ),
+    new RegExp(`<img[^>]*src=["'](https://${escapedDomain}[^"']*?)["'][^>]*>`, "gi"),
     (_match, url: string) => {
       const mediaId = findMediaIdForUrl(url, urlToMediaIdMap);
       if (mediaId) {
@@ -140,10 +131,7 @@ export function replaceMCPUrlsWithPlaceholders(
 
   // 3. Replace bare MCP URLs (not already handled above)
   result = result.replace(
-    new RegExp(
-      `(https://${escapedDomain}[^\\s"'<>)\\]]+)`,
-      "gi"
-    ),
+    new RegExp(`(https://${escapedDomain}[^\\s"'<>)\\]]+)`, "gi"),
     (url: string) => {
       const mediaId = findMediaIdForUrl(url, urlToMediaIdMap);
       if (mediaId) {
@@ -163,10 +151,7 @@ export function replaceMCPUrlsWithPlaceholders(
  * Look up a URL in the urlToMediaIdMap, trying both exact match
  * and normalized (query-string-stripped) match.
  */
-function findMediaIdForUrl(
-  url: string,
-  urlToMediaIdMap: Map<string, string>
-): string | undefined {
+function findMediaIdForUrl(url: string, urlToMediaIdMap: Map<string, string>): string | undefined {
   // Exact match first
   const exact = urlToMediaIdMap.get(url);
   if (exact) return exact;
