@@ -53,7 +53,6 @@ jobs:
         working-directory: /tmp/ai-examples
         continue-on-error: true
         run: |
-          cp .env.example .env.local
           pnpm build
 
       - name: Comment on PR
