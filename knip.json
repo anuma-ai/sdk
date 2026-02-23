@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "project": ["src/**/*.ts", "src/**/*.tsx"],
-  "ignore": ["src/client/**", "src/lib/auth/index.ts"],
+  "ignore": ["src/client/**"],
   "ignoreDependencies": ["@anuma/portal", "@privy-io/react-auth", "unist-util-visit"],
   "exclude": ["exports", "types", "optionalPeerDependencies", "unresolved"]
 }
