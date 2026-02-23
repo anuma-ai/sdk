@@ -2,7 +2,7 @@
 
 > **decryptDataBatch**(`encryptedValues`: `string`\[], `address`: `string`): `Promise`<`string`\[]>
 
-Defined in: [src/react/useEncryption.ts:678](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L678)
+Defined in: [src/react/useEncryption.ts:628](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L628)
 
 Batch decrypt multiple values efficiently with a single key lookup.
 Much faster than calling decryptData for each value individually.
