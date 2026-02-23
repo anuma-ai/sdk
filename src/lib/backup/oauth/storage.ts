@@ -74,7 +74,14 @@ export async function getStoredTokenData(
 
       try {
         const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
-        const decryptedJson = await decryptData(encryptedData, walletAddress);
+        let decryptedJson: string;
+        try {
+          // Try with current HKDF key (v3)
+          decryptedJson = await decryptData(encryptedData, walletAddress);
+        } catch {
+          // Fall back to legacy SHA-256 key (v2) for tokens encrypted before migration
+          decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
+        }
         const data = JSON.parse(decryptedJson) as StoredTokenData;
 
         // Validate that access token exists

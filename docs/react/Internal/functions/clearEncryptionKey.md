@@ -2,7 +2,7 @@
 
 > **clearEncryptionKey**(`address`: `string`): `void`
 
-Defined in: [src/react/useEncryption.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L103)
+Defined in: [src/react/useEncryption.ts:133](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L133)
 
 Clears the encryption key for a wallet address from memory
 

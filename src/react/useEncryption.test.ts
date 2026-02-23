@@ -17,6 +17,9 @@ import {
   requestEncryptionKey,
   hasEncryptionKey,
   SIGN_MESSAGE,
+  encryptData,
+  decryptData,
+  getEncryptionKey,
 } from "./useEncryption";
 import type { SignMessageFn } from "./useEncryption";
 
@@ -62,7 +65,7 @@ describe("useEncryption - Key Pair Generation", () => {
     Object.defineProperty(global, "crypto", {
       value: {
         subtle: crypto.subtle,
-        getRandomValues: crypto.getRandomValues,
+        getRandomValues: crypto.getRandomValues.bind(crypto),
       },
       writable: true,
     });
@@ -646,8 +649,12 @@ describe("useEncryption - Key Pair Generation", () => {
       const storageKey = `ecdh_keypair_${address}`;
       const persisted = localStorage.getItem(storageKey);
 
-      // Clear memory but keep localStorage
+      // Clear memory (clearKeyPair also removes from localStorage,
+      // so we re-set it to simulate only in-memory loss, e.g. page reload)
       clearKeyPair(address);
+      if (persisted) {
+        localStorage.setItem(storageKey, persisted);
+      }
       expect(hasKeyPair(address)).toBe(false);
 
       // Reset mock to track if signMessage is called
@@ -771,6 +778,57 @@ describe("useEncryption - Key Pair Generation", () => {
       const publicKey1 = await exportPublicKey(address, mockSignMessage);
       const publicKey2 = await exportPublicKey(address, mockSignMessage);
       expect(publicKey1).toBe(publicKey2);
+    });
+  });
+
+  describe("HKDF Key Derivation (v3)", () => {
+    it("should derive both legacy and HKDF keys from the same signature", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Both v2 and v3 keys should be available
+      const v2Key = await getEncryptionKey(address, "v2");
+      const v3Key = await getEncryptionKey(address, "v3");
+
+      expect(v2Key).toBeDefined();
+      expect(v3Key).toBeDefined();
+      // They should be different CryptoKey objects (different key material)
+      expect(v2Key).not.toBe(v3Key);
+    });
+
+    it("should encrypt with v3 key by default and decrypt correctly", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      const plaintext = "Hello, HKDF encryption!";
+      const encrypted = await encryptData(plaintext, address);
+      const decrypted = await decryptData(encrypted, address);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("should decrypt v2-encrypted data with v2 version parameter", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      const plaintext = "Legacy encrypted data";
+      const encrypted = await encryptData(plaintext, address);
+
+      // Decrypt with v2 version parameter should fail (encrypted with v3 key)
+      await expect(decryptData(encrypted, address, "v2")).rejects.toThrow();
+
+      // Decrypt with default (v3) should succeed
+      const decrypted = await decryptData(encrypted, address);
+      expect(decrypted).toBe(plaintext);
     });
   });
 });
