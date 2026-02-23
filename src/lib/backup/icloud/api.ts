@@ -291,9 +291,9 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 
   // Find and click the Apple sign-in button that was rendered by setUpAuth
   // CloudKit JS renders an anchor or button inside the container
-  const appleButton = signIn.querySelector(
+  const appleButton = signIn.querySelector<HTMLElement>(
     "a, button, [role='button'], div[id*='apple']"
-  ) as HTMLElement | null;
+  );
   console.log("[CloudKit] Found button element:", appleButton);
 
   if (appleButton) {

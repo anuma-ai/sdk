@@ -17,6 +17,8 @@ export {
   getToolsChecksum,
   mergeTools,
   type ParsedServerToolsResponse,
+  selectServerSideTools,
+  type SelectServerSideToolsOptions,
   type ServerTool,
   type ServerToolsOptions,
   // Types
