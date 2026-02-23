@@ -121,7 +121,7 @@ export function migrateDisplayResult(
   if (fromVersion >= toVersion) return result;
   let current = result;
   for (let v = fromVersion; v < toVersion; v++) {
-    const key = `${v}->${v + 1}` as `${number}->${number}`;
+    const key = `${v}->${v + 1}`;
     const migrate = migrations[key];
     if (migrate) {
       current = migrate(current);

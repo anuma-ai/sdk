@@ -293,7 +293,7 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
   // CloudKit JS renders an anchor or button inside the container
   const appleButton = signIn.querySelector(
     "a, button, [role='button'], div[id*='apple']"
-  ) as HTMLElement | null;
+  );
   console.log("[CloudKit] Found button element:", appleButton);
 
   if (appleButton) {

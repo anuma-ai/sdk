@@ -8,9 +8,9 @@
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
 import {
-  shouldChunkMessage,
   chunkText,
   DEFAULT_CHUNK_SIZE,
+  shouldChunkMessage,
 } from "../memoryRetrieval/chunking";
 import {
   generateEmbedding,
@@ -407,7 +407,6 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     }
 
     if (!getToken) {
-      // eslint-disable-next-line no-console
       console.warn("[serverTools] No auth method available for fetching tools");
       return cached?.tools ?? [];
     }

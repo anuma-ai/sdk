@@ -73,8 +73,8 @@ export class ResponsesStrategy implements ApiStrategy {
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           total_tokens: promptTokens + completionTokens,
-          ...(u.cost_micro_usd != null && { cost_micro_usd: u.cost_micro_usd }),
-          ...(u.credits_used != null && { credits_used: u.credits_used }),
+          ...(u.cost_micro_usd !== null && u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
+          ...(u.credits_used !== null && u.credits_used !== undefined && { credits_used: u.credits_used }),
         };
       }
 
