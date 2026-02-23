@@ -149,8 +149,7 @@ async function main(): Promise<void> {
   }
 
   const apiKey = process.env.PORTAL_API_KEY;
-  const baseUrl =
-    process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
+  const baseUrl = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     console.error(

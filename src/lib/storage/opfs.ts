@@ -49,9 +49,7 @@ let migrationDone = false;
  * "anuma-sdk-files" directory, then removes the old directory.
  * Runs at most once per session.
  */
-async function migrateOldDirectory(
-  root: FileSystemDirectoryHandle
-): Promise<void> {
+async function migrateOldDirectory(root: FileSystemDirectoryHandle): Promise<void> {
   if (migrationDone) return;
   migrationDone = true;
 
