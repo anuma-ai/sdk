@@ -81,3 +81,9 @@ jobs:
           else
             gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
           fi
+
+          if [ "${{ steps.build.outcome }}" == "success" ]; then
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaking-starter-app" 2>/dev/null || true
+          else
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaking-starter-app"
+          fi
