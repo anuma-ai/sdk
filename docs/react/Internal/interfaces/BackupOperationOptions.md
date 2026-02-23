@@ -1,6 +1,6 @@
 # BackupOperationOptions
 
-Defined in: [src/react/useBackup.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L74)
+Defined in: [src/react/useBackup.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L71)
 
 Backup options for individual operations
 
@@ -10,4 +10,4 @@ Backup options for individual operations
 
 > `optional` **onProgress**: [`ProgressCallback`](../type-aliases/ProgressCallback.md)
 
-Defined in: [src/react/useBackup.ts:75](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L75)
+Defined in: [src/react/useBackup.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L72)

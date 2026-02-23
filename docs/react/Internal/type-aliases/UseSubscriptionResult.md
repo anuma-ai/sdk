@@ -2,7 +2,7 @@
 
 > **UseSubscriptionResult** = `object`
 
-Defined in: [src/react/useSubscription.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L40)
+Defined in: [src/react/useSubscription.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L41)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useSubscription.ts:40](https://github.com/zeta-chain/ai-s
 
 > **cancelSubscription**: () => `Promise`<[`HandlersCancelSubscriptionResponse`](../../../client/Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | `null`>
 
-Defined in: [src/react/useSubscription.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L78)
+Defined in: [src/react/useSubscription.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L77)
 
 Cancel the subscription at the end of the current period
 
@@ -26,7 +26,7 @@ The cancellation response or null on error
 
 > **createCheckoutSession**: (`options?`: `object`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useSubscription.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L61)
+Defined in: [src/react/useSubscription.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L62)
 
 Create a Stripe checkout session for a subscription plan
 
@@ -115,7 +115,7 @@ The checkout URL or null on error
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useSubscription.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L52)
+Defined in: [src/react/useSubscription.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L53)
 
 Error from the last operation
 
@@ -125,7 +125,7 @@ Error from the last operation
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useSubscription.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L48)
+Defined in: [src/react/useSubscription.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L49)
 
 Whether any operation is in progress
 
@@ -135,7 +135,7 @@ Whether any operation is in progress
 
 > **openCustomerPortal**: (`options?`: `object`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useSubscription.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L71)
+Defined in: [src/react/useSubscription.ts:72](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L72)
 
 Open the Stripe customer portal for managing billing
 
@@ -188,7 +188,7 @@ The portal URL or null on error
 
 > **refetch**: () => `Promise`<`void`>
 
-Defined in: [src/react/useSubscription.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L56)
+Defined in: [src/react/useSubscription.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L57)
 
 Refetch the subscription status
 
@@ -202,7 +202,7 @@ Refetch the subscription status
 
 > **renewSubscription**: () => `Promise`<[`HandlersRenewSubscriptionResponse`](../../../client/Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | `null`>
 
-Defined in: [src/react/useSubscription.ts:83](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L83)
+Defined in: [src/react/useSubscription.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L82)
 
 Reactivate a cancelled subscription
 
@@ -218,6 +218,6 @@ The renewal response or null on error
 
 > **status**: [`HandlersSubscriptionStatusResponse`](../../../client/Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | `null`
 
-Defined in: [src/react/useSubscription.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L44)
+Defined in: [src/react/useSubscription.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L45)
 
 Current subscription status

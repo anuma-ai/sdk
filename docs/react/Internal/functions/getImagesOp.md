@@ -2,7 +2,7 @@
 
 > **getImagesOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:461](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L461)
+Defined in: [src/lib/db/media/operations.ts:450](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L450)
 
 Get all images for a user.
 

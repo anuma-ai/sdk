@@ -1,6 +1,6 @@
 # DEFAULT\_BACKUP\_FOLDER
 
-> `const` **DEFAULT\_BACKUP\_FOLDER**: `"/ai-chat-app/conversations"` = `'/ai-chat-app/conversations'`
+> `const` **DEFAULT\_BACKUP\_FOLDER**: `"/ai-chat-app/conversations"` = `"/ai-chat-app/conversations"`
 
 Defined in: [src/lib/backup/dropbox/api.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/api.ts#L12)
 

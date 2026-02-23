@@ -2,7 +2,7 @@
 
 > **ChartLegendContent**(`__namedParameters`: `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `Pick`<`Props`, `"payload"` | `"verticalAlign"`> & `object`): `Element` | `null`
 
-Defined in: [src/react/chart.tsx:281](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/chart.tsx#L281)
+Defined in: [src/react/chart.tsx:262](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/chart.tsx#L262)
 
 ## Parameters
 

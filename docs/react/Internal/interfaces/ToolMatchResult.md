@@ -1,6 +1,6 @@
 # ToolMatchResult
 
-Defined in: [src/lib/tools/serverTools.ts:590](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L590)
+Defined in: [src/lib/tools/serverTools.ts:578](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L578)
 
 Result of tool matching with similarity score
 
@@ -10,7 +10,7 @@ Result of tool matching with similarity score
 
 > **similarity**: `number`
 
-Defined in: [src/lib/tools/serverTools.ts:592](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L592)
+Defined in: [src/lib/tools/serverTools.ts:580](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L580)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/tools/serverTools.ts:592](https://github.com/zeta-chain/ai-
 
 > **tool**: [`ServerTool`](ServerTool.md)
 
-Defined in: [src/lib/tools/serverTools.ts:591](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L591)
+Defined in: [src/lib/tools/serverTools.ts:579](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L579)

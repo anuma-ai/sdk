@@ -1,6 +1,6 @@
 # ChunkSearchResult
 
-Defined in: [src/lib/db/chat/types.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L181)
+Defined in: [src/lib/db/chat/types.ts:182](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L182)
 
 Search result from chunk-based search
 
@@ -10,7 +10,7 @@ Search result from chunk-based search
 
 > **chunkText**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:183](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L183)
+Defined in: [src/lib/db/chat/types.ts:184](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L184)
 
 The matching chunk text
 
@@ -20,7 +20,7 @@ The matching chunk text
 
 > **message**: [`StoredMessage`](StoredMessage.md)
 
-Defined in: [src/lib/db/chat/types.ts:185](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L185)
+Defined in: [src/lib/db/chat/types.ts:186](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L186)
 
 The full message containing this chunk
 
@@ -30,6 +30,6 @@ The full message containing this chunk
 
 > **similarity**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:187](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L187)
+Defined in: [src/lib/db/chat/types.ts:188](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L188)
 
 Similarity score of the chunk

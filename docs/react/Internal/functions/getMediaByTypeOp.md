@@ -2,7 +2,7 @@
 
 > **getMediaByTypeOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `mediaType`: [`MediaType`](../type-aliases/MediaType.md), `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:449](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L449)
+Defined in: [src/lib/db/media/operations.ts:438](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L438)
 
 Get media by type (image, video, audio, document).
 
