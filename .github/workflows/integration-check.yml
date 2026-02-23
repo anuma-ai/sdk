@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-sdk:
+  integration:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -34,32 +34,6 @@ jobs:
 
       - name: Pack SDK
         run: pnpm pack --pack-destination /tmp/sdk-pack
-
-      - name: Upload tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdk-tarball
-          path: /tmp/sdk-pack/*.tgz
-
-  check-starter-app:
-    needs: build-sdk
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Download tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: sdk-tarball
-          path: /tmp/sdk-pack
 
       - name: Clone ai-examples
         env:
@@ -85,13 +59,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ steps.build.outcome }}" == "success" ]; then
-            BODY="<!-- integration-check-starter -->
-          ### Integration Check: Starter App ✅
+            BODY="<!-- integration-check -->
+          ### Integration Check ✅
 
           **ai-examples** builds successfully against this PR's version of the SDK."
           else
-            BODY="<!-- integration-check-starter -->
-          ### Integration Check: Starter App ❌
+            BODY="<!-- integration-check -->
+          ### Integration Check ❌
 
           **ai-examples** failed to build against this PR's version of the SDK. If this PR introduces a breaking change, the example app may need to be updated."
           fi
@@ -99,7 +73,7 @@ jobs:
           echo "$BODY" > /tmp/integration-comment.md
 
           COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
-            --jq '.[] | select(.body | startswith("<!-- integration-check-starter -->")) | .id' | head -1)
+            --jq '.[] | select(.body | startswith("<!-- integration-check -->")) | .id' | head -1)
 
           if [ -n "$COMMENT_ID" ]; then
             gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/integration-comment.md
@@ -112,77 +86,4 @@ jobs:
           else
             gh label create "breaking-starter-app" --description "PR breaks the starter app build" --color "d93f0b" 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --add-label "breaking-starter-app" || true
-          fi
-
-  check-anuma-app:
-    needs: build-sdk
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Download tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: sdk-tarball
-          path: /tmp/sdk-pack
-
-      - name: Clone ai-memoryless-client
-        env:
-          GH_TOKEN: ${{ secrets.EXAMPLES_REPO_TOKEN }}
-        run: gh repo clone zeta-chain/ai-memoryless-client /tmp/ai-memoryless-client -- --depth 1
-
-      - name: Install SDK from tarball
-        working-directory: /tmp/ai-memoryless-client
-        run: |
-          corepack enable
-          pnpm install
-          SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
-          pnpm add "$SDK_TARBALL" --filter @memoryless/hooks
-
-      - name: Build ai-memoryless-client
-        id: build
-        working-directory: /tmp/ai-memoryless-client
-        continue-on-error: true
-        run: pnpm build
-
-      - name: Comment on PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "${{ steps.build.outcome }}" == "success" ]; then
-            BODY="<!-- integration-check-anuma -->
-          ### Integration Check: Anuma App ✅
-
-          **ai-memoryless-client** builds successfully against this PR's version of the SDK."
-          else
-            BODY="<!-- integration-check-anuma -->
-          ### Integration Check: Anuma App ❌
-
-          **ai-memoryless-client** failed to build against this PR's version of the SDK. If this PR introduces a breaking change, the app may need to be updated."
-          fi
-
-          echo "$BODY" > /tmp/integration-comment.md
-
-          COMMENT_ID=$(gh api "repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments" \
-            --jq '.[] | select(.body | startswith("<!-- integration-check-anuma -->")) | .id' | head -1)
-
-          if [ -n "$COMMENT_ID" ]; then
-            gh api "repos/{owner}/{repo}/issues/comments/$COMMENT_ID" -X PATCH -F body=@/tmp/integration-comment.md
-          else
-            gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
-          fi
-
-          if [ "${{ steps.build.outcome }}" == "success" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaking-anuma-app" 2>/dev/null || true
-          else
-            gh label create "breaking-anuma-app" --description "PR breaks the Anuma app build" --color "d93f0b" 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaking-anuma-app" || true
           fi
