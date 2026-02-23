@@ -1,5 +1,5 @@
 import { Model } from "@nozbe/watermelondb";
-import { text, field } from "@nozbe/watermelondb/decorators";
+import { field, text } from "@nozbe/watermelondb/decorators";
 
 /**
  * WatermelonDB model for user preferences.

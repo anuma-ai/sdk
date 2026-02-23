@@ -1,9 +1,9 @@
-import { decryptData, requestEncryptionKey, encryptData } from "../../react/useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../react/useEncryption";
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../react/useEncryption";
+import { decryptData, encryptData, requestEncryptionKey } from "../../react/useEncryption";
 
-export type { SignMessageFn, EmbeddedWalletSignerFn };
+export type { EmbeddedWalletSignerFn, SignMessageFn };
 
-export const ENCRYPTION_PREFIX = "enc:v2:";
+const ENCRYPTION_PREFIX = "enc:v2:";
 
 /**
  * Checks if a string value is encrypted (has the enc:v2: prefix with valid hex payload).
@@ -30,7 +30,7 @@ export async function encryptField(
   address: string,
   signMessage?: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn,
-  skipKeyRequest?: boolean,
+  skipKeyRequest?: boolean
 ): Promise<string> {
   if (!value) return value;
   if (!address || !signMessage) return value;
@@ -50,10 +50,7 @@ export async function encryptField(
  * Decrypts a field value by removing the prefix and decrypting.
  * Returns the original value if not encrypted or if decryption fails (backwards compat).
  */
-export async function decryptField(
-  value: string,
-  address: string,
-): Promise<string> {
+export async function decryptField(value: string, address: string): Promise<string> {
   if (!value || !isEncrypted(value)) {
     return value;
   }
@@ -75,12 +72,18 @@ export async function encryptJsonField<T>(
   address: string,
   signMessage?: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn,
-  skipKeyRequest?: boolean,
+  skipKeyRequest?: boolean
 ): Promise<string | undefined> {
   if (!value) return undefined;
 
   const jsonString = JSON.stringify(value);
-  const encrypted = await encryptField(jsonString, address, signMessage, embeddedWalletSigner, skipKeyRequest);
+  const encrypted = await encryptField(
+    jsonString,
+    address,
+    signMessage,
+    embeddedWalletSigner,
+    skipKeyRequest
+  );
   return encrypted;
 }
 
@@ -89,7 +92,7 @@ export async function encryptJsonField<T>(
  */
 export async function decryptJsonField<T>(
   value: string | undefined,
-  address: string,
+  address: string
 ): Promise<T | undefined> {
   if (!value) return undefined;
 

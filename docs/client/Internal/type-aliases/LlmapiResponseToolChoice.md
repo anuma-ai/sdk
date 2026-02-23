@@ -2,7 +2,7 @@
 
 > **LlmapiResponseToolChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:1093](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1093)
+Defined in: [src/client/types.gen.ts:1133](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1133)
 
 ToolChoice controls tool usage
 

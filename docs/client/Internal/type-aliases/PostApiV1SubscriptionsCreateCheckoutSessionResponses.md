@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2226](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2226)
+Defined in: [src/client/types.gen.ts:2271](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2271)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2226](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersCheckoutSessionResponse`](HandlersCheckoutSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:2230](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2230)
+Defined in: [src/client/types.gen.ts:2275](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2275)
 
 OK

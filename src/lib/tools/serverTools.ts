@@ -7,7 +7,8 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
-import { cosineSimilarity } from "../db/memory/types";
+import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryRetrieval/chunking";
+import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -36,9 +37,7 @@ interface ServerToolsResponseItemNew {
 }
 
 /** Response item can be either format */
-type ServerToolsResponseItem =
-  | ServerToolsResponseItemCurrent
-  | ServerToolsResponseItemNew;
+type ServerToolsResponseItem = ServerToolsResponseItemCurrent | ServerToolsResponseItemNew;
 
 /** Tools object mapping tool names to their definitions */
 type ServerToolsMap = {
@@ -52,9 +51,9 @@ type ServerToolsMap = {
  */
 export type ServerToolsResponse =
   | {
-    checksum: string;
-    tools: ServerToolsMap;
-  }
+      checksum: string;
+      tools: ServerToolsMap;
+    }
   | ServerToolsMap;
 
 /**
@@ -96,25 +95,28 @@ export interface ServerToolsOptions {
   cacheExpirationMs?: number;
   /** Force refresh even if cache is valid */
   forceRefresh?: boolean;
-  /** Authentication token getter */
-  getToken: () => Promise<string | null>;
+  /** Authentication token getter (uses Authorization: Bearer header) */
+  getToken?: () => Promise<string | null>;
+  /** Direct API key for server-side usage (uses X-API-Key header) */
+  apiKey?: string;
 }
 
 /** Default cache expiration: 1 day */
 export const DEFAULT_CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 
 /** localStorage key for cached tools */
-export const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
+const SERVER_TOOLS_CACHE_KEY = "sdk_server_tools_cache";
 
 /** Cache version - increment to invalidate old caches on format changes */
-export const CACHE_VERSION = "1.3";
+const CACHE_VERSION = "1.3";
+
+/** Minimum prompt length for tool matching. Shorter prompts skip embedding. */
+const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 
 /**
  * Type guard to check if tool is in new format (has schema property)
  */
-function isNewToolFormat(
-  tool: ServerToolsResponseItem
-): tool is ServerToolsResponseItemNew {
+function isNewToolFormat(tool: ServerToolsResponseItem): tool is ServerToolsResponseItemNew {
   return "schema" in tool && tool.schema !== undefined;
 }
 
@@ -144,9 +146,7 @@ export interface ParsedServerToolsResponse {
  * Supports both legacy and new API response formats.
  * Returns tools and optional checksum.
  */
-export function convertServerToolsResponse(
-  response: ServerToolsResponse
-): ParsedServerToolsResponse {
+function convertServerToolsResponse(response: ServerToolsResponse): ParsedServerToolsResponse {
   // Extract tools map and checksum based on response format
   let toolsMap: ServerToolsMap;
   let checksum: string | undefined;
@@ -185,7 +185,7 @@ export function convertServerToolsResponse(
  * Completions API tool format.
  * OpenAI Chat Completions expects: { type, function: { name, description, parameters } }
  */
-export interface CompletionsTool {
+interface CompletionsTool {
   type: "function";
   function: {
     name: string;
@@ -202,7 +202,7 @@ export interface CompletionsTool {
  * Convert ServerTool to completions API format.
  * Format: { type: "function", function: { name, description, parameters } }
  */
-export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
+function toCompletionsFormat(tool: ServerTool): CompletionsTool {
   return {
     type: "function",
     function: {
@@ -217,7 +217,7 @@ export function toCompletionsFormat(tool: ServerTool): CompletionsTool {
  * Convert ServerTool to responses API format.
  * Format: { type: "function", name, description, parameters }
  */
-export function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
+function toResponsesFormat(tool: ServerTool): Record<string, unknown> {
   return {
     type: "function",
     name: tool.name,
@@ -253,7 +253,7 @@ export function getCachedServerTools(): CachedServerTools | null {
 /**
  * Check if cached tools are expired
  */
-export function isCacheExpired(
+function isCacheExpired(
   cache: CachedServerTools | null,
   expirationMs: number = DEFAULT_CACHE_EXPIRATION_MS
 ): boolean {
@@ -264,7 +264,7 @@ export function isCacheExpired(
 /**
  * Store tools in localStorage cache
  */
-export function cacheServerTools(tools: ServerTool[], checksum?: string): void {
+function cacheServerTools(tools: ServerTool[], checksum?: string): void {
   if (typeof window === "undefined") return;
 
   const cacheData: CachedServerTools = {
@@ -278,7 +278,7 @@ export function cacheServerTools(tools: ServerTool[], checksum?: string): void {
     localStorage.setItem(SERVER_TOOLS_CACHE_KEY, JSON.stringify(cacheData));
   } catch (error) {
     // localStorage might be full or disabled - log but don't throw
-    // eslint-disable-next-line no-console
+
     console.warn("[serverTools] Failed to cache tools:", error);
   }
 }
@@ -311,7 +311,6 @@ export function getToolsChecksum(): string | undefined {
  * - Checksums match
  */
 export function shouldRefreshTools(responseChecksum: string | undefined): boolean {
-
   if (!responseChecksum) {
     // Legacy response without checksum - don't trigger refresh
     return false;
@@ -330,7 +329,7 @@ export function shouldRefreshTools(responseChecksum: string | undefined): boolea
 /**
  * Fetch tools from the server API
  */
-export async function fetchServerToolsFromApi(
+async function fetchServerToolsFromApi(
   baseUrl: string,
   token: string
 ): Promise<ParsedServerToolsResponse> {
@@ -359,14 +358,13 @@ export async function fetchServerToolsFromApi(
  * 3. Otherwise, fetch from API, cache, and return
  * 4. On fetch failure, return cached tools if available (stale-while-error)
  */
-export async function getServerTools(
-  options: ServerToolsOptions
-): Promise<ServerTool[]> {
+export async function getServerTools(options: ServerToolsOptions): Promise<ServerTool[]> {
   const {
     baseUrl,
     cacheExpirationMs = DEFAULT_CACHE_EXPIRATION_MS,
     forceRefresh = false,
     getToken,
+    apiKey,
   } = options;
 
   // Check cache first (unless forcing refresh)
@@ -379,28 +377,49 @@ export async function getServerTools(
 
   // Try to fetch fresh tools
   try {
-    const token = await getToken();
-    if (!token) {
-      // No token available - return cached if available, otherwise empty
-      // eslint-disable-next-line no-console
-      console.warn("[serverTools] No auth token available for fetching tools");
-      return cached?.tools ?? [];
-    }
-
     // Import BASE_URL dynamically to avoid circular dependencies
     const { BASE_URL } = await import("../../clientConfig");
     const effectiveBaseUrl = baseUrl ?? BASE_URL;
+
+    if (apiKey) {
+      // API key auth: fetch directly with X-API-Key header
+      const response = await fetch(`${effectiveBaseUrl}/api/v1/tools`, {
+        method: "GET",
+        headers: {
+          "X-API-Key": apiKey,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch server tools: ${response.status}`);
+      }
+      const data = (await response.json()) as ServerToolsResponse;
+      const { tools, checksum } = convertServerToolsResponse(data);
+      cacheServerTools(tools, checksum);
+      return tools;
+    }
+
+    if (!getToken) {
+      console.warn("[serverTools] No auth method available for fetching tools");
+      return cached?.tools ?? [];
+    }
+
+    const token = await getToken();
+    if (!token) {
+      // No token available - return cached if available, otherwise empty
+
+      console.warn("[serverTools] No auth token available for fetching tools");
+      return cached?.tools ?? [];
+    }
 
     const { tools, checksum } = await fetchServerToolsFromApi(effectiveBaseUrl, token);
     cacheServerTools(tools, checksum);
     return tools;
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("[serverTools] Failed to fetch server tools:", error);
 
     // Stale-while-error: return cached tools if available
     if (cached?.tools) {
-      // eslint-disable-next-line no-console
       console.warn("[serverTools] Using stale cached tools due to fetch error");
       return cached.tools;
     }
@@ -460,13 +479,19 @@ function clientToolToResponsesFormat(
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
     }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
   };
 }
 
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor and autoExecute for client-side execution.
+ * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -497,6 +522,12 @@ function clientToolToCompletionsFormat(
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.autoExecute !== undefined && {
       autoExecute: toolConfig.autoExecute,
+    }),
+    ...(toolConfig.skipContinuation !== undefined && {
+      skipContinuation: toolConfig.skipContinuation,
+    }),
+    ...(toolConfig.removeAfterExecution !== undefined && {
+      removeAfterExecution: toolConfig.removeAfterExecution,
     }),
   };
 }
@@ -542,13 +573,35 @@ export function mergeTools(
 
   // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
-    const name =
-      "name" in tool ? (tool.name as string) : (tool as any).function?.name;
+    const name = "name" in tool ? (tool.name as string) : (tool as any).function?.name;
     return !clientToolNames.has(name ?? "");
   });
 
   // Return merged array: server tools first, then client tools
   return [...nonConflictingServerTools, ...formattedClientTools] as Array<Record<string, unknown>>;
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return dotProduct / denominator;
 }
 
 /**
@@ -646,7 +699,131 @@ export function findMatchingTools(
   }
 
   // Sort by similarity descending and limit results
-  return results
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+}
+
+/**
+ * Options for selectServerSideTools
+ */
+export interface SelectServerSideToolsOptions {
+  /** The user prompt to match tools against */
+  prompt: string;
+  /** Function to get auth token (uses Authorization: Bearer header) */
+  getToken?: () => Promise<string | null>;
+  /** Direct API key for server-side usage (uses X-API-Key header) */
+  apiKey?: string;
+  /** Base URL for the API */
+  baseUrl?: string;
+  /** Cache expiration in ms (default: 24h) */
+  cacheExpirationMs?: number;
+  /** Force refresh tools cache */
+  forceRefresh?: boolean;
+  /** Embedding model to use */
+  embeddingModel?: string;
+  /** Max tools to return (default: 10) */
+  limit?: number;
+  /** Minimum cosine similarity 0-1 (default: 0.3) */
+  minSimilarity?: number;
+  /** API format for returned tools (default: "responses") */
+  apiType?: "responses" | "completions";
+}
+
+/**
+ * Select server tools that are semantically relevant to a prompt.
+ *
+ * Fetches available tools (with caching), generates embeddings for the prompt,
+ * runs cosine-similarity matching, and returns tool schemas in the requested
+ * API format (Responses or Completions).
+ *
+ * @example
+ * ```ts
+ * import { selectServerSideTools } from "@reverbia/sdk/tools";
+ *
+ * const tools = await selectServerSideTools({
+ *   prompt: "Draw me a cat",
+ *   getToken: async () => identityToken,
+ * });
+ *
+ * const response = await postApiV1Responses({
+ *   body: {
+ *     messages: [{ role: "user", content: [{ type: "text", text: "Draw me a cat" }] }],
+ *     model: "gpt-4o-mini",
+ *     tools,
+ *   },
+ *   headers: { Authorization: `Bearer ${identityToken}` },
+ * });
+ * ```
+ */
+export async function selectServerSideTools(
+  options: SelectServerSideToolsOptions
+): Promise<Array<Record<string, unknown>>> {
+  const {
+    prompt,
+    getToken,
+    apiKey,
+    baseUrl,
+    cacheExpirationMs,
+    forceRefresh,
+    embeddingModel,
+    limit,
+    minSimilarity,
+    apiType = "responses",
+  } = options;
+
+  if (!getToken && !apiKey) {
+    throw new Error("Either getToken or apiKey must be provided");
+  }
+
+  if (!prompt || prompt.trim().length < MIN_CONTENT_LENGTH_FOR_TOOLS) {
+    return [];
+  }
+
+  // Fetch tools (with caching)
+  const tools = await getServerTools({
+    getToken,
+    apiKey,
+    baseUrl,
+    cacheExpirationMs,
+    forceRefresh,
+  });
+
+  if (tools.length === 0) {
+    return [];
+  }
+
+  // Generate embeddings for the prompt
+  const embeddingOptions = {
+    getToken,
+    apiKey,
+    baseUrl,
+    model: embeddingModel,
+  };
+
+  let promptEmbeddings: number[] | number[][];
+  if (shouldChunkMessage(prompt, DEFAULT_CHUNK_SIZE)) {
+    const chunks = chunkText(prompt);
+    promptEmbeddings = await generateEmbeddings(
+      chunks.map((c) => c.text),
+      embeddingOptions
+    );
+  } else {
+    promptEmbeddings = await generateEmbedding(prompt, embeddingOptions);
+  }
+
+  // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
+  const matchOptions: ToolMatchOptions = {};
+  if (limit !== undefined) matchOptions.limit = limit;
+  if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
+  const matches = findMatchingTools(promptEmbeddings, tools, matchOptions);
+
+  if (matches.length === 0) {
+    return [];
+  }
+
+  // Format for the requested API type (strips embeddings)
+  const matchedTools = matches.map((m) => m.tool);
+  if (apiType === "completions") {
+    return matchedTools.map((t) => toCompletionsFormat(t) as unknown as Record<string, unknown>);
+  }
+  return matchedTools.map(toResponsesFormat);
 }

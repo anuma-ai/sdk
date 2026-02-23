@@ -94,15 +94,8 @@ export class CompletionsStrategy implements ApiStrategy {
   readonly endpoint = "/api/v1/chat/completions";
 
   buildRequestBody(args: BuildRequestBodyArgs): Record<string, unknown> {
-    const {
-      messages,
-      model,
-      stream,
-      temperature,
-      maxOutputTokens,
-      tools,
-      toolChoice,
-    } = args;
+    const { messages, model, stream, temperature, maxOutputTokens, tools, toolChoice, imageModel } =
+      args;
 
     return {
       messages,
@@ -112,21 +105,20 @@ export class CompletionsStrategy implements ApiStrategy {
       ...(maxOutputTokens !== undefined && { max_tokens: maxOutputTokens }),
       ...(tools && { tools }),
       ...(toolChoice && { tool_choice: toolChoice }),
+      ...(imageModel && { image_model: imageModel }),
     };
   }
 
-  processStreamChunk(
-    chunk: unknown,
-    accumulator: StreamAccumulator
-  ): ProcessChunkResult {
+  processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
 
     // Handle wrapped response format: { response: {...}, type: "response" }
     // Some endpoints return the completions response nested under a "response" key
     const rawChunk = chunk as { response?: CompletionsStreamingChunk; type?: string };
-    const typedChunk = (rawChunk.response && rawChunk.type === "response")
-      ? rawChunk.response
-      : (chunk as CompletionsStreamingChunk);
+    const typedChunk =
+      rawChunk.response && rawChunk.type === "response"
+        ? rawChunk.response
+        : (chunk as CompletionsStreamingChunk);
 
     // Extract response ID and model
     if (typedChunk.id && !accumulator.responseId) {
@@ -198,18 +190,15 @@ export class CompletionsStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart =
-              parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
           }
 
           // Emit deltas
           // Only emit non-empty content to avoid false error detection
           const willEmitMessage =
-            parseResult.messageContent &&
-            parseResult.messageContent.trim().length > 0;
+            parseResult.messageContent && parseResult.messageContent.trim().length > 0;
           const willEmitReasoning =
-            parseResult.reasoningContent &&
-            parseResult.reasoningContent.trim().length > 0;
+            parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
 
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
@@ -282,8 +271,7 @@ export class CompletionsStrategy implements ApiStrategy {
           // 1. The final message contains the COMPLETE response (not a delta)
           // 2. Streaming deltas may have already modified accumulator.insideReasoning
           // 3. For implicit reasoning models, the full content starts with thinking
-          const shouldStartInsideReasoning =
-            accumulator.implicitReasoningStart === true;
+          const shouldStartInsideReasoning = accumulator.implicitReasoningStart === true;
 
           // Parse reasoning tags from final message content
           const parseResult = parseReasoningTags(
@@ -303,8 +291,7 @@ export class CompletionsStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart =
-              parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
           }
 
           // Only emit content if we haven't already streamed it
@@ -313,16 +300,10 @@ export class CompletionsStrategy implements ApiStrategy {
           if (!alreadyHasContent) {
             // For non-streaming, we always emit the final content (reasoning is already separated)
             // Only emit non-empty content to avoid false error detection
-            if (
-              parseResult.messageContent &&
-              parseResult.messageContent.trim().length > 0
-            ) {
+            if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
               result.content = parseResult.messageContent;
             }
-            if (
-              parseResult.reasoningContent &&
-              parseResult.reasoningContent.trim().length > 0
-            ) {
+            if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
               result.thinking = parseResult.reasoningContent;
             }
           }
@@ -344,10 +325,7 @@ export class CompletionsStrategy implements ApiStrategy {
       }
 
       // Mark tool calls as completed when finish_reason is set
-      if (
-        choice.finish_reason === "tool_calls" ||
-        choice.finish_reason === "stop"
-      ) {
+      if (choice.finish_reason === "tool_calls" || choice.finish_reason === "stop") {
         for (const toolCall of accumulator.toolCalls.values()) {
           if (toolCall.status === "pending") {
             toolCall.status = "completed";
@@ -391,16 +369,17 @@ export class CompletionsStrategy implements ApiStrategy {
     }
 
     // Build tool_calls array for the choice message
-    const toolCalls = accumulator.toolCalls.size > 0
-      ? Array.from(accumulator.toolCalls.values()).map((tc) => ({
-          id: tc.id,
-          type: tc.type,
-          function: {
-            name: tc.name,
-            arguments: tc.arguments,
-          },
-        }))
-      : undefined;
+    const toolCalls =
+      accumulator.toolCalls.size > 0
+        ? Array.from(accumulator.toolCalls.values()).map((tc) => ({
+            id: tc.id,
+            type: tc.type,
+            function: {
+              name: tc.name,
+              arguments: tc.arguments,
+            },
+          }))
+        : undefined;
 
     // Build native Completions API response format
     return {
@@ -419,15 +398,16 @@ export class CompletionsStrategy implements ApiStrategy {
           finish_reason: toolCalls ? "tool_calls" : "stop",
         },
       ],
-      usage: Object.keys(accumulator.usage).length > 0
-        ? {
-            prompt_tokens: accumulator.usage.prompt_tokens,
-            completion_tokens: accumulator.usage.completion_tokens,
-            total_tokens: accumulator.usage.total_tokens,
-            cost_micro_usd: accumulator.usage.cost_micro_usd,
-            credits_used: accumulator.usage.credits_used,
-          }
-        : undefined,
+      usage:
+        Object.keys(accumulator.usage).length > 0
+          ? {
+              prompt_tokens: accumulator.usage.prompt_tokens,
+              completion_tokens: accumulator.usage.completion_tokens,
+              total_tokens: accumulator.usage.total_tokens,
+              cost_micro_usd: accumulator.usage.cost_micro_usd,
+              credits_used: accumulator.usage.credits_used,
+            }
+          : undefined,
     };
   }
 }

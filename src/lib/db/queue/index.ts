@@ -1,10 +1,10 @@
-export { QueueManager, queueManager, topologicalSort } from "./manager";
-export { WalletPoller } from "./walletPoller";
+export { QueueManager, queueManager } from "./manager";
 export type {
+  FlushResult,
+  OperationExecutor,
   QueuedOperation,
   QueuedOperationType,
-  QueueStatus,
-  FlushResult,
   QueueEncryptionContext,
-  OperationExecutor,
+  QueueStatus,
 } from "./types";
+export { WalletPoller } from "./walletPoller";

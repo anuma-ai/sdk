@@ -59,7 +59,7 @@ Currently selected project ID
 
 > **deleteProject**: (`projectId`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:73](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L73)
+Defined in: [src/react/useProjects.ts:70](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L70)
 
 Delete a project (soft delete)
 
@@ -98,7 +98,7 @@ Delete a project (soft delete)
 
 > **getConversationsByProject**: (`projectId`: `string` | `null`) => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/react/useProjects.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L86)
+Defined in: [src/react/useProjects.ts:80](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L80)
 
 Get conversations by project (null = no project)
 
@@ -176,7 +176,7 @@ Get a single project by ID
 
 > **getProjectConversationCount**: (`projectId`: `string`) => `Promise`<`number`>
 
-Defined in: [src/react/useProjects.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L79)
+Defined in: [src/react/useProjects.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L76)
 
 Get count of conversations in a project
 
@@ -215,7 +215,7 @@ Get count of conversations in a project
 
 > **getProjectConversations**: (`projectId`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/react/useProjects.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L77)
+Defined in: [src/react/useProjects.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L74)
 
 Get all conversations in a project
 
@@ -268,7 +268,7 @@ Get all projects
 
 > **inboxProjectId**: `string` | `null`
 
-Defined in: [src/react/useProjects.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L94)
+Defined in: [src/react/useProjects.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L86)
 
 The ID of the default Inbox project (auto-created)
 
@@ -308,7 +308,7 @@ List of all projects
 
 > **refreshProjects**: () => `Promise`<`void`>
 
-Defined in: [src/react/useProjects.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L92)
+Defined in: [src/react/useProjects.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L84)
 
 Refresh the projects list from database
 
@@ -361,7 +361,7 @@ Set the current project ID
 
 > **updateConversationProject**: (`conversationId`: `string`, `projectId`: `string` | `null`) => `Promise`<`boolean`>
 
-Defined in: [src/react/useProjects.ts:81](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L81)
+Defined in: [src/react/useProjects.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L78)
 
 Move a conversation to a project (or remove with null)
 

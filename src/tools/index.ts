@@ -1,6 +1,6 @@
 /**
  * The `@anuma/sdk/tools` package provides AI tool configurations for
- * integrating with external services like Google Calendar and Google Drive.
+ * integrating with external services like Google Calendar, Google Drive, and Notion.
  *
  * These tools enable your AI to interact with user data on their behalf,
  * with proper authentication and permission handling.
@@ -43,34 +43,88 @@
  * );
  * ```
  *
+ * ## Notion MCP Tools
+ *
+ * Notion tools use the Model Context Protocol (MCP) to communicate with
+ * Notion's hosted MCP server. No direct API calls needed.
+ *
+ * ```typescript
+ * import { createNotionTools } from "@reverbia/sdk/tools";
+ *
+ * const notionTools = createNotionTools(
+ *   () => getNotionAccessToken(walletAddress, clientId),
+ *   () => requestNotionAccess()
+ * );
+ * ```
+ *
  * @module tools
  */
 
 // Google Calendar exports
-export {
-  createGoogleCalendarTool,
-  createGoogleCalendarCreateEventTool,
-  createGoogleCalendarUpdateEventTool,
-  createChatTools,
-} from "./googleCalendar";
 export type {
-  ToolConfig,
-  ListEventsArgs,
-  CreateEventArgs,
-  UpdateEventArgs,
   CalendarEvent,
+  CreateEventArgs,
+  ListEventsArgs,
+  ToolConfig,
+  UpdateEventArgs,
+} from "./googleCalendar";
+export {
+  createChatTools,
+  createGoogleCalendarCreateEventTool,
+  createGoogleCalendarTool,
+  createGoogleCalendarUpdateEventTool,
 } from "./googleCalendar";
 
-// Google Drive exports
-export {
-  createGoogleDriveSearchTool,
-  createGoogleDriveListRecentTool,
-  createGoogleDriveGetContentTool,
-  createDriveTools,
-} from "./googleDrive";
+// UI Interaction tool factories
 export type {
-  SearchFilesArgs,
+  CreateUIToolsOptions,
+  DisplayToolConfig,
+  DisplayToolMigrations,
+  InteractiveToolConfig,
+  UIInteractionContext,
+} from "./uiInteraction";
+export { createDisplayTool, createInteractiveTool, migrateDisplayResult } from "./uiInteraction";
+
+// Chart display tool
+export type { ChartDataPoint, DisplayChartResult } from "./chart";
+export { createChartTool } from "./chart";
+
+// Google Drive exports
+export type {
   DriveFile,
-  ListRecentFilesArgs,
   GetFileContentArgs,
+  ListRecentFilesArgs,
+  SearchFilesArgs,
 } from "./googleDrive";
+export {
+  createDriveTools,
+  createGoogleDriveGetContentTool,
+  createGoogleDriveListRecentTool,
+  createGoogleDriveSearchTool,
+} from "./googleDrive";
+
+// Notion MCP exports
+export type {
+  NotionCreatePagesArgs,
+  NotionFetchArgs,
+  NotionMovePagesArgs,
+  NotionSearchArgs,
+  NotionUpdatePageArgs,
+} from "./notion";
+export {
+  callNotionMCPTool,
+  createNotionCreateCommentTool,
+  createNotionCreateDatabaseTool,
+  createNotionCreatePagesTool,
+  createNotionDuplicatePageTool,
+  createNotionFetchTool,
+  createNotionGetCommentsTool,
+  createNotionGetTeamsTool,
+  createNotionGetUsersTool,
+  createNotionMovePagesTool,
+  createNotionSearchTool,
+  createNotionTools,
+  createNotionUpdateDataSourceTool,
+  createNotionUpdatePageTool,
+  getMCPEndpoints,
+} from "./notion";

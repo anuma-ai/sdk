@@ -30,15 +30,15 @@ import {
   revokeGoogleDriveToken,
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
-import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
 import {
   authenticateICloud,
-  configureCloudKit,
   type CloudKitConfig,
+  configureCloudKit,
   DEFAULT_CONTAINER_ID,
   loadCloudKit,
   requestICloudSignIn,
 } from "../lib/backup/icloud/api";
+import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
 
 /**
  * Props for BackupAuthProvider
@@ -165,9 +165,7 @@ export function BackupAuthProvider({
 
   // iCloud state
   const [icloudAuthenticated, setIcloudAuthenticated] = useState(false);
-  const [icloudUserRecordName, setIcloudUserRecordName] = useState<
-    string | null
-  >(null);
+  const [icloudUserRecordName, setIcloudUserRecordName] = useState<string | null>(null);
   const [isIcloudAvailable, setIsIcloudAvailable] = useState(false);
   const isIcloudConfigured = isIcloudAvailable && !!icloudApiToken;
 
@@ -246,17 +244,11 @@ export function BackupAuthProvider({
 
     const handleCallback = async () => {
       if (isDropboxCallback()) {
-        const result = await handleDropboxCallback(
-          dropboxCallbackPath,
-          apiClient,
-          walletAddress
-        );
+        const result = await handleDropboxCallback(dropboxCallbackPath, apiClient, walletAddress);
         if (result.ok) {
           setDropboxToken(result.data);
         } else {
-          console.error(
-            `Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`
-          );
+          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
@@ -289,9 +281,7 @@ export function BackupAuthProvider({
   }, [googleCallbackPath, isGoogleConfigured, apiClient, walletAddress]);
 
   // Dropbox methods
-  const refreshDropboxTokenFn = useCallback(async (): Promise<
-    string | null
-  > => {
+  const refreshDropboxTokenFn = useCallback(async (): Promise<string | null> => {
     const token = await getDropboxAccessToken(apiClient, walletAddress);
     if (token) {
       setDropboxToken(token);
@@ -314,13 +304,7 @@ export function BackupAuthProvider({
 
     // No valid token available - start OAuth flow
     return startDropboxAuth(dropboxAppKey, dropboxCallbackPath);
-  }, [
-    dropboxAppKey,
-    dropboxCallbackPath,
-    isDropboxConfigured,
-    apiClient,
-    walletAddress,
-  ]);
+  }, [dropboxAppKey, dropboxCallbackPath, isDropboxConfigured, apiClient, walletAddress]);
 
   const logoutDropbox = useCallback(async () => {
     await revokeDropboxToken(apiClient, walletAddress);
@@ -343,10 +327,7 @@ export function BackupAuthProvider({
 
     // Always try to get a valid token from storage (which handles expiration + refresh)
     // Don't short-circuit with cached state token as it may be expired
-    const storedToken = await getGoogleDriveAccessToken(
-      apiClient,
-      walletAddress
-    );
+    const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setGoogleToken(storedToken); // Update state with potentially refreshed token
       return storedToken;
@@ -354,13 +335,7 @@ export function BackupAuthProvider({
 
     // No valid token available - start OAuth flow
     return startGoogleDriveAuth(googleClientId, googleCallbackPath);
-  }, [
-    googleClientId,
-    googleCallbackPath,
-    isGoogleConfigured,
-    apiClient,
-    walletAddress,
-  ]);
+  }, [googleClientId, googleCallbackPath, isGoogleConfigured, apiClient, walletAddress]);
 
   const logoutGoogle = useCallback(async () => {
     await revokeGoogleDriveToken(apiClient, walletAddress);
@@ -400,9 +375,7 @@ export function BackupAuthProvider({
       setIcloudUserRecordName(userIdentity.userRecordName);
       return userIdentity.userRecordName;
     } catch (err) {
-      throw new Error(
-        err instanceof Error ? err.message : "Failed to sign in to iCloud"
-      );
+      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
 
@@ -463,10 +436,8 @@ export function BackupAuthProvider({
         dropbox: dropboxState,
         googleDrive: googleDriveState,
         icloud: icloudState,
-        hasAnyProvider:
-          isDropboxConfigured || isGoogleConfigured || isIcloudConfigured,
-        hasAnyAuthentication:
-          !!dropboxToken || !!googleToken || icloudAuthenticated,
+        hasAnyProvider: isDropboxConfigured || isGoogleConfigured || isIcloudConfigured,
+        hasAnyAuthentication: !!dropboxToken || !!googleToken || icloudAuthenticated,
         logoutAll,
       },
     },
@@ -526,37 +497,4 @@ export function useBackupAuth(): BackupAuthContextValue {
     throw new Error("useBackupAuth must be used within BackupAuthProvider");
   }
   return context;
-}
-
-/**
- * Hook to access Dropbox authentication from BackupAuthProvider.
- * Convenience wrapper that returns only Dropbox state.
- *
- * @category Hooks
- */
-export function useDropboxAuthFromBackup(): ProviderAuthState {
-  const { dropbox } = useBackupAuth();
-  return dropbox;
-}
-
-/**
- * Hook to access Google Drive authentication from BackupAuthProvider.
- * Convenience wrapper that returns only Google Drive state.
- *
- * @category Hooks
- */
-export function useGoogleDriveAuthFromBackup(): ProviderAuthState {
-  const { googleDrive } = useBackupAuth();
-  return googleDrive;
-}
-
-/**
- * Hook to access iCloud authentication from BackupAuthProvider.
- * Convenience wrapper that returns only iCloud state.
- *
- * @category Hooks
- */
-export function useICloudAuthFromBackup(): ProviderAuthState {
-  const { icloud } = useBackupAuth();
-  return icloud;
 }

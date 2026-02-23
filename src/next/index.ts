@@ -21,10 +21,7 @@
 export const withAnuma = (nextConfig: any = {}) => {
   return {
     ...nextConfig,
-    serverExternalPackages: [
-      ...(nextConfig.serverExternalPackages || []),
-      "sharp",
-    ],
+    serverExternalPackages: [...(nextConfig.serverExternalPackages || []), "sharp"],
     webpack: (config: any, options: any) => {
       const { isServer } = options;
 

@@ -2,7 +2,7 @@
 
 > **EmbeddedWalletSignerFn** = (`message`: `string`, `options?`: [`SignMessageOptions`](../interfaces/SignMessageOptions.md)) => `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:593](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L593)
+Defined in: [src/react/useEncryption.ts:631](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L631)
 
 Type for embedded wallet signer function that enables silent signing.
 For Privy embedded wallets, this can sign programmatically without user interaction

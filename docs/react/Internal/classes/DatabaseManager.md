@@ -1,6 +1,6 @@
 # DatabaseManager
 
-Defined in: [src/lib/db/manager.ts:159](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L159)
+Defined in: [src/lib/db/manager.ts:153](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L153)
 
 Manages per-wallet WatermelonDB database instances.
 
@@ -40,7 +40,7 @@ const database = dbManager.getDatabase(walletAddress);
 
 > **new DatabaseManager**(`options`: [`DatabaseManagerOptions`](../interfaces/DatabaseManagerOptions.md)): `DatabaseManager`
 
-Defined in: [src/lib/db/manager.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L170)
+Defined in: [src/lib/db/manager.ts:164](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L164)
 
 **Parameters**
 
@@ -77,7 +77,7 @@ Defined in: [src/lib/db/manager.ts:170](https://github.com/zeta-chain/ai-sdk/blo
 
 > **getDatabase**(`walletAddress?`: `string`): `Database`
 
-Defined in: [src/lib/db/manager.ts:196](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L196)
+Defined in: [src/lib/db/manager.ts:190](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L190)
 
 Get or create a WatermelonDB Database instance for the given wallet.
 
@@ -132,7 +132,7 @@ If a destructive migration is in progress
 
 > **getDbName**(`walletAddress?`: `string`): `string`
 
-Defined in: [src/lib/db/manager.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L181)
+Defined in: [src/lib/db/manager.ts:175](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L175)
 
 Get the database name for a given wallet address.
 
@@ -171,7 +171,7 @@ Get the database name for a given wallet address.
 
 > **resetDatabase**(): `Promise`<`void`>
 
-Defined in: [src/lib/db/manager.ts:239](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L239)
+Defined in: [src/lib/db/manager.ts:233](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/manager.ts#L233)
 
 Reset the current database (useful for logout or testing).
 

@@ -20,7 +20,7 @@ WatermelonDB database instance
 
 > `optional` **dropboxFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L59)
+Defined in: [src/react/useBackup.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L56)
 
 Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
@@ -81,7 +81,7 @@ Export a conversation to an encrypted blob
 
 > `optional` **googleConversationsFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:63](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L63)
+Defined in: [src/react/useBackup.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L60)
 
 Google Drive conversations subfolder (default: 'conversations')
 
@@ -91,7 +91,7 @@ Google Drive conversations subfolder (default: 'conversations')
 
 > `optional` **googleRootFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L61)
+Defined in: [src/react/useBackup.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L58)
 
 Google Drive root folder name (default: 'ai-chat-app')
 

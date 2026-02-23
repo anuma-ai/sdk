@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BASE_URL } from "../clientConfig";
 import {
-  type ServerTool,
-  getServerTools,
   filterServerTools,
+  getServerTools,
   getToolsChecksum,
+  type ServerTool,
   shouldRefreshTools,
 } from "../lib/tools";
 

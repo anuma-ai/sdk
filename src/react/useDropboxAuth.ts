@@ -124,17 +124,11 @@ export function DropboxAuthProvider({
 
     const handleCallback = async () => {
       if (isDropboxCallback()) {
-        const result = await handleDropboxCallback(
-          callbackPath,
-          apiClient,
-          walletAddress
-        );
+        const result = await handleDropboxCallback(callbackPath, apiClient, walletAddress);
         if (result.ok) {
           setAccessToken(result.data);
         } else {
-          console.error(
-            `Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`
-          );
+          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
@@ -169,14 +163,7 @@ export function DropboxAuthProvider({
 
     // Start OAuth flow (this will redirect)
     return startDropboxAuth(appKey, callbackPath);
-  }, [
-    accessToken,
-    appKey,
-    callbackPath,
-    isConfigured,
-    apiClient,
-    walletAddress,
-  ]);
+  }, [accessToken, appKey, callbackPath, isConfigured, apiClient, walletAddress]);
 
   const logout = useCallback(async () => {
     await revokeDropboxToken(apiClient, walletAddress);

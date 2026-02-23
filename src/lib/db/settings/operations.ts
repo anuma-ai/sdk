@@ -1,16 +1,10 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
 
 import { ModelPreference } from "./models";
-import type {
-  StoredModelPreference,
-  CreateModelPreferenceOptions,
-  UpdateModelPreferenceOptions,
-} from "./types";
+import type { StoredModelPreference } from "./types";
 
-export function modelPreferenceToStored(
-  preference: ModelPreference
-): StoredModelPreference {
+function modelPreferenceToStored(preference: ModelPreference): StoredModelPreference {
   return {
     uniqueId: preference.id,
     walletAddress: preference.walletAddress,
@@ -32,43 +26,6 @@ export async function getModelPreferenceOp(
     .fetch();
 
   return results.length > 0 ? modelPreferenceToStored(results[0]) : null;
-}
-
-export async function createModelPreferenceOp(
-  ctx: SettingsStorageOperationsContext,
-  opts: CreateModelPreferenceOptions
-): Promise<StoredModelPreference> {
-  const created = await ctx.database.write(async () => {
-    return await ctx.modelPreferencesCollection.create((pref) => {
-      pref._setRaw("wallet_address", opts.walletAddress);
-      if (opts.models) pref._setRaw("models", opts.models);
-    });
-  });
-
-  return modelPreferenceToStored(created);
-}
-
-export async function updateModelPreferenceOp(
-  ctx: SettingsStorageOperationsContext,
-  walletAddress: string,
-  opts: UpdateModelPreferenceOptions
-): Promise<StoredModelPreference | null> {
-  const results = await ctx.modelPreferencesCollection
-    .query(Q.where("wallet_address", walletAddress))
-    .fetch();
-
-  if (results.length === 0) return null;
-
-  const preference = results[0];
-  await ctx.database.write(async () => {
-    await preference.update((pref) => {
-      if (opts.models !== undefined) {
-        pref._setRaw("models", opts.models || null);
-      }
-    });
-  });
-
-  return modelPreferenceToStored(preference);
 }
 
 export async function setModelPreferenceOp(
@@ -115,11 +72,4 @@ export async function deleteModelPreferenceOp(
   });
 
   return true;
-}
-
-export async function getAllModelPreferencesOp(
-  ctx: SettingsStorageOperationsContext
-): Promise<StoredModelPreference[]> {
-  const results = await ctx.modelPreferencesCollection.query().fetch();
-  return results.map(modelPreferenceToStored);
 }

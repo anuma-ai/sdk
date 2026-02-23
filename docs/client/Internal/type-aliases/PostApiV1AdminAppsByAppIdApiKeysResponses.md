@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAppsByAppIdApiKeysResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1398)
+Defined in: [src/client/types.gen.ts:1443](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1443)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:1398](https://github.com/zeta-chain/ai-sdk/
 
 > **201**: [`HandlersApiKeyWithKeyResponse`](HandlersApiKeyWithKeyResponse.md)
 
-Defined in: [src/client/types.gen.ts:1402](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1402)
+Defined in: [src/client/types.gen.ts:1447](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1447)
 
 Created

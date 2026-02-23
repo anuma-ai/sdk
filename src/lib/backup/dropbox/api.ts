@@ -5,11 +5,11 @@
  * Dropbox uses OAuth 2.0 with PKCE for browser apps.
  */
 
-const DROPBOX_API_URL = 'https://api.dropboxapi.com/2';
-const DROPBOX_CONTENT_URL = 'https://content.dropboxapi.com/2';
+const DROPBOX_API_URL = "https://api.dropboxapi.com/2";
+const DROPBOX_CONTENT_URL = "https://content.dropboxapi.com/2";
 
 /** Default folder path for Dropbox backups */
-export const DEFAULT_BACKUP_FOLDER = '/ai-chat-app/conversations';
+export const DEFAULT_BACKUP_FOLDER = "/ai-chat-app/conversations";
 
 export interface DropboxFile {
   id: string;
@@ -23,7 +23,7 @@ export interface DropboxFile {
 
 interface DropboxListFolderResponse {
   entries: Array<{
-    '.tag': 'file' | 'folder' | 'deleted';
+    ".tag": "file" | "folder" | "deleted";
     id: string;
     name: string;
     path_lower: string;
@@ -49,9 +49,9 @@ interface DropboxUploadResponse {
 interface DropboxError {
   error_summary: string;
   error: {
-    '.tag': string;
+    ".tag": string;
     path?: {
-      '.tag': string;
+      ".tag": string;
     };
   };
 }
@@ -59,16 +59,16 @@ interface DropboxError {
 /**
  * Ensure the backup folder exists in Dropbox
  */
-export async function ensureBackupFolder(
+async function ensureBackupFolder(
   accessToken: string,
   folder: string = DEFAULT_BACKUP_FOLDER
 ): Promise<void> {
   try {
     await fetch(`${DROPBOX_API_URL}/files/create_folder_v2`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         path: folder,
@@ -95,13 +95,13 @@ export async function uploadFileToDropbox(
   const path = `${folder}/${filename}`;
 
   const response = await fetch(`${DROPBOX_CONTENT_URL}/files/upload`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/octet-stream',
-      'Dropbox-API-Arg': JSON.stringify({
+      "Content-Type": "application/octet-stream",
+      "Dropbox-API-Arg": JSON.stringify({
         path,
-        mode: 'overwrite',
+        mode: "overwrite",
         autorename: false,
         mute: true,
       }),
@@ -127,10 +127,10 @@ export async function listDropboxFiles(
   await ensureBackupFolder(accessToken, folder);
 
   const response = await fetch(`${DROPBOX_API_URL}/files/list_folder`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
       path: folder,
@@ -142,7 +142,7 @@ export async function listDropboxFiles(
   if (!response.ok) {
     const error: DropboxError = await response.json();
     // If folder doesn't exist, return empty array
-    if (error.error?.path?.['.tag'] === 'not_found') {
+    if (error.error?.path?.[".tag"] === "not_found") {
       return [];
     }
     throw new Error(`Dropbox list failed: ${error.error_summary}`);
@@ -151,15 +151,15 @@ export async function listDropboxFiles(
   let data: DropboxListFolderResponse = await response.json();
 
   // Accumulate all entries across paginated responses
-  const allEntries: DropboxListFolderResponse['entries'] = [...data.entries];
+  const allEntries: DropboxListFolderResponse["entries"] = [...data.entries];
 
   // Continue fetching while there are more results
   while (data.has_more) {
     const continueResponse = await fetch(`${DROPBOX_API_URL}/files/list_folder/continue`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         cursor: data.cursor,
@@ -177,14 +177,14 @@ export async function listDropboxFiles(
 
   // Filter to only files (not folders) and map to our interface
   const files: DropboxFile[] = allEntries
-    .filter(entry => entry['.tag'] === 'file')
-    .map(entry => ({
+    .filter((entry) => entry[".tag"] === "file")
+    .map((entry) => ({
       id: entry.id,
       name: entry.name,
       path_lower: entry.path_lower,
       path_display: entry.path_display,
-      client_modified: entry.client_modified || '',
-      server_modified: entry.server_modified || '',
+      client_modified: entry.client_modified || "",
+      server_modified: entry.server_modified || "",
       size: entry.size || 0,
     }));
 
@@ -196,10 +196,10 @@ export async function listDropboxFiles(
  */
 export async function downloadDropboxFile(accessToken: string, path: string): Promise<Blob> {
   const response = await fetch(`${DROPBOX_CONTENT_URL}/files/download`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Dropbox-API-Arg': JSON.stringify({ path }),
+      "Dropbox-API-Arg": JSON.stringify({ path }),
     },
   });
 
@@ -219,18 +219,18 @@ export async function findDropboxFile(
   folder: string = DEFAULT_BACKUP_FOLDER
 ): Promise<DropboxFile | null> {
   const files = await listDropboxFiles(accessToken, folder);
-  return files.find(f => f.name === filename) || null;
+  return files.find((f) => f.name === filename) || null;
 }
 
 /**
  * Delete a file from Dropbox
  */
-export async function deleteDropboxFile(accessToken: string, path: string): Promise<void> {
+async function deleteDropboxFile(accessToken: string, path: string): Promise<void> {
   const response = await fetch(`${DROPBOX_API_URL}/files/delete_v2`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({ path }),
   });

@@ -1,12 +1,12 @@
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
-import type { CreateMediaOptions, StoredMedia, MediaMetadata } from "./types";
 import {
-  encryptField,
   decryptField,
-  encryptJsonField,
   decryptJsonField,
+  encryptField,
+  encryptJsonField,
 } from "../encryption-utils";
+import type { CreateMediaOptions, MediaMetadata, StoredMedia } from "./types";
 
 /**
  * Encrypts all sensitive media fields before storage.
@@ -35,7 +35,13 @@ export async function encryptMediaFields(
     // Request encryption key once for all fields
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
-    const encryptedName = await encryptField(media.name, address, signMessage, embeddedWalletSigner, true);
+    const encryptedName = await encryptField(
+      media.name,
+      address,
+      signMessage,
+      embeddedWalletSigner,
+      true
+    );
 
     const encryptedSourceUrl = media.sourceUrl
       ? await encryptField(media.sourceUrl, address, signMessage, embeddedWalletSigner, true)
@@ -49,7 +55,9 @@ export async function encryptMediaFields(
       ...media,
       name: encryptedName,
       sourceUrl: encryptedSourceUrl,
-      ...(encryptedMetadata !== undefined && { metadata: encryptedMetadata as unknown as MediaMetadata }),
+      ...(encryptedMetadata !== undefined && {
+        metadata: encryptedMetadata as unknown as MediaMetadata,
+      }),
     };
   } catch (error) {
     console.warn("Failed to encrypt media fields:", error);
@@ -74,7 +82,11 @@ export async function decryptMediaFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn("Failed to request encryption key for decryption:", error);
+      console.warn(
+        "[decryptMediaFields] Failed to request encryption key, returning raw media:",
+        error
+      );
+      return media;
     }
   }
 
@@ -86,7 +98,7 @@ export async function decryptMediaFields(
 
   const decryptedMetadata = media.metadata
     ? await decryptJsonField<MediaMetadata>(
-        typeof media.metadata === 'string' ? media.metadata : JSON.stringify(media.metadata),
+        typeof media.metadata === "string" ? media.metadata : JSON.stringify(media.metadata),
         address
       )
     : media.metadata;

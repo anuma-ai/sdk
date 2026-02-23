@@ -8,6 +8,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitAny": true,
+    "jsx": "react-jsx",
     "target": "es2020",
     "resolveJsonModule": true,
     "rootDir": "./src",
@@ -16,12 +17,6 @@
     "sourceMap": false,
     "strict": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.security.test.ts"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.security.test.ts"]
 }

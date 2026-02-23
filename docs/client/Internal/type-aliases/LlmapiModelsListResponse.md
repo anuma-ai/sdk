@@ -2,7 +2,7 @@
 
 > **LlmapiModelsListResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:878](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L878)
+Defined in: [src/client/types.gen.ts:913](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L913)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:878](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **data**: [`LlmapiModel`](LlmapiModel.md)\[]
 
-Defined in: [src/client/types.gen.ts:882](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L882)
+Defined in: [src/client/types.gen.ts:917](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L917)
 
 Data contains the list of available models
 
@@ -20,7 +20,7 @@ Data contains the list of available models
 
 > `optional` **extra\_fields**: [`LlmapiModelsListExtraFields`](LlmapiModelsListExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:883](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L883)
+Defined in: [src/client/types.gen.ts:918](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L918)
 
 ***
 
@@ -28,6 +28,6 @@ Defined in: [src/client/types.gen.ts:883](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **next\_page\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:887](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L887)
+Defined in: [src/client/types.gen.ts:922](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L922)
 
 NextPageToken is the token to retrieve the next page of results (omitted if no more pages)

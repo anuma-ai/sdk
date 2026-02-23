@@ -58,7 +58,9 @@ function ChatComponent() {
 | Function | Description |
 | ------ | ------ |
 | [decryptData](Encryption/decryptData.md) | Decrypts data using AES-GCM with the stored encryption key. |
+| [decryptDataBatch](Encryption/decryptDataBatch.md) | Batch decrypt multiple values efficiently with a single key lookup. Much faster than calling decryptData for each value individually. |
 | [encryptData](Encryption/encryptData.md) | Encrypts data using AES-GCM with the stored encryption key. |
+| [encryptDataBatch](Encryption/encryptDataBatch.md) | Batch encrypt multiple values efficiently with a single key lookup. Much faster than calling encryptData for each value individually. |
 
 ## Hooks
 
@@ -81,7 +83,6 @@ function ChatComponent() {
 | [useGoogleDriveBackup](Hooks/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
 | [useICloudAuth](Hooks/useICloudAuth.md) | Hook to access iCloud authentication state and methods. |
 | [useICloudBackup](Hooks/useICloudBackup.md) | React hook for iCloud backup and restore functionality. |
-| [useMemoryStorage](Hooks/useMemoryStorage.md) | A React hook that wraps useMemory with automatic memory persistence using WatermelonDB. |
 | [useModels](Hooks/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
 | [useOCR](Hooks/useOCR.md) | React hook for extracting text from images using OCR. |
 | [usePdf](Hooks/usePdf.md) | React hook for extracting text from PDF files. |

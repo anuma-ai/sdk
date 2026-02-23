@@ -2,7 +2,7 @@
 
 > **PostAuthOauthByProviderRefreshResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2491](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2491)
+Defined in: [src/client/types.gen.ts:2561](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2561)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2491](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersTokenResponse`](HandlersTokenResponse.md)
 
-Defined in: [src/client/types.gen.ts:2495](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2495)
+Defined in: [src/client/types.gen.ts:2565](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2565)
 
 OK

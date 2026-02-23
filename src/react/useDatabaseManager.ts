@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import type { Database } from "@nozbe/watermelondb";
+import { useMemo } from "react";
+
 import type { DatabaseManager } from "../lib/db/manager";
 
 /**
@@ -50,8 +51,5 @@ export function useDatabaseManager(
   walletAddress: string | undefined,
   manager: DatabaseManager
 ): Database {
-  return useMemo(
-    () => manager.getDatabase(walletAddress),
-    [walletAddress, manager]
-  );
+  return useMemo(() => manager.getDatabase(walletAddress), [walletAddress, manager]);
 }

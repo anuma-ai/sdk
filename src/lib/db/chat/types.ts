@@ -1,5 +1,6 @@
-import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
+import { v7 as uuidv7 } from "uuid";
+
 import type {
   LlmapiChatCompletionTool,
   LlmapiMessage,
@@ -8,9 +9,8 @@ import type {
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
 } from "../../../client";
-import type { StoredMemory } from "../memory/types";
-import type { ServerTool } from "../../tools";
 import type { ServerToolCallEvent } from "../../chat/useChat/utils";
+import type { ServerTool } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -32,9 +32,31 @@ export type ServerToolsFilterFn = (
  */
 export type ServerToolsFilter = string[] | ServerToolsFilterFn;
 
+/**
+ * Function type for dynamic client tools filtering based on prompt embeddings.
+ * Receives the prompt embedding(s) (or null for short messages where no embedding
+ * was generated) and all client tools, returns tool names to include.
+ *
+ * @param embeddings - Single embedding, array of embeddings, or null (short message)
+ * @param tools - All client tools passed to sendMessage
+ * @returns Array of tool names to include
+ */
+export type ClientToolsFilterFn = (
+  embeddings: number[] | number[][] | null,
+  tools: any[]
+) => string[];
+
 // Core types
 
 export type ChatRole = "user" | "assistant" | "system";
+
+/**
+ * Feedback type for message like/dislike.
+ * - 'like': User liked the response (thumbs up)
+ * - 'dislike': User disliked the response (thumbs down)
+ * - null/undefined: No feedback given
+ */
+export type MessageFeedback = "like" | "dislike" | null;
 
 /**
  * Metadata for files attached to messages.
@@ -111,6 +133,10 @@ export interface StoredMessage {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string;
+  /** Parent message ID for branching (edit/regenerate). Null for root messages. */
+  parentMessageId?: string;
+  /** User feedback: 'like', 'dislike', or null for no feedback */
+  feedback?: MessageFeedback;
 }
 
 export interface ActivityPhase {
@@ -118,7 +144,7 @@ export interface ActivityPhase {
   label: string;
   timestamp: number;
   status: "pending" | "active" | "completed";
-  data?: StoredMemory[];
+  data?: unknown[];
 }
 
 export interface StoredConversation {
@@ -195,6 +221,8 @@ export interface CreateMessageOptions {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string;
+  /** Parent message ID for branching (edit/regenerate). */
+  parentMessageId?: string;
 }
 
 export interface CreateConversationOptions {
@@ -221,6 +249,8 @@ export interface UpdateMessageOptions {
   thoughtProcess?: ActivityPhase[];
   /** Reasoning/thinking content from models that support extended thinking */
   thinking?: string | null;
+  /** User feedback: 'like', 'dislike', or null for no feedback */
+  feedback?: MessageFeedback | null;
 }
 
 // Hook types
@@ -498,6 +528,20 @@ export interface BaseSendMessageWithStorageArgs {
   serverTools?: ServerToolsFilter;
 
   /**
+   * Dynamic filter for client-side tools based on prompt embeddings.
+   * Receives the prompt embedding(s) (or null for short messages) and all client tools,
+   * returns tool names to include. Tools not in the returned list are excluded from the request.
+   *
+   * @example
+   * clientToolsFilter: (embeddings, tools) => {
+   *   if (!embeddings) return []; // Short message — no client tools
+   *   const matches = findMatchingTools(embeddings, pseudoServerTools);
+   *   return matches.map(m => m.tool.name);
+   * }
+   */
+  clientToolsFilter?: ClientToolsFilterFn;
+
+  /**
    * Controls which tool the model should use:
    * - "auto": Model decides whether to use a tool (default)
    * - "any": Model must use one of the provided tools
@@ -520,12 +564,18 @@ export interface BaseSendMessageWithStorageArgs {
    */
   thinking?: LlmapiThinkingOptions;
 
+  /** User-selected image generation model for server-side enforcement. */
+  imageModel?: string;
+
   /**
    * Per-request callback for thinking/reasoning chunks.
    * Called with delta chunks as the model "thinks" through a problem.
    * Use this to display thinking progress in the UI.
    */
   onThinking?: (chunk: string) => void;
+
+  /** Parent message ID for branching (edit/regenerate). Sets on the user message. */
+  parentMessageId?: string;
 }
 
 export interface BaseSendMessageSuccessResult {
@@ -561,9 +611,7 @@ export interface BaseUseChatStorageResult {
   stop: () => void;
   conversationId: string | null;
   setConversationId: (id: string | null) => void;
-  createConversation: (
-    options?: CreateConversationOptions
-  ) => Promise<StoredConversation>;
+  createConversation: (options?: CreateConversationOptions) => Promise<StoredConversation>;
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
@@ -577,9 +625,7 @@ export function generateConversationId(): string {
   return `conv_${uuidv7()}`;
 }
 
-export function convertUsageToStored(
-  usage?: LlmapiResponseUsage
-): ChatCompletionUsage | undefined {
+export function convertUsageToStored(usage?: LlmapiResponseUsage): ChatCompletionUsage | undefined {
   if (!usage) return undefined;
   return {
     promptTokens: usage.prompt_tokens,
@@ -599,16 +645,14 @@ export function finalizeThoughtProcess(
 ): ActivityPhase[] | undefined {
   if (!thoughtProcess?.length) return thoughtProcess;
   return thoughtProcess.map((phase, idx) =>
-    idx === thoughtProcess.length - 1
-      ? { ...phase, status: "completed" as const }
-      : phase
+    idx === thoughtProcess.length - 1 ? { ...phase, status: "completed" as const } : phase
   );
 }
 
 /**
  * Result of extracting user message content from a messages array.
  */
-export interface ExtractedUserMessage {
+interface ExtractedUserMessage {
   /** The extracted text content */
   content: string;
   /** File metadata extracted from image_url parts */
@@ -658,7 +702,8 @@ export function extractUserMessageFromMessages(
       const fileUrl = part.file.file_url || part.file.file_data;
       if (fileUrl) {
         files.push({
-          id: part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          id:
+            part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           name: part.file.filename || "file",
           type: "application/octet-stream", // Will be determined by processor
           size: 0,

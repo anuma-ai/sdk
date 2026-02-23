@@ -2,7 +2,7 @@
 
 > **useGoogleDriveBackup**(`options`: `object`): [`UseGoogleDriveBackupResult`](../Internal/interfaces/UseGoogleDriveBackupResult.md)
 
-Defined in: [src/react/useGoogleDriveBackup.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L105)
+Defined in: [src/react/useGoogleDriveBackup.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveBackup.ts#L102)
 
 React hook for Google Drive backup and restore functionality.
 

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+
 import type {
-  WhisperModel,
-  VoiceRecording,
-  TranscriptionResult,
   ModelLoadProgress,
+  TranscriptionResult,
+  VoiceRecording,
+  WhisperModel,
 } from "../lib/voice";
 
 // Minimal Web Speech API types — only what we use.
@@ -203,8 +204,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [isLoadingModel, setIsLoadingModel] = useState(false);
   const [recording, setRecording] = useState<VoiceRecording | null>(null);
-  const [transcription, setTranscription] =
-    useState<TranscriptionResult | null>(null);
+  const [transcription, setTranscription] = useState<TranscriptionResult | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -233,41 +233,29 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     try {
       const { pipeline } = await import("@huggingface/transformers");
 
-      const transcriber = await pipeline(
-        "automatic-speech-recognition",
-        modelName,
-        {
-          dtype: "q4",
-          device: "wasm",
-          progress_callback: options?.onModelProgress
-            ? (progress: {
-                file?: string;
-                progress?: number;
-                loaded?: number;
-                total?: number;
-              }) => {
-                if (progress.file && progress.progress != null) {
-                  options.onModelProgress!({
-                    file: progress.file,
-                    progress: progress.progress / 100,
-                    loaded: progress.loaded ?? 0,
-                    total: progress.total ?? 0,
-                  });
-                }
+      const transcriber = await pipeline("automatic-speech-recognition", modelName, {
+        dtype: "q4",
+        device: "wasm",
+        progress_callback: options?.onModelProgress
+          ? (progress: { file?: string; progress?: number; loaded?: number; total?: number }) => {
+              if (progress.file && progress.progress != null) {
+                options.onModelProgress!({
+                  file: progress.file,
+                  progress: progress.progress / 100,
+                  loaded: progress.loaded ?? 0,
+                  total: progress.total ?? 0,
+                });
               }
-            : undefined,
-        }
-      );
+            }
+          : undefined,
+      });
 
       pipelineRef.current = transcriber as unknown as Pipeline;
       modelNameRef.current = modelName;
       setIsModelLoaded(true);
       return pipelineRef.current;
     } catch (err) {
-      const processedError =
-        err instanceof Error
-          ? err
-          : new Error("Failed to load Whisper model");
+      const processedError = err instanceof Error ? err : new Error("Failed to load Whisper model");
       setError(processedError);
       throw processedError;
     } finally {
@@ -313,10 +301,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
       startTimeRef.current = Date.now();
       setIsRecording(true);
     } catch (err) {
-      const processedError =
-        err instanceof Error
-          ? err
-          : new Error("Failed to start recording");
+      const processedError = err instanceof Error ? err : new Error("Failed to start recording");
       setError(processedError);
       throw processedError;
     }
@@ -388,10 +373,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
         setTranscription(transcriptionResult);
         return transcriptionResult;
       } catch (err) {
-        const processedError =
-          err instanceof Error
-            ? err
-            : new Error("Transcription failed");
+        const processedError = err instanceof Error ? err : new Error("Transcription failed");
         setError(processedError);
         throw processedError;
       } finally {
@@ -402,18 +384,11 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
   );
 
   // --- Native on-device speech recognition (iOS Safari) ---
-  const nativeSpeechAvailable = useMemo(
-    () => getOnDeviceSpeechRecognition() !== null,
-    []
-  );
+  const nativeSpeechAvailable = useMemo(() => getOnDeviceSpeechRecognition() !== null, []);
   const [isNativeListening, setIsNativeListening] = useState(false);
-  const nativeRecognitionRef = useRef<NativeSpeechRecognitionInstance | null>(
-    null
-  );
+  const nativeRecognitionRef = useRef<NativeSpeechRecognitionInstance | null>(null);
   const nativeTextRef = useRef("");
-  const nativeResolveRef = useRef<
-    ((result: TranscriptionResult) => void) | null
-  >(null);
+  const nativeResolveRef = useRef<((result: TranscriptionResult) => void) | null>(null);
 
   const startNativeTranscription = useCallback(() => {
     const SR = getOnDeviceSpeechRecognition();
@@ -459,18 +434,17 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
     setIsNativeListening(true);
   }, [options?.language]);
 
-  const stopNativeTranscription =
-    useCallback((): Promise<TranscriptionResult> => {
-      return new Promise((resolve) => {
-        const recognition = nativeRecognitionRef.current;
-        if (!recognition) {
-          resolve({ text: nativeTextRef.current || "" });
-          return;
-        }
-        nativeResolveRef.current = resolve;
-        recognition.stop();
-      });
-    }, []);
+  const stopNativeTranscription = useCallback((): Promise<TranscriptionResult> => {
+    return new Promise((resolve) => {
+      const recognition = nativeRecognitionRef.current;
+      if (!recognition) {
+        resolve({ text: nativeTextRef.current || "" });
+        return;
+      }
+      nativeResolveRef.current = resolve;
+      recognition.stop();
+    });
+  }, []);
 
   const abortNativeTranscription = useCallback(() => {
     const recognition = nativeRecognitionRef.current;

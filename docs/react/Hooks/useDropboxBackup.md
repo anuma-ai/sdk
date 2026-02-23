@@ -2,7 +2,7 @@
 
 > **useDropboxBackup**(`options`: `object`): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 
-Defined in: [src/react/useDropboxBackup.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L102)
+Defined in: [src/react/useDropboxBackup.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L99)
 
 React hook for Dropbox backup and restore functionality.
 

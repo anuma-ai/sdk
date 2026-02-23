@@ -207,7 +207,7 @@ describe("useChat", () => {
           },
         };
         // Keep yielding to simulate long-running request
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         yield {
           type: "response.output_text.delta",
           delta: { OfString: "Hello" },
@@ -307,7 +307,7 @@ describe("useChat", () => {
           },
         };
         // Wait for SSE error callback to fire
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       })();
 
       const mockSseResult: ServerSentEventsResult<unknown> = {

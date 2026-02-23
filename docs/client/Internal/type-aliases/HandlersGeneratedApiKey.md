@@ -2,7 +2,7 @@
 
 > **HandlersGeneratedApiKey** = `object`
 
-Defined in: [src/client/types.gen.ts:208](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L208)
+Defined in: [src/client/types.gen.ts:217](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L217)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:208](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **api\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:212](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L212)
+Defined in: [src/client/types.gen.ts:221](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L221)
 
 Full HMAC key (anuma\_live\_\<key\_id>.<secret> or anuma\_test\_\<key\_id>.<secret>)
 
@@ -20,4 +20,4 @@ Full HMAC key (anuma\_live\_\<key\_id>.<secret> or anuma\_test\_\<key\_id>.<secr
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L213)
+Defined in: [src/client/types.gen.ts:222](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L222)

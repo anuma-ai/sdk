@@ -2,7 +2,7 @@
 
 > **deleteEncryptedFile**(`fileId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/opfs.ts:286](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L286)
+Defined in: [src/lib/storage/opfs.ts:272](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/storage/opfs.ts#L272)
 
 Deletes a file from OPFS.
 

@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `12` = `12`
+> `const` **SDK\_SCHEMA\_VERSION**: `16` = `16`
 
-Defined in: [src/lib/db/schema.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L33)
+Defined in: [src/lib/db/schema.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L38)
 
 Current combined schema version for all SDK storage modules.
 
@@ -19,3 +19,7 @@ Version history:
 * v10: Added projects table and project\_id column to conversations table
 * v11: Added media table for library feature, added file\_ids column to history table
 * v12: Added chunks column to history table for sub-message semantic search
+* v13: Added parent\_message\_id column to history table for message branching (edit/regenerate)
+* v14: Added feedback column to history table for like/dislike on responses
+* v15: Replaced memories table with memory\_vault table for persistent memory vault
+* v16: Added scope column to memory\_vault table for memory partitioning

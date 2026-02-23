@@ -5,10 +5,10 @@ import { useCallback, useMemo } from "react";
 
 import {
   DEFAULT_BACKUP_FOLDER,
-  performICloudExport,
-  performICloudImport,
   type ICloudExportResult,
   type ICloudImportResult,
+  performICloudExport,
+  performICloudImport,
 } from "../lib/backup/icloud/backup";
 import { useICloudAuth } from "./useICloudAuth";
 
@@ -31,10 +31,7 @@ export interface UseICloudBackupOptions {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
 }
 
 /**
@@ -103,24 +100,12 @@ export interface UseICloudBackupResult {
  *
  * @category Hooks
  */
-export function useICloudBackup(
-  options: UseICloudBackupOptions
-): UseICloudBackupResult {
-  const {
-    database,
-    userAddress,
-    requestEncryptionKey,
-    exportConversation,
-    importConversation,
-  } = options;
+export function useICloudBackup(options: UseICloudBackupOptions): UseICloudBackupResult {
+  const { database, userAddress, requestEncryptionKey, exportConversation, importConversation } =
+    options;
 
   // Get auth state from ICloudAuthProvider
-  const {
-    isAuthenticated,
-    isConfigured,
-    isAvailable,
-    requestAccess,
-  } = useICloudAuth();
+  const { isAuthenticated, isConfigured, isAvailable, requestAccess } = useICloudAuth();
 
   const deps = useMemo(
     () => ({
@@ -164,18 +149,10 @@ export function useICloudBackup(
       }
 
       try {
-        return await performICloudExport(
-          database,
-          userAddress,
-          deps,
-          backupOptions?.onProgress
-        );
+        return await performICloudExport(database, userAddress, deps, backupOptions?.onProgress);
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to backup to iCloud",
+          error: err instanceof Error ? err.message : "Failed to backup to iCloud",
         };
       }
     },
@@ -204,17 +181,10 @@ export function useICloudBackup(
       }
 
       try {
-        return await performICloudImport(
-          userAddress,
-          deps,
-          restoreOptions?.onProgress
-        );
+        return await performICloudImport(userAddress, deps, restoreOptions?.onProgress);
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to restore from iCloud",
+          error: err instanceof Error ? err.message : "Failed to restore from iCloud",
         };
       }
     },

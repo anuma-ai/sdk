@@ -1,11 +1,8 @@
 import JSZip from "jszip";
+
 import type { FileMetadata } from "../db/chat/types";
 import { ProcessorRegistry } from "./registry";
-import type {
-  FileProcessor,
-  FileWithData,
-  ProcessedFileResult,
-} from "./types";
+import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
  * Options for configuring ZipProcessor behavior
@@ -176,10 +173,7 @@ export class ZipProcessor implements FileProcessor {
   /**
    * Format the output with file listing and processed contents
    */
-  private formatOutput(
-    entries: ZipEntry[],
-    processedContents: ProcessedContent[]
-  ): string {
+  private formatOutput(entries: ZipEntry[], processedContents: ProcessedContent[]): string {
     const lines: string[] = [];
 
     // File listing section
@@ -236,11 +230,9 @@ export class ZipProcessor implements FileProcessor {
   private guessMimeType(extension: string): string {
     const mimeTypes: Record<string, string> = {
       ".pdf": "application/pdf",
-      ".xlsx":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       ".xls": "application/vnd.ms-excel",
-      ".docx":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ".doc": "application/msword",
       ".txt": "text/plain",
       ".json": "application/json",

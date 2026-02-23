@@ -1,25 +1,27 @@
+import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
-import type { Database, Collection } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
-import { Message, Conversation } from "./models";
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import { decryptJsonField } from "../encryption-utils";
+import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
+import { decryptMessageFields, encryptMessageFields, isEncrypted } from "./encryption";
+import { Conversation, Message } from "./models";
 import {
-  type StoredMessage,
-  type StoredMessageWithSimilarity,
+  type ChunkSearchResult,
+  type CreateConversationOptions,
+  type CreateMessageOptions,
+  generateConversationId,
+  type MessageChunk,
+  type MessageFeedback,
   type StoredConversation,
   type StoredFileWithContext,
-  type CreateMessageOptions,
-  type CreateConversationOptions,
+  type StoredMessage,
+  type StoredMessageWithSimilarity,
   type UpdateMessageOptions,
-  type MessageChunk,
-  type ChunkSearchResult,
-  generateConversationId,
 } from "./types";
-import { encryptMessageFields, decryptMessageFields } from "./encryption";
-import { encryptConversationFields, decryptConversationFields } from "./conversationEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
 
-export function messageToStoredRaw(message: Message): StoredMessage {
+function messageToStoredRaw(message: Message): StoredMessage {
   // Use _getRaw for fields that may be encrypted - the @json decorator fails on encrypted strings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = message as any;
@@ -28,9 +30,9 @@ export function messageToStoredRaw(message: Message): StoredMessage {
   // For JSON fields that may be encrypted, get raw value and parse if not encrypted
   const parseJsonField = <T>(rawValue: unknown): T | undefined => {
     if (!rawValue) return undefined;
-    if (typeof rawValue === 'string') {
+    if (typeof rawValue === "string") {
       // If encrypted, return the string for later decryption
-      if (rawValue.startsWith('enc:')) return rawValue as T;
+      if (rawValue.startsWith("enc:")) return rawValue as T;
       // Otherwise parse as JSON
       try {
         return JSON.parse(rawValue) as T;
@@ -67,13 +69,15 @@ export function messageToStoredRaw(message: Message): StoredMessage {
     error: message.error,
     thoughtProcess: parseJsonField(thoughtProcessRaw),
     thinking: message.thinking,
+    parentMessageId: message.parentMessageId,
+    feedback: message.feedback || null,
   };
 }
 
 /**
  * Converts a Message model to StoredMessage, decrypting fields if encryption context is available.
  */
-export async function messageToStored(
+async function messageToStored(
   message: Message,
   walletAddress?: string,
   signMessage?: SignMessageFn,
@@ -83,15 +87,18 @@ export async function messageToStored(
 
   // Decrypt fields if wallet address provided
   if (walletAddress) {
-    return await decryptMessageFields(baseMessage, walletAddress, signMessage, embeddedWalletSigner);
+    return await decryptMessageFields(
+      baseMessage,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner
+    );
   }
 
   return baseMessage;
 }
 
-export function conversationToStoredRaw(
-  conversation: Conversation
-): StoredConversation {
+export function conversationToStoredRaw(conversation: Conversation): StoredConversation {
   return {
     uniqueId: conversation.id,
     conversationId: conversation.conversationId,
@@ -106,7 +113,7 @@ export function conversationToStoredRaw(
 /**
  * Converts a Conversation model to StoredConversation, decrypting fields if encryption context is available.
  */
-export async function conversationToStored(
+async function conversationToStored(
   conversation: Conversation,
   walletAddress?: string,
   signMessage?: SignMessageFn,
@@ -116,7 +123,12 @@ export async function conversationToStored(
 
   // Decrypt fields if wallet address provided
   if (walletAddress) {
-    return await decryptConversationFields(baseConversation, walletAddress, signMessage, embeddedWalletSigner);
+    return await decryptConversationFields(
+      baseConversation,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner
+    );
   }
 
   return baseConversation;
@@ -143,10 +155,20 @@ export async function createConversationOp(
   const title = opts?.title || defaultTitle;
 
   // Encrypt conversation fields if encryption context is available
-  const convOpts: CreateConversationOptions = { conversationId: convId, title, projectId: opts?.projectId };
-  const encryptedOpts = ctx.walletAddress && ctx.signMessage
-    ? await encryptConversationFields(convOpts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-    : convOpts;
+  const convOpts: CreateConversationOptions = {
+    conversationId: convId,
+    title,
+    projectId: opts?.projectId,
+  };
+  const encryptedOpts =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptConversationFields(
+          convOpts,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : convOpts;
 
   const created = await ctx.database.write(async () => {
     return await ctx.conversationsCollection.create((conv) => {
@@ -157,7 +179,12 @@ export async function createConversationOp(
     });
   });
 
-  return conversationToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+  return conversationToStored(
+    created,
+    ctx.walletAddress,
+    ctx.signMessage,
+    ctx.embeddedWalletSigner
+  );
 }
 
 export async function getConversationOp(
@@ -169,7 +196,12 @@ export async function getConversationOp(
     .fetch();
 
   return results.length > 0
-    ? await conversationToStored(results[0], ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    ? await conversationToStored(
+        results[0],
+        ctx.walletAddress,
+        ctx.signMessage,
+        ctx.embeddedWalletSigner
+      )
     : null;
 }
 
@@ -181,7 +213,9 @@ export async function getConversationsOp(
     .fetch();
 
   return Promise.all(
-    results.map((conv) => conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+    results.map((conv) =>
+      conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
   );
 }
 
@@ -196,9 +230,15 @@ export async function updateConversationTitleOp(
 
   if (results.length > 0) {
     // Encrypt title if encryption context is available
-    const encryptedOpts = ctx.walletAddress && ctx.signMessage
-      ? await encryptConversationFields({ title }, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-      : { title };
+    const encryptedOpts =
+      ctx.walletAddress && ctx.signMessage
+        ? await encryptConversationFields(
+            { title },
+            ctx.walletAddress,
+            ctx.signMessage,
+            ctx.embeddedWalletSigner
+          )
+        : { title };
     const encryptedTitle = encryptedOpts.title || title;
 
     await ctx.database.write(async () => {
@@ -275,7 +315,9 @@ export async function getConversationsByProjectOp(
     .fetch();
 
   return Promise.all(
-    results.map((conv) => conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+    results.map((conv) =>
+      conversationToStored(conv, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
   );
 }
 
@@ -288,17 +330,14 @@ export async function getMessagesOp(
     .fetch();
 
   return Promise.all(
-    results.map((msg) => messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+    results.map((msg) =>
+      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
   );
 }
 
-export async function getMessageCountOp(
-  ctx: StorageOperationsContext,
-  convId: string
-): Promise<number> {
-  return await ctx.messagesCollection
-    .query(Q.where("conversation_id", convId))
-    .fetchCount();
+async function getMessageCountOp(ctx: StorageOperationsContext, convId: string): Promise<number> {
+  return await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetchCount();
 }
 
 /**
@@ -310,9 +349,7 @@ export async function clearMessagesOp(
   ctx: StorageOperationsContext,
   convId: string
 ): Promise<void> {
-  const messages = await ctx.messagesCollection
-    .query(Q.where("conversation_id", convId))
-    .fetch();
+  const messages = await ctx.messagesCollection.query(Q.where("conversation_id", convId)).fetch();
 
   await ctx.database.write(async () => {
     for (const message of messages) {
@@ -331,7 +368,7 @@ export async function clearMessagesOp(
  * Clears file_ids before deletion and returns the unique ID.
  * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
-export async function deleteMessageOp(
+async function deleteMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string
 ): Promise<string | null> {
@@ -363,9 +400,15 @@ export async function createMessageOp(
 
   // Encrypt message fields if encryption context is available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const encryptedOpts: any = ctx.walletAddress && ctx.signMessage
-    ? await encryptMessageFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-    : opts;
+  const encryptedOpts: any =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptMessageFields(
+          opts,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : opts;
 
   const created = await ctx.database.write(async () => {
     return await ctx.messagesCollection.create((msg) => {
@@ -379,18 +422,20 @@ export async function createMessageOp(
       if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
       if (encryptedOpts.sources) {
         // Sources may already be encrypted as a string, or may be an object to serialize
-        const sourcesValue = typeof encryptedOpts.sources === 'string'
-          ? encryptedOpts.sources
-          : JSON.stringify(encryptedOpts.sources);
+        const sourcesValue =
+          typeof encryptedOpts.sources === "string"
+            ? encryptedOpts.sources
+            : JSON.stringify(encryptedOpts.sources);
         msg._setRaw("sources", sourcesValue);
       }
       if (encryptedOpts.responseDuration !== undefined)
         msg._setRaw("response_duration", encryptedOpts.responseDuration);
       if (encryptedOpts.vector) {
         // Vector may already be encrypted as a string, or may be an array to serialize
-        const vectorValue = typeof encryptedOpts.vector === 'string'
-          ? encryptedOpts.vector
-          : JSON.stringify(encryptedOpts.vector);
+        const vectorValue =
+          typeof encryptedOpts.vector === "string"
+            ? encryptedOpts.vector
+            : JSON.stringify(encryptedOpts.vector);
         msg._setRaw("vector", vectorValue);
       }
       if (encryptedOpts.embeddingModel)
@@ -399,12 +444,15 @@ export async function createMessageOp(
       if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error);
       if (encryptedOpts.thoughtProcess) {
         // ThoughtProcess may already be encrypted as a string, or may be an object to serialize
-        const tpValue = typeof encryptedOpts.thoughtProcess === 'string'
-          ? encryptedOpts.thoughtProcess
-          : JSON.stringify(encryptedOpts.thoughtProcess);
+        const tpValue =
+          typeof encryptedOpts.thoughtProcess === "string"
+            ? encryptedOpts.thoughtProcess
+            : JSON.stringify(encryptedOpts.thoughtProcess);
         msg._setRaw("thought_process", tpValue);
       }
       if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking);
+      if (encryptedOpts.parentMessageId)
+        msg._setRaw("parent_message_id", encryptedOpts.parentMessageId);
     });
   });
 
@@ -484,7 +532,38 @@ export async function updateMessageErrorOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
-export async function updateMessageOp(
+/**
+ * Update the feedback (like/dislike) for a message.
+ * Each regenerated response can have its own independent feedback.
+ *
+ * @param ctx - Storage operations context
+ * @param uniqueId - The unique ID of the message to update
+ * @param feedback - 'like', 'dislike', or null to clear feedback
+ * @returns The updated message or null if not found
+ */
+export async function updateMessageFeedbackOp(
+  ctx: StorageOperationsContext,
+  uniqueId: string,
+  feedback: MessageFeedback
+): Promise<StoredMessage | null> {
+  let message;
+  try {
+    message = await ctx.messagesCollection.find(uniqueId);
+  } catch {
+    return null;
+  }
+
+  // Feedback is not encrypted (it's not user-generated content, just a flag)
+  await ctx.database.write(async () => {
+    await message.update((msg) => {
+      msg._setRaw("feedback", feedback ?? null);
+    });
+  });
+
+  return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+async function updateMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
   opts: UpdateMessageOptions
@@ -498,9 +577,15 @@ export async function updateMessageOp(
 
   // Encrypt update fields if encryption context is available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const encryptedOpts: any = ctx.walletAddress && ctx.signMessage
-    ? await encryptMessageFields(opts, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-    : opts;
+  const encryptedOpts: any =
+    ctx.walletAddress && ctx.signMessage
+      ? await encryptMessageFields(
+          opts,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        )
+      : opts;
 
   await ctx.database.write(async () => {
     await message.update((msg) => {
@@ -513,17 +598,19 @@ export async function updateMessageOp(
       if (encryptedOpts.usage !== undefined)
         msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
       if (encryptedOpts.sources !== undefined) {
-        const sourcesValue = typeof encryptedOpts.sources === 'string'
-          ? encryptedOpts.sources
-          : JSON.stringify(encryptedOpts.sources);
+        const sourcesValue =
+          typeof encryptedOpts.sources === "string"
+            ? encryptedOpts.sources
+            : JSON.stringify(encryptedOpts.sources);
         msg._setRaw("sources", sourcesValue);
       }
       if (encryptedOpts.responseDuration !== undefined)
         msg._setRaw("response_duration", encryptedOpts.responseDuration);
       if (encryptedOpts.vector !== undefined) {
-        const vectorValue = typeof encryptedOpts.vector === 'string'
-          ? encryptedOpts.vector
-          : JSON.stringify(encryptedOpts.vector);
+        const vectorValue =
+          typeof encryptedOpts.vector === "string"
+            ? encryptedOpts.vector
+            : JSON.stringify(encryptedOpts.vector);
         msg._setRaw("vector", vectorValue);
       }
       if (encryptedOpts.embeddingModel !== undefined)
@@ -533,17 +620,43 @@ export async function updateMessageOp(
       if (encryptedOpts.error !== undefined)
         msg._setRaw("error", encryptedOpts.error === null ? "" : encryptedOpts.error);
       if (encryptedOpts.thoughtProcess !== undefined) {
-        const tpValue = typeof encryptedOpts.thoughtProcess === 'string'
-          ? encryptedOpts.thoughtProcess
-          : JSON.stringify(encryptedOpts.thoughtProcess);
+        const tpValue =
+          typeof encryptedOpts.thoughtProcess === "string"
+            ? encryptedOpts.thoughtProcess
+            : JSON.stringify(encryptedOpts.thoughtProcess);
         msg._setRaw("thought_process", tpValue);
       }
       if (encryptedOpts.thinking !== undefined)
         msg._setRaw("thinking", encryptedOpts.thinking === null ? "" : encryptedOpts.thinking);
+      if (encryptedOpts.feedback !== undefined) msg._setRaw("feedback", encryptedOpts.feedback);
     });
   });
 
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
+}
+
+/**
+ * Reads a JSON field from a WatermelonDB model using _getRaw, handling encrypted values.
+ * The @json decorator fails on encrypted strings, so this uses _getRaw + manual parsing.
+ */
+async function readJsonField<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  model: any,
+  column: string,
+  walletAddress?: string
+): Promise<T | undefined> {
+  const raw = model._getRaw(column) as string | undefined;
+  if (!raw) return undefined;
+
+  if (walletAddress && isEncrypted(raw)) {
+    return await decryptJsonField<T>(raw, walletAddress);
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -583,13 +696,9 @@ export async function searchMessagesOp(
     activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
-  const queryConditions = conversationId
-    ? [Q.where("conversation_id", conversationId)]
-    : [];
+  const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection
-    .query(...queryConditions)
-    .fetch();
+  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
   const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
@@ -601,7 +710,7 @@ export async function searchMessagesOp(
     const msgConvId = (message as any)._getRaw("conversation_id") as string;
     if (!activeConversationIds.has(msgConvId)) continue;
 
-    const messageVector = message.vector;
+    const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
     if (!messageVector || messageVector.length === 0) continue;
 
     const similarity = cosineSimilarity(queryVector, messageVector);
@@ -617,9 +726,7 @@ export async function searchMessagesOp(
   const resolvedResults = await Promise.all(matchPromises);
   const validResults = resolvedResults.filter((r): r is StoredMessageWithSimilarity => r !== null);
 
-  return validResults
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  return validResults.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 }
 
 /**
@@ -646,13 +753,9 @@ export async function searchChunksOp(
     activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
-  const queryConditions = conversationId
-    ? [Q.where("conversation_id", conversationId)]
-    : [];
+  const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection
-    .query(...queryConditions)
-    .fetch();
+  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
   const chunkMatchPromises: Promise<ChunkSearchResult>[] = [];
 
@@ -662,7 +765,8 @@ export async function searchChunksOp(
     const msgConvId = (message as any)._getRaw("conversation_id") as string;
     if (!activeConversationIds.has(msgConvId)) continue;
 
-    const chunks = message.chunks;
+    // Use _getRaw to read JSON fields that may be encrypted - the @json decorator fails on encrypted strings
+    const chunks = await readJsonField<MessageChunk[]>(message, "chunks", ctx.walletAddress);
 
     // If message has chunks, search through them
     if (chunks && chunks.length > 0) {
@@ -672,23 +776,29 @@ export async function searchChunksOp(
         const similarity = cosineSimilarity(queryVector, chunk.vector);
         if (similarity >= minSimilarity) {
           chunkMatchPromises.push(
-            messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
-              (stored) => ({ chunkText: chunk.text, message: stored, similarity })
-            )
+            messageToStored(
+              message,
+              ctx.walletAddress,
+              ctx.signMessage,
+              ctx.embeddedWalletSigner
+            ).then((stored) => ({ chunkText: chunk.text, message: stored, similarity }))
           );
         }
       }
     } else {
       // Fallback to whole message vector if no chunks
-      const messageVector = message.vector;
+      const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
       if (!messageVector || messageVector.length === 0) continue;
 
       const similarity = cosineSimilarity(queryVector, messageVector);
       if (similarity >= minSimilarity) {
         chunkMatchPromises.push(
-          messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner).then(
-            (stored) => ({ chunkText: message.content, message: stored, similarity })
-          )
+          messageToStored(
+            message,
+            ctx.walletAddress,
+            ctx.signMessage,
+            ctx.embeddedWalletSigner
+          ).then((stored) => ({ chunkText: stored.content, message: stored, similarity }))
         );
       }
     }
@@ -696,12 +806,10 @@ export async function searchChunksOp(
 
   const results = await Promise.all(chunkMatchPromises);
 
-  return results
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 }
 
-export async function getMessagesWithEmbeddingsOp(
+async function getMessagesWithEmbeddingsOp(
   ctx: StorageOperationsContext,
   conversationId?: string
 ): Promise<StoredMessage[]> {
@@ -714,23 +822,23 @@ export async function getMessagesWithEmbeddingsOp(
     activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
   );
 
-  const queryConditions = conversationId
-    ? [Q.where("conversation_id", conversationId)]
-    : [];
+  const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
-  const messages = await ctx.messagesCollection
-    .query(...queryConditions)
-    .fetch();
+  const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
   const filtered = messages.filter((m) => {
-    // Use _getRaw for reliable raw column access
+    // Use _getRaw for reliable raw column access - the @json decorator fails on encrypted strings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msgConvId = (m as any)._getRaw("conversation_id") as string;
-    return m.vector && m.vector.length > 0 && activeConversationIds.has(msgConvId);
+    const raw = m as any;
+    const msgConvId = raw._getRaw("conversation_id") as string;
+    const vectorRaw = raw._getRaw("vector") as string | undefined;
+    return vectorRaw && vectorRaw.length > 0 && activeConversationIds.has(msgConvId);
   });
 
   return Promise.all(
-    filtered.map((msg) => messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner))
+    filtered.map((msg) =>
+      messageToStored(msg, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
   );
 }
 
@@ -760,9 +868,7 @@ export async function getAllFilesOp(
   );
 
   // Build query conditions
-  const queryConditions = conversationId
-    ? [Q.where("conversation_id", conversationId)]
-    : [];
+  const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
   // Fetch all messages, sorted by creation date descending
   const messages = await ctx.messagesCollection
@@ -829,6 +935,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
     error: opts.error,
     thoughtProcess: opts.thoughtProcess,
     thinking: opts.thinking,
+    parentMessageId: opts.parentMessageId,
   };
 }
 

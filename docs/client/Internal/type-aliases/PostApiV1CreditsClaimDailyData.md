@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyData** = `object`
 
-Defined in: [src/client/types.gen.ts:1889](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1889)
+Defined in: [src/client/types.gen.ts:1934](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1934)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1889](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1890](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1890)
+Defined in: [src/client/types.gen.ts:1935](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1935)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1890](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1891](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1891)
+Defined in: [src/client/types.gen.ts:1936](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1936)
 
 **X-Timezone?**
 
@@ -32,7 +32,7 @@ IANA timezone (e.g., America/New\_York)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1897](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1897)
+Defined in: [src/client/types.gen.ts:1942](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1942)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:1897](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1898](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1898)
+Defined in: [src/client/types.gen.ts:1943](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1943)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:1898](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/credits/claim-daily"`
 
-Defined in: [src/client/types.gen.ts:1899](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1899)
+Defined in: [src/client/types.gen.ts:1944](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1944)
