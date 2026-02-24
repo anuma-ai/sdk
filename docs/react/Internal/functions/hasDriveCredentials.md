@@ -1,0 +1,36 @@
+# hasDriveCredentials
+
+> **hasDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
+
+Defined in: [src/lib/auth/google-drive.ts:582](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L582)
+
+Check if we have any stored credentials
+
+## Parameters
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Returns
+
+`Promise`<`boolean`>
