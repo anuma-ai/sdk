@@ -15,6 +15,12 @@ concurrency:
 jobs:
   integration:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ref:
+          - pr
+          - main
     env:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
@@ -24,6 +30,8 @@ jobs:
       NEXT_PUBLIC_DROPBOX_APP_KEY: ${{ secrets.NEXT_PUBLIC_DROPBOX_APP_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.ref == 'main' && 'main' || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -59,7 +67,7 @@ jobs:
         id: build
         working-directory: /tmp/ai-examples
         continue-on-error: true
-        run: pnpm build
+        run: pnpm build 2>&1 | tee /tmp/build-output.txt
 
       - name: Install Playwright browsers
         if: steps.build.outcome == 'success'
@@ -73,28 +81,82 @@ jobs:
         continue-on-error: true
         run: pnpm test:e2e:light
 
+      - name: Write outcome
+        run: |
+          mkdir -p /tmp/outcomes
+          echo "${{ steps.build.outcome }}" > /tmp/outcomes/${{ matrix.ref }}-build
+          echo "${{ steps.e2e.outcome }}" > /tmp/outcomes/${{ matrix.ref }}-e2e
+          # Extract TS error lines (e.g. "TS2345", "TS2307") so we can diff them
+          grep -oP 'TS\d+' /tmp/build-output.txt | sort > /tmp/outcomes/${{ matrix.ref }}-errors.txt || true
+
+      - name: Upload outcome
+        uses: actions/upload-artifact@v4
+        with:
+          name: outcome-${{ matrix.ref }}
+          path: /tmp/outcomes/
+
+  report:
+    needs: integration
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download outcomes
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/outcomes
+          merge-multiple: true
+
       - name: Comment on PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BUILD="${{ steps.build.outcome }}"
-          E2E="${{ steps.e2e.outcome }}"
+          PR_BUILD=$(cat /tmp/outcomes/pr-build)
+          PR_E2E=$(cat /tmp/outcomes/pr-e2e)
+          MAIN_BUILD=$(cat /tmp/outcomes/main-build)
+          MAIN_E2E=$(cat /tmp/outcomes/main-e2e)
 
-          if [ "$BUILD" == "success" ] && [ "$E2E" == "success" ]; then
+          # Count errors unique to each side
+          PR_ERRORS=$(wc -l < /tmp/outcomes/pr-errors.txt | tr -d ' ')
+          MAIN_ERRORS=$(wc -l < /tmp/outcomes/main-errors.txt | tr -d ' ')
+          NEW_ERRORS=$(comm -23 /tmp/outcomes/pr-errors.txt /tmp/outcomes/main-errors.txt | wc -l | tr -d ' ')
+
+          if [ "$PR_BUILD" == "success" ] && [ "$PR_E2E" == "success" ]; then
             BODY="<!-- integration-check -->
           ### Integration Check ✅
 
           **ai-examples** builds and passes light e2e tests against this PR's version of the SDK."
-          elif [ "$BUILD" == "success" ]; then
-            BODY="<!-- integration-check -->
+
+          elif [ "$PR_BUILD" == "success" ] && [ "$PR_E2E" != "success" ]; then
+            if [ "$MAIN_E2E" != "success" ]; then
+              BODY="<!-- integration-check -->
+          ### Integration Check ✅
+
+          **ai-examples** builds successfully. Light e2e tests fail, but they also fail on \`main\` — not caused by this PR."
+            else
+              BODY="<!-- integration-check -->
           ### Integration Check ⚠️
 
           **ai-examples** builds successfully but light e2e tests failed against this PR's version of the SDK."
-          else
-            BODY="<!-- integration-check -->
+            fi
+
+          elif [ "$PR_BUILD" != "success" ]; then
+            if [ "$MAIN_BUILD" != "success" ] && [ "$NEW_ERRORS" -eq 0 ]; then
+              BODY="<!-- integration-check -->
+          ### Integration Check ✅
+
+          **ai-examples** fails to build, but it also fails on \`main\` with the same errors ($MAIN_ERRORS) — not caused by this PR."
+            elif [ "$MAIN_BUILD" != "success" ] && [ "$NEW_ERRORS" -gt 0 ]; then
+              BODY="<!-- integration-check -->
           ### Integration Check ❌
 
-          **ai-examples** failed to build against this PR's version of the SDK. If this PR introduces a breaking change, the example app may need to be updated."
+          **ai-examples** fails to build on both \`main\` ($MAIN_ERRORS errors) and this PR ($PR_ERRORS errors). This PR introduces **$NEW_ERRORS new error(s)** — the example app may need to be updated."
+            else
+              BODY="<!-- integration-check -->
+          ### Integration Check ❌
+
+          **ai-examples** failed to build against this PR's version of the SDK ($PR_ERRORS errors). This PR introduces a breaking change — the example app may need to be updated."
+            fi
           fi
 
           echo "$BODY" > /tmp/integration-comment.md
@@ -108,16 +170,27 @@ jobs:
             gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
           fi
 
-          if [ "$BUILD" == "success" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-build" 2>/dev/null || true
-          else
-            gh label create "breaks-starter-build" --description "PR breaks the starter app build" --color "d93f0b" 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-build" || true
+          # Only label if this PR introduces new breakage
+          PR_ADDS_BUILD_ERRORS=false
+          if [ "$PR_BUILD" != "success" ] && { [ "$MAIN_BUILD" == "success" ] || [ "$NEW_ERRORS" -gt 0 ]; }; then
+            PR_ADDS_BUILD_ERRORS=true
           fi
 
-          if [ "$E2E" == "success" ] || [ "$E2E" == "" ]; then
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-e2e" 2>/dev/null || true
+          if [ "$PR_ADDS_BUILD_ERRORS" == "true" ]; then
+            gh label create "breaks-starter-build" --description "PR breaks the starter app build" --color "d93f0b" 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-build" || true
           else
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-build" 2>/dev/null || true
+          fi
+
+          PR_ADDS_E2E_ERRORS=false
+          if [ "$PR_E2E" != "success" ] && [ "$PR_E2E" != "" ] && [ "$MAIN_E2E" == "success" ]; then
+            PR_ADDS_E2E_ERRORS=true
+          fi
+
+          if [ "$PR_ADDS_E2E_ERRORS" == "true" ]; then
             gh label create "breaks-starter-e2e" --description "PR breaks the starter app e2e tests" --color "d93f0b" 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-e2e" || true
+          else
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-e2e" 2>/dev/null || true
           fi
