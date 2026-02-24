@@ -1,8 +1,8 @@
 # storeCalendarToken
 
-> **storeCalendarToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`): `Promise`<`void`>
+> **storeCalendarToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-calendar.ts:385](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L385)
+Defined in: [src/lib/auth/google-calendar.ts:543](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L543)
 
 Store Calendar token data (for external use)
 
@@ -56,6 +56,18 @@ Store Calendar token data (for external use)
 <td>
 
 `scope?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
 
 </td>
 <td>
