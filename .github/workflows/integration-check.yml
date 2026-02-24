@@ -63,7 +63,7 @@ jobs:
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
           pnpm add "$SDK_TARBALL"
 
-      - name: Build ai-examples
+      - name: Build starter-next
         id: build
         working-directory: /tmp/starter-next
         continue-on-error: true
