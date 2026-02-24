@@ -81,15 +81,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zeta-chain/ai-sdk.git"
+    "url": "git+https://github.com/anuma-ai/sdk.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/zeta-chain/ai-sdk/issues"
+    "url": "https://github.com/anuma-ai/sdk/issues"
   },
-  "homepage": "https://github.com/zeta-chain/ai-sdk#readme",
+  "homepage": "https://github.com/anuma-ai/sdk#readme",
   "dependencies": {
     "@anuma/portal": "1.0.0-next.20260220225437",
     "ai": "5.0.93",
