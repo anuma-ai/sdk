@@ -1,9 +1,0 @@
-# ServerToolsResponse
-
-> **ServerToolsResponse** = { `checksum`: `string`; `tools`: `ServerToolsMap`; } | `ServerToolsMap`
-
-Defined in: [src/lib/tools/serverTools.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/tools/serverTools.ts#L51)
-
-Response format from /api/v1/tools endpoint.
-New format includes checksum and tools wrapper.
-Legacy format is just the tools map directly.

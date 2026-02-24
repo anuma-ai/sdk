@@ -1,16 +1,17 @@
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
+import type Model from "@nozbe/watermelondb/Model";
 import {
-  schemaMigrations,
   addColumns,
   createTable,
+  schemaMigrations,
   unsafeExecuteSql,
 } from "@nozbe/watermelondb/Schema/migrations";
-import type Model from "@nozbe/watermelondb/Model";
 import type { Class } from "@nozbe/watermelondb/types";
-import { Message, Conversation } from "./chat/models";
-import { Project } from "./project/models";
+
+import { Conversation, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
+import { Project } from "./project/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
 
@@ -256,9 +257,7 @@ export const sdkMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "thought_process", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "thought_process", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -318,9 +317,7 @@ export const sdkMigrations = schemaMigrations({
         }),
         addColumns({
           table: "conversations",
-          columns: [
-            { name: "project_id", type: "string", isOptional: true, isIndexed: true },
-          ],
+          columns: [{ name: "project_id", type: "string", isOptional: true, isIndexed: true }],
         }),
       ],
     },
@@ -360,9 +357,7 @@ export const sdkMigrations = schemaMigrations({
         // Add file_ids column to history table for direct media lookup
         addColumns({
           table: "history",
-          columns: [
-            { name: "file_ids", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "file_ids", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -372,9 +367,7 @@ export const sdkMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "chunks", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "chunks", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -384,9 +377,7 @@ export const sdkMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "parent_message_id", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "parent_message_id", type: "string", isOptional: true }],
         }),
       ],
     },
@@ -396,9 +387,7 @@ export const sdkMigrations = schemaMigrations({
       steps: [
         addColumns({
           table: "history",
-          columns: [
-            { name: "feedback", type: "string", isOptional: true },
-          ],
+          columns: [{ name: "feedback", type: "string", isOptional: true }],
         }),
       ],
     },

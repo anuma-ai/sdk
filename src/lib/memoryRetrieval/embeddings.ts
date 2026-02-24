@@ -6,22 +6,22 @@
 
 import { postApiV1Embeddings } from "../../client";
 import { BASE_URL } from "../../clientConfig";
-import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
 import {
-  type StorageOperationsContext,
-  updateMessageEmbeddingOp,
-  updateMessageChunksOp,
-  getMessagesOp,
   getConversationsOp,
+  getMessagesOp,
+  type StorageOperationsContext,
+  updateMessageChunksOp,
+  updateMessageEmbeddingOp,
 } from "../db/chat/operations";
-import type { StoredMessage, MessageChunk } from "../db/chat/types";
-import type { EmbeddingOptions } from "./types";
+import type { MessageChunk, StoredMessage } from "../db/chat/types";
 import {
-  chunkText,
-  shouldChunkMessage,
   type ChunkingOptions,
+  chunkText,
   DEFAULT_CHUNK_SIZE,
+  shouldChunkMessage,
 } from "./chunking";
+import { DEFAULT_API_EMBEDDING_MODEL } from "./constants";
+import type { EmbeddingOptions } from "./types";
 
 /**
  * Default minimum content length for embedding.
@@ -68,9 +68,7 @@ export async function generateEmbedding(
 
   if (response.error) {
     throw new Error(
-      typeof response.error === "object" &&
-      response.error &&
-      "error" in response.error
+      typeof response.error === "object" && response.error && "error" in response.error
         ? (response.error as { error: string }).error
         : "API embedding failed"
     );
@@ -126,9 +124,7 @@ export async function generateEmbeddings(
 
   if (response.error) {
     throw new Error(
-      typeof response.error === "object" &&
-      response.error &&
-      "error" in response.error
+      typeof response.error === "object" && response.error && "error" in response.error
         ? (response.error as { error: string }).error
         : "API embedding failed"
     );
@@ -238,18 +234,10 @@ export async function embedAllMessages(
 
       try {
         const embedding = await generateEmbedding(message.content, options);
-        await updateMessageEmbeddingOp(
-          ctx,
-          message.uniqueId,
-          embedding,
-          embeddingModel
-        );
+        await updateMessageEmbeddingOp(ctx, message.uniqueId, embedding, embeddingModel);
         embeddedCount++;
       } catch (error) {
-        console.error(
-          `Failed to embed message ${message.uniqueId}:`,
-          error
-        );
+        console.error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
   }
@@ -368,10 +356,7 @@ export async function chunkAndEmbedAllMessages(
       }
 
       // Skip if role filter doesn't match
-      if (
-        filter?.roles &&
-        !filter.roles.includes(message.role as "user" | "assistant")
-      ) {
+      if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) {
         continue;
       }
 
@@ -400,28 +385,15 @@ export async function chunkAndEmbedAllMessages(
             endOffset: chunk.endOffset,
           }));
 
-          await updateMessageChunksOp(
-            ctx,
-            message.uniqueId,
-            messageChunks,
-            embeddingModel
-          );
+          await updateMessageChunksOp(ctx, message.uniqueId, messageChunks, embeddingModel);
         } else {
           // Use whole-message embedding for short messages
           const embedding = await generateEmbedding(message.content, options);
-          await updateMessageEmbeddingOp(
-            ctx,
-            message.uniqueId,
-            embedding,
-            embeddingModel
-          );
+          await updateMessageEmbeddingOp(ctx, message.uniqueId, embedding, embeddingModel);
         }
         embeddedCount++;
       } catch (error) {
-        console.error(
-          `Failed to embed message ${message.uniqueId}:`,
-          error
-        );
+        console.error(`Failed to embed message ${message.uniqueId}:`, error);
       }
     }
   }

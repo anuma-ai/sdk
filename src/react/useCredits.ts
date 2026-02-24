@@ -1,6 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import type {
+  HandlersClaimDailyCreditsResponse,
+  HandlersCreditBalanceResponse,
+  HandlersCreditPack,
+} from "../client";
 import {
   getApiV1CreditsBalance,
   getApiV1CreditsPacks,
@@ -8,11 +14,6 @@ import {
   postApiV1CreditsPurchase,
 } from "../client/sdk.gen";
 import { BASE_URL } from "../clientConfig";
-import type {
-  HandlersCreditBalanceResponse,
-  HandlersClaimDailyCreditsResponse,
-  HandlersCreditPack,
-} from "../client";
 
 /**
  * @inline
@@ -82,18 +83,10 @@ export type UseCreditsResult = {
  * browsing packs, and purchasing credits.
  * @category Hooks
  */
-export function useCredits(
-  options: UseCreditsOptions = {}
-): UseCreditsResult {
-  const {
-    getToken,
-    baseUrl = BASE_URL,
-    autoFetch = true,
-    onError,
-  } = options;
+export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
+  const { getToken, baseUrl = BASE_URL, autoFetch = true, onError } = options;
 
-  const [balance, setBalance] =
-    useState<HandlersCreditBalanceResponse | null>(null);
+  const [balance, setBalance] = useState<HandlersCreditBalanceResponse | null>(null);
   const [packs, setPacks] = useState<HandlersCreditPack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -170,8 +163,7 @@ export function useCredits(
       });
 
       if (response.error) {
-        const errorMsg =
-          response.error.error ?? "Failed to fetch credit balance";
+        const errorMsg = response.error.error ?? "Failed to fetch credit balance";
         throw new Error(errorMsg);
       }
 
@@ -206,8 +198,7 @@ export function useCredits(
       });
 
       if (response.error) {
-        const errorMsg =
-          response.error.error ?? "Failed to fetch credit packs";
+        const errorMsg = response.error.error ?? "Failed to fetch credit packs";
         throw new Error(errorMsg);
       }
 
@@ -233,8 +224,7 @@ export function useCredits(
         });
 
         if (response.error) {
-          const errorMsg =
-            response.error.error ?? "Failed to claim daily credits";
+          const errorMsg = response.error.error ?? "Failed to claim daily credits";
           throw new Error(errorMsg);
         }
 
@@ -272,8 +262,7 @@ export function useCredits(
         });
 
         if (response.error) {
-          const errorMsg =
-            response.error.error ?? "Failed to create checkout session";
+          const errorMsg = response.error.error ?? "Failed to create checkout session";
           throw new Error(errorMsg);
         }
 

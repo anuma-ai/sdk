@@ -1,12 +1,8 @@
 import { Model } from "@nozbe/watermelondb";
-import { field, text, date, json, readonly } from "@nozbe/watermelondb/decorators";
+import { date, field, json, readonly, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
-import type {
-  MediaType,
-  MediaRole,
-  MediaDimensions,
-  MediaMetadata,
-} from "./types";
+
+import type { MediaDimensions, MediaMetadata, MediaRole, MediaType } from "./types";
 
 /**
  * WatermelonDB model for media records.

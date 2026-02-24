@@ -8,8 +8,8 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { searchChunksOp } from "../db/chat/operations";
-import type { EmbeddingOptions, MemoryRetrievalSearchOptions } from "./types";
 import { generateEmbedding } from "./embeddings";
+import type { EmbeddingOptions, MemoryRetrievalSearchOptions } from "./types";
 
 /**
  * Default search options
@@ -93,7 +93,7 @@ export function createMemoryRetrievalTool(
 
   return {
     type: "function",
-   function: {
+    function: {
       name: "search_memory",
       description:
         "Search past conversation chunks to find relevant context from previous discussions. " +
@@ -135,10 +135,8 @@ export function createMemoryRetrievalTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
       const topK = (args.top_k as number) ?? defaultOpts.topK;
-      const includeAssistant =
-        (args.include_assistant as boolean) ?? defaultOpts.includeAssistant;
-      const sortBy =
-        (args.sort_by as "similarity" | "chronological") ?? defaultOpts.sortBy;
+      const includeAssistant = (args.include_assistant as boolean) ?? defaultOpts.includeAssistant;
+      const sortBy = (args.sort_by as "similarity" | "chronological") ?? defaultOpts.sortBy;
       // Date filters are currently disabled but parsed for future use
       // const startDate = args.start_date as string | undefined;
       // const endDate = args.end_date as string | undefined;
@@ -154,8 +152,7 @@ export function createMemoryRetrievalTool(
         // Calculate fetch multiplier to account for post-filtering
         // Fetch more results when filtering by role or excluding conversations
         const fetchMultiplier =
-          (includeAssistant ? 1 : 2) *
-          (defaultOpts.excludeConversationId ? 1.5 : 1);
+          (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
         const fetchLimit = Math.ceil(topK * fetchMultiplier);
 
         // Search through message chunks for better precision
@@ -167,9 +164,7 @@ export function createMemoryRetrievalTool(
 
         // Filter out excluded conversation (e.g., current conversation)
         let filteredResults = defaultOpts.excludeConversationId
-          ? results.filter(
-              (r) => r.message.conversationId !== defaultOpts.excludeConversationId
-            )
+          ? results.filter((r) => r.message.conversationId !== defaultOpts.excludeConversationId)
           : results;
 
         // Filter by role if needed
@@ -197,5 +192,6 @@ export function createMemoryRetrievalTool(
       }
     },
     autoExecute: true,
+    removeAfterExecution: true,
   };
 }

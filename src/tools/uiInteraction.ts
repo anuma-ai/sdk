@@ -13,16 +13,13 @@ import type { ToolConfig } from "./googleCalendar";
  * Matches the methods provided by UIInteractionProvider.
  */
 export type UIInteractionContext = {
-  createInteraction: (
-    id: string,
-    type: string,
-    data: any
-  ) => Promise<any>;
+  createInteraction: (id: string, type: string, data: any) => Promise<any>;
   createDisplayInteraction: (
     id: string,
     displayType: string,
     data: any,
-    result: any
+    result: any,
+    toolVersion?: number
   ) => void;
 };
 
@@ -58,6 +55,23 @@ export type InteractiveToolConfig = {
 };
 
 /**
+ * Migration map for a display tool.
+ * Keys are "fromVersion->toVersion" strings (e.g. "1->2").
+ * Each function receives the stored result at fromVersion and returns the
+ * result upgraded to toVersion.
+ *
+ * @example
+ * ```typescript
+ * migrations: {
+ *   "1->2": (old) => ({ ...old, newField: old.legacyField ?? defaultValue }),
+ * }
+ * ```
+ */
+export type DisplayToolMigrations = {
+  [key: `${number}->${number}`]: (data: any) => any;
+};
+
+/**
  * Configuration for a display-only tool that renders data without blocking.
  */
 export type DisplayToolConfig<TArgs = any, TResult = any> = {
@@ -71,10 +85,53 @@ export type DisplayToolConfig<TArgs = any, TResult = any> = {
   displayType: string;
   /** Execute function that fetches/computes the display data */
   execute: (args: TArgs) => Promise<TResult>;
+  /**
+   * Schema version for the result format. Increment when the result shape
+   * changes in a backward-incompatible way. Default: 1.
+   */
+  version?: number;
+  /**
+   * Migration functions keyed by "fromVersion->toVersion".
+   * Used to upgrade stored results to the current version on restore.
+   */
+  migrations?: DisplayToolMigrations;
 };
 
+/**
+ * Migrate a stored display result from an older version to the current version.
+ *
+ * Runs the migration chain step-by-step: fromVersion → fromVersion+1 → … → toVersion.
+ * Steps with no registered migration function are skipped (result passes through unchanged).
+ * Returns the original result unchanged if fromVersion >= toVersion.
+ *
+ * @example
+ * ```typescript
+ * const migrated = migrateDisplayResult(storedResult, 1, 3, {
+ *   "1->2": (v1) => ({ ...v1, added: v1.old ?? 0 }),
+ *   "2->3": (v2) => ({ ...v2, renamed: v2.added }),
+ * });
+ * ```
+ */
+export function migrateDisplayResult(
+  result: any,
+  fromVersion: number,
+  toVersion: number,
+  migrations: DisplayToolMigrations
+): any {
+  if (fromVersion >= toVersion) return result;
+  let current = result;
+  for (let v = fromVersion; v < toVersion; v++) {
+    const key: `${number}->${number}` = `${v}->${v + 1}`;
+    const migrate = migrations[key];
+    if (migrate) {
+      current = migrate(current);
+    }
+  }
+  return current;
+}
+
 function generateInteractionId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /**
@@ -123,14 +180,10 @@ export function createInteractiveTool(
       const interactionData = config.mapArgs ? config.mapArgs(args) : args;
 
       try {
-        const result = await context.createInteraction(
-          interactionId,
-          config.interactionType,
-          {
-            ...interactionData,
-            afterMessageId: options.getLastMessageId?.(),
-          }
-        );
+        const result = await context.createInteraction(interactionId, config.interactionType, {
+          ...interactionData,
+          afterMessageId: options.getLastMessageId?.(),
+        });
 
         if (config.mapResult) {
           return config.mapResult(result, args);
@@ -191,12 +244,14 @@ export function createDisplayTool<TArgs = any, TResult = any>(
           interactionId,
           config.displayType,
           { afterMessageId: options.getLastMessageId?.() },
-          result
+          result,
+          config.version ?? 1
         );
       }
 
       return result;
     },
     autoExecute: true,
+    skipContinuation: true,
   };
 }

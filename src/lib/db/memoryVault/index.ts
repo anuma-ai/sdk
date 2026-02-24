@@ -1,16 +1,14 @@
-export { memoryVaultStorageSchema } from "./schema";
 export { VaultMemory } from "./models";
 export {
-  type StoredVaultMemory,
+  createVaultMemoryOp,
+  deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getVaultMemoryOp,
+  updateVaultMemoryOp,
+  type VaultMemoryOperationsContext,
+} from "./operations";
+export {
   type CreateVaultMemoryOptions,
+  type StoredVaultMemory,
   type UpdateVaultMemoryOptions,
 } from "./types";
-export {
-  type VaultMemoryOperationsContext,
-  vaultMemoryToStored,
-  createVaultMemoryOp,
-  getVaultMemoryOp,
-  getAllVaultMemoriesOp,
-  updateVaultMemoryOp,
-  deleteVaultMemoryOp,
-} from "./operations";

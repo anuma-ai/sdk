@@ -30,9 +30,7 @@ export interface BaseUseSettingsOptions {
 export interface BaseUseSettingsResult {
   modelPreference: StoredModelPreference | null;
   isLoading: boolean;
-  getModelPreference: (
-    walletAddress: string
-  ) => Promise<StoredModelPreference | null>;
+  getModelPreference: (walletAddress: string) => Promise<StoredModelPreference | null>;
   setModelPreference: (
     walletAddress: string,
     models?: string

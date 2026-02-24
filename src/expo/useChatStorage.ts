@@ -1,80 +1,76 @@
 "use client";
 
-import { useCallback, useState, useMemo, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiResponseResponse, LlmapiChatCompletionResponse } from "../client";
-import type { ApiType, ApiResponse } from "../lib/chat/useChat";
+import type {
+  LlmapiChatCompletionResponse,
+  LlmapiMessage,
+  LlmapiResponseResponse,
+} from "../client";
+import type { ApiResponse, ApiType } from "../lib/chat/useChat";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
-  Message,
-  Conversation,
-  type StoredMessage,
-  type StoredConversation,
-  type CreateConversationOptions,
-  type CreateMessageOptions,
-  type BaseUseChatStorageOptions,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
+  type BaseUseChatStorageOptions,
   type BaseUseChatStorageResult,
-  type SearchSource,
-  type FileMetadata,
+  clearMessagesOp,
+  Conversation,
   convertUsageToStored,
-  finalizeThoughtProcess,
-  extractUserMessageFromMessages,
-  type StorageOperationsContext,
   createConversationOp,
+  type CreateConversationOptions,
+  createMessageOp,
+  type CreateMessageOptions,
+  deleteConversationOp,
+  extractUserMessageFromMessages,
+  type FileMetadata,
+  finalizeThoughtProcess,
   getConversationOp,
   getConversationsOp,
-  updateConversationTitleOp,
-  deleteConversationOp,
   getMessagesOp,
-  clearMessagesOp,
-  createMessageOp,
-  updateMessageErrorOp,
-  makeSyntheticStoredMessage,
   makeSyntheticStoredConversation,
+  makeSyntheticStoredMessage,
+  Message,
+  type SearchSource,
+  type StorageOperationsContext,
+  type StoredConversation,
+  type StoredMessage,
+  updateConversationTitleOp,
+  updateMessageErrorOp,
 } from "../lib/db/chat";
-import {
-  getServerTools,
-  filterServerTools,
-  mergeTools,
-  type ServerTool,
-} from "../lib/tools";
-import {
-  generateEmbedding,
-  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
-  type MemoryRetrievalSearchOptions,
-  DEFAULT_MIN_CONTENT_LENGTH,
-} from "../lib/memoryRetrieval";
-import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
+import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
 import {
-  type VaultMemoryOperationsContext,
-  type StoredVaultMemory,
-  getAllVaultMemoriesOp,
   deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  type StoredVaultMemory,
+  type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 import { VaultMemory } from "../lib/db/memoryVault/models";
+import {
+  type FlushResult,
+  type QueuedOperation,
+  type QueuedOperationType,
+  type QueueEncryptionContext,
+  queueManager,
+  type QueueStatus,
+  WalletPoller,
+} from "../lib/db/queue";
+import {
+  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  DEFAULT_MIN_CONTENT_LENGTH,
+  generateEmbedding,
+  type MemoryRetrievalSearchOptions,
+} from "../lib/memoryRetrieval";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
-import {
-  deleteMediaByConversationOp,
-  createMediaBatchOp,
-} from "../lib/db/media";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../react/useEncryption";
+import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
-import {
-  queueManager,
-  WalletPoller,
-  type QueueStatus,
-  type FlushResult,
-  type QueueEncryptionContext,
-  type QueuedOperation,
-  type QueuedOperationType,
-} from "../lib/db/queue";
+import { useChat } from "./useChat";
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -82,10 +78,7 @@ import {
  * ai-portal doesn't support image_url in assistant messages for /chat/completions.
  */
 function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
-
-  const content: LlmapiMessage["content"] = [
-    { type: "text", text: stored.content },
-  ];
+  const content: LlmapiMessage["content"] = [{ type: "text", text: stored.content }];
 
   // Add file image parts if present (only for non-assistant messages)
   // ai-portal doesn't support image_url in assistant messages for /chat/completions
@@ -181,9 +174,7 @@ export type SendMessageWithStorageResult = BaseSendMessageWithStorageResult;
  */
 export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Send a message and automatically store it (Expo version) */
-  sendMessage: (
-    args: SendMessageWithStorageArgs
-  ) => Promise<SendMessageWithStorageResult>;
+  sendMessage: (args: SendMessageWithStorageArgs) => Promise<SendMessageWithStorageResult>;
   /**
    * Create a memory retrieval tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
@@ -200,9 +191,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * });
    * ```
    */
-  createMemoryRetrievalTool: (
-    searchOptions?: Partial<MemoryRetrievalSearchOptions>
-  ) => ToolConfig;
+  createMemoryRetrievalTool: (searchOptions?: Partial<MemoryRetrievalSearchOptions>) => ToolConfig;
 
   /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
@@ -267,9 +256,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *
  * @category Hooks
  */
-export function useChatStorage(
-  options: UseChatStorageOptions
-): UseChatStorageResult {
+export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
     conversationId: initialConversationId,
@@ -294,15 +281,12 @@ export function useChatStorage(
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
   } = options;
 
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(initialConversationId || null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(
+    initialConversationId || null
+  );
 
   // Get collections
-  const messagesCollection = useMemo(
-    () => database.get<Message>("history"),
-    [database]
-  );
+  const messagesCollection = useMemo(() => database.get<Message>("history"), [database]);
   const conversationsCollection = useMemo(
     () => database.get<Conversation>("conversations"),
     [database]
@@ -318,7 +302,14 @@ export function useChatStorage(
       signMessage,
       embeddedWalletSigner,
     }),
-    [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
+    [
+      database,
+      messagesCollection,
+      conversationsCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    ]
   );
 
   // Memory vault operations context
@@ -370,10 +361,17 @@ export function useChatStorage(
 
       switch (operation.type) {
         case "createConversation":
-          await createConversationOp(ctx, operation.payload as Parameters<typeof createConversationOp>[1]);
+          await createConversationOp(
+            ctx,
+            operation.payload as Parameters<typeof createConversationOp>[1]
+          );
           break;
         case "updateConversationTitle":
-          await updateConversationTitleOp(ctx, operation.payload.conversationId, operation.payload.title);
+          await updateConversationTitleOp(
+            ctx,
+            operation.payload.conversationId,
+            operation.payload.title
+          );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
@@ -400,7 +398,13 @@ export function useChatStorage(
     const result = await queueManager.flush(encCtx, executeQueuedOperation);
     refreshQueueStatus();
     return result;
-  }, [walletAddress, signMessage, embeddedWalletSigner, executeQueuedOperation, refreshQueueStatus]);
+  }, [
+    walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    executeQueuedOperation,
+    refreshQueueStatus,
+  ]);
 
   const clearQueue = useCallback(() => {
     if (walletAddress) {
@@ -442,12 +446,14 @@ export function useChatStorage(
     return hasEncryptionKey(walletAddress);
   }, [walletAddress, signMessage]);
 
-  const pendingOpsRef = useRef<Array<{
-    type: QueuedOperationType;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: Record<string, any>;
-    dependencies: string[];
-  }>>([]);
+  const pendingOpsRef = useRef<
+    Array<{
+      type: QueuedOperationType;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload: Record<string, any>;
+      dependencies: string[];
+    }>
+  >([]);
 
   const syntheticConvIdsRef = useRef<Set<string>>(new Set());
 
@@ -463,39 +469,42 @@ export function useChatStorage(
     refreshQueueStatus();
   }, [walletAddress, enableQueue, refreshQueueStatus]);
 
-  const writeOrQueue = useCallback(async <T>(
-    opType: QueuedOperationType,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: Record<string, any>,
-    directWrite: () => Promise<T>,
-    makeSynthetic: () => T,
-    dependencies: string[] = [],
-  ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
-    if (isEncryptionReady()) {
-      const result = await directWrite();
-      return { result, queued: false };
-    }
-    if (!enableQueue) {
-      const result = await directWrite();
-      return { result, queued: false };
-    }
-    if (!walletAddress && getWalletAddress) {
-      pendingOpsRef.current.push({ type: opType, payload, dependencies });
-      return { result: makeSynthetic(), queued: true };
-    }
-    if (walletAddress) {
-      const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
-      if (queueId === null) {
-        console.warn("[useChatStorage] Queue full, falling back to direct write");
+  const writeOrQueue = useCallback(
+    async <T>(
+      opType: QueuedOperationType,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload: Record<string, any>,
+      directWrite: () => Promise<T>,
+      makeSynthetic: () => T,
+      dependencies: string[] = []
+    ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
+      if (isEncryptionReady()) {
         const result = await directWrite();
         return { result, queued: false };
       }
-      refreshQueueStatus();
-      return { result: makeSynthetic(), queued: true, queueId };
-    }
-    const result = await directWrite();
-    return { result, queued: false };
-  }, [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]);
+      if (!enableQueue) {
+        const result = await directWrite();
+        return { result, queued: false };
+      }
+      if (!walletAddress && getWalletAddress) {
+        pendingOpsRef.current.push({ type: opType, payload, dependencies });
+        return { result: makeSynthetic(), queued: true };
+      }
+      if (walletAddress) {
+        const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
+        if (queueId === null) {
+          console.warn("[useChatStorage] Queue full, falling back to direct write");
+          const result = await directWrite();
+          return { result, queued: false };
+        }
+        refreshQueueStatus();
+        return { result: makeSynthetic(), queued: true, queueId };
+      }
+      const result = await directWrite();
+      return { result, queued: false };
+    },
+    [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]
+  );
 
   /**
    * Embed a message asynchronously (fire and forget)
@@ -512,12 +521,7 @@ export function useChatStorage(
           baseUrl,
           model: embeddingModel,
         });
-        await updateMessageEmbeddingOp(
-          storageCtx,
-          message.uniqueId,
-          embedding,
-          embeddingModel
-        );
+        await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
       } catch (err) {
         // Log but don't block - embedding is optional
         console.warn("[useChatStorage] Failed to embed message:", err);
@@ -597,7 +601,7 @@ export function useChatStorage(
         "createConversation",
         { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
         () => createConversationOp(storageCtx, opts, defaultConversationTitle),
-        () => makeSyntheticStoredConversation(opts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(opts, defaultConversationTitle)
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
@@ -621,9 +625,7 @@ export function useChatStorage(
   /**
    * Get all conversations (excluding soft-deleted)
    */
-  const getConversations = useCallback(async (): Promise<
-    StoredConversation[]
-  > => {
+  const getConversations = useCallback(async (): Promise<StoredConversation[]> => {
     return getConversationsOp(storageCtx);
   }, [storageCtx]);
 
@@ -637,7 +639,7 @@ export function useChatStorage(
         "updateConversationTitle",
         { conversationId: id, title },
         () => updateConversationTitleOp(storageCtx, id, title),
-        () => true,
+        () => true
       );
       return result;
     },
@@ -655,7 +657,10 @@ export function useChatStorage(
         // Cascade delete messages
         await clearMessagesOp(storageCtx, id);
         // Cascade delete media for this conversation
-        await deleteMediaByConversationOp({ database: storageCtx.database, walletAddress, signMessage, embeddedWalletSigner }, id);
+        await deleteMediaByConversationOp(
+          { database: storageCtx.database, walletAddress, signMessage, embeddedWalletSigner },
+          id
+        );
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
@@ -682,10 +687,7 @@ export function useChatStorage(
    * Merges extracted sources with any existing sources already attached to the message.
    */
   const extractSourcesFromAssistantMessage = useCallback(
-    (assistantMessage: {
-      content: string;
-      sources?: SearchSource[];
-    }): SearchSource[] => {
+    (assistantMessage: { content: string; sources?: SearchSource[] }): SearchSource[] => {
       try {
         const extractedSources: SearchSource[] = [];
         const seenUrls = new Set<string>();
@@ -726,8 +728,7 @@ export function useChatStorage(
                       title: source.title || undefined,
                       url: source.url,
                       // Map 'description' from JSON to 'snippet' in SearchSource type
-                      snippet:
-                        source.description || source.snippet || undefined,
+                      snippet: source.description || source.snippet || undefined,
                     });
                   }
                 }
@@ -745,11 +746,10 @@ export function useChatStorage(
 
         // Fallback: Extract markdown links and plain URLs
         // Regex to match markdown links: [title](url) with support for balanced parentheses
-        const markdownLinkRegex =
-          /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
+        const markdownLinkRegex = /\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g;
 
         // Regex to match plain URLs (http, https) - Hermes-compatible (no lookbehind)
-        const plainUrlRegex = /https?:\/\/[^\s<>\[\]()'"]+/g;
+        const plainUrlRegex = /https?:\/\/[^\s<>[\]()'"]+/g;
 
         // Extract markdown links
         let match: RegExpExecArray | null;
@@ -826,23 +826,14 @@ export function useChatStorage(
       return newConv.conversationId;
     }
 
-    throw new Error(
-      "No conversation ID provided and autoCreateConversation is disabled"
-    );
-  }, [
-    currentConversationId,
-    getConversation,
-    autoCreateConversation,
-    createConversation,
-  ]);
+    throw new Error("No conversation ID provided and autoCreateConversation is disabled");
+  }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
   /**
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
-    async (
-      args: SendMessageWithStorageArgs
-    ): Promise<SendMessageWithStorageResult> => {
+    async (args: SendMessageWithStorageArgs): Promise<SendMessageWithStorageResult> => {
       const {
         messages,
         model,
@@ -919,10 +910,7 @@ export function useChatStorage(
               }
             } else {
               // Static filtering
-              filteredServerTools = filterServerTools(
-                allServerTools,
-                serverToolsFilter
-              );
+              filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
             }
           } catch {
             // Server tools are optional
@@ -930,11 +918,7 @@ export function useChatStorage(
         }
 
         if (filteredServerTools.length > 0 || (clientTools && clientTools.length > 0)) {
-          mergedTools = mergeTools(
-            filteredServerTools,
-            clientTools,
-            effectiveApiType
-          );
+          mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
         }
 
         const result = await baseSendMessage({
@@ -986,15 +970,12 @@ export function useChatStorage(
       } catch (err) {
         return {
           data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to ensure conversation",
+          error: err instanceof Error ? err.message : "Failed to ensure conversation",
         };
       }
 
       // Build the messages array
-      let messagesToSend: LlmapiMessage[] = [];
+      let messagesToSend: LlmapiMessage[];
 
       // Include history if requested
       if (includeHistory) {
@@ -1002,10 +983,7 @@ export function useChatStorage(
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = [
-          ...limitedMessages.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        messagesToSend = [...limitedMessages.map(storedToLlmapiMessage), ...messages];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
@@ -1038,15 +1016,14 @@ export function useChatStorage(
           "createMessage",
           userMsgOpts,
           () => createMessageOp(storageCtx, userMsgOpts),
-          () => makeSyntheticStoredMessage(userMsgOpts),
+          () => makeSyntheticStoredMessage(userMsgOpts)
         );
         storedUserMessage = userMsgResult.result;
         userMsgQueueId = userMsgResult.queueId;
       } catch (err) {
         return {
           data: null,
-          error:
-            err instanceof Error ? err.message : "Failed to store user message",
+          error: err instanceof Error ? err.message : "Failed to store user message",
         };
       }
 
@@ -1066,10 +1043,7 @@ export function useChatStorage(
       const isServerToolsFunction = typeof serverToolsFilter === "function";
 
       // Skip server tools fetch if serverTools is explicitly empty array
-      if (
-        getToken &&
-        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
-      ) {
+      if (getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)) {
         try {
           const allServerTools = await getServerTools({
             baseUrl,
@@ -1095,26 +1069,16 @@ export function useChatStorage(
             }
           } else {
             // Static filtering
-            filteredServerTools = filterServerTools(
-              allServerTools,
-              serverToolsFilter
-            );
+            filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
           }
 
           if (filteredServerTools.length > 0) {
-            mergedTools = mergeTools(
-              filteredServerTools,
-              clientTools,
-              effectiveApiType
-            );
+            mergedTools = mergeTools(filteredServerTools, clientTools, effectiveApiType);
           }
         } catch (error) {
           // Log but don't block - server tools are optional
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[useChatStorage] Failed to fetch server tools:",
-            error
-          );
+
+          console.warn("[useChatStorage] Failed to fetch server tools:", error);
         }
       }
 
@@ -1167,22 +1131,18 @@ export function useChatStorage(
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
           // Find the message output item (type: "message") for main content
-          const messageOutput = abortedResult.data?.output?.find(
-            (item) => item.type === "message"
-          );
+          const messageOutput = abortedResult.data?.output?.find((item) => item.type === "message");
           const assistantContent =
-            messageOutput?.content
-              ?.map((part: { text?: string }) => part.text || "")
-              .join("") || "";
+            messageOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
+            "";
 
           // Find the reasoning output item (type: "reasoning") for thinking content
           const reasoningOutput = abortedResult.data?.output?.find(
             (item) => item.type === "reasoning"
           );
           const abortedThinkingContent =
-            reasoningOutput?.content
-              ?.map((part: { text?: string }) => part.text || "")
-              .join("") || undefined;
+            reasoningOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
+            undefined;
 
           const responseModel = abortedResult.data?.model || model || "";
 
@@ -1243,11 +1203,7 @@ export function useChatStorage(
         // Also update the user message with the error so both are filtered from history
         const errorMessage = result.error || "No response data received";
         try {
-          await updateMessageErrorOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            errorMessage
-          );
+          await updateMessageErrorOp(storageCtx, storedUserMessage.uniqueId, errorMessage);
           await createMessageOp(storageCtx, {
             conversationId: convId,
             role: "assistant",
@@ -1282,21 +1238,16 @@ export function useChatStorage(
         const messageOutput = (responseData.output as OutputItem[]).find(
           (item) => item.type === "message"
         );
-        assistantContent =
-          messageOutput?.content
-            ?.map((part) => part.text || "")
-            .join("") || "";
+        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
         const reasoningOutput = (responseData.output as OutputItem[]).find(
           (item) => item.type === "reasoning"
         );
         thinkingContent =
-          reasoningOutput?.content
-            ?.map((part) => part.text || "")
-            .join("") || undefined;
+          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
       } else if ("choices" in responseData && responseData.choices) {
         // Completions API format
-        const completionsData = responseData as LlmapiChatCompletionResponse;
+        const completionsData = responseData;
         const choice = completionsData.choices?.[0];
         const message = choice?.message;
         if (message?.content) {
@@ -1322,9 +1273,7 @@ export function useChatStorage(
       // Uses negative lookahead to avoid crossing triple-backtick boundaries
       const jsonSourcesBlockRegex =
         /```(?:json)?\s*\{(?:(?!```)[^])*?"sources"(?:(?!```)[^])*?\}\s*```/g;
-      let cleanedContent = assistantContent
-        .replace(jsonSourcesBlockRegex, "")
-        .trim();
+      let cleanedContent = assistantContent.replace(jsonSourcesBlockRegex, "").trim();
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
@@ -1352,7 +1301,7 @@ export function useChatStorage(
           assistantMsgOpts,
           () => createMessageOp(storageCtx, assistantMsgOpts),
           () => makeSyntheticStoredMessage(assistantMsgOpts),
-          userMsgQueueId ? [userMsgQueueId] : [],
+          userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
 
@@ -1363,10 +1312,7 @@ export function useChatStorage(
       } catch (err) {
         return {
           data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to store assistant message",
+          error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
       }
@@ -1378,7 +1324,21 @@ export function useChatStorage(
         assistantMessage: storedAssistantMessage,
       };
     },
-    [ensureConversation, getMessages, storageCtx, baseSendMessage, embedMessageAsync, minContentLength, walletAddress, signMessage, embeddedWalletSigner, isEncryptionReady, enableQueue, getWalletAddress, refreshQueueStatus]
+    [
+      ensureConversation,
+      getMessages,
+      storageCtx,
+      baseSendMessage,
+      embedMessageAsync,
+      minContentLength,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+      isEncryptionReady,
+      enableQueue,
+      getWalletAddress,
+      refreshQueueStatus,
+    ]
   );
 
   return {

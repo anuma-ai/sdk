@@ -44,10 +44,14 @@ describe("Chat Encryption Utilities", () => {
   });
 
   describe("isEncrypted", () => {
-    it("should return true for valid encrypted strings", () => {
-      // Valid: prefix + 56+ hex chars (24 IV + 32+ ciphertext)
+    it("should return true for valid enc:v2: encrypted strings", () => {
       const validHex = "a".repeat(56);
       expect(isEncrypted(`enc:v2:${validHex}`)).toBe(true);
+    });
+
+    it("should return true for valid enc:v3: encrypted strings", () => {
+      const validHex = "b".repeat(56);
+      expect(isEncrypted(`enc:v3:${validHex}`)).toBe(true);
     });
 
     it("should return false for plaintext", () => {
@@ -57,11 +61,18 @@ describe("Chat Encryption Utilities", () => {
 
     it("should return false for prefix with too-short payload", () => {
       expect(isEncrypted("enc:v2:abc123")).toBe(false);
+      expect(isEncrypted("enc:v3:abc123")).toBe(false);
     });
 
     it("should return false for prefix with non-hex payload", () => {
       const nonHex = "g".repeat(56);
       expect(isEncrypted(`enc:v2:${nonHex}`)).toBe(false);
+      expect(isEncrypted(`enc:v3:${nonHex}`)).toBe(false);
+    });
+
+    it("should return false for enc:v1: prefix (unsupported)", () => {
+      const validHex = "a".repeat(56);
+      expect(isEncrypted(`enc:v1:${validHex}`)).toBe(false);
     });
   });
 
@@ -117,7 +128,7 @@ describe("Chat Encryption Utilities", () => {
   });
 
   describe("encryptMessageFields", () => {
-    it("should encrypt content and thinking fields", async () => {
+    it("should encrypt content and thinking fields with v3 prefix", async () => {
       await requestEncryptionKey(testAddress, mockSignMessage);
 
       const message = {
@@ -128,12 +139,14 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(message, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
 
       expect(encrypted.content).not.toBe(message.content);
       expect(isEncrypted(encrypted.content)).toBe(true);
+      expect(encrypted.content).toMatch(/^enc:v3:/);
       expect(encrypted.thinking).not.toBe(message.thinking);
       expect(isEncrypted(encrypted.thinking)).toBe(true);
+      expect(encrypted.thinking).toMatch(/^enc:v3:/);
 
       // Non-sensitive fields should be unchanged
       expect(encrypted.conversationId).toBe("conv-123");
@@ -163,7 +176,7 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(message, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(message, testAddress, mockSignMessage)) as any;
 
       // JSON fields should be encrypted strings
       expect(typeof encrypted.sources).toBe("string");
@@ -186,7 +199,7 @@ describe("Chat Encryption Utilities", () => {
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const encrypted = await encryptMessageFields(original, testAddress, mockSignMessage) as any;
+      const encrypted = (await encryptMessageFields(original, testAddress, mockSignMessage)) as any;
 
       // Create a StoredMessage-like object from encrypted data
       const storedMessage: StoredMessage = {
@@ -243,6 +256,46 @@ describe("Chat Encryption Utilities", () => {
 
       const result = await decryptMessageFields(message);
       expect(result).toEqual(message);
+    });
+
+    it("should decrypt v2-prefixed fields (backward compatibility)", async () => {
+      await requestEncryptionKey(testAddress, mockSignMessage);
+
+      // Manually create a v2-prefixed encrypted value using the legacy key
+      const { encryptData: encryptDataFn, getEncryptionKey: getKeyFn } =
+        await import("../../../react/useEncryption");
+
+      // Encrypt with v2 key to simulate old data
+      const v2Key = await getKeyFn(testAddress, "v2");
+      const plaintext = "v2 encrypted content";
+      const plaintextBytes = new TextEncoder().encode(plaintext);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encryptedData = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        v2Key,
+        plaintextBytes.buffer as ArrayBuffer
+      );
+      const encryptedBytes = new Uint8Array(encryptedData);
+      const combined = new Uint8Array(iv.length + encryptedBytes.length);
+      combined.set(iv, 0);
+      combined.set(encryptedBytes, iv.length);
+      const encryptedHex = Array.from(combined)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      const v2Message: StoredMessage = {
+        uniqueId: "msg-v2",
+        messageId: "msg-v2",
+        conversationId: "conv-123",
+        role: "user",
+        content: `enc:v2:${encryptedHex}`,
+        model: "gpt-4",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const decrypted = await decryptMessageFields(v2Message, testAddress, mockSignMessage);
+      expect(decrypted.content).toBe(plaintext);
     });
   });
 });

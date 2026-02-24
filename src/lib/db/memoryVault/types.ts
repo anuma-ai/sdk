@@ -3,7 +3,7 @@ export interface StoredVaultMemory {
   uniqueId: string;
   /** Plain text memory content */
   content: string;
-  /** Scope for partitioning memories (e.g., "private", "public") */
+  /** Scope for partitioning memories (e.g., "private", "shared") */
   scope: string;
   createdAt: Date;
   updatedAt: Date;

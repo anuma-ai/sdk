@@ -6,14 +6,14 @@ import { useCallback, useMemo } from "react";
 import {
   DEFAULT_CONVERSATIONS_FOLDER,
   DEFAULT_ROOT_FOLDER,
-  performGoogleDriveExport,
-  performGoogleDriveImport,
   type GoogleDriveExportResult,
   type GoogleDriveImportResult,
+  performGoogleDriveExport,
+  performGoogleDriveImport,
 } from "../lib/backup/google/backup";
 import { useGoogleDriveAuth } from "./useGoogleDriveAuth";
 
-export { DEFAULT_ROOT_FOLDER, DEFAULT_CONVERSATIONS_FOLDER };
+export { DEFAULT_CONVERSATIONS_FOLDER, DEFAULT_ROOT_FOLDER };
 
 /**
  * Options for useGoogleDriveBackup hook
@@ -32,10 +32,7 @@ export interface UseGoogleDriveBackupOptions {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
   /** Root folder name in Google Drive (default: 'ai-chat-app') */
   rootFolder?: string;
   /** Subfolder for conversations (default: 'conversations') */
@@ -166,10 +163,7 @@ export function useGoogleDriveBackup(
         );
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to backup to Google Drive",
+          error: err instanceof Error ? err.message : "Failed to backup to Google Drive",
         };
       }
     },
@@ -200,10 +194,7 @@ export function useGoogleDriveBackup(
         );
       } catch (err) {
         return {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to restore from Google Drive",
+          error: err instanceof Error ? err.message : "Failed to restore from Google Drive",
         };
       }
     },

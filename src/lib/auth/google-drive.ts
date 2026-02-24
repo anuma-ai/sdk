@@ -16,12 +16,12 @@
  * and read any file in the user's Drive.
  */
 
+import type { Client } from "../../client/client";
 import {
   postAuthOauthByProviderExchange,
   postAuthOauthByProviderRefresh,
   postAuthOauthByProviderRevoke,
 } from "../../client/sdk.gen";
-import type { Client } from "../../client/client";
 import {
   getEncryptionKey,
   encryptDataWithKey,
@@ -49,9 +49,7 @@ let cachedWalletAddress: string | null = null;
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
 // Google Drive API scopes - use drive.readonly for full read access to all files
-const DRIVE_SCOPES = [
-  "https://www.googleapis.com/auth/drive.readonly",
-].join(" ");
+const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.readonly"].join(" ");
 
 // Token storage types
 interface StoredTokenData {
@@ -232,10 +230,7 @@ export function clearDriveToken(walletAddress?: string): void {
 /**
  * Check if the stored access token is expired
  */
-function isTokenExpired(
-  data: StoredTokenData | null,
-  bufferSeconds = 60
-): boolean {
+function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boolean {
   if (!data) return true;
   if (!data.expiresAt) return false;
   const now = Date.now();
@@ -279,9 +274,7 @@ function getRedirectUri(callbackPath: string): string {
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -323,9 +316,7 @@ export function isDriveCallback(callbackPath: string): boolean {
   const state = url.searchParams.get("state");
   const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
   // Check if this callback is for Drive (has our state stored)
-  return (
-    url.pathname === callbackPath && !!code && !!state && state === storedState
-  );
+  return url.pathname === callbackPath && !!code && !!state && state === storedState;
 }
 
 /**
@@ -517,10 +508,7 @@ export function getAndClearDrivePendingMessage(): string | null {
 /**
  * Start the OAuth flow - redirects to Google
  */
-export async function startDriveAuth(
-  clientId: string,
-  callbackPath: string
-): Promise<never> {
+export async function startDriveAuth(clientId: string, callbackPath: string): Promise<never> {
   const state = generateState();
   storeOAuthState(state);
   storeDriveReturnUrl();

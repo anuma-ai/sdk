@@ -21,9 +21,7 @@ export type ApiType = "responses" | "completions";
  * Responses API returns LlmapiResponseResponse (with output[]).
  * Completions API returns LlmapiChatCompletionResponse (with choices[]).
  */
-export type ApiResponse =
-  | LlmapiResponseResponse
-  | LlmapiChatCompletionResponse;
+export type ApiResponse = LlmapiResponseResponse | LlmapiChatCompletionResponse;
 
 /**
  * Arguments for building API request body
@@ -61,10 +59,7 @@ export interface ApiStrategy {
    * Process a streaming chunk and update the accumulator
    * Returns content and thinking deltas if present
    */
-  processStreamChunk(
-    chunk: unknown,
-    accumulator: StreamAccumulator
-  ): ProcessChunkResult;
+  processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult;
 
   /**
    * Build the final response from accumulated stream data.

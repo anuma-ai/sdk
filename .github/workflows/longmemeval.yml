@@ -1,0 +1,83 @@
+name: LongMemEval
+
+on:
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: "Retrieval strategy"
+        required: true
+        type: choice
+        options:
+          - both
+          - engine
+          - vault
+      variant:
+        description: "Dataset variant"
+        required: true
+        type: choice
+        default: "oracle"
+        options:
+          - oracle
+          - s
+          - m
+      max:
+        description: "Max questions (blank = all)"
+        required: false
+        type: string
+
+jobs:
+  resolve-strategies:
+    runs-on: ubuntu-latest
+    outputs:
+      strategies: ${{ steps.set.outputs.strategies }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ inputs.strategy }}" = "both" ]; then
+            echo 'strategies=["engine","vault"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'strategies=["${{ inputs.strategy }}"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  eval:
+    needs: resolve-strategies
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        strategy: ${{ fromJson(needs.resolve-strategies.outputs.strategies) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Preload datasets
+        run: pnpm eval:longmemeval --preload
+
+      - name: Run LongMemEval
+        env:
+          PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+          EVAL_VARIANT: ${{ inputs.variant }}
+          EVAL_MAX: ${{ inputs.max }}
+        run: |
+          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --json --output results.json"
+          if [ -n "$EVAL_MAX" ]; then
+            args="$args --max $EVAL_MAX"
+          fi
+          pnpm eval:longmemeval $args
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longmemeval-${{ matrix.strategy }}-${{ inputs.variant }}
+          path: results.json

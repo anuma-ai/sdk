@@ -9,11 +9,7 @@ import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { join } from "node:path";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import {
-  sdkSchema,
-  sdkMigrations,
-  sdkModelClasses,
-} from "../../../../src/lib/db/schema.js";
+import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
 import type {
   LongMemEvalEntry,
   LongMemEvalSession,
@@ -110,10 +106,7 @@ export function getTranscriptPath(questionId: string): string {
   return join(getCacheDirectory(), "transcripts", `${questionId}.json`);
 }
 
-export async function transcriptMatchesModel(
-  questionId: string,
-  model: string
-): Promise<boolean> {
+export async function transcriptMatchesModel(questionId: string, model: string): Promise<boolean> {
   try {
     const data = await readFile(getTranscriptPath(questionId), "utf-8");
     const parsed = JSON.parse(data) as { llmModel?: string };
@@ -293,9 +286,7 @@ export async function extractMemoriesFromSession(
   sessionId: string,
   api: ApiConfig
 ): Promise<ExtractedMemory[]> {
-  const conversationText = session
-    .map((msg) => `${msg.role}: ${msg.content}`)
-    .join("\n");
+  const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
 
   const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
 
@@ -483,10 +474,7 @@ export async function runLongMemEval(
   options: LongMemEvalOptions,
   api: ApiConfig
 ): Promise<LongMemEvalSummary | LongMemEvalComparisonSummary> {
-  const unsupportedTypes: LongMemEvalQuestionType[] = [
-    "temporal-reasoning",
-    "knowledge-update",
-  ];
+  const unsupportedTypes: LongMemEvalQuestionType[] = ["temporal-reasoning", "knowledge-update"];
 
   let entries = dataset;
 
@@ -514,9 +502,7 @@ export async function runLongMemEval(
       ? ["memory-engine", "memory-vault"]
       : [strategy as "memory-engine" | "memory-vault"];
 
-  console.log(
-    `\nRunning LongMemEval benchmark (${options.variant} variant, ${strategy} strategy)`
-  );
+  console.log(`\nRunning LongMemEval benchmark (${options.variant} variant, ${strategy} strategy)`);
   if (options.llmModel) console.log(`LLM model: ${llmModel}`);
   console.log(`Total questions: ${entries.length}`);
   if (options.maxSessions) console.log(`Max sessions per question: ${options.maxSessions}`);

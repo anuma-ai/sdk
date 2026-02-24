@@ -6,7 +6,7 @@
  * Supports encryption when wallet address is provided.
  */
 
-import { encryptData, decryptData } from "../../../react/useEncryption";
+import { decryptData, encryptData } from "../../../react/useEncryption";
 
 export type OAuthProvider = "google-drive" | "dropbox";
 
@@ -20,12 +20,7 @@ export interface StoredTokenData {
 /**
  * OAuth error types for better error handling
  */
-export type OAuthErrorCode =
-  | "network"
-  | "encryption"
-  | "csrf"
-  | "invalid_response"
-  | "unknown";
+export type OAuthErrorCode = "network" | "encryption" | "csrf" | "invalid_response" | "unknown";
 
 export interface OAuthError {
   code: OAuthErrorCode;
@@ -36,9 +31,7 @@ export interface OAuthError {
 /**
  * Result type for OAuth operations
  */
-export type OAuthResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: OAuthError };
+export type OAuthResult<T> = { ok: true; data: T } | { ok: false; error: OAuthError };
 
 const STORAGE_KEY_PREFIX = "oauth_token_";
 const ENCRYPTED_PREFIX = "enc:oauth:";
@@ -63,12 +56,12 @@ export async function getStoredTokenData(
   try {
     const key = getStorageKey(provider);
     let stored = localStorage.getItem(key);
-    
+
     // Check sessionStorage for temporary unencrypted tokens
     if (!stored) {
       stored = sessionStorage.getItem(key);
     }
-    
+
     if (!stored) return null;
 
     // Check if token is encrypted
@@ -81,12 +74,19 @@ export async function getStoredTokenData(
 
       try {
         const encryptedData = stored.slice(ENCRYPTED_PREFIX.length);
-        const decryptedJson = await decryptData(encryptedData, walletAddress);
+        let decryptedJson: string;
+        try {
+          // Try with current HKDF key (v3)
+          decryptedJson = await decryptData(encryptedData, walletAddress);
+        } catch {
+          // Fall back to legacy SHA-256 key (v2) for tokens encrypted before migration
+          decryptedJson = await decryptData(encryptedData, walletAddress, "v2");
+        }
         const data = JSON.parse(decryptedJson) as StoredTokenData;
-        
+
         // Validate that access token exists
         if (!data.accessToken) return null;
-        
+
         return data;
       } catch (error) {
         console.error(`Failed to decrypt OAuth token for ${provider}:`, error);
@@ -129,7 +129,9 @@ export async function storeTokenData(
       // If encryption fails, store temporarily in sessionStorage as fallback
       console.warn(`Failed to encrypt OAuth token for ${provider}, storing temporarily:`, error);
       sessionStorage.setItem(key, json);
-      throw new Error(`OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   } else {
     // No wallet address - store temporarily in sessionStorage (cleared on page close)
@@ -155,10 +157,7 @@ export function clearTokenData(provider: OAuthProvider): void {
  * Returns true if token is expired or will expire within the buffer time
  * Returns false if no expiration info is available (assume valid)
  */
-export function isTokenExpired(
-  data: StoredTokenData | null,
-  bufferSeconds: number = 60
-): boolean {
+export function isTokenExpired(data: StoredTokenData | null, bufferSeconds: number = 60): boolean {
   if (!data) return true;
 
   // If no expiration info, assume token is valid (some providers don't return expiration)
@@ -212,7 +211,7 @@ export async function migrateUnencryptedTokens(
 
   try {
     const key = getStorageKey(provider);
-    
+
     const localStored = localStorage.getItem(key);
     const sessionStored = sessionStorage.getItem(key);
 
@@ -239,15 +238,15 @@ export async function migrateUnencryptedTokens(
 
     try {
       const data = JSON.parse(tokenToMigrate) as StoredTokenData;
-      
+
       // Encrypt and store in localStorage
       await storeTokenData(provider, data, walletAddress);
-      
+
       // Clear any temporary plaintext storage after successful migration
       if (sessionStored && !isEncrypted(sessionStored)) {
         sessionStorage.removeItem(key);
       }
-      
+
       return true;
     } catch (error) {
       console.error(`Failed to migrate unencrypted token for ${provider}:`, error);

@@ -8,8 +8,8 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
-import type { EmbeddingOptions } from "../memoryRetrieval/types";
 import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
+import type { EmbeddingOptions } from "../memoryRetrieval/types";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -140,15 +140,9 @@ export async function searchVaultMemories(
     }
   }
   if (uncachedTexts.length > 0) {
-    const newEmbeddings = await generateEmbeddings(
-      uncachedTexts,
-      embeddingOptions
-    );
+    const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let j = 0; j < uncachedTexts.length; j++) {
-      cache.set(
-        memories[uncachedIndices[j]].content,
-        newEmbeddings[j]
-      );
+      cache.set(memories[uncachedIndices[j]].content, newEmbeddings[j]);
     }
   }
 
@@ -163,14 +157,10 @@ export async function searchVaultMemories(
         similarity: cosineSimilarity(queryEmbedding, embedding),
       };
     })
-    .filter(
-      (r): r is NonNullable<typeof r> => r !== null
-    );
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 
   scored.sort((a, b) => b.similarity - a.similarity);
-  return scored
-    .filter((r) => r.similarity >= minSimilarity)
-    .slice(0, limit);
+  return scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
 }
 
 /**
@@ -210,8 +200,7 @@ export function createMemoryVaultSearchTool(
         properties: {
           query: {
             type: "string",
-            description:
-              "Natural language search query to match against vault memories.",
+            description: "Natural language search query to match against vault memories.",
           },
           limit: {
             type: "integer",
@@ -230,13 +219,11 @@ export function createMemoryVaultSearchTool(
       }
 
       try {
-        const results = await searchVaultMemories(
-          query,
-          vaultCtx,
-          embeddingOptions,
-          cache,
-          { ...searchOptions, limit: requestLimit, minSimilarity }
-        );
+        const results = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
+          ...searchOptions,
+          limit: requestLimit,
+          minSimilarity,
+        });
 
         // Check if vault is empty (distinct from "no matches")
         const memories = await getAllVaultMemoriesOp(
@@ -260,8 +247,7 @@ export function createMemoryVaultSearchTool(
 
         return `Found ${results.length} vault memories:\n\n${formatted}`;
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
+        const message = error instanceof Error ? error.message : "Unknown error";
         return `Error searching vault: ${message}`;
       }
     },

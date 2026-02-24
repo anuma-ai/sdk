@@ -7,10 +7,7 @@ export {
   getDatasetStats,
   getCacheDirectory,
 } from "./dataset.js";
-export {
-  printLongMemEvalSummary,
-  printLongMemEvalJson,
-} from "./reporter.js";
+export { printLongMemEvalSummary, printLongMemEvalJson } from "./reporter.js";
 export type {
   LongMemEvalEntry,
   LongMemEvalResult,

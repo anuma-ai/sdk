@@ -1,12 +1,12 @@
 import {
   createContext,
   createElement,
-  useContext,
-  useState,
+  type ReactNode,
   useCallback,
+  useContext,
   useMemo,
   useRef,
-  type ReactNode,
+  useState,
 } from "react";
 
 /**
@@ -26,6 +26,8 @@ export type PendingInteraction<TData = any, TResult = any> = {
   createdAt: number;
   resolved?: boolean;
   result?: TResult;
+  /** Version of the display tool that produced this interaction (for migration on restore) */
+  toolVersion?: number;
 };
 
 /**
@@ -33,16 +35,13 @@ export type PendingInteraction<TData = any, TResult = any> = {
  */
 export type UIInteractionContextValue = {
   pendingInteractions: Map<string, PendingInteraction>;
-  createInteraction: (
-    id: string,
-    type: InteractionType,
-    data: any
-  ) => Promise<any>;
+  createInteraction: (id: string, type: InteractionType, data: any) => Promise<any>;
   createDisplayInteraction: (
     id: string,
     displayType: string,
     data: any,
-    result: any
+    result: any,
+    toolVersion?: number
   ) => void;
   resolveInteraction: (id: string, result: any) => void;
   cancelInteraction: (id: string) => void;
@@ -50,9 +49,7 @@ export type UIInteractionContextValue = {
   getInteraction: (id: string) => PendingInteraction | undefined;
 };
 
-const UIInteractionContext = createContext<UIInteractionContextValue | null>(
-  null
-);
+const UIInteractionContext = createContext<UIInteractionContextValue | null>(null);
 
 /**
  * Hook to access UI interaction context
@@ -60,9 +57,7 @@ const UIInteractionContext = createContext<UIInteractionContextValue | null>(
 export function useUIInteraction() {
   const context = useContext(UIInteractionContext);
   if (!context) {
-    throw new Error(
-      "useUIInteraction must be used within UIInteractionProvider"
-    );
+    throw new Error("useUIInteraction must be used within UIInteractionProvider");
   }
   return context;
 }
@@ -85,13 +80,11 @@ export function UIInteractionProvider({
   children,
   timeout = 5 * 60 * 1000,
 }: UIInteractionProviderProps) {
-  const [pendingInteractions, setPendingInteractions] = useState<
-    Map<string, PendingInteraction>
-  >(new Map());
-
-  const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined
+  const [pendingInteractions, setPendingInteractions] = useState<Map<string, PendingInteraction>>(
+    new Map()
   );
+
+  const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   /**
    * Create a new pending interaction and return a promise that resolves
@@ -146,14 +139,11 @@ export function UIInteractionProvider({
    * Used for rendering rich components (e.g. weather cards) without blocking the tool call.
    */
   const createDisplayInteraction = useCallback(
-    (id: string, displayType: string, data: any, result: any) => {
+    (id: string, displayType: string, data: any, result: any, toolVersion?: number) => {
       setPendingInteractions((prev) => {
         const next = new Map(prev);
         for (const [key, value] of next.entries()) {
-          if (
-            value.type === "display" &&
-            value.data?.displayType === displayType
-          ) {
+          if (value.type === "display" && value.data?.displayType === displayType) {
             next.delete(key);
           }
         }
@@ -166,6 +156,7 @@ export function UIInteractionProvider({
           createdAt: Date.now(),
           resolved: true,
           result,
+          toolVersion,
         });
         return next;
       });
@@ -248,9 +239,5 @@ export function UIInteractionProvider({
     ]
   );
 
-  return createElement(
-    UIInteractionContext.Provider,
-    { value: contextValue },
-    children
-  );
+  return createElement(UIInteractionContext.Provider, { value: contextValue }, children);
 }

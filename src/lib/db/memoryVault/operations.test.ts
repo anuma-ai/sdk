@@ -11,9 +11,7 @@ import {
 
 // Mock encryption so tests don't need real crypto
 vi.mock("./encryption", () => ({
-  encryptVaultMemoryContent: vi.fn(
-    async (content: string) => `encrypted:${content}`
-  ),
+  encryptVaultMemoryContent: vi.fn(async (content: string) => `encrypted:${content}`),
   decryptVaultMemoryFields: vi.fn(async (memory: any) => ({
     ...memory,
     content: memory.content.replace("encrypted:", ""),
@@ -33,22 +31,38 @@ function mockRecord(overrides: Record<string, any> = {}) {
   };
   return {
     id: overrides.id ?? "mem_1",
-    get content() { return raw.content; },
-    get scope() { return raw.scope; },
-    get createdAt() { return raw.created_at; },
-    get updatedAt() { return raw.updated_at; },
-    get isDeleted() { return raw.is_deleted; },
+    get content() {
+      return raw.content;
+    },
+    get scope() {
+      return raw.scope;
+    },
+    get createdAt() {
+      return raw.created_at;
+    },
+    get updatedAt() {
+      return raw.updated_at;
+    },
+    get isDeleted() {
+      return raw.is_deleted;
+    },
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
     update: vi.fn(async (updater: (r: any) => void) => {
-      updater({ _setRaw: (k: string, v: any) => { raw[k] = v; } });
+      updater({
+        _setRaw: (k: string, v: any) => {
+          raw[k] = v;
+        },
+      });
     }),
     ...overrides,
   };
 }
 
-function makeCtx(overrides: Partial<VaultMemoryOperationsContext> = {}): VaultMemoryOperationsContext {
+function makeCtx(
+  overrides: Partial<VaultMemoryOperationsContext> = {}
+): VaultMemoryOperationsContext {
   return {
     database: {
       write: vi.fn(async (cb: () => any) => cb()),
@@ -87,13 +101,13 @@ describe("createVaultMemoryOp", () => {
 
   it("uses provided scope", async () => {
     const ctx = makeCtx();
-    await createVaultMemoryOp(ctx, { content: "hello", scope: "public" });
+    await createVaultMemoryOp(ctx, { content: "hello", scope: "shared" });
 
     const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
     const builder = createFn.mock.calls[0][0];
     const setRawSpy = vi.fn();
     builder({ _setRaw: setRawSpy });
-    expect(setRawSpy).toHaveBeenCalledWith("scope", "public");
+    expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
   it("sets content and is_deleted via _setRaw", async () => {
@@ -139,7 +153,7 @@ describe("createVaultMemoryOp", () => {
 
   it("returns a StoredVaultMemory with correct fields", async () => {
     const ctx = makeCtx();
-    const result = await createVaultMemoryOp(ctx, { content: "hi", scope: "public" });
+    const result = await createVaultMemoryOp(ctx, { content: "hi", scope: "shared" });
 
     expect(result).toHaveProperty("uniqueId");
     expect(result).toHaveProperty("content");
@@ -173,7 +187,9 @@ describe("getVaultMemoryOp", () => {
   it("returns null when find throws (not found)", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("not found"); }),
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
       } as any,
     });
     const result = await getVaultMemoryOp(ctx, "nonexistent");
@@ -200,7 +216,7 @@ describe("getAllVaultMemoriesOp", () => {
       vaultMemoryCollection: { query: queryFn } as any,
     });
 
-    const results = await getAllVaultMemoriesOp(ctx, { scopes: ["public"] });
+    const results = await getAllVaultMemoriesOp(ctx, { scopes: ["shared"] });
 
     expect(results).toHaveLength(1);
     // The query should have been called with conditions including Q.where for scope.
@@ -253,7 +269,7 @@ describe("updateVaultMemoryOp", () => {
 
     const result = await updateVaultMemoryOp(ctx, "mem_1", {
       content: "updated",
-      scope: "public",
+      scope: "shared",
     });
 
     expect(result).not.toBeNull();
@@ -264,7 +280,7 @@ describe("updateVaultMemoryOp", () => {
     const setRawSpy = vi.fn();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("content", "updated");
-    expect(setRawSpy).toHaveBeenCalledWith("scope", "public");
+    expect(setRawSpy).toHaveBeenCalledWith("scope", "shared");
   });
 
   it("does NOT set scope when opts.scope is undefined", async () => {
@@ -299,7 +315,9 @@ describe("updateVaultMemoryOp", () => {
   it("returns null when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("not found"); }),
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
       } as any,
     });
 
@@ -343,7 +361,9 @@ describe("deleteVaultMemoryOp", () => {
   it("returns false when find throws", async () => {
     const ctx = makeCtx({
       vaultMemoryCollection: {
-        find: vi.fn(async () => { throw new Error("nope"); }),
+        find: vi.fn(async () => {
+          throw new Error("nope");
+        }),
       } as any,
     });
 
@@ -357,10 +377,10 @@ describe("vaultMemoryToStored", () => {
 
   it("maps memory.scope to scope in returned object", async () => {
     const record = mockRecord();
-    // Override scope via _setRaw to simulate "public"
-    record._setRaw("scope", "public");
+    // Override scope via _setRaw to simulate "shared"
+    record._setRaw("scope", "shared");
     const result = await vaultMemoryToStored(record as any);
-    expect(result.scope).toBe("public");
+    expect(result.scope).toBe("shared");
   });
 
   it("returns raw fields without decryption when no wallet address", async () => {
@@ -374,11 +394,7 @@ describe("vaultMemoryToStored", () => {
   it("decrypts content when wallet address is provided", async () => {
     const record = mockRecord();
     record._setRaw("content", "encrypted:secret");
-    const result = await vaultMemoryToStored(
-      record as any,
-      "0xabc",
-      vi.fn() as any
-    );
+    const result = await vaultMemoryToStored(record as any, "0xabc", vi.fn() as any);
     // The mock decryptVaultMemoryFields removes "encrypted:" prefix
     expect(result.content).toBe("secret");
   });

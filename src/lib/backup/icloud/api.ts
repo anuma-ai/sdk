@@ -179,7 +179,7 @@ export async function loadCloudKit(): Promise<void> {
 /**
  * Ensure CloudKit JS is loaded, loading it if necessary
  */
-export async function ensureCloudKitLoaded(): Promise<void> {
+async function ensureCloudKitLoaded(): Promise<void> {
   if (!isCloudKitAvailable()) {
     await loadCloudKit();
   }
@@ -291,7 +291,9 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 
   // Find and click the Apple sign-in button that was rendered by setUpAuth
   // CloudKit JS renders an anchor or button inside the container
-  const appleButton = signIn.querySelector("a, button, [role='button'], div[id*='apple']") as HTMLElement | null;
+  const appleButton = signIn.querySelector<HTMLElement>(
+    "a, button, [role='button'], div[id*='apple']"
+  );
   console.log("[CloudKit] Found button element:", appleButton);
 
   if (appleButton) {
@@ -313,7 +315,7 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 /**
  * Wait for user to sign in to iCloud
  */
-export async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
+async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
   const container = await getContainer();
   return container.whenUserSignsIn();
 }
@@ -321,7 +323,7 @@ export async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
 /**
  * Check if user is authenticated with iCloud
  */
-export async function isICloudAuthenticated(): Promise<boolean> {
+async function isICloudAuthenticated(): Promise<boolean> {
   try {
     const userIdentity = await authenticateICloud();
     return userIdentity !== null;
@@ -333,10 +335,7 @@ export async function isICloudAuthenticated(): Promise<boolean> {
 /**
  * Upload a file to iCloud
  */
-export async function uploadFileToICloud(
-  filename: string,
-  content: Blob
-): Promise<ICloudFile> {
+export async function uploadFileToICloud(filename: string, content: Blob): Promise<ICloudFile> {
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
@@ -346,9 +345,7 @@ export async function uploadFileToICloud(
   // For CloudKit assets, we need to upload the file as base64 or use asset uploads
   // CloudKit JS uses a different approach - we'll store data as a base64 string for simplicity
   const arrayBuffer = await content.arrayBuffer();
-  const base64Data = btoa(
-    String.fromCharCode(...new Uint8Array(arrayBuffer))
-  );
+  const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
   const record: CloudKitRecordToSave = {
     recordType: RECORD_TYPE,
@@ -391,7 +388,7 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
   };
 
   const allRecords: CloudKitRecord[] = [];
-  let response = await database.performQuery(query);
+  const response = await database.performQuery(query);
 
   if (response.records) {
     allRecords.push(...response.records);
@@ -409,8 +406,7 @@ export async function listICloudFiles(): Promise<ICloudFile[]> {
     filename: record.fields.filename?.value ?? "",
     modifiedAt: new Date(record.modified?.timestamp ?? Date.now()),
     size:
-      typeof record.fields.data?.value === "object" &&
-      record.fields.data?.value !== null
+      typeof record.fields.data?.value === "object" && record.fields.data?.value !== null
         ? (record.fields.data.value as { size: number }).size
         : 0,
   }));
@@ -453,9 +449,7 @@ export async function downloadICloudFile(recordName: string): Promise<Blob> {
 
   // If it's an asset with downloadURL
   if (typeof dataField === "object" && "downloadURL" in dataField) {
-    const fetchResponse = await fetch(
-      (dataField as { downloadURL: string }).downloadURL
-    );
+    const fetchResponse = await fetch((dataField as { downloadURL: string }).downloadURL);
     if (!fetchResponse.ok) {
       throw new Error(`Failed to download from iCloud: ${fetchResponse.status}`);
     }
@@ -468,9 +462,7 @@ export async function downloadICloudFile(recordName: string): Promise<Blob> {
 /**
  * Find a specific file in iCloud by filename
  */
-export async function findICloudFile(
-  filename: string
-): Promise<ICloudFile | null> {
+export async function findICloudFile(filename: string): Promise<ICloudFile | null> {
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
@@ -497,8 +489,7 @@ export async function findICloudFile(
     filename: record.fields.filename?.value ?? "",
     modifiedAt: new Date(record.modified?.timestamp ?? Date.now()),
     size:
-      typeof record.fields.data?.value === "object" &&
-      record.fields.data?.value !== null
+      typeof record.fields.data?.value === "object" && record.fields.data?.value !== null
         ? (record.fields.data.value as { size: number }).size
         : 0,
   };
@@ -507,7 +498,7 @@ export async function findICloudFile(
 /**
  * Delete a file from iCloud
  */
-export async function deleteICloudFile(recordName: string): Promise<void> {
+async function deleteICloudFile(recordName: string): Promise<void> {
   const container = await getContainer();
   const database = container.privateCloudDatabase;
 
@@ -517,7 +508,7 @@ export async function deleteICloudFile(recordName: string): Promise<void> {
 /**
  * Get iCloud user record name (unique identifier)
  */
-export async function getICloudUserRecordName(): Promise<string | null> {
+async function getICloudUserRecordName(): Promise<string | null> {
   try {
     const userIdentity = await authenticateICloud();
     return userIdentity?.userRecordName ?? null;
