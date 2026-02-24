@@ -2,7 +2,7 @@
 
 > **deleteProjectOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/project/operations.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#L128)
+Defined in: [src/lib/db/project/operations.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#128)
 
 Soft delete a project. Does not delete associated conversations.
 

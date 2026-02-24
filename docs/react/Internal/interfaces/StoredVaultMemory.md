@@ -1,6 +1,6 @@
 # StoredVaultMemory
 
-Defined in: [src/lib/db/memoryVault/types.ts:1](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L1)
+Defined in: [src/lib/db/memoryVault/types.ts:1](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#1)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:1](https://github.com/anuma-ai/sdk/
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L5)
+Defined in: [src/lib/db/memoryVault/types.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#5)
 
 Plain text memory content
 
@@ -18,7 +18,7 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L8)
+Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#8)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/anuma-ai/sdk/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L10)
+Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#10)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/anuma-ai/sdk
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L7)
+Defined in: [src/lib/db/memoryVault/types.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#7)
 
 Scope for partitioning memories (e.g., "private", "shared")
 
@@ -44,7 +44,7 @@ Scope for partitioning memories (e.g., "private", "shared")
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:3](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L3)
+Defined in: [src/lib/db/memoryVault/types.ts:3](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#3)
 
 WatermelonDB internal ID
 
@@ -54,4 +54,4 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#L9)
+Defined in: [src/lib/db/memoryVault/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#9)

@@ -1,6 +1,6 @@
 # DatabaseManagerOptions
 
-Defined in: [src/lib/db/manager.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L46)
+Defined in: [src/lib/db/manager.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#46)
 
 Configuration options for DatabaseManager.
 
@@ -10,7 +10,7 @@ Configuration options for DatabaseManager.
 
 > **createAdapter**: (`dbName`: `string`, `schema`: `Readonly`<{ `tables`: `TableMap`; `unsafeSql?`: (`_`: `string`, `__`: `AppSchemaUnsafeSqlKind`) => `string`; `version`: `number`; }>, `migrations`: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>) => `DatabaseAdapter`
 
-Defined in: [src/lib/db/manager.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L64)
+Defined in: [src/lib/db/manager.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#64)
 
 Factory that creates a WatermelonDB adapter for a given database name.
 The schema and migrations are provided for convenience.
@@ -86,7 +86,7 @@ createAdapter: (dbName, schema, migrations) => new LokiJSAdapter({
 
 > **dbNamePrefix**: `string`
 
-Defined in: [src/lib/db/manager.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L48)
+Defined in: [src/lib/db/manager.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#48)
 
 Prefix for database names, e.g. "anuma-watermelon". Each wallet gets `{prefix}-{address}`.
 
@@ -96,7 +96,7 @@ Prefix for database names, e.g. "anuma-watermelon". Each wallet gets `{prefix}-{
 
 > `optional` **logger**: [`DatabaseManagerLogger`](DatabaseManagerLogger.md)
 
-Defined in: [src/lib/db/manager.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L78)
+Defined in: [src/lib/db/manager.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#78)
 
 Optional logger for debug/warn/info messages
 
@@ -106,7 +106,7 @@ Optional logger for debug/warn/info messages
 
 > `optional` **onDestructiveMigration**: () => `void`
 
-Defined in: [src/lib/db/manager.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L76)
+Defined in: [src/lib/db/manager.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#76)
 
 Called when a destructive migration is needed (schema too old).
 On web, this typically triggers `window.location.reload()`.
@@ -122,6 +122,6 @@ If not provided, the manager will throw an error instead.
 
 > `optional` **storage**: [`PlatformStorage`](PlatformStorage.md)
 
-Defined in: [src/lib/db/manager.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L70)
+Defined in: [src/lib/db/manager.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#70)
 
 Platform storage implementation. Defaults to webPlatformStorage.

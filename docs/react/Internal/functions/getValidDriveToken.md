@@ -2,7 +2,7 @@
 
 > **getValidDriveToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#L530)
+Defined in: [src/lib/auth/google-drive.ts:530](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#530)
 
 Get stored token for Drive (async, supports encrypted storage)
 

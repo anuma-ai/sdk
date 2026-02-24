@@ -1,6 +1,6 @@
 # ProcessedFileResult
 
-Defined in: [src/lib/processors/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L14)
+Defined in: [src/lib/processors/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#14)
 
 Result from processing a file
 
@@ -10,7 +10,7 @@ Result from processing a file
 
 > **extractedText**: `string`
 
-Defined in: [src/lib/processors/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L16)
+Defined in: [src/lib/processors/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#16)
 
 Extracted text content
 
@@ -20,7 +20,7 @@ Extracted text content
 
 > **format**: `"json"` | `"plain"` | `"markdown"`
 
-Defined in: [src/lib/processors/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L19)
+Defined in: [src/lib/processors/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#19)
 
 Format hint for how text should be presented
 
@@ -30,7 +30,7 @@ Format hint for how text should be presented
 
 > `optional` **metadata**: `object`
 
-Defined in: [src/lib/processors/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L22)
+Defined in: [src/lib/processors/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#22)
 
 Optional metadata about the extraction
 

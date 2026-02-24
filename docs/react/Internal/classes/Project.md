@@ -1,6 +1,6 @@
 # Project
 
-Defined in: [src/lib/db/project/models.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L5)
+Defined in: [src/lib/db/project/models.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#5)
 
 ## Extends
 
@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/project/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L14)
+Defined in: [src/lib/db/project/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#14)
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/project/models.ts:14](https://github.com/anuma-ai/sdk/bl
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/project/models.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L16)
+Defined in: [src/lib/db/project/models.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#16)
 
 ***
 
@@ -153,7 +153,7 @@ Defined in: [src/lib/db/project/models.ts:16](https://github.com/anuma-ai/sdk/bl
 
 > **name**: `string`
 
-Defined in: [src/lib/db/project/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L13)
+Defined in: [src/lib/db/project/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#13)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [src/lib/db/project/models.ts:13](https://github.com/anuma-ai/sdk/bl
 
 > **projectId**: `string`
 
-Defined in: [src/lib/db/project/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L12)
+Defined in: [src/lib/db/project/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#12)
 
 ***
 
@@ -169,7 +169,7 @@ Defined in: [src/lib/db/project/models.ts:12](https://github.com/anuma-ai/sdk/bl
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/project/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L15)
+Defined in: [src/lib/db/project/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#15)
 
 ***
 
@@ -189,7 +189,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/db/project/models.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L8)
+Defined in: [src/lib/db/project/models.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#8)
 
 **Overrides**
 
@@ -201,7 +201,7 @@ Defined in: [src/lib/db/project/models.ts:8](https://github.com/anuma-ai/sdk/blo
 
 > `static` **table**: `string` = `"projects"`
 
-Defined in: [src/lib/db/project/models.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#L6)
+Defined in: [src/lib/db/project/models.ts:6](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/models.ts#6)
 
 **Overrides**
 

@@ -1,6 +1,6 @@
 # DatabaseManagerLogger
 
-Defined in: [src/lib/db/manager.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L37)
+Defined in: [src/lib/db/manager.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#37)
 
 Optional logger interface for DatabaseManager.
 
@@ -10,7 +10,7 @@ Optional logger interface for DatabaseManager.
 
 > `optional` **debug**: (`msg`: `string`, `ctx?`: `Record`<`string`, `unknown`>) => `void`
 
-Defined in: [src/lib/db/manager.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L38)
+Defined in: [src/lib/db/manager.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#38)
 
 **Parameters**
 
@@ -59,7 +59,7 @@ Defined in: [src/lib/db/manager.ts:38](https://github.com/anuma-ai/sdk/blob/main
 
 > `optional` **info**: (`msg`: `string`, `ctx?`: `Record`<`string`, `unknown`>) => `void`
 
-Defined in: [src/lib/db/manager.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L40)
+Defined in: [src/lib/db/manager.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#40)
 
 **Parameters**
 
@@ -108,7 +108,7 @@ Defined in: [src/lib/db/manager.ts:40](https://github.com/anuma-ai/sdk/blob/main
 
 > `optional` **warn**: (`msg`: `string`, `ctx?`: `Record`<`string`, `unknown`>) => `void`
 
-Defined in: [src/lib/db/manager.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#L39)
+Defined in: [src/lib/db/manager.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/manager.ts#39)
 
 **Parameters**
 

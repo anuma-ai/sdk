@@ -2,7 +2,7 @@
 
 > **EmbeddedWalletSignerFn** = (`message`: `string`, `options?`: [`SignMessageOptions`](../interfaces/SignMessageOptions.md)) => `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#L708)
+Defined in: [src/react/useEncryption.ts:708](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#708)
 
 Type for embedded wallet signer function that enables silent signing.
 For Privy embedded wallets, this can sign programmatically without user interaction

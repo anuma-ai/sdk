@@ -2,7 +2,7 @@
 
 > **UseCreditsResult** = `object`
 
-Defined in: [src/react/useCredits.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L40)
+Defined in: [src/react/useCredits.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#40)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useCredits.ts:40](https://github.com/anuma-ai/sdk/blob/ma
 
 > **balance**: [`HandlersCreditBalanceResponse`](../../../client/Internal/type-aliases/HandlersCreditBalanceResponse.md) | `null`
 
-Defined in: [src/react/useCredits.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L44)
+Defined in: [src/react/useCredits.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#44)
 
 Current credit balance and related info
 
@@ -20,7 +20,7 @@ Current credit balance and related info
 
 > **claimDailyCredits**: () => `Promise`<[`HandlersClaimDailyCreditsResponse`](../../../client/Internal/type-aliases/HandlersClaimDailyCreditsResponse.md) | `null`>
 
-Defined in: [src/react/useCredits.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L69)
+Defined in: [src/react/useCredits.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#69)
 
 Claim free daily credits (once per 24 hours)
 
@@ -36,7 +36,7 @@ The claim response or null on error
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useCredits.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L56)
+Defined in: [src/react/useCredits.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#56)
 
 Error from the last operation
 
@@ -46,7 +46,7 @@ Error from the last operation
 
 > **fetchPacks**: () => `Promise`<`void`>
 
-Defined in: [src/react/useCredits.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L64)
+Defined in: [src/react/useCredits.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#64)
 
 Fetch available credit packs
 
@@ -60,7 +60,7 @@ Fetch available credit packs
 
 > **isLoading**: `boolean`
 
-Defined in: [src/react/useCredits.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L52)
+Defined in: [src/react/useCredits.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#52)
 
 Whether any operation is in progress
 
@@ -70,7 +70,7 @@ Whether any operation is in progress
 
 > **packs**: [`HandlersCreditPack`](../../../client/Internal/type-aliases/HandlersCreditPack.md)\[]
 
-Defined in: [src/react/useCredits.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L48)
+Defined in: [src/react/useCredits.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#48)
 
 Available credit packs for purchase
 
@@ -80,7 +80,7 @@ Available credit packs for purchase
 
 > **purchaseCredits**: (`credits`: `number`, `options?`: `object`) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useCredits.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L75)
+Defined in: [src/react/useCredits.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#75)
 
 Create a Stripe checkout session for purchasing a credit pack
 
@@ -178,7 +178,7 @@ The checkout URL or null on error
 
 > **refetch**: () => `Promise`<`void`>
 
-Defined in: [src/react/useCredits.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#L60)
+Defined in: [src/react/useCredits.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#60)
 
 Refetch the credit balance
 

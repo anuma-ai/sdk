@@ -2,7 +2,7 @@
 
 > **getGoogleDriveStoredToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/backup/google/auth.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/auth.ts#L336)
+Defined in: [src/lib/backup/google/auth.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/auth.ts#336)
 
 Get stored token data for Google Drive
 

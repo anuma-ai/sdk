@@ -2,7 +2,7 @@
 
 > **generateEmbedding**(`text`: `string`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<`number`\[]>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L40)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#40)
 
 Generate an embedding for text using the API
 

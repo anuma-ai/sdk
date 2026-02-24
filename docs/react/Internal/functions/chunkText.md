@@ -2,7 +2,7 @@
 
 > **chunkText**(`text`: `string`, `options?`: [`ChunkingOptions`](../interfaces/ChunkingOptions.md)): [`TextChunk`](../interfaces/TextChunk.md)\[]
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L68)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#68)
 
 Split text into overlapping chunks using sentence boundaries.
 

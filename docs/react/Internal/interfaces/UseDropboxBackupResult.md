@@ -1,6 +1,6 @@
 # UseDropboxBackupResult
 
-Defined in: [src/react/useDropboxBackup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L42)
+Defined in: [src/react/useDropboxBackup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#42)
 
 Result returned by useDropboxBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useDropboxBackup hook
 
 > **backup**: (`options?`: `object`) => `Promise`<[`DropboxExportResult`](DropboxExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L44)
+Defined in: [src/react/useDropboxBackup.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#44)
 
 Backup all conversations to Dropbox
 
@@ -61,7 +61,7 @@ Backup all conversations to Dropbox
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useDropboxBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L54)
+Defined in: [src/react/useDropboxBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#54)
 
 Whether user has a Dropbox token
 
@@ -71,7 +71,7 @@ Whether user has a Dropbox token
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useDropboxBackup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L52)
+Defined in: [src/react/useDropboxBackup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#52)
 
 Whether Dropbox is configured
 
@@ -81,7 +81,7 @@ Whether Dropbox is configured
 
 > **restore**: (`options?`: `object`) => `Promise`<[`DropboxImportResult`](DropboxImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useDropboxBackup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L48)
+Defined in: [src/react/useDropboxBackup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#48)
 
 Restore conversations from Dropbox
 

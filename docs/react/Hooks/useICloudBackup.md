@@ -2,7 +2,7 @@
 
 > **useICloudBackup**(`options`: `object`): [`UseICloudBackupResult`](../Internal/interfaces/UseICloudBackupResult.md)
 
-Defined in: [src/react/useICloudBackup.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L103)
+Defined in: [src/react/useICloudBackup.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#103)
 
 React hook for iCloud backup and restore functionality.
 

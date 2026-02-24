@@ -2,7 +2,7 @@
 
 > **postApiV1AdminAddCredits**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminAddCreditsData`](../type-aliases/PostApiV1AdminAddCreditsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminAddCreditsResponses`](../type-aliases/PostApiV1AdminAddCreditsResponses.md), [`PostApiV1AdminAddCreditsErrors`](../type-aliases/PostApiV1AdminAddCreditsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L26)
+Defined in: [src/client/sdk.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#26)
 
 Add credits to user
 

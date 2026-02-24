@@ -2,7 +2,7 @@
 
 > **projectToStored**(`project`: [`Project`](../classes/Project.md)): [`StoredProject`](../interfaces/StoredProject.md)
 
-Defined in: [src/lib/db/project/operations.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#L15)
+Defined in: [src/lib/db/project/operations.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#15)
 
 ## Parameters
 

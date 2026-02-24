@@ -1,6 +1,6 @@
 # MediaFilterOptions
 
-Defined in: [src/lib/db/media/types.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L150)
+Defined in: [src/lib/db/media/types.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#150)
 
 Filter options for querying media.
 
@@ -10,7 +10,7 @@ Filter options for querying media.
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/media/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L158)
+Defined in: [src/lib/db/media/types.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#158)
 
 Filter by conversation
 
@@ -20,7 +20,7 @@ Filter by conversation
 
 > `optional` **includeDeleted**: `boolean`
 
-Defined in: [src/lib/db/media/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L162)
+Defined in: [src/lib/db/media/types.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#162)
 
 Include soft-deleted records
 
@@ -30,7 +30,7 @@ Include soft-deleted records
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/db/media/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L164)
+Defined in: [src/lib/db/media/types.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#164)
 
 Limit number of results
 
@@ -40,7 +40,7 @@ Limit number of results
 
 > `optional` **mediaType**: [`MediaType`](../type-aliases/MediaType.md)
 
-Defined in: [src/lib/db/media/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L154)
+Defined in: [src/lib/db/media/types.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#154)
 
 Filter by media type
 
@@ -50,7 +50,7 @@ Filter by media type
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/media/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L160)
+Defined in: [src/lib/db/media/types.ts:160](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#160)
 
 Filter by AI model
 
@@ -60,7 +60,7 @@ Filter by AI model
 
 > `optional` **offset**: `number`
 
-Defined in: [src/lib/db/media/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L166)
+Defined in: [src/lib/db/media/types.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#166)
 
 Offset for pagination
 
@@ -70,7 +70,7 @@ Offset for pagination
 
 > `optional` **role**: [`MediaRole`](../type-aliases/MediaRole.md)
 
-Defined in: [src/lib/db/media/types.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L156)
+Defined in: [src/lib/db/media/types.ts:156](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#156)
 
 Filter by role (user uploads vs AI generated)
 
@@ -80,6 +80,6 @@ Filter by role (user uploads vs AI generated)
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/media/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L152)
+Defined in: [src/lib/db/media/types.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#152)
 
 Filter by wallet address (required for multi-user)

@@ -1,6 +1,6 @@
 # MediaDimensions
 
-Defined in: [src/lib/db/media/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L23)
+Defined in: [src/lib/db/media/types.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#23)
 
 Dimensions for images and videos.
 
@@ -10,7 +10,7 @@ Dimensions for images and videos.
 
 > **height**: `number`
 
-Defined in: [src/lib/db/media/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L25)
+Defined in: [src/lib/db/media/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#25)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/db/media/types.ts:25](https://github.com/anuma-ai/sdk/blob/
 
 > **width**: `number`
 
-Defined in: [src/lib/db/media/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#L24)
+Defined in: [src/lib/db/media/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#24)

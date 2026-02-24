@@ -1,6 +1,6 @@
 # UseBackupResult
 
-Defined in: [src/react/useBackup.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L104)
+Defined in: [src/react/useBackup.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#104)
 
 Result returned by useBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useBackup hook
 
 > **disconnectAll**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackup.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L116)
+Defined in: [src/react/useBackup.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#116)
 
 Disconnect from all providers
 
@@ -24,7 +24,7 @@ Disconnect from all providers
 
 > **dropbox**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: [src/react/useBackup.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L106)
+Defined in: [src/react/useBackup.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#106)
 
 Dropbox backup state and methods
 
@@ -34,7 +34,7 @@ Dropbox backup state and methods
 
 > **googleDrive**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: [src/react/useBackup.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L108)
+Defined in: [src/react/useBackup.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#108)
 
 Google Drive backup state and methods
 
@@ -44,7 +44,7 @@ Google Drive backup state and methods
 
 > **hasAnyAuthentication**: `boolean`
 
-Defined in: [src/react/useBackup.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L114)
+Defined in: [src/react/useBackup.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#114)
 
 Whether any backup provider is authenticated
 
@@ -54,7 +54,7 @@ Whether any backup provider is authenticated
 
 > **hasAnyProvider**: `boolean`
 
-Defined in: [src/react/useBackup.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L112)
+Defined in: [src/react/useBackup.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#112)
 
 Whether any backup provider is configured
 
@@ -64,6 +64,6 @@ Whether any backup provider is configured
 
 > **icloud**: [`ProviderBackupState`](ProviderBackupState.md)
 
-Defined in: [src/react/useBackup.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L110)
+Defined in: [src/react/useBackup.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#110)
 
 iCloud backup state and methods

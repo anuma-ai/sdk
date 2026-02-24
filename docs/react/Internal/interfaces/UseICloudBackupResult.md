@@ -1,6 +1,6 @@
 # UseICloudBackupResult
 
-Defined in: [src/react/useICloudBackup.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L40)
+Defined in: [src/react/useICloudBackup.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#40)
 
 Result returned by useICloudBackup hook
 
@@ -10,7 +10,7 @@ Result returned by useICloudBackup hook
 
 > **backup**: (`options?`: `object`) => `Promise`<[`ICloudExportResult`](ICloudExportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useICloudBackup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L42)
+Defined in: [src/react/useICloudBackup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#42)
 
 Backup all conversations to iCloud
 
@@ -61,7 +61,7 @@ Backup all conversations to iCloud
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L52)
+Defined in: [src/react/useICloudBackup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#52)
 
 Whether user has signed in to iCloud
 
@@ -71,7 +71,7 @@ Whether user has signed in to iCloud
 
 > **isAvailable**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L54)
+Defined in: [src/react/useICloudBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#54)
 
 Whether CloudKit JS is available
 
@@ -81,7 +81,7 @@ Whether CloudKit JS is available
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useICloudBackup.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L50)
+Defined in: [src/react/useICloudBackup.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#50)
 
 Whether iCloud is configured
 
@@ -91,7 +91,7 @@ Whether iCloud is configured
 
 > **restore**: (`options?`: `object`) => `Promise`<[`ICloudImportResult`](ICloudImportResult.md) | { `error`: `string`; }>
 
-Defined in: [src/react/useICloudBackup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#L46)
+Defined in: [src/react/useICloudBackup.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudBackup.ts#46)
 
 Restore conversations from iCloud
 

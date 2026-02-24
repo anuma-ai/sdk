@@ -2,7 +2,7 @@
 
 > **createMemoryRetrievalTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../interfaces/MemoryRetrievalSearchOptions.md)>): `ToolConfig`
 
-Defined in: [src/lib/memoryRetrieval/tool.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/tool.ts#L87)
+Defined in: [src/lib/memoryRetrieval/tool.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/tool.ts#87)
 
 Creates a memory retrieval tool for use with chat completions.
 

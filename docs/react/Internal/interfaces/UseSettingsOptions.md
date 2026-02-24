@@ -1,6 +1,6 @@
 # UseSettingsOptions
 
-Defined in: [src/react/useSettings.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#L36)
+Defined in: [src/react/useSettings.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#36)
 
 Options for useSettings hook (React version)
 
@@ -14,7 +14,7 @@ Options for useSettings hook (React version)
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/settings/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#L26)
+Defined in: [src/lib/db/settings/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#26)
 
 **Inherited from**
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/settings/types.ts:26](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#L27)
+Defined in: [src/lib/db/settings/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#27)
 
 **Inherited from**
 

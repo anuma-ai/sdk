@@ -2,7 +2,7 @@
 
 > **createErrorStream**(`errorText`: `string`): `ReadableStream`<`AssistantStreamEvent`>
 
-Defined in: [src/vercel/streams.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/vercel/streams.ts#L54)
+Defined in: [src/vercel/streams.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/vercel/streams.ts#54)
 
 Creates a `ReadableStream` that emits a single `error` event compatible
 with the Vercel AI stream contract. This allows Portal API errors to be

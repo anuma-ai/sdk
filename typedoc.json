@@ -8,6 +8,7 @@
     "title.modulePage": "Overview"
   },
   "gitRevision": "main",
+  "sourceLinkTemplate": "https://github.com/anuma-ai/sdk/blob/{gitRevision}/{path}#{line}",
   "readme": "./README.md",
   "mergeReadme": true,
   "entryPoints": [

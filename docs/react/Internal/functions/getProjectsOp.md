@@ -2,7 +2,7 @@
 
 > **getProjectsOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md)): `Promise`<[`StoredProject`](../interfaces/StoredProject.md)\[]>
 
-Defined in: [src/lib/db/project/operations.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#L71)
+Defined in: [src/lib/db/project/operations.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#71)
 
 Get all non-deleted projects, sorted by creation date (newest first).
 

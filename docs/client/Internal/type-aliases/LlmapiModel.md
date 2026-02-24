@@ -2,7 +2,7 @@
 
 > **LlmapiModel** = `object`
 
-Defined in: [src/client/types.gen.ts:793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L793)
+Defined in: [src/client/types.gen.ts:793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#793)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:793](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **architecture**: [`LlmapiModelArchitecture`](LlmapiModelArchitecture.md)
 
-Defined in: [src/client/types.gen.ts:794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L794)
+Defined in: [src/client/types.gen.ts:794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#794)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:794](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **canonical\_slug**: `string`
 
-Defined in: [src/client/types.gen.ts:798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L798)
+Defined in: [src/client/types.gen.ts:798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#798)
 
 CanonicalSlug is the canonical slug for the model
 
@@ -28,7 +28,7 @@ CanonicalSlug is the canonical slug for the model
 
 > `optional` **context\_length**: `number`
 
-Defined in: [src/client/types.gen.ts:802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L802)
+Defined in: [src/client/types.gen.ts:802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#802)
 
 ContextLength is the maximum context length in tokens
 
@@ -38,7 +38,7 @@ ContextLength is the maximum context length in tokens
 
 > `optional` **created**: `number`
 
-Defined in: [src/client/types.gen.ts:806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L806)
+Defined in: [src/client/types.gen.ts:806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#806)
 
 Created is the Unix timestamp of when the model was created
 
@@ -48,7 +48,7 @@ Created is the Unix timestamp of when the model was created
 
 > `optional` **default\_parameters**: `object`
 
-Defined in: [src/client/types.gen.ts:810](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L810)
+Defined in: [src/client/types.gen.ts:810](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#810)
 
 DefaultParameters contains default parameter values
 
@@ -62,7 +62,7 @@ DefaultParameters contains default parameter values
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L816)
+Defined in: [src/client/types.gen.ts:816](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#816)
 
 Description describes the model and its capabilities
 
@@ -72,7 +72,7 @@ Description describes the model and its capabilities
 
 > `optional` **hugging\_face\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L820)
+Defined in: [src/client/types.gen.ts:820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#820)
 
 HuggingFaceID is the Hugging Face model identifier
 
@@ -82,7 +82,7 @@ HuggingFaceID is the Hugging Face model identifier
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:824](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L824)
+Defined in: [src/client/types.gen.ts:824](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#824)
 
 ID is the model identifier (e.g., "openai/gpt-4")
 
@@ -92,7 +92,7 @@ ID is the model identifier (e.g., "openai/gpt-4")
 
 > `optional` **max\_input\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:828](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L828)
+Defined in: [src/client/types.gen.ts:828](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#828)
 
 MaxInputTokens is the maximum input tokens
 
@@ -102,7 +102,7 @@ MaxInputTokens is the maximum input tokens
 
 > `optional` **max\_output\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:832](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L832)
+Defined in: [src/client/types.gen.ts:832](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#832)
 
 MaxOutputTokens is the maximum output tokens
 
@@ -112,7 +112,7 @@ MaxOutputTokens is the maximum output tokens
 
 > `optional` **modalities**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L836)
+Defined in: [src/client/types.gen.ts:836](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#836)
 
 Modalities is a list of supported modalities (e.g., \["llm", "vision"])
 
@@ -122,7 +122,7 @@ Modalities is a list of supported modalities (e.g., \["llm", "vision"])
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:840](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L840)
+Defined in: [src/client/types.gen.ts:840](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#840)
 
 Name is the human-readable model name (optional)
 
@@ -132,7 +132,7 @@ Name is the human-readable model name (optional)
 
 > `optional` **owned\_by**: `string`
 
-Defined in: [src/client/types.gen.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L844)
+Defined in: [src/client/types.gen.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#844)
 
 OwnedBy is the organization that owns the model
 
@@ -142,7 +142,7 @@ OwnedBy is the organization that owns the model
 
 > `optional` **per\_request\_limits**: [`LlmapiModelPerRequestLimits`](LlmapiModelPerRequestLimits.md)
 
-Defined in: [src/client/types.gen.ts:845](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L845)
+Defined in: [src/client/types.gen.ts:845](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#845)
 
 ***
 
@@ -150,7 +150,7 @@ Defined in: [src/client/types.gen.ts:845](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **pricing**: [`LlmapiModelPricing`](LlmapiModelPricing.md)
 
-Defined in: [src/client/types.gen.ts:846](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L846)
+Defined in: [src/client/types.gen.ts:846](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#846)
 
 ***
 
@@ -158,7 +158,7 @@ Defined in: [src/client/types.gen.ts:846](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **supported\_methods**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L850)
+Defined in: [src/client/types.gen.ts:850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#850)
 
 SupportedMethods is a list of supported API methods
 
@@ -168,7 +168,7 @@ SupportedMethods is a list of supported API methods
 
 > `optional` **supported\_parameters**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L854)
+Defined in: [src/client/types.gen.ts:854](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#854)
 
 SupportedParameters is a list of supported parameter names
 
@@ -178,4 +178,4 @@ SupportedParameters is a list of supported parameter names
 
 > `optional` **top\_provider**: [`LlmapiModelTopProvider`](LlmapiModelTopProvider.md)
 
-Defined in: [src/client/types.gen.ts:855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L855)
+Defined in: [src/client/types.gen.ts:855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#855)

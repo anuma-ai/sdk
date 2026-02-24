@@ -1,6 +1,6 @@
 # FileMetadata
 
-Defined in: [src/lib/db/chat/types.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L68)
+Defined in: [src/lib/db/chat/types.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#68)
 
 Metadata for files attached to messages.
 
@@ -20,7 +20,7 @@ Note the distinction between `url` and `sourceUrl`:
 
 > **id**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L70)
+Defined in: [src/lib/db/chat/types.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#70)
 
 Unique identifier for the file (used as OPFS key for cached files)
 
@@ -30,7 +30,7 @@ Unique identifier for the file (used as OPFS key for cached files)
 
 > **name**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L72)
+Defined in: [src/lib/db/chat/types.ts:72](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#72)
 
 Display name of the file
 
@@ -40,7 +40,7 @@ Display name of the file
 
 > **size**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L76)
+Defined in: [src/lib/db/chat/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#76)
 
 File size in bytes
 
@@ -50,7 +50,7 @@ File size in bytes
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L92)
+Defined in: [src/lib/db/chat/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#92)
 
 Original external URL for files downloaded and cached locally (e.g., from MCP R2).
 Used purely for URL→OPFS mapping to enable fallback when the source returns 404.
@@ -64,7 +64,7 @@ The file content is served from OPFS using the `id` field.
 
 > **type**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L74)
+Defined in: [src/lib/db/chat/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#74)
 
 MIME type (e.g., "image/png")
 
@@ -74,7 +74,7 @@ MIME type (e.g., "image/png")
 
 > `optional` **url**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L84)
+Defined in: [src/lib/db/chat/types.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#84)
 
 Content URL to include when sending this message to the AI.
 When present, this URL is added as an `image_url` content part.

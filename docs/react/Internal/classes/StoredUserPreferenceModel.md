@@ -1,6 +1,6 @@
 # StoredUserPreferenceModel
 
-Defined in: [src/lib/db/userPreferences/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L10)
+Defined in: [src/lib/db/userPreferences/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#10)
 
 WatermelonDB model for user preferences.
 
@@ -142,7 +142,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **createdAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L26)
+Defined in: [src/lib/db/userPreferences/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#26)
 
 ***
 
@@ -150,7 +150,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:26](https://github.com/anuma-a
 
 > `optional` **description**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L19)
+Defined in: [src/lib/db/userPreferences/models.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#19)
 
 ***
 
@@ -158,7 +158,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:19](https://github.com/anuma-a
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L22)
+Defined in: [src/lib/db/userPreferences/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#22)
 
 ***
 
@@ -166,7 +166,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:22](https://github.com/anuma-a
 
 > `optional` **nickname**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L17)
+Defined in: [src/lib/db/userPreferences/models.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#17)
 
 ***
 
@@ -174,7 +174,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:17](https://github.com/anuma-a
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L18)
+Defined in: [src/lib/db/userPreferences/models.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#18)
 
 ***
 
@@ -182,7 +182,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:18](https://github.com/anuma-a
 
 > `optional` **personality**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L23)
+Defined in: [src/lib/db/userPreferences/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#23)
 
 ***
 
@@ -190,7 +190,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:23](https://github.com/anuma-a
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L27)
+Defined in: [src/lib/db/userPreferences/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#27)
 
 ***
 
@@ -198,7 +198,7 @@ Defined in: [src/lib/db/userPreferences/models.ts:27](https://github.com/anuma-a
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/userPreferences/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L14)
+Defined in: [src/lib/db/userPreferences/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#14)
 
 ***
 
@@ -230,7 +230,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **table**: `string` = `"userPreferences"`
 
-Defined in: [src/lib/db/userPreferences/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#L11)
+Defined in: [src/lib/db/userPreferences/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/models.ts#11)
 
 **Overrides**
 

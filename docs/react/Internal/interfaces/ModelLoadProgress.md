@@ -1,6 +1,6 @@
 # ModelLoadProgress
 
-Defined in: [src/lib/voice/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L25)
+Defined in: [src/lib/voice/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#25)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/voice/types.ts:25](https://github.com/anuma-ai/sdk/blob/mai
 
 > **file**: `string`
 
-Defined in: [src/lib/voice/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L27)
+Defined in: [src/lib/voice/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#27)
 
 File being downloaded
 
@@ -18,7 +18,7 @@ File being downloaded
 
 > **loaded**: `number`
 
-Defined in: [src/lib/voice/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L31)
+Defined in: [src/lib/voice/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#31)
 
 Bytes loaded
 
@@ -28,7 +28,7 @@ Bytes loaded
 
 > **progress**: `number`
 
-Defined in: [src/lib/voice/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L29)
+Defined in: [src/lib/voice/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#29)
 
 Download progress 0-1
 
@@ -38,6 +38,6 @@ Download progress 0-1
 
 > **total**: `number`
 
-Defined in: [src/lib/voice/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L33)
+Defined in: [src/lib/voice/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#33)
 
 Total bytes

@@ -2,7 +2,7 @@
 
 > **getApiV1AdminAppsByAppIdApiKeys**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminAppsByAppIdApiKeysData`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminAppsByAppIdApiKeysResponses`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysResponses.md), [`GetApiV1AdminAppsByAppIdApiKeysErrors`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L70)
+Defined in: [src/client/sdk.gen.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#70)
 
 List API keys for an app
 

@@ -2,7 +2,7 @@
 
 > **useSettings**(`options`: `object`): [`UseSettingsResult`](../Internal/interfaces/UseSettingsResult.md)
 
-Defined in: [src/react/useSettings.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#L110)
+Defined in: [src/react/useSettings.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/react/useSettings.ts#110)
 
 A React hook for managing user settings with automatic persistence using WatermelonDB.
 

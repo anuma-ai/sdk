@@ -1,6 +1,6 @@
 # TranscriptionResult
 
-Defined in: [src/lib/voice/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L18)
+Defined in: [src/lib/voice/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#18)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/voice/types.ts:18](https://github.com/anuma-ai/sdk/blob/mai
 
 > `optional` **chunks**: `object`\[]
 
-Defined in: [src/lib/voice/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L22)
+Defined in: [src/lib/voice/types.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#22)
 
 Word/phrase-level timestamps if available
 
@@ -26,6 +26,6 @@ Word/phrase-level timestamps if available
 
 > **text**: `string`
 
-Defined in: [src/lib/voice/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#L20)
+Defined in: [src/lib/voice/types.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/voice/types.ts#20)
 
 Transcribed text

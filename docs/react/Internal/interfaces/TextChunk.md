@@ -1,6 +1,6 @@
 # TextChunk
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L17)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#17)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/memoryRetrieval/chunking.ts:17](https://github.com/anuma-ai
 
 > **endOffset**: `number`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L23)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#23)
 
 Character offset where this chunk ends in the original text
 
@@ -18,7 +18,7 @@ Character offset where this chunk ends in the original text
 
 > **startOffset**: `number`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L21)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#21)
 
 Character offset where this chunk starts in the original text
 
@@ -28,6 +28,6 @@ Character offset where this chunk starts in the original text
 
 > **text**: `string`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L19)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#19)
 
 The chunk text

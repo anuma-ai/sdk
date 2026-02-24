@@ -2,7 +2,7 @@
 
 > **getMediaBySourceUrlOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `sourceUrl`: `string`, `walletAddress`: `string`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md) | `null`>
 
-Defined in: [src/lib/db/media/operations.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#L224)
+Defined in: [src/lib/db/media/operations.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#224)
 
 Get a media record by its source URL.
 Note: When encryption is enabled, sourceUrl is encrypted and this query

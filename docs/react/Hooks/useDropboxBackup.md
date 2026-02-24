@@ -2,7 +2,7 @@
 
 > **useDropboxBackup**(`options`: `object`): [`UseDropboxBackupResult`](../Internal/interfaces/UseDropboxBackupResult.md)
 
-Defined in: [src/react/useDropboxBackup.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#L99)
+Defined in: [src/react/useDropboxBackup.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxBackup.ts#99)
 
 React hook for Dropbox backup and restore functionality.
 

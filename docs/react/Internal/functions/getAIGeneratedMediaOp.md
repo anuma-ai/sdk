@@ -2,7 +2,7 @@
 
 > **getAIGeneratedMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:583](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#L583)
+Defined in: [src/lib/db/media/operations.ts:583](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#583)
 
 Get AI-generated media for a user.
 

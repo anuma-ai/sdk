@@ -2,7 +2,7 @@
 
 > **onKeyAvailable**(`address`: `string`, `callback`: () => `void`): () => `void`
 
-Defined in: [src/react/useEncryption.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#L48)
+Defined in: [src/react/useEncryption.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#48)
 
 Register a callback that fires when an encryption key becomes available for an address.
 If the key is already available, the callback fires immediately.

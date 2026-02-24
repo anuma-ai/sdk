@@ -1,6 +1,6 @@
 # StoredMediaModel
 
-Defined in: [src/lib/db/media/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L11)
+Defined in: [src/lib/db/media/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#11)
 
 WatermelonDB model for media records.
 Represents files stored in the library (images, videos, audio, documents).
@@ -140,7 +140,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/media/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L23)
+Defined in: [src/lib/db/media/models.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#23)
 
 ***
 
@@ -148,7 +148,7 @@ Defined in: [src/lib/db/media/models.ts:23](https://github.com/anuma-ai/sdk/blob
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/media/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L44)
+Defined in: [src/lib/db/media/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#44)
 
 ***
 
@@ -156,7 +156,7 @@ Defined in: [src/lib/db/media/models.ts:44](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **dimensions**: [`MediaDimensions`](../interfaces/MediaDimensions.md)
 
-Defined in: [src/lib/db/media/models.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L39)
+Defined in: [src/lib/db/media/models.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#39)
 
 ***
 
@@ -164,7 +164,7 @@ Defined in: [src/lib/db/media/models.ts:39](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **duration**: `number`
 
-Defined in: [src/lib/db/media/models.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L40)
+Defined in: [src/lib/db/media/models.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#40)
 
 ***
 
@@ -172,7 +172,7 @@ Defined in: [src/lib/db/media/models.ts:40](https://github.com/anuma-ai/sdk/blob
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/media/models.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L48)
+Defined in: [src/lib/db/media/models.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#48)
 
 ***
 
@@ -180,7 +180,7 @@ Defined in: [src/lib/db/media/models.ts:48](https://github.com/anuma-ai/sdk/blob
 
 > **mediaId**: `string`
 
-Defined in: [src/lib/db/media/models.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L20)
+Defined in: [src/lib/db/media/models.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#20)
 
 ***
 
@@ -188,7 +188,7 @@ Defined in: [src/lib/db/media/models.ts:20](https://github.com/anuma-ai/sdk/blob
 
 > **mediaType**: [`MediaType`](../type-aliases/MediaType.md)
 
-Defined in: [src/lib/db/media/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L28)
+Defined in: [src/lib/db/media/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#28)
 
 ***
 
@@ -196,7 +196,7 @@ Defined in: [src/lib/db/media/models.ts:28](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **messageId**: `string`
 
-Defined in: [src/lib/db/media/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L22)
+Defined in: [src/lib/db/media/models.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#22)
 
 ***
 
@@ -204,7 +204,7 @@ Defined in: [src/lib/db/media/models.ts:22](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **metadata**: [`MediaMetadata`](../interfaces/MediaMetadata.md)
 
-Defined in: [src/lib/db/media/models.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L41)
+Defined in: [src/lib/db/media/models.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#41)
 
 ***
 
@@ -212,7 +212,7 @@ Defined in: [src/lib/db/media/models.ts:41](https://github.com/anuma-ai/sdk/blob
 
 > **mimeType**: `string`
 
-Defined in: [src/lib/db/media/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L27)
+Defined in: [src/lib/db/media/models.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#27)
 
 ***
 
@@ -220,7 +220,7 @@ Defined in: [src/lib/db/media/models.ts:27](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/db/media/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L33)
+Defined in: [src/lib/db/media/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#33)
 
 ***
 
@@ -228,7 +228,7 @@ Defined in: [src/lib/db/media/models.ts:33](https://github.com/anuma-ai/sdk/blob
 
 > **name**: `string`
 
-Defined in: [src/lib/db/media/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L26)
+Defined in: [src/lib/db/media/models.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#26)
 
 ***
 
@@ -236,7 +236,7 @@ Defined in: [src/lib/db/media/models.ts:26](https://github.com/anuma-ai/sdk/blob
 
 > **role**: [`MediaRole`](../type-aliases/MediaRole.md)
 
-Defined in: [src/lib/db/media/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L32)
+Defined in: [src/lib/db/media/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#32)
 
 ***
 
@@ -244,7 +244,7 @@ Defined in: [src/lib/db/media/models.ts:32](https://github.com/anuma-ai/sdk/blob
 
 > **size**: `number`
 
-Defined in: [src/lib/db/media/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L29)
+Defined in: [src/lib/db/media/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#29)
 
 ***
 
@@ -252,7 +252,7 @@ Defined in: [src/lib/db/media/models.ts:29](https://github.com/anuma-ai/sdk/blob
 
 > `optional` **sourceUrl**: `string`
 
-Defined in: [src/lib/db/media/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L36)
+Defined in: [src/lib/db/media/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#36)
 
 ***
 
@@ -260,7 +260,7 @@ Defined in: [src/lib/db/media/models.ts:36](https://github.com/anuma-ai/sdk/blob
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/media/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L45)
+Defined in: [src/lib/db/media/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#45)
 
 ***
 
@@ -268,7 +268,7 @@ Defined in: [src/lib/db/media/models.ts:45](https://github.com/anuma-ai/sdk/blob
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/media/models.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L21)
+Defined in: [src/lib/db/media/models.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#21)
 
 ***
 
@@ -288,7 +288,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/db/media/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L14)
+Defined in: [src/lib/db/media/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#14)
 
 **Overrides**
 
@@ -300,7 +300,7 @@ Defined in: [src/lib/db/media/models.ts:14](https://github.com/anuma-ai/sdk/blob
 
 > `static` **table**: `string` = `"media"`
 
-Defined in: [src/lib/db/media/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#L12)
+Defined in: [src/lib/db/media/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/models.ts#12)
 
 **Overrides**
 

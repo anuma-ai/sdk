@@ -2,7 +2,7 @@
 
 > **postApiV1AdminSeedApps**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminSeedAppsData`](../type-aliases/PostApiV1AdminSeedAppsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminSeedAppsResponses`](../type-aliases/PostApiV1AdminSeedAppsResponses.md), [`PostApiV1AdminSeedAppsErrors`](../type-aliases/PostApiV1AdminSeedAppsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L178)
+Defined in: [src/client/sdk.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#178)
 
 Seed apps and API keys
 

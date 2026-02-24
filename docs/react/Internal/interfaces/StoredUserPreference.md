@@ -1,6 +1,6 @@
 # StoredUserPreference
 
-Defined in: [src/lib/db/userPreferences/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L95)
+Defined in: [src/lib/db/userPreferences/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#95)
 
 Stored user preference record from the database
 
@@ -10,7 +10,7 @@ Stored user preference record from the database
 
 > **createdAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L106)
+Defined in: [src/lib/db/userPreferences/types.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#106)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:106](https://github.com/anuma-a
 
 > `optional` **description**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L101)
+Defined in: [src/lib/db/userPreferences/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#101)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:101](https://github.com/anuma-a
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L103)
+Defined in: [src/lib/db/userPreferences/types.ts:103](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#103)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:103](https://github.com/anuma-a
 
 > `optional` **nickname**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L99)
+Defined in: [src/lib/db/userPreferences/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#99)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:99](https://github.com/anuma-ai
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L100)
+Defined in: [src/lib/db/userPreferences/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#100)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:100](https://github.com/anuma-a
 
 > `optional` **personality**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L104)
+Defined in: [src/lib/db/userPreferences/types.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#104)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:104](https://github.com/anuma-a
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L96)
+Defined in: [src/lib/db/userPreferences/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#96)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:96](https://github.com/anuma-ai
 
 > **updatedAt**: `number`
 
-Defined in: [src/lib/db/userPreferences/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L107)
+Defined in: [src/lib/db/userPreferences/types.ts:107](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#107)
 
 ***
 
@@ -74,4 +74,4 @@ Defined in: [src/lib/db/userPreferences/types.ts:107](https://github.com/anuma-a
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#L97)
+Defined in: [src/lib/db/userPreferences/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#97)
