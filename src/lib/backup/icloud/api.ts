@@ -313,26 +313,6 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
 }
 
 /**
- * Wait for user to sign in to iCloud
- */
-async function waitForICloudSignIn(): Promise<CloudKitUserIdentity> {
-  const container = await getContainer();
-  return container.whenUserSignsIn();
-}
-
-/**
- * Check if user is authenticated with iCloud
- */
-async function isICloudAuthenticated(): Promise<boolean> {
-  try {
-    const userIdentity = await authenticateICloud();
-    return userIdentity !== null;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Upload a file to iCloud
  */
 export async function uploadFileToICloud(filename: string, content: Blob): Promise<ICloudFile> {
@@ -493,26 +473,4 @@ export async function findICloudFile(filename: string): Promise<ICloudFile | nul
         ? (record.fields.data.value as { size: number }).size
         : 0,
   };
-}
-
-/**
- * Delete a file from iCloud
- */
-async function deleteICloudFile(recordName: string): Promise<void> {
-  const container = await getContainer();
-  const database = container.privateCloudDatabase;
-
-  await database.deleteRecords([{ recordName }]);
-}
-
-/**
- * Get iCloud user record name (unique identifier)
- */
-async function getICloudUserRecordName(): Promise<string | null> {
-  try {
-    const userIdentity = await authenticateICloud();
-    return userIdentity?.userRecordName ?? null;
-  } catch {
-    return null;
-  }
 }

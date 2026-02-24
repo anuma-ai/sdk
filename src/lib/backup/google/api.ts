@@ -212,17 +212,3 @@ export async function findDriveFile(
   const data: { files?: DriveFile[] } = await response.json();
   return data.files?.[0] ?? null;
 }
-
-/**
- * Delete a file from Google Drive
- */
-async function deleteDriveFile(accessToken: string, fileId: string): Promise<void> {
-  const response = await fetch(`${DRIVE_API_URL}/files/${fileId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete file: ${response.status}`);
-  }
-}
