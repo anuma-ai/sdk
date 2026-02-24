@@ -43,6 +43,7 @@ const ENCRYPTED_PREFIX = "enc:oauth:";
 let cachedAccessToken: string | null = null;
 let cachedExpiresAt: number | null = null;
 let cachedRefreshToken: string | null = null;
+let cachedScope: string | null = null;
 let cachedWalletAddress: string | null = null;
 
 // Google OAuth endpoints
@@ -92,6 +93,7 @@ async function getStoredTokenData(
       accessToken: cachedAccessToken,
       refreshToken: cachedRefreshToken ?? undefined,
       expiresAt: cachedExpiresAt ?? undefined,
+      scope: cachedScope ?? undefined,
     };
   }
   // Invalidate stale cache
@@ -99,6 +101,7 @@ async function getStoredTokenData(
     cachedAccessToken = null;
     cachedExpiresAt = null;
     cachedRefreshToken = null;
+    cachedScope = null;
     cachedWalletAddress = null;
   }
 
@@ -126,6 +129,7 @@ async function getStoredTokenData(
         cachedAccessToken = data.accessToken;
         cachedExpiresAt = data.expiresAt ?? null;
         cachedRefreshToken = data.refreshToken ?? null;
+        cachedScope = data.scope ?? null;
         cachedWalletAddress = walletAddress ?? null;
         return data;
       } catch (error) {
@@ -160,6 +164,7 @@ async function getStoredTokenData(
         cachedAccessToken = data.accessToken;
         cachedExpiresAt = data.expiresAt ?? null;
         cachedRefreshToken = data.refreshToken ?? null;
+        cachedScope = data.scope ?? null;
         cachedWalletAddress = walletAddress ?? null;
         return data;
       } catch {
@@ -191,6 +196,7 @@ async function storeTokenData(
   cachedAccessToken = data.accessToken;
   cachedExpiresAt = data.expiresAt ?? null;
   cachedRefreshToken = data.refreshToken ?? null;
+  cachedScope = data.scope ?? null;
   cachedWalletAddress = walletAddress ?? null;
 
   const json = JSON.stringify(data);
@@ -226,6 +232,7 @@ export function clearDriveToken(walletAddress?: string): void {
   cachedAccessToken = null;
   cachedExpiresAt = null;
   cachedRefreshToken = null;
+  cachedScope = null;
   cachedWalletAddress = null;
   localStorage.removeItem(getTokenStorageKey(walletAddress));
   // Also clear legacy unscoped key if different
