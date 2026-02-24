@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiChatCompletionResponse, LlmapiChatCompletionTool, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import type {
+  LlmapiChatCompletionResponse,
+  LlmapiChatCompletionTool,
+  LlmapiMessage,
+  LlmapiToolCallEvent,
+} from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import type { ApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
@@ -129,13 +134,13 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
   const fn = t.function as Record<string, unknown> | undefined;
-  return ((fn?.name as string) || (t.name as string) || "");
+  return (fn?.name as string) || (t.name as string) || "";
 }
 
 /** Typed accessor for client tool description. */
 function getToolDescription(t: LlmapiChatCompletionTool): string {
   const fn = t.function as Record<string, unknown> | undefined;
-  return ((fn?.description as string) || (t.description as string) || getToolName(t));
+  return (fn?.description as string) || (t.description as string) || getToolName(t);
 }
 
 /**
@@ -150,7 +155,7 @@ async function autoFilterClientTools(
   clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
 ): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
@@ -191,9 +196,12 @@ async function autoFilterClientTools(
     const embedding = cache.get(name);
     if (!embedding) continue;
     const fn = t.function as Record<string, unknown> | undefined;
-    const params = (fn?.parameters || fn?.arguments || {
-      type: "object", properties: {}, required: [],
-    }) as ServerTool["parameters"];
+    const params = (fn?.parameters ||
+      fn?.arguments || {
+        type: "object",
+        properties: {},
+        required: [],
+      }) as ServerTool["parameters"];
     pseudoServerTools.push({
       type: "function",
       name,
