@@ -201,6 +201,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice: toolChoiceArg,
+      maxToolRounds,
       reasoning,
       thinking,
       imageModel,
@@ -319,7 +320,6 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         // Convert tools to API format (strip executors)
         let apiTools = toolsToApiFormat(tools);
         let toolChoice = toolChoiceArg;
-
         // Build request body using the strategy
         const requestBody = strategy.buildRequestBody({
           messages: messagesWithContext,
@@ -437,9 +437,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let currentMessages = messagesWithContext;
         let toolIteration = 0;
         const MAX_TOOL_ITERATIONS = 10;
-
+        const effectiveMaxToolRounds = maxToolRounds ?? 3;
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
+
           const toolCallsToExecute: AccumulatedToolCall[] = [];
 
           // Determine which tools to execute vs emit as events
@@ -569,17 +570,19 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // before creating continuation smoothers (prevents interleaved output)
           await thinkingSmoother.drain();
 
-          // Build tool result messages to send back to the model
+          // Build tool result messages to send back to the model.
+          // Filter out results from tools with skipContinuation individually,
+          // so display-only tools (charts, weather) don't get sent back while
+          // regular tools (Drive, Calendar, Notion) still do.
           const toolResultMessages: LlmapiMessage[] = [];
 
-          // If all executed tools have skipContinuation, don't send results
-          // back to the model. This prevents display-only tools (charts, weather)
-          // from triggering redundant continuation requests.
-          const allSkipContinuation = toolCallsToExecute.every(
-            (tc) => executorMap.get(tc.name)?.skipContinuation === true
+          // Separate execution results into skip and continue groups
+          const continueResults = executionResults.filter(
+            (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
           );
 
-          if (allSkipContinuation) {
+          // If ALL tools have skipContinuation, return early without continuation
+          if (continueResults.length === 0) {
             const skipResponse = strategy.buildFinalResponse(currentAccumulator);
             if (onFinish) {
               onFinish(skipResponse);
@@ -594,23 +597,28 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             };
           }
 
-          // Add the assistant's message with tool calls
+          // Build the assistant message with ONLY non-skip tool calls.
+          // The model must not see tool_call IDs for which there are no
+          // corresponding tool-role messages.
+          const continueToolCallIds = new Set(continueResults.map((r) => r.id));
           const assistantMessage: LlmapiMessage = {
             role: "assistant",
             content: [{ type: "text", text: currentAccumulator.content }],
-            tool_calls: toolCallsToExecute.map((tc) => ({
-              id: tc.id,
-              type: "function",
-              function: {
-                name: tc.name,
-                arguments: tc.arguments,
-              },
-            })),
+            tool_calls: toolCallsToExecute
+              .filter((tc) => continueToolCallIds.has(tc.id))
+              .map((tc) => ({
+                id: tc.id,
+                type: "function",
+                function: {
+                  name: tc.name,
+                  arguments: tc.arguments,
+                },
+              })),
           };
           toolResultMessages.push(assistantMessage);
 
-          // Add tool result messages
-          for (const execResult of executionResults) {
+          // Add tool result messages for non-skip tools only
+          for (const execResult of continueResults) {
             const resultContent = execResult.error
               ? `Error: ${execResult.error}`
               : JSON.stringify(execResult.result);
@@ -625,6 +633,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Continue the conversation with tool results
           currentMessages = [...currentMessages, ...toolResultMessages];
 
+          // After maxToolRounds, force the model to produce a text response
+          const continuationToolChoice =
+            toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
+
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
             model: model!,
@@ -632,7 +644,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             temperature,
             maxOutputTokens,
             tools: apiTools,
-            toolChoice,
+            toolChoice: continuationToolChoice,
             reasoning,
             thinking,
             imageModel,

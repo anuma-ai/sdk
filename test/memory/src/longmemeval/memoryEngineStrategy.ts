@@ -315,5 +315,14 @@ You are a personal assistant with access to the user's past conversation history
   } catch (error) {
     clearProgress();
     throw error;
+  } finally {
+    // Release in-memory LokiJS database to prevent OOM across 289 iterations
+    try {
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+    } catch {
+      // Best-effort cleanup
+    }
   }
 }

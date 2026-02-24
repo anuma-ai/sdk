@@ -2,7 +2,7 @@
 
 > **getAndClearDrivePendingMessage**(): `string` | `null`
 
-Defined in: [src/lib/auth/google-drive.ts:339](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L339)
+Defined in: [src/lib/auth/google-drive.ts:497](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L497)
 
 Get and clear the pending message
 

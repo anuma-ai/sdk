@@ -69,7 +69,7 @@ const FALLBACK_OAUTH_TOKEN = "https://api.notion.com/v1/oauth/token";
 const FALLBACK_REGISTRATION = "https://api.notion.com/v1/oauth/register";
 
 // Default token expiry (1 hour) when server doesn't provide expires_in
-const DEFAULT_TOKEN_EXPIRY_SECONDS = 3600;
+const DEFAULT_TOKEN_EXPIRY_SECONDS = 8 * 3600; // 8 hours
 
 // Encrypted storage prefix
 const ENCRYPTED_PREFIX = "enc:oauth:";
@@ -887,9 +887,12 @@ export async function refreshNotionToken(
     cachedWalletAddress = walletAddress ?? null;
 
     return tokenData.access_token;
-  } catch {
-    // Refresh failed, clearing stored token
-    clearNotionToken(walletAddress);
+  } catch (error) {
+    console.error("Token refresh failed", error);
+    // Refresh failed — do NOT clear stored token here.
+    // Only invalid_grant (handled above) should clear credentials.
+    // Transient errors (network, server) should preserve the token
+    // so the next access attempt can retry the refresh.
     return null;
   }
 }

@@ -2,7 +2,7 @@
 
 > **startCalendarAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/google-calendar.ts:350](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L350)
+Defined in: [src/lib/auth/google-calendar.ts:508](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L508)
 
 Start the OAuth flow - redirects to Google
 

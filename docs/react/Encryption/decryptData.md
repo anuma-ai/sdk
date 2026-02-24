@@ -1,8 +1,8 @@
 # decryptData
 
-> **decryptData**(`encryptedHex`: `string`, `address`: `string`): `Promise`<`string`>
+> **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:434](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L434)
+Defined in: [src/react/useEncryption.ts:503](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useEncryption.ts#L503)
 
 Decrypts data using AES-GCM with the stored encryption key.
 
@@ -17,6 +17,7 @@ will throw an error prompting the user to sign a message.
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Default value</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -30,6 +31,11 @@ will throw an error prompting the user to sign a message.
 <td>
 
 `string`
+
+</td>
+<td>
+
+`undefined`
 
 </td>
 <td>
@@ -51,7 +57,34 @@ Encrypted data as hex string (IV + ciphertext + auth tag)
 </td>
 <td>
 
+`undefined`
+
+</td>
+<td>
+
 The wallet address associated with the encryption key
+
+</td>
+</tr>
+<tr>
+<td>
+
+`version`
+
+</td>
+<td>
+
+`EncryptionKeyVersion`
+
+</td>
+<td>
+
+`"v3"`
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>

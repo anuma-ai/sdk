@@ -221,22 +221,3 @@ export async function findDropboxFile(
   const files = await listDropboxFiles(accessToken, folder);
   return files.find((f) => f.name === filename) || null;
 }
-
-/**
- * Delete a file from Dropbox
- */
-async function deleteDropboxFile(accessToken: string, path: string): Promise<void> {
-  const response = await fetch(`${DROPBOX_API_URL}/files/delete_v2`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ path }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Dropbox delete failed: ${response.status} - ${errorText}`);
-  }
-}

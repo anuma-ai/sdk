@@ -476,6 +476,7 @@ export {
   storeCalendarPendingMessage,
   storeCalendarReturnUrl,
   storeCalendarToken,
+  migrateCalendarToken,
 } from "../lib/auth/google-calendar";
 
 // Google Drive Auth (with drive.readonly scope for full read access)
@@ -495,6 +496,7 @@ export {
   storeDrivePendingMessage,
   storeDriveReturnUrl,
   storeDriveToken,
+  migrateDriveToken,
 } from "../lib/auth/google-drive";
 
 // Notion MCP Auth (with PKCE - fully client-side, no backend needed)

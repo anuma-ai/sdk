@@ -92,13 +92,36 @@ const {
 
 ### Encryption Flow
 
-1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is hashed with SHA-256 to produce a 32-byte AES-GCM key. This key is held **in memory only** (never persisted to disk).
+1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is processed through **HKDF** (HMAC-based Key Derivation Function) with the domain-specific info string `reverbia-sdk-aes-gcm-v3` to produce a 32-byte AES-GCM key. A legacy SHA-256 key is also derived for reading old `enc:v2:` data. Both keys are held **in memory only** (never persisted to disk).
 
-2. **Write path:** Before writing to WatermelonDB, sensitive fields are encrypted with a random 12-byte IV and prefixed with `enc:v2:`. Non-sensitive fields pass through unchanged.
+2. **Write path:** Before writing to WatermelonDB, sensitive fields are encrypted with a random 12-byte IV and prefixed with `enc:v3:`. Non-sensitive fields pass through unchanged.
 
-3. **Read path:** After reading from WatermelonDB, fields with the `enc:v2:` prefix are decrypted. Plaintext fields (from before encryption was enabled) are returned as-is.
+3. **Read path:** After reading from WatermelonDB, the prefix determines which key to use:
+   - `enc:v3:` → HKDF-derived key (current)
+   - `enc:v2:` → SHA-256-derived key (legacy)
+   - No prefix → plaintext (returned as-is)
 
 4. **Session-scoped:** Keys are cleared on page reload. The user must re-authenticate each session for the key to be re-derived. This is a security feature, not a bug.
+
+### Key Derivation (v3)
+
+The current key derivation uses HKDF for proper key derivation and domain separation:
+
+```
+Signature → SHA-256(signature) → HKDF-Extract(IKM=hash, salt=zeros) → HKDF-Expand(info="reverbia-sdk-aes-gcm-v3") → 256-bit AES key
+```
+
+This prevents cross-app key reuse: even if another app asks the same wallet to sign the same message, the derived key will be different because the HKDF info string is app-specific.
+
+### v2 → v3 Migration
+
+Migration from `enc:v2:` (SHA-256 key) to `enc:v3:` (HKDF key) is **automatic and lazy**:
+
+- **No batch migration needed.** Both keys are derived from the same signature on every session.
+- **Reads work for both versions.** The prefix determines which key to use.
+- **New writes always use v3.** As data is rewritten through normal CRUD operations, it naturally migrates.
+- **Memory queries match both.** Deterministic queries use `Q.oneOf` to match v3, v2, and plaintext values.
+- **OAuth tokens fall back.** If a token can't be decrypted with v3, the v2 key is tried automatically.
 
 ### Backwards Compatibility
 

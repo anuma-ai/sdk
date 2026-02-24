@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiChatCompletionResponse, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import type {
+  LlmapiChatCompletionResponse,
+  LlmapiChatCompletionTool,
+  LlmapiMessage,
+  LlmapiToolCallEvent,
+} from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import type { ApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
@@ -41,9 +46,20 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  isOPFSSupported,
+  writeEncryptedFile,
+  readEncryptedFile,
+  deleteEncryptedFile,
+  createFilePlaceholder,
+  extractFileIds,
+  BlobUrlManager,
+  extractMCPImageUrls,
+  replaceMCPUrlsWithPlaceholders,
+} from "../lib/storage";
+import {
+  deleteMediaByConversationOp,
   createMediaBatchOp,
   type CreateMediaOptions,
-  deleteMediaByConversationOp,
   generateMediaId,
   getMediaByIdsOp,
   getMediaTypeFromMime,
@@ -94,16 +110,8 @@ import {
 } from "../lib/memoryVault";
 import { preprocessFiles } from "../lib/processors";
 import {
-  BlobUrlManager,
-  createFilePlaceholder,
-  deleteEncryptedFile,
-  extractFileIds,
-  isOPFSSupported,
-  readEncryptedFile,
-  writeEncryptedFile,
-} from "../lib/storage";
-import {
   filterServerTools,
+  findMatchingTools,
   getServerTools,
   mergeTools,
   type ServerTool,
@@ -116,8 +124,110 @@ import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+// Max client tools to include after automatic semantic filtering
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Minimum similarity for client tool semantic matching
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+
+/** Typed accessor for client tool name (handles function-call style and flat). */
+function getToolName(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return (fn?.name as string) || (t.name as string) || "";
+}
+
+/** Typed accessor for client tool description. */
+function getToolDescription(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return (fn?.description as string) || (t.description as string) || getToolName(t);
+}
+
+/**
+ * Automatically filter client tools using embedding-based semantic matching.
+ * Generates embeddings for tool descriptions (cached), then selects the most
+ * relevant tools for the user's prompt. This prevents sending 20+ tool
+ * definitions that eat up the context window.
+ *
+ * @returns Filtered client tools, or the original array if filtering fails/skips.
+ */
+async function autoFilterClientTools(
+  clientTools: LlmapiChatCompletionTool[],
+  promptEmbeddings: number[] | number[][] | null,
+  cache: Map<string, number[]>,
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
+): Promise<LlmapiChatCompletionTool[]> {
+  // Memory tools are always included — only filter connector tools (Notion, Google)
+  const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
+  const alwaysInclude = clientTools.filter(isMemoryTool);
+  const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
+
+  // Skip if no embeddings or too few filterable tools
+  if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
+    return clientTools;
+  }
+
+  // Generate embeddings for tool descriptions that aren't cached yet
+  const toolsNeedingEmbeddings: { name: string; description: string }[] = [];
+  for (const t of filterCandidates) {
+    const name = getToolName(t);
+    if (name && !cache.has(name)) {
+      toolsNeedingEmbeddings.push({ name, description: getToolDescription(t) });
+    }
+  }
+
+  if (toolsNeedingEmbeddings.length > 0) {
+    try {
+      const descriptions = toolsNeedingEmbeddings.map((t) => t.description);
+      const embeddings = await generateEmbeddings(descriptions, embeddingOptions);
+      for (let i = 0; i < toolsNeedingEmbeddings.length; i++) {
+        cache.set(toolsNeedingEmbeddings[i].name, embeddings[i]);
+      }
+    } catch {
+      // Embedding generation failed — skip filtering, send all tools
+      return clientTools;
+    }
+  }
+
+  // Build pseudo-ServerTool objects with cached embeddings for findMatchingTools
+  const pseudoServerTools: ServerTool[] = [];
+  for (const t of filterCandidates) {
+    const name = getToolName(t);
+    const embedding = cache.get(name);
+    if (!embedding) continue;
+    const fn = t.function as Record<string, unknown> | undefined;
+    const params = (fn?.parameters ||
+      fn?.arguments || {
+        type: "object",
+        properties: {},
+        required: [],
+      }) as ServerTool["parameters"];
+    pseudoServerTools.push({
+      type: "function",
+      name,
+      description: getToolDescription(t),
+      parameters: params,
+      embedding,
+    });
+  }
+
+  const matches = findMatchingTools(promptEmbeddings, pseudoServerTools, {
+    limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
+    minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+  });
+
+  if (matches.length === 0) {
+    // No matches above threshold — send all filterable tools + memory
+    return clientTools;
+  }
+
+  const matchedNames = new Set(matches.map((m) => m.tool.name));
+  const filtered = filterCandidates.filter((t) => {
+    const name = getToolName(t);
+    return name && matchedNames.has(name);
+  });
+  return [...alwaysInclude, ...filtered];
+}
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -597,33 +707,6 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @category Hooks
  */
 
-/**
- * Removes MCP R2 image URLs from content to prevent broken links.
- * This is used when images cannot be stored locally (e.g., missing walletAddress).
- */
-function cleanMCPUrlsFromContent(content: string): string {
-  const escapedDomain = MCP_R2_DOMAIN.replace(/\./g, "\\.");
-
-  let cleaned = content;
-
-  // Remove HTML img tags with MCP URLs
-  cleaned = cleaned.replace(
-    new RegExp(`<img[^>]*src=["']https://${escapedDomain}[^"']*["'][^>]*>`, "gi"),
-    ""
-  );
-
-  // Remove markdown images with MCP URLs: ![alt](url)
-  cleaned = cleaned.replace(
-    new RegExp(`!\\[[^\\]]*\\]\\([\\s]*https://${escapedDomain}[^)]*\\)`, "g"),
-    ""
-  );
-
-  // Clean up extra whitespace and newlines
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
-
-  return cleaned;
-}
-
 export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
@@ -650,6 +733,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
+    mcpR2Domain = MCP_R2_DOMAIN,
   } = options;
 
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(
@@ -1075,6 +1159,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
+  /**
+   * Cache for client tool description embeddings.
+   * Maps tool name → embedding vector. Populated lazily on first message
+   * and reused across messages (tool descriptions don't change).
+   */
+  const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
+
   // Pre-embed vault memories on mount
   useEffect(() => {
     if (!getToken) return;
@@ -1241,20 +1332,31 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           // Resolve placeholders in all messages in parallel
           const resolvedMessages = await Promise.all(
             messages.map(async (msg) => {
-              const fileIds = [...new Set(extractFileIds(msg.content))];
-              if (fileIds.length === 0) {
+              // Collect file IDs from both content placeholders and msg.fileIds
+              const contentFileIds = [...new Set(extractFileIds(msg.content))];
+              const extraFileIds = (msg.fileIds || []).filter((id) => !contentFileIds.includes(id));
+              const allFileIds = [...contentFileIds, ...extraFileIds];
+
+              if (allFileIds.length === 0) {
                 return msg;
               }
 
               // Resolve all files to blob URLs and build a map
               const fileIdToUrlMap = new Map<string, string>();
-              for (const fileId of fileIds) {
-                // Check if we already have a URL for this file
+              for (const fileId of allFileIds) {
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
-                  // Read and decrypt the file
-                  const result = await readEncryptedFile(fileId, encryptionKey);
+                  // Read and decrypt the file (try current key, fall back to legacy)
+                  let result = await readEncryptedFile(fileId, encryptionKey);
+                  if (!result) {
+                    try {
+                      const legacyKey = await getEncryptionKey(walletAddress, "v2");
+                      result = await readEncryptedFile(fileId, legacyKey);
+                    } catch {
+                      // Legacy key not available or decrypt failed
+                    }
+                  }
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
                   }
@@ -1265,19 +1367,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 }
               }
 
-              // Replace placeholders one at a time in order to ensure correct mapping
-              // This avoids any potential issues with regex callback processing order
+              // Replace placeholders in content
               let resolvedContent = msg.content;
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
-                // Escape the placeholder for use in regex
                 const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                // Create a non-global regex for this specific placeholder
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
-                // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
 
                 resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+              }
+
+              // Append images from msg.fileIds that weren't in content placeholders
+              // (messages stored before placeholder support was added)
+              for (const fileId of extraFileIds) {
+                const url = fileIdToUrlMap.get(fileId);
+                if (url) {
+                  resolvedContent += `\n\n![image-${fileId}](${url})`;
+                }
               }
 
               return { ...msg, content: resolvedContent };
@@ -1511,83 +1618,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       cleanedContent: string;
     }> => {
       try {
-        // Extract image URLs from tool_call_events (supports prefixed and unprefixed tool names)
-        const imageToolNames = new Set([
-          "AnumaImageMCP_generate_cloud_image",
-          "AnumaImageMCP_edit_cloud_image",
-          "generate_cloud_image",
-          "edit_cloud_image",
-        ]);
-        const urls: Array<{ url: string; model: string }> = [];
-        for (const toolCallEvent of toolCallEvents || []) {
-          if (toolCallEvent.name && imageToolNames.has(toolCallEvent.name)) {
-            try {
-              const output = JSON.parse(toolCallEvent.output || "{}");
-              const { model, url } = output;
-              if (url) {
-                urls.push({ url, model: model || "image" });
-              }
-            } catch (err) {
-              console.warn(
-                "[extractAndStoreEncryptedMCPImages] Failed to parse tool call output:",
-                toolCallEvent.name,
-                err
-              );
-            }
-          }
-        }
+        // 1. Extract image URLs using pure function
+        const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // Fallback: extract MCP image URLs from content when tool_call_events yields none
-        // (handles API response format changes or when URLs are embedded in markdown/HTML)
-        if (urls.length === 0 && content) {
-          const escaped = MCP_R2_DOMAIN.replace(/\./g, "\\.");
-          const urlPattern = new RegExp(`https://${escaped}[^\\s"'<>)\\]]+`, "gi");
-          const matches = content.match(urlPattern);
-          if (matches) {
-            const seen = new Set<string>();
-            for (const url of matches) {
-              const normalized = url.replace(/[)"'>\s]+$/, "");
-              if (!seen.has(normalized)) {
-                seen.add(normalized);
-                urls.push({ url: normalized, model: "image" });
-              }
-            }
-          }
-        }
-
-        // Clean content by removing all MCP image URLs (full and truncated)
-        let cleanedContent = content;
-
-        // Remove HTML img tags with MCP URLs
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `<img[^>]*src=["']https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
-            "gi"
-          ),
-          ""
-        );
-
-        // Remove markdown images with MCP URLs: ![alt](url)
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^)]*\\)`,
-            "g"
-          ),
-          ""
-        );
-
-        // Clean up extra whitespace and newlines
-        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
-
-        // If no URLs from tool_call_events, return cleaned content only
+        // No MCP images found — strip any stale MCP URLs and return
         if (urls.length === 0) {
+          const cleanedContent = replaceMCPUrlsWithPlaceholders(content, new Map(), mcpR2Domain);
           return { fileIds: [], cleanedContent };
         }
 
+        // 2. Download images → get mediaIds
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
+        const urlToMediaIdMap = new Map<string, string>();
 
-        // Process all images in parallel
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
@@ -1611,10 +1655,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               const mimeType = blob.type || `image/${extension}`;
               const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              // Extract dimensions
               const dimensions = await getImageDimensions(blob);
 
-              // Encrypt and store in OPFS using mediaId
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
                 sourceUrl: url,
@@ -1634,14 +1676,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           })
         );
 
-        // Collect media options for successful downloads
+        // 3. Build urlToMediaId map from successful downloads
         results.forEach((result, i) => {
           const { url, model } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } = result.value;
 
-            // Prepare media record
+            urlToMediaIdMap.set(url, mediaId);
+
             mediaOptions.push({
               mediaId,
               walletAddress: address,
@@ -1664,7 +1707,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         });
 
-        // Batch create media records
+        // 4. Replace MCP URLs with __SDKFILE__ placeholders (strips failed downloads)
+        const cleanedContent = replaceMCPUrlsWithPlaceholders(
+          content,
+          urlToMediaIdMap,
+          mcpR2Domain
+        );
+
+        // 5. Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
           try {
@@ -1685,16 +1735,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 }
               }
             }
+            // Return original content to avoid orphaned __SDKFILE__ placeholders
+            return { fileIds: [], cleanedContent: content };
           }
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        // Still clean MCP URLs to prevent broken links even on error
-        return { fileIds: [], cleanedContent: cleanMCPUrlsFromContent(content) };
+        // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
+        // so the LLM can still reference them for editing even if OPFS storage fails.
+        return { fileIds: [], cleanedContent: content };
       }
     },
-    [mediaCtx, getImageDimensions]
+    [mediaCtx, getImageDimensions, mcpR2Domain]
   );
 
   /**
@@ -1853,6 +1906,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         clientToolsFilter,
         serverTools: serverToolsFilter,
         toolChoice,
+        maxToolRounds,
         reasoning,
         thinking,
         onThinking,
@@ -1886,7 +1940,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
-        const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+        const needsEmbeddings =
+          isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
 
         // Generate embeddings once for both server and client tool filtering
         let skipStorageEmbeddings: number[] | number[][] | null = null;
@@ -1935,7 +1990,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        // Filter client tools if filter function provided
+        // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
         let filteredClientTools = clientTools;
         if (clientToolsFilter && clientTools?.length) {
           const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
@@ -1943,6 +1998,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const name = t.function?.name || t.name;
             return clientToolNames.includes(name);
           });
+        } else if (clientTools?.length && getToken) {
+          // Auto-filter client tools using semantic matching (no explicit filter provided)
+          filteredClientTools = await autoFilterClientTools(
+            clientTools,
+            skipStorageEmbeddings,
+            clientToolEmbeddingsCacheRef.current,
+            { getToken, baseUrl, model: embeddingModel }
+          );
         }
 
         if (
@@ -1964,6 +2027,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           maxOutputTokens,
           tools: mergedTools,
           toolChoice,
+          maxToolRounds,
           reasoning,
           thinking,
           imageModel,
@@ -2226,7 +2290,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
-      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
 
       // Generate embeddings once for both server and client tool filtering
       if (needsEmbeddings && getToken) {
@@ -2270,7 +2334,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
-      // Filter client tools if filter function provided
+      // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
       let filteredClientTools = clientTools;
       if (clientToolsFilter && clientTools?.length) {
         const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
@@ -2278,6 +2342,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const name = t.function?.name || t.name;
           return clientToolNames.includes(name);
         });
+      } else if (clientTools?.length && getToken) {
+        // Auto-filter client tools using semantic matching (no explicit filter provided)
+        filteredClientTools = await autoFilterClientTools(
+          clientTools,
+          userMessageEmbeddings ?? null,
+          clientToolEmbeddingsCacheRef.current,
+          { getToken, baseUrl, model: embeddingModel }
+        );
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
@@ -2341,6 +2413,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         maxOutputTokens,
         tools: mergedTools,
         toolChoice,
+        maxToolRounds,
         reasoning,
         thinking,
         imageModel,
@@ -2500,7 +2573,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Filter out MCP image URLs from sources (they are handled separately as files)
       const extractedSources = extractSourcesFromToolCallEvents(
         responseData.tool_call_events
-      ).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
+      ).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
@@ -2653,6 +2726,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       signMessage,
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
+      mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
       enableQueue,
