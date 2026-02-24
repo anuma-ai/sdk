@@ -1,5 +1,5 @@
 import { Model } from "@nozbe/watermelondb";
-import { field, text, date, readonly } from "@nozbe/watermelondb/decorators";
+import { date, field, readonly, text } from "@nozbe/watermelondb/decorators";
 
 export class VaultMemory extends Model {
   static table = "memory_vault";

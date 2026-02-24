@@ -21,9 +21,9 @@
  */
 
 import {
-  getEncryptionKey,
-  encryptDataWithKey,
   decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
   hasEncryptionKey,
 } from "../../react/useEncryption";
 
@@ -302,9 +302,7 @@ function base64UrlEncode(bytes: Uint8Array): string {
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 // ============================================================================
@@ -351,10 +349,7 @@ function getAndClearPKCEState(): PKCEState | null {
  * @param data - Token data to store
  * @param walletAddress - Wallet address to get the encryption key
  */
-async function storeTokenData(
-  data: StoredTokenData,
-  walletAddress?: string
-): Promise<void> {
+async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   const json = JSON.stringify(data);
@@ -386,9 +381,7 @@ async function storeTokenData(
  *
  * @param walletAddress - Wallet address to get the decryption key
  */
-async function getStoredTokenData(
-  walletAddress?: string
-): Promise<StoredTokenData | null> {
+async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
   // Check in-memory cache first (avoids decryption on every call)
@@ -456,10 +449,7 @@ export function clearNotionToken(walletAddress?: string): void {
 /**
  * Check if token is expired
  */
-function isTokenExpired(
-  data: StoredTokenData | null,
-  bufferSeconds = 60
-): boolean {
+function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boolean {
   if (!data) return true;
   if (!data.expiresAt) return false;
   const now = Date.now();
@@ -516,9 +506,7 @@ export async function migrateNotionToken(walletAddress: string): Promise<boolean
  * 1. sessionStorage fallback (from startNotionAuth when wallet was unavailable)
  * 2. Legacy plain-text localStorage (from before encryption was added)
  */
-export async function migrateNotionClientRegistration(
-  walletAddress: string
-): Promise<boolean> {
+export async function migrateNotionClientRegistration(walletAddress: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
@@ -528,8 +516,7 @@ export async function migrateNotionClientRegistration(
 
     // Source 2: legacy unencrypted localStorage
     const legacyStored = localStorage.getItem(CLIENT_REGISTRATION_KEY);
-    const isLegacyUnencrypted =
-      legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
 
     // Pick the freshest source (prefer sessionStorage if both exist)
     const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
@@ -578,9 +565,7 @@ export async function migrateNotionClientRegistration(
  *
  * @param walletAddress - Wallet address to get the decryption key
  */
-async function getClientRegistration(
-  walletAddress?: string
-): Promise<ClientRegistration | null> {
+async function getClientRegistration(walletAddress?: string): Promise<ClientRegistration | null> {
   if (typeof window === "undefined") return null;
 
   try {
@@ -721,12 +706,7 @@ export function isNotionCallback(callbackPath: string): boolean {
 
   try {
     const pkce = JSON.parse(storedPKCE) as PKCEState;
-    return (
-      url.pathname === callbackPath &&
-      !!code &&
-      !!state &&
-      state === pkce.state
-    );
+    return url.pathname === callbackPath && !!code && !!state && state === pkce.state;
   } catch {
     return false;
   }

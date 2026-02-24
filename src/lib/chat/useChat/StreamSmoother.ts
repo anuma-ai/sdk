@@ -51,10 +51,7 @@ export class StreamSmoother {
   private readonly maxSpeed: number;
   private readonly rampDuration: number;
 
-  constructor(
-    callback: (text: string) => void,
-    config?: StreamSmoothingConfig | boolean
-  ) {
+  constructor(callback: (text: string) => void, config?: StreamSmoothingConfig | boolean) {
     this.callback = callback;
     if (typeof config === "boolean" || config === undefined) {
       this.enabled = config !== false;

@@ -18,11 +18,7 @@ import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
-import type {
-  LongMemEvalEntry,
-  LongMemEvalResult,
-  ApiConfig,
-} from "./types.js";
+import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
 import {
   setupDatabase,
   selectSessions,
@@ -96,12 +92,7 @@ export async function processEntryMemoryVault(
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
-      const extracted = await extractMemoriesFromSession(
-        session,
-        sessionIdx,
-        sessionId,
-        api
-      );
+      const extracted = await extractMemoriesFromSession(session, sessionIdx, sessionId, api);
 
       for (const mem of extracted) {
         allMemories.push({
@@ -137,12 +128,7 @@ export async function processEntryMemoryVault(
       const generatedAnswer = genAnswer.content || "";
 
       logProgress("Evaluating answer...");
-      const isCorrect = await evaluateAnswer(
-        entry.question,
-        entry.answer,
-        generatedAnswer,
-        api
-      );
+      const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
       clearProgress();
 
       const elapsed = performance.now() - startTime;
@@ -195,12 +181,10 @@ export async function processEntryMemoryVault(
     }
 
     // Step 4: Create search tool via SDK
-    const searchTool = createMemoryVaultSearchTool(
-      vaultCtx,
-      embeddingOptions,
-      embeddingCache,
-      { limit: 10, minSimilarity: 0.1 }
-    );
+    const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
+      limit: 10,
+      minSimilarity: 0.1,
+    });
 
     // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
@@ -268,7 +252,8 @@ You are a personal assistant with access to the user's past conversation history
           logProgress("Executing memory_vault_search tool...");
           const toolResult = await searchTool.executor!(args);
           clearProgress();
-          const toolResultStr = typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
+          const toolResultStr =
+            typeof toolResult === "string" ? toolResult : JSON.stringify(toolResult);
 
           // Parse vault entry IDs from tool output for retrieval metrics
           // Format: (id: <id>, similarity: <score>)
@@ -333,13 +318,9 @@ You are a personal assistant with access to the user's past conversation history
     ).length;
 
     const retrievalPrecision =
-      retrievedSessionIds.size > 0
-        ? correctlyRetrieved / retrievedSessionIds.size
-        : 0;
+      retrievedSessionIds.size > 0 ? correctlyRetrieved / retrievedSessionIds.size : 0;
     const retrievalRecall =
-      expectedSessionIds.size > 0
-        ? correctlyRetrieved / expectedSessionIds.size
-        : 0;
+      expectedSessionIds.size > 0 ? correctlyRetrieved / expectedSessionIds.size : 0;
 
     transcript.retrieval = {
       precision: retrievalPrecision,
@@ -350,12 +331,7 @@ You are a personal assistant with access to the user's past conversation history
 
     // Evaluate answer
     logProgress("Evaluating answer...");
-    const isCorrect = await evaluateAnswer(
-      entry.question,
-      entry.answer,
-      generatedAnswer,
-      api
-    );
+    const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
     clearProgress();
 
     transcript.isCorrect = isCorrect;
@@ -387,5 +363,14 @@ You are a personal assistant with access to the user's past conversation history
   } catch (error) {
     clearProgress();
     throw error;
+  } finally {
+    // Release in-memory LokiJS database to prevent OOM across 289 iterations
+    try {
+      await database.write(async () => {
+        await database.unsafeResetDatabase();
+      });
+    } catch {
+      // Best-effort cleanup
+    }
   }
 }

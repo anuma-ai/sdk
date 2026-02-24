@@ -5,17 +5,17 @@ import type {
   LlmapiResponseResponse,
 } from "../../../client";
 import type {
+  AccumulatedToolCall,
   StreamAccumulator,
   StreamingChunk,
   ToolConfig,
   ToolExecutor,
-  AccumulatedToolCall,
 } from "./types";
 
 /**
  * Validation error types
  */
-export type ValidationError =
+type ValidationError =
   | "messages_required"
   | "model_required"
   | "token_getter_required"
@@ -24,14 +24,12 @@ export type ValidationError =
 /**
  * Validation result
  */
-export type ValidationResult =
-  | { valid: true }
-  | { valid: false; error: ValidationError; message: string };
+type ValidationResult = { valid: true } | { valid: false; error: ValidationError; message: string };
 
 /**
  * Error messages for validation errors
  */
-export const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
+const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
   messages_required: "messages are required to call sendMessage.",
   model_required: "model is required to call sendMessage.",
   token_getter_required: "Token getter function is required.",
@@ -41,9 +39,7 @@ export const VALIDATION_ERROR_MESSAGES: Record<ValidationError, string> = {
 /**
  * Validates that messages are provided
  */
-export function validateMessages(
-  messages: LlmapiMessage[] | undefined
-): ValidationResult {
+export function validateMessages(messages: LlmapiMessage[] | undefined): ValidationResult {
   if (!messages?.length) {
     return {
       valid: false,
@@ -115,7 +111,7 @@ function extractTextFromContentPart(part: LlmapiMessageContentPart): string {
  * @deprecated This function is deprecated. The API now accepts messages as an array directly.
  * This function is kept for backward compatibility but is no longer used internally.
  */
-export function messagesToInput(messages: LlmapiMessage[]): string {
+function messagesToInput(messages: LlmapiMessage[]): string {
   return messages
     .map((msg) => {
       const role = msg.role || "user";
@@ -123,10 +119,7 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
       // Handle tool result messages - format them as system messages with tool results
       if (role === "tool") {
         const content = Array.isArray(msg.content)
-          ? msg.content
-              .map(extractTextFromContentPart)
-              .filter(Boolean)
-              .join("\n")
+          ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
           : String(msg.content || "");
         return `system: Tool result: ${content}`;
       }
@@ -154,7 +147,7 @@ export function messagesToInput(messages: LlmapiMessage[]): string {
 /**
  * Result from parsing reasoning tags from content
  */
-export type ReasoningParseResult = {
+type ReasoningParseResult = {
   /** Content with reasoning tags removed */
   messageContent: string;
   /** Extracted reasoning content */
@@ -219,9 +212,7 @@ export function parseReasoningTags(
 ): ReasoningParseResult {
   // Detect or use provided tag format
   const format =
-    detectedFormat ||
-    detectTagFormat(content, previousPartialTag) ||
-    REASONING_TAG_FORMATS[0];
+    detectedFormat || detectTagFormat(content, previousPartialTag) || REASONING_TAG_FORMATS[0];
 
   const OPENING_TAG = format.open;
   const CLOSING_TAG = format.close;
@@ -242,12 +233,8 @@ export function parseReasoningTags(
   // This serves as a fallback for models not detected by name
   if (implicitReasoningStart === undefined) {
     // Check if there's a closing tag in current content
-    const hasClosingTag = REASONING_TAG_FORMATS.some((fmt) =>
-      fullContent.includes(fmt.close)
-    );
-    const hasOpeningTag = REASONING_TAG_FORMATS.some((fmt) =>
-      fullContent.includes(fmt.open)
-    );
+    const hasClosingTag = REASONING_TAG_FORMATS.some((fmt) => fullContent.includes(fmt.close));
+    const hasOpeningTag = REASONING_TAG_FORMATS.some((fmt) => fullContent.includes(fmt.open));
 
     if (hasClosingTag && !hasOpeningTag) {
       // Model uses implicit reasoning start - treat everything before closing tag as reasoning
@@ -274,28 +261,20 @@ export function parseReasoningTags(
       // Complete closing tag from previous partial
       i = CLOSING_TAG_LEN;
       insideReasoning = false;
-    } else if (
-      wasInsideReasoning &&
-      CLOSING_TAG.startsWith(previousPartialTag)
-    ) {
+    } else if (wasInsideReasoning && CLOSING_TAG.startsWith(previousPartialTag)) {
       // Inside reasoning and partial could be start of closing tag - check closing tag first
       if (fullContent.startsWith(CLOSING_TAG)) {
         // Complete closing tag
         i = CLOSING_TAG_LEN;
         insideReasoning = false;
       } else if (
-        CLOSING_TAG.startsWith(
-          fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length))
-        )
+        CLOSING_TAG.startsWith(fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)))
       ) {
         // Still incomplete - we're inside reasoning waiting for close
         return {
           messageContent: "",
           reasoningContent: "",
-          partialTag: fullContent.slice(
-            0,
-            Math.min(CLOSING_TAG_LEN, fullContent.length)
-          ),
+          partialTag: fullContent.slice(0, Math.min(CLOSING_TAG_LEN, fullContent.length)),
           insideReasoning: true,
           implicitReasoningStart,
         };
@@ -312,18 +291,13 @@ export function parseReasoningTags(
         insideReasoning = true;
         i = OPENING_TAG_LEN;
       } else if (
-        OPENING_TAG.startsWith(
-          fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length))
-        )
+        OPENING_TAG.startsWith(fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)))
       ) {
         // Still incomplete - preserve wasInsideReasoning state
         return {
           messageContent: "",
           reasoningContent: "",
-          partialTag: fullContent.slice(
-            0,
-            Math.min(OPENING_TAG_LEN, fullContent.length)
-          ),
+          partialTag: fullContent.slice(0, Math.min(OPENING_TAG_LEN, fullContent.length)),
           insideReasoning: wasInsideReasoning,
           implicitReasoningStart,
         };
@@ -412,13 +386,8 @@ export function parseReasoningTags(
   // This should never happen, but adding as a safety measure
   // Check for all supported tag formats
   for (const tagFormat of REASONING_TAG_FORMATS) {
-    if (
-      messageContent.includes(tagFormat.open) ||
-      messageContent.includes(tagFormat.close)
-    ) {
-      console.warn(
-        "[parseReasoningTags] Warning: Tag found in messageContent, removing"
-      );
+    if (messageContent.includes(tagFormat.open) || messageContent.includes(tagFormat.close)) {
+      console.warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
       messageContent = messageContent.replace(
         new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
         ""
@@ -428,13 +397,8 @@ export function parseReasoningTags(
         ""
       );
     }
-    if (
-      reasoningContent.includes(tagFormat.open) ||
-      reasoningContent.includes(tagFormat.close)
-    ) {
-      console.warn(
-        "[parseReasoningTags] Warning: Tag found in reasoningContent, removing"
-      );
+    if (reasoningContent.includes(tagFormat.open) || reasoningContent.includes(tagFormat.close)) {
+      console.warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
       reasoningContent = reasoningContent.replace(
         new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
         ""
@@ -470,9 +434,7 @@ function isImplicitReasoningModel(modelName?: string): boolean {
  * Creates an initial stream accumulator
  * @param initialModel - Optional model name to initialize with (from request)
  */
-export function createStreamAccumulator(
-  initialModel?: string
-): StreamAccumulator {
+export function createStreamAccumulator(initialModel?: string): StreamAccumulator {
   // Check if this model uses implicit reasoning start
   // For these models, we assume we're inside reasoning until we see </think>
   // This applies to both initial requests AND continuation requests (after tool calls),
@@ -677,9 +639,7 @@ export function processStreamingChunk(
 /**
  * Builds the final response from accumulated stream data
  */
-export function buildResponseResponse(
-  accumulator: StreamAccumulator
-): LlmapiResponseResponse {
+function buildResponseResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
   const output: LlmapiResponseResponse["output"] = [];
 
   // Add thinking/reasoning output if present
@@ -718,8 +678,7 @@ export function buildResponseResponse(
     model: accumulator.responseModel,
     object: "response",
     output,
-    usage:
-      Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
+    usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
   };
 }
 
@@ -743,8 +702,7 @@ export function handleError<T extends { data: null; error: string }>(
   err: unknown,
   onError?: (error: Error) => void
 ): T {
-  const errorMsg =
-    err instanceof Error ? err.message : "Failed to send message.";
+  const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
   const errorObj = err instanceof Error ? err : new Error(errorMsg);
 
   if (onError) {
@@ -816,7 +774,7 @@ export function createToolExecutorMap(
     const toolWithExecutor = tool as ToolConfig & Record<string, unknown>;
     if (toolWithExecutor.executor) {
       map.set(toolName, {
-        executor: toolWithExecutor.executor as ToolExecutor,
+        executor: toolWithExecutor.executor,
         autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
         skipContinuation: toolWithExecutor.skipContinuation === true, // Default to false
       });
@@ -841,9 +799,7 @@ export async function executeToolCall(
         args = JSON.parse(toolCall.arguments);
       } catch (e) {
         return {
-          error: `Failed to parse tool arguments: ${
-            e instanceof Error ? e.message : String(e)
-          }`,
+          error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
         };
       }
     }
@@ -853,9 +809,7 @@ export async function executeToolCall(
     return { result };
   } catch (e) {
     return {
-      error: `Tool execution failed: ${
-        e instanceof Error ? e.message : String(e)
-      }`,
+      error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
     };
   }
 }
@@ -873,7 +827,8 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } = tool as ToolConfig & Record<string, unknown>;
+    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } =
+      tool as ToolConfig & Record<string, unknown>;
     return apiTool;
   });
 }

@@ -44,10 +44,7 @@ export class ResponsesStrategy implements ApiStrategy {
     };
   }
 
-  processStreamChunk(
-    chunk: unknown,
-    accumulator: StreamAccumulator
-  ): ProcessChunkResult {
+  processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
 
@@ -76,8 +73,10 @@ export class ResponsesStrategy implements ApiStrategy {
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           total_tokens: promptTokens + completionTokens,
-          ...(u.cost_micro_usd != null && { cost_micro_usd: u.cost_micro_usd }),
-          ...(u.credits_used != null && { credits_used: u.credits_used }),
+          ...(u.cost_micro_usd !== null &&
+            u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
+          ...(u.credits_used !== null &&
+            u.credits_used !== undefined && { credits_used: u.credits_used }),
         };
       }
 
@@ -86,8 +85,8 @@ export class ResponsesStrategy implements ApiStrategy {
         accumulator.toolsChecksum = typedChunk.response.tools_checksum;
       }
 
-      // Capture tool_call_events if present
-      if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+      // Capture tool_call_events if present (skip empty arrays from early chunks)
+      if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
         accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
           id: event.id || "",
           name: event.name || "",
@@ -125,8 +124,8 @@ export class ResponsesStrategy implements ApiStrategy {
     if (typedChunk.response?.tools_checksum && !accumulator.toolsChecksum) {
       accumulator.toolsChecksum = typedChunk.response.tools_checksum;
     }
-    // Capture tool_call_events from top-level if present
-    if (typedChunk.tool_call_events && !accumulator.toolCallEvents) {
+    // Capture tool_call_events from top-level if present (skip empty arrays from early chunks)
+    if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
@@ -134,8 +133,8 @@ export class ResponsesStrategy implements ApiStrategy {
         output: event.output || "",
       }));
     }
-    // Also capture from nested response if present
-    if (typedChunk.response?.tool_call_events && !accumulator.toolCallEvents) {
+    // Also capture from nested response if present (skip empty arrays from early chunks)
+    if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
       accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
@@ -217,17 +216,14 @@ export class ResponsesStrategy implements ApiStrategy {
           accumulator.partialReasoningTag = parseResult.partialTag;
           accumulator.insideReasoning = parseResult.insideReasoning;
           if (parseResult.implicitReasoningStart !== undefined) {
-            accumulator.implicitReasoningStart =
-              parseResult.implicitReasoningStart;
+            accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
           }
 
           // Emit deltas - only emit non-empty content to avoid false error detection
           const willEmitMessage =
-            parseResult.messageContent &&
-            parseResult.messageContent.trim().length > 0;
+            parseResult.messageContent && parseResult.messageContent.trim().length > 0;
           const willEmitReasoning =
-            parseResult.reasoningContent &&
-            parseResult.reasoningContent.trim().length > 0;
+            parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
 
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
@@ -365,10 +361,7 @@ export class ResponsesStrategy implements ApiStrategy {
       model: accumulator.responseModel,
       object: "response",
       output,
-      usage:
-        Object.keys(accumulator.usage).length > 0
-          ? accumulator.usage
-          : undefined,
+      usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
       tools_checksum: accumulator.toolsChecksum,
       tool_call_events: accumulator.toolCallEvents,
     };

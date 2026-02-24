@@ -1,50 +1,50 @@
 "use client";
 
-import { useCallback, useState, useMemo, useEffect } from "react";
-import { Q } from "@nozbe/watermelondb";
 import type { Database } from "@nozbe/watermelondb";
+import { Q } from "@nozbe/watermelondb";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Media,
-  type StoredMedia,
-  type CreateMediaOptions,
-  type UpdateMediaOptions,
-  type MediaFilterOptions,
-  type MediaOperationsContext,
-  type MediaType,
-  type MediaRole,
-  createMediaOp,
   createMediaBatchOp,
-  getMediaByIdOp,
-  getMediaBySourceUrlOp,
-  getMediaByIdsOp,
-  getMediaByMessageOp,
-  updateMediaOp,
-  updateMediaMessageIdBatchOp,
-  deleteMediaOp,
-  hardDeleteMediaOp,
-  getMediaOp,
-  getMediaByTypeOp,
-  getImagesOp,
-  getVideosOp,
-  getAudioOp,
-  getDocumentsOp,
-  getMediaByConversationOp,
-  getMediaByRoleOp,
-  getAIGeneratedMediaOp,
-  getUserUploadedMediaOp,
-  getMediaByModelOp,
-  getRecentMediaOp,
-  searchMediaOp,
-  getMediaCountOp,
-  getMediaCountsByTypeOp,
+  createMediaOp,
+  type CreateMediaOptions,
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
+  deleteMediaOp,
+  getAIGeneratedMediaOp,
+  getAudioOp,
+  getDocumentsOp,
+  getImagesOp,
+  getMediaByConversationOp,
+  getMediaByIdOp,
+  getMediaByIdsOp,
+  getMediaByMessageOp,
+  getMediaByModelOp,
+  getMediaByRoleOp,
+  getMediaBySourceUrlOp,
+  getMediaByTypeOp,
+  getMediaCountOp,
+  getMediaCountsByTypeOp,
+  getMediaOp,
+  getRecentMediaOp,
+  getUserUploadedMediaOp,
+  getVideosOp,
+  hardDeleteMediaOp,
+  Media,
+  type MediaFilterOptions,
+  type MediaOperationsContext,
+  type MediaRole,
+  type MediaType,
+  searchMediaOp,
+  type StoredMedia,
+  updateMediaMessageIdBatchOp,
+  updateMediaOp,
+  type UpdateMediaOptions,
 } from "../lib/db/media";
 import {
-  readEncryptedFile,
-  isOPFSSupported,
   BlobUrlManager,
+  isOPFSSupported,
+  readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
@@ -185,7 +185,6 @@ export interface UseFilesResult {
 export function useFiles(options: UseFilesOptions): UseFilesResult {
   const { database, walletAddress } = options;
 
-
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [mediaCollection, setMediaCollection] = useState<ReturnType<
@@ -232,10 +231,6 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     }
     return { database };
   }, [database, mediaCollection, isReady]);
-
-
-
-
 
   // ============================================================================
   // CRUD Operations
@@ -668,4 +663,3 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     resolveFilePlaceholders,
   };
 }
-

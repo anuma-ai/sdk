@@ -1,48 +1,45 @@
 "use client";
 
-import { useCallback, useState, useMemo, useRef, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useChat } from "./useChat";
-import type { LlmapiMessage, LlmapiChatCompletionResponse, LlmapiToolCallEvent } from "../client";
+import type { LlmapiChatCompletionResponse, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import { MCP_R2_DOMAIN } from "../clientConfig";
+import type { ApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
 import {
-  Message,
-  Conversation,
-  type StoredMessage,
-  type StoredConversation,
-  type StoredFileWithContext,
-  type CreateConversationOptions,
-  type BaseUseChatStorageOptions,
-  type BaseSendMessageWithStorageArgs,
-  type BaseUseChatStorageResult,
-  type CreateMessageOptions,
-  type FileMetadata,
-  type SearchSource,
   type ActivityPhase,
+  type BaseSendMessageWithStorageArgs,
+  type BaseUseChatStorageOptions,
+  type BaseUseChatStorageResult,
+  clearMessagesOp,
+  Conversation,
   convertUsageToStored,
-  finalizeThoughtProcess,
-  extractUserMessageFromMessages,
-  type StorageOperationsContext,
   createConversationOp,
+  type CreateConversationOptions,
+  createMessageOp,
+  type CreateMessageOptions,
+  deleteConversationOp,
+  extractUserMessageFromMessages,
+  type FileMetadata,
+  finalizeThoughtProcess,
+  getAllFilesOp,
   getConversationOp,
   getConversationsOp,
-  updateConversationTitleOp,
-  deleteConversationOp,
   getMessagesOp,
-  clearMessagesOp,
-  createMessageOp,
-  updateMessageEmbeddingOp,
-  updateMessageChunksOp,
-  updateMessageErrorOp,
-  getAllFilesOp,
-  makeSyntheticStoredMessage,
   makeSyntheticStoredConversation,
+  makeSyntheticStoredMessage,
+  Message,
   type MessageChunk,
+  type SearchSource,
+  type StorageOperationsContext,
+  type StoredConversation,
+  type StoredFileWithContext,
+  type StoredMessage,
+  updateConversationTitleOp,
+  updateMessageChunksOp,
+  updateMessageEmbeddingOp,
+  updateMessageErrorOp,
 } from "../lib/db/chat";
-import type { ApiType } from "../lib/chat/useChat";
-import { MCP_R2_DOMAIN } from "../clientConfig";
-import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "./useEncryption";
 import {
   isOPFSSupported,
   writeEncryptedFile,
@@ -51,70 +48,74 @@ import {
   createFilePlaceholder,
   extractFileIds,
   BlobUrlManager,
+  extractMCPImageUrls,
+  replaceMCPUrlsWithPlaceholders,
 } from "../lib/storage";
 import {
   deleteMediaByConversationOp,
   createMediaBatchOp,
-  updateMediaMessageIdBatchOp,
-  hardDeleteMediaOp,
-  generateMediaId,
-  getMediaTypeFromMime,
-  getMediaByIdsOp,
   type CreateMediaOptions,
+  generateMediaId,
+  getMediaByIdsOp,
+  getMediaTypeFromMime,
+  hardDeleteMediaOp,
   type StoredMedia,
+  updateMediaMessageIdBatchOp,
 } from "../lib/db/media";
 import {
-  queueManager,
-  WalletPoller,
-  type QueueStatus,
-  type FlushResult,
-  type QueueEncryptionContext,
-  type QueuedOperation,
-  type QueuedOperationType,
-} from "../lib/db/queue";
-import { onKeyAvailable } from "./useEncryption";
-import { preprocessFiles } from "../lib/processors";
-import {
-  getServerTools,
-  filterServerTools,
-  mergeTools,
-  shouldRefreshTools,
-  findMatchingTools,
-  type ServerTool,
-} from "../lib/tools";
-import {
-  generateEmbedding,
-  generateEmbeddings,
-  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
-  type MemoryRetrievalSearchOptions,
-  chunkText,
-  shouldChunkMessage,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_MIN_CONTENT_LENGTH,
-} from "../lib/memoryRetrieval";
-
-import {
-  type VaultMemoryOperationsContext,
-  type StoredVaultMemory,
-  getAllVaultMemoriesOp,
   createVaultMemoryOp,
-  getVaultMemoryOp,
-  updateVaultMemoryOp,
   deleteVaultMemoryOp,
+  getAllVaultMemoriesOp,
+  getVaultMemoryOp,
+  type StoredVaultMemory,
+  updateVaultMemoryOp,
+  type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 import { VaultMemory } from "../lib/db/memoryVault/models";
 import {
-  createMemoryVaultTool as createMemoryVaultToolBase,
+  type FlushResult,
+  type QueuedOperation,
+  type QueuedOperationType,
+  type QueueEncryptionContext,
+  queueManager,
+  type QueueStatus,
+  WalletPoller,
+} from "../lib/db/queue";
+import {
+  chunkText,
+  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_MIN_CONTENT_LENGTH,
+  generateEmbedding,
+  generateEmbeddings,
+  type MemoryRetrievalSearchOptions,
+  shouldChunkMessage,
+} from "../lib/memoryRetrieval";
+import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
-  searchVaultMemories as searchVaultMemoriesBase,
-  preEmbedVaultMemories,
-  eagerEmbedContent,
+  createMemoryVaultTool as createMemoryVaultToolBase,
   createVaultEmbeddingCache,
-  type MemoryVaultToolOptions,
-  type VaultEmbeddingCache,
+  eagerEmbedContent,
   type MemoryVaultSearchOptions,
+  type MemoryVaultToolOptions,
+  preEmbedVaultMemories,
+  searchVaultMemories as searchVaultMemoriesBase,
+  type VaultEmbeddingCache,
   type VaultSearchResult,
 } from "../lib/memoryVault";
+import { preprocessFiles } from "../lib/processors";
+import {
+  filterServerTools,
+  findMatchingTools,
+  getServerTools,
+  mergeTools,
+  type ServerTool,
+  shouldRefreshTools,
+} from "../lib/tools";
+import { useChat } from "./useChat";
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
+import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
+import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
@@ -307,32 +308,26 @@ async function storedToLlmapiMessage(
 
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(
-    /__SDKFILE__([a-zA-Z0-9_-]+)__/g,
-    (_match, fileId) => {
-      const sourceUrl = fileUrlMap.get(fileId);
-      if (sourceUrl) {
-        // Replace with markdown image pointing to sourceUrl
-        return `![image](${sourceUrl})`;
-      }
-      // Remove placeholder if no URL available
-      return "";
+  textContent = textContent.replace(/__SDKFILE__([a-zA-Z0-9_-]+)__/g, (_match, fileId) => {
+    const sourceUrl = fileUrlMap.get(fileId);
+    if (sourceUrl) {
+      // Replace with markdown image pointing to sourceUrl
+      return `![image](${sourceUrl})`;
     }
-  );
+    // Remove placeholder if no URL available
+    return "";
+  });
 
   // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
   // This supports old messages that may still contain MCP_IMAGE placeholders
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(
-    /!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g,
-    (_match, fileId) => {
-      const sourceUrl = fileUrlMap.get(fileId);
-      if (sourceUrl) {
-        return `![image](${sourceUrl})`;
-      }
-      return "";
+  textContent = textContent.replace(/!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g, (_match, fileId) => {
+    const sourceUrl = fileUrlMap.get(fileId);
+    if (sourceUrl) {
+      return `![image](${sourceUrl})`;
     }
-  );
+    return "";
+  });
 
   // For assistant messages with resolved image URLs that aren't already in the content,
   // append them as markdown images so the LLM can reference them
@@ -352,10 +347,7 @@ async function storedToLlmapiMessage(
   // Clean up extra whitespace from removed placeholders
   textContent = textContent.replace(/\n{3,}/g, "\n\n").trim();
 
-  const content: LlmapiMessage["content"] = [
-    { type: "text", text: textContent },
-    ...imageParts,
-  ];
+  const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
   return {
     role: stored.role,
@@ -433,8 +425,7 @@ export interface UseChatStorageOptions extends BaseUseChatStorageOptions {
  * Extends base arguments with headers and apiType support.
  * @inline
  */
-export interface SendMessageWithStorageArgs
-  extends BaseSendMessageWithStorageArgs {
+export interface SendMessageWithStorageArgs extends BaseSendMessageWithStorageArgs {
   /**
    * Custom HTTP headers to include with the API request.
    * Useful for passing additional authentication, tracking, or feature flags.
@@ -533,9 +524,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * }
    * ```
    */
-  sendMessage: (
-    args: SendMessageWithStorageArgs
-  ) => Promise<SendMessageWithStorageResult>;
+  sendMessage: (args: SendMessageWithStorageArgs) => Promise<SendMessageWithStorageResult>;
   /**
    * Get all files from all conversations, sorted by creation date (newest first).
    * Returns files with conversation context for building file browser UIs.
@@ -560,9 +549,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * });
    * ```
    */
-  createMemoryRetrievalTool: (
-    searchOptions?: Partial<MemoryRetrievalSearchOptions>
-  ) => ToolConfig;
+  createMemoryRetrievalTool: (searchOptions?: Partial<MemoryRetrievalSearchOptions>) => ToolConfig;
 
   /**
    * Create a memory vault tool for LLM to save/update persistent memories.
@@ -581,9 +568,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @param searchOptions - Optional search configuration (limit, minSimilarity)
    * @returns A ToolConfig that can be passed to sendMessage's clientTools
    */
-  createMemoryVaultSearchTool: (
-    searchOptions?: MemoryVaultSearchOptions
-  ) => ToolConfig;
+  createMemoryVaultSearchTool: (searchOptions?: MemoryVaultSearchOptions) => ToolConfig;
 
   /**
    * Search vault memories programmatically using semantic similarity.
@@ -623,7 +608,11 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * @param scope - Optional new scope for the memory
    * @returns the updated memory, or null if not found
    */
-  updateVaultMemory: (id: string, content: string, scope?: string) => Promise<StoredVaultMemory | null>;
+  updateVaultMemory: (
+    id: string,
+    content: string,
+    scope?: string
+  ) => Promise<StoredVaultMemory | null>;
 
   /**
    * Delete a vault memory by its ID (soft delete).
@@ -704,36 +693,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @category Hooks
  */
 
-/**
- * Removes MCP R2 image URLs from content to prevent broken links.
- * This is used when images cannot be stored locally (e.g., missing walletAddress).
- */
-function cleanMCPUrlsFromContent(content: string): string {
-  const escapedDomain = MCP_R2_DOMAIN.replace(/\./g, "\\.");
-
-  let cleaned = content;
-
-  // Remove HTML img tags with MCP URLs
-  cleaned = cleaned.replace(
-    new RegExp(`<img[^>]*src=["']https://${escapedDomain}[^"']*["'][^>]*>`, "gi"),
-    ""
-  );
-
-  // Remove markdown images with MCP URLs: ![alt](url)
-  cleaned = cleaned.replace(
-    new RegExp(`!\\[[^\\]]*\\]\\([\\s]*https://${escapedDomain}[^)]*\\)`, "g"),
-    ""
-  );
-
-  // Clean up extra whitespace and newlines
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
-
-  return cleaned;
-}
-
-export function useChatStorage(
-  options: UseChatStorageOptions
-): UseChatStorageResult {
+export function useChatStorage(options: UseChatStorageOptions): UseChatStorageResult {
   const {
     database,
     conversationId: initialConversationId,
@@ -759,11 +719,12 @@ export function useChatStorage(
     autoEmbedMessages = true,
     embeddingModel = DEFAULT_API_EMBEDDING_MODEL,
     minContentLength = DEFAULT_MIN_CONTENT_LENGTH,
+    mcpR2Domain = MCP_R2_DOMAIN,
   } = options;
 
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(initialConversationId || null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(
+    initialConversationId || null
+  );
 
   // Blob URL manager for encrypted file storage
   const blobManagerRef = useRef<BlobUrlManager>(new BlobUrlManager());
@@ -777,10 +738,7 @@ export function useChatStorage(
   }, []);
 
   // Get collections
-  const messagesCollection = useMemo(
-    () => database.get<Message>("history"),
-    [database]
-  );
+  const messagesCollection = useMemo(() => database.get<Message>("history"), [database]);
   const conversationsCollection = useMemo(
     () => database.get<Conversation>("conversations"),
     [database]
@@ -796,7 +754,14 @@ export function useChatStorage(
       signMessage,
       embeddedWalletSigner,
     }),
-    [database, messagesCollection, conversationsCollection, walletAddress, signMessage, embeddedWalletSigner]
+    [
+      database,
+      messagesCollection,
+      conversationsCollection,
+      walletAddress,
+      signMessage,
+      embeddedWalletSigner,
+    ]
   );
 
   // Media operations context (includes encryption context for media field encryption)
@@ -862,10 +827,17 @@ export function useChatStorage(
 
       switch (operation.type) {
         case "createConversation":
-          await createConversationOp(ctx, operation.payload as Parameters<typeof createConversationOp>[1]);
+          await createConversationOp(
+            ctx,
+            operation.payload as Parameters<typeof createConversationOp>[1]
+          );
           break;
         case "updateConversationTitle":
-          await updateConversationTitleOp(ctx, operation.payload.conversationId, operation.payload.title);
+          await updateConversationTitleOp(
+            ctx,
+            operation.payload.conversationId,
+            operation.payload.title
+          );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
@@ -895,7 +867,13 @@ export function useChatStorage(
     const result = await queueManager.flush(encCtx, executeQueuedOperation);
     refreshQueueStatus();
     return result;
-  }, [walletAddress, signMessage, embeddedWalletSigner, executeQueuedOperation, refreshQueueStatus]);
+  }, [
+    walletAddress,
+    signMessage,
+    embeddedWalletSigner,
+    executeQueuedOperation,
+    refreshQueueStatus,
+  ]);
 
   // Clear the queue
   const clearQueue = useCallback(() => {
@@ -929,14 +907,11 @@ export function useChatStorage(
     if (!getWalletAddress || walletAddress) return; // Already have address, or no poller provided
 
     const poller = new WalletPoller();
-    return poller.startPolling(
-      getWalletAddress,
-      () => {
-        // Wallet is now available - the parent component should update walletAddress prop
-        // which triggers the onKeyAvailable auto-flush above.
-        // We don't need to do anything here since state will flow through props.
-      }
-    );
+    return poller.startPolling(getWalletAddress, () => {
+      // Wallet is now available - the parent component should update walletAddress prop
+      // which triggers the onKeyAvailable auto-flush above.
+      // We don't need to do anything here since state will flow through props.
+    });
   }, [getWalletAddress, walletAddress]);
 
   // ── Write Queue Wiring ──
@@ -949,11 +924,13 @@ export function useChatStorage(
 
   // Pre-wallet pending buffer: holds operations when walletAddress is undefined
   // but getWalletAddress is provided (signaling encryption intent during Privy init)
-  const pendingOpsRef = useRef<Array<{
-    type: QueuedOperationType;
-    payload: Record<string, any>;
-    dependencies: string[];
-  }>>([]);
+  const pendingOpsRef = useRef<
+    Array<{
+      type: QueuedOperationType;
+      payload: Record<string, any>;
+      dependencies: string[];
+    }>
+  >([]);
 
   // Track synthetic conversation IDs so ensureConversation doesn't fail for queued conversations
   const syntheticConvIdsRef = useRef<Set<string>>(new Set());
@@ -976,49 +953,52 @@ export function useChatStorage(
    * Routes a DB write through the queue when encryption key isn't ready,
    * or executes it directly when the key is available.
    */
-  const writeOrQueue = useCallback(async <T>(
-    opType: QueuedOperationType,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: Record<string, any>,
-    directWrite: () => Promise<T>,
-    makeSynthetic: () => T,
-    dependencies: string[] = [],
-  ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
-    // Key available — direct write
-    if (isEncryptionReady()) {
-      const result = await directWrite();
-      return { result, queued: false };
-    }
-
-    // Queue disabled — plaintext fallback (existing behavior)
-    if (!enableQueue) {
-      const result = await directWrite();
-      return { result, queued: false };
-    }
-
-    // walletAddress undefined but getWalletAddress provided — buffer in ref
-    if (!walletAddress && getWalletAddress) {
-      pendingOpsRef.current.push({ type: opType, payload, dependencies });
-      return { result: makeSynthetic(), queued: true };
-    }
-
-    // walletAddress present but key not derived — queue in QueueManager
-    if (walletAddress) {
-      const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
-      if (queueId === null) {
-        // Queue full — fall back to direct write with warning
-        console.warn("[useChatStorage] Queue full, falling back to direct write");
+  const writeOrQueue = useCallback(
+    async <T>(
+      opType: QueuedOperationType,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload: Record<string, any>,
+      directWrite: () => Promise<T>,
+      makeSynthetic: () => T,
+      dependencies: string[] = []
+    ): Promise<{ result: T; queued: boolean; queueId?: string }> => {
+      // Key available — direct write
+      if (isEncryptionReady()) {
         const result = await directWrite();
         return { result, queued: false };
       }
-      refreshQueueStatus();
-      return { result: makeSynthetic(), queued: true, queueId };
-    }
 
-    // No encryption context at all — direct write
-    const result = await directWrite();
-    return { result, queued: false };
-  }, [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]);
+      // Queue disabled — plaintext fallback (existing behavior)
+      if (!enableQueue) {
+        const result = await directWrite();
+        return { result, queued: false };
+      }
+
+      // walletAddress undefined but getWalletAddress provided — buffer in ref
+      if (!walletAddress && getWalletAddress) {
+        pendingOpsRef.current.push({ type: opType, payload, dependencies });
+        return { result: makeSynthetic(), queued: true };
+      }
+
+      // walletAddress present but key not derived — queue in QueueManager
+      if (walletAddress) {
+        const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
+        if (queueId === null) {
+          // Queue full — fall back to direct write with warning
+          console.warn("[useChatStorage] Queue full, falling back to direct write");
+          const result = await directWrite();
+          return { result, queued: false };
+        }
+        refreshQueueStatus();
+        return { result: makeSynthetic(), queued: true, queueId };
+      }
+
+      // No encryption context at all — direct write
+      const result = await directWrite();
+      return { result, queued: false };
+    },
+    [isEncryptionReady, enableQueue, walletAddress, getWalletAddress, refreshQueueStatus]
+  );
 
   // Helper to embed a message after creation (non-blocking)
   // Uses chunking for long messages to improve semantic search precision
@@ -1047,21 +1027,11 @@ export function useChatStorage(
             endOffset: chunk.endOffset,
           }));
 
-          await updateMessageChunksOp(
-            storageCtx,
-            message.uniqueId,
-            messageChunks,
-            embeddingModel
-          );
+          await updateMessageChunksOp(storageCtx, message.uniqueId, messageChunks, embeddingModel);
         } else {
           // Use whole-message embedding for short messages
           const embedding = await generateEmbedding(message.content, embeddingOptions);
-          await updateMessageEmbeddingOp(
-            storageCtx,
-            message.uniqueId,
-            embedding,
-            embeddingModel
-          );
+          await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
         }
       } catch (err) {
         // Non-fatal: log but don't fail the message save
@@ -1222,7 +1192,10 @@ export function useChatStorage(
    * never crash the submit path.
    */
   const searchVaultMemoriesFn = useCallback(
-    async (query: string, searchOptions?: MemoryVaultSearchOptions): Promise<VaultSearchResult[]> => {
+    async (
+      query: string,
+      searchOptions?: MemoryVaultSearchOptions
+    ): Promise<VaultSearchResult[]> => {
       if (!getToken) return [];
       return searchVaultMemoriesBase(
         query,
@@ -1260,7 +1233,7 @@ export function useChatStorage(
         "createConversation",
         { conversationId: opts?.conversationId, title: opts?.title, projectId: opts?.projectId },
         () => createConversationOp(storageCtx, opts, defaultConversationTitle),
-        () => makeSyntheticStoredConversation(opts, defaultConversationTitle),
+        () => makeSyntheticStoredConversation(opts, defaultConversationTitle)
       );
       if (queued) {
         syntheticConvIdsRef.current.add(result.conversationId);
@@ -1287,9 +1260,7 @@ export function useChatStorage(
   /**
    * Get all conversations (excluding soft-deleted)
    */
-  const getConversations = useCallback(async (): Promise<
-    StoredConversation[]
-  > => {
+  const getConversations = useCallback(async (): Promise<StoredConversation[]> => {
     return getConversationsOp(storageCtx);
   }, [storageCtx]);
 
@@ -1303,7 +1274,7 @@ export function useChatStorage(
         "updateConversationTitle",
         { conversationId: id, title },
         () => updateConversationTitleOp(storageCtx, id, title),
-        () => true,
+        () => true
       );
       return result;
     },
@@ -1339,11 +1310,7 @@ export function useChatStorage(
       const messages = await getMessagesOp(storageCtx, convId);
 
       // If wallet address is provided, resolve file placeholders to blob URLs
-      if (
-        walletAddress &&
-        hasEncryptionKey(walletAddress) &&
-        isOPFSSupported()
-      ) {
+      if (walletAddress && hasEncryptionKey(walletAddress) && isOPFSSupported()) {
         try {
           const encryptionKey = await getEncryptionKey(walletAddress);
           const blobManager = blobManagerRef.current;
@@ -1351,23 +1318,31 @@ export function useChatStorage(
           // Resolve placeholders in all messages in parallel
           const resolvedMessages = await Promise.all(
             messages.map(async (msg) => {
-              const fileIds = [...new Set(extractFileIds(msg.content))];
-              if (fileIds.length === 0) {
+              // Collect file IDs from both content placeholders and msg.fileIds
+              const contentFileIds = [...new Set(extractFileIds(msg.content))];
+              const extraFileIds = (msg.fileIds || []).filter((id) => !contentFileIds.includes(id));
+              const allFileIds = [...contentFileIds, ...extraFileIds];
+
+              if (allFileIds.length === 0) {
                 return msg;
               }
 
-             
-
               // Resolve all files to blob URLs and build a map
               const fileIdToUrlMap = new Map<string, string>();
-              for (const fileId of fileIds) {
-                // Check if we already have a URL for this file
+              for (const fileId of allFileIds) {
                 let url = blobManager.getUrl(fileId);
 
                 if (!url) {
-                  
-                  // Read and decrypt the file
-                  const result = await readEncryptedFile(fileId, encryptionKey);
+                  // Read and decrypt the file (try current key, fall back to legacy)
+                  let result = await readEncryptedFile(fileId, encryptionKey);
+                  if (!result) {
+                    try {
+                      const legacyKey = await getEncryptionKey(walletAddress, "v2");
+                      result = await readEncryptedFile(fileId, legacyKey);
+                    } catch {
+                      // Legacy key not available or decrypt failed
+                    }
+                  }
                   if (result) {
                     url = blobManager.createUrl(fileId, result.blob);
                   }
@@ -1378,25 +1353,24 @@ export function useChatStorage(
                 }
               }
 
-              // Replace placeholders one at a time in order to ensure correct mapping
-              // This avoids any potential issues with regex callback processing order
+              // Replace placeholders in content
               let resolvedContent = msg.content;
               for (const [fileId, url] of fileIdToUrlMap) {
                 const placeholder = createFilePlaceholder(fileId);
-                // Escape the placeholder for use in regex
-                const escapedPlaceholder = placeholder.replace(
-                  /[.*+?^${}()|[\]\\]/g,
-                  "\\$&"
-                );
-                // Create a non-global regex for this specific placeholder
+                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
                 const placeholderRegex = new RegExp(escapedPlaceholder, "g");
-                // Use unique alt text with fileId to prevent UI blobUrlMap collisions
                 const replacement = `![image-${fileId}](${url})`;
 
-                resolvedContent = resolvedContent.replace(
-                  placeholderRegex,
-                  replacement
-                );
+                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
+              }
+
+              // Append images from msg.fileIds that weren't in content placeholders
+              // (messages stored before placeholder support was added)
+              for (const fileId of extraFileIds) {
+                const url = fileIdToUrlMap.get(fileId);
+                if (url) {
+                  resolvedContent += `\n\n![image-${fileId}](${url})`;
+                }
               }
 
               return { ...msg, content: resolvedContent };
@@ -1445,15 +1419,8 @@ export function useChatStorage(
       return newConv.conversationId;
     }
 
-    throw new Error(
-      "No conversation ID provided and autoCreateConversation is disabled"
-    );
-  }, [
-    currentConversationId,
-    getConversation,
-    autoCreateConversation,
-    createConversation,
-  ]);
+    throw new Error("No conversation ID provided and autoCreateConversation is disabled");
+  }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
   /**
    * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
@@ -1520,7 +1487,8 @@ export function useChatStorage(
               try {
                 // Match each numbered result block
                 // Pattern: digit(s). **title**\n   URL: url
-                const resultPattern = /(\d+)\.\s+\*\*([^*]+)\*\*\s*\n\s*URL:\s*(https?:\/\/[^\s\n]+)/g;
+                const resultPattern =
+                  /(\d+)\.\s+\*\*([^*]+)\*\*\s*\n\s*URL:\s*(https?:\/\/[^\s\n]+)/g;
                 let match: RegExpExecArray | null;
 
                 while ((match = resultPattern.exec(outputStr)) !== null) {
@@ -1533,7 +1501,9 @@ export function useChatStorage(
                     // Find the snippet - text between URL and next numbered item or Date line
                     const matchEnd = match.index + match[0].length;
                     const nextResultMatch = outputStr.slice(matchEnd).match(/\n\d+\.\s+\*\*/);
-                    const dateMatch = outputStr.slice(matchEnd).match(/\n\s*Date:\s*\d{4}-\d{2}-\d{2}/);
+                    const dateMatch = outputStr
+                      .slice(matchEnd)
+                      .match(/\n\s*Date:\s*\d{4}-\d{2}-\d{2}/);
 
                     let snippetEnd = outputStr.length;
                     if (nextResultMatch?.index !== undefined) {
@@ -1543,7 +1513,8 @@ export function useChatStorage(
                       snippetEnd = Math.min(snippetEnd, matchEnd + dateMatch.index);
                     }
 
-                    let snippet = outputStr.slice(matchEnd, snippetEnd)
+                    let snippet = outputStr
+                      .slice(matchEnd, snippetEnd)
                       .replace(/\{ts:\d+\}/g, "") // Remove timestamps like {ts:123}
                       .replace(/^#{1,6}\s*/gm, "") // Remove markdown headers (anchored to line start)
                       .replace(/\*{1,2}/g, "") // Remove bold/italic markers
@@ -1583,9 +1554,7 @@ export function useChatStorage(
    * Extract dimensions from an image blob.
    */
   const getImageDimensions = useCallback(
-    async (
-      blob: Blob
-    ): Promise<{ width: number; height: number } | undefined> => {
+    async (blob: Blob): Promise<{ width: number; height: number } | undefined> => {
       if (!blob.type.startsWith("image/")) {
         return undefined;
       }
@@ -1635,87 +1604,20 @@ export function useChatStorage(
       cleanedContent: string;
     }> => {
       try {
-        // Extract image URLs from tool_call_events (supports prefixed and unprefixed tool names)
-        const imageToolNames = new Set([
-          "AnumaImageMCP_generate_cloud_image",
-          "AnumaImageMCP_edit_cloud_image",
-          "generate_cloud_image",
-          "edit_cloud_image",
-        ]);
-        const urls: Array<{ url: string; model: string }> = [];
-        for (const toolCallEvent of toolCallEvents || []) {
-          if (toolCallEvent.name && imageToolNames.has(toolCallEvent.name)) {
-            try {
-              const output = JSON.parse(toolCallEvent.output || "{}");
-              const { model, url } = output;
-              if (url) {
-                urls.push({ url, model: model || "image" });
-              }
-            } catch (err) {
-              // eslint-disable-next-line no-console
-              console.warn(
-                "[extractAndStoreEncryptedMCPImages] Failed to parse tool call output:",
-                toolCallEvent.name,
-                err
-              );
-            }
-          }
-        }
+        // 1. Extract image URLs using pure function
+        const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // Fallback: extract MCP image URLs from content when tool_call_events yields none
-        // (handles API response format changes or when URLs are embedded in markdown/HTML)
-        if (urls.length === 0 && content) {
-          const escaped = MCP_R2_DOMAIN.replace(/\./g, "\\.");
-          const urlPattern = new RegExp(
-            `https://${escaped}[^\\s"'<>)\\]]+`,
-            "gi"
-          );
-          const matches = content.match(urlPattern);
-          if (matches) {
-            const seen = new Set<string>();
-            for (const url of matches) {
-              const normalized = url.replace(/[)"'>\s]+$/, "");
-              if (!seen.has(normalized)) {
-                seen.add(normalized);
-                urls.push({ url: normalized, model: "image" });
-              }
-            }
-          }
-        }
-
-        // Clean content by removing all MCP image URLs (full and truncated)
-        let cleanedContent = content;
-
-        // Remove HTML img tags with MCP URLs
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `<img[^>]*src=["']https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^"']*["'][^>]*>`,
-            "gi"
-          ),
-          ""
-        );
-
-        // Remove markdown images with MCP URLs: ![alt](url)
-        cleanedContent = cleanedContent.replace(
-          new RegExp(
-            `!\\[[^\\]]*\\]\\([\\s]*https://${MCP_R2_DOMAIN.replace(/\./g, "\\.")}[^)]*\\)`,
-            "g"
-          ),
-          ""
-        );
-
-        // Clean up extra whitespace and newlines
-        cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n").trim();
-
-        // If no URLs from tool_call_events, return cleaned content only
+        // No MCP images found — strip any stale MCP URLs and return
         if (urls.length === 0) {
+          const cleanedContent = replaceMCPUrlsWithPlaceholders(content, new Map(), mcpR2Domain);
           return { fileIds: [], cleanedContent };
         }
 
+        // 2. Download images → get mediaIds
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
+        const urlToMediaIdMap = new Map<string, string>();
 
-        // Process all images in parallel
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
             const controller = new AbortController();
@@ -1735,18 +1637,12 @@ export function useChatStorage(
 
               const mediaId = generateMediaId();
               const urlPath = url.split("?")[0] ?? url;
-              const extension =
-                urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
               const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(
-                6,
-                14
-              )}.${extension}`;
+              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              // Extract dimensions
               const dimensions = await getImageDimensions(blob);
 
-              // Encrypt and store in OPFS using mediaId
               await writeEncryptedFile(mediaId, blob, encryptionKey, {
                 name: fileName,
                 sourceUrl: url,
@@ -1766,15 +1662,15 @@ export function useChatStorage(
           })
         );
 
-        // Collect media options for successful downloads
+        // 3. Build urlToMediaId map from successful downloads
         results.forEach((result, i) => {
           const { url, model } = urls[i];
 
           if (result.status === "fulfilled") {
-            const { mediaId, fileName, mimeType, size, dimensions } =
-              result.value;
+            const { mediaId, fileName, mimeType, size, dimensions } = result.value;
 
-            // Prepare media record
+            urlToMediaIdMap.set(url, mediaId);
+
             mediaOptions.push({
               mediaId,
               walletAddress: address,
@@ -1789,7 +1685,6 @@ export function useChatStorage(
               dimensions,
             });
           } else {
-            // eslint-disable-next-line no-console
             console.warn(
               "[extractAndStoreEncryptedMCPImages] Failed to download image:",
               url,
@@ -1798,17 +1693,20 @@ export function useChatStorage(
           }
         });
 
-        // Batch create media records
+        // 4. Replace MCP URLs with __SDKFILE__ placeholders (strips failed downloads)
+        const cleanedContent = replaceMCPUrlsWithPlaceholders(
+          content,
+          urlToMediaIdMap,
+          mcpR2Domain
+        );
+
+        // 5. Batch create media records
         let createdMediaIds: string[] = [];
         if (mediaOptions.length > 0) {
           try {
-            const createdMedia = await createMediaBatchOp(
-              mediaCtx,
-              mediaOptions
-            );
+            const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
             createdMediaIds = createdMedia.map((m) => m.mediaId);
           } catch (err) {
-            // eslint-disable-next-line no-console
             console.error(
               "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
               err
@@ -1823,16 +1721,19 @@ export function useChatStorage(
                 }
               }
             }
+            // Return original content to avoid orphaned __SDKFILE__ placeholders
+            return { fileIds: [], cleanedContent: content };
           }
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
       } catch (err) {
-        // Still clean MCP URLs to prevent broken links even on error
-        return { fileIds: [], cleanedContent: cleanMCPUrlsFromContent(content) };
+        // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
+        // so the LLM can still reference them for editing even if OPFS storage fails.
+        return { fileIds: [], cleanedContent: content };
       }
     },
-    [mediaCtx, getImageDimensions]
+    [mediaCtx, getImageDimensions, mcpR2Domain]
   );
 
   /**
@@ -1846,11 +1747,7 @@ export function useChatStorage(
    * @returns Array of mediaIds for the created media records
    */
   const storeUserFilesInOPFS = useCallback(
-    async (
-      files: FileMetadata[],
-      address: string,
-      conversationId: string
-    ): Promise<string[]> => {
+    async (files: FileMetadata[], address: string, conversationId: string): Promise<string[]> => {
       const canUseOPFS = isOPFSSupported() && hasEncryptionKey(address);
       let encryptionKey: CryptoKey | undefined;
 
@@ -1923,8 +1820,7 @@ export function useChatStorage(
 
         // If not stored in OPFS, use sourceUrl (only for external URLs, not data URIs)
         if (!storedInOPFS) {
-          sourceUrl =
-            file.url && !file.url.startsWith("data:") ? file.url : undefined;
+          sourceUrl = file.url && !file.url.startsWith("data:") ? file.url : undefined;
           // If it's a data URI and we can't store in OPFS, we can't persist the file content
           if (!sourceUrl) {
             continue; // Skip this file - no way to store it
@@ -1975,9 +1871,7 @@ export function useChatStorage(
    * Send a message with automatic storage
    */
   const sendMessage = useCallback(
-    async (
-      args: SendMessageWithStorageArgs
-    ): Promise<SendMessageWithStorageResult> => {
+    async (args: SendMessageWithStorageArgs): Promise<SendMessageWithStorageResult> => {
       const {
         messages,
         model,
@@ -2043,7 +1937,10 @@ export function useChatStorage(
             const embeddingOptions = { getToken, baseUrl, model: embeddingModel };
             if (shouldChunkMessage(messageContent, DEFAULT_CHUNK_SIZE)) {
               const textChunks = chunkText(messageContent);
-              skipStorageEmbeddings = await generateEmbeddings(textChunks.map((c) => c.text), embeddingOptions);
+              skipStorageEmbeddings = await generateEmbeddings(
+                textChunks.map((c) => c.text),
+                embeddingOptions
+              );
             } else {
               skipStorageEmbeddings = await generateEmbedding(messageContent, embeddingOptions);
             }
@@ -2071,10 +1968,7 @@ export function useChatStorage(
               // (user explicitly provided a filter function for semantic matching)
             } else {
               // Static filtering
-              filteredServerTools = filterServerTools(
-                allServerTools,
-                serverToolsFilter
-              );
+              filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
             }
           } catch {
             // Server tools are optional
@@ -2099,12 +1993,11 @@ export function useChatStorage(
           );
         }
 
-        if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
-          mergedTools = mergeTools(
-            filteredServerTools,
-            filteredClientTools,
-            effectiveApiType
-          );
+        if (
+          filteredServerTools.length > 0 ||
+          (filteredClientTools && filteredClientTools.length > 0)
+        ) {
+          mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
         }
 
         const result = await baseSendMessage({
@@ -2135,9 +2028,7 @@ export function useChatStorage(
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
-            () => {}
-          );
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
         }
 
         return {
@@ -2199,10 +2090,7 @@ export function useChatStorage(
         } catch (err) {
           return {
             data: null,
-            error:
-              err instanceof Error
-                ? err.message
-                : "Failed to ensure conversation",
+            error: err instanceof Error ? err.message : "Failed to ensure conversation",
           };
         }
       }
@@ -2247,8 +2135,10 @@ export function useChatStorage(
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
         } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn("[sendMessage] Failed to resolve media for history (image URLs will be missing):", err);
+          console.warn(
+            "[sendMessage] Failed to resolve media for history (image URLs will be missing):",
+            err
+          );
         }
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
@@ -2314,11 +2204,7 @@ export function useChatStorage(
       let userFileIds: string[] = [];
       if (filesForStorage && filesForStorage.length > 0 && walletAddress && isEncryptionReady()) {
         // Store files and create media records
-        userFileIds = await storeUserFilesInOPFS(
-          filesForStorage,
-          walletAddress,
-          convId
-        );
+        userFileIds = await storeUserFilesInOPFS(filesForStorage, walletAddress, convId);
       }
 
       const userMsgOpts: CreateMessageOptions = {
@@ -2343,7 +2229,7 @@ export function useChatStorage(
           // Depend on queued conversation if applicable
           convId && syntheticConvQueueIdsRef.current.has(convId)
             ? [syntheticConvQueueIdsRef.current.get(convId)!]
-            : [],
+            : []
         );
         storedUserMessage = userMsgResult.result;
         userMsgQueueId = userMsgResult.queueId;
@@ -2354,7 +2240,6 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp(mediaCtx, mediaId);
-
             } catch {
               // Ignore cleanup errors
             }
@@ -2362,19 +2247,14 @@ export function useChatStorage(
         }
         return {
           data: null,
-          error:
-            err instanceof Error ? err.message : "Failed to store user message",
+          error: err instanceof Error ? err.message : "Failed to store user message",
         };
       }
 
       // Update media records with the messageId now that we have it (only for direct writes)
       if (userFileIds.length > 0 && !userMsgQueueId) {
         try {
-          await updateMediaMessageIdBatchOp(
-            mediaCtx,
-            userFileIds,
-            storedUserMessage.uniqueId
-          );
+          await updateMediaMessageIdBatchOp(mediaCtx, userFileIds, storedUserMessage.uniqueId);
         } catch {
           // Non-fatal - continue without updating messageId
         }
@@ -2414,10 +2294,7 @@ export function useChatStorage(
       }
 
       // Skip server tools fetch if serverTools is explicitly empty array
-      if (
-        getToken &&
-        !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)
-      ) {
+      if (getToken && !(Array.isArray(serverToolsFilter) && serverToolsFilter.length === 0)) {
         try {
           const allServerTools = await getServerTools({
             baseUrl,
@@ -2435,10 +2312,7 @@ export function useChatStorage(
             // (user explicitly provided a filter, so sending all tools defeats the purpose)
           } else {
             // Static filtering: use string array directly
-            filteredServerTools = filterServerTools(
-              allServerTools,
-              serverToolsFilter
-            );
+            filteredServerTools = filterServerTools(allServerTools, serverToolsFilter);
           }
         } catch {
           // Server tools are optional - continue without them
@@ -2503,12 +2377,11 @@ export function useChatStorage(
       }
 
       // Merge and format tools (handles both server and client tools)
-      if (filteredServerTools.length > 0 || (filteredClientTools && filteredClientTools.length > 0)) {
-        mergedTools = mergeTools(
-          filteredServerTools,
-          filteredClientTools,
-          effectiveApiType
-        );
+      if (
+        filteredServerTools.length > 0 ||
+        (filteredClientTools && filteredClientTools.length > 0)
+      ) {
+        mergedTools = mergeTools(filteredServerTools, filteredClientTools, effectiveApiType);
       }
 
       // Send the message using the underlying useChat
@@ -2554,18 +2427,14 @@ export function useChatStorage(
               (item) => item.type === "message"
             );
             assistantContent =
-              messageOutput?.content
-                ?.map((part) => part.text || "")
-                .join("") || "";
+              messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
             // Find the reasoning output item (type: "reasoning") for thinking content
             const reasoningOutput = (abortedResult.data.output as OutputItem[]).find(
               (item) => item.type === "reasoning"
             );
             abortedThinkingContent =
-              reasoningOutput?.content
-                ?.map((part) => part.text || "")
-                .join("") || undefined;
+              reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
           }
 
           const responseModel = abortedResult.data?.model || model || "";
@@ -2627,11 +2496,7 @@ export function useChatStorage(
         // Also update the user message with the error so both are filtered from history
         const errorMessage = result.error || "No response data received";
         try {
-          await updateMessageErrorOp(
-            storageCtx,
-            storedUserMessage.uniqueId,
-            errorMessage
-          );
+          await updateMessageErrorOp(storageCtx, storedUserMessage.uniqueId, errorMessage);
           await createMessageOp(storageCtx, {
             conversationId: convId,
             role: "assistant",
@@ -2665,21 +2530,16 @@ export function useChatStorage(
         const messageOutput = (responseData.output as OutputItem[]).find(
           (item) => item.type === "message"
         );
-        assistantContent =
-          messageOutput?.content
-            ?.map((part) => part.text || "")
-            .join("") || "";
+        assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
         const reasoningOutput = (responseData.output as OutputItem[]).find(
           (item) => item.type === "reasoning"
         );
         thinkingContent =
-          reasoningOutput?.content
-            ?.map((part) => part.text || "")
-            .join("") || undefined;
+          reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
       } else if ("choices" in responseData && responseData.choices) {
         // Completions API format
-        const completionsData = responseData as LlmapiChatCompletionResponse;
+        const completionsData = responseData;
         const choice = completionsData.choices?.[0];
         const message = choice?.message;
         if (message?.content) {
@@ -2696,7 +2556,9 @@ export function useChatStorage(
 
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const extractedSources = extractSourcesFromToolCallEvents(responseData.tool_call_events).filter((source: SearchSource) => !source.url?.includes(MCP_R2_DOMAIN));
+      const extractedSources = extractSourcesFromToolCallEvents(
+        responseData.tool_call_events
+      ).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
@@ -2726,9 +2588,7 @@ export function useChatStorage(
         | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolSummary = autoToolResults
-          .map(
-            (r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`
-          )
+          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
           .join("\n\n");
         const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
         try {
@@ -2789,7 +2649,7 @@ export function useChatStorage(
           assistantMsgOpts,
           () => createMessageOp(storageCtx, assistantMsgOpts),
           () => makeSyntheticStoredMessage(assistantMsgOpts),
-          userMsgQueueId ? [userMsgQueueId] : [],
+          userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
 
@@ -2804,7 +2664,6 @@ export function useChatStorage(
             try {
               await deleteEncryptedFile(mediaId);
               await hardDeleteMediaOp(mediaCtx, mediaId);
-
             } catch {
               // Ignore cleanup errors
             }
@@ -2812,10 +2671,7 @@ export function useChatStorage(
         }
         return {
           data: null,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Failed to store assistant message",
+          error: err instanceof Error ? err.message : "Failed to store assistant message",
           userMessage: storedUserMessage,
         };
       }
@@ -2835,9 +2691,7 @@ export function useChatStorage(
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(
-          () => {}
-        );
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
       }
 
       return {
@@ -2857,6 +2711,7 @@ export function useChatStorage(
       signMessage,
       embeddedWalletSigner,
       extractAndStoreEncryptedMCPImages,
+      mcpR2Domain,
       embedMessageAsync,
       isEncryptionReady,
       enableQueue,

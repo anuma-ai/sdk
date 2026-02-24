@@ -13,11 +13,7 @@ import type { ToolConfig } from "./googleCalendar";
  * Matches the methods provided by UIInteractionProvider.
  */
 export type UIInteractionContext = {
-  createInteraction: (
-    id: string,
-    type: string,
-    data: any
-  ) => Promise<any>;
+  createInteraction: (id: string, type: string, data: any) => Promise<any>;
   createDisplayInteraction: (
     id: string,
     displayType: string,
@@ -125,7 +121,7 @@ export function migrateDisplayResult(
   if (fromVersion >= toVersion) return result;
   let current = result;
   for (let v = fromVersion; v < toVersion; v++) {
-    const key = `${v}->${v + 1}` as `${number}->${number}`;
+    const key: `${number}->${number}` = `${v}->${v + 1}`;
     const migrate = migrations[key];
     if (migrate) {
       current = migrate(current);
@@ -184,14 +180,10 @@ export function createInteractiveTool(
       const interactionData = config.mapArgs ? config.mapArgs(args) : args;
 
       try {
-        const result = await context.createInteraction(
-          interactionId,
-          config.interactionType,
-          {
-            ...interactionData,
-            afterMessageId: options.getLastMessageId?.(),
-          }
-        );
+        const result = await context.createInteraction(interactionId, config.interactionType, {
+          ...interactionData,
+          afterMessageId: options.getLastMessageId?.(),
+        });
 
         if (config.mapResult) {
           return config.mapResult(result, args);

@@ -1,14 +1,15 @@
 import { Model } from "@nozbe/watermelondb";
-import { field, text, date, json } from "@nozbe/watermelondb/decorators";
+import { date, field, json, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
+
 import type {
+  ActivityPhase,
+  ChatCompletionUsage,
   ChatRole,
   FileMetadata,
-  ChatCompletionUsage,
-  SearchSource,
-  ActivityPhase,
   MessageChunk,
   MessageFeedback,
+  SearchSource,
 } from "./types";
 
 export class Message extends Model {

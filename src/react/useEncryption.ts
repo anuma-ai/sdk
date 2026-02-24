@@ -3,12 +3,29 @@
 export const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
 /**
+ * Encryption key version type.
+ * - "v2": Legacy SHA-256 derived key (for reading enc:v2: data)
+ * - "v3": HKDF derived key with domain separation (for new encryption)
+ */
+export type EncryptionKeyVersion = "v2" | "v3";
+
+/**
+ * Stores both legacy and current encryption keys for migration support.
+ */
+interface StoredKeys {
+  /** SHA-256 derived key (for reading enc:v2: data) */
+  legacy: string;
+  /** HKDF derived key (for new encryption, reading enc:v3: data) */
+  current: string;
+}
+
+/**
  * In-memory storage for encryption keys.
  * Keys are stored per wallet address and only persist for the session.
  * This is more secure than localStorage as keys are not persisted to disk
  * and are not accessible to XSS attacks after page reload.
  */
-const encryptionKeyStore = new Map<string, string>();
+const encryptionKeyStore = new Map<string, StoredKeys>();
 
 /**
  * Cache for imported CryptoKey objects.
@@ -31,7 +48,11 @@ const keyAvailableCallbacks = new Map<string, Set<() => void>>();
 export function onKeyAvailable(address: string, callback: () => void): () => void {
   // If key is already available, fire immediately
   if (encryptionKeyStore.has(address)) {
-    try { callback(); } catch { /* ignore */ }
+    try {
+      callback();
+    } catch {
+      /* ignore */
+    }
     // Still register for future re-availability (e.g., after key clear + re-derive)
   }
 
@@ -43,8 +64,8 @@ export function onKeyAvailable(address: string, callback: () => void): () => voi
   callbacks.add(callback);
 
   return () => {
-    callbacks!.delete(callback);
-    if (callbacks!.size === 0) {
+    callbacks.delete(callback);
+    if (callbacks.size === 0) {
       keyAvailableCallbacks.delete(address);
     }
   };
@@ -58,7 +79,11 @@ function notifyKeyAvailable(address: string): void {
   const callbacks = keyAvailableCallbacks.get(address);
   if (callbacks) {
     for (const cb of callbacks) {
-      try { cb(); } catch { /* ignore listener errors */ }
+      try {
+        cb();
+      } catch {
+        /* ignore listener errors */
+      }
     }
   }
 }
@@ -71,21 +96,34 @@ function notifyKeyAvailable(address: string): void {
 const keyPairStore = new Map<string, CryptoKeyPair>();
 
 /**
- * Gets the encryption key for a wallet address from in-memory storage
+ * Gets the current (HKDF) encryption key for a wallet address from in-memory storage
  * @param address - The wallet address
  * @returns The stored key hex string or null if not available
  */
 function getStoredKey(address: string): string | null {
-  return encryptionKeyStore.get(address) ?? null;
+  const keys = encryptionKeyStore.get(address);
+  return keys?.current ?? null;
 }
 
 /**
- * Stores an encryption key for a wallet address in memory
+ * Gets an encryption key by version for a wallet address
  * @param address - The wallet address
- * @param keyHex - The encryption key as hex string
+ * @param version - Which key version to retrieve
+ * @returns The stored key hex string or null if not available
  */
-function setStoredKey(address: string, keyHex: string): void {
-  encryptionKeyStore.set(address, keyHex);
+function getStoredKeyByVersion(address: string, version: EncryptionKeyVersion): string | null {
+  const keys = encryptionKeyStore.get(address);
+  if (!keys) return null;
+  return version === "v2" ? keys.legacy : keys.current;
+}
+
+/**
+ * Stores encryption keys for a wallet address in memory
+ * @param address - The wallet address
+ * @param keys - The legacy and current encryption keys
+ */
+function setStoredKey(address: string, keys: StoredKeys): void {
+  encryptionKeyStore.set(address, keys);
 }
 
 /**
@@ -94,7 +132,8 @@ function setStoredKey(address: string, keyHex: string): void {
  */
 export function clearEncryptionKey(address: string): void {
   encryptionKeyStore.delete(address);
-  cryptoKeyCache.delete(address);
+  cryptoKeyCache.delete(`${address}:v2`);
+  cryptoKeyCache.delete(`${address}:v3`);
 }
 
 /**
@@ -144,14 +183,44 @@ async function deriveKeyFromSignature(signature: string): Promise<string> {
   const sigBytes = hexToBytes(signature);
 
   // 2. Hash with SHA-256 to get 32-byte key
-  const hashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    sigBytes.buffer as ArrayBuffer
-  );
+  const hashBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
   const hashBytes = new Uint8Array(hashBuffer);
 
   // 3. Return as hex string
   return bytesToHex(hashBytes);
+}
+
+/**
+ * Derives a 32-byte encryption key from a signature using HKDF with domain separation.
+ * Uses SHA-256(signature) as IKM, then HKDF-Expand with app-specific info string.
+ * This provides proper key derivation and prevents cross-app key reuse.
+ */
+async function deriveKeyFromSignatureV3(signature: string): Promise<string> {
+  // 1. Convert hex signature to bytes
+  const sigBytes = hexToBytes(signature);
+
+  // 2. SHA-256 as IKM (input keying material)
+  const ikm = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
+
+  // 3. Import as HKDF key
+  const hkdfKey = await crypto.subtle.importKey("raw", ikm, { name: "HKDF" }, false, [
+    "deriveBits",
+  ]);
+
+  // 4. HKDF extract + expand with domain-specific info
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(32), // Zero salt (HKDF spec: uses hash-length zero buffer)
+      info: new TextEncoder().encode("anuma-sdk-aes-gcm-v3"),
+    },
+    hkdfKey,
+    256
+  );
+
+  // 5. Return as hex string
+  return bytesToHex(new Uint8Array(derivedBits));
 }
 
 /**
@@ -186,20 +255,13 @@ async function deriveKeyPairFromSignature(
   const sigBytes = hexToBytes(signature);
 
   // 2. Hash with SHA-256 to get 32-byte seed
-  const seedBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    sigBytes.buffer as ArrayBuffer
-  );
+  const seedBuffer = await crypto.subtle.digest("SHA-256", sigBytes.buffer as ArrayBuffer);
   const seed = new Uint8Array(seedBuffer);
 
   // 3. Use HKDF to derive key material for ECDH private key
-  const hkdfKey = await crypto.subtle.importKey(
-    "raw",
-    seed.buffer as ArrayBuffer,
-    { name: "HKDF" },
-    false,
-    ["deriveBits"]
-  );
+  const hkdfKey = await crypto.subtle.importKey("raw", seed.buffer, { name: "HKDF" }, false, [
+    "deriveBits",
+  ]);
 
   // 4. Derive 32 bytes for ECDH P-256 private key
   // Use wallet address as salt for domain separation while maintaining determinism
@@ -236,7 +298,7 @@ async function deriveKeyPairFromSignature(
   // 7. Export private key as JWK to get public key coordinates
   // JWK format includes both private and public key information
   const privateKeyJwk = await crypto.subtle.exportKey("jwk", privateKey);
-  
+
   if (!privateKeyJwk.x || !privateKeyJwk.y) {
     throw new Error("Failed to derive public key from private key");
   }
@@ -268,14 +330,10 @@ async function deriveKeyPairFromSignature(
  * Creates a minimal PKCS#8 structure for an ECDH P-256 private key
  * PKCS#8 format: SEQUENCE { version, AlgorithmIdentifier, OCTET STRING (ECPrivateKey) }
  */
-async function createPKCS8PrivateKey(
-  privateKeyBytes: Uint8Array
-): Promise<ArrayBuffer> {
+async function createPKCS8PrivateKey(privateKeyBytes: Uint8Array): Promise<ArrayBuffer> {
   // OIDs for ECDH P-256
   // ecPublicKey: 1.2.840.10045.2.1
-  const ecPublicKeyOID = new Uint8Array([
-    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-  ]);
+  const ecPublicKeyOID = new Uint8Array([0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01]);
   // prime256v1: 1.2.840.10045.3.1.7
   const prime256v1OID = new Uint8Array([
     0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
@@ -284,15 +342,13 @@ async function createPKCS8PrivateKey(
   // ECPrivateKey structure: SEQUENCE { version INTEGER(1), privateKey OCTET STRING }
   const version = new Uint8Array([0x02, 0x01, 0x01]); // INTEGER 1
   const privateKeyOctet = new Uint8Array([
-    0x04, 0x20, // OCTET STRING, 32 bytes
+    0x04,
+    0x20, // OCTET STRING, 32 bytes
     ...privateKeyBytes,
   ]);
 
   // Build ECPrivateKey SEQUENCE
-  const ecPrivateKeyContent = new Uint8Array([
-    ...version,
-    ...privateKeyOctet,
-  ]);
+  const ecPrivateKeyContent = new Uint8Array([...version, ...privateKeyOctet]);
   const ecPrivateKeyLength = ecPrivateKeyContent.length;
   const ecPrivateKeySeq = new Uint8Array([
     0x30, // SEQUENCE
@@ -308,10 +364,7 @@ async function createPKCS8PrivateKey(
   ]);
 
   // AlgorithmIdentifier: SEQUENCE { algorithm OID, parameters OID }
-  const algorithmIdContent = new Uint8Array([
-    ...ecPublicKeyOID,
-    ...prime256v1OID,
-  ]);
+  const algorithmIdContent = new Uint8Array([...ecPublicKeyOID, ...prime256v1OID]);
   const algorithmIdLength = algorithmIdContent.length;
   const algorithmIdSeq = new Uint8Array([
     0x30, // SEQUENCE
@@ -321,11 +374,7 @@ async function createPKCS8PrivateKey(
 
   // Full PKCS#8: SEQUENCE { version INTEGER(0), algorithmId, privateKey }
   const pkcs8Version = new Uint8Array([0x02, 0x01, 0x00]); // INTEGER 0
-  const pkcs8Content = new Uint8Array([
-    ...pkcs8Version,
-    ...algorithmIdSeq,
-    ...wrappedPrivateKey,
-  ]);
+  const pkcs8Content = new Uint8Array([...pkcs8Version, ...algorithmIdSeq, ...wrappedPrivateKey]);
   const pkcs8ContentLength = pkcs8Content.length;
   const pkcs8Seq = new Uint8Array([
     0x30, // SEQUENCE
@@ -336,24 +385,28 @@ async function createPKCS8PrivateKey(
   return pkcs8Seq.buffer;
 }
 
-
 /**
  * Gets the encryption key from in-memory storage and imports it as a CryptoKey.
  * The key must have been previously requested via requestEncryptionKey.
  * Uses a cache to avoid re-importing the same key on every call.
  *
  * @param address - The wallet address
+ * @param version - Which key version to use (default: "v3" for HKDF key)
  * @returns The CryptoKey for AES-GCM encryption/decryption
  * @throws Error if the key hasn't been requested yet
  */
-export async function getEncryptionKey(address: string): Promise<CryptoKey> {
-  // Check cache first for performance
-  const cachedKey = cryptoKeyCache.get(address);
+export async function getEncryptionKey(
+  address: string,
+  version: EncryptionKeyVersion = "v3"
+): Promise<CryptoKey> {
+  // Check cache first for performance (version-aware)
+  const cacheKey = `${address}:${version}`;
+  const cachedKey = cryptoKeyCache.get(cacheKey);
   if (cachedKey) {
     return cachedKey;
   }
 
-  const keyHex = getStoredKey(address);
+  const keyHex = getStoredKeyByVersion(address, version);
   if (!keyHex) {
     throw new Error(
       "Encryption key not found. Please sign a message to generate your encryption key."
@@ -371,60 +424,10 @@ export async function getEncryptionKey(address: string): Promise<CryptoKey> {
     ["encrypt", "decrypt"]
   );
 
-  // Cache the imported key for future use
-  cryptoKeyCache.set(address, cryptoKey);
+  // Cache the imported key for future use (version-aware)
+  cryptoKeyCache.set(cacheKey, cryptoKey);
 
   return cryptoKey;
-}
-
-/**
- * Encrypts data deterministically using AES-GCM with a deterministic IV
- * Same plaintext + address always produces same ciphertext (for queryable fields)
- */
-export async function encryptDataDeterministic(
-  plaintext: string | Uint8Array,
-  address: string
-): Promise<string> {
-  // Validate wallet address format
-  if (!isValidWalletAddress(address)) {
-    throw new Error(
-      `Invalid wallet address: ${address}. Address must start with 0x and be 42 characters (0x + 40 hex characters).`
-    );
-  }
-
-  const key = await getEncryptionKey(address);
-
-  // Convert plaintext to Uint8Array if it's a string
-  const plaintextBytes =
-    typeof plaintext === "string"
-      ? new TextEncoder().encode(plaintext)
-      : plaintext;
-
-  // Derive deterministic IV from plaintext and address
-  const input = `${address}:${typeof plaintext === "string" ? plaintext : new TextDecoder().decode(plaintext)}`;
-  const inputBytes = new TextEncoder().encode(input);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", inputBytes.buffer);
-  const hashBytes = new Uint8Array(hashBuffer);
-  const iv = hashBytes.slice(0, 12); // AES-GCM requires 12-byte IV
-
-  // Encrypt the data
-  const encryptedData = await crypto.subtle.encrypt(
-    {
-      name: "AES-GCM",
-      iv: iv,
-    },
-    key,
-    plaintextBytes.buffer as ArrayBuffer
-  );
-
-  // Combine IV + encrypted data (which includes auth tag)
-  const encryptedBytes = new Uint8Array(encryptedData);
-  const combined = new Uint8Array(iv.length + encryptedBytes.length);
-  combined.set(iv, 0);
-  combined.set(encryptedBytes, iv.length);
-
-  // Return as hex string
-  return bytesToHex(combined);
 }
 
 /**
@@ -499,9 +502,10 @@ export async function encryptData(
  */
 export async function decryptData(
   encryptedHex: string,
-  address: string
+  address: string,
+  version: EncryptionKeyVersion = "v3"
 ): Promise<string> {
-  const key = await getEncryptionKey(address);
+  const key = await getEncryptionKey(address, version);
   return decryptDataWithKey(encryptedHex, key);
 }
 
@@ -512,9 +516,10 @@ export async function decryptData(
  */
 export async function decryptDataBytes(
   encryptedHex: string,
-  address: string
+  address: string,
+  version: EncryptionKeyVersion = "v3"
 ): Promise<Uint8Array> {
-  const key = await getEncryptionKey(address);
+  const key = await getEncryptionKey(address, version);
 
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
@@ -558,9 +563,7 @@ export async function encryptDataWithKey(
 ): Promise<string> {
   // Convert plaintext to Uint8Array if it's a string
   const plaintextBytes =
-    typeof plaintext === "string"
-      ? new TextEncoder().encode(plaintext)
-      : plaintext;
+    typeof plaintext === "string" ? new TextEncoder().encode(plaintext) : plaintext;
 
   // Generate a random 12-byte IV (initialization vector)
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -594,10 +597,7 @@ export async function encryptDataWithKey(
  * @returns Decrypted data as string
  * @internal
  */
-export async function decryptDataWithKey(
-  encryptedHex: string,
-  key: CryptoKey
-): Promise<string> {
+export async function decryptDataWithKey(encryptedHex: string, key: CryptoKey): Promise<string> {
   // Convert hex to bytes
   const combined = hexToBytes(encryptedHex);
 
@@ -683,9 +683,7 @@ export async function decryptDataBatch(
   const key = await getEncryptionKey(address);
 
   // Decrypt all values in parallel
-  return Promise.all(
-    encryptedValues.map((value) => decryptDataWithKey(value, key))
-  );
+  return Promise.all(encryptedValues.map((value) => decryptDataWithKey(value, key)));
 }
 
 /**
@@ -700,10 +698,7 @@ export interface SignMessageOptions {
  * Type for the signMessage function that client must provide.
  * This is typically from Privy's useSignMessage hook.
  */
-export type SignMessageFn = (
-  message: string,
-  options?: SignMessageOptions
-) => Promise<string>;
+export type SignMessageFn = (message: string, options?: SignMessageOptions) => Promise<string>;
 
 /**
  * Type for embedded wallet signer function that enables silent signing.
@@ -758,18 +753,24 @@ export async function requestEncryptionKey(
   } catch (error) {
     // If embedded wallet signer fails, fall back to standard signMessage
     if (embeddedWalletSigner && error instanceof Error) {
-      console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
+      console.warn(
+        "Embedded wallet signing failed, falling back to standard signMessage:",
+        error.message
+      );
       signature = await signMessage(SIGN_MESSAGE, signOptions);
     } else {
       throw error;
     }
   }
 
-  // Derive encryption key from signature
-  const encryptionKey = await deriveKeyFromSignature(signature);
+  // Derive both legacy and current encryption keys from signature
+  const [legacyKey, currentKey] = await Promise.all([
+    deriveKeyFromSignature(signature),
+    deriveKeyFromSignatureV3(signature),
+  ]);
 
-  // Store the derived key in memory
-  setStoredKey(walletAddress, encryptionKey);
+  // Store both keys in memory for dual-key migration support
+  setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
 
   // Notify listeners that key is now available (triggers queue flush, etc.)
   notifyKeyAvailable(walletAddress);
@@ -797,23 +798,22 @@ async function persistKeyPair(address: string): Promise<void> {
     throw new Error("Key pair not found in memory. Cannot persist.");
   }
 
-  // Ensure encryption key exists (needed to encrypt the private key)
-  const encryptionKeyHex = getStoredKey(address);
-  if (!encryptionKeyHex) {
-    throw new Error(
-      "Encryption key not found. Cannot persist keypair without encryption key."
-    );
+  // Ensure encryption keys exist (needed to encrypt the private key)
+  const keys = encryptionKeyStore.get(address);
+  if (!keys) {
+    throw new Error("Encryption key not found. Cannot persist keypair without encryption key.");
   }
 
   try {
     // Get crypto object - prefer globalThis for proper context binding
-    const cryptoApi = (typeof globalThis !== "undefined" && globalThis.crypto) || 
-                      (typeof window !== "undefined" && window.crypto) || 
-                      crypto;
-    
+    const cryptoApi =
+      (typeof globalThis !== "undefined" && globalThis.crypto) ||
+      (typeof window !== "undefined" && window.crypto) ||
+      crypto;
+
     // Export private key as JWK (extractable format)
     const privateKeyJwk = await cryptoApi.subtle.exportKey("jwk", keyPair.privateKey);
-    
+
     // Export public key as JWK for reconstruction
     const publicKeyJwk = await cryptoApi.subtle.exportKey("jwk", keyPair.publicKey);
 
@@ -826,10 +826,10 @@ async function persistKeyPair(address: string): Promise<void> {
     // Encrypt the keypair data using AES-GCM
     const key = await getEncryptionKey(address);
     const plaintextBytes = new TextEncoder().encode(JSON.stringify(keyPairData));
-    
+
     // Generate a random IV for encryption
     const iv = cryptoApi.getRandomValues(new Uint8Array(12));
-    
+
     // Encrypt the data
     const encryptedData = await cryptoApi.subtle.encrypt(
       {
@@ -837,7 +837,7 @@ async function persistKeyPair(address: string): Promise<void> {
         iv: iv,
       },
       key,
-      plaintextBytes.buffer as ArrayBuffer
+      plaintextBytes.buffer
     );
 
     // Combine IV + encrypted data
@@ -870,36 +870,37 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
 
   const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
   const encryptedHex = localStorage.getItem(storageKey);
-  
+
   if (!encryptedHex) {
     return null;
   }
 
   try {
-    // Ensure encryption key exists (needed to decrypt)
-    const encryptionKeyHex = getStoredKey(address);
-    if (!encryptionKeyHex) {
+    // Ensure encryption keys exist (needed to decrypt)
+    const keys = encryptionKeyStore.get(address);
+    if (!keys) {
       // Cannot decrypt without encryption key - return null
       return null;
     }
 
-    // Decrypt the keypair data
-    const key = await getEncryptionKey(address);
+    // Try to decrypt the keypair data with current key first, then fall back to legacy
     const combined = hexToBytes(encryptedHex);
-    
-    // Extract IV and encrypted data
     const iv = combined.slice(0, 12);
     const encryptedData = combined.slice(12);
 
-    // Decrypt
-    const decryptedData = await crypto.subtle.decrypt(
-      {
-        name: "AES-GCM",
-        iv: iv,
-      },
-      key,
-      encryptedData
-    );
+    let decryptedData: ArrayBuffer;
+    try {
+      const key = await getEncryptionKey(address, "v3");
+      decryptedData = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encryptedData);
+    } catch {
+      // Fall back to legacy key (keypair was persisted before v3 migration)
+      const legacyKey = await getEncryptionKey(address, "v2");
+      decryptedData = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        legacyKey,
+        encryptedData
+      );
+    }
 
     // Parse the JSON structure
     const decryptedJson = new TextDecoder().decode(decryptedData);
@@ -980,9 +981,7 @@ async function getKeyPair(
   await requestKeyPair(address, signMessage, embeddedWalletSigner);
   const keyPair = getStoredKeyPair(address);
   if (!keyPair) {
-    throw new Error(
-      "Key pair not found. Please sign a message to generate your key pair."
-    );
+    throw new Error("Key pair not found. Please sign a message to generate your key pair.");
   }
   return keyPair;
 }
@@ -1045,7 +1044,10 @@ export async function requestKeyPair(
   } catch (error) {
     // If embedded wallet signer fails, fall back to standard signMessage
     if (embeddedWalletSigner && error instanceof Error) {
-      console.warn("Embedded wallet signing failed, falling back to standard signMessage:", error.message);
+      console.warn(
+        "Embedded wallet signing failed, falling back to standard signMessage:",
+        error.message
+      );
       signature = await signMessage(SIGN_MESSAGE, signOptions);
     } else {
       throw error;
@@ -1060,9 +1062,9 @@ export async function requestKeyPair(
 
   // Persist to localStorage if encryption key is available
   try {
-    // Ensure encryption key exists before persisting
-    const encryptionKeyHex = getStoredKey(walletAddress);
-    if (encryptionKeyHex) {
+    // Ensure encryption keys exist before persisting
+    const keys = encryptionKeyStore.get(walletAddress);
+    if (keys) {
       await persistKeyPair(walletAddress);
     }
   } catch (error) {
@@ -1280,4 +1282,3 @@ export function useEncryption(
     clearKeyPair: (walletAddress: string) => clearKeyPair(walletAddress),
   };
 }
-

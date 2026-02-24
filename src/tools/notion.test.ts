@@ -33,10 +33,7 @@ function uniqueToken(): string {
 
 // ── Helpers ──
 
-function jsonResponse(
-  body: unknown,
-  init?: { status?: number; headers?: Record<string, string> }
-) {
+function jsonResponse(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
   const status = init?.status ?? 200;
   const headers = new Headers({
     "Content-Type": "application/json",
@@ -52,10 +49,7 @@ function jsonResponse(
   };
 }
 
-function sseResponse(
-  data: unknown,
-  init?: { status?: number; headers?: Record<string, string> }
-) {
+function sseResponse(data: unknown, init?: { status?: number; headers?: Record<string, string> }) {
   const status = init?.status ?? 200;
   const body = `event: message\ndata: ${JSON.stringify(data)}\n\n`;
   const headers = new Headers({
@@ -92,9 +86,7 @@ function mockSuccessfulMCPFlow(toolResult: unknown): void {
   mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
   // 3rd call: tools/call
-  mockFetch.mockResolvedValueOnce(
-    jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult })
-  );
+  mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult }));
 }
 
 // ── Tests ──
@@ -134,14 +126,9 @@ describe("Notion MCP Tools", () => {
 
       // Tool call returns JSON
       const toolResult = { content: [{ type: "text", text: "result" }] };
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult })
-      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 2, result: toolResult }));
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
 
       expect(result).toEqual(toolResult);
@@ -155,10 +142,7 @@ describe("Notion MCP Tools", () => {
       const toolResult = { content: [{ type: "text", text: "found" }] };
       mockSuccessfulMCPFlow(toolResult);
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "hello" });
 
       expect(result).toEqual(toolResult);
@@ -179,19 +163,14 @@ describe("Notion MCP Tools", () => {
       const result2 = { content: [{ type: "text", text: "second" }] };
       mockSuccessfulMCPFlow(result1);
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
 
       // First call initializes session
       await tool.executor!({ query: "first" });
       expect(mockFetch).toHaveBeenCalledTimes(3);
 
       // Second call should reuse cached session (only 1 more fetch)
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({ jsonrpc: "2.0", id: 3, result: result2 })
-      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 3, result: result2 }));
 
       const secondResult = await tool.executor!({ query: "second" });
       expect(secondResult).toEqual(result2);
@@ -231,14 +210,9 @@ describe("Notion MCP Tools", () => {
 
       // Retry tool call succeeds
       const toolResult = { content: [{ type: "text", text: "recovered" }] };
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({ jsonrpc: "2.0", id: 5, result: toolResult })
-      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 5, result: toolResult }));
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
 
       expect(result).toEqual(toolResult);
@@ -246,16 +220,10 @@ describe("Notion MCP Tools", () => {
 
     it("returns error when initialization has no session ID", async () => {
       mockFetch.mockResolvedValueOnce(
-        jsonResponse(
-          { jsonrpc: "2.0", id: 1, result: {} },
-          { headers: {} }
-        )
+        jsonResponse({ jsonrpc: "2.0", id: 1, result: {} }, { headers: {} })
       );
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
 
       expect(result).toContain("Error searching Notion");
@@ -270,10 +238,7 @@ describe("Notion MCP Tools", () => {
         text: async () => "Server error",
       });
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
 
       expect(result).toContain("Error searching Notion");
@@ -289,10 +254,7 @@ describe("Notion MCP Tools", () => {
       mockGetAccessToken.mockReturnValue(token);
       mockSuccessfulMCPFlow({ content: [] });
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       await tool.executor!({ query: "test" });
 
       expect(mockGetAccessToken).toHaveBeenCalled();
@@ -308,18 +270,13 @@ describe("Notion MCP Tools", () => {
       mockRequestNotionAccess.mockResolvedValue(requestedToken);
       mockSuccessfulMCPFlow({ content: [] });
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       await tool.executor!({ query: "test" });
 
       expect(mockRequestNotionAccess).toHaveBeenCalled();
 
       const initCall = mockFetch.mock.calls[0];
-      expect(initCall[1].headers.Authorization).toBe(
-        `Bearer ${requestedToken}`
-      );
+      expect(initCall[1].headers.Authorization).toBe(`Bearer ${requestedToken}`);
     });
   });
 
@@ -346,10 +303,7 @@ describe("Notion MCP Tools", () => {
         })
       );
 
-      const tool = createNotionFetchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionFetchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ id: "nonexistent-page" });
 
       expect(result).toContain("Error fetching Notion page");
@@ -368,10 +322,7 @@ describe("Notion MCP Tools", () => {
         )
       );
 
-      const tool = createNotionSearchTool(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
 
       expect(result).toContain("Error searching Notion");
@@ -536,10 +487,7 @@ describe("Notion MCP Tools", () => {
 
   describe("createNotionTools", () => {
     it("returns all 12 tools", () => {
-      const tools = createNotionTools(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tools = createNotionTools(mockGetAccessToken, mockRequestNotionAccess);
 
       expect(tools).toHaveLength(12);
 
@@ -561,10 +509,7 @@ describe("Notion MCP Tools", () => {
     });
 
     it("all tools have executors and autoExecute", () => {
-      const tools = createNotionTools(
-        mockGetAccessToken,
-        mockRequestNotionAccess
-      );
+      const tools = createNotionTools(mockGetAccessToken, mockRequestNotionAccess);
 
       for (const tool of tools) {
         expect(tool.executor).toBeTypeOf("function");

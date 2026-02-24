@@ -72,7 +72,7 @@ export interface EmbeddingOptions {
 /**
  * Context required for memory retrieval operations
  */
-export interface MemoryRetrievalContext {
+interface MemoryRetrievalContext {
   /** Storage operations context */
   storageCtx: StorageOperationsContext;
   /** Embedding options */
@@ -82,7 +82,7 @@ export interface MemoryRetrievalContext {
 /**
  * Tool configuration for memory retrieval
  */
-export interface MemoryRetrievalToolConfig {
+interface MemoryRetrievalToolConfig {
   /** Tool name */
   name: string;
   /** Tool description */

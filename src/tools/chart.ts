@@ -6,9 +6,9 @@
  * it through for rendering by the ChartCard component.
  */
 
-import { createDisplayTool } from "./uiInteraction";
-import type { CreateUIToolsOptions } from "./uiInteraction";
 import type { ToolConfig } from "./googleCalendar";
+import type { CreateUIToolsOptions } from "./uiInteraction";
+import { createDisplayTool } from "./uiInteraction";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,17 +93,12 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
       required: ["chartType", "data", "dataKeys"],
     },
     displayType: "chart",
-    execute: async (
-      args: Record<string, unknown>
-    ): Promise<DisplayChartResult> => {
+    execute: async (args: Record<string, unknown>): Promise<DisplayChartResult> => {
       const chartType = args.chartType as string;
       const data = args.data as ChartDataPoint[];
       const dataKeys = args.dataKeys as string[];
 
-      if (
-        !chartType ||
-        !["bar", "line", "area", "pie"].includes(chartType)
-      ) {
+      if (!chartType || !["bar", "line", "area", "pie"].includes(chartType)) {
         return { error: `Unsupported chart type: ${chartType}` };
       }
       if (!data || !Array.isArray(data) || data.length === 0) {

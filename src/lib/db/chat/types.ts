@@ -1,5 +1,6 @@
-import { v7 as uuidv7 } from "uuid";
 import type { Database } from "@nozbe/watermelondb";
+import { v7 as uuidv7 } from "uuid";
+
 import type {
   LlmapiChatCompletionTool,
   LlmapiMessage,
@@ -8,8 +9,8 @@ import type {
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
 } from "../../../client";
-import type { ServerTool } from "../../tools";
 import type { ServerToolCallEvent } from "../../chat/useChat/utils";
+import type { ServerTool } from "../../tools";
 
 /**
  * Function type for dynamic server tools filtering based on prompt embeddings.
@@ -328,6 +329,12 @@ export interface BaseUseChatStorageOptions {
    * @default 10
    */
   minContentLength?: number;
+  /**
+   * R2 domain for identifying MCP-generated image URLs.
+   * When set, enables OPFS caching of generated images.
+   * Defaults to the hardcoded MCP_R2_DOMAIN from clientConfig.
+   */
+  mcpR2Domain?: string;
 }
 
 /**
@@ -618,9 +625,7 @@ export interface BaseUseChatStorageResult {
   stop: () => void;
   conversationId: string | null;
   setConversationId: (id: string | null) => void;
-  createConversation: (
-    options?: CreateConversationOptions
-  ) => Promise<StoredConversation>;
+  createConversation: (options?: CreateConversationOptions) => Promise<StoredConversation>;
   getConversation: (id: string) => Promise<StoredConversation | null>;
   getConversations: () => Promise<StoredConversation[]>;
   updateConversationTitle: (id: string, title: string) => Promise<boolean>;
@@ -634,9 +639,7 @@ export function generateConversationId(): string {
   return `conv_${uuidv7()}`;
 }
 
-export function convertUsageToStored(
-  usage?: LlmapiResponseUsage
-): ChatCompletionUsage | undefined {
+export function convertUsageToStored(usage?: LlmapiResponseUsage): ChatCompletionUsage | undefined {
   if (!usage) return undefined;
   return {
     promptTokens: usage.prompt_tokens,
@@ -656,16 +659,14 @@ export function finalizeThoughtProcess(
 ): ActivityPhase[] | undefined {
   if (!thoughtProcess?.length) return thoughtProcess;
   return thoughtProcess.map((phase, idx) =>
-    idx === thoughtProcess.length - 1
-      ? { ...phase, status: "completed" as const }
-      : phase
+    idx === thoughtProcess.length - 1 ? { ...phase, status: "completed" as const } : phase
   );
 }
 
 /**
  * Result of extracting user message content from a messages array.
  */
-export interface ExtractedUserMessage {
+interface ExtractedUserMessage {
   /** The extracted text content */
   content: string;
   /** File metadata extracted from image_url parts */
@@ -715,7 +716,8 @@ export function extractUserMessageFromMessages(
       const fileUrl = part.file.file_url || part.file.file_data;
       if (fileUrl) {
         files.push({
-          id: part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          id:
+            part.file.file_id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
           name: part.file.filename || "file",
           type: "application/octet-stream", // Will be determined by processor
           size: 0,

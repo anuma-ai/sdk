@@ -8,22 +8,22 @@
  * 4. Use refresh token to get new access tokens silently
  */
 
+import type { Client } from "../../../client/client";
 import {
   postAuthOauthByProviderExchange,
   postAuthOauthByProviderRefresh,
   postAuthOauthByProviderRevoke,
 } from "../../../client/sdk.gen";
-import type { Client } from "../../../client/client";
 import {
   clearTokenData,
   getRefreshToken,
   getStoredTokenData,
   getValidAccessToken,
   isTokenExpired,
+  type OAuthError,
+  type OAuthResult,
   storeTokenData,
   tokenResponseToStoredData,
-  type OAuthResult,
-  type OAuthError,
 } from "../oauth/storage";
 
 const PROVIDER = "google-drive";
@@ -51,9 +51,7 @@ function getRedirectUri(callbackPath: string): string {
 function generateState(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -72,7 +70,7 @@ function getAndClearOAuthState(): string | null {
   const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
   sessionStorage.removeItem(CODE_STORAGE_KEY);
   if (!stored) return null;
-  
+
   // Handle both JSON format (from tests) and plain string format
   try {
     const parsed = JSON.parse(stored);
@@ -167,7 +165,8 @@ export async function handleGoogleDriveCallback(
         ok: false,
         error: {
           code: "encryption",
-          message: encryptionError instanceof Error ? encryptionError.message : String(encryptionError),
+          message:
+            encryptionError instanceof Error ? encryptionError.message : String(encryptionError),
           originalError: encryptionError instanceof Error ? encryptionError : undefined,
         },
       };
@@ -183,7 +182,7 @@ export async function handleGoogleDriveCallback(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
-    
+
     // Log error with details
     console.error(`OAuth callback error: ${errorDetails}`, error);
     console.warn(`Failed to complete OAuth flow: ${errorMessage}`);
@@ -210,7 +209,7 @@ export async function handleGoogleDriveCallback(
 /**
  * Refresh the access token using the stored refresh token
  */
-export async function refreshGoogleDriveToken(
+async function refreshGoogleDriveToken(
   apiClient?: Client,
   walletAddress?: string
 ): Promise<string | null> {
@@ -311,10 +310,7 @@ export async function getGoogleDriveAccessToken(
 /**
  * Start the OAuth flow - redirects to Google
  */
-export async function startGoogleDriveAuth(
-  clientId: string,
-  callbackPath: string
-): Promise<never> {
+export async function startGoogleDriveAuth(clientId: string, callbackPath: string): Promise<never> {
   const state = generateState();
   storeOAuthState(state);
 
@@ -337,9 +333,7 @@ export async function startGoogleDriveAuth(
 /**
  * Get stored token data for Google Drive
  */
-export async function getGoogleDriveStoredToken(
-  walletAddress?: string
-): Promise<string | null> {
+export async function getGoogleDriveStoredToken(walletAddress?: string): Promise<string | null> {
   return getValidAccessToken(PROVIDER, walletAddress);
 }
 
@@ -353,9 +347,7 @@ export function clearGoogleDriveToken(): void {
 /**
  * Check if we have any stored credentials (including refresh token)
  */
-export async function hasGoogleDriveCredentials(
-  walletAddress?: string
-): Promise<boolean> {
+export async function hasGoogleDriveCredentials(walletAddress?: string): Promise<boolean> {
   const data = await getStoredTokenData(PROVIDER, walletAddress);
   return !!(data?.accessToken || data?.refreshToken);
 }

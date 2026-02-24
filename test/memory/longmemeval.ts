@@ -149,14 +149,13 @@ async function main(): Promise<void> {
   }
 
   const apiKey = process.env.PORTAL_API_KEY;
-  const baseUrl =
-    process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
+  const baseUrl = process.env.REVERBIA_API_URL || "https://portal.anuma-dev.ai";
 
   if (!apiKey) {
     console.error(
       "Error: PORTAL_API_KEY is required.\n\n" +
-      "Add PORTAL_API_KEY to your .env file:\n" +
-      "  PORTAL_API_KEY=your-api-key\n"
+        "Add PORTAL_API_KEY to your .env file:\n" +
+        "  PORTAL_API_KEY=your-api-key\n"
     );
     process.exit(1);
   }
@@ -179,17 +178,13 @@ async function main(): Promise<void> {
     skipExisting: args["skip-existing"],
     questionId: args["question-id"],
     maxQuestions: args.max ? parseInt(args.max, 10) : undefined,
-    maxSessions: args["max-sessions"]
-      ? parseInt(args["max-sessions"], 10)
-      : undefined,
+    maxSessions: args["max-sessions"] ? parseInt(args["max-sessions"], 10) : undefined,
     questionTypes: args.types
       ? (args.types.split(",").map((t) => t.trim()) as LongMemEvalQuestionType[])
       : undefined,
     verbose: args.verbose,
     output: args.output,
-    skipUnsupported: args["include-unsupported"]
-      ? false
-      : args["skip-unsupported"],
+    skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
   };
 
   try {

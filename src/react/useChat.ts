@@ -2,30 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { LlmapiMessage } from "../client";
 import { client } from "../client/client.gen";
 import { BASE_URL } from "../clientConfig";
-import type { LlmapiMessage } from "../client";
 import {
+  type AccumulatedToolCall,
+  type ApiResponse,
+  type ApiType,
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
   type BaseUseChatResult,
-  type AccumulatedToolCall,
-  type ApiType,
-  type ApiResponse,
-  createStreamAccumulator,
-  validateMessages,
-  validateModel,
-  validateTokenGetter,
-  validateToken,
   createErrorResult,
-  handleError,
-  isAbortError,
-  isDoneMarker,
-  toolsToApiFormat,
+  createStreamAccumulator,
   createToolExecutorMap,
   executeToolCall,
   getStrategy,
+  handleError,
+  isAbortError,
+  isDoneMarker,
   StreamSmoother,
+  toolsToApiFormat,
+  validateMessages,
+  validateModel,
+  validateToken,
+  validateTokenGetter,
 } from "../lib/chat/useChat";
 
 type SendMessageArgs = BaseSendMessageArgs & {
@@ -263,7 +263,9 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           content: [
             {
               type: "text",
-              text: "IMPORTANT: The user has attached files to this conversation. The extracted file contents are shown below. When the user asks about \"the file\", \"this file\", or \"what's in the file\", refer to this content:\n\n" + fileContext,
+              text:
+                'IMPORTANT: The user has attached files to this conversation. The extracted file contents are shown below. When the user asks about "the file", "this file", or "what\'s in the file", refer to this content:\n\n' +
+                fileContext,
             },
           ],
         };
@@ -343,8 +345,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           signal: abortController.signal,
           sseMaxRetryAttempts: 1,
           onSseError: (error) => {
-            sseError =
-              error instanceof Error ? error : new Error(String(error));
+            sseError = error instanceof Error ? error : new Error(String(error));
           },
         });
 
@@ -370,8 +371,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
             // Handle chunk data
             if (chunk && typeof chunk === "object") {
-              const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
-                strategy.processStreamChunk(chunk, accumulator);
+              const {
+                content: contentDelta,
+                thinking: thinkingDelta,
+                serverToolCall,
+              } = strategy.processStreamChunk(chunk, accumulator);
               if (contentDelta) {
                 contentSmoother.push(contentDelta);
               }
@@ -491,10 +495,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 };
               }
 
-              const { result, error } = await executeToolCall(
-                toolCall,
-                executorConfig.executor
-              );
+              const { result, error } = await executeToolCall(toolCall, executorConfig.executor);
 
               return {
                 id: toolCall.id,
@@ -536,10 +537,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 if (apiTools.length === 0) {
                   apiTools = undefined;
                   toolChoice = undefined;
-                } else if (
-                  typeof toolChoice === "string" &&
-                  toolsToRemove.has(toolChoice)
-                ) {
+                } else if (typeof toolChoice === "string" && toolsToRemove.has(toolChoice)) {
                   // Clear toolChoice if it references a removed tool
                   toolChoice = undefined;
                 }
@@ -559,9 +557,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   return `${r.name}: Error - ${r.error}`;
                 }
                 const resultStr =
-                  typeof r.result === "object"
-                    ? JSON.stringify(r.result)
-                    : String(r.result);
+                  typeof r.result === "object" ? JSON.stringify(r.result) : String(r.result);
                 return `${r.name}: ${resultStr}`;
               })
               .join("\n");
@@ -635,10 +631,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           }
 
           // Continue the conversation with tool results
-          currentMessages = [
-            ...currentMessages,
-            ...toolResultMessages,
-          ];
+          currentMessages = [...currentMessages, ...toolResultMessages];
 
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
@@ -665,8 +658,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             signal: abortController.signal,
             sseMaxRetryAttempts: 1,
             onSseError: (error) => {
-              sseError =
-                error instanceof Error ? error : new Error(String(error));
+              sseError = error instanceof Error ? error : new Error(String(error));
             },
           });
 
@@ -690,8 +682,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               }
 
               if (chunk && typeof chunk === "object") {
-                const { content: contentDelta, thinking: thinkingDelta, serverToolCall } =
-                  strategy.processStreamChunk(chunk, currentAccumulator);
+                const {
+                  content: contentDelta,
+                  thinking: thinkingDelta,
+                  serverToolCall,
+                } = strategy.processStreamChunk(chunk, currentAccumulator);
                 if (contentDelta) {
                   contContentSmoother.push(contentDelta);
                 }
@@ -703,14 +698,11 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                 }
               }
             }
-
           } catch (streamErr) {
             if (isAbortError(streamErr) || abortController.signal.aborted) {
               contContentSmoother.destroy();
               contThinkingSmoother.destroy();
-              const partialResponse = strategy.buildFinalResponse(
-                currentAccumulator
-              );
+              const partialResponse = strategy.buildFinalResponse(currentAccumulator);
               return {
                 data: partialResponse,
                 error: "Request aborted",
@@ -725,9 +717,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           if (abortController.signal.aborted) {
             contContentSmoother.destroy();
             contThinkingSmoother.destroy();
-            const partialResponse = strategy.buildFinalResponse(
-              currentAccumulator
-            );
+            const partialResponse = strategy.buildFinalResponse(currentAccumulator);
             return {
               data: partialResponse,
               error: "Request aborted",
