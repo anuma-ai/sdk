@@ -196,13 +196,21 @@ async function storeTokenData(
   const json = JSON.stringify(data);
 
   if (walletAddress && hasEncryptionKey(walletAddress)) {
-    const cryptoKey = await getEncryptionKey(walletAddress);
-    const encrypted = await encryptDataWithKey(json, cryptoKey);
-    localStorage.setItem(
-      getTokenStorageKey(walletAddress),
-      `${ENCRYPTED_PREFIX}${encrypted}`
-    );
-    return;
+    try {
+      const cryptoKey = await getEncryptionKey(walletAddress);
+      const encrypted = await encryptDataWithKey(json, cryptoKey);
+      localStorage.setItem(
+        getTokenStorageKey(walletAddress),
+        `${ENCRYPTED_PREFIX}${encrypted}`
+      );
+      return;
+    } catch (error) {
+      console.warn(
+        "Failed to encrypt Drive OAuth token, storing temporarily:",
+        error
+      );
+      // Fall through to sessionStorage
+    }
   }
 
   // Fallback: store plain JSON in sessionStorage
