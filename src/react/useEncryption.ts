@@ -1,22 +1,29 @@
 "use client";
 
+import {
+  storeKey as idbStoreKey,
+  loadKey as idbLoadKey,
+  loadAllEntries as idbLoadAllEntries,
+  removeKey as idbRemoveKey,
+  removeAllKeys as idbRemoveAllKeys,
+} from "./encryptionKeyStorage";
+
 export const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
-/**
- * In-memory storage for encryption keys.
- * Keys are stored per wallet address and only persist for the session.
- * This is more secure than localStorage as keys are not persisted to disk
- * and are not accessible to XSS attacks after page reload.
- */
-const encryptionKeyStore = new Map<string, string>();
-const SESSION_KEY_PREFIX = "enc_key_";
 
 /**
- * Cache for imported CryptoKey objects.
- * Avoids re-importing the same key on every encrypt/decrypt operation.
- * Keys are cached per wallet address and cleared when the encryption key is cleared.
+ * Primary in-memory cache for non-extractable CryptoKey objects.
+ * The CryptoKey handles cannot be exported or serialized — an XSS attacker
+ * can use them for encrypt/decrypt on the current page but cannot extract
+ * the raw key bytes.
  */
 const cryptoKeyCache = new Map<string, CryptoKey>();
+
+/**
+ * Set of wallet addresses whose keys are known to exist (in-memory or IndexedDB).
+ * Enables synchronous `hasEncryptionKey()` checks without async IndexedDB reads.
+ */
+const knownAddresses = new Set<string>();
 
 /**
  * Callbacks to notify when an encryption key becomes available for a wallet.
@@ -31,7 +38,7 @@ const keyAvailableCallbacks = new Map<string, Set<() => void>>();
  */
 export function onKeyAvailable(address: string, callback: () => void): () => void {
   // If key is already available, fire immediately
-  if (encryptionKeyStore.has(address)) {
+  if (knownAddresses.has(address)) {
     try { callback(); } catch { /* ignore */ }
     // Still register for future re-availability (e.g., after key clear + re-derive)
   }
@@ -72,74 +79,85 @@ function notifyKeyAvailable(address: string): void {
 const keyPairStore = new Map<string, CryptoKeyPair>();
 
 /**
- * Gets the encryption key for a wallet address from in-memory storage
+ * Stores a CryptoKey for a wallet address in memory and persists to IndexedDB.
+ * Broadcasts availability to sibling tabs after the IndexedDB write commits.
  * @param address - The wallet address
- * @returns The stored key hex string or null if not available
+ * @param cryptoKey - The non-extractable CryptoKey
  */
-function getStoredKey(address: string): string | null {
-  const memoryKey = encryptionKeyStore.get(address);
-  if (memoryKey) return memoryKey;
+async function setStoredKey(address: string, cryptoKey: CryptoKey): Promise<void> {
+  cryptoKeyCache.set(address, cryptoKey);
+  knownAddresses.add(address);
 
+  // Persist to IndexedDB — await so the broadcast only fires after commit
   try {
-    const sessionKey = sessionStorage.getItem(SESSION_KEY_PREFIX + address);
-    if (sessionKey) {
-      encryptionKeyStore.set(address, sessionKey);
-      return sessionKey;
+    await idbStoreKey(address, cryptoKey);
+  } catch {
+    // IndexedDB unavailable (React Native, private browsing, etc.)
+  }
+
+  // Notify sibling tabs via BroadcastChannel (after IDB commit)
+  try {
+    const bc = new BroadcastChannel("reverbia-encryption-keys");
+    bc.postMessage({ type: "key-available", address });
+    bc.close();
+  } catch {
+    // BroadcastChannel unavailable
+  }
+}
+
+/**
+ * Loads a CryptoKey from IndexedDB into the in-memory cache.
+ * Returns the CryptoKey or null if not found.
+ * @param address - The wallet address
+ */
+async function loadStoredKey(address: string): Promise<CryptoKey | null> {
+  // Fast path: already in memory
+  const cached = cryptoKeyCache.get(address);
+  if (cached) return cached;
+
+  // Slow path: check IndexedDB
+  try {
+    const key = await idbLoadKey(address);
+    if (key) {
+      cryptoKeyCache.set(address, key);
+      knownAddresses.add(address);
+      return key;
     }
   } catch {
-    // sessionStorage unavailable (private browsing, React Native, etc.)
+    // IndexedDB unavailable
   }
 
   return null;
 }
 
 /**
- * Stores an encryption key for a wallet address in memory
- * @param address - The wallet address
- * @param keyHex - The encryption key as hex string
- */
-function setStoredKey(address: string, keyHex: string): void {
-  encryptionKeyStore.set(address, keyHex);
-  try {
-    sessionStorage.setItem(SESSION_KEY_PREFIX + address, keyHex);
-  } catch {
-    // sessionStorage unavailable (private browsing, React Native, etc.)
-  }
-}
-
-/**
- * Clears the encryption key for a wallet address from memory
+ * Clears the encryption key for a wallet address from memory and IndexedDB.
  * @param address - The wallet address
  */
 export function clearEncryptionKey(address: string): void {
-  encryptionKeyStore.delete(address);
   cryptoKeyCache.delete(address);
+  knownAddresses.delete(address);
+
+  // Fire-and-forget IndexedDB cleanup
   try {
-    sessionStorage.removeItem(SESSION_KEY_PREFIX + address);
+    idbRemoveKey(address).catch(() => {});
   } catch {
-    // sessionStorage unavailable (private browsing, React Native, etc.)
+    // IndexedDB unavailable
   }
 }
 
 /**
- * Clears all encryption keys from memory
+ * Clears all encryption keys from memory and IndexedDB.
  */
 export function clearAllEncryptionKeys(): void {
-  encryptionKeyStore.clear();
   cryptoKeyCache.clear();
+  knownAddresses.clear();
+
+  // Fire-and-forget IndexedDB cleanup
   try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key?.startsWith(SESSION_KEY_PREFIX)) {
-        keysToRemove.push(key);
-      }
-    }
-    for (const key of keysToRemove) {
-      sessionStorage.removeItem(key);
-    }
+    idbRemoveAllKeys().catch(() => {});
   } catch {
-    // sessionStorage unavailable (private browsing, React Native, etc.)
+    // IndexedDB unavailable
   }
 }
 
@@ -175,21 +193,28 @@ function isValidWalletAddress(address: string): boolean {
 }
 
 /**
- * Derives a 32-byte encryption key from a signature using SHA-256
+ * Derives a non-extractable AES-GCM CryptoKey from a signature using SHA-256.
+ * The raw key bytes exist only as an ArrayBuffer between digest() and importKey(),
+ * then are garbage collected. The returned CryptoKey handle cannot be exported.
  */
-async function deriveKeyFromSignature(signature: string): Promise<string> {
+async function deriveKeyFromSignature(signature: string): Promise<CryptoKey> {
   // 1. Convert hex signature to bytes
   const sigBytes = hexToBytes(signature);
 
-  // 2. Hash with SHA-256 to get 32-byte key
+  // 2. Hash with SHA-256 to get 32-byte key material
   const hashBuffer = await crypto.subtle.digest(
     "SHA-256",
     sigBytes.buffer as ArrayBuffer
   );
-  const hashBytes = new Uint8Array(hashBuffer);
 
-  // 3. Return as hex string
-  return bytesToHex(hashBytes);
+  // 3. Import as non-extractable CryptoKey — raw bytes are never exposed to JS
+  return crypto.subtle.importKey(
+    "raw",
+    hashBuffer,
+    { name: "AES-GCM" },
+    false, // NON-EXTRACTABLE
+    ["encrypt", "decrypt"]
+  );
 }
 
 /**
@@ -376,43 +401,30 @@ async function createPKCS8PrivateKey(
 
 
 /**
- * Gets the encryption key from in-memory storage and imports it as a CryptoKey.
+ * Gets the non-extractable CryptoKey for a wallet address.
+ * Checks in-memory cache first, then falls back to IndexedDB.
  * The key must have been previously requested via requestEncryptionKey.
- * Uses a cache to avoid re-importing the same key on every call.
  *
  * @param address - The wallet address
- * @returns The CryptoKey for AES-GCM encryption/decryption
+ * @returns The non-extractable CryptoKey for AES-GCM encryption/decryption
  * @throws Error if the key hasn't been requested yet
  */
 export async function getEncryptionKey(address: string): Promise<CryptoKey> {
-  // Check cache first for performance
+  // Fast path: in-memory cache
   const cachedKey = cryptoKeyCache.get(address);
   if (cachedKey) {
     return cachedKey;
   }
 
-  const keyHex = getStoredKey(address);
-  if (!keyHex) {
-    throw new Error(
-      "Encryption key not found. Please sign a message to generate your encryption key."
-    );
+  // Slow path: try IndexedDB (handles page refresh recovery)
+  const idbKey = await loadStoredKey(address);
+  if (idbKey) {
+    return idbKey;
   }
 
-  const keyBytes = hexToBytes(keyHex);
-
-  // Import the key for AES-GCM encryption
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBytes.buffer as ArrayBuffer,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
+  throw new Error(
+    "Encryption key not found. Please sign a message to generate your encryption key."
   );
-
-  // Cache the imported key for future use
-  cryptoKeyCache.set(address, cryptoKey);
-
-  return cryptoKey;
 }
 
 /**
@@ -575,10 +587,11 @@ export async function decryptDataBytes(
 }
 
 /**
- * Checks if an encryption key exists in memory for the given wallet address
+ * Checks if an encryption key exists (in-memory or known via IndexedDB) for the given wallet address.
+ * This is synchronous — it checks the `knownAddresses` set which is populated on init and on key derivation.
  */
 export function hasEncryptionKey(address: string): boolean {
-  return getStoredKey(address) !== null;
+  return knownAddresses.has(address);
 }
 
 /**
@@ -777,10 +790,22 @@ export async function requestEncryptionKey(
     );
   }
 
-  // Check if key already exists in memory
-  const existingKey = getStoredKey(walletAddress);
-  if (existingKey) {
-    return; // Key already exists in memory, no need to sign again
+  // Clear keys belonging to other addresses (user switch without explicit logout)
+  const otherAddresses = [...knownAddresses].filter(a => a !== walletAddress);
+  for (const addr of otherAddresses) {
+    clearEncryptionKey(addr);
+  }
+
+  // Check if key already exists in memory or IndexedDB
+  if (knownAddresses.has(walletAddress)) {
+    return; // Key already exists, no need to sign again
+  }
+  // Also check IndexedDB in case init hasn't run yet
+  try {
+    const idbKey = await loadStoredKey(walletAddress);
+    if (idbKey) return;
+  } catch {
+    // IndexedDB unavailable — continue to derive
   }
 
   // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
@@ -803,11 +828,11 @@ export async function requestEncryptionKey(
     }
   }
 
-  // Derive encryption key from signature
-  const encryptionKey = await deriveKeyFromSignature(signature);
+  // Derive non-extractable CryptoKey from signature
+  const cryptoKey = await deriveKeyFromSignature(signature);
 
-  // Store the derived key in memory
-  setStoredKey(walletAddress, encryptionKey);
+  // Store the CryptoKey in memory + IndexedDB (awaits IDB commit)
+  await setStoredKey(walletAddress, cryptoKey);
 
   // Notify listeners that key is now available (triggers queue flush, etc.)
   notifyKeyAvailable(walletAddress);
@@ -836,8 +861,7 @@ async function persistKeyPair(address: string): Promise<void> {
   }
 
   // Ensure encryption key exists (needed to encrypt the private key)
-  const encryptionKeyHex = getStoredKey(address);
-  if (!encryptionKeyHex) {
+  if (!hasEncryptionKey(address)) {
     throw new Error(
       "Encryption key not found. Cannot persist keypair without encryption key."
     );
@@ -915,8 +939,7 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
 
   try {
     // Ensure encryption key exists (needed to decrypt)
-    const encryptionKeyHex = getStoredKey(address);
-    if (!encryptionKeyHex) {
+    if (!hasEncryptionKey(address)) {
       // Cannot decrypt without encryption key - return null
       return null;
     }
@@ -1099,8 +1122,7 @@ export async function requestKeyPair(
   // Persist to localStorage if encryption key is available
   try {
     // Ensure encryption key exists before persisting
-    const encryptionKeyHex = getStoredKey(walletAddress);
-    if (encryptionKeyHex) {
+    if (hasEncryptionKey(walletAddress)) {
       await persistKeyPair(walletAddress);
     }
   } catch (error) {
@@ -1159,6 +1181,73 @@ export function clearAllKeyPairs(): void {
 }
 
 /**
+ * @internal Test-only: clears in-memory caches without touching IndexedDB.
+ * Simulates a page refresh where module-level variables reset but IndexedDB persists.
+ */
+export function _resetInMemoryForTesting(): void {
+  cryptoKeyCache.clear();
+  knownAddresses.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle: init, multi-tab coordination
+// ---------------------------------------------------------------------------
+
+/** BroadcastChannel for multi-tab key notifications. */
+let keyChannel: BroadcastChannel | null = null;
+
+/**
+ * Initialize encryption key state from IndexedDB.
+ * Call this early in the app lifecycle (e.g., in a root-level effect).
+ *
+ * - Loads all IndexedDB entries into `knownAddresses` and `cryptoKeyCache`
+ * - Listens for BroadcastChannel messages from sibling tabs
+ *
+ * Keys persist in IndexedDB until explicitly cleared via `clearEncryptionKey()`
+ * or `clearAllEncryptionKeys()` (e.g., on logout). The non-extractable CryptoKey
+ * handles cannot be exported, so persistence carries no additional risk.
+ */
+export async function initEncryptionKeys(): Promise<void> {
+  // 1. Load entries into in-memory caches
+  try {
+    const entries = await idbLoadAllEntries();
+    for (const entry of entries) {
+      cryptoKeyCache.set(entry.address, entry.key);
+      knownAddresses.add(entry.address);
+    }
+  } catch {
+    // IndexedDB unavailable
+  }
+
+  // 2. Listen for sibling tab key notifications
+  try {
+    if (!keyChannel) {
+      keyChannel = new BroadcastChannel("reverbia-encryption-keys");
+      keyChannel.onmessage = async (event) => {
+        if (event.data?.type === "key-available" && event.data.address) {
+          const addr = event.data.address as string;
+          if (!cryptoKeyCache.has(addr)) {
+            // Load from IndexedDB
+            try {
+              const key = await idbLoadKey(addr);
+              if (key) {
+                cryptoKeyCache.set(addr, key);
+                knownAddresses.add(addr);
+                notifyKeyAvailable(addr);
+              }
+            } catch {
+              // Ignore
+            }
+          }
+        }
+      };
+    }
+  } catch {
+    // BroadcastChannel unavailable
+  }
+}
+
+/**
  * Result returned by the useEncryption hook.
  * @category Hooks
  */
@@ -1185,17 +1274,22 @@ export interface UseEncryptionResult {
  * ## How it works
  *
  * 1. User signs a message with their wallet
- * 2. The signature is used to deterministically derive an encryption key
- * 3. The key is stored in memory (not localStorage) for the session
+ * 2. The signature is used to deterministically derive a non-extractable CryptoKey
+ * 3. The opaque CryptoKey handle is cached in memory and persisted in IndexedDB
  * 4. Data can be encrypted/decrypted using this key
- * 5. On page reload, user must sign again to derive the key
+ * 5. On page reload, the CryptoKey is restored from IndexedDB without re-signing
  *
  * ## Security Features
  *
- * - **In-memory only**: Keys never touch disk or localStorage
+ * - **Non-extractable**: CryptoKey cannot be exported — `exportKey()` throws
  * - **Deterministic**: Same wallet + signature always generates same key
- * - **Session-scoped**: Keys cleared on page reload
- * - **XSS-resistant**: Keys not accessible after page reload
+ * - **XSS-resistant**: Attacker can use key in-situ but cannot exfiltrate raw bytes
+ * - **Persistent**: Keys survive page refreshes via IndexedDB, cleared only on explicit logout
+ *
+ * ## Initialization
+ *
+ * Call `initEncryptionKeys()` early in the app lifecycle to restore keys from
+ * IndexedDB and enable multi-tab coordination.
  *
  * ## Embedded Wallet Support
  *

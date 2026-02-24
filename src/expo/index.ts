@@ -108,6 +108,7 @@ export {
   clearEncryptionKey,
   clearAllEncryptionKeys,
   onKeyAvailable,
+  initEncryptionKeys,
 } from "../react/useEncryption";
 export type {
   SignMessageFn,

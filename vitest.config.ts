@@ -5,5 +5,6 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['fake-indexeddb/auto'],
   },
 });
