@@ -1,6 +1,6 @@
 # ProcessorRegistry
 
-Defined in: [src/lib/processors/registry.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/registry.ts#L7)
+Defined in: [src/lib/processors/registry.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#L7)
 
 Registry for managing and finding file processors
 
@@ -20,7 +20,7 @@ Registry for managing and finding file processors
 
 > **findProcessor**(`file`: [`FileMetadata`](../interfaces/FileMetadata.md)): [`FileProcessor`](../interfaces/FileProcessor.md) | `null`
 
-Defined in: [src/lib/processors/registry.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/registry.ts#L22)
+Defined in: [src/lib/processors/registry.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#L22)
 
 Find a processor that can handle the given file
 
@@ -67,7 +67,7 @@ The matching processor, or null if none found
 
 > **getAll**(): [`FileProcessor`](../interfaces/FileProcessor.md)\[]
 
-Defined in: [src/lib/processors/registry.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/registry.ts#L48)
+Defined in: [src/lib/processors/registry.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#L48)
 
 Get all registered processors
 
@@ -81,7 +81,7 @@ Get all registered processors
 
 > **register**(`processor`: [`FileProcessor`](../interfaces/FileProcessor.md)): `void`
 
-Defined in: [src/lib/processors/registry.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/registry.ts#L13)
+Defined in: [src/lib/processors/registry.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/registry.ts#L13)
 
 Register a processor
 

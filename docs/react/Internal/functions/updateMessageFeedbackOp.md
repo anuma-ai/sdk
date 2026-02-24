@@ -2,7 +2,7 @@
 
 > **updateMessageFeedbackOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `uniqueId`: `string`, `feedback`: [`MessageFeedback`](../type-aliases/MessageFeedback.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/db/chat/operations.ts:544](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/operations.ts#L544)
+Defined in: [src/lib/db/chat/operations.ts:544](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#L544)
 
 Update the feedback (like/dislike) for a message.
 Each regenerated response can have its own independent feedback.

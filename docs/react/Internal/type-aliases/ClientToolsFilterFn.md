@@ -2,7 +2,7 @@
 
 > **ClientToolsFilterFn** = (`embeddings`: `number`\[] | `number`\[]\[] | `null`, `tools`: `any`\[]) => `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/chat/types.ts#L44)
+Defined in: [src/lib/db/chat/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#L44)
 
 Function type for dynamic client tools filtering based on prompt embeddings.
 Receives the prompt embedding(s) (or null for short messages where no embedding

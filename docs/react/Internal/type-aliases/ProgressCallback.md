@@ -2,7 +2,7 @@
 
 > **ProgressCallback** = (`current`: `number`, `total`: `number`) => `void`
 
-Defined in: [src/react/useBackup.ts:66](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L66)
+Defined in: [src/react/useBackup.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L66)
 
 Progress callback type
 

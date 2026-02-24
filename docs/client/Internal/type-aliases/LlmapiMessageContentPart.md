@@ -2,7 +2,7 @@
 
 > **LlmapiMessageContentPart** = `object`
 
-Defined in: [src/client/types.gen.ts:780](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L780)
+Defined in: [src/client/types.gen.ts:780](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L780)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:780](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **file**: [`LlmapiMessageContentFile`](LlmapiMessageContentFile.md)
 
-Defined in: [src/client/types.gen.ts:781](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L781)
+Defined in: [src/client/types.gen.ts:781](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L781)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:781](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **image\_url**: [`LlmapiMessageContentImage`](LlmapiMessageContentImage.md)
 
-Defined in: [src/client/types.gen.ts:782](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L782)
+Defined in: [src/client/types.gen.ts:782](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L782)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:782](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:786](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L786)
+Defined in: [src/client/types.gen.ts:786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L786)
 
 Text holds the text content when Type=text or Type=input\_text
 
@@ -36,6 +36,6 @@ Text holds the text content when Type=text or Type=input\_text
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:790](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L790)
+Defined in: [src/client/types.gen.ts:790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L790)
 
 Type is the block type (`text`, `image_url`, or `input_file`)

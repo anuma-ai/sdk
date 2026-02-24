@@ -2,7 +2,7 @@
 
 > **createMediaBatchOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `optionsArray`: [`CreateMediaOptions`](../interfaces/CreateMediaOptions.md)\[]): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:140](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L140)
+Defined in: [src/lib/db/media/operations.ts:140](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#L140)
 
 Create multiple media records in a batch.
 

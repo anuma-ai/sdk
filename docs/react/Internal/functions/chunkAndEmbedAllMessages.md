@@ -2,7 +2,7 @@
 
 > **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:319](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L319)
+Defined in: [src/lib/memoryRetrieval/embeddings.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#L319)
 
 Chunk and embed all messages without embeddings/chunks in the database.
 Uses chunking for long messages, whole-message embedding for short ones.

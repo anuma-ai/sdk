@@ -2,7 +2,7 @@
 
 > **getProjectOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `id`: `string`): `Promise`<[`StoredProject`](../interfaces/StoredProject.md) | `null`>
 
-Defined in: [src/lib/db/project/operations.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L57)
+Defined in: [src/lib/db/project/operations.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#L57)
 
 Get a single project by its project ID.
 

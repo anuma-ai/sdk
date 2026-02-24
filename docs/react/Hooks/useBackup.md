@@ -2,7 +2,7 @@
 
 > **useBackup**(`options`: `object`): [`UseBackupResult`](../Internal/interfaces/UseBackupResult.md)
 
-Defined in: [src/react/useBackup.ts:183](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L183)
+Defined in: [src/react/useBackup.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#L183)
 
 Unified React hook for backup and restore functionality.
 

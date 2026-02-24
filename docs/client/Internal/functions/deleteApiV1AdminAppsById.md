@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminAppsById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminAppsByIdData`](../type-aliases/DeleteApiV1AdminAppsByIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminAppsByIdResponses`](../type-aliases/DeleteApiV1AdminAppsByIdResponses.md), [`DeleteApiV1AdminAppsByIdErrors`](../type-aliases/DeleteApiV1AdminAppsByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L138)
+Defined in: [src/client/sdk.gen.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L138)
 
 Delete app
 

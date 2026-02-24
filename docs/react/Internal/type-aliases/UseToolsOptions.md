@@ -2,7 +2,7 @@
 
 > **UseToolsOptions** = `object`
 
-Defined in: [src/react/useTools.ts:17](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L17)
+Defined in: [src/react/useTools.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#L17)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useTools.ts:17](https://github.com/zeta-chain/ai-sdk/blob
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: [src/react/useTools.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L36)
+Defined in: [src/react/useTools.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#L36)
 
 Whether to fetch tools automatically on mount (default: true)
 
@@ -20,7 +20,7 @@ Whether to fetch tools automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/react/useTools.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L25)
+Defined in: [src/react/useTools.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#L25)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useTools.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L21)
+Defined in: [src/react/useTools.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#L21)
 
 Custom function to get auth token for API calls
 
@@ -44,7 +44,7 @@ Custom function to get auth token for API calls
 
 > `optional` **includeTools**: `string`\[]
 
-Defined in: [src/react/useTools.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L32)
+Defined in: [src/react/useTools.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#L32)
 
 Filter to include only specific tools by name.
 

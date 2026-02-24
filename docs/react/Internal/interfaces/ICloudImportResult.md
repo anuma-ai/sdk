@@ -1,6 +1,6 @@
 # ICloudImportResult
 
-Defined in: [src/lib/backup/icloud/backup.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L48)
+Defined in: [src/lib/backup/icloud/backup.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L48)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:48](https://github.com/zeta-chain/a
 
 > **failed**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L51)
+Defined in: [src/lib/backup/icloud/backup.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L51)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:51](https://github.com/zeta-chain/a
 
 > `optional` **noBackupsFound**: `boolean`
 
-Defined in: [src/lib/backup/icloud/backup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L54)
+Defined in: [src/lib/backup/icloud/backup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L54)
 
 True if no backups were found in iCloud
 
@@ -26,7 +26,7 @@ True if no backups were found in iCloud
 
 > **restored**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L50)
+Defined in: [src/lib/backup/icloud/backup.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L50)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/lib/backup/icloud/backup.ts:50](https://github.com/zeta-chain/a
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/icloud/backup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L49)
+Defined in: [src/lib/backup/icloud/backup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L49)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/lib/backup/icloud/backup.ts:49](https://github.com/zeta-chain/a
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/icloud/backup.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/icloud/backup.ts#L52)
+Defined in: [src/lib/backup/icloud/backup.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/icloud/backup.ts#L52)

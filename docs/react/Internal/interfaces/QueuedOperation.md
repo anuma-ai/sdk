@@ -1,6 +1,6 @@
 # QueuedOperation
 
-Defined in: [src/lib/db/queue/types.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L25)
+Defined in: [src/lib/db/queue/types.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L25)
 
 A single queued database operation.
 
@@ -10,7 +10,7 @@ A single queued database operation.
 
 > **dependencies**: `string`\[]
 
-Defined in: [src/lib/db/queue/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L37)
+Defined in: [src/lib/db/queue/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L37)
 
 IDs of operations that must complete before this one
 
@@ -20,7 +20,7 @@ IDs of operations that must complete before this one
 
 > **id**: `string`
 
-Defined in: [src/lib/db/queue/types.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L27)
+Defined in: [src/lib/db/queue/types.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L27)
 
 Unique ID for this operation
 
@@ -30,7 +30,7 @@ Unique ID for this operation
 
 > **maxRetries**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L44)
+Defined in: [src/lib/db/queue/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L44)
 
 Maximum number of retries allowed
 
@@ -40,7 +40,7 @@ Maximum number of retries allowed
 
 > **payload**: `Record`<`string`, `any`>
 
-Defined in: [src/lib/db/queue/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L40)
+Defined in: [src/lib/db/queue/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L40)
 
 Operation-specific payload
 
@@ -50,7 +50,7 @@ Operation-specific payload
 
 > **priority**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L35)
+Defined in: [src/lib/db/queue/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L35)
 
 Priority for ordering (lower = higher priority). Conversations=0, Messages=1, Media=2
 
@@ -60,7 +60,7 @@ Priority for ordering (lower = higher priority). Conversations=0, Messages=1, Me
 
 > **retryCount**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L42)
+Defined in: [src/lib/db/queue/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L42)
 
 Number of times this operation has been retried
 
@@ -70,7 +70,7 @@ Number of times this operation has been retried
 
 > **timestamp**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L33)
+Defined in: [src/lib/db/queue/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L33)
 
 When the operation was queued
 
@@ -80,7 +80,7 @@ When the operation was queued
 
 > **type**: [`QueuedOperationType`](../type-aliases/QueuedOperationType.md)
 
-Defined in: [src/lib/db/queue/types.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L29)
+Defined in: [src/lib/db/queue/types.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L29)
 
 Type of operation
 
@@ -90,6 +90,6 @@ Type of operation
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/queue/types.ts:31](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L31)
+Defined in: [src/lib/db/queue/types.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#L31)
 
 Wallet address this operation belongs to

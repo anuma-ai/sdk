@@ -1,6 +1,6 @@
 # CreateModelPreferenceOptions
 
-Defined in: [src/lib/db/settings/types.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L11)
+Defined in: [src/lib/db/settings/types.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#L11)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/settings/types.ts:11](https://github.com/zeta-chain/ai-s
 
 > `optional` **models**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:13](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L13)
+Defined in: [src/lib/db/settings/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#L13)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/lib/db/settings/types.ts:13](https://github.com/zeta-chain/ai-s
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/settings/types.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/settings/types.ts#L12)
+Defined in: [src/lib/db/settings/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/settings/types.ts#L12)

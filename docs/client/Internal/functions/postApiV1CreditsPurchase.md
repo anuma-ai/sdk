@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsPurchase**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsPurchaseData`](../type-aliases/PostApiV1CreditsPurchaseData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsPurchaseResponses`](../type-aliases/PostApiV1CreditsPurchaseResponses.md), [`PostApiV1CreditsPurchaseErrors`](../type-aliases/PostApiV1CreditsPurchaseErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:274](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L274)
+Defined in: [src/client/sdk.gen.ts:274](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L274)
 
 Create credit pack checkout session
 

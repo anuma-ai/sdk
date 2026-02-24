@@ -2,7 +2,7 @@
 
 > **useGoogleDriveAuth**(): [`GoogleDriveAuthContextValue`](../Internal/interfaces/GoogleDriveAuthContextValue.md)
 
-Defined in: [src/react/useGoogleDriveAuth.ts:219](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useGoogleDriveAuth.ts#L219)
+Defined in: [src/react/useGoogleDriveAuth.ts:219](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#L219)
 
 Hook to access Google Drive authentication state and methods.
 

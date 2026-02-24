@@ -1,6 +1,6 @@
 # FileProcessor
 
-Defined in: [src/lib/processors/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L34)
+Defined in: [src/lib/processors/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L34)
 
 Interface that all file processors must implement
 
@@ -10,7 +10,7 @@ Interface that all file processors must implement
 
 > `readonly` **name**: `string`
 
-Defined in: [src/lib/processors/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L36)
+Defined in: [src/lib/processors/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L36)
 
 Unique identifier for this processor
 
@@ -20,7 +20,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L42)
+Defined in: [src/lib/processors/types.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L42)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -30,7 +30,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L39)
+Defined in: [src/lib/processors/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L39)
 
 MIME types this processor can handle
 
@@ -40,7 +40,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](FileWithData.md)): `Promise`<[`ProcessedFileResult`](ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L49)
+Defined in: [src/lib/processors/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#L49)
 
 Process a file and extract text content
 

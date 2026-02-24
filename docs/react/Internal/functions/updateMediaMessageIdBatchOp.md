@@ -2,7 +2,7 @@
 
 > **updateMediaMessageIdBatchOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaIds`: `string`\[], `messageId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/media/operations.ts:291](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L291)
+Defined in: [src/lib/db/media/operations.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#L291)
 
 Batch update media records with a messageId.
 Used to associate media records with their message after message creation.

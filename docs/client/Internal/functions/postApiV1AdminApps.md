@@ -2,7 +2,7 @@
 
 > **postApiV1AdminApps**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1AdminAppsData`](../type-aliases/PostApiV1AdminAppsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1AdminAppsResponses`](../type-aliases/PostApiV1AdminAppsResponses.md), [`PostApiV1AdminAppsErrors`](../type-aliases/PostApiV1AdminAppsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L54)
+Defined in: [src/client/sdk.gen.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#L54)
 
 Create app
 

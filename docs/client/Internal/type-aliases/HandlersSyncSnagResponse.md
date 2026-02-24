@@ -2,7 +2,7 @@
 
 > **HandlersSyncSnagResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:356](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L356)
+Defined in: [src/client/types.gen.ts:356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L356)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:356](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **credits\_awarded**: `number`
 
-Defined in: [src/client/types.gen.ts:357](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L357)
+Defined in: [src/client/types.gen.ts:357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L357)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:357](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:358](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L358)
+Defined in: [src/client/types.gen.ts:358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L358)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:358](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **next\_sync\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L359)
+Defined in: [src/client/types.gen.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L359)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:359](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:360](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L360)
+Defined in: [src/client/types.gen.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L360)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:360](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **total\_converted**: `number`
 
-Defined in: [src/client/types.gen.ts:361](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L361)
+Defined in: [src/client/types.gen.ts:361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L361)

@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceData** = `object`
 
-Defined in: [src/client/types.gen.ts:1895](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1895)
+Defined in: [src/client/types.gen.ts:1895](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1895)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1895](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1896](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1896)
+Defined in: [src/client/types.gen.ts:1896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1896)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1896](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1897](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1897)
+Defined in: [src/client/types.gen.ts:1897](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1897)
 
 **X-Timezone?**
 
@@ -32,7 +32,7 @@ IANA timezone (e.g., America/New\_York)
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1903](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1903)
+Defined in: [src/client/types.gen.ts:1903](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1903)
 
 ***
 
@@ -40,7 +40,7 @@ Defined in: [src/client/types.gen.ts:1903](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1904](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1904)
+Defined in: [src/client/types.gen.ts:1904](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1904)
 
 ***
 
@@ -48,4 +48,4 @@ Defined in: [src/client/types.gen.ts:1904](https://github.com/zeta-chain/ai-sdk/
 
 > **url**: `"/api/v1/credits/balance"`
 
-Defined in: [src/client/types.gen.ts:1905](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L1905)
+Defined in: [src/client/types.gen.ts:1905](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L1905)

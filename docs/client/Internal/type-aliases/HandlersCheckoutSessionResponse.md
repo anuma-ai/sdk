@@ -2,7 +2,7 @@
 
 > **HandlersCheckoutSessionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L91)
+Defined in: [src/client/types.gen.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L91)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:91](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **url**: `string`
 
-Defined in: [src/client/types.gen.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L92)
+Defined in: [src/client/types.gen.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L92)

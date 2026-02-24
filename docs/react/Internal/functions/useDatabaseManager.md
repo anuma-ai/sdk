@@ -2,7 +2,7 @@
 
 > **useDatabaseManager**(`walletAddress`: `string` | `undefined`, `manager`: [`DatabaseManager`](../classes/DatabaseManager.md)): `Database`
 
-Defined in: [src/react/useDatabaseManager.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDatabaseManager.ts#L50)
+Defined in: [src/react/useDatabaseManager.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useDatabaseManager.ts#L50)
 
 React hook that returns the correct WatermelonDB Database instance
 for the current wallet address.

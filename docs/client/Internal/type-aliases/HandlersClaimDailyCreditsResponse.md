@@ -2,7 +2,7 @@
 
 > **HandlersClaimDailyCreditsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L95)
+Defined in: [src/client/types.gen.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L95)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:95](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **credits\_awarded**: `number`
 
-Defined in: [src/client/types.gen.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L99)
+Defined in: [src/client/types.gen.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L99)
 
 Credits awarded (1 credit = $0.01)
 
@@ -20,7 +20,7 @@ Credits awarded (1 credit = $0.01)
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L100)
+Defined in: [src/client/types.gen.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L100)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:100](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **next\_claim\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L104)
+Defined in: [src/client/types.gen.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L104)
 
 ISO8601 timestamp when next claim is available
 
@@ -38,4 +38,4 @@ ISO8601 timestamp when next claim is available
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L105)
+Defined in: [src/client/types.gen.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L105)

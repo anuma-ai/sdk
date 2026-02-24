@@ -2,7 +2,7 @@
 
 > **updateProjectOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `id`: `string`, `opts`: [`UpdateProjectOptions`](../interfaces/UpdateProjectOptions.md)): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/project/operations.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L105)
+Defined in: [src/lib/db/project/operations.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#L105)
 
 Update a project with partial options.
 

@@ -2,7 +2,7 @@
 
 > **refreshNotionToken**(`walletAddress`: `string` | `undefined`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/notion.ts:817](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/notion.ts#L817)
+Defined in: [src/lib/auth/notion.ts:817](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#L817)
 
 Refresh the access token using the refresh token
 

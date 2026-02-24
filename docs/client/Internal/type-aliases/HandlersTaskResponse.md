@@ -2,7 +2,7 @@
 
 > **HandlersTaskResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:364](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L364)
+Defined in: [src/client/types.gen.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L364)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:364](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **amount\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:368](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L368)
+Defined in: [src/client/types.gen.ts:368](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L368)
 
 1 credit = $0.01
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:368](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **cooldown\_secs**: `number`
 
-Defined in: [src/client/types.gen.ts:372](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L372)
+Defined in: [src/client/types.gen.ts:372](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L372)
 
 null for one-time tasks
 
@@ -30,7 +30,7 @@ null for one-time tasks
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:373](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L373)
+Defined in: [src/client/types.gen.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L373)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [src/client/types.gen.ts:373](https://github.com/zeta-chain/ai-sdk/b
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:374](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L374)
+Defined in: [src/client/types.gen.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#L374)
