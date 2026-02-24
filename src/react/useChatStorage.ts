@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiChatCompletionResponse, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import type { LlmapiChatCompletionResponse, LlmapiChatCompletionTool, LlmapiMessage, LlmapiToolCallEvent } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import type { ApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
@@ -126,6 +126,18 @@ const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
 
+/** Typed accessor for client tool name (handles function-call style and flat). */
+function getToolName(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return ((fn?.name as string) || (t.name as string) || "");
+}
+
+/** Typed accessor for client tool description. */
+function getToolDescription(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return ((fn?.description as string) || (t.description as string) || getToolName(t));
+}
+
 /**
  * Automatically filter client tools using embedding-based semantic matching.
  * Generates embeddings for tool descriptions (cached), then selects the most
@@ -135,16 +147,13 @@ import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
  * @returns Filtered client tools, or the original array if filtering fails/skips.
  */
 async function autoFilterClientTools(
-  clientTools: any[],
+  clientTools: LlmapiChatCompletionTool[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
-): Promise<any[]> {
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
-  const isMemoryTool = (t: any) => {
-    const name: string = t.function?.name || t.name || "";
-    return name.startsWith("memory_vault_");
-  };
+  const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
   const alwaysInclude = clientTools.filter(isMemoryTool);
   const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
@@ -156,10 +165,9 @@ async function autoFilterClientTools(
   // Generate embeddings for tool descriptions that aren't cached yet
   const toolsNeedingEmbeddings: { name: string; description: string }[] = [];
   for (const t of filterCandidates) {
-    const name: string = t.function?.name || t.name || "";
+    const name = getToolName(t);
     if (name && !cache.has(name)) {
-      const desc: string = t.function?.description || t.description || name;
-      toolsNeedingEmbeddings.push({ name, description: desc });
+      toolsNeedingEmbeddings.push({ name, description: getToolDescription(t) });
     }
   }
 
@@ -179,15 +187,18 @@ async function autoFilterClientTools(
   // Build pseudo-ServerTool objects with cached embeddings for findMatchingTools
   const pseudoServerTools: ServerTool[] = [];
   for (const t of filterCandidates) {
-    const name: string = t.function?.name || t.name || "";
+    const name = getToolName(t);
     const embedding = cache.get(name);
     if (!embedding) continue;
+    const fn = t.function as Record<string, unknown> | undefined;
+    const params = (fn?.parameters || fn?.arguments || {
+      type: "object", properties: {}, required: [],
+    }) as ServerTool["parameters"];
     pseudoServerTools.push({
       type: "function",
       name,
-      description: t.function?.description || t.description || name,
-      parameters: t.function?.parameters ||
-        t.function?.arguments || { type: "object", properties: {}, required: [] },
+      description: getToolDescription(t),
+      parameters: params,
       embedding,
     });
   }
@@ -203,17 +214,11 @@ async function autoFilterClientTools(
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
-  const filtered = filterCandidates.filter((t: any) => {
-    const name = t.function?.name || t.name;
+  const filtered = filterCandidates.filter((t) => {
+    const name = getToolName(t);
     return name && matchedNames.has(name);
   });
-  const result = [...alwaysInclude, ...filtered];
-  console.log(
-    `[useChatStorage] Auto-filtered client tools: ${clientTools.length} → ${result.length}`,
-    `| always: [${alwaysInclude.map((t: any) => t.function?.name || t.name).join(", ")}]`,
-    `| filtered: [${[...matchedNames].join(", ")}]`
-  );
-  return result;
+  return [...alwaysInclude, ...filtered];
 }
 
 /**
