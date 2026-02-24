@@ -2,7 +2,7 @@
 
 > **clearCalendarToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/google-calendar.ts:225](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L225)
+Defined in: [src/lib/auth/google-calendar.ts:212](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L212)
 
 Clear stored token data for all storage locations
 

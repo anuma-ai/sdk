@@ -2,7 +2,7 @@
 
 > **clearDriveToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/google-drive.ts:229](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L229)
+Defined in: [src/lib/auth/google-drive.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L213)
 
 Clear stored token data
 

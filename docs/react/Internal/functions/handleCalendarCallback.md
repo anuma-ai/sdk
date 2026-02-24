@@ -2,7 +2,7 @@
 
 > **handleCalendarCallback**(`callbackPath`: `string`, `apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:335](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L335)
+Defined in: [src/lib/auth/google-calendar.ts:322](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L322)
 
 Handle the OAuth callback - exchange code for tokens via backend
 

@@ -2,7 +2,7 @@
 
 > **hasDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/google-drive.ts:582](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L582)
+Defined in: [src/lib/auth/google-drive.ts:556](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L556)
 
 Check if we have any stored credentials
 

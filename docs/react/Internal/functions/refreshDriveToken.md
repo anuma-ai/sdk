@@ -2,7 +2,7 @@
 
 > **refreshDriveToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:394](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L394)
+Defined in: [src/lib/auth/google-drive.ts:378](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L378)
 
 Refresh the access token using the stored refresh token
 

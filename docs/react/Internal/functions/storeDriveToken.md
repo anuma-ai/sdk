@@ -2,7 +2,7 @@
 
 > **storeDriveToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-drive.ts:563](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L563)
+Defined in: [src/lib/auth/google-drive.ts:542](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L542)
 
 Store Drive token data (for external use)
 

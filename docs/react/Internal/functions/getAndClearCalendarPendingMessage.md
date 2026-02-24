@@ -2,7 +2,7 @@
 
 > **getAndClearCalendarPendingMessage**(): `string` | `null`
 
-Defined in: [src/lib/auth/google-calendar.ts:511](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L511)
+Defined in: [src/lib/auth/google-calendar.ts:498](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L498)
 
 Get and clear the pending message
 
