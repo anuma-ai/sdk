@@ -116,7 +116,6 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-simple-import-sort": "^12.1.1",
-    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.0.11",
     "knip": "^5.85.0",
     "playwright": "^1.57.0",
