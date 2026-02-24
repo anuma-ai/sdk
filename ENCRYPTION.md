@@ -92,7 +92,7 @@ const {
 
 ### Encryption Flow
 
-1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is processed through **HKDF** (HMAC-based Key Derivation Function) with the domain-specific info string `reverbia-sdk-aes-gcm-v3` to produce a 32-byte AES-GCM key. A legacy SHA-256 key is also derived for reading old `enc:v2:` data. Both keys are held **in memory only** (never persisted to disk).
+1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is processed through **HKDF** (HMAC-based Key Derivation Function) with the domain-specific info string `anuma-sdk-aes-gcm-v3` to produce a 32-byte AES-GCM key. A legacy SHA-256 key is also derived for reading old `enc:v2:` data. Both keys are held **in memory only** (never persisted to disk).
 
 2. **Write path:** Before writing to WatermelonDB, sensitive fields are encrypted with a random 12-byte IV and prefixed with `enc:v3:`. Non-sensitive fields pass through unchanged.
 
@@ -108,7 +108,7 @@ const {
 The current key derivation uses HKDF for proper key derivation and domain separation:
 
 ```
-Signature → SHA-256(signature) → HKDF-Extract(IKM=hash, salt=zeros) → HKDF-Expand(info="reverbia-sdk-aes-gcm-v3") → 256-bit AES key
+Signature → SHA-256(signature) → HKDF-Extract(IKM=hash, salt=zeros) → HKDF-Expand(info="anuma-sdk-aes-gcm-v3") → 256-bit AES key
 ```
 
 This prevents cross-app key reuse: even if another app asks the same wallet to sign the same message, the derived key will be different because the HKDF info string is app-specific.
