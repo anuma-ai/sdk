@@ -1,6 +1,6 @@
 # DropboxExportResult
 
-Defined in: [src/lib/backup/dropbox/backup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L39)
+Defined in: [src/lib/backup/dropbox/backup.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#39)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:39](https://github.com/zeta-chain/
 
 > **skipped**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:42](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L42)
+Defined in: [src/lib/backup/dropbox/backup.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#42)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:42](https://github.com/zeta-chain/
 
 > **success**: `boolean`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L40)
+Defined in: [src/lib/backup/dropbox/backup.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#40)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/backup/dropbox/backup.ts:40](https://github.com/zeta-chain/
 
 > **total**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L43)
+Defined in: [src/lib/backup/dropbox/backup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#43)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [src/lib/backup/dropbox/backup.ts:43](https://github.com/zeta-chain/
 
 > **uploaded**: `number`
 
-Defined in: [src/lib/backup/dropbox/backup.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/backup/dropbox/backup.ts#L41)
+Defined in: [src/lib/backup/dropbox/backup.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/dropbox/backup.ts#41)

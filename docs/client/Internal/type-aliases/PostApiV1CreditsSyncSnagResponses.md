@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsSyncSnagResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2066](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2066)
+Defined in: [src/client/types.gen.ts:2066](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2066)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2066](https://github.com/zeta-chain/ai-sdk/
 
 > **200**: [`HandlersSyncSnagResponse`](HandlersSyncSnagResponse.md)
 
-Defined in: [src/client/types.gen.ts:2070](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2070)
+Defined in: [src/client/types.gen.ts:2070](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2070)
 
 OK

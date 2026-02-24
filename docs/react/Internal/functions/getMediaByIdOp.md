@@ -2,7 +2,7 @@
 
 > **getMediaByIdOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md) | `null`>
 
-Defined in: [src/lib/db/media/operations.ts:204](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L204)
+Defined in: [src/lib/db/media/operations.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#204)
 
 Get a media record by its media\_id.
 

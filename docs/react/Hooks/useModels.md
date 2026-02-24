@@ -2,7 +2,7 @@
 
 > **useModels**(`options`: `object`): [`UseModelsResult`](../Internal/type-aliases/UseModelsResult.md)
 
-Defined in: [src/react/useModels.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useModels.ts#L43)
+Defined in: [src/react/useModels.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#43)
 
 React hook for fetching available LLM models.
 Automatically fetches all available models.

@@ -1,6 +1,6 @@
 # ICloudAuthContextValue
 
-Defined in: [src/react/useICloudAuth.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L41)
+Defined in: [src/react/useICloudAuth.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#41)
 
 Context value for iCloud authentication
 
@@ -10,7 +10,7 @@ Context value for iCloud authentication
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useICloudAuth.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L43)
+Defined in: [src/react/useICloudAuth.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#43)
 
 Whether user is authenticated with iCloud
 
@@ -20,7 +20,7 @@ Whether user is authenticated with iCloud
 
 > **isAvailable**: `boolean`
 
-Defined in: [src/react/useICloudAuth.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L47)
+Defined in: [src/react/useICloudAuth.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#47)
 
 Whether CloudKit JS is loaded
 
@@ -30,7 +30,7 @@ Whether CloudKit JS is loaded
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useICloudAuth.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L45)
+Defined in: [src/react/useICloudAuth.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#45)
 
 Whether iCloud is configured and available
 
@@ -40,7 +40,7 @@ Whether iCloud is configured and available
 
 > **logout**: () => `void`
 
-Defined in: [src/react/useICloudAuth.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L53)
+Defined in: [src/react/useICloudAuth.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#53)
 
 Sign out from iCloud
 
@@ -54,7 +54,7 @@ Sign out from iCloud
 
 > **requestAccess**: () => `Promise`<`void`>
 
-Defined in: [src/react/useICloudAuth.ts:51](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L51)
+Defined in: [src/react/useICloudAuth.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#51)
 
 Request access - triggers iCloud sign-in if needed
 
@@ -68,6 +68,6 @@ Request access - triggers iCloud sign-in if needed
 
 > **userRecordName**: `string` | `null`
 
-Defined in: [src/react/useICloudAuth.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useICloudAuth.ts#L49)
+Defined in: [src/react/useICloudAuth.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useICloudAuth.ts#49)
 
 User record name (unique identifier)

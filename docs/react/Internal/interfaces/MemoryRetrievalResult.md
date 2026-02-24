@@ -1,6 +1,6 @@
 # MemoryRetrievalResult
 
-Defined in: [src/lib/memoryRetrieval/types.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L37)
+Defined in: [src/lib/memoryRetrieval/types.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#37)
 
 A retrieved message with similarity score
 
@@ -10,7 +10,7 @@ A retrieved message with similarity score
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L39)
+Defined in: [src/lib/memoryRetrieval/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#39)
 
 Message content
 
@@ -20,7 +20,7 @@ Message content
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L43)
+Defined in: [src/lib/memoryRetrieval/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#43)
 
 Conversation this message belongs to
 
@@ -30,7 +30,7 @@ Conversation this message belongs to
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L47)
+Defined in: [src/lib/memoryRetrieval/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#47)
 
 When the message was created
 
@@ -40,7 +40,7 @@ When the message was created
 
 > **role**: `"user"` | `"assistant"`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L41)
+Defined in: [src/lib/memoryRetrieval/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#41)
 
 Role of the message sender
 
@@ -50,7 +50,7 @@ Role of the message sender
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L45)
+Defined in: [src/lib/memoryRetrieval/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#45)
 
 Cosine similarity score (0-1)
 
@@ -60,6 +60,6 @@ Cosine similarity score (0-1)
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/types.ts#L49)
+Defined in: [src/lib/memoryRetrieval/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#49)
 
 Unique message ID

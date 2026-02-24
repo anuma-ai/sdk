@@ -1,6 +1,6 @@
 # ChunkingOptions
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L8)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#8)
 
 Text Chunking Utilities
 
@@ -13,7 +13,7 @@ Uses sentence boundaries when possible to preserve meaning.
 
 > `optional` **chunkOverlap**: `number`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:12](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L12)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#12)
 
 Overlap between chunks in characters (default: 50)
 
@@ -23,7 +23,7 @@ Overlap between chunks in characters (default: 50)
 
 > `optional` **chunkSize**: `number`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L10)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#10)
 
 Target chunk size in characters (default: 400)
 
@@ -33,6 +33,6 @@ Target chunk size in characters (default: 400)
 
 > `optional` **minChunkSize**: `number`
 
-Defined in: [src/lib/memoryRetrieval/chunking.ts:14](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#L14)
+Defined in: [src/lib/memoryRetrieval/chunking.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/chunking.ts#14)
 
 Minimum chunk size to create (default: 50)

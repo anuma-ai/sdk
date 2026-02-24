@@ -2,7 +2,7 @@
 
 > **createProjectOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `opts?`: [`CreateProjectOptions`](../interfaces/CreateProjectOptions.md), `defaultName?`: `string`): `Promise`<[`StoredProject`](../interfaces/StoredProject.md)>
 
-Defined in: [src/lib/db/project/operations.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L35)
+Defined in: [src/lib/db/project/operations.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#35)
 
 Create a new project.
 

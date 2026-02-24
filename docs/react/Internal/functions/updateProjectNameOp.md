@@ -2,7 +2,7 @@
 
 > **updateProjectNameOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `id`: `string`, `name`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/project/operations.ts:82](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L82)
+Defined in: [src/lib/db/project/operations.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/operations.ts#82)
 
 Update a project's name.
 

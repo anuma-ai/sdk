@@ -1,6 +1,6 @@
 # UseBackupOptions
 
-Defined in: [src/react/useBackup.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L41)
+Defined in: [src/react/useBackup.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#41)
 
 Options for useBackup hook
 
@@ -10,7 +10,7 @@ Options for useBackup hook
 
 > **database**: `Database`
 
-Defined in: [src/react/useBackup.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L43)
+Defined in: [src/react/useBackup.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#43)
 
 WatermelonDB database instance
 
@@ -20,7 +20,7 @@ WatermelonDB database instance
 
 > `optional` **dropboxFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L56)
+Defined in: [src/react/useBackup.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#56)
 
 Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
@@ -30,7 +30,7 @@ Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 
 > **exportConversation**: (`conversationId`: `string`, `userAddress`: `string`) => `Promise`<{ `blob?`: `Blob`; `success`: `boolean`; }>
 
-Defined in: [src/react/useBackup.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L49)
+Defined in: [src/react/useBackup.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#49)
 
 Export a conversation to an encrypted blob
 
@@ -81,7 +81,7 @@ Export a conversation to an encrypted blob
 
 > `optional` **googleConversationsFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:60](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L60)
+Defined in: [src/react/useBackup.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#60)
 
 Google Drive conversations subfolder (default: 'conversations')
 
@@ -91,7 +91,7 @@ Google Drive conversations subfolder (default: 'conversations')
 
 > `optional` **googleRootFolder**: `string`
 
-Defined in: [src/react/useBackup.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L58)
+Defined in: [src/react/useBackup.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#58)
 
 Google Drive root folder name (default: 'ai-chat-app')
 
@@ -101,7 +101,7 @@ Google Drive root folder name (default: 'ai-chat-app')
 
 > **importConversation**: (`blob`: `Blob`, `userAddress`: `string`) => `Promise`<{ `success`: `boolean`; }>
 
-Defined in: [src/react/useBackup.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L54)
+Defined in: [src/react/useBackup.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#54)
 
 Import a conversation from an encrypted blob
 
@@ -152,7 +152,7 @@ Import a conversation from an encrypted blob
 
 > **requestEncryptionKey**: (`address`: `string`) => `Promise`<`void`>
 
-Defined in: [src/react/useBackup.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L47)
+Defined in: [src/react/useBackup.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#47)
 
 Request encryption key for the user address
 
@@ -191,6 +191,6 @@ Request encryption key for the user address
 
 > **userAddress**: `string` | `null`
 
-Defined in: [src/react/useBackup.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useBackup.ts#L45)
+Defined in: [src/react/useBackup.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackup.ts#45)
 
 Current user address (null if not signed in)

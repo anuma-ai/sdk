@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminAppsByAppIdApiKeysById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminAppsByAppIdApiKeysByIdData`](../type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses`](../type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses.md), [`DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors`](../type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L98)
+Defined in: [src/client/sdk.gen.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#98)
 
 Delete API key
 

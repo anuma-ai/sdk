@@ -1,6 +1,6 @@
 # PreprocessingOptions
 
-Defined in: [src/lib/processors/types.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L55)
+Defined in: [src/lib/processors/types.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#55)
 
 Options for file preprocessing
 
@@ -10,7 +10,7 @@ Options for file preprocessing
 
 > `optional` **keepOriginalFiles**: `boolean`
 
-Defined in: [src/lib/processors/types.ts:65](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L65)
+Defined in: [src/lib/processors/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#65)
 
 Whether to keep original file attachments (default: true)
 
@@ -20,7 +20,7 @@ Whether to keep original file attachments (default: true)
 
 > `optional` **maxFileSizeBytes**: `number`
 
-Defined in: [src/lib/processors/types.ts:68](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L68)
+Defined in: [src/lib/processors/types.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#68)
 
 Max file size to process in bytes (default: 10MB)
 
@@ -30,7 +30,7 @@ Max file size to process in bytes (default: 10MB)
 
 > `optional` **onError**: (`fileName`: `string`, `error`: `Error`) => `void`
 
-Defined in: [src/lib/processors/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L77)
+Defined in: [src/lib/processors/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#77)
 
 Callback for errors (non-fatal)
 
@@ -81,7 +81,7 @@ Callback for errors (non-fatal)
 
 > `optional` **onProgress**: (`current`: `number`, `total`: `number`, `fileName`: `string`) => `void`
 
-Defined in: [src/lib/processors/types.ts:74](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L74)
+Defined in: [src/lib/processors/types.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#74)
 
 Callback for progress updates
 
@@ -144,7 +144,7 @@ Callback for progress updates
 
 > `optional` **processors**: [`FileProcessor`](FileProcessor.md)\[] | `null`
 
-Defined in: [src/lib/processors/types.ts:62](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L62)
+Defined in: [src/lib/processors/types.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#62)
 
 Processors to use.
 
@@ -158,6 +158,6 @@ Processors to use.
 
 > `optional` **timeoutMs**: `number`
 
-Defined in: [src/lib/processors/types.ts:71](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/processors/types.ts#L71)
+Defined in: [src/lib/processors/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#71)
 
 Timeout per file in milliseconds (default: 30000). Prevents hangs from slow CDN workers or large files.

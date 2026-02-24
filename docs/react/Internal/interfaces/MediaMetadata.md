@@ -1,6 +1,6 @@
 # MediaMetadata
 
-Defined in: [src/lib/db/media/types.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L32)
+Defined in: [src/lib/db/media/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#32)
 
 Additional metadata that varies by media type.
 Stored as JSON for flexibility.
@@ -15,7 +15,7 @@ Stored as JSON for flexibility.
 
 > `optional` **author**: `string`
 
-Defined in: [src/lib/db/media/types.ts:44](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L44)
+Defined in: [src/lib/db/media/types.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#44)
 
 ***
 
@@ -23,7 +23,7 @@ Defined in: [src/lib/db/media/types.ts:44](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **bitrate**: `number`
 
-Defined in: [src/lib/db/media/types.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L35)
+Defined in: [src/lib/db/media/types.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#35)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [src/lib/db/media/types.ts:35](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **codec**: `string`
 
-Defined in: [src/lib/db/media/types.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L34)
+Defined in: [src/lib/db/media/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#34)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [src/lib/db/media/types.ts:34](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **colorSpace**: `string`
 
-Defined in: [src/lib/db/media/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L39)
+Defined in: [src/lib/db/media/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#39)
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: [src/lib/db/media/types.ts:39](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **frameRate**: `number`
 
-Defined in: [src/lib/db/media/types.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L36)
+Defined in: [src/lib/db/media/types.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#36)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [src/lib/db/media/types.ts:36](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **hasAlpha**: `boolean`
 
-Defined in: [src/lib/db/media/types.ts:40](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L40)
+Defined in: [src/lib/db/media/types.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#40)
 
 ***
 
@@ -63,7 +63,7 @@ Defined in: [src/lib/db/media/types.ts:40](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **pageCount**: `number`
 
-Defined in: [src/lib/db/media/types.ts:43](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L43)
+Defined in: [src/lib/db/media/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#43)
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: [src/lib/db/media/types.ts:43](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **prompt**: `string`
 
-Defined in: [src/lib/db/media/types.ts:47](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L47)
+Defined in: [src/lib/db/media/types.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#47)
 
 ***
 
@@ -79,7 +79,7 @@ Defined in: [src/lib/db/media/types.ts:47](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **seed**: `number`
 
-Defined in: [src/lib/db/media/types.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L48)
+Defined in: [src/lib/db/media/types.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#48)
 
 ***
 
@@ -87,4 +87,4 @@ Defined in: [src/lib/db/media/types.ts:48](https://github.com/zeta-chain/ai-sdk/
 
 > `optional` **steps**: `number`
 
-Defined in: [src/lib/db/media/types.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L49)
+Defined in: [src/lib/db/media/types.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#49)

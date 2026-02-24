@@ -50,13 +50,13 @@ jobs:
       - name: Pack SDK
         run: pnpm pack --pack-destination /tmp/sdk-pack
 
-      - name: Clone ai-examples
+      - name: Clone starter-next
         env:
           GH_TOKEN: ${{ secrets.EXAMPLES_REPO_TOKEN }}
-        run: gh repo clone zeta-chain/ai-examples /tmp/ai-examples -- --depth 1
+        run: gh repo clone anuma-ai/starter-next /tmp/starter-next -- --depth 1
 
       - name: Install SDK from tarball
-        working-directory: /tmp/ai-examples
+        working-directory: /tmp/starter-next
         run: |
           corepack enable
           pnpm install
@@ -65,19 +65,19 @@ jobs:
 
       - name: Build ai-examples
         id: build
-        working-directory: /tmp/ai-examples
+        working-directory: /tmp/starter-next
         continue-on-error: true
         run: pnpm build
 
       - name: Install Playwright browsers
         if: steps.build.outcome == 'success'
-        working-directory: /tmp/ai-examples
+        working-directory: /tmp/starter-next
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run light e2e tests
         id: e2e
         if: steps.build.outcome == 'success'
-        working-directory: /tmp/ai-examples
+        working-directory: /tmp/starter-next
         continue-on-error: true
         run: pnpm test:e2e:light
 
@@ -144,14 +144,14 @@ jobs:
             BODY="<!-- integration-check -->
           ### Integration Check ❌
 
-          **ai-examples** fails to build against this PR but passes on \`main\`. This PR introduces a breaking change.
+          **starter-next** fails to build against this PR but passes on \`main\`. This PR introduces a breaking change.
 
           $TABLE"
           elif [ "$PR_BUILD" == "success" ] && [ "$PR_E2E" != "success" ] && [ "$MAIN_E2E" == "success" ]; then
             BODY="<!-- integration-check -->
           ### Integration Check ⚠️
 
-          **ai-examples** builds but e2e tests fail against this PR while passing on \`main\`.
+          **starter-next** builds but e2e tests fail against this PR while passing on \`main\`.
 
           $TABLE"
           else
@@ -176,14 +176,14 @@ jobs:
 
           # Only label if PR is strictly worse than main
           if [ "$PR_BUILD" != "success" ] && [ "$MAIN_BUILD" == "success" ]; then
-            gh label create "breaks-starter-build" --description "PR breaks the starter app build" --color "d93f0b" 2>/dev/null || true
+            gh label create "breaks-starter-build" --description "PR breaks starter-next build" --color "d93f0b" 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-build" || true
           else
             gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-build" 2>/dev/null || true
           fi
 
           if [ "$PR_E2E" != "success" ] && [ "$PR_E2E" != "" ] && [ "$MAIN_E2E" == "success" ]; then
-            gh label create "breaks-starter-e2e" --description "PR breaks the starter app e2e tests" --color "d93f0b" 2>/dev/null || true
+            gh label create "breaks-starter-e2e" --description "PR breaks starter-next e2e tests" --color "d93f0b" 2>/dev/null || true
             gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-e2e" || true
           else
             gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-e2e" 2>/dev/null || true

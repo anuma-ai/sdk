@@ -1,6 +1,6 @@
 # StoredVaultMemoryModel
 
-Defined in: [src/lib/db/memoryVault/models.ts:4](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L4)
+Defined in: [src/lib/db/memoryVault/models.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#4)
 
 ## Extends
 
@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **content**: `string`
 
-Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L7)
+Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#7)
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/zeta-chain/a
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L9)
+Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#9)
 
 ***
 
@@ -153,7 +153,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/zeta-chain/a
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L11)
+Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#11)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/zeta-chain/
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L8)
+Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#8)
 
 ***
 
@@ -169,7 +169,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/zeta-chain/a
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L10)
+Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#10)
 
 ***
 
@@ -201,7 +201,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **table**: `string` = `"memory_vault"`
 
-Defined in: [src/lib/db/memoryVault/models.ts:5](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/memoryVault/models.ts#L5)
+Defined in: [src/lib/db/memoryVault/models.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#5)
 
 **Overrides**
 

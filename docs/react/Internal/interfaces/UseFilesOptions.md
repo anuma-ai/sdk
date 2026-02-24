@@ -1,6 +1,6 @@
 # UseFilesOptions
 
-Defined in: [src/react/useFiles.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L55)
+Defined in: [src/react/useFiles.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#55)
 
 Options for useFiles hook.
 
@@ -10,7 +10,7 @@ Options for useFiles hook.
 
 > **database**: `Database`
 
-Defined in: [src/react/useFiles.ts:57](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L57)
+Defined in: [src/react/useFiles.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#57)
 
 WatermelonDB database instance
 
@@ -20,6 +20,6 @@ WatermelonDB database instance
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useFiles.ts:59](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useFiles.ts#L59)
+Defined in: [src/react/useFiles.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/react/useFiles.ts#59)
 
 Wallet address for user context (required for most operations and file decryption)

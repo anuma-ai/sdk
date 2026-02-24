@@ -2,7 +2,7 @@
 
 > **VaultEmbeddingCache** = `Map`<`string`, `number`\[]>
 
-Defined in: [src/lib/memoryVault/searchTool.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/searchTool.ts#L20)
+Defined in: [src/lib/memoryVault/searchTool.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#20)
 
 Embedding cache keyed by content string. Stores pre-computed embeddings
 so that search only needs to embed the query, not the vault entries.

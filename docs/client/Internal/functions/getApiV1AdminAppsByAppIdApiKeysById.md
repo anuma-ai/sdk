@@ -2,7 +2,7 @@
 
 > **getApiV1AdminAppsByAppIdApiKeysById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminAppsByAppIdApiKeysByIdData`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminAppsByAppIdApiKeysByIdResponses`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdResponses.md), [`GetApiV1AdminAppsByAppIdApiKeysByIdErrors`](../type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L110)
+Defined in: [src/client/sdk.gen.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#110)
 
 Get API key by ID
 

@@ -2,7 +2,7 @@
 
 > **useProjects**(`options`: [`UseProjectsOptions`](../Internal/interfaces/UseProjectsOptions.md)): [`UseProjectsResult`](../Internal/interfaces/UseProjectsResult.md)
 
-Defined in: [src/react/useProjects.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L129)
+Defined in: [src/react/useProjects.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#129)
 
 A React hook for managing projects (conversation groups).
 

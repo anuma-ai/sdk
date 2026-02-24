@@ -1,6 +1,6 @@
 # QueueEncryptionContext
 
-Defined in: [src/lib/db/queue/types.ts:76](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L76)
+Defined in: [src/lib/db/queue/types.ts:76](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#76)
 
 Encryption context needed to execute queued operations.
 
@@ -10,7 +10,7 @@ Encryption context needed to execute queued operations.
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/lib/db/queue/types.ts:79](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L79)
+Defined in: [src/lib/db/queue/types.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#79)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/queue/types.ts:79](https://github.com/zeta-chain/ai-sdk/
 
 > **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/lib/db/queue/types.ts:78](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L78)
+Defined in: [src/lib/db/queue/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#78)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/db/queue/types.ts:78](https://github.com/zeta-chain/ai-sdk/
 
 > **walletAddress**: `string`
 
-Defined in: [src/lib/db/queue/types.ts:77](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L77)
+Defined in: [src/lib/db/queue/types.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#77)

@@ -1,6 +1,6 @@
 # MemoryVaultToolOptions
 
-Defined in: [src/lib/memoryVault/tool.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L37)
+Defined in: [src/lib/memoryVault/tool.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#37)
 
 Options for creating a memory vault tool.
 
@@ -10,7 +10,7 @@ Options for creating a memory vault tool.
 
 > `optional` **onSave**: (`operation`: [`VaultSaveOperation`](VaultSaveOperation.md)) => `Promise`<`boolean`>
 
-Defined in: [src/lib/memoryVault/tool.ts:46](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L46)
+Defined in: [src/lib/memoryVault/tool.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#46)
 
 Callback invoked before each save operation.
 Return `true` to confirm the save, `false` to cancel it.
@@ -54,7 +54,7 @@ autoExecute: false so the host app can handle it via onToolCall.
 
 > `optional` **scope**: `string`
 
-Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/tool.ts#L52)
+Defined in: [src/lib/memoryVault/tool.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#52)
 
 Scope to assign to new memories. Defaults to "private".
 This is injected by the client, not controlled by the LLM.

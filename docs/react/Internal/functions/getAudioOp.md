@@ -2,7 +2,7 @@
 
 > **getAudioOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:472](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L472)
+Defined in: [src/lib/db/media/operations.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#472)
 
 Get all audio files for a user.
 

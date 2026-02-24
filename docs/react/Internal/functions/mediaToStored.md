@@ -2,7 +2,7 @@
 
 > **mediaToStored**(`media`: [`StoredMediaModel`](../classes/StoredMediaModel.md), `walletAddress?`: `string`, `signMessage?`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)>
 
-Defined in: [src/lib/db/media/operations.ts:61](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/operations.ts#L61)
+Defined in: [src/lib/db/media/operations.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#61)
 
 Converts a Media model to StoredMedia, decrypting fields if encryption context is available.
 

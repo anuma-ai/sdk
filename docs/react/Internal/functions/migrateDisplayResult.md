@@ -2,7 +2,7 @@
 
 > **migrateDisplayResult**(`result`: `any`, `fromVersion`: `number`, `toVersion`: `number`, `migrations`: [`DisplayToolMigrations`](../type-aliases/DisplayToolMigrations.md)): `any`
 
-Defined in: [src/tools/uiInteraction.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/tools/uiInteraction.ts#L115)
+Defined in: [src/tools/uiInteraction.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/tools/uiInteraction.ts#115)
 
 Migrate a stored display result from an older version to the current version.
 

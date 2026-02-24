@@ -2,7 +2,7 @@
 
 > **useTools**(`options`: `object`): [`UseToolsResult`](../Internal/type-aliases/UseToolsResult.md)
 
-Defined in: [src/react/useTools.ts:84](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useTools.ts#L84)
+Defined in: [src/react/useTools.ts:84](https://github.com/anuma-ai/sdk/blob/main/src/react/useTools.ts#84)
 
 React hook for fetching and caching server-side tools.
 

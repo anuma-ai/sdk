@@ -2,7 +2,7 @@
 
 > **createVaultEmbeddingCache**(`maxSize`: `number`): [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
-Defined in: [src/lib/memoryVault/lruCache.ts:45](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/memoryVault/lruCache.ts#L45)
+Defined in: [src/lib/memoryVault/lruCache.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/lruCache.ts#45)
 
 Create a VaultEmbeddingCache backed by an LRU with a default cap of 1000 entries.
 

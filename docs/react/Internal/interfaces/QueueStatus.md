@@ -1,6 +1,6 @@
 # QueueStatus
 
-Defined in: [src/lib/db/queue/types.ts:50](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L50)
+Defined in: [src/lib/db/queue/types.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#50)
 
 Status of a wallet's queue.
 
@@ -10,7 +10,7 @@ Status of a wallet's queue.
 
 > **failed**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L54)
+Defined in: [src/lib/db/queue/types.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#54)
 
 Number of operations that failed all retries
 
@@ -20,7 +20,7 @@ Number of operations that failed all retries
 
 > **isFlushing**: `boolean`
 
-Defined in: [src/lib/db/queue/types.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L56)
+Defined in: [src/lib/db/queue/types.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#56)
 
 Whether the queue is currently being flushed
 
@@ -30,7 +30,7 @@ Whether the queue is currently being flushed
 
 > **isPaused**: `boolean`
 
-Defined in: [src/lib/db/queue/types.ts:58](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L58)
+Defined in: [src/lib/db/queue/types.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#58)
 
 Whether the queue is paused (e.g., wallet disconnected)
 
@@ -40,6 +40,6 @@ Whether the queue is paused (e.g., wallet disconnected)
 
 > **pending**: `number`
 
-Defined in: [src/lib/db/queue/types.ts:52](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L52)
+Defined in: [src/lib/db/queue/types.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#52)
 
 Number of pending operations

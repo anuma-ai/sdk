@@ -2,7 +2,7 @@
 
 > **OperationExecutor** = (`operation`: [`QueuedOperation`](../interfaces/QueuedOperation.md), `encryptionContext`: [`QueueEncryptionContext`](../interfaces/QueueEncryptionContext.md)) => `Promise`<`void`>
 
-Defined in: [src/lib/db/queue/types.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/types.ts#L86)
+Defined in: [src/lib/db/queue/types.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/types.ts#86)
 
 Executor function that runs a single queued operation.
 Provided by the consumer (e.g., useChatStorage) during flush.

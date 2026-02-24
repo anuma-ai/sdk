@@ -1,6 +1,6 @@
 # UpdateProjectOptions
 
-Defined in: [src/lib/db/project/types.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/types.ts#L39)
+Defined in: [src/lib/db/project/types.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/types.ts#39)
 
 Options for updating a project.
 
@@ -10,6 +10,6 @@ Options for updating a project.
 
 > `optional` **name**: `string`
 
-Defined in: [src/lib/db/project/types.ts:41](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/types.ts#L41)
+Defined in: [src/lib/db/project/types.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/project/types.ts#41)
 
 New name for the project

@@ -2,7 +2,7 @@
 
 > **MediaType** = `"image"` | `"video"` | `"audio"` | `"document"`
 
-Defined in: [src/lib/db/media/types.ts:11](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/media/types.ts#L11)
+Defined in: [src/lib/db/media/types.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/types.ts#11)
 
 Media type categorization for library filtering.
 

@@ -2,7 +2,7 @@
 
 > **ChartCard**(`__namedParameters`: [`ChartCardProps`](../type-aliases/ChartCardProps.md)): `Element`
 
-Defined in: [src/react/chart.tsx:366](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/chart.tsx#L366)
+Defined in: [src/react/chart.tsx:366](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#366)
 
 ## Parameters
 

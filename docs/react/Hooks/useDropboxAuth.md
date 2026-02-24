@@ -2,7 +2,7 @@
 
 > **useDropboxAuth**(): [`DropboxAuthContextValue`](../Internal/interfaces/DropboxAuthContextValue.md)
 
-Defined in: [src/react/useDropboxAuth.ts:215](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxAuth.ts#L215)
+Defined in: [src/react/useDropboxAuth.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#215)
 
 Hook to access Dropbox authentication state and methods.
 

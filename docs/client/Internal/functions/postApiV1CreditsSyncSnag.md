@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsSyncSnag**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsSyncSnagData`](../type-aliases/PostApiV1CreditsSyncSnagData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsSyncSnagResponses`](../type-aliases/PostApiV1CreditsSyncSnagResponses.md), [`PostApiV1CreditsSyncSnagErrors`](../type-aliases/PostApiV1CreditsSyncSnagErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:290](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/sdk.gen.ts#L290)
+Defined in: [src/client/sdk.gen.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#290)
 
 Sync Snag points
 

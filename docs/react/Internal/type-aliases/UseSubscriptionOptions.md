@@ -2,7 +2,7 @@
 
 > **UseSubscriptionOptions** = `object`
 
-Defined in: [src/react/useSubscription.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L22)
+Defined in: [src/react/useSubscription.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#22)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useSubscription.ts:22](https://github.com/zeta-chain/ai-s
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: [src/react/useSubscription.ts:34](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L34)
+Defined in: [src/react/useSubscription.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#34)
 
 Whether to fetch subscription status automatically on mount (default: true)
 
@@ -20,7 +20,7 @@ Whether to fetch subscription status automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/react/useSubscription.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L30)
+Defined in: [src/react/useSubscription.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#30)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useSubscription.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L26)
+Defined in: [src/react/useSubscription.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#26)
 
 Custom function to get auth token for API calls
 
@@ -44,7 +44,7 @@ Custom function to get auth token for API calls
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/react/useSubscription.ts:38](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useSubscription.ts#L38)
+Defined in: [src/react/useSubscription.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#38)
 
 Optional callback for error handling
 

@@ -1,6 +1,6 @@
 # UseProjectsOptions
 
-Defined in: [src/react/useProjects.ts:35](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L35)
+Defined in: [src/react/useProjects.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#35)
 
 Options for useProjects hook.
 
@@ -10,7 +10,7 @@ Options for useProjects hook.
 
 > **database**: `Database`
 
-Defined in: [src/react/useProjects.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L37)
+Defined in: [src/react/useProjects.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#37)
 
 WatermelonDB database instance
 
@@ -20,6 +20,6 @@ WatermelonDB database instance
 
 > `optional` **initialProjectId**: `string`
 
-Defined in: [src/react/useProjects.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useProjects.ts#L39)
+Defined in: [src/react/useProjects.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/react/useProjects.ts#39)
 
 Initial project ID to select (optional)

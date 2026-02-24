@@ -1,6 +1,6 @@
 # ProfileUpdate
 
-Defined in: [src/lib/db/userPreferences/types.ts:136](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L136)
+Defined in: [src/lib/db/userPreferences/types.ts:136](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#136)
 
 Profile-only update options
 
@@ -10,7 +10,7 @@ Profile-only update options
 
 > `optional` **description**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:139](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L139)
+Defined in: [src/lib/db/userPreferences/types.ts:139](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#139)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/userPreferences/types.ts:139](https://github.com/zeta-ch
 
 > `optional` **nickname**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:137](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L137)
+Defined in: [src/lib/db/userPreferences/types.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#137)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/db/userPreferences/types.ts:137](https://github.com/zeta-ch
 
 > `optional` **occupation**: `string`
 
-Defined in: [src/lib/db/userPreferences/types.ts:138](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/types.ts#L138)
+Defined in: [src/lib/db/userPreferences/types.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/types.ts#138)

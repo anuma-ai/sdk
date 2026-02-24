@@ -2,7 +2,7 @@
 
 > `const` **userPreferencesStorageSchema**: `Readonly`<{ `tables`: `TableMap`; `unsafeSql?`: (`_`: `string`, `__`: `AppSchemaUnsafeSqlKind`) => `string`; `version`: `number`; }>
 
-Defined in: [src/lib/db/userPreferences/schema.ts:10](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/userPreferences/schema.ts#L10)
+Defined in: [src/lib/db/userPreferences/schema.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/userPreferences/schema.ts#10)
 
 User preferences table schema definition.
 

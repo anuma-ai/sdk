@@ -2,7 +2,7 @@
 
 > **PendingInteraction**<`TData`, `TResult`> = `object`
 
-Defined in: [src/react/useUIInteraction.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L20)
+Defined in: [src/react/useUIInteraction.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#20)
 
 Represents a pending user interaction that needs to be resolved
 
@@ -49,7 +49,7 @@ Represents a pending user interaction that needs to be resolved
 
 > **createdAt**: `number`
 
-Defined in: [src/react/useUIInteraction.ts:26](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L26)
+Defined in: [src/react/useUIInteraction.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#26)
 
 ***
 
@@ -57,7 +57,7 @@ Defined in: [src/react/useUIInteraction.ts:26](https://github.com/zeta-chain/ai-
 
 > **data**: `TData`
 
-Defined in: [src/react/useUIInteraction.ts:23](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L23)
+Defined in: [src/react/useUIInteraction.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#23)
 
 ***
 
@@ -65,7 +65,7 @@ Defined in: [src/react/useUIInteraction.ts:23](https://github.com/zeta-chain/ai-
 
 > **id**: `string`
 
-Defined in: [src/react/useUIInteraction.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L21)
+Defined in: [src/react/useUIInteraction.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#21)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: [src/react/useUIInteraction.ts:21](https://github.com/zeta-chain/ai-
 
 > **reject**: (`error`: `Error`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L25)
+Defined in: [src/react/useUIInteraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#25)
 
 **Parameters**
 
@@ -110,7 +110,7 @@ Defined in: [src/react/useUIInteraction.ts:25](https://github.com/zeta-chain/ai-
 
 > **resolve**: (`result`: `TResult`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L24)
+Defined in: [src/react/useUIInteraction.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#24)
 
 **Parameters**
 
@@ -147,7 +147,7 @@ Defined in: [src/react/useUIInteraction.ts:24](https://github.com/zeta-chain/ai-
 
 > `optional` **resolved**: `boolean`
 
-Defined in: [src/react/useUIInteraction.ts:27](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L27)
+Defined in: [src/react/useUIInteraction.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#27)
 
 ***
 
@@ -155,7 +155,7 @@ Defined in: [src/react/useUIInteraction.ts:27](https://github.com/zeta-chain/ai-
 
 > `optional` **result**: `TResult`
 
-Defined in: [src/react/useUIInteraction.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L28)
+Defined in: [src/react/useUIInteraction.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#28)
 
 ***
 
@@ -163,7 +163,7 @@ Defined in: [src/react/useUIInteraction.ts:28](https://github.com/zeta-chain/ai-
 
 > `optional` **toolVersion**: `number`
 
-Defined in: [src/react/useUIInteraction.ts:30](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L30)
+Defined in: [src/react/useUIInteraction.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#30)
 
 Version of the display tool that produced this interaction (for migration on restore)
 
@@ -173,4 +173,4 @@ Version of the display tool that produced this interaction (for migration on res
 
 > **type**: [`InteractionType`](InteractionType.md)
 
-Defined in: [src/react/useUIInteraction.ts:22](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useUIInteraction.ts#L22)
+Defined in: [src/react/useUIInteraction.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#22)

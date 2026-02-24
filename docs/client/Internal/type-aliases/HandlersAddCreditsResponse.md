@@ -2,7 +2,7 @@
 
 > **HandlersAddCreditsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L48)
+Defined in: [src/client/types.gen.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#48)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:48](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **credits\_added**: `number`
 
-Defined in: [src/client/types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L49)
+Defined in: [src/client/types.gen.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#49)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:49](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:53](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L53)
+Defined in: [src/client/types.gen.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#53)
 
 Escrow contract used for the operation
 
@@ -28,7 +28,7 @@ Escrow contract used for the operation
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:54](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L54)
+Defined in: [src/client/types.gen.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#54)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [src/client/types.gen.ts:54](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:55](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L55)
+Defined in: [src/client/types.gen.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#55)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [src/client/types.gen.ts:55](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:56](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L56)
+Defined in: [src/client/types.gen.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#56)
