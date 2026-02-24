@@ -5,10 +5,10 @@ import { useCallback, useMemo } from "react";
 
 import {
   DEFAULT_BACKUP_FOLDER,
-  performDropboxExport,
-  performDropboxImport,
   type DropboxExportResult,
   type DropboxImportResult,
+  performDropboxExport,
+  performDropboxImport,
 } from "../lib/backup/dropbox/backup";
 import { useDropboxAuth } from "./useDropboxAuth";
 
@@ -31,10 +31,7 @@ export interface UseDropboxBackupOptions {
     userAddress: string
   ) => Promise<{ success: boolean; blob?: Blob }>;
   /** Import a conversation from an encrypted blob */
-  importConversation: (
-    blob: Blob,
-    userAddress: string
-  ) => Promise<{ success: boolean }>;
+  importConversation: (blob: Blob, userAddress: string) => Promise<{ success: boolean }>;
   /** Dropbox folder path for backups (default: '/ai-chat-app/conversations') */
   backupFolder?: string;
 }
@@ -99,9 +96,7 @@ export interface UseDropboxBackupResult {
  *
  * @category Hooks
  */
-export function useDropboxBackup(
-  options: UseDropboxBackupOptions
-): UseDropboxBackupResult {
+export function useDropboxBackup(options: UseDropboxBackupOptions): UseDropboxBackupResult {
   const {
     database,
     userAddress,
@@ -138,9 +133,9 @@ export function useDropboxBackup(
   }, [dropboxToken, requestDropboxAccess]);
 
   const backup = useCallback(
-    async (
-      backupOptions?: { onProgress?: (current: number, total: number) => void }
-    ): Promise<DropboxExportResult | { error: string }> => {
+    async (backupOptions?: {
+      onProgress?: (current: number, total: number) => void;
+    }): Promise<DropboxExportResult | { error: string }> => {
       if (!userAddress) {
         return { error: "Please sign in to backup to Dropbox" };
       }
@@ -169,9 +164,9 @@ export function useDropboxBackup(
   );
 
   const restore = useCallback(
-    async (
-      restoreOptions?: { onProgress?: (current: number, total: number) => void }
-    ): Promise<DropboxImportResult | { error: string }> => {
+    async (restoreOptions?: {
+      onProgress?: (current: number, total: number) => void;
+    }): Promise<DropboxImportResult | { error: string }> => {
       if (!userAddress) {
         return { error: "Please sign in to restore from Dropbox" };
       }

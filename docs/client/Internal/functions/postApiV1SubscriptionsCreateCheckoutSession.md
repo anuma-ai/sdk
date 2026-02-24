@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:370](https://github.com/zeta-chain/ai-sdk/blo
 
 Create checkout session
 
-Creates a Stripe Checkout Session for Pro subscription and returns the checkout URL
+Creates a Stripe Checkout Session for a subscription plan and returns the checkout URL. Identify the plan with either price\_id directly, or tier ("starter"/"pro") + interval ("month"/"year").
 
 ## Type Parameters
 

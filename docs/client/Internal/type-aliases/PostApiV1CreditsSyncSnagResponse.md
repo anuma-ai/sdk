@@ -2,4 +2,4 @@
 
 > **PostApiV1CreditsSyncSnagResponse** = [`PostApiV1CreditsSyncSnagResponses`](PostApiV1CreditsSyncSnagResponses.md)\[keyof [`PostApiV1CreditsSyncSnagResponses`](PostApiV1CreditsSyncSnagResponses.md)]
 
-Defined in: [src/client/types.gen.ts:2004](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2004)
+Defined in: [src/client/types.gen.ts:2073](https://github.com/zeta-chain/ai-sdk/blob/main/src/client/types.gen.ts#L2073)

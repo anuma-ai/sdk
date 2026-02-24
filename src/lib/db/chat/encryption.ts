@@ -1,15 +1,15 @@
+import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
-import type { SignMessageFn, EmbeddedWalletSignerFn } from "../../../react/useEncryption";
-import type { CreateMessageOptions, UpdateMessageOptions, StoredMessage } from "./types";
 import {
-  isEncrypted,
-  encryptField,
   decryptField,
-  encryptJsonField,
   decryptJsonField,
+  encryptField,
+  encryptJsonField,
+  isEncrypted,
 } from "../encryption-utils";
+import type { CreateMessageOptions, StoredMessage, UpdateMessageOptions } from "./types";
 
-export { isEncrypted, encryptField, decryptField };
+export { decryptField, encryptField, isEncrypted };
 
 /**
  * Encrypts all sensitive message fields before storage.
@@ -25,7 +25,7 @@ export { isEncrypted, encryptField, decryptField };
  * Non-encrypted fields:
  * - IDs, roles, models, timestamps, flags, token counts, dimensions
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export async function encryptMessageFields(
   message: CreateMessageOptions | UpdateMessageOptions,
   address: string,
@@ -43,13 +43,15 @@ export async function encryptMessageFields(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const msg = message as any;
 
-    const encryptedContent = msg.content !== undefined
-      ? await encryptField(msg.content, address, signMessage, embeddedWalletSigner, true)
-      : undefined;
+    const encryptedContent =
+      msg.content !== undefined
+        ? await encryptField(msg.content, address, signMessage, embeddedWalletSigner, true)
+        : undefined;
 
-    const encryptedThinking = msg.thinking !== undefined && msg.thinking !== null
-      ? await encryptField(msg.thinking, address, signMessage, embeddedWalletSigner, true)
-      : msg.thinking;
+    const encryptedThinking =
+      msg.thinking !== undefined && msg.thinking !== null
+        ? await encryptField(msg.thinking, address, signMessage, embeddedWalletSigner, true)
+        : msg.thinking;
 
     const encryptedVector = msg.vector
       ? await encryptJsonField(msg.vector, address, signMessage, embeddedWalletSigner, true)
@@ -111,28 +113,30 @@ export async function decryptMessageFields(
 
   const decryptedVector = message.vector
     ? await decryptJsonField<number[]>(
-        typeof message.vector === 'string' ? message.vector : JSON.stringify(message.vector),
+        typeof message.vector === "string" ? message.vector : JSON.stringify(message.vector),
         address
       )
     : message.vector;
 
   const decryptedChunks = message.chunks
     ? await decryptJsonField<typeof message.chunks>(
-        typeof message.chunks === 'string' ? message.chunks : JSON.stringify(message.chunks),
+        typeof message.chunks === "string" ? message.chunks : JSON.stringify(message.chunks),
         address
       )
     : message.chunks;
 
   const decryptedSources = message.sources
     ? await decryptJsonField<typeof message.sources>(
-        typeof message.sources === 'string' ? message.sources : JSON.stringify(message.sources),
+        typeof message.sources === "string" ? message.sources : JSON.stringify(message.sources),
         address
       )
     : message.sources;
 
   const decryptedThoughtProcess = message.thoughtProcess
     ? await decryptJsonField<typeof message.thoughtProcess>(
-        typeof message.thoughtProcess === 'string' ? message.thoughtProcess : JSON.stringify(message.thoughtProcess),
+        typeof message.thoughtProcess === "string"
+          ? message.thoughtProcess
+          : JSON.stringify(message.thoughtProcess),
         address
       )
     : message.thoughtProcess;

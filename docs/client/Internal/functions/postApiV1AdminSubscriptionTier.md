@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:194](https://github.com/zeta-chain/ai-sdk/blo
 
 Set user subscription tier
 
-Sets a user's subscription tier (basic or pro). Requires admin API key.
+Sets a user's subscription tier (basic, starter, or pro). Requires admin API key.
 
 ## Type Parameters
 

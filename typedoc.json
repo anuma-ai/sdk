@@ -30,17 +30,11 @@
     "./scripts/typedoc-theme-collapsed-params.mjs"
   ],
   "theme": "collapsed-params",
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.security.test.ts"
-  ],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.security.test.ts"],
   "remarkPlugins": [
     {
       "applyTo": "*",
-      "plugins": [
-        "./scripts/remark-clamp-headings.mjs"
-      ]
+      "plugins": ["./scripts/remark-clamp-headings.mjs"]
     }
   ],
   "router": "member-category"

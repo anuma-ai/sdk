@@ -67,6 +67,9 @@ export interface PreprocessingOptions {
   /** Max file size to process in bytes (default: 10MB) */
   maxFileSizeBytes?: number;
 
+  /** Timeout per file in milliseconds (default: 30000). Prevents hangs from slow CDN workers or large files. */
+  timeoutMs?: number;
+
   /** Callback for progress updates */
   onProgress?: (current: number, total: number, fileName: string) => void;
 

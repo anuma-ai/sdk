@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:217](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L217)
+Defined in: [src/lib/db/schema.ts:219](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/schema.ts#L219)
 
 Combined migrations for all SDK storage modules.
 
@@ -25,3 +25,7 @@ Migration history:
 * v9 → v10: Added `projects` table and `project_id` column to conversations
 * v10 → v11: Added `media` table for library feature, added `file_ids` column to history
 * v11 → v12: Added `chunks` column to history table for sub-message semantic search
+* v12 → v13: Added `parent_message_id` column to history table for message branching
+* v13 → v14: Added `feedback` column to history table for like/dislike on responses
+* v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
+* v15 → v16: Added `scope` column to memory\_vault table for memory partitioning

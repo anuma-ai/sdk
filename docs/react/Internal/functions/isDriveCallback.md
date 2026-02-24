@@ -2,7 +2,7 @@
 
 > **isDriveCallback**(`callbackPath`: `string`): `boolean`
 
-Defined in: [src/lib/auth/google-drive.ts:167](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L167)
+Defined in: [src/lib/auth/google-drive.ts:311](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-drive.ts#L311)
 
 Check if current URL is a Drive OAuth callback
 

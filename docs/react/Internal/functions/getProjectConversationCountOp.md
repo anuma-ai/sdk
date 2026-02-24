@@ -2,7 +2,7 @@
 
 > **getProjectConversationCountOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `projectId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/project/operations.ts:170](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L170)
+Defined in: [src/lib/db/project/operations.ts:165](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L165)
 
 Count the number of conversations in a project.
 

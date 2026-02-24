@@ -2,7 +2,7 @@
 
 > **getProjectConversationsOp**(`ctx`: [`ProjectOperationsContext`](../interfaces/ProjectOperationsContext.md), `projectId`: `string`): `Promise`<[`StoredConversation`](../interfaces/StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/project/operations.ts:152](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L152)
+Defined in: [src/lib/db/project/operations.ts:147](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/project/operations.ts#L147)
 
 Get all conversations belonging to a specific project.
 

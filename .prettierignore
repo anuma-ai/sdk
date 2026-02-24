@@ -1,0 +1,8 @@
+dist/
+src/client/
+node_modules/
+coverage/
+docs/
+.claude/
+*.md
+pnpm-lock.yaml

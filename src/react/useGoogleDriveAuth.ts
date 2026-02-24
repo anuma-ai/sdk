@@ -65,8 +65,7 @@ export interface GoogleDriveAuthContextValue {
   refreshToken: () => Promise<string | null>;
 }
 
-const GoogleDriveAuthContext =
-  createContext<GoogleDriveAuthContextValue | null>(null);
+const GoogleDriveAuthContext = createContext<GoogleDriveAuthContextValue | null>(null);
 
 /**
  * Provider component for Google Drive OAuth authentication.
@@ -127,11 +126,7 @@ export function GoogleDriveAuthProvider({
 
     const handleCallback = async () => {
       if (isGoogleDriveCallback()) {
-        const result = await handleGoogleDriveCallback(
-          callbackPath,
-          apiClient,
-          walletAddress
-        );
+        const result = await handleGoogleDriveCallback(callbackPath, apiClient, walletAddress);
         if (result.ok) {
           setAccessToken(result.data);
         } else {
@@ -164,10 +159,7 @@ export function GoogleDriveAuthProvider({
     }
 
     // Try to get a valid token (will refresh if expired)
-    const storedToken = await getGoogleDriveAccessToken(
-      apiClient,
-      walletAddress
-    );
+    const storedToken = await getGoogleDriveAccessToken(apiClient, walletAddress);
     if (storedToken) {
       setAccessToken(storedToken);
       return storedToken;
@@ -175,14 +167,7 @@ export function GoogleDriveAuthProvider({
 
     // Start OAuth flow (this will redirect)
     return startGoogleDriveAuth(clientId, callbackPath);
-  }, [
-    accessToken,
-    clientId,
-    callbackPath,
-    isConfigured,
-    apiClient,
-    walletAddress,
-  ]);
+  }, [accessToken, clientId, callbackPath, isConfigured, apiClient, walletAddress]);
 
   const logout = useCallback(async () => {
     await revokeGoogleDriveToken(apiClient, walletAddress);
@@ -234,16 +219,14 @@ export function GoogleDriveAuthProvider({
 export function useGoogleDriveAuth(): GoogleDriveAuthContextValue {
   const context = useContext(GoogleDriveAuthContext);
   if (!context) {
-    throw new Error(
-      "useGoogleDriveAuth must be used within GoogleDriveAuthProvider"
-    );
+    throw new Error("useGoogleDriveAuth must be used within GoogleDriveAuthProvider");
   }
   return context;
 }
 
 // Re-export utility functions for direct use
 export {
-  getGoogleDriveStoredToken,
   clearGoogleDriveToken,
+  getGoogleDriveStoredToken,
   hasGoogleDriveCredentials,
 } from "../lib/backup/google/auth";

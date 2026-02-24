@@ -1,11 +1,36 @@
 # getValidCalendarToken
 
-> **getValidCalendarToken**(): `string` | `null`
+> **getValidCalendarToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:387](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L387)
+Defined in: [src/lib/auth/google-calendar.ts:531](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L531)
 
-Get stored token for Calendar (synchronous, for tool token getters)
+Get stored token for Calendar (async, for tool token getters)
+
+## Parameters
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Returns
 
-`string` | `null`
+`Promise`<`string` | `null`>

@@ -2,7 +2,7 @@
 
 > **UseCreditsOptions** = `object`
 
-Defined in: [src/react/useCredits.ts:20](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L20)
+Defined in: [src/react/useCredits.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L21)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/react/useCredits.ts:20](https://github.com/zeta-chain/ai-sdk/bl
 
 > `optional` **autoFetch**: `boolean`
 
-Defined in: [src/react/useCredits.ts:32](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L32)
+Defined in: [src/react/useCredits.ts:33](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L33)
 
 Whether to fetch credit balance automatically on mount (default: true)
 
@@ -20,7 +20,7 @@ Whether to fetch credit balance automatically on mount (default: true)
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/react/useCredits.ts:28](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L28)
+Defined in: [src/react/useCredits.ts:29](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L29)
 
 Optional base URL for the API requests.
 
@@ -30,7 +30,7 @@ Optional base URL for the API requests.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useCredits.ts:24](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L24)
+Defined in: [src/react/useCredits.ts:25](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L25)
 
 Custom function to get auth token for API calls
 
@@ -44,7 +44,7 @@ Custom function to get auth token for API calls
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/react/useCredits.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L36)
+Defined in: [src/react/useCredits.ts:37](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useCredits.ts#L37)
 
 Optional callback for error handling
 

@@ -1,6 +1,6 @@
 # UseVoiceResult
 
-Defined in: [src/react/useVoice.ts:85](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L85)
+Defined in: [src/react/useVoice.ts:86](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L86)
 
 Result returned by the useVoice hook.
 
@@ -10,7 +10,7 @@ Result returned by the useVoice hook.
 
 > **abortNativeTranscription**: () => `void`
 
-Defined in: [src/react/useVoice.ts:117](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L117)
+Defined in: [src/react/useVoice.ts:118](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L118)
 
 Abort on-device speech recognition without returning a result.
 
@@ -24,7 +24,7 @@ Abort on-device speech recognition without returning a result.
 
 > **disposeModel**: () => `Promise`<`void`>
 
-Defined in: [src/react/useVoice.ts:99](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L99)
+Defined in: [src/react/useVoice.ts:100](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L100)
 
 Dispose the loaded model to free WASM memory. Useful on memory-constrained devices (mobile).
 
@@ -38,7 +38,7 @@ Dispose the loaded model to free WASM memory. Useful on memory-constrained devic
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useVoice.ts:109](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L109)
+Defined in: [src/react/useVoice.ts:110](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L110)
 
 Error from the last operation
 
@@ -48,7 +48,7 @@ Error from the last operation
 
 > **isLoadingModel**: `boolean`
 
-Defined in: [src/react/useVoice.ts:103](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L103)
+Defined in: [src/react/useVoice.ts:104](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L104)
 
 Whether the Whisper model is currently loading/downloading
 
@@ -58,7 +58,7 @@ Whether the Whisper model is currently loading/downloading
 
 > **isModelLoaded**: `boolean`
 
-Defined in: [src/react/useVoice.ts:101](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L101)
+Defined in: [src/react/useVoice.ts:102](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L102)
 
 Whether the Whisper model has been loaded
 
@@ -68,7 +68,7 @@ Whether the Whisper model has been loaded
 
 > **isNativeListening**: `boolean`
 
-Defined in: [src/react/useVoice.ts:119](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L119)
+Defined in: [src/react/useVoice.ts:120](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L120)
 
 Whether on-device speech recognition is currently listening.
 
@@ -78,7 +78,7 @@ Whether on-device speech recognition is currently listening.
 
 > **isRecording**: `boolean`
 
-Defined in: [src/react/useVoice.ts:87](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L87)
+Defined in: [src/react/useVoice.ts:88](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L88)
 
 Whether the microphone is currently recording
 
@@ -88,7 +88,7 @@ Whether the microphone is currently recording
 
 > **isTranscribing**: `boolean`
 
-Defined in: [src/react/useVoice.ts:93](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L93)
+Defined in: [src/react/useVoice.ts:94](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L94)
 
 Whether transcription is in progress
 
@@ -98,7 +98,7 @@ Whether transcription is in progress
 
 > **nativeSpeechAvailable**: `boolean`
 
-Defined in: [src/react/useVoice.ts:111](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L111)
+Defined in: [src/react/useVoice.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L112)
 
 Whether on-device speech recognition is available (iOS Safari). No audio leaves the device.
 
@@ -108,7 +108,7 @@ Whether on-device speech recognition is available (iOS Safari). No audio leaves 
 
 > **preloadModel**: () => `Promise`<`void`>
 
-Defined in: [src/react/useVoice.ts:97](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L97)
+Defined in: [src/react/useVoice.ts:98](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L98)
 
 Preload the Whisper model so transcription starts instantly later
 
@@ -122,7 +122,7 @@ Preload the Whisper model so transcription starts instantly later
 
 > **recording**: [`VoiceRecording`](../Internal/interfaces/VoiceRecording.md) | `null`
 
-Defined in: [src/react/useVoice.ts:105](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L105)
+Defined in: [src/react/useVoice.ts:106](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L106)
 
 The last recording
 
@@ -132,7 +132,7 @@ The last recording
 
 > **startNativeTranscription**: () => `void`
 
-Defined in: [src/react/useVoice.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L113)
+Defined in: [src/react/useVoice.ts:114](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L114)
 
 Start on-device speech recognition. Call stopNativeTranscription() to get the result.
 
@@ -146,7 +146,7 @@ Start on-device speech recognition. Call stopNativeTranscription() to get the re
 
 > **startRecording**: () => `Promise`<`void`>
 
-Defined in: [src/react/useVoice.ts:89](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L89)
+Defined in: [src/react/useVoice.ts:90](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L90)
 
 Start recording from the microphone
 
@@ -160,7 +160,7 @@ Start recording from the microphone
 
 > **stopNativeTranscription**: () => `Promise`<[`TranscriptionResult`](../Internal/interfaces/TranscriptionResult.md)>
 
-Defined in: [src/react/useVoice.ts:115](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L115)
+Defined in: [src/react/useVoice.ts:116](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L116)
 
 Stop on-device speech recognition and return the accumulated text.
 
@@ -174,7 +174,7 @@ Stop on-device speech recognition and return the accumulated text.
 
 > **stopRecording**: () => `Promise`<[`VoiceRecording`](../Internal/interfaces/VoiceRecording.md)>
 
-Defined in: [src/react/useVoice.ts:91](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L91)
+Defined in: [src/react/useVoice.ts:92](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L92)
 
 Stop recording and return the audio
 
@@ -188,7 +188,7 @@ Stop recording and return the audio
 
 > **transcribe**: (`recording?`: [`VoiceRecording`](../Internal/interfaces/VoiceRecording.md)) => `Promise`<[`TranscriptionResult`](../Internal/interfaces/TranscriptionResult.md)>
 
-Defined in: [src/react/useVoice.ts:95](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L95)
+Defined in: [src/react/useVoice.ts:96](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L96)
 
 Transcribe a recording. Uses the last recording if none provided.
 
@@ -227,6 +227,6 @@ Transcribe a recording. Uses the last recording if none provided.
 
 > **transcription**: [`TranscriptionResult`](../Internal/interfaces/TranscriptionResult.md) | `null`
 
-Defined in: [src/react/useVoice.ts:107](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L107)
+Defined in: [src/react/useVoice.ts:108](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useVoice.ts#L108)
 
 The last transcription result

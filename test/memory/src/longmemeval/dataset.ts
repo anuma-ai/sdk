@@ -4,9 +4,12 @@
  * Downloads the dataset once and caches it in ~/.cache/longmemeval/
  */
 
+import { createWriteStream } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { mkdir, readFile, writeFile, stat } from "fs/promises";
+import { mkdir, readFile, stat } from "fs/promises";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import type { LongMemEvalDataset } from "./types.js";
 
 const CACHE_DIR = join(homedir(), ".cache", "longmemeval");
@@ -46,9 +49,10 @@ function getCachePath(variant: DatasetVariant): string {
 }
 
 /**
- * Download a dataset file from Hugging Face
+ * Download a dataset file from Hugging Face, streaming directly to disk
+ * to avoid V8's ~512MB string size limit.
  */
-async function downloadDataset(variant: DatasetVariant): Promise<string> {
+async function downloadDatasetToFile(variant: DatasetVariant, destPath: string): Promise<void> {
   const url = DATASET_URLS[variant];
 
   console.log(`Downloading LongMemEval dataset (${variant})...`);
@@ -57,16 +61,19 @@ async function downloadDataset(variant: DatasetVariant): Promise<string> {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to download dataset: ${response.status} ${response.statusText}`
-    );
+    throw new Error(`Failed to download dataset: ${response.status} ${response.statusText}`);
   }
 
-  const data = await response.text();
-  const sizeMB = (data.length / 1024 / 1024).toFixed(1);
-  console.log(`  Downloaded: ${sizeMB} MB`);
+  if (!response.body) {
+    throw new Error("Response body is null");
+  }
 
-  return data;
+  await pipeline(Readable.fromWeb(response.body as never), createWriteStream(destPath));
+
+  const fileInfo = await stat(destPath);
+  const sizeMB = (fileInfo.size / 1024 / 1024).toFixed(1);
+  console.log(`  Downloaded: ${sizeMB} MB`);
+  console.log(`  Cached to: ${destPath}`);
 }
 
 /**
@@ -84,21 +91,14 @@ export async function loadLongMemEvalDataset(
 
   const cachePath = getCachePath(variant);
 
-  if (await exists(cachePath)) {
+  if (!(await exists(cachePath))) {
+    await downloadDatasetToFile(variant, cachePath);
+  } else {
     console.log(`Loading cached dataset from ${cachePath}`);
-    const data = await readFile(cachePath, "utf-8");
-    return JSON.parse(data) as LongMemEvalDataset;
   }
 
-  const data = await downloadDataset(variant);
-
-  // Parse before caching to avoid persisting invalid data
-  const parsed = JSON.parse(data) as LongMemEvalDataset;
-
-  await writeFile(cachePath, data);
-  console.log(`  Cached to: ${cachePath}`);
-
-  return parsed;
+  const data = await readFile(cachePath, "utf-8");
+  return JSON.parse(data) as LongMemEvalDataset;
 }
 
 /**
@@ -111,9 +111,7 @@ export function getCacheDirectory(): string {
 /**
  * Check if a dataset is already cached
  */
-export async function isDatasetCached(
-  variant: DatasetVariant
-): Promise<boolean> {
+export async function isDatasetCached(variant: DatasetVariant): Promise<boolean> {
   return exists(getCachePath(variant));
 }
 
@@ -122,10 +120,16 @@ export async function isDatasetCached(
  */
 export async function preloadAllDatasets(): Promise<void> {
   console.log("Preloading all LongMemEval datasets...\n");
+  await ensureCacheDir();
 
   for (const variant of ["s", "m", "oracle"] as const) {
     console.log(`\n[${variant}]`);
-    await loadLongMemEvalDataset(variant);
+    const cachePath = getCachePath(variant);
+    if (await exists(cachePath)) {
+      console.log(`  Already cached at ${cachePath}`);
+    } else {
+      await downloadDatasetToFile(variant, cachePath);
+    }
   }
 
   console.log("\nAll datasets preloaded.");
@@ -145,8 +149,7 @@ export function getDatasetStats(dataset: LongMemEvalDataset): {
   let totalMessages = 0;
 
   for (const entry of dataset) {
-    questionTypes[entry.question_type] =
-      (questionTypes[entry.question_type] || 0) + 1;
+    questionTypes[entry.question_type] = (questionTypes[entry.question_type] || 0) + 1;
     totalSessions += entry.haystack_sessions.length;
 
     for (const session of entry.haystack_sessions) {

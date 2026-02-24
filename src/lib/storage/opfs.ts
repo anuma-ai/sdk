@@ -8,7 +8,7 @@
 // Internal placeholder format - never shown to clients
 // Uses a format that won't be interpreted as markdown
 export const FILE_PLACEHOLDER_PREFIX = "__SDKFILE__";
-export const FILE_PLACEHOLDER_SUFFIX = "__";
+const FILE_PLACEHOLDER_SUFFIX = "__";
 // Match file IDs like "media_019c0630-8b7a-760c-863e-b6c676fd50d3"
 export const FILE_PLACEHOLDER_REGEX = /__SDKFILE__([a-zA-Z0-9_-]+)__/g;
 
@@ -74,10 +74,7 @@ function hexToBytes(hex: string): Uint8Array {
  * @param encryptionKey - The CryptoKey for encryption
  * @returns Encrypted data as hex string (IV + ciphertext)
  */
-async function encryptBlob(
-  blob: Blob,
-  encryptionKey: CryptoKey
-): Promise<string> {
+async function encryptBlob(blob: Blob, encryptionKey: CryptoKey): Promise<string> {
   const arrayBuffer = await blob.arrayBuffer();
   const plaintext = new Uint8Array(arrayBuffer);
 
@@ -85,11 +82,7 @@ async function encryptBlob(
   const iv = crypto.getRandomValues(new Uint8Array(12));
 
   // Encrypt
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    encryptionKey,
-    plaintext
-  );
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, encryptionKey, plaintext);
 
   // Combine IV + ciphertext
   const combined = new Uint8Array(iv.length + ciphertext.byteLength);
@@ -106,10 +99,7 @@ async function encryptBlob(
  * @param encryptionKey - The CryptoKey for decryption
  * @returns Decrypted data as Uint8Array
  */
-async function decryptToBytes(
-  encryptedHex: string,
-  encryptionKey: CryptoKey
-): Promise<Uint8Array> {
+async function decryptToBytes(encryptedHex: string, encryptionKey: CryptoKey): Promise<Uint8Array> {
   const combined = hexToBytes(encryptedHex);
 
   // Extract IV (first 12 bytes) and ciphertext
@@ -117,11 +107,7 @@ async function decryptToBytes(
   const ciphertext = combined.slice(12);
 
   // Decrypt
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    encryptionKey,
-    ciphertext
-  );
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, encryptionKey, ciphertext);
 
   return new Uint8Array(decrypted);
 }
@@ -389,7 +375,5 @@ export async function resolveFilePlaceholders(
     resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
   }
 
-
   return resolvedContent;
 }
-

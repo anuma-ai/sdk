@@ -1,6 +1,6 @@
 # QueueManager
 
-Defined in: [src/lib/db/queue/manager.ts:112](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L112)
+Defined in: [src/lib/db/queue/manager.ts:113](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L113)
 
 ## Constructors
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/queue/manager.ts:112](https://github.com/zeta-chain/ai-s
 
 > **clear**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:321](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L321)
+Defined in: [src/lib/db/queue/manager.ts:316](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L316)
 
 Clear all queued operations for a wallet.
 
@@ -57,7 +57,7 @@ Clear all queued operations for a wallet.
 
 > **flush**(`encryptionContext`: [`QueueEncryptionContext`](../interfaces/QueueEncryptionContext.md), `executor`: [`OperationExecutor`](../type-aliases/OperationExecutor.md)): `Promise`<[`FlushResult`](../interfaces/FlushResult.md)>
 
-Defined in: [src/lib/db/queue/manager.ts:213](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L213)
+Defined in: [src/lib/db/queue/manager.ts:214](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L214)
 
 Flush all queued operations for a wallet by executing them with encryption.
 
@@ -121,7 +121,7 @@ Result with succeeded/failed operation IDs
 
 > **getOperations**(`walletAddress`: `string`): [`QueuedOperation`](../interfaces/QueuedOperation.md)\[]
 
-Defined in: [src/lib/db/queue/manager.ts:171](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L171)
+Defined in: [src/lib/db/queue/manager.ts:172](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L172)
 
 Get all pending operations for a wallet, sorted by dependency order.
 
@@ -160,7 +160,7 @@ Get all pending operations for a wallet, sorted by dependency order.
 
 > **getStatus**(`walletAddress`: `string`): [`QueueStatus`](../interfaces/QueueStatus.md)
 
-Defined in: [src/lib/db/queue/manager.ts:194](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L194)
+Defined in: [src/lib/db/queue/manager.ts:195](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L195)
 
 Get the status of a wallet's queue.
 
@@ -199,7 +199,7 @@ Get the status of a wallet's queue.
 
 > **hasPending**(`walletAddress`: `string`): `boolean`
 
-Defined in: [src/lib/db/queue/manager.ts:364](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L364)
+Defined in: [src/lib/db/queue/manager.ts:359](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L359)
 
 Check if a wallet has any pending operations.
 
@@ -238,7 +238,7 @@ Check if a wallet has any pending operations.
 
 > **onQueueChange**(`walletAddress`: `string`, `callback`: () => `void`): () => `void`
 
-Defined in: [src/lib/db/queue/manager.ts:345](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L345)
+Defined in: [src/lib/db/queue/manager.ts:340](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L340)
 
 Register a listener for queue changes on a wallet.
 
@@ -295,7 +295,7 @@ Unsubscribe function
 
 > **pause**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:330](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L330)
+Defined in: [src/lib/db/queue/manager.ts:325](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L325)
 
 Pause the queue for a wallet (stops flush mid-way).
 
@@ -334,7 +334,7 @@ Pause the queue for a wallet (stops flush mid-way).
 
 > **queueOperation**(`walletAddress`: `string`, `type`: [`QueuedOperationType`](../type-aliases/QueuedOperationType.md), `payload`: `Record`<`string`, `any`>, `dependencies`: `string`\[], `maxRetries`: `number`): `string` | `null`
 
-Defined in: [src/lib/db/queue/manager.ts:128](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L128)
+Defined in: [src/lib/db/queue/manager.ts:129](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L129)
 
 Queue a new operation for a wallet.
 
@@ -449,7 +449,7 @@ The operation ID, or null if queue is full.
 
 > **removeOperation**(`walletAddress`: `string`, `operationId`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:180](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L180)
+Defined in: [src/lib/db/queue/manager.ts:181](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L181)
 
 Remove a specific operation from the queue.
 
@@ -500,7 +500,7 @@ Remove a specific operation from the queue.
 
 > **resume**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:337](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L337)
+Defined in: [src/lib/db/queue/manager.ts:332](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/db/queue/manager.ts#L332)
 
 Resume the queue for a wallet.
 

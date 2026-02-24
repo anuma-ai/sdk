@@ -16,13 +16,12 @@ import {
   clearAllEncryptionKeys,
   requestEncryptionKey,
   hasEncryptionKey,
-  getEncryptionKey,
-  initEncryptionKeys,
-  _resetInMemoryForTesting,
   SIGN_MESSAGE,
+  encryptData,
+  decryptData,
+  getEncryptionKey,
 } from "./useEncryption";
 import type { SignMessageFn } from "./useEncryption";
-import { removeAllKeys as idbRemoveAllKeys } from "./encryptionKeyStorage";
 
 // Mock crypto.subtle for deterministic testing
 const mockCryptoSubtle = {
@@ -55,20 +54,18 @@ describe("useEncryption - Key Pair Generation", () => {
     return createMockSignature(message);
   }) as unknown as SignMessageFn & { mock: { calls: string[][] } };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    // Clear all stores before each test (includes IndexedDB)
+    // Clear all stores before each test
     clearAllEncryptionKeys();
     clearAllKeyPairs();
-    await idbRemoveAllKeys();
 
     // Setup real crypto.subtle for most tests (integration tests)
     // We'll mock specific functions when needed for deterministic testing
     Object.defineProperty(global, "crypto", {
       value: {
         subtle: crypto.subtle,
-        getRandomValues: crypto.getRandomValues,
-        randomUUID: crypto.randomUUID,
+        getRandomValues: crypto.getRandomValues.bind(crypto),
       },
       writable: true,
     });
@@ -238,10 +235,7 @@ describe("useEncryption - Key Pair Generation", () => {
       });
 
       // Import the exported public key to verify it's valid
-      const spkiBytes = Uint8Array.from(
-        atob(publicKeySpki!),
-        (c) => c.charCodeAt(0)
-      );
+      const spkiBytes = Uint8Array.from(atob(publicKeySpki!), (c) => c.charCodeAt(0));
 
       const importedKey = await crypto.subtle.importKey(
         "spki",
@@ -395,10 +389,7 @@ describe("useEncryption - Key Pair Generation", () => {
       });
 
       // Import and verify it's a valid ECDH P-256 key
-      const spkiBytes = Uint8Array.from(
-        atob(publicKeySpki!),
-        (c) => c.charCodeAt(0)
-      );
+      const spkiBytes = Uint8Array.from(atob(publicKeySpki!), (c) => c.charCodeAt(0));
 
       const importedKey = await crypto.subtle.importKey(
         "spki",
@@ -412,9 +403,9 @@ describe("useEncryption - Key Pair Generation", () => {
       );
 
       expect(importedKey.algorithm.name).toBe("ECDH");
-      expect(
-        (importedKey.algorithm as { name: string; namedCurve: string }).namedCurve
-      ).toBe("P-256");
+      expect((importedKey.algorithm as { name: string; namedCurve: string }).namedCurve).toBe(
+        "P-256"
+      );
     });
 
     it("should use signature for derivation (not public seed)", async () => {
@@ -460,16 +451,16 @@ describe("useEncryption - Key Pair Generation", () => {
 
     it("should share the same signature between encryption keys and key pairs", async () => {
       const address = "0x1234567890123456789012345678901234567890";
-      
+
       // Create a signature once
       const sharedSignature = await mockSignMessage(SIGN_MESSAGE);
-      
+
       // Clear mocks
       vi.clearAllMocks();
-      
+
       // Use the same signature for both encryption key and key pair
       const signMessageWithSharedSig: SignMessageFn = async () => sharedSignature;
-      
+
       await act(async () => {
         await requestEncryptionKey(address, signMessageWithSharedSig);
         await requestKeyPair(address, signMessageWithSharedSig);
@@ -478,7 +469,7 @@ describe("useEncryption - Key Pair Generation", () => {
       // Both should exist and be independent
       expect(hasEncryptionKey(address)).toBe(true);
       expect(hasKeyPair(address)).toBe(true);
-      
+
       // Keys should be different despite same signature (due to different derivation)
       const publicKey = await exportPublicKey(address, signMessageWithSharedSig);
       expect(publicKey).toBeDefined();
@@ -503,9 +494,7 @@ describe("useEncryption - Key Pair Generation", () => {
       });
 
       await act(async () => {
-        await expect(
-          requestKeyPair(address, mockSignMessage)
-        ).rejects.toThrow();
+        await expect(requestKeyPair(address, mockSignMessage)).rejects.toThrow();
       });
 
       // Restore
@@ -551,9 +540,9 @@ describe("useEncryption - Key Pair Generation", () => {
 
       for (const invalidAddress of invalidAddresses) {
         await act(async () => {
-          await expect(
-            requestKeyPair(invalidAddress, mockSignMessage)
-          ).rejects.toThrow(/invalid.*address/i);
+          await expect(requestKeyPair(invalidAddress, mockSignMessage)).rejects.toThrow(
+            /invalid.*address/i
+          );
         });
       }
     });
@@ -573,7 +562,7 @@ describe("useEncryption - Key Pair Generation", () => {
     it("should produce different keys for different addresses with same signature", async () => {
       const address1 = "0x1111111111111111111111111111111111111111";
       const address2 = "0x2222222222222222222222222222222222222222";
-      
+
       // Use the same signature for both addresses
       const sharedSignature = createMockSignature(SIGN_MESSAGE);
       const signMessageWithSharedSig: SignMessageFn = async () => sharedSignature;
@@ -660,8 +649,12 @@ describe("useEncryption - Key Pair Generation", () => {
       const storageKey = `ecdh_keypair_${address}`;
       const persisted = localStorage.getItem(storageKey);
 
-      // Clear memory but keep localStorage
+      // Clear memory (clearKeyPair also removes from localStorage,
+      // so we re-set it to simulate only in-memory loss, e.g. page reload)
       clearKeyPair(address);
+      if (persisted) {
+        localStorage.setItem(storageKey, persisted);
+      }
       expect(hasKeyPair(address)).toBe(false);
 
       // Reset mock to track if signMessage is called
@@ -755,221 +748,12 @@ describe("useEncryption - Key Pair Generation", () => {
     });
   });
 
-  describe("IndexedDB Persistence", () => {
-    it("should recover key from IndexedDB after in-memory clear", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-
-      // Request an encryption key (populates both in-memory and IndexedDB)
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-      expect(hasEncryptionKey(address)).toBe(true);
-
-      // Let fire-and-forget IndexedDB write complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Clear only in-memory caches (simulates a page refresh — IndexedDB persists)
-      _resetInMemoryForTesting();
-      expect(hasEncryptionKey(address)).toBe(false);
-
-      // initEncryptionKeys should restore from IndexedDB
-      await initEncryptionKeys();
-      expect(hasEncryptionKey(address)).toBe(true);
-
-      // The restored key should work for encryption
-      const key = await getEncryptionKey(address);
-      expect(key).toBeDefined();
-      expect(key.type).toBe("secret");
-    });
-
-    it("should store non-extractable CryptoKey in IndexedDB", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-
-      // Let fire-and-forget IndexedDB write complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Clear in-memory, reload from IndexedDB
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-
-      const key = await getEncryptionKey(address);
-      expect(key.extractable).toBe(false);
-    });
-
-    it("should remove from IndexedDB on clearEncryptionKey", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-      expect(hasEncryptionKey(address)).toBe(true);
-
-      clearEncryptionKey(address);
-      expect(hasEncryptionKey(address)).toBe(false);
-
-      // Allow fire-and-forget IndexedDB delete to complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Verify IndexedDB is also cleared
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-      expect(hasEncryptionKey(address)).toBe(false);
-    });
-
-    it("should remove all keys from IndexedDB on clearAllEncryptionKeys", async () => {
-      const address = "0x1111111111111111111111111111111111111111";
-
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-
-      expect(hasEncryptionKey(address)).toBe(true);
-
-      clearAllEncryptionKeys();
-
-      // Allow fire-and-forget IndexedDB clear to complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Verify IndexedDB is also cleared
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-      expect(hasEncryptionKey(address)).toBe(false);
-    });
-
-    it("hasEncryptionKey returns true synchronously after initEncryptionKeys", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-
-      // Let fire-and-forget IndexedDB write complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Simulate refresh: clear in-memory only, restore from IndexedDB
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-
-      // Should be synchronous — no await needed
-      const result = hasEncryptionKey(address);
-      expect(result).toBe(true);
-    });
-
-    it("should persist key across simulated tab close (no cleanup on unload)", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-      const plaintext = new TextEncoder().encode("secret data for persistence test");
-
-      // Derive key and encrypt some data using crypto.subtle directly
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-      const keyBefore = await getEncryptionKey(address);
-      const iv = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-      const ciphertext = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        keyBefore,
-        plaintext
-      );
-
-      // Simulate tab close + reopen: clear in-memory, restore from IndexedDB
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-
-      // The restored key should decrypt data encrypted before the "tab close"
-      const keyAfter = await getEncryptionKey(address);
-      const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        keyAfter,
-        ciphertext
-      );
-      expect(new TextDecoder().decode(decrypted)).toBe("secret data for persistence test");
-    });
-
-    it("should skip signing when key exists in IndexedDB after refresh", async () => {
-      const address = "0x1234567890123456789012345678901234567890";
-
-      // First call: derives key, calls signer
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-      expect(mockSignMessage).toHaveBeenCalledTimes(1);
-
-      // Simulate refresh: clear in-memory, restore from IndexedDB
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-
-      // Second call: key exists in memory (loaded from IndexedDB), should NOT sign again
-      mockSignMessage.mockClear();
-      await act(async () => {
-        await requestEncryptionKey(address, mockSignMessage);
-      });
-      expect(mockSignMessage).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("User Isolation", () => {
-    it("should clear other users' keys when a new user requests a key", async () => {
-      const userA = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-      const userB = "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-
-      // User A derives a key
-      await act(async () => {
-        await requestEncryptionKey(userA, mockSignMessage);
-      });
-      expect(hasEncryptionKey(userA)).toBe(true);
-
-      // User B derives a key (simulates user switch without explicit logout)
-      await act(async () => {
-        await requestEncryptionKey(userB, mockSignMessage);
-      });
-
-      // User B's key should exist, User A's should be cleared
-      expect(hasEncryptionKey(userB)).toBe(true);
-      expect(hasEncryptionKey(userA)).toBe(false);
-    });
-
-    it("should clear other users' keys from IndexedDB on user switch", async () => {
-      const userA = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-      const userB = "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-
-      // User A derives a key
-      await act(async () => {
-        await requestEncryptionKey(userA, mockSignMessage);
-      });
-
-      // Allow IndexedDB write to complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // User B derives a key
-      await act(async () => {
-        await requestEncryptionKey(userB, mockSignMessage);
-      });
-
-      // Allow IndexedDB cleanup to complete
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Simulate refresh: clear in-memory, restore from IndexedDB
-      _resetInMemoryForTesting();
-      await initEncryptionKeys();
-
-      // Only User B's key should survive in IndexedDB
-      expect(hasEncryptionKey(userB)).toBe(true);
-      expect(hasEncryptionKey(userA)).toBe(false);
-    });
-  });
-
   describe("Edge Cases", () => {
     it("should handle empty wallet addresses", async () => {
       const address = "";
 
       await act(async () => {
-        await expect(
-          requestKeyPair(address, mockSignMessage)
-        ).rejects.toThrow(/invalid.*address/i);
+        await expect(requestKeyPair(address, mockSignMessage)).rejects.toThrow(/invalid.*address/i);
       });
     });
 
@@ -996,5 +780,55 @@ describe("useEncryption - Key Pair Generation", () => {
       expect(publicKey1).toBe(publicKey2);
     });
   });
-});
 
+  describe("HKDF Key Derivation (v3)", () => {
+    it("should derive both legacy and HKDF keys from the same signature", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      // Both v2 and v3 keys should be available
+      const v2Key = await getEncryptionKey(address, "v2");
+      const v3Key = await getEncryptionKey(address, "v3");
+
+      expect(v2Key).toBeDefined();
+      expect(v3Key).toBeDefined();
+      // They should be different CryptoKey objects (different key material)
+      expect(v2Key).not.toBe(v3Key);
+    });
+
+    it("should encrypt with v3 key by default and decrypt correctly", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      const plaintext = "Hello, HKDF encryption!";
+      const encrypted = await encryptData(plaintext, address);
+      const decrypted = await decryptData(encrypted, address);
+
+      expect(decrypted).toBe(plaintext);
+    });
+
+    it("should decrypt v2-encrypted data with v2 version parameter", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      const plaintext = "Legacy encrypted data";
+      const encrypted = await encryptData(plaintext, address);
+
+      // Decrypt with v2 version parameter should fail (encrypted with v3 key)
+      await expect(decryptData(encrypted, address, "v2")).rejects.toThrow();
+
+      // Decrypt with default (v3) should succeed
+      const decrypted = await decryptData(encrypted, address);
+      expect(decrypted).toBe(plaintext);
+    });
+  });
+});

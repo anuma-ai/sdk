@@ -1,8 +1,8 @@
 # revokeCalendarToken
 
-> **revokeCalendarToken**(`apiClient?`: `Client`): `Promise`<`void`>
+> **revokeCalendarToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-calendar.ts:271](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L271)
+Defined in: [src/lib/auth/google-calendar.ts:414](https://github.com/zeta-chain/ai-sdk/blob/main/src/lib/auth/google-calendar.ts#L414)
 
 Revoke the OAuth token
 
@@ -25,6 +25,18 @@ Revoke the OAuth token
 <td>
 
 `Client`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`walletAddress?`
+
+</td>
+<td>
+
+`string`
 
 </td>
 </tr>

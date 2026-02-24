@@ -145,7 +145,16 @@ export type HandlersCreateAppRequest = {
 
 export type HandlersCreateCheckoutSessionRequest = {
     cancel_url?: string;
+    /**
+     * "month" or "year"
+     */
+    interval?: string;
+    price_id?: string;
     success_url?: string;
+    /**
+     * "starter" or "pro"
+     */
+    tier?: string;
 };
 
 export type HandlersCreateCreditPackCheckoutRequest = {
@@ -295,7 +304,7 @@ export type HandlersSeedAppsResponse = {
 
 export type HandlersSetSubscriptionTierRequest = {
     /**
-     * "basic" or "pro"
+     * "basic", "starter", or "pro"
      */
     tier?: string;
     user_address?: string;
@@ -308,6 +317,19 @@ export type HandlersSetSubscriptionTierResponse = {
     user_address?: string;
 };
 
+export type HandlersSubscriptionPlan = {
+    annual_credits?: number;
+    annual_price?: number;
+    currency?: string;
+    monthly_credits?: number;
+    monthly_price?: number;
+    tier?: string;
+};
+
+export type HandlersSubscriptionPlansResponse = {
+    plans?: Array<HandlersSubscriptionPlan>;
+};
+
 export type HandlersSubscriptionStatusResponse = {
     /**
      * true if scheduled to cancel
@@ -318,7 +340,11 @@ export type HandlersSubscriptionStatusResponse = {
      */
     current_period_end?: number;
     /**
-     * "free" | "pro"
+     * "month" | "year", only present if subscribed
+     */
+    interval?: string;
+    /**
+     * "free" | "starter" | "pro"
      */
     plan?: string;
     /**
@@ -454,6 +480,11 @@ export type LlmapiChatCompletionExtraFields = {
 
 export type LlmapiChatCompletionRequest = {
     /**
+     * ImageModel is the user-selected image generation model.
+     * When set, the portal overrides the model field in image tool call arguments.
+     */
+    image_model?: string;
+    /**
      * Messages is the conversation history
      */
     messages: Array<LlmapiMessage>;
@@ -477,11 +508,19 @@ export type LlmapiChatCompletionResponse = {
      * Choices contains the completion choices
      */
     choices?: Array<LlmapiChoice>;
+    /**
+     * ClientInjectedTools are tool names the client provided in the original request.
+     */
+    client_injected_tools?: Array<string>;
     extra_fields?: LlmapiChatCompletionExtraFields;
     /**
      * ID is the completion ID
      */
     id?: string;
+    /**
+     * InferenceID is the unique identifier for this inference request
+     */
+    inference_id?: string;
     /**
      * Messages contains the full conversation history when local tools need execution.
      * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -493,6 +532,10 @@ export type LlmapiChatCompletionResponse = {
      * Model is the model used
      */
     model?: string;
+    /**
+     * PortalInjectedTools are tool names the portal's classifier added to the request.
+     */
+    portal_injected_tools?: Array<string>;
     /**
      * ToolCallEvents is an array of tool call events.
      */
@@ -535,6 +578,10 @@ export type LlmapiChatCompletionUsage = {
      * PromptTokens is the number of tokens in the prompt
      */
     prompt_tokens?: number;
+    /**
+     * ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostMicroUSD)
+     */
+    tool_cost_micro_usd?: number;
     /**
      * TotalTokens is the total number of tokens used
      */
@@ -619,6 +666,10 @@ export type LlmapiEmbeddingResponse = {
      */
     data?: Array<LlmapiEmbeddingData>;
     extra_fields?: LlmapiEmbeddingExtraFields;
+    /**
+     * InferenceID is the unique identifier for this inference request
+     */
+    inference_id?: string;
     /**
      * Model is the model used
      */
@@ -993,6 +1044,11 @@ export type LlmapiResponseRequest = {
      * Background indicates if request should be processed in background
      */
     background?: boolean;
+    /**
+     * ImageModel is the user-selected image generation model.
+     * When set, the portal overrides the model field in image tool call arguments.
+     */
+    image_model?: string;
     input: LlmapiResponseInput;
     /**
      * MaxOutputTokens is the maximum number of tokens to generate
@@ -1021,6 +1077,10 @@ export type LlmapiResponseRequest = {
 
 export type LlmapiResponseResponse = {
     /**
+     * ClientInjectedTools are tool names the client provided in the original request.
+     */
+    client_injected_tools?: Array<string>;
+    /**
      * Created is the Unix timestamp of creation (created_at in OpenAI format)
      */
     created_at?: number;
@@ -1048,6 +1108,10 @@ export type LlmapiResponseResponse = {
      * Output is the array of output items (OpenAI Responses API format)
      */
     output?: Array<LlmapiResponseOutputItem>;
+    /**
+     * PortalInjectedTools are tool names the portal's classifier added to the request.
+     */
+    portal_injected_tools?: Array<string>;
     /**
      * ToolCallEvents is an array of tool call events.
      */
@@ -1091,6 +1155,10 @@ export type LlmapiResponseUsage = {
      */
     prompt_tokens?: number;
     /**
+     * ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostMicroUSD)
+     */
+    tool_cost_micro_usd?: number;
+    /**
      * TotalTokens is the total number of tokens used
      */
     total_tokens?: number;
@@ -1129,6 +1197,7 @@ export type LlmapiToolCall = {
 
 export type LlmapiToolCallEvent = {
     arguments?: string;
+    cost_micro_usd?: number;
     id?: string;
     name?: string;
     output?: string;
@@ -1979,13 +2048,13 @@ export type PostApiV1CreditsSyncSnagData = {
 
 export type PostApiV1CreditsSyncSnagErrors = {
     /**
-     * Cooldown not expired
-     */
-    400: ResponseErrorResponse;
-    /**
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -2247,6 +2316,31 @@ export type PostApiV1SubscriptionsCustomerPortalResponses = {
 };
 
 export type PostApiV1SubscriptionsCustomerPortalResponse = PostApiV1SubscriptionsCustomerPortalResponses[keyof PostApiV1SubscriptionsCustomerPortalResponses];
+
+export type GetApiV1SubscriptionsPlansData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/plans';
+};
+
+export type GetApiV1SubscriptionsPlansErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1SubscriptionsPlansError = GetApiV1SubscriptionsPlansErrors[keyof GetApiV1SubscriptionsPlansErrors];
+
+export type GetApiV1SubscriptionsPlansResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSubscriptionPlansResponse;
+};
+
+export type GetApiV1SubscriptionsPlansResponse = GetApiV1SubscriptionsPlansResponses[keyof GetApiV1SubscriptionsPlansResponses];
 
 export type PostApiV1SubscriptionsRenewData = {
     body?: never;

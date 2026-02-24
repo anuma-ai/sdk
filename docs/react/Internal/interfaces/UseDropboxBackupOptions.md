@@ -10,7 +10,7 @@ Options for useDropboxBackup hook
 
 > `optional` **backupFolder**: `string`
 
-Defined in: [src/react/useDropboxBackup.ts:39](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L39)
+Defined in: [src/react/useDropboxBackup.ts:36](https://github.com/zeta-chain/ai-sdk/blob/main/src/react/useDropboxBackup.ts#L36)
 
 Dropbox folder path for backups (default: '/ai-chat-app/conversations')
 

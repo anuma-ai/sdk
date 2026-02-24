@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:250](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L250)
+Defined in: [src/expo/useChatStorage.ts:259](https://github.com/zeta-chain/ai-sdk/blob/main/src/expo/useChatStorage.ts#L259)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -389,6 +389,25 @@ Function to retrieve the auth token for API requests
 <td>
 
 Async function to poll for wallet address during Privy initialization.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.mcpR2Domain?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+R2 domain for identifying MCP-generated image URLs.
+When set, enables OPFS caching of generated images.
+Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 
 </td>
 </tr>
