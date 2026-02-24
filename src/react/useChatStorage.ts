@@ -2277,8 +2277,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
-      const needsEmbeddings =
-        isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
 
       // Generate embeddings once for both server and client tool filtering
       if (needsEmbeddings && getToken) {
