@@ -49,8 +49,8 @@ const allFiles = [...new Set([...oldFiles, ...newFiles])].sort();
 const sections = [];
 
 for (const file of allFiles) {
-  const entryPoint = file.replace(".api.json", "").replace("reverbia-sdk", "");
-  const label = entryPoint === "" ? "@reverbia/sdk" : `@reverbia/sdk/${entryPoint.slice(1)}`;
+  const entryPoint = file.replace(".api.json", "").replace("anuma-sdk", "");
+  const label = entryPoint === "" ? "@anuma/sdk" : `@anuma/sdk/${entryPoint.slice(1)}`;
 
   const oldMembers = extractMembers(path.join(oldDir, file));
   const newMembers = extractMembers(path.join(newDir, file));

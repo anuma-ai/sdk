@@ -1,6 +1,6 @@
 # Encryption at Rest - Migration Guide
 
-This guide explains how to enable field-level encryption at rest in applications using `@reverbia/sdk`. All sensitive data stored in IndexedDB (messages, conversation titles, media metadata) is encrypted using AES-GCM with wallet-derived keys.
+This guide explains how to enable field-level encryption at rest in applications using `@anuma/sdk`. All sensitive data stored in IndexedDB (messages, conversation titles, media metadata) is encrypted using AES-GCM with wallet-derived keys.
 
 ## Overview
 
@@ -29,7 +29,7 @@ This guide explains how to enable field-level encryption at rest in applications
 Pass `walletAddress` and `signMessage` to `useChatStorage`:
 
 ```tsx
-import { useChatStorage } from "@reverbia/sdk/react";
+import { useChatStorage } from "@anuma/sdk/react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 
 function Chat({ database }) {
@@ -70,7 +70,7 @@ That's it. No other code changes are needed.
 ### Minimum Change (Expo / React Native)
 
 ```tsx
-import { useChatStorage } from "@reverbia/sdk/expo";
+import { useChatStorage } from "@anuma/sdk/expo";
 
 const {
   sendMessage,
@@ -92,7 +92,7 @@ const {
 
 ### Encryption Flow
 
-1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is processed through **HKDF** (HMAC-based Key Derivation Function) with the domain-specific info string `reverbia-sdk-aes-gcm-v3` to produce a 32-byte AES-GCM key. A legacy SHA-256 key is also derived for reading old `enc:v2:` data. Both keys are held **in memory only** (never persisted to disk).
+1. **Key derivation:** When `walletAddress` + `signMessage` are provided, the SDK asks the wallet to sign a fixed message. The signature is processed through **HKDF** (HMAC-based Key Derivation Function) with the domain-specific info string `anuma-sdk-aes-gcm-v3` to produce a 32-byte AES-GCM key. A legacy SHA-256 key is also derived for reading old `enc:v2:` data. Both keys are held **in memory only** (never persisted to disk).
 
 2. **Write path:** Before writing to WatermelonDB, sensitive fields are encrypted with a random 12-byte IV and prefixed with `enc:v3:`. Non-sensitive fields pass through unchanged.
 
@@ -108,7 +108,7 @@ const {
 The current key derivation uses HKDF for proper key derivation and domain separation:
 
 ```
-Signature → SHA-256(signature) → HKDF-Extract(IKM=hash, salt=zeros) → HKDF-Expand(info="reverbia-sdk-aes-gcm-v3") → 256-bit AES key
+Signature → SHA-256(signature) → HKDF-Extract(IKM=hash, salt=zeros) → HKDF-Expand(info="anuma-sdk-aes-gcm-v3") → 256-bit AES key
 ```
 
 This prevents cross-app key reuse: even if another app asks the same wallet to sign the same message, the derived key will be different because the HKDF info string is app-specific.
@@ -230,7 +230,7 @@ These callbacks are implemented in **your client app**, not in the SDK. The SDK 
 For custom integrations outside of `useChatStorage`:
 
 ```tsx
-import { onKeyAvailable, requestEncryptionKey } from "@reverbia/sdk/react";
+import { onKeyAvailable, requestEncryptionKey } from "@anuma/sdk/react";
 
 // Register a callback that fires when the key becomes available
 const unsubscribe = onKeyAvailable(walletAddress, () => {
@@ -247,7 +247,7 @@ unsubscribe();
 For advanced scenarios where you need to queue custom operations:
 
 ```tsx
-import { queueManager } from "@reverbia/sdk/react";
+import { queueManager } from "@anuma/sdk/react";
 
 // Queue a custom operation
 const opId = queueManager.queueOperation(
@@ -271,7 +271,7 @@ const unsub = queueManager.onQueueChange(walletAddress, () => {
 If you need to detect wallet availability outside of `useChatStorage`:
 
 ```tsx
-import { WalletPoller } from "@reverbia/sdk/react";
+import { WalletPoller } from "@anuma/sdk/react";
 
 const poller = new WalletPoller();
 const stopPolling = poller.startPolling(

@@ -15,7 +15,7 @@ Must be used within an ICloudAuthProvider.
 ## Example
 
 ```tsx
-import { useICloudAuth } from "@reverbia/sdk/react";
+import { useICloudAuth } from "@anuma/sdk/react";
 
 function ICloudStatus() {
   const { isAuthenticated, isAvailable, requestAccess, logout } = useICloudAuth();

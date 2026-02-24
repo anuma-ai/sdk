@@ -10,7 +10,7 @@
  * First, install the required dependencies:
  *
  * ```bash
- * pnpm install @reverbia/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
+ * pnpm install @anuma/sdk@next web-streams-polyfill react-native-get-random-values @ethersproject/shims buffer
  * ```
  *
  * ## Setup
@@ -45,7 +45,7 @@
  * }
  *
  * // SDK polyfills (TextDecoderStream for streaming)
- * import "@reverbia/sdk/polyfills";
+ * import "@anuma/sdk/polyfills";
  *
  * // Then import expo router
  * import "expo-router/entry";
@@ -57,14 +57,14 @@
  * - **@ethersproject/shims**: Ethereum wallet compatibility
  * - **buffer**: Node.js Buffer API for React Native
  * - **web-streams-polyfill**: ReadableStream and TransformStream for streaming
- * - **@reverbia/sdk/polyfills**: TextDecoderStream for SSE text decoding
+ * - **@anuma/sdk/polyfills**: TextDecoderStream for SSE text decoding
  *
  * ## Usage in Expo
  *
- * After setting up polyfills, import hooks from `@reverbia/sdk/expo`:
+ * After setting up polyfills, import hooks from `@anuma/sdk/expo`:
  *
  * ```typescript
- * import { useChat } from "@reverbia/sdk/expo";
+ * import { useChat } from "@anuma/sdk/expo";
  *
  * function ChatComponent() {
  *   const { sendMessage, isLoading } = useChat({

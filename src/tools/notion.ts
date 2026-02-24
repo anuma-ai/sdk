@@ -99,7 +99,7 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
       protocolVersion: "2024-11-05",
       capabilities: {},
       clientInfo: {
-        name: "Reverbia",
+        name: "Anuma",
         version: "1.0.0",
       },
     },

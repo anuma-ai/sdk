@@ -1,6 +1,6 @@
-# withReverbia
+# withAnuma
 
-> **withReverbia**(`nextConfig`: `any`): `any`
+> **withAnuma**(`nextConfig`: `any`): `any`
 
 Defined in: [src/next/index.ts:21](https://github.com/zeta-chain/ai-sdk/blob/main/src/next/index.ts#L21)
 

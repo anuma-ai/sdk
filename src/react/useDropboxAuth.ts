@@ -73,7 +73,7 @@ const DropboxAuthContext = createContext<DropboxAuthContextValue | null>(null);
  *
  * @example
  * ```tsx
- * import { DropboxAuthProvider } from "@reverbia/sdk/react";
+ * import { DropboxAuthProvider } from "@anuma/sdk/react";
  *
  * function App() {
  *   return (
@@ -193,7 +193,7 @@ export function DropboxAuthProvider({
  *
  * @example
  * ```tsx
- * import { useDropboxAuth } from "@reverbia/sdk/react";
+ * import { useDropboxAuth } from "@anuma/sdk/react";
  *
  * function DropboxButton() {
  *   const { isAuthenticated, isConfigured, requestAccess, logout } = useDropboxAuth();

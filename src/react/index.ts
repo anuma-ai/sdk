@@ -1,6 +1,6 @@
 /**
  *
- * The `@reverbia/sdk/react` package provides a collection of React hooks
+ * The `@anuma/sdk/react` package provides a collection of React hooks
  * designed to simplify building AI features in your applications. These hooks
  * abstract away the complexity of managing streaming responses, loading states,
  * authentication, and real-time updates, letting you focus on creating great
@@ -29,7 +29,7 @@
  * ## Quick Start
  *
  * ```tsx
- * import { useChat } from "@reverbia/sdk/react";
+ * import { useChat } from "@anuma/sdk/react";
  *
  * function ChatComponent() {
  *   const { isLoading, sendMessage, stop } = useChat({

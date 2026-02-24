@@ -39,12 +39,59 @@ export function isOPFSSupported(): boolean {
   );
 }
 
+const OLD_DIR_NAME = "reverbia-sdk-files";
+const NEW_DIR_NAME = "anuma-sdk-files";
+
+let migrationDone = false;
+
+/**
+ * Migrates files from the old "reverbia-sdk-files" directory to the new
+ * "anuma-sdk-files" directory, then removes the old directory.
+ * Runs at most once per session.
+ */
+async function migrateOldDirectory(root: FileSystemDirectoryHandle): Promise<void> {
+  if (migrationDone) return;
+  migrationDone = true;
+
+  let oldDir: FileSystemDirectoryHandle;
+  try {
+    oldDir = await root.getDirectoryHandle(OLD_DIR_NAME);
+  } catch {
+    // Old directory doesn't exist, nothing to migrate
+    return;
+  }
+
+  const newDir = await root.getDirectoryHandle(NEW_DIR_NAME, { create: true });
+
+  for await (const [name, handle] of oldDir as any) {
+    if (handle.kind !== "file") continue;
+
+    // Skip if the file already exists in the new directory
+    try {
+      await newDir.getFileHandle(name);
+      continue;
+    } catch {
+      // File doesn't exist in new dir, proceed with copy
+    }
+
+    const file = await (handle as FileSystemFileHandle).getFile();
+    const dest = await newDir.getFileHandle(name, { create: true });
+    const writable = await dest.createWritable();
+    await writable.write(await file.arrayBuffer());
+    await writable.close();
+  }
+
+  await root.removeEntry(OLD_DIR_NAME, { recursive: true });
+}
+
 /**
  * Gets the OPFS root directory for SDK file storage.
+ * On first call, migrates any files from the legacy directory.
  */
 async function getSDKDirectory(): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
-  return root.getDirectoryHandle("reverbia-sdk-files", { create: true });
+  await migrateOldDirectory(root);
+  return root.getDirectoryHandle(NEW_DIR_NAME, { create: true });
 }
 
 /**

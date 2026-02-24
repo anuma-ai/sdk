@@ -23,7 +23,7 @@ import type { DatabaseManager } from "../lib/db/manager";
  *
  * @example
  * ```tsx
- * import { useDatabaseManager, DatabaseManager, webPlatformStorage } from '@reverbia/sdk/react';
+ * import { useDatabaseManager, DatabaseManager, webPlatformStorage } from '@anuma/sdk/react';
  * import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
  *
  * // Create once at app level

@@ -1,4 +1,4 @@
-# @reverbia/sdk
+# @anuma/sdk
 
 A TypeScript SDK that empowers developers to build AI-powered applications. It
 enables you to send prompts to LLMs with streaming support, manage long-term
@@ -7,7 +7,7 @@ memories, and encrypt sensitive data, all without needing your own LLM API key.
 ## Installation
 
 ```bash
-pnpm install @reverbia/sdk@next
+pnpm install @anuma/sdk@next
 ```
 
 > **Note:** Currently, the SDK is pre-release so all new versions are released
@@ -36,10 +36,10 @@ const { identityToken } = useIdentityToken();
 
 ## Quick Start
 
-For React applications, use the hooks from `@reverbia/sdk/react`:
+For React applications, use the hooks from `@anuma/sdk/react`:
 
 ```typescript
-import { useChat } from "@reverbia/sdk/react";
+import { useChat } from "@anuma/sdk/react";
 
 const { sendMessage, isLoading, stop } = useChat({
   getToken: async () => identityToken || null,
@@ -54,12 +54,12 @@ await sendMessage({
 });
 ```
 
-For React Native/Expo, use `@reverbia/sdk/expo` instead.
+For React Native/Expo, use `@anuma/sdk/expo` instead.
 
 For direct API access without React hooks, use the functions from this package:
 
 ```typescript
-import { postApiV1Responses } from "@reverbia/sdk";
+import { postApiV1Responses } from "@anuma/sdk";
 
 const response = await postApiV1Responses({
   body: {

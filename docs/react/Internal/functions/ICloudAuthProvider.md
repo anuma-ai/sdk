@@ -41,7 +41,7 @@ CloudKit JS is loaded automatically when needed.
 ## Example
 
 ```tsx
-import { ICloudAuthProvider } from "@reverbia/sdk/react";
+import { ICloudAuthProvider } from "@anuma/sdk/react";
 
 function App() {
   return (

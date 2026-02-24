@@ -68,7 +68,7 @@ export interface UseGoogleDriveBackupResult {
  *
  * @example
  * ```tsx
- * import { useGoogleDriveBackup } from "@reverbia/sdk/react";
+ * import { useGoogleDriveBackup } from "@anuma/sdk/react";
  *
  * function BackupButton() {
  *   const { backup, restore, isConfigured, isAuthenticated } = useGoogleDriveBackup({

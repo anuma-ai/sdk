@@ -50,7 +50,7 @@ An object containing project state and methods
 ## Example
 
 ```tsx
-import { useProjects } from '@reverbia/sdk/react';
+import { useProjects } from '@anuma/sdk/react';
 
 function ProjectsComponent({ database }) {
   const {

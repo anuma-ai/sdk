@@ -130,7 +130,7 @@ function getMigrationReloadKey(prefix: string, walletAddress?: string): string {
  *
  * @example
  * ```typescript
- * import { DatabaseManager, webPlatformStorage, sdkSchema, sdkMigrations } from '@reverbia/sdk/react';
+ * import { DatabaseManager, webPlatformStorage, sdkSchema, sdkMigrations } from '@anuma/sdk/react';
  * import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
  *
  * const dbManager = new DatabaseManager({

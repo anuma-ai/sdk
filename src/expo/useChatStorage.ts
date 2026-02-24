@@ -224,7 +224,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  * @example
  * ```tsx
  * import { Database } from '@nozbe/watermelondb';
- * import { useChatStorage } from '@reverbia/sdk/expo';
+ * import { useChatStorage } from '@anuma/sdk/expo';
  *
  * function ChatScreen({ database }: { database: Database }) {
  *   const {

@@ -65,7 +65,7 @@ export interface UseICloudBackupResult {
  *
  * @example
  * ```tsx
- * import { useICloudBackup } from "@reverbia/sdk/react";
+ * import { useICloudBackup } from "@anuma/sdk/react";
  *
  * function BackupButton() {
  *   const { backup, restore, isConfigured, isAuthenticated, isAvailable } = useICloudBackup({

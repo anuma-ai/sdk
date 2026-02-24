@@ -1,5 +1,5 @@
 /**
- * Next.js configuration plugin for @reverbia/sdk
+ * Next.js configuration plugin for @anuma/sdk
  *
  * Use this to automatically configure Webpack aliases and server exclusions
  * needed for the SDK's dependencies.
@@ -7,18 +7,18 @@
  * @example
  * ```ts
  * // next.config.ts
- * import { withReverbia } from "@reverbia/sdk/next";
+ * import { withAnuma } from "@anuma/sdk/next";
  *
  * const nextConfig = {
  *   // your config...
  * };
  *
- * export default withReverbia(nextConfig);
+ * export default withAnuma(nextConfig);
  * ```
  *
  * @module
  */
-export const withReverbia = (nextConfig: any = {}) => {
+export const withAnuma = (nextConfig: any = {}) => {
   return {
     ...nextConfig,
     serverExternalPackages: [...(nextConfig.serverExternalPackages || []), "sharp"],

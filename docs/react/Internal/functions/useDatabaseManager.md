@@ -73,7 +73,7 @@ The WatermelonDB Database instance for the current wallet
 ## Example
 
 ```tsx
-import { useDatabaseManager, DatabaseManager, webPlatformStorage } from '@reverbia/sdk/react';
+import { useDatabaseManager, DatabaseManager, webPlatformStorage } from '@anuma/sdk/react';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 
 // Create once at app level

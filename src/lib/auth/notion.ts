@@ -190,7 +190,7 @@ async function registerClient(
   redirectUri: string,
   walletAddress?: string
 ): Promise<ClientRegistration> {
-  const clientName = "Reverbia";
+  const clientName = "Anuma";
 
   const registrationRequest = {
     client_name: clientName,

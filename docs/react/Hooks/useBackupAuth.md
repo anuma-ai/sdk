@@ -15,7 +15,7 @@ Must be used within a BackupAuthProvider.
 ## Example
 
 ```tsx
-import { useBackupAuth } from "@reverbia/sdk/react";
+import { useBackupAuth } from "@anuma/sdk/react";
 
 function BackupSettings() {
   const { dropbox, googleDrive, logoutAll } = useBackupAuth();

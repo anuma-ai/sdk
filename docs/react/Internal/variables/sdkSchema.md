@@ -19,7 +19,7 @@ This unified schema includes all tables needed by the SDK:
 ```typescript
 import { Database } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
-import { sdkSchema, sdkMigrations, sdkModelClasses } from '@reverbia/sdk/react';
+import { sdkSchema, sdkMigrations, sdkModelClasses } from '@anuma/sdk/react';
 
 const adapter = new LokiJSAdapter({
   schema: sdkSchema,

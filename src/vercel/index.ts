@@ -2,7 +2,7 @@
  * Helper utilities for integrating the `useChat` hook and
  * [Vercel AI Elements](https://ai-sdk.dev/elements).
  *
- * The `@reverbia/sdk/vercel` package provides utilities to bridge the
+ * The `@anuma/sdk/vercel` package provides utilities to bridge the
  * Portal API with Vercel's AI SDK streaming format. This enables you to
  * use Vercel's AI Elements components with the SDK's `useChat` hook.
  *

@@ -63,7 +63,7 @@ const ICloudAuthContext = createContext<ICloudAuthContextValue | null>(null);
  *
  * @example
  * ```tsx
- * import { ICloudAuthProvider } from "@reverbia/sdk/react";
+ * import { ICloudAuthProvider } from "@anuma/sdk/react";
  *
  * function App() {
  *   return (
@@ -183,7 +183,7 @@ export function ICloudAuthProvider({
  *
  * @example
  * ```tsx
- * import { useICloudAuth } from "@reverbia/sdk/react";
+ * import { useICloudAuth } from "@anuma/sdk/react";
  *
  * function ICloudStatus() {
  *   const { isAuthenticated, isAvailable, requestAccess, logout } = useICloudAuth();

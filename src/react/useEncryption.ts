@@ -444,7 +444,7 @@ export async function getEncryptionKey(
  *
  * @example
  * ```tsx
- * import { encryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+ * import { encryptData, requestEncryptionKey } from "@anuma/sdk/react";
  *
  * // First, ensure encryption key exists
  * await requestEncryptionKey(walletAddress);
@@ -485,7 +485,7 @@ export async function encryptData(
  *
  * @example
  * ```tsx
- * import { decryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+ * import { decryptData, requestEncryptionKey } from "@anuma/sdk/react";
  *
  * // First, ensure encryption key exists
  * await requestEncryptionKey(walletAddress);
@@ -1174,7 +1174,7 @@ export interface UseEncryptionResult {
  * @example
  * ```tsx
  * import { usePrivy, useWallets } from "@privy-io/react-auth";
- * import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+ * import { useEncryption, encryptData, decryptData } from "@anuma/sdk/react";
  *
  * function SecureComponent() {
  *   const { user, signMessage } = usePrivy();
@@ -1228,7 +1228,7 @@ export interface UseEncryptionResult {
  * ```tsx
  * // Standard usage with external wallets (shows confirmation modal)
  * import { usePrivy } from "@privy-io/react-auth";
- * import { useEncryption, encryptData, decryptData } from "@reverbia/sdk/react";
+ * import { useEncryption, encryptData, decryptData } from "@anuma/sdk/react";
  *
  * function SecureComponent() {
  *   const { user, signMessage } = usePrivy();
@@ -1248,7 +1248,7 @@ export interface UseEncryptionResult {
  * ```tsx
  * // ECDH key pair generation for end-to-end encryption
  * import { usePrivy } from "@privy-io/react-auth";
- * import { useEncryption } from "@reverbia/sdk/react";
+ * import { useEncryption } from "@anuma/sdk/react";
  *
  * function E2EEComponent() {
  *   const { signMessage } = usePrivy();

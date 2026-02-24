@@ -104,7 +104,7 @@ Error if encryption key is not found in memory or if decryption fails
 ## Example
 
 ```tsx
-import { decryptData, requestEncryptionKey } from "@reverbia/sdk/react";
+import { decryptData, requestEncryptionKey } from "@anuma/sdk/react";
 
 // First, ensure encryption key exists
 await requestEncryptionKey(walletAddress);

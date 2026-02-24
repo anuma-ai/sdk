@@ -15,7 +15,7 @@ Must be used within a GoogleDriveAuthProvider.
 ## Example
 
 ```tsx
-import { useGoogleDriveAuth } from "@reverbia/sdk/react";
+import { useGoogleDriveAuth } from "@anuma/sdk/react";
 
 function GoogleDriveButton() {
   const { isAuthenticated, isConfigured, requestAccess, logout } = useGoogleDriveAuth();

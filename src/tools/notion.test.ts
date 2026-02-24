@@ -155,7 +155,7 @@ describe("Notion MCP Tools", () => {
       expect(initCall[0]).toBe("https://mcp.notion.com/mcp");
       const initBody = JSON.parse(initCall[1].body);
       expect(initBody.method).toBe("initialize");
-      expect(initBody.params.clientInfo.name).toBe("Reverbia");
+      expect(initBody.params.clientInfo.name).toBe("Anuma");
     });
 
     it("reuses cached session for subsequent calls", async () => {

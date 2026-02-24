@@ -1,5 +1,5 @@
 /**
- * The `@reverbia/sdk/tools` package provides AI tool configurations for
+ * The `@anuma/sdk/tools` package provides AI tool configurations for
  * integrating with external services like Google Calendar, Google Drive, and Notion.
  *
  * These tools enable your AI to interact with user data on their behalf,
@@ -14,8 +14,8 @@
  * ## Google Calendar Tools
  *
  * ```typescript
- * import { createChatTools } from "@reverbia/sdk/tools";
- * import { useGoogleDriveAuth } from "@reverbia/sdk/react";
+ * import { createChatTools } from "@anuma/sdk/tools";
+ * import { useGoogleDriveAuth } from "@anuma/sdk/react";
  *
  * const { getAccessToken, requestAccess } = useGoogleDriveAuth();
  *
@@ -35,7 +35,7 @@
  * ## Google Drive Tools
  *
  * ```typescript
- * import { createDriveTools } from "@reverbia/sdk/tools";
+ * import { createDriveTools } from "@anuma/sdk/tools";
  *
  * const driveTools = createDriveTools(
  *   () => getAccessToken('drive'),
@@ -49,7 +49,7 @@
  * Notion's hosted MCP server. No direct API calls needed.
  *
  * ```typescript
- * import { createNotionTools } from "@reverbia/sdk/tools";
+ * import { createNotionTools } from "@anuma/sdk/tools";
  *
  * const notionTools = createNotionTools(
  *   () => getNotionAccessToken(walletAddress, clientId),

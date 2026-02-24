@@ -75,7 +75,7 @@ export interface UseSettingsResult extends BaseUseSettingsResult {
  * @example
  * ```tsx
  * import { Database } from '@nozbe/watermelondb';
- * import { useSettings } from '@reverbia/sdk/react';
+ * import { useSettings } from '@anuma/sdk/react';
  *
  * function SettingsComponent({ database }: { database: Database }) {
  *   const {
