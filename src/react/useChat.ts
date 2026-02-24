@@ -201,6 +201,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       maxOutputTokens,
       tools,
       toolChoice: toolChoiceArg,
+      maxToolRounds,
       reasoning,
       thinking,
       imageModel,
@@ -436,6 +437,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let currentMessages = messagesWithContext;
         let toolIteration = 0;
         const MAX_TOOL_ITERATIONS = 10;
+        const effectiveMaxToolRounds = maxToolRounds ?? 3;
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
 
@@ -631,6 +633,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Continue the conversation with tool results
           currentMessages = [...currentMessages, ...toolResultMessages];
 
+          // After maxToolRounds, force the model to produce a text response
+          const continuationToolChoice =
+            toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
+
           const continuationRequestBody = strategy.buildRequestBody({
             messages: currentMessages,
             model: model!,
@@ -638,7 +644,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             temperature,
             maxOutputTokens,
             tools: apiTools,
-            toolChoice,
+            toolChoice: continuationToolChoice,
             reasoning,
             thinking,
             imageModel,
