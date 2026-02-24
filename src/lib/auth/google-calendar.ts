@@ -79,9 +79,7 @@ function getTokenStorageKey(walletAddress?: string): string {
  * Checks encrypted localStorage first, then falls back to legacy
  * unencrypted localStorage (pre-encryption users), and finally sessionStorage.
  */
-async function getStoredTokenData(
-  walletAddress?: string
-): Promise<StoredTokenData | null> {
+async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
   // Check in-memory cache first (avoids decryption on every call)
@@ -108,9 +106,7 @@ async function getStoredTokenData(
 
   try {
     // 1. Try encrypted localStorage (wallet-scoped key)
-    const scopedStored = localStorage.getItem(
-      getTokenStorageKey(walletAddress)
-    );
+    const scopedStored = localStorage.getItem(getTokenStorageKey(walletAddress));
     if (
       scopedStored &&
       scopedStored.startsWith(ENCRYPTED_PREFIX) &&
@@ -182,10 +178,7 @@ async function getStoredTokenData(
  * encrypts the token and stores in localStorage with a wallet-scoped key.
  * Otherwise falls back to sessionStorage with plain JSON.
  */
-async function storeTokenData(
-  data: StoredTokenData,
-  walletAddress?: string
-): Promise<void> {
+async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   // Update in-memory cache
@@ -201,16 +194,10 @@ async function storeTokenData(
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
-      localStorage.setItem(
-        getTokenStorageKey(walletAddress),
-        ENCRYPTED_PREFIX + encrypted
-      );
+      localStorage.setItem(getTokenStorageKey(walletAddress), ENCRYPTED_PREFIX + encrypted);
       return;
     } catch (error) {
-      console.warn(
-        "Failed to encrypt Calendar OAuth token, storing temporarily:",
-        error
-      );
+      console.warn("Failed to encrypt Calendar OAuth token, storing temporarily:", error);
       // Fall through to sessionStorage
     }
   }
@@ -541,9 +528,7 @@ export async function startCalendarAuth(clientId: string, callbackPath: string):
 /**
  * Get stored token for Calendar (async, for tool token getters)
  */
-export async function getValidCalendarToken(
-  walletAddress?: string
-): Promise<string | null> {
+export async function getValidCalendarToken(walletAddress?: string): Promise<string | null> {
   const data = await getStoredTokenData(walletAddress);
   if (!data) return null;
   if (data.expiresAt && isTokenExpired(data)) {
@@ -562,21 +547,14 @@ export async function storeCalendarToken(
   scope?: string,
   walletAddress?: string
 ): Promise<void> {
-  const tokenData = tokenResponseToStoredData(
-    accessToken,
-    expiresIn,
-    refreshToken,
-    scope
-  );
+  const tokenData = tokenResponseToStoredData(accessToken, expiresIn, refreshToken, scope);
   await storeTokenData(tokenData, walletAddress);
 }
 
 /**
  * Check if we have any stored credentials
  */
-export async function hasCalendarCredentials(
-  walletAddress?: string
-): Promise<boolean> {
+export async function hasCalendarCredentials(walletAddress?: string): Promise<boolean> {
   const data = await getStoredTokenData(walletAddress);
   return !!(data?.accessToken || data?.refreshToken);
 }
@@ -588,20 +566,16 @@ export async function hasCalendarCredentials(
  *
  * Returns true if migration was performed (or already complete), false otherwise.
  */
-export async function migrateCalendarToken(
-  walletAddress: string
-): Promise<boolean> {
+export async function migrateCalendarToken(walletAddress: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
   try {
     const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
     const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const isLegacyUnencrypted =
-      legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
 
-    const unencryptedJson =
-      sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
     if (!unencryptedJson) return false;
 
     const scopedKey = getTokenStorageKey(walletAddress);

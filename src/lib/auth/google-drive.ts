@@ -78,9 +78,7 @@ function getTokenStorageKey(walletAddress?: string): string {
  * 2. Unencrypted localStorage (legacy unscoped key, pre-encryption users)
  * 3. Unencrypted sessionStorage (temporary fallback)
  */
-async function getStoredTokenData(
-  walletAddress?: string
-): Promise<StoredTokenData | null> {
+async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
   if (typeof window === "undefined") return null;
 
   // Check in-memory cache first (avoids decryption on every call)
@@ -107,9 +105,7 @@ async function getStoredTokenData(
 
   try {
     // 1. Try encrypted localStorage first (wallet-scoped key)
-    const scopedStored = localStorage.getItem(
-      getTokenStorageKey(walletAddress)
-    );
+    const scopedStored = localStorage.getItem(getTokenStorageKey(walletAddress));
     if (
       scopedStored &&
       scopedStored.startsWith(ENCRYPTED_PREFIX) &&
@@ -119,10 +115,7 @@ async function getStoredTokenData(
       try {
         const encryptedData = scopedStored.slice(ENCRYPTED_PREFIX.length);
         const cryptoKey = await getEncryptionKey(walletAddress);
-        const decryptedJson = await decryptDataWithKey(
-          encryptedData,
-          cryptoKey
-        );
+        const decryptedJson = await decryptDataWithKey(encryptedData, cryptoKey);
         const data = JSON.parse(decryptedJson) as StoredTokenData;
         if (!data.accessToken) return null;
         // Populate cache
@@ -186,10 +179,7 @@ async function getStoredTokenData(
  * Otherwise:
  *   - Stores plain JSON in sessionStorage (cleared on page close).
  */
-async function storeTokenData(
-  data: StoredTokenData,
-  walletAddress?: string
-): Promise<void> {
+async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   // Update in-memory cache
@@ -205,16 +195,10 @@ async function storeTokenData(
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
-      localStorage.setItem(
-        getTokenStorageKey(walletAddress),
-        `${ENCRYPTED_PREFIX}${encrypted}`
-      );
+      localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
       return;
     } catch (error) {
-      console.warn(
-        "Failed to encrypt Drive OAuth token, storing temporarily:",
-        error
-      );
+      console.warn("Failed to encrypt Drive OAuth token, storing temporarily:", error);
       // Fall through to sessionStorage
     }
   }
@@ -429,10 +413,7 @@ export async function refreshDriveToken(
 /**
  * Revoke the OAuth token
  */
-export async function revokeDriveToken(
-  apiClient?: Client,
-  walletAddress?: string
-): Promise<void> {
+export async function revokeDriveToken(apiClient?: Client, walletAddress?: string): Promise<void> {
   const tokenData = await getStoredTokenData(walletAddress);
   if (!tokenData) return;
 
@@ -546,9 +527,7 @@ export async function startDriveAuth(clientId: string, callbackPath: string): Pr
 /**
  * Get stored token for Drive (async, supports encrypted storage)
  */
-export async function getValidDriveToken(
-  walletAddress?: string
-): Promise<string | null> {
+export async function getValidDriveToken(walletAddress?: string): Promise<string | null> {
   const data = await getStoredTokenData(walletAddress);
   if (!data) return null;
   if (data.expiresAt && isTokenExpired(data)) {
@@ -567,21 +546,14 @@ export async function storeDriveToken(
   scope?: string,
   walletAddress?: string
 ): Promise<void> {
-  const tokenData = tokenResponseToStoredData(
-    accessToken,
-    expiresIn,
-    refreshToken,
-    scope
-  );
+  const tokenData = tokenResponseToStoredData(accessToken, expiresIn, refreshToken, scope);
   await storeTokenData(tokenData, walletAddress);
 }
 
 /**
  * Check if we have any stored credentials
  */
-export async function hasDriveCredentials(
-  walletAddress?: string
-): Promise<boolean> {
+export async function hasDriveCredentials(walletAddress?: string): Promise<boolean> {
   const data = await getStoredTokenData(walletAddress);
   return !!(data?.accessToken || data?.refreshToken);
 }
@@ -593,9 +565,7 @@ export async function hasDriveCredentials(
  *
  * @returns true if migration occurred, false otherwise
  */
-export async function migrateDriveToken(
-  walletAddress: string
-): Promise<boolean> {
+export async function migrateDriveToken(walletAddress: string): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
 
@@ -604,11 +574,9 @@ export async function migrateDriveToken(
     const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
     // Also check legacy unencrypted localStorage
     const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const isLegacyUnencrypted =
-      legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
 
-    const unencryptedJson =
-      sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
     if (!unencryptedJson) return false;
 
     // If already have encrypted version, just clean up
