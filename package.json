@@ -77,7 +77,7 @@
     "typecheck": "tsc --noEmit",
     "knip": "knip",
     "check-exports": "publint && attw --pack --ignore-rules no-resolution false-cjs",
-    "check": "pnpm run generate && pnpm run lint && pnpm run knip && pnpm run format"
+    "check": "pnpm run lint && pnpm run knip && pnpm run format && pnpm run generate"
   },
   "repository": {
     "type": "git",
