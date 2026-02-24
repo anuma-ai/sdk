@@ -887,7 +887,7 @@ export async function refreshNotionToken(
     cachedWalletAddress = walletAddress ?? null;
 
     return tokenData.access_token;
-  } catch(error) {
+  } catch (error) {
     console.error("Token refresh failed", error);
     // Refresh failed — do NOT clear stored token here.
     // Only invalid_grant (handled above) should clear credentials.

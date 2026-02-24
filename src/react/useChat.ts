@@ -598,9 +598,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           // Build the assistant message with ONLY non-skip tool calls.
           // The model must not see tool_call IDs for which there are no
           // corresponding tool-role messages.
-          const continueToolCallIds = new Set(
-            continueResults.map((r) => r.id)
-          );
+          const continueToolCallIds = new Set(continueResults.map((r) => r.id));
           const assistantMessage: LlmapiMessage = {
             role: "assistant",
             content: [{ type: "text", text: currentAccumulator.content }],

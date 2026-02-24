@@ -138,7 +138,7 @@ async function autoFilterClientTools(
   clientTools: any[],
   promptEmbeddings: number[] | number[][] | null,
   cache: Map<string, number[]>,
-  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string },
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
 ): Promise<any[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: any) => {
@@ -186,7 +186,8 @@ async function autoFilterClientTools(
       type: "function",
       name,
       description: t.function?.description || t.description || name,
-      parameters: t.function?.parameters || t.function?.arguments || { type: "object", properties: {}, required: [] },
+      parameters: t.function?.parameters ||
+        t.function?.arguments || { type: "object", properties: {}, required: [] },
       embedding,
     });
   }
@@ -1989,7 +1990,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             clientTools,
             skipStorageEmbeddings,
             clientToolEmbeddingsCacheRef.current,
-            { getToken, baseUrl, model: embeddingModel },
+            { getToken, baseUrl, model: embeddingModel }
           );
         }
 
@@ -2333,7 +2334,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           clientTools,
           userMessageEmbeddings ?? null,
           clientToolEmbeddingsCacheRef.current,
-          { getToken, baseUrl, model: embeddingModel },
+          { getToken, baseUrl, model: embeddingModel }
         );
       }
 
