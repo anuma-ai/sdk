@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { LlmapiChatCompletionResponse, LlmapiMessage, LlmapiToolCallEvent } from "../client";
+import type {
+  LlmapiChatCompletionResponse,
+  LlmapiChatCompletionTool,
+  LlmapiMessage,
+  LlmapiToolCallEvent,
+} from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
 import type { ApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
@@ -106,6 +111,7 @@ import {
 import { preprocessFiles } from "../lib/processors";
 import {
   filterServerTools,
+  findMatchingTools,
   getServerTools,
   mergeTools,
   type ServerTool,
@@ -118,8 +124,110 @@ import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
+// Max client tools to include after automatic semantic filtering
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Minimum similarity for client tool semantic matching
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+
+/** Typed accessor for client tool name (handles function-call style and flat). */
+function getToolName(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return (fn?.name as string) || (t.name as string) || "";
+}
+
+/** Typed accessor for client tool description. */
+function getToolDescription(t: LlmapiChatCompletionTool): string {
+  const fn = t.function as Record<string, unknown> | undefined;
+  return (fn?.description as string) || (t.description as string) || getToolName(t);
+}
+
+/**
+ * Automatically filter client tools using embedding-based semantic matching.
+ * Generates embeddings for tool descriptions (cached), then selects the most
+ * relevant tools for the user's prompt. This prevents sending 20+ tool
+ * definitions that eat up the context window.
+ *
+ * @returns Filtered client tools, or the original array if filtering fails/skips.
+ */
+async function autoFilterClientTools(
+  clientTools: LlmapiChatCompletionTool[],
+  promptEmbeddings: number[] | number[][] | null,
+  cache: Map<string, number[]>,
+  embeddingOptions: { getToken: () => Promise<string | null>; baseUrl?: string; model?: string }
+): Promise<LlmapiChatCompletionTool[]> {
+  // Memory tools are always included — only filter connector tools (Notion, Google)
+  const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
+  const alwaysInclude = clientTools.filter(isMemoryTool);
+  const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
+
+  // Skip if no embeddings or too few filterable tools
+  if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
+    return clientTools;
+  }
+
+  // Generate embeddings for tool descriptions that aren't cached yet
+  const toolsNeedingEmbeddings: { name: string; description: string }[] = [];
+  for (const t of filterCandidates) {
+    const name = getToolName(t);
+    if (name && !cache.has(name)) {
+      toolsNeedingEmbeddings.push({ name, description: getToolDescription(t) });
+    }
+  }
+
+  if (toolsNeedingEmbeddings.length > 0) {
+    try {
+      const descriptions = toolsNeedingEmbeddings.map((t) => t.description);
+      const embeddings = await generateEmbeddings(descriptions, embeddingOptions);
+      for (let i = 0; i < toolsNeedingEmbeddings.length; i++) {
+        cache.set(toolsNeedingEmbeddings[i].name, embeddings[i]);
+      }
+    } catch {
+      // Embedding generation failed — skip filtering, send all tools
+      return clientTools;
+    }
+  }
+
+  // Build pseudo-ServerTool objects with cached embeddings for findMatchingTools
+  const pseudoServerTools: ServerTool[] = [];
+  for (const t of filterCandidates) {
+    const name = getToolName(t);
+    const embedding = cache.get(name);
+    if (!embedding) continue;
+    const fn = t.function as Record<string, unknown> | undefined;
+    const params = (fn?.parameters ||
+      fn?.arguments || {
+        type: "object",
+        properties: {},
+        required: [],
+      }) as ServerTool["parameters"];
+    pseudoServerTools.push({
+      type: "function",
+      name,
+      description: getToolDescription(t),
+      parameters: params,
+      embedding,
+    });
+  }
+
+  const matches = findMatchingTools(promptEmbeddings, pseudoServerTools, {
+    limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
+    minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+  });
+
+  if (matches.length === 0) {
+    // No matches above threshold — send all filterable tools + memory
+    return clientTools;
+  }
+
+  const matchedNames = new Set(matches.map((m) => m.tool.name));
+  const filtered = filterCandidates.filter((t) => {
+    const name = getToolName(t);
+    return name && matchedNames.has(name);
+  });
+  return [...alwaysInclude, ...filtered];
+}
 
 /**
  * Helper to convert a Blob to a data URI.
@@ -1051,6 +1159,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const vaultEmbeddingCacheRef = useRef<VaultEmbeddingCache>(createVaultEmbeddingCache());
 
+  /**
+   * Cache for client tool description embeddings.
+   * Maps tool name → embedding vector. Populated lazily on first message
+   * and reused across messages (tool descriptions don't change).
+   */
+  const clientToolEmbeddingsCacheRef = useRef<Map<string, number[]>>(new Map());
+
   // Pre-embed vault memories on mount
   useEffect(() => {
     if (!getToken) return;
@@ -1791,6 +1906,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         clientToolsFilter,
         serverTools: serverToolsFilter,
         toolChoice,
+        maxToolRounds,
         reasoning,
         thinking,
         onThinking,
@@ -1824,7 +1940,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Check if serverTools is a function (dynamic filtering)
         const isServerToolsFunction = typeof serverToolsFilter === "function";
-        const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+        const needsEmbeddings =
+          isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
 
         // Generate embeddings once for both server and client tool filtering
         let skipStorageEmbeddings: number[] | number[][] | null = null;
@@ -1873,7 +1990,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         }
 
-        // Filter client tools if filter function provided
+        // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
         let filteredClientTools = clientTools;
         if (clientToolsFilter && clientTools?.length) {
           const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
@@ -1881,6 +1998,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const name = t.function?.name || t.name;
             return clientToolNames.includes(name);
           });
+        } else if (clientTools?.length && getToken) {
+          // Auto-filter client tools using semantic matching (no explicit filter provided)
+          filteredClientTools = await autoFilterClientTools(
+            clientTools,
+            skipStorageEmbeddings,
+            clientToolEmbeddingsCacheRef.current,
+            { getToken, baseUrl, model: embeddingModel }
+          );
         }
 
         if (
@@ -1902,6 +2027,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           maxOutputTokens,
           tools: mergedTools,
           toolChoice,
+          maxToolRounds,
           reasoning,
           thinking,
           imageModel,
@@ -2164,7 +2290,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Check if serverTools is a function (dynamic filtering)
       const isServerToolsFunction = typeof serverToolsFilter === "function";
-      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter;
+      const needsEmbeddings = isServerToolsFunction || !!clientToolsFilter || !!clientTools?.length;
 
       // Generate embeddings once for both server and client tool filtering
       if (needsEmbeddings && getToken) {
@@ -2208,7 +2334,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
-      // Filter client tools if filter function provided
+      // Filter client tools: use explicit filter if provided, otherwise auto-filter using embeddings
       let filteredClientTools = clientTools;
       if (clientToolsFilter && clientTools?.length) {
         const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
@@ -2216,6 +2342,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const name = t.function?.name || t.name;
           return clientToolNames.includes(name);
         });
+      } else if (clientTools?.length && getToken) {
+        // Auto-filter client tools using semantic matching (no explicit filter provided)
+        filteredClientTools = await autoFilterClientTools(
+          clientTools,
+          userMessageEmbeddings ?? null,
+          clientToolEmbeddingsCacheRef.current,
+          { getToken, baseUrl, model: embeddingModel }
+        );
       }
 
       // Embed user message (skip for queued messages — embeddings can't be stored on synthetic IDs)
@@ -2279,6 +2413,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         maxOutputTokens,
         tools: mergedTools,
         toolChoice,
+        maxToolRounds,
         reasoning,
         thinking,
         imageModel,

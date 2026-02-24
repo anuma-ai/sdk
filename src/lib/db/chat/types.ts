@@ -558,6 +558,14 @@ export interface BaseSendMessageWithStorageArgs {
   toolChoice?: string;
 
   /**
+   * Maximum number of tool execution rounds before forcing the model to respond with text.
+   * After this many rounds, `toolChoice` is set to `"none"` on the next continuation,
+   * so the model produces a text answer using whatever tool results it has gathered.
+   * @default 3
+   */
+  maxToolRounds?: number;
+
+  /**
    * Reasoning configuration for o-series and other reasoning models.
    * Controls reasoning effort level and whether to include reasoning summary.
    */
