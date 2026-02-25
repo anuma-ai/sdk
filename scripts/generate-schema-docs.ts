@@ -29,17 +29,21 @@ function generateErDiagram(): string {
   lines.push("```mermaid");
   lines.push("erDiagram");
 
-  // Collect foreign key columns (only belongs_to side — the column that references another table)
+  // Derive relationship columns from associations:
+  // - foreignKeys: the FK column on the belongs_to side (e.g. history.conversation_id)
+  // - referencedKeys: the matching primary key on the target table (e.g. conversations.conversation_id)
   const foreignKeys = new Set<string>();
+  const referencedKeys = new Set<string>();
   for (const ModelClass of sdkModelClasses) {
     const model = ModelClass as any;
     const tableName: string = model.table;
     const associations: Record<string, { type: string; key?: string; foreignKey?: string }> =
       model.associations ?? {};
 
-    for (const assoc of Object.values(associations)) {
+    for (const [targetTable, assoc] of Object.entries(associations)) {
       if (assoc.type === "belongs_to" && assoc.key) {
         foreignKeys.add(`${tableName}.${assoc.key}`);
+        referencedKeys.add(`${targetTable}.${assoc.key}`);
       }
     }
   }
@@ -65,8 +69,8 @@ function generateErDiagram(): string {
 
     const keyCols = (table.columnArray as any[]).filter(
       (col: any) =>
-        col.name.endsWith("_id") ||
-        foreignKeys.has(`${table.name}.${col.name}`)
+        foreignKeys.has(`${table.name}.${col.name}`) ||
+        referencedKeys.has(`${table.name}.${col.name}`)
     );
 
     lines.push(`    ${table.name} {`);

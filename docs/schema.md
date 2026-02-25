@@ -7,7 +7,6 @@ erDiagram
     history {
         number message_id
         string conversation_id FK
-        string parent_message_id
     }
     conversations {
         string conversation_id
@@ -17,7 +16,6 @@ erDiagram
         string project_id
     }
     media {
-        string media_id
         string message_id FK
         string conversation_id FK
     }
