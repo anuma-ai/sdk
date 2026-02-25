@@ -1,0 +1,31 @@
+name: Dependency Report
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  report:
+    name: Visualize dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - uses: MH4GF/dependency-cruiser-report-action@v2
+        with:
+          package-manager: pnpm
+          config-file: .dependency-cruiser.cjs
