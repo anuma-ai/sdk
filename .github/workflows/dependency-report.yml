@@ -48,7 +48,8 @@ jobs:
             --output-type mermaid \
             --reaches "$REACHES" 2>/dev/null || true)
 
-          if [ -z "$MERMAID" ]; then
+          # Skip if graph is empty (only contains the "flowchart" header)
+          if [ -z "$MERMAID" ] || [ "$(echo "$MERMAID" | wc -l | tr -d ' ')" -le 2 ]; then
             exit 0
           fi
 
