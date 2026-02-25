@@ -1,5 +1,6 @@
 "use client";
 
+// TODO: remove this comment — temporary change to showcase dependency diagram
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
