@@ -25,7 +25,63 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - uses: MH4GF/dependency-cruiser-report-action@v2
-        with:
-          package-manager: pnpm
-          config-file: .dependency-cruiser.cjs
+      - name: Get changed files
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only | grep -E '\.(ts|tsx|js|jsx)$' || true)
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate dependency graph
+        if: steps.changed.outputs.files != ''
+        id: graph
+        run: |
+          FILES="${{ steps.changed.outputs.files }}"
+          REACHES=$(echo "$FILES" | tr '\n' '|' | sed 's/|$//')
+
+          MERMAID=$(pnpm depcruise src \
+            --config .dependency-cruiser.cjs \
+            --output-type mermaid \
+            --reaches "$REACHES" 2>/dev/null || true)
+
+          if [ -z "$MERMAID" ]; then
+            exit 0
+          fi
+
+          {
+            echo '<!-- dependency-report -->'
+            echo '### Dependency graph'
+            echo ''
+            echo 'Changed files are highlighted in green.'
+            echo ''
+            echo '```mermaid'
+            echo "$MERMAID"
+            echo '```'
+          } > /tmp/comment.md
+
+      - name: Post or update comment
+        if: steps.changed.outputs.files != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -s /tmp/comment.md ]; then
+            exit 0
+          fi
+
+          PR=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+
+          EXISTING=$(gh api "repos/${REPO}/issues/${PR}/comments" \
+            --jq '.[] | select(.body | contains("<!-- dependency-report -->")) | .id' \
+            | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            gh api "repos/${REPO}/issues/comments/${EXISTING}" \
+              -X PATCH -F body=@/tmp/comment.md
+          else
+            gh api "repos/${REPO}/issues/${PR}/comments" \
+              -X POST -F body=@/tmp/comment.md
+          fi
