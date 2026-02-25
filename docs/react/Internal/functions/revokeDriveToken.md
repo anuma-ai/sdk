@@ -2,7 +2,7 @@
 
 > **revokeDriveToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-drive.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#416)
+Defined in: [src/lib/auth/google-drive.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#417)
 
 Revoke the OAuth token
 

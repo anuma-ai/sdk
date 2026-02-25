@@ -2,7 +2,7 @@
 
 > **clearCalendarToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/google-calendar.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#212)
+Defined in: [src/lib/auth/google-calendar.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#213)
 
 Clear stored token data for all storage locations
 
