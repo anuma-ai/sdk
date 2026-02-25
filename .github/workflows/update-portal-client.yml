@@ -1,0 +1,67 @@
+name: Update Portal Client
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-client:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install latest @anuma/portal@next
+        run: pnpm add @anuma/portal@next
+
+      - name: Generate
+        run: pnpm run generate
+
+      - name: Check for client changes
+        id: changes
+        run: |
+          if git diff --quiet src/client/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="chore/update-portal-client"
+          VERSION=$(node -e "console.log(require('./package.json').dependencies['@anuma/portal'])")
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add .
+          git commit -m "chore: update @anuma/portal to $VERSION"
+          git push --force origin "$BRANCH"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "chore: update @anuma/portal to $VERSION"
+          else
+            gh pr create \
+              --title "chore: update @anuma/portal to $VERSION" \
+              --body "Updates the generated client code from \`@anuma/portal@$VERSION\`." \
+              --head "$BRANCH" \
+              --base main
+          fi
