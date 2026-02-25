@@ -1,0 +1,91 @@
+name: Dependency Report
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  report:
+    name: Visualize dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Get changed files
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only | grep -E '\.(ts|tsx|js|jsx)$' || true)
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate dependency graph
+        if: steps.changed.outputs.files != ''
+        id: graph
+        run: |
+          FILES="${{ steps.changed.outputs.files }}"
+          REACHES=$(echo "$FILES" | tr '\n' '|' | sed 's/|$//')
+
+          MERMAID=$(pnpm depcruise src \
+            --config .dependency-cruiser.cjs \
+            --output-type mermaid \
+            --reaches "$REACHES" 2>/dev/null || true)
+
+          # Skip if graph is empty (only contains the "flowchart" header)
+          if [ -z "$MERMAID" ] || [ "$(echo "$MERMAID" | wc -l | tr -d ' ')" -le 2 ]; then
+            exit 0
+          fi
+
+          {
+            echo '<!-- dependency-report -->'
+            echo '### Dependency graph'
+            echo ''
+            echo 'Changed files are highlighted in green.'
+            echo ''
+            echo '```mermaid'
+            echo "$MERMAID"
+            echo '```'
+          } > /tmp/comment.md
+
+      - name: Post, update, or delete comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          REPO=${{ github.repository }}
+
+          EXISTING=$(gh api "repos/${REPO}/issues/${PR}/comments" \
+            --jq '.[] | select(.body | contains("<!-- dependency-report -->")) | .id' \
+            | head -1)
+
+          if [ -s /tmp/comment.md ]; then
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/${REPO}/issues/comments/${EXISTING}" \
+                -X PATCH -F body=@/tmp/comment.md
+            else
+              gh api "repos/${REPO}/issues/${PR}/comments" \
+                -X POST -F body=@/tmp/comment.md
+            fi
+          else
+            # No diagram — delete stale comment if one exists
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/${REPO}/issues/comments/${EXISTING}" -X DELETE
+            fi
+          fi
