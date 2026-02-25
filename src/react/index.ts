@@ -470,13 +470,13 @@ export {
   handleCalendarCallback,
   hasCalendarCredentials,
   isCalendarCallback,
+  migrateCalendarToken,
   refreshCalendarToken,
   revokeCalendarToken,
   startCalendarAuth,
   storeCalendarPendingMessage,
   storeCalendarReturnUrl,
   storeCalendarToken,
-  migrateCalendarToken,
 } from "../lib/auth/google-calendar";
 
 // Google Drive Auth (with drive.readonly scope for full read access)
@@ -490,13 +490,13 @@ export {
   handleDriveCallback,
   hasDriveCredentials,
   isDriveCallback,
+  migrateDriveToken,
   refreshDriveToken,
   revokeDriveToken,
   startDriveAuth,
   storeDrivePendingMessage,
   storeDriveReturnUrl,
   storeDriveToken,
-  migrateDriveToken,
 } from "../lib/auth/google-drive";
 
 // Notion MCP Auth (with PKCE - fully client-side, no backend needed)

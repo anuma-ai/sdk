@@ -440,7 +440,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         const effectiveMaxToolRounds = maxToolRounds ?? 3;
         // Track connector tool call counts (Notion, Google Calendar, Google Drive)
         const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
-        const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
+        const isConnectorTool = (name: string) =>
+          CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
         const connectorCallCount = { total: 0 };
         let connectorLimitHit = false;
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {

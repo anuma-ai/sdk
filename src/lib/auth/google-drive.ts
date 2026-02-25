@@ -23,9 +23,9 @@ import {
   postAuthOauthByProviderRevoke,
 } from "../../client/sdk.gen";
 import {
-  getEncryptionKey,
-  encryptDataWithKey,
   decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
   hasEncryptionKey,
 } from "../../react/useEncryption";
 
