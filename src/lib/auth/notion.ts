@@ -951,13 +951,9 @@ export function getValidNotionToken(): string | null {
 /**
  * Check if we have any stored Notion credentials
  */
-export function hasNotionCredentials(walletAddress?: string): boolean {
-  if (typeof window === "undefined") return false;
-
-  const localStored = localStorage.getItem(getTokenStorageKey(walletAddress));
-  const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-
-  return !!(localStored || sessionStored);
+export async function hasNotionCredentials(walletAddress?: string): Promise<boolean> {
+  const data = await getStoredTokenData(walletAddress);
+  return !!(data?.accessToken || data?.refreshToken);
 }
 
 /**

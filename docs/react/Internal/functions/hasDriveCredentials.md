@@ -2,7 +2,7 @@
 
 > **hasDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/google-drive.ts:556](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#556)
+Defined in: [src/lib/auth/google-drive.ts:557](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#557)
 
 Check if we have any stored credentials
 

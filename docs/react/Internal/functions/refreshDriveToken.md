@@ -2,7 +2,7 @@
 
 > **refreshDriveToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-drive.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#378)
+Defined in: [src/lib/auth/google-drive.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-drive.ts#377)
 
 Refresh the access token using the stored refresh token
 

@@ -21,9 +21,9 @@ import {
   postAuthOauthByProviderRevoke,
 } from "../../client/sdk.gen";
 import {
-  getEncryptionKey,
-  encryptDataWithKey,
   decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
   hasEncryptionKey,
 } from "../../react/useEncryption";
 
@@ -173,10 +173,12 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
 }
 
 /**
- * Store token data.
- * If a walletAddress is provided and an encryption key exists,
- * encrypts the token and stores in localStorage with a wallet-scoped key.
- * Otherwise falls back to sessionStorage with plain JSON.
+ * Store token data using dual-write strategy.
+ * Always writes to sessionStorage so the token survives even if the
+ * encryption key isn't available yet (e.g. right after OAuth redirect).
+ * Additionally encrypts to localStorage when the key is ready.
+ * migrateCalendarToken will clean up the sessionStorage copy once
+ * the encrypted localStorage copy is confirmed.
  */
 async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
@@ -190,20 +192,19 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
 
   const json = JSON.stringify(data);
 
+  // Always write to sessionStorage as a safety net
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
+
+  // Additionally encrypt to localStorage when possible
   if (walletAddress && hasEncryptionKey(walletAddress)) {
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), ENCRYPTED_PREFIX + encrypted);
-      return;
     } catch (error) {
-      console.warn("Failed to encrypt Calendar OAuth token, storing temporarily:", error);
-      // Fall through to sessionStorage
+      console.warn("Failed to encrypt Calendar OAuth token:", error);
     }
   }
-
-  // Fallback: store plain JSON in sessionStorage
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
 }
 
 /**
@@ -402,8 +403,10 @@ export async function refreshCalendarToken(
     await storeTokenData(tokenData, walletAddress);
 
     return response.data.access_token;
-  } catch {
-    clearCalendarToken(walletAddress);
+  } catch (error) {
+    // Don't clear token on transient errors (network, server) — only return null
+    // so the caller can retry later. The token + refresh token stay in storage.
+    console.error("Calendar token refresh failed", error);
     return null;
   }
 }
