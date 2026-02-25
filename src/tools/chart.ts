@@ -18,16 +18,16 @@ export type ChartDataPoint = Record<string, string | number>;
 
 export type DisplayChartResult =
   | {
-      chartType: "bar" | "line" | "area" | "pie";
-      title?: string;
-      data: ChartDataPoint[];
-      dataKeys: string[];
-      xAxisKey?: string;
-      colors?: Record<string, string>;
-    }
+    chartType: "bar" | "line" | "area" | "pie";
+    title?: string;
+    data: ChartDataPoint[];
+    dataKeys: string[];
+    xAxisKey?: string;
+    colors?: Record<string, string>;
+  }
   | {
-      error: string;
-    };
+    error: string;
+  };
 
 // ---------------------------------------------------------------------------
 // Tool factory
@@ -50,7 +50,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      "Renders a chart inline in the chat. Supports bar, line, area, and pie charts. RULES: (1) Call this tool ONCE per request — you cannot update a chart after it renders. (2) When the user provides data in their message, call this tool immediately with that data — do NOT search or verify it. (3) Only search/fetch if the user asks for data you don't have. (4) Do NOT repeat the chart data as text in your response. Just add a brief conversational comment about the chart. Use simple alphanumeric keys without spaces (e.g. 'revenue', 'users', 'q1Sales').",
+      "Render data visualization charts when the user explicitly requests a bar chart, line chart, area chart, or pie chart of their data. Accepts an array of data points and renders the chart inline in the conversation.",
     parameters: {
       type: "object",
       properties: {
