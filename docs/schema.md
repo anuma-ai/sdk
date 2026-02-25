@@ -30,15 +30,15 @@ erDiagram
 
 ## Tables
 
-- [`history`](#history)
-- [`conversations`](#conversations)
-- [`projects`](#projects)
-- [`modelPreferences`](#modelpreferences)
-- [`userPreferences`](#userpreferences)
-- [`memory_vault`](#memory-vault)
-- [`media`](#media)
+- [history](#history)
+- [conversations](#conversations)
+- [projects](#projects)
+- [modelPreferences](#modelpreferences)
+- [userPreferences](#userpreferences)
+- [memory vault](#memory-vault)
+- [media](#media)
 
-## `history`
+## history
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -64,7 +64,7 @@ erDiagram
 | `parent_message_id` | string |  | ✓ |
 | `feedback` | string |  | ✓ |
 
-## `conversations`
+## conversations
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -75,7 +75,7 @@ erDiagram
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `projects`
+## projects
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -85,14 +85,14 @@ erDiagram
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `modelPreferences`
+## modelPreferences
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
 | `wallet_address` | string | ✓ |  |
 | `models` | string |  | ✓ |
 
-## `userPreferences`
+## userPreferences
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -105,7 +105,7 @@ erDiagram
 | `created_at` | number |  |  |
 | `updated_at` | number |  |  |
 
-## `memory_vault`
+## memory vault
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -115,7 +115,7 @@ erDiagram
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `media`
+## media
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|

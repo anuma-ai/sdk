@@ -116,14 +116,16 @@ function generate(): string {
   // Table of contents
   lines.push("## Tables\n");
   for (const table of tables) {
+    const displayName = table.name.replace(/_/g, " ");
     const anchor = table.name.toLowerCase().replace(/_/g, "-");
-    lines.push(`- [\`${table.name}\`](#${anchor})`);
+    lines.push(`- [${displayName}](#${anchor})`);
   }
   lines.push("");
 
   // Per-table sections
   for (const table of tables) {
-    lines.push(`## \`${table.name}\`\n`);
+    const displayName = table.name.replace(/_/g, " ");
+    lines.push(`## ${displayName}\n`);
 
     lines.push("| Column | Type | Indexed | Optional |");
     lines.push("|--------|------|---------|----------|");
