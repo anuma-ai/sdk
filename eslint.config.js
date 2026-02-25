@@ -19,6 +19,7 @@ export default tseslint.config(
       "**/*.security.test.ts",
       "*.config.*",
       ".prettierrc.mjs",
+      ".dependency-cruiser.cjs",
     ],
   },
   eslint.configs.recommended,
