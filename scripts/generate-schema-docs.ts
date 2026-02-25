@@ -46,8 +46,23 @@ function generateErDiagram(): string {
 
   const tables = Object.values(sdkSchema.tables) as any[];
 
-  // Emit entities with only key columns (identifiers + foreign keys)
+  // Collect tables that participate in relationships
+  const relatedTables = new Set<string>();
+  for (const ModelClass of sdkModelClasses) {
+    const model = ModelClass as any;
+    const associations: Record<string, { type: string }> = model.associations ?? {};
+    if (Object.keys(associations).length > 0) {
+      relatedTables.add(model.table);
+      for (const targetTable of Object.keys(associations)) {
+        relatedTables.add(targetTable);
+      }
+    }
+  }
+
+  // Emit only tables that have relationships, with key columns only
   for (const table of tables) {
+    if (!relatedTables.has(table.name)) continue;
+
     const keyCols = (table.columnArray as any[]).filter(
       (col: any) =>
         col.name.endsWith("_id") ||
@@ -55,17 +70,12 @@ function generateErDiagram(): string {
         foreignKeys.has(`${table.name}.${col.name}`)
     );
 
-    if (keyCols.length > 0) {
-      lines.push(`    ${table.name} {`);
-      for (const col of keyCols) {
-        const marker = foreignKeys.has(`${table.name}.${col.name}`) ? " FK" : "";
-        lines.push(`        ${col.type} ${col.name}${marker}`);
-      }
-      lines.push("    }");
-    } else {
-      lines.push(`    ${table.name} {`);
-      lines.push("    }");
+    lines.push(`    ${table.name} {`);
+    for (const col of keyCols) {
+      const marker = foreignKeys.has(`${table.name}.${col.name}`) ? " FK" : "";
+      lines.push(`        ${col.type} ${col.name}${marker}`);
     }
+    lines.push("    }");
   }
 
   // Emit relationships from model associations

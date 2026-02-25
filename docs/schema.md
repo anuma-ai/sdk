@@ -16,14 +16,6 @@ erDiagram
     projects {
         string project_id
     }
-    modelPreferences {
-        string wallet_address
-    }
-    userPreferences {
-        string wallet_address
-    }
-    memory_vault {
-    }
     media {
         string media_id
         string wallet_address
