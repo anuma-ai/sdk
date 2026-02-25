@@ -172,12 +172,12 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
 }
 
 /**
- * Store token data with encryption support.
- *
- * If walletAddress is provided and an encryption key exists:
- *   - Encrypts and stores in localStorage with wallet-scoped key.
- * Otherwise:
- *   - Stores plain JSON in sessionStorage (cleared on page close).
+ * Store token data using dual-write strategy.
+ * Always writes to sessionStorage so the token survives even if the
+ * encryption key isn't available yet (e.g. right after OAuth redirect).
+ * Additionally encrypts to localStorage when the key is ready.
+ * migrateDriveToken will clean up the sessionStorage copy once
+ * the encrypted localStorage copy is confirmed.
  */
 async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
   if (typeof window === "undefined") return;
@@ -191,20 +191,19 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
 
   const json = JSON.stringify(data);
 
+  // Always write to sessionStorage as a safety net
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
+
+  // Additionally encrypt to localStorage when possible
   if (walletAddress && hasEncryptionKey(walletAddress)) {
     try {
       const cryptoKey = await getEncryptionKey(walletAddress);
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
-      return;
     } catch (error) {
-      console.warn("Failed to encrypt Drive OAuth token, storing temporarily:", error);
-      // Fall through to sessionStorage
+      console.warn("Failed to encrypt Drive OAuth token:", error);
     }
   }
-
-  // Fallback: store plain JSON in sessionStorage
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
 }
 
 /**
@@ -404,8 +403,10 @@ export async function refreshDriveToken(
     await storeTokenData(tokenData, walletAddress);
 
     return response.data.access_token;
-  } catch {
-    clearDriveToken(walletAddress);
+  } catch (error) {
+    // Don't clear token on transient errors (network, server) — only return null
+    // so the caller can retry later. The token + refresh token stay in storage.
+    console.error("Drive token refresh failed", error);
     return null;
   }
 }
