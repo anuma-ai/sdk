@@ -4,21 +4,6 @@ Current version: **v16**
 
 ```mermaid
 erDiagram
-    history {
-        number message_id
-        string conversation_id FK
-    }
-    conversations {
-        string conversation_id
-        string project_id FK
-    }
-    projects {
-        string project_id
-    }
-    media {
-        string message_id FK
-        string conversation_id FK
-    }
     conversations ||--o{ history : ""
     history ||--o{ media : ""
     projects ||--o{ conversations : ""

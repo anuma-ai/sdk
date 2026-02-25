@@ -29,59 +29,6 @@ function generateErDiagram(): string {
   lines.push("```mermaid");
   lines.push("erDiagram");
 
-  // Derive relationship columns from associations:
-  // - foreignKeys: the FK column on the belongs_to side (e.g. history.conversation_id)
-  // - referencedKeys: the matching primary key on the target table (e.g. conversations.conversation_id)
-  const foreignKeys = new Set<string>();
-  const referencedKeys = new Set<string>();
-  for (const ModelClass of sdkModelClasses) {
-    const model = ModelClass as any;
-    const tableName: string = model.table;
-    const associations: Record<string, { type: string; key?: string; foreignKey?: string }> =
-      model.associations ?? {};
-
-    for (const [targetTable, assoc] of Object.entries(associations)) {
-      if (assoc.type === "belongs_to" && assoc.key) {
-        foreignKeys.add(`${tableName}.${assoc.key}`);
-        referencedKeys.add(`${targetTable}.${assoc.key}`);
-      }
-    }
-  }
-
-  const tables = Object.values(sdkSchema.tables) as any[];
-
-  // Collect tables that participate in relationships
-  const relatedTables = new Set<string>();
-  for (const ModelClass of sdkModelClasses) {
-    const model = ModelClass as any;
-    const associations: Record<string, { type: string }> = model.associations ?? {};
-    if (Object.keys(associations).length > 0) {
-      relatedTables.add(model.table);
-      for (const targetTable of Object.keys(associations)) {
-        relatedTables.add(targetTable);
-      }
-    }
-  }
-
-  // Emit only tables that have relationships, with key columns only
-  for (const table of tables) {
-    if (!relatedTables.has(table.name)) continue;
-
-    const keyCols = (table.columnArray as any[]).filter(
-      (col: any) =>
-        foreignKeys.has(`${table.name}.${col.name}`) ||
-        referencedKeys.has(`${table.name}.${col.name}`)
-    );
-
-    lines.push(`    ${table.name} {`);
-    for (const col of keyCols) {
-      const marker = foreignKeys.has(`${table.name}.${col.name}`) ? " FK" : "";
-      lines.push(`        ${col.type} ${col.name}${marker}`);
-    }
-    lines.push("    }");
-  }
-
-  // Emit relationships from model associations
   const seen = new Set<string>();
   for (const ModelClass of sdkModelClasses) {
     const model = ModelClass as any;
