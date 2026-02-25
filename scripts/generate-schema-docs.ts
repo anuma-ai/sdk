@@ -1,6 +1,11 @@
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { sdkSchema, sdkMigrations, SDK_SCHEMA_VERSION } from "../src/lib/db/schema";
+import {
+  sdkSchema,
+  sdkMigrations,
+  sdkModelClasses,
+  SDK_SCHEMA_VERSION,
+} from "../src/lib/db/schema";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function describeStep(step: any): string {
@@ -19,25 +24,55 @@ function describeStep(step: any): string {
   }
 }
 
+function generateRelationshipDiagram(): string {
+  const lines: string[] = [];
+  lines.push("```mermaid");
+  lines.push("graph LR");
+
+  const seen = new Set<string>();
+  for (const ModelClass of sdkModelClasses) {
+    const model = ModelClass as any;
+    const tableName: string = model.table;
+    const associations: Record<string, { type: string; key?: string; foreignKey?: string }> =
+      model.associations ?? {};
+
+    for (const [targetTable, assoc] of Object.entries(associations)) {
+      const pair = [tableName, targetTable].sort().join(":");
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+
+      if (assoc.type === "has_many") {
+        lines.push(`    ${tableName} -- "has many" --> ${targetTable}`);
+      } else if (assoc.type === "belongs_to") {
+        lines.push(`    ${tableName} -- "belongs to" --> ${targetTable}`);
+      }
+    }
+  }
+
+  lines.push("```");
+  return lines.join("\n");
+}
+
 function generate(): string {
   const lines: string[] = [];
 
   lines.push(`# Database Schema\n`);
   lines.push(`Current version: **v${SDK_SCHEMA_VERSION}**\n`);
+  lines.push(generateRelationshipDiagram());
+  lines.push("");
 
   const tables = Object.values(sdkSchema.tables) as any[];
 
   // Table of contents
   lines.push("## Tables\n");
   for (const table of tables) {
-    const anchor = table.name.toLowerCase().replace(/_/g, "-");
-    lines.push(`- [\`${table.name}\`](#${anchor})`);
+    lines.push(`- [${table.name}](#${table.name})`);
   }
   lines.push("");
 
   // Per-table sections
   for (const table of tables) {
-    lines.push(`## \`${table.name}\`\n`);
+    lines.push(`## ${table.name}\n`);
 
     lines.push("| Column | Type | Indexed | Optional |");
     lines.push("|--------|------|---------|----------|");

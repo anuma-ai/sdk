@@ -2,17 +2,25 @@
 
 Current version: **v16**
 
+```mermaid
+graph LR
+    history -- "belongs to" --> conversations
+    history -- "has many" --> media
+    conversations -- "belongs to" --> projects
+    media -- "belongs to" --> conversations
+```
+
 ## Tables
 
-- [`history`](#history)
-- [`conversations`](#conversations)
-- [`projects`](#projects)
-- [`modelPreferences`](#modelpreferences)
-- [`userPreferences`](#userpreferences)
-- [`memory_vault`](#memory-vault)
-- [`media`](#media)
+- [history](#history)
+- [conversations](#conversations)
+- [projects](#projects)
+- [modelPreferences](#modelPreferences)
+- [userPreferences](#userPreferences)
+- [memory_vault](#memory_vault)
+- [media](#media)
 
-## `history`
+## history
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -38,7 +46,7 @@ Current version: **v16**
 | `parent_message_id` | string |  | ✓ |
 | `feedback` | string |  | ✓ |
 
-## `conversations`
+## conversations
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -49,7 +57,7 @@ Current version: **v16**
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `projects`
+## projects
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -59,14 +67,14 @@ Current version: **v16**
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `modelPreferences`
+## modelPreferences
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
 | `wallet_address` | string | ✓ |  |
 | `models` | string |  | ✓ |
 
-## `userPreferences`
+## userPreferences
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -79,7 +87,7 @@ Current version: **v16**
 | `created_at` | number |  |  |
 | `updated_at` | number |  |  |
 
-## `memory_vault`
+## memory_vault
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
@@ -89,7 +97,7 @@ Current version: **v16**
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
-## `media`
+## media
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
