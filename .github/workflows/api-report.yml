@@ -26,13 +26,14 @@ jobs:
         id: merge-base
         run: echo "sha=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
-      - name: Enable Corepack
-        run: corepack enable
+          cache: "pnpm"
 
       - name: Build baseline from merge base
         run: |
