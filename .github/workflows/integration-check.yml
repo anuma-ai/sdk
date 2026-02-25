@@ -34,9 +34,18 @@ jobs:
         with:
           ref: ${{ matrix.ref == 'main' && 'main' || '' }}
 
+      - name: Ensure packageManager field
+        run: |
+          if ! grep -q '"packageManager"' package.json; then
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.packageManager = 'pnpm@10.23.0';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+          fi
+
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

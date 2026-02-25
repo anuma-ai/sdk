@@ -27,8 +27,6 @@ jobs:
         run: echo "sha=$(git merge-base origin/main HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
