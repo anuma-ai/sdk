@@ -24,10 +24,10 @@ function describeStep(step: any): string {
   }
 }
 
-function generateErDiagram(): string {
+function generateRelationshipDiagram(): string {
   const lines: string[] = [];
   lines.push("```mermaid");
-  lines.push("erDiagram");
+  lines.push("graph LR");
 
   const seen = new Set<string>();
   for (const ModelClass of sdkModelClasses) {
@@ -42,9 +42,9 @@ function generateErDiagram(): string {
       seen.add(pair);
 
       if (assoc.type === "has_many") {
-        lines.push(`    ${tableName} ||--o{ ${targetTable} : ""`);
+        lines.push(`    ${tableName} -- "has many" --> ${targetTable}`);
       } else if (assoc.type === "belongs_to") {
-        lines.push(`    ${targetTable} ||--o{ ${tableName} : ""`);
+        lines.push(`    ${tableName} -- "belongs to" --> ${targetTable}`);
       }
     }
   }
@@ -58,7 +58,7 @@ function generate(): string {
 
   lines.push(`# Database Schema\n`);
   lines.push(`Current version: **v${SDK_SCHEMA_VERSION}**\n`);
-  lines.push(generateErDiagram());
+  lines.push(generateRelationshipDiagram());
   lines.push("");
 
   const tables = Object.values(sdkSchema.tables) as any[];

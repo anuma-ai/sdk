@@ -3,11 +3,11 @@
 Current version: **v16**
 
 ```mermaid
-erDiagram
-    conversations ||--o{ history : ""
-    history ||--o{ media : ""
-    projects ||--o{ conversations : ""
-    conversations ||--o{ media : ""
+graph LR
+    history -- "belongs to" --> conversations
+    history -- "has many" --> media
+    conversations -- "belongs to" --> projects
+    media -- "belongs to" --> conversations
 ```
 
 ## Tables
