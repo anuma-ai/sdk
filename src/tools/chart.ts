@@ -18,16 +18,16 @@ export type ChartDataPoint = Record<string, string | number>;
 
 export type DisplayChartResult =
   | {
-    chartType: "bar" | "line" | "area" | "pie";
-    title?: string;
-    data: ChartDataPoint[];
-    dataKeys: string[];
-    xAxisKey?: string;
-    colors?: Record<string, string>;
-  }
+      chartType: "bar" | "line" | "area" | "pie";
+      title?: string;
+      data: ChartDataPoint[];
+      dataKeys: string[];
+      xAxisKey?: string;
+      colors?: Record<string, string>;
+    }
   | {
-    error: string;
-  };
+      error: string;
+    };
 
 // ---------------------------------------------------------------------------
 // Tool factory
