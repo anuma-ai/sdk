@@ -46,20 +46,9 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
-  isOPFSSupported,
-  writeEncryptedFile,
-  readEncryptedFile,
-  deleteEncryptedFile,
-  createFilePlaceholder,
-  extractFileIds,
-  BlobUrlManager,
-  extractMCPImageUrls,
-  replaceMCPUrlsWithPlaceholders,
-} from "../lib/storage";
-import {
-  deleteMediaByConversationOp,
   createMediaBatchOp,
   type CreateMediaOptions,
+  deleteMediaByConversationOp,
   generateMediaId,
   getMediaByIdsOp,
   getMediaTypeFromMime,
@@ -109,6 +98,17 @@ import {
   type VaultSearchResult,
 } from "../lib/memoryVault";
 import { preprocessFiles } from "../lib/processors";
+import {
+  BlobUrlManager,
+  createFilePlaceholder,
+  deleteEncryptedFile,
+  extractFileIds,
+  extractMCPImageUrls,
+  isOPFSSupported,
+  readEncryptedFile,
+  replaceMCPUrlsWithPlaceholders,
+  writeEncryptedFile,
+} from "../lib/storage";
 import {
   filterServerTools,
   findMatchingTools,

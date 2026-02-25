@@ -438,6 +438,10 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         let toolIteration = 0;
         const MAX_TOOL_ITERATIONS = 10;
         const effectiveMaxToolRounds = maxToolRounds ?? 3;
+        // Track connector tool call counts (Notion, Google Calendar, Google Drive)
+        const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+        const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
+        const connectorCallCount = { total: 0 };
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
 
@@ -507,6 +511,33 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               };
             })
           );
+
+          // Remove all connector tools once total connector calls reach 2.
+          // Only for fast models (cerebras) — smarter models handle tools well.
+          const isFastModel = model?.startsWith("cerebras/");
+          if (isFastModel && apiTools) {
+            for (const tc of toolCallsToExecute) {
+              if (isConnectorTool(tc.name)) {
+                connectorCallCount.total++;
+              }
+            }
+
+            if (connectorCallCount.total >= 2) {
+              apiTools = apiTools.filter((t) => {
+                const name = (t as any).function?.name || (t as any).name;
+                return !name || !isConnectorTool(name);
+              });
+              if (apiTools.length === 0) {
+                apiTools = undefined;
+                toolChoice = undefined;
+              } else if (typeof toolChoice === "string" && isConnectorTool(toolChoice)) {
+                toolChoice = undefined;
+              }
+              for (const [name] of executorMap) {
+                if (isConnectorTool(name)) executorMap.delete(name);
+              }
+            }
+          }
 
           // Remove tools with removeAfterExecution: true that succeeded
           if (tools && apiTools) {
