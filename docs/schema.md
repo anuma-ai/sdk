@@ -18,7 +18,6 @@ erDiagram
     }
     media {
         string media_id
-        string wallet_address
         string message_id FK
         string conversation_id FK
     }

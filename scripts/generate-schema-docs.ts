@@ -66,7 +66,6 @@ function generateErDiagram(): string {
     const keyCols = (table.columnArray as any[]).filter(
       (col: any) =>
         col.name.endsWith("_id") ||
-        col.name === "wallet_address" ||
         foreignKeys.has(`${table.name}.${col.name}`)
     );
 
