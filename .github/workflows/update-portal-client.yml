@@ -23,13 +23,26 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install latest @anuma/portal@next
-        run: pnpm add @anuma/portal@next
+      - name: Check latest @anuma/portal@next version
+        id: portal
+        run: |
+          LATEST=$(npm view @anuma/portal@next version)
+          CURRENT=$(node -e "console.log(require('./package.json').dependencies['@anuma/portal'])")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Latest: $LATEST"
+          echo "Current: $CURRENT"
+
+      - name: Install @anuma/portal@${{ steps.portal.outputs.latest }}
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
+        run: pnpm add @anuma/portal@${{ steps.portal.outputs.latest }}
 
       - name: Generate
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
         run: pnpm run generate
 
       - name: Check for client changes
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
         id: changes
         run: |
           if git diff --quiet src/client/; then
