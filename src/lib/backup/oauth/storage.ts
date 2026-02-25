@@ -8,7 +8,7 @@
 
 import { decryptData, encryptData } from "../../../react/useEncryption";
 
-export type OAuthProvider = "google-drive" | "dropbox";
+type OAuthProvider = "google-drive" | "dropbox";
 
 export interface StoredTokenData {
   accessToken: string;
@@ -20,7 +20,7 @@ export interface StoredTokenData {
 /**
  * OAuth error types for better error handling
  */
-export type OAuthErrorCode = "network" | "encryption" | "csrf" | "invalid_response" | "unknown";
+type OAuthErrorCode = "network" | "encryption" | "csrf" | "invalid_response" | "unknown";
 
 export interface OAuthError {
   code: OAuthErrorCode;

@@ -1,0 +1,78 @@
+name: Update Portal Client
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-client:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Check latest @anuma/portal@next version
+        id: portal
+        run: |
+          LATEST=$(npm view @anuma/portal@next version)
+          CURRENT=$(node -e "console.log(require('./package.json').dependencies['@anuma/portal'])")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Latest: $LATEST"
+          echo "Current: $CURRENT"
+
+      - name: Install @anuma/portal@${{ steps.portal.outputs.latest }}
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
+        run: pnpm add @anuma/portal@${{ steps.portal.outputs.latest }}
+
+      - name: Generate
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
+        run: pnpm run generate
+
+      - name: Check for client changes
+        if: steps.portal.outputs.latest != steps.portal.outputs.current
+        id: changes
+        run: |
+          if git diff --quiet src/client/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          BRANCH="chore/update-portal-client"
+          VERSION=$(node -e "console.log(require('./package.json').dependencies['@anuma/portal'])")
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "$BRANCH"
+          git add .
+          git commit -m "chore: update @anuma/portal to $VERSION"
+          git push --force origin "$BRANCH"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number -q '.[0].number')
+
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "chore: update @anuma/portal to $VERSION"
+          else
+            gh pr create \
+              --title "chore: update @anuma/portal to $VERSION" \
+              --body "Updates the generated client code from \`@anuma/portal@$VERSION\`." \
+              --head "$BRANCH" \
+              --base main
+          fi
