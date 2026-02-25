@@ -94,27 +94,20 @@ describe("Notion OAuth Auth", () => {
   });
 
   describe("hasNotionCredentials", () => {
-    it("returns false when no credentials exist", () => {
-      expect(hasNotionCredentials("0xWALLET")).toBe(false);
+    it("returns false when no credentials exist", async () => {
+      expect(await hasNotionCredentials("0xWALLET")).toBe(false);
     });
 
-    it("returns true when encrypted token exists in localStorage", () => {
-      localStorage.setItem("oauth_token_notion:0xWALLET", "enc:oauth:encrypted-token");
-
-      expect(hasNotionCredentials("0xWALLET")).toBe(true);
-    });
-
-    it("returns true when token exists in sessionStorage", () => {
+    it("returns true when token exists in sessionStorage", async () => {
       sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
-      expect(hasNotionCredentials()).toBe(true);
+      expect(await hasNotionCredentials()).toBe(true);
     });
 
-    it("returns true when token exists in both storages", () => {
-      localStorage.setItem("oauth_token_notion:0xWALLET", "enc:oauth:encrypted");
+    it("returns true when token exists in sessionStorage with wallet", async () => {
       sessionStorage.setItem("oauth_token_notion", JSON.stringify({ accessToken: "token" }));
 
-      expect(hasNotionCredentials("0xWALLET")).toBe(true);
+      expect(await hasNotionCredentials("0xWALLET")).toBe(true);
     });
   });
 

@@ -159,14 +159,8 @@ async function autoFilterClientTools(
 ): Promise<LlmapiChatCompletionTool[]> {
   // Memory tools are always included — only filter connector tools (Notion, Google)
   const isMemoryTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("memory_vault_");
-  const isNotionTool = (t: LlmapiChatCompletionTool) => getToolName(t).startsWith("notion-");
-  // notion-fetch is always included when any notion tool is present (user has Notion connected)
-  const hasAnyNotionTool = clientTools.some(isNotionTool);
-  const isNotionFetch = (t: LlmapiChatCompletionTool) => getToolName(t) === "notion-fetch";
-  const isAlwaysIncluded = (t: LlmapiChatCompletionTool) =>
-    isMemoryTool(t) || (hasAnyNotionTool && isNotionFetch(t));
-  const alwaysInclude = clientTools.filter(isAlwaysIncluded);
-  const filterCandidates = clientTools.filter((t) => !isAlwaysIncluded(t));
+  const alwaysInclude = clientTools.filter(isMemoryTool);
+  const filterCandidates = clientTools.filter((t) => !isMemoryTool(t));
 
   // Skip if no embeddings or too few filterable tools
   if (!promptEmbeddings || filterCandidates.length <= MAX_CLIENT_TOOLS_AFTER_FILTER) {
