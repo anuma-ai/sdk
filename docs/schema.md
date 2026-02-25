@@ -33,9 +33,9 @@ erDiagram
 - [history](#history)
 - [conversations](#conversations)
 - [projects](#projects)
-- [modelPreferences](#modelpreferences)
-- [userPreferences](#userpreferences)
-- [memory vault](#memory-vault)
+- [modelPreferences](#modelPreferences)
+- [userPreferences](#userPreferences)
+- [memory_vault](#memory_vault)
 - [media](#media)
 
 ## history
@@ -105,7 +105,7 @@ erDiagram
 | `created_at` | number |  |  |
 | `updated_at` | number |  |  |
 
-## memory vault
+## memory_vault
 
 | Column | Type | Indexed | Optional |
 |--------|------|---------|----------|
