@@ -29,7 +29,7 @@ function generateErDiagram(): string {
   lines.push("```mermaid");
   lines.push("erDiagram");
 
-  // Collect foreign key columns from associations
+  // Collect foreign key columns (only belongs_to side — the column that references another table)
   const foreignKeys = new Set<string>();
   for (const ModelClass of sdkModelClasses) {
     const model = ModelClass as any;
@@ -40,9 +40,6 @@ function generateErDiagram(): string {
     for (const assoc of Object.values(associations)) {
       if (assoc.type === "belongs_to" && assoc.key) {
         foreignKeys.add(`${tableName}.${assoc.key}`);
-      }
-      if (assoc.type === "has_many" && assoc.foreignKey) {
-        foreignKeys.add(`${tableName}.${assoc.foreignKey}`);
       }
     }
   }

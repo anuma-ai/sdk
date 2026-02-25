@@ -5,16 +5,16 @@ Current version: **v16**
 ```mermaid
 erDiagram
     history {
-        number message_id FK
+        number message_id
         string conversation_id FK
         string parent_message_id
     }
     conversations {
-        string conversation_id FK
+        string conversation_id
         string project_id FK
     }
     projects {
-        string project_id FK
+        string project_id
     }
     modelPreferences {
         string wallet_address
