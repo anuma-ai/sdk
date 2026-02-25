@@ -442,6 +442,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
         const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
         const connectorCallCount = { total: 0 };
+        let connectorLimitHit = false;
         while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
           toolIteration++;
 
@@ -536,6 +537,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               for (const [name] of executorMap) {
                 if (isConnectorTool(name)) executorMap.delete(name);
               }
+              connectorLimitHit = true;
             }
           }
 
@@ -771,6 +773,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
           // Loop continues: if currentAccumulator has more tool calls,
           // the while condition will trigger another iteration
+        }
+
+        // Append connector limit tip after all content has streamed
+        if (connectorLimitHit) {
+          const tip =
+            "\n\n> **Tip:** Switch to a **Thinking model** for more detailed results with connectors like Notion, Google Calendar, and Drive.\n";
+          if (onData) onData(tip);
+          if (globalOnData) globalOnData(tip);
+          currentAccumulator.content += tip;
         }
 
         // Build final response from the last accumulator (after all tool iterations)
