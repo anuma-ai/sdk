@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsSyncSnagData, PostApiV1CreditsSyncSnagErrors, PostApiV1CreditsSyncSnagResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
+import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsClaimTaskData, PostApiV1CreditsClaimTaskErrors, PostApiV1CreditsClaimTaskResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsSyncSnagData, PostApiV1CreditsSyncSnagErrors, PostApiV1CreditsSyncSnagResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -255,6 +255,22 @@ export const postApiV1CreditsClaimDaily = <ThrowOnError extends boolean = false>
 };
 
 /**
+ * Claim task reward
+ *
+ * Claims a one-time task reward (e.g., import memories from a chat provider). Each task can only be claimed once per account. The request must include the extracted memories as proof of import completion.
+ */
+export const postApiV1CreditsClaimTask = <ThrowOnError extends boolean = false>(options: Options<PostApiV1CreditsClaimTaskData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1CreditsClaimTaskResponses, PostApiV1CreditsClaimTaskErrors, ThrowOnError>({
+        url: '/api/v1/credits/claim-task',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
  * List available credit packs
  *
  * Returns available credit packs with prices fetched from Stripe. Pro users receive bonus credits on the same pack.
@@ -363,6 +379,18 @@ export const postApiV1SubscriptionsCancel = <ThrowOnError extends boolean = fals
 };
 
 /**
+ * Cancel scheduled downgrade
+ *
+ * Cancels a scheduled plan downgrade by releasing the Stripe Subscription Schedule, keeping the current plan active.
+ */
+export const postApiV1SubscriptionsCancelScheduledDowngrade = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SubscriptionsCancelScheduledDowngradeData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/cancel-scheduled-downgrade',
+        ...options
+    });
+};
+
+/**
  * Create checkout session
  *
  * Creates a Stripe Checkout Session for a subscription plan and returns the checkout URL. Identify the plan with either price_id directly, or tier ("starter"/"pro") + interval ("month"/"year").
@@ -415,6 +443,22 @@ export const postApiV1SubscriptionsRenew = <ThrowOnError extends boolean = false
     return (options?.client ?? client).post<PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsRenewErrors, ThrowOnError>({
         url: '/api/v1/subscriptions/renew',
         ...options
+    });
+};
+
+/**
+ * Schedule subscription downgrade
+ *
+ * Schedules a plan downgrade (tier or interval) to take effect at the end of the current billing period using Stripe Subscription Schedules.
+ */
+export const postApiV1SubscriptionsScheduleDowngrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsScheduleDowngradeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsScheduleDowngradeErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/schedule-downgrade',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
     });
 };
 

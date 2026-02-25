@@ -2,7 +2,7 @@
 
 > **HandlersHealthResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#232)
+Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#252)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:232](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:236](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#236)
+Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#256)
 
 Status indicates the service health status
 
@@ -20,7 +20,7 @@ Status indicates the service health status
 
 > `optional` **timestamp**: `number`
 
-Defined in: [src/client/types.gen.ts:240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#240)
+Defined in: [src/client/types.gen.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#260)
 
 Timestamp is the Unix timestamp of the response
 
@@ -30,6 +30,6 @@ Timestamp is the Unix timestamp of the response
 
 > `optional` **version**: `string`
 
-Defined in: [src/client/types.gen.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#244)
+Defined in: [src/client/types.gen.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#264)
 
 Version is the current API version

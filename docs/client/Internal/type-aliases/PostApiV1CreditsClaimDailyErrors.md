@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1947)
+Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1996)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1947](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1951](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1951)
+Defined in: [src/client/types.gen.ts:2000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2000)
 
 Already claimed today or invalid timezone
 
@@ -20,7 +20,7 @@ Already claimed today or invalid timezone
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1955](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1955)
+Defined in: [src/client/types.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2004)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1959)
+Defined in: [src/client/types.gen.ts:2008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2008)
 
 Account not found
 
@@ -40,6 +40,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1963)
+Defined in: [src/client/types.gen.ts:2012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2012)
 
 Internal Server Error

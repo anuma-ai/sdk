@@ -2,7 +2,7 @@
 
 > **HandlersListAppsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#251)
+Defined in: [src/client/types.gen.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#271)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **apps**: [`HandlersAppResponse`](HandlersAppResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#252)
+Defined in: [src/client/types.gen.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#272)
