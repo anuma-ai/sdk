@@ -64,15 +64,10 @@ jobs:
             echo '```'
           } > /tmp/comment.md
 
-      - name: Post or update comment
-        if: steps.changed.outputs.files != ''
+      - name: Post, update, or delete comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ ! -s /tmp/comment.md ]; then
-            exit 0
-          fi
-
           PR=${{ github.event.pull_request.number }}
           REPO=${{ github.repository }}
 
@@ -80,10 +75,17 @@ jobs:
             --jq '.[] | select(.body | contains("<!-- dependency-report -->")) | .id' \
             | head -1)
 
-          if [ -n "$EXISTING" ]; then
-            gh api "repos/${REPO}/issues/comments/${EXISTING}" \
-              -X PATCH -F body=@/tmp/comment.md
+          if [ -s /tmp/comment.md ]; then
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/${REPO}/issues/comments/${EXISTING}" \
+                -X PATCH -F body=@/tmp/comment.md
+            else
+              gh api "repos/${REPO}/issues/${PR}/comments" \
+                -X POST -F body=@/tmp/comment.md
+            fi
           else
-            gh api "repos/${REPO}/issues/${PR}/comments" \
-              -X POST -F body=@/tmp/comment.md
+            # No diagram — delete stale comment if one exists
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/${REPO}/issues/comments/${EXISTING}" -X DELETE
+            fi
           fi
