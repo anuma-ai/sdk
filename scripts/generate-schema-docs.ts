@@ -29,15 +29,46 @@ function generateErDiagram(): string {
   lines.push("```mermaid");
   lines.push("erDiagram");
 
+  // Collect foreign key columns from associations
+  const foreignKeys = new Set<string>();
+  for (const ModelClass of sdkModelClasses) {
+    const model = ModelClass as any;
+    const tableName: string = model.table;
+    const associations: Record<string, { type: string; key?: string; foreignKey?: string }> =
+      model.associations ?? {};
+
+    for (const assoc of Object.values(associations)) {
+      if (assoc.type === "belongs_to" && assoc.key) {
+        foreignKeys.add(`${tableName}.${assoc.key}`);
+      }
+      if (assoc.type === "has_many" && assoc.foreignKey) {
+        foreignKeys.add(`${tableName}.${assoc.foreignKey}`);
+      }
+    }
+  }
+
   const tables = Object.values(sdkSchema.tables) as any[];
 
-  // Emit entities with columns
+  // Emit entities with only key columns (identifiers + foreign keys)
   for (const table of tables) {
-    lines.push(`    ${table.name} {`);
-    for (const col of table.columnArray as any[]) {
-      lines.push(`        ${col.type} ${col.name}`);
+    const keyCols = (table.columnArray as any[]).filter(
+      (col: any) =>
+        col.name.endsWith("_id") ||
+        col.name === "wallet_address" ||
+        foreignKeys.has(`${table.name}.${col.name}`)
+    );
+
+    if (keyCols.length > 0) {
+      lines.push(`    ${table.name} {`);
+      for (const col of keyCols) {
+        const marker = foreignKeys.has(`${table.name}.${col.name}`) ? " FK" : "";
+        lines.push(`        ${col.type} ${col.name}${marker}`);
+      }
+      lines.push("    }");
+    } else {
+      lines.push(`    ${table.name} {`);
+      lines.push("    }");
     }
-    lines.push("    }");
   }
 
   // Emit relationships from model associations

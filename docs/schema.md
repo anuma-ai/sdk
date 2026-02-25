@@ -5,82 +5,30 @@ Current version: **v16**
 ```mermaid
 erDiagram
     history {
-        number message_id
-        string conversation_id
-        string role
-        string content
-        string model
-        string files
-        string file_ids
-        number created_at
-        number updated_at
-        string vector
-        string embedding_model
-        string chunks
-        string usage
-        string sources
-        number response_duration
-        boolean was_stopped
-        string error
-        string thought_process
-        string thinking
+        number message_id FK
+        string conversation_id FK
         string parent_message_id
-        string feedback
     }
     conversations {
-        string conversation_id
-        string title
-        string project_id
-        number created_at
-        number updated_at
-        boolean is_deleted
+        string conversation_id FK
+        string project_id FK
     }
     projects {
-        string project_id
-        string name
-        number created_at
-        number updated_at
-        boolean is_deleted
+        string project_id FK
     }
     modelPreferences {
         string wallet_address
-        string models
     }
     userPreferences {
         string wallet_address
-        string nickname
-        string occupation
-        string description
-        string models
-        string personality
-        number created_at
-        number updated_at
     }
     memory_vault {
-        string content
-        string scope
-        number created_at
-        number updated_at
-        boolean is_deleted
     }
     media {
         string media_id
         string wallet_address
-        string message_id
-        string conversation_id
-        string name
-        string mime_type
-        string media_type
-        number size
-        string role
-        string model
-        string source_url
-        string dimensions
-        number duration
-        string metadata
-        number created_at
-        number updated_at
-        boolean is_deleted
+        string message_id FK
+        string conversation_id FK
     }
     conversations ||--o{ history : ""
     history ||--o{ media : ""
