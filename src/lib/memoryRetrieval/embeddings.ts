@@ -430,7 +430,10 @@ export async function chunkAndEmbedAllMessages(
           );
           embeddedCount++;
         } catch (error) {
-          console.error(`Failed to save embedding for message ${shortMessages[i].uniqueId}:`, error);
+          console.error(
+            `Failed to save embedding for message ${shortMessages[i].uniqueId}:`,
+            error
+          );
         }
       }
     } catch (error) {

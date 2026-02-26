@@ -33,6 +33,16 @@ Base URL for the API
 
 ***
 
+### batchSize?
+
+> `optional` **batchSize**: `number`
+
+Defined in: [src/lib/memoryRetrieval/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#71)
+
+Max texts per API call for batch embeddings (default: 100). Larger arrays are split into chunks.
+
+***
+
 ### getToken()?
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>

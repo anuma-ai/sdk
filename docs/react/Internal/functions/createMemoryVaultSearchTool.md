@@ -2,7 +2,7 @@
 
 > **createMemoryVaultSearchTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `ToolConfig`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:180](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#180)
+Defined in: [src/lib/memoryVault/searchTool.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#201)
 
 Creates a memory vault search tool for use with chat completions.
 
