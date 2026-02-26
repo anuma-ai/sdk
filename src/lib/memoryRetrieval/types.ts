@@ -67,6 +67,8 @@ export interface EmbeddingOptions {
   baseUrl?: string;
   /** Embedding model to use */
   model?: string;
+  /** Max texts per API call for batch embeddings (default: 100). Larger arrays are split into chunks. */
+  batchSize?: number;
 }
 
 /**

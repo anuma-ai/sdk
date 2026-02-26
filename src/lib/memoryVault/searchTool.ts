@@ -99,32 +99,26 @@ export interface VaultSearchResult {
 }
 
 /**
- * Search vault memories by semantic similarity. Returns structured results
- * sorted by descending similarity, filtered by threshold and limit.
- *
- * This is the standalone search logic extracted from `createMemoryVaultSearchTool`
- * so it can be called programmatically (e.g., for pre-retrieval injection).
- *
- * @returns Sorted results (empty array on invalid input or empty vault)
+ * Internal search that also returns the vault size, avoiding a second vault load.
  */
-export async function searchVaultMemories(
+async function searchVaultMemoriesWithSize(
   query: string,
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
-): Promise<VaultSearchResult[]> {
+): Promise<{ results: VaultSearchResult[]; vaultSize: number }> {
   const limit = searchOptions?.limit ?? 5;
   const minSimilarity = searchOptions?.minSimilarity ?? 0.1;
   const scopes = searchOptions?.scopes;
 
   if (!query || typeof query !== "string") {
-    return [];
+    return { results: [], vaultSize: 0 };
   }
 
   const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
   if (memories.length === 0) {
-    return [];
+    return { results: [], vaultSize: 0 };
   }
 
   // Embed the query
@@ -160,7 +154,34 @@ export async function searchVaultMemories(
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
   scored.sort((a, b) => b.similarity - a.similarity);
-  return scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
+  const results = scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
+  return { results, vaultSize: memories.length };
+}
+
+/**
+ * Search vault memories by semantic similarity. Returns structured results
+ * sorted by descending similarity, filtered by threshold and limit.
+ *
+ * This is the standalone search logic extracted from `createMemoryVaultSearchTool`
+ * so it can be called programmatically (e.g., for pre-retrieval injection).
+ *
+ * @returns Sorted results (empty array on invalid input or empty vault)
+ */
+export async function searchVaultMemories(
+  query: string,
+  vaultCtx: VaultMemoryOperationsContext,
+  embeddingOptions: EmbeddingOptions,
+  cache: VaultEmbeddingCache,
+  searchOptions?: MemoryVaultSearchOptions
+): Promise<VaultSearchResult[]> {
+  const { results } = await searchVaultMemoriesWithSize(
+    query,
+    vaultCtx,
+    embeddingOptions,
+    cache,
+    searchOptions
+  );
+  return results;
 }
 
 /**
@@ -219,18 +240,19 @@ export function createMemoryVaultSearchTool(
       }
 
       try {
-        const results = await searchVaultMemories(query, vaultCtx, embeddingOptions, cache, {
-          ...searchOptions,
-          limit: requestLimit,
-          minSimilarity,
-        });
-
-        // Check if vault is empty (distinct from "no matches")
-        const memories = await getAllVaultMemoriesOp(
+        const { results, vaultSize } = await searchVaultMemoriesWithSize(
+          query,
           vaultCtx,
-          searchOptions?.scopes?.length ? { scopes: searchOptions.scopes } : undefined
+          embeddingOptions,
+          cache,
+          {
+            ...searchOptions,
+            limit: requestLimit,
+            minSimilarity,
+          }
         );
-        if (memories.length === 0) {
+
+        if (vaultSize === 0) {
           return "The memory vault is empty. No memories have been saved yet.";
         }
 

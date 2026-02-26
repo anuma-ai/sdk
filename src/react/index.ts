@@ -210,9 +210,11 @@ export type { UseProjectsOptions, UseProjectsResult } from "./useProjects";
 export { useProjects } from "./useProjects";
 // Memory vault
 export {
+  createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
   deleteVaultMemoryOp,
+  getAllVaultMemoryContentsOp,
   getAllVaultMemoriesOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
