@@ -2,7 +2,7 @@
 
 > **HandlersSeedAppsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#329)
+Defined in: [src/client/types.gen.ts:288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#288)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:329](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **apps**: [`HandlersSeedAppInput`](HandlersSeedAppInput.md)\[]
 
-Defined in: [src/client/types.gen.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#330)
+Defined in: [src/client/types.gen.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#289)

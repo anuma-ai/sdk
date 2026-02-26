@@ -82,10 +82,6 @@ export type HandlersAppResponse = {
     updated_at?: string;
 };
 
-export type HandlersCancelScheduledDowngradeResponse = {
-    message?: string;
-};
-
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
@@ -106,18 +102,6 @@ export type HandlersClaimDailyCreditsResponse = {
      * ISO8601 timestamp when next claim is available
      */
     next_claim_at?: string;
-    success?: boolean;
-};
-
-export type HandlersClaimTaskRewardRequest = {
-    memories?: Array<string>;
-    task_type?: string;
-};
-
-export type HandlersClaimTaskRewardResponse = {
-    already_claimed?: boolean;
-    credits_awarded?: number;
-    message?: string;
     success?: boolean;
 };
 
@@ -189,10 +173,6 @@ export type HandlersCreditBalanceResponse = {
      */
     available_credits?: number;
     can_claim_daily?: boolean;
-    /**
-     * Which import providers have been claimed
-     */
-    claimed_import_rewards?: Array<string>;
     /**
      * Whether enrolled on-chain
      */
@@ -285,27 +265,6 @@ export type HandlersRevokeRequest = {
     token: string;
 };
 
-export type HandlersScheduleDowngradeRequest = {
-    /**
-     * "month" or "year"; defaults to current interval
-     */
-    interval?: string;
-    /**
-     * target tier, e.g. "starter"
-     */
-    tier?: string;
-};
-
-export type HandlersScheduleDowngradeResponse = {
-    current_period_end?: number;
-    message?: string;
-    /**
-     * "month" or "year"
-     */
-    scheduled_interval?: string;
-    scheduled_plan?: string;
-};
-
 export type HandlersSeedApiKeyInput = {
     is_active?: boolean;
     /**
@@ -388,14 +347,6 @@ export type HandlersSubscriptionStatusResponse = {
      * "free" | "starter" | "pro"
      */
     plan?: string;
-    /**
-     * billing interval of the scheduled plan
-     */
-    scheduled_interval?: string;
-    /**
-     * tier user will switch to at period end
-     */
-    scheduled_plan?: string;
     /**
      * "none" | "active" | "canceling" | "past_due" | "canceled"
      */
@@ -2023,42 +1974,6 @@ export type PostApiV1CreditsClaimDailyResponses = {
 
 export type PostApiV1CreditsClaimDailyResponse = PostApiV1CreditsClaimDailyResponses[keyof PostApiV1CreditsClaimDailyResponses];
 
-export type PostApiV1CreditsClaimTaskData = {
-    /**
-     * Task to claim
-     */
-    body: HandlersClaimTaskRewardRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/credits/claim-task';
-};
-
-export type PostApiV1CreditsClaimTaskErrors = {
-    /**
-     * Invalid task type or already claimed
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1CreditsClaimTaskError = PostApiV1CreditsClaimTaskErrors[keyof PostApiV1CreditsClaimTaskErrors];
-
-export type PostApiV1CreditsClaimTaskResponses = {
-    /**
-     * OK
-     */
-    200: HandlersClaimTaskRewardResponse;
-};
-
-export type PostApiV1CreditsClaimTaskResponse = PostApiV1CreditsClaimTaskResponses[keyof PostApiV1CreditsClaimTaskResponses];
-
 export type GetApiV1CreditsPacksData = {
     body?: never;
     path?: never;
@@ -2326,39 +2241,6 @@ export type PostApiV1SubscriptionsCancelResponses = {
 
 export type PostApiV1SubscriptionsCancelResponse = PostApiV1SubscriptionsCancelResponses[keyof PostApiV1SubscriptionsCancelResponses];
 
-export type PostApiV1SubscriptionsCancelScheduledDowngradeData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/cancel-scheduled-downgrade';
-};
-
-export type PostApiV1SubscriptionsCancelScheduledDowngradeErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsCancelScheduledDowngradeError = PostApiV1SubscriptionsCancelScheduledDowngradeErrors[keyof PostApiV1SubscriptionsCancelScheduledDowngradeErrors];
-
-export type PostApiV1SubscriptionsCancelScheduledDowngradeResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCancelScheduledDowngradeResponse;
-};
-
-export type PostApiV1SubscriptionsCancelScheduledDowngradeResponse = PostApiV1SubscriptionsCancelScheduledDowngradeResponses[keyof PostApiV1SubscriptionsCancelScheduledDowngradeResponses];
-
 export type PostApiV1SubscriptionsCreateCheckoutSessionData = {
     /**
      * Checkout session request with redirect URLs
@@ -2496,46 +2378,6 @@ export type PostApiV1SubscriptionsRenewResponses = {
 };
 
 export type PostApiV1SubscriptionsRenewResponse = PostApiV1SubscriptionsRenewResponses[keyof PostApiV1SubscriptionsRenewResponses];
-
-export type PostApiV1SubscriptionsScheduleDowngradeData = {
-    /**
-     * Downgrade request with target tier and optional interval
-     */
-    body: HandlersScheduleDowngradeRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/subscriptions/schedule-downgrade';
-};
-
-export type PostApiV1SubscriptionsScheduleDowngradeErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1SubscriptionsScheduleDowngradeError = PostApiV1SubscriptionsScheduleDowngradeErrors[keyof PostApiV1SubscriptionsScheduleDowngradeErrors];
-
-export type PostApiV1SubscriptionsScheduleDowngradeResponses = {
-    /**
-     * OK
-     */
-    200: HandlersScheduleDowngradeResponse;
-};
-
-export type PostApiV1SubscriptionsScheduleDowngradeResponse = PostApiV1SubscriptionsScheduleDowngradeResponses[keyof PostApiV1SubscriptionsScheduleDowngradeResponses];
 
 export type GetApiV1SubscriptionsStatusData = {
     body?: never;

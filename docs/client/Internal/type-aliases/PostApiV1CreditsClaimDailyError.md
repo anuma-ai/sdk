@@ -2,4 +2,4 @@
 
 > **PostApiV1CreditsClaimDailyError** = [`PostApiV1CreditsClaimDailyErrors`](PostApiV1CreditsClaimDailyErrors.md)\[keyof [`PostApiV1CreditsClaimDailyErrors`](PostApiV1CreditsClaimDailyErrors.md)]
 
-Defined in: [src/client/types.gen.ts:2015](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2015)
+Defined in: [src/client/types.gen.ts:1966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1966)
