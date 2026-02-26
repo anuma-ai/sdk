@@ -7,6 +7,8 @@
  * CloudKit JS is loaded dynamically when needed.
  */
 
+import { getLogger } from "../../logger";
+
 /** CloudKit JS CDN URL */
 const CLOUDKIT_JS_URL = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js";
 
@@ -286,24 +288,24 @@ export async function requestICloudSignIn(): Promise<CloudKitUserIdentity> {
   }
 
   // Debug: log what CloudKit rendered
-  console.log("[CloudKit] Sign-in container innerHTML:", signIn.innerHTML);
-  console.log("[CloudKit] Sign-in container children:", signIn.children.length);
+  getLogger().debug("[CloudKit] Sign-in container innerHTML:", signIn.innerHTML);
+  getLogger().debug("[CloudKit] Sign-in container children:", signIn.children.length);
 
   // Find and click the Apple sign-in button that was rendered by setUpAuth
   // CloudKit JS renders an anchor or button inside the container
   const appleButton = signIn.querySelector<HTMLElement>(
     "a, button, [role='button'], div[id*='apple']"
   );
-  console.log("[CloudKit] Found button element:", appleButton);
+  getLogger().debug("[CloudKit] Found button element:", appleButton);
 
   if (appleButton) {
-    console.log("[CloudKit] Clicking button...");
+    getLogger().debug("[CloudKit] Clicking button...");
     appleButton.click();
   } else {
     // Try clicking any clickable element in the container
     const anyClickable = signIn.firstElementChild as HTMLElement | null;
     if (anyClickable) {
-      console.log("[CloudKit] Clicking first child element:", anyClickable);
+      getLogger().debug("[CloudKit] Clicking first child element:", anyClickable);
       anyClickable.click();
     }
   }

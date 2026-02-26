@@ -1,5 +1,7 @@
 import { Q } from "@nozbe/watermelondb";
 
+import { getLogger } from "../../logger";
+
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { deleteEncryptedFile, isOPFSSupported } from "../../storage";
 import { decryptMediaFields, encryptMediaFields } from "./encryption";
@@ -558,7 +560,7 @@ export async function getMediaByIdsOp(
   return settled
     .filter((r): r is PromiseFulfilledResult<StoredMedia> => {
       if (r.status === "rejected") {
-        console.warn("[getMediaByIdsOp] Failed to decrypt media record:", r.reason);
+        getLogger().warn("[getMediaByIdsOp] Failed to decrypt media record:", r.reason);
       }
       return r.status === "fulfilled";
     })

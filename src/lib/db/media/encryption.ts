@@ -1,5 +1,6 @@
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import {
   decryptField,
   decryptJsonField,
@@ -60,7 +61,7 @@ export async function encryptMediaFields(
       }),
     };
   } catch (error) {
-    console.warn("Failed to encrypt media fields:", error);
+    getLogger().warn("Failed to encrypt media fields:", error);
     throw error;
   }
 }
@@ -82,7 +83,7 @@ export async function decryptMediaFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn(
+      getLogger().warn(
         "[decryptMediaFields] Failed to request encryption key, returning raw media:",
         error
       );

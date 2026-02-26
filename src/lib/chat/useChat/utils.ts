@@ -4,6 +4,7 @@ import type {
   LlmapiMessageContentPart,
   LlmapiResponseResponse,
 } from "../../../client";
+import { getLogger } from "../../logger";
 import type {
   AccumulatedToolCall,
   StreamAccumulator,
@@ -387,7 +388,7 @@ export function parseReasoningTags(
   // Check for all supported tag formats
   for (const tagFormat of REASONING_TAG_FORMATS) {
     if (messageContent.includes(tagFormat.open) || messageContent.includes(tagFormat.close)) {
-      console.warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
+      getLogger().warn("[parseReasoningTags] Warning: Tag found in messageContent, removing");
       messageContent = messageContent.replace(
         new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
         ""
@@ -398,7 +399,7 @@ export function parseReasoningTags(
       );
     }
     if (reasoningContent.includes(tagFormat.open) || reasoningContent.includes(tagFormat.close)) {
-      console.warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
+      getLogger().warn("[parseReasoningTags] Warning: Tag found in reasoningContent, removing");
       reasoningContent = reasoningContent.replace(
         new RegExp(tagFormat.open.replace(/[<>/]/g, "\\$&"), "g"),
         ""

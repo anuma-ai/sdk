@@ -130,6 +130,7 @@ const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+import { getLogger } from "../lib/logger";
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -860,7 +861,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
           break;
         default:
-          console.warn(`[QueueManager] Unknown operation type: ${operation.type}`);
+          getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
       }
     },
     [storageCtx]
@@ -911,7 +912,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     return onKeyAvailable(walletAddress, () => {
       // Fire and forget the flush
       flushQueue().catch((err) => {
-        console.warn("[useChatStorage] Auto-flush failed:", err);
+        getLogger().warn("[useChatStorage] Auto-flush failed:", err);
       });
     });
   }, [walletAddress, enableQueue, autoFlushOnKeyAvailable, signMessage, flushQueue]);
@@ -999,7 +1000,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
         if (queueId === null) {
           // Queue full — fall back to direct write with warning
-          console.warn("[useChatStorage] Queue full, falling back to direct write");
+          getLogger().warn("[useChatStorage] Queue full, falling back to direct write");
           const result = await directWrite();
           return { result, queued: false };
         }
@@ -1049,7 +1050,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       } catch (err) {
         // Non-fatal: log but don't fail the message save
-        console.warn("[useChatStorage] Failed to embed message:", err);
+        getLogger().warn("[useChatStorage] Failed to embed message:", err);
       }
     },
     [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
@@ -1699,7 +1700,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               dimensions,
             });
           } else {
-            console.warn(
+            getLogger().warn(
               "[extractAndStoreEncryptedMCPImages] Failed to download image:",
               url,
               result.reason
@@ -1721,7 +1722,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
             createdMediaIds = createdMedia.map((m) => m.mediaId);
           } catch (err) {
-            console.error(
+            getLogger().error(
               "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
               err
             );
@@ -2150,7 +2151,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
         } catch (err) {
-          console.warn(
+          getLogger().warn(
             "[sendMessage] Failed to resolve media for history (image URLs will be missing):",
             err
           );

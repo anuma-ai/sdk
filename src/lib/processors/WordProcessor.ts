@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 
+import { getLogger } from "../logger";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
@@ -33,7 +34,7 @@ export class WordProcessor implements FileProcessor {
         },
       };
     } catch (error) {
-      console.error("Error processing Word document:", error);
+      getLogger().error("Error processing Word document:", error);
       throw error;
     }
   }

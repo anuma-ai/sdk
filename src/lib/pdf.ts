@@ -1,5 +1,7 @@
 import * as pdfjs from "pdfjs-dist";
 
+import { getLogger } from "./logger";
+
 // Configure worker - using CDN to avoid bundler-specific worker configuration
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -23,7 +25,7 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
 
     return textParts.join("\n\n");
   } catch (error) {
-    console.error("Error extracting text from PDF:", error);
+    getLogger().error("Error extracting text from PDF:", error);
     throw error;
   }
 }
@@ -55,7 +57,7 @@ export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> 
       images.push(canvas.toDataURL("image/png"));
     }
   } catch (error) {
-    console.error("Error converting PDF to images:", error);
+    getLogger().error("Error converting PDF to images:", error);
     throw error;
   }
 

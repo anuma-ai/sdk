@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LlmapiMessage } from "../client";
 import { BASE_URL } from "../clientConfig";
+import { getLogger } from "../lib/logger";
 import {
   type AccumulatedToolCall,
   type ApiType,
@@ -350,22 +351,22 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
               // Check for tool calls and handle them
               if (accumulator.toolCalls.size > 0) {
-                console.log("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
+                getLogger().debug("[Tool Debug] Found", accumulator.toolCalls.size, "tool calls");
                 const executorMap = createToolExecutorMap(tools);
                 const toolCallsToExecute: AccumulatedToolCall[] = [];
 
                 // Determine which tools to execute vs emit as events
                 for (const toolCall of accumulator.toolCalls.values()) {
-                  console.log("[Tool Debug] Processing tool call:", toolCall.name);
+                  getLogger().debug("[Tool Debug] Processing tool call:", toolCall.name);
                   const executorConfig = executorMap.get(toolCall.name);
 
                   if (executorConfig && executorConfig.autoExecute) {
                     // Will execute automatically
-                    console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+                    getLogger().debug("[Tool Debug] Will auto-execute:", toolCall.name);
                     toolCallsToExecute.push(toolCall);
                   } else {
                     // Emit event for manual handling
-                    console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
+                    getLogger().debug("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
                     if (onToolCall) {
                       onToolCall({
                         id: toolCall.id,
@@ -381,7 +382,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
 
                 // If we have tools to auto-execute, execute them and continue
                 if (toolCallsToExecute.length > 0) {
-                  console.log("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
+                  getLogger().debug("[Tool Debug] Executing", toolCallsToExecute.length, "tools");
                   try {
                     // Execute all tools in parallel
                     const executionResults = await Promise.all(
@@ -400,7 +401,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           executorConfig.executor
                         );
 
-                        console.log("[Tool Debug] Tool execution result for", toolCall.name, ":", {
+                        getLogger().debug("[Tool Debug] Tool execution result for", toolCall.name, ":", {
                           result,
                           error,
                         });
@@ -414,7 +415,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                       })
                     );
 
-                    console.log(
+                    getLogger().debug(
                       "[Tool Debug] All tools executed, results:",
                       executionResults.length
                     );
@@ -638,7 +639,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           });
 
           // Debug: Log the full request body to see image format
-          console.log("[useChat] Request body:", JSON.stringify(requestBody, null, 2));
+          getLogger().debug("[useChat] Request body:", JSON.stringify(requestBody, null, 2));
 
           xhr.send(JSON.stringify(requestBody));
         });

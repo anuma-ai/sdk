@@ -39,6 +39,7 @@ import {
   requestICloudSignIn,
 } from "../lib/backup/icloud/api";
 import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
+import { getLogger } from "../lib/logger";
 
 /**
  * Props for BackupAuthProvider
@@ -248,7 +249,7 @@ export function BackupAuthProvider({
         if (result.ok) {
           setDropboxToken(result.data);
         } else {
-          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
+          getLogger().error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };
@@ -270,7 +271,7 @@ export function BackupAuthProvider({
         if (result.ok) {
           setGoogleToken(result.data);
         } else {
-          console.error(
+          getLogger().error(
             `Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`
           );
         }

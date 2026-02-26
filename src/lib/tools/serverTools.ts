@@ -9,6 +9,7 @@ import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryRetrieval/chunking";
 import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
+import { getLogger } from "../logger";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -279,7 +280,7 @@ function cacheServerTools(tools: ServerTool[], checksum?: string): void {
   } catch (error) {
     // localStorage might be full or disabled - log but don't throw
 
-    console.warn("[serverTools] Failed to cache tools:", error);
+    getLogger().warn("[serverTools] Failed to cache tools:", error);
   }
 }
 
@@ -400,7 +401,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     }
 
     if (!getToken) {
-      console.warn("[serverTools] No auth method available for fetching tools");
+      getLogger().warn("[serverTools] No auth method available for fetching tools");
       return cached?.tools ?? [];
     }
 
@@ -408,7 +409,7 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     if (!token) {
       // No token available - return cached if available, otherwise empty
 
-      console.warn("[serverTools] No auth token available for fetching tools");
+      getLogger().warn("[serverTools] No auth token available for fetching tools");
       return cached?.tools ?? [];
     }
 
@@ -416,11 +417,11 @@ export async function getServerTools(options: ServerToolsOptions): Promise<Serve
     cacheServerTools(tools, checksum);
     return tools;
   } catch (error) {
-    console.error("[serverTools] Failed to fetch server tools:", error);
+    getLogger().error("[serverTools] Failed to fetch server tools:", error);
 
     // Stale-while-error: return cached tools if available
     if (cached?.tools) {
-      console.warn("[serverTools] Using stale cached tools due to fetch error");
+      getLogger().warn("[serverTools] Using stale cached tools due to fetch error");
       return cached.tools;
     }
 

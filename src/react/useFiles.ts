@@ -47,6 +47,7 @@ import {
   readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
+import { getLogger } from "../lib/logger";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
 
 /**
@@ -214,7 +215,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         setMediaCollection(coll);
         setIsReady(true);
       } catch (error) {
-        console.error("[useFiles] Failed to initialize collection:", error);
+        getLogger().error("[useFiles] Failed to initialize collection:", error);
         setIsReady(false);
       } finally {
         setIsLoading(false);
@@ -541,7 +542,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
           });
         } catch (error) {
           // If encrypted read fails, fall back to legacy storage
-          console.warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
+          getLogger().warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
         }
       }
 
@@ -574,7 +575,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const file = await readFile(mediaId);
         return blobUrlManager.createUrl(mediaId, file);
       } catch (error) {
-        console.error(`[useFiles] Failed to create blob URL for ${mediaId}:`, error);
+        getLogger().error(`[useFiles] Failed to create blob URL for ${mediaId}:`, error);
         return null;
       }
     },
@@ -612,7 +613,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const encryptionKey = await getEncryptionKey(walletAddress);
         return resolveFilePlaceholdersOp(content, encryptionKey, blobUrlManager);
       } catch (error) {
-        console.error("[useFiles] Failed to resolve file placeholders:", error);
+        getLogger().error("[useFiles] Failed to resolve file placeholders:", error);
         return content;
       }
     },

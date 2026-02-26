@@ -1,5 +1,6 @@
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import { decryptField, encryptField } from "../encryption-utils";
 import type { StoredVaultMemory } from "./types";
 
@@ -43,7 +44,7 @@ export async function decryptVaultMemoryFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn("Failed to request encryption key for vault decryption:", error);
+      getLogger().warn("Failed to request encryption key for vault decryption:", error);
     }
   }
 
