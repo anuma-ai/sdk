@@ -1,5 +1,5 @@
 /**
- * Memory Retrieval Module
+ * Memory Engine Module
  *
  * Provides semantic search over past conversation messages.
  * This enables LLMs to retrieve relevant context from previous conversations
@@ -8,13 +8,13 @@
  * @example
  * ```ts
  * import {
- *   createMemoryRetrievalTool,
+ *   createMemoryEngineTool,
  *   embedMessage,
  *   embedAllMessages,
- * } from "@anthropic/sdk/lib/memoryRetrieval";
+ * } from "@anuma/sdk/lib/memoryEngine";
  *
  * // Create a tool for LLM to search past conversations
- * const tool = createMemoryRetrievalTool(
+ * const tool = createMemoryEngineTool(
  *   storageCtx,
  *   { getToken: () => getIdentityToken() }
  * );
@@ -44,9 +44,9 @@ export {
   generateEmbedding,
   generateEmbeddings,
 } from "./embeddings";
-export { createMemoryRetrievalTool } from "./tool";
+export { createMemoryEngineTool } from "./tool";
 export type {
   EmbeddingOptions,
-  MemoryRetrievalResult,
-  MemoryRetrievalSearchOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
 } from "./types";

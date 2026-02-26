@@ -1,16 +1,16 @@
 /**
- * Memory Retrieval Types
+ * Memory Engine Types
  *
- * Types for the memory retrieval feature that allows semantic search
+ * Types for the memory engine that allows semantic search
  * across past conversation messages.
  */
 
 import type { StorageOperationsContext } from "../db/chat/operations";
 
 /**
- * Options for memory retrieval search
+ * Options for memory engine search
  */
-export interface MemoryRetrievalSearchOptions {
+export interface MemoryEngineSearchOptions {
   /** Maximum number of results to return (default: 8) */
   limit?: number;
   /** Alias for limit - number of chunks to return (default: 8) */
@@ -34,7 +34,7 @@ export interface MemoryRetrievalSearchOptions {
 /**
  * A retrieved message with similarity score
  */
-export interface MemoryRetrievalResult {
+export interface MemoryEngineResult {
   /** Message content */
   content: string;
   /** Role of the message sender */
@@ -72,9 +72,9 @@ export interface EmbeddingOptions {
 }
 
 /**
- * Context required for memory retrieval operations
+ * Context required for memory engine operations
  */
-interface MemoryRetrievalContext {
+interface MemoryEngineContext {
   /** Storage operations context */
   storageCtx: StorageOperationsContext;
   /** Embedding options */
@@ -82,9 +82,9 @@ interface MemoryRetrievalContext {
 }
 
 /**
- * Tool configuration for memory retrieval
+ * Tool configuration for memory engine
  */
-interface MemoryRetrievalToolConfig {
+interface MemoryEngineToolConfig {
   /** Tool name */
   name: string;
   /** Tool description */

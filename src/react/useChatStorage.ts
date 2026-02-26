@@ -77,14 +77,14 @@ import {
 } from "../lib/db/queue";
 import {
   chunkText,
-  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
   generateEmbeddings,
-  type MemoryRetrievalSearchOptions,
+  type MemoryEngineSearchOptions,
   shouldChunkMessage,
-} from "../lib/memoryRetrieval";
+} from "../lib/memoryEngine";
 import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
@@ -129,7 +129,7 @@ const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 // Minimum similarity for client tool semantic matching
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
 import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -555,7 +555,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
     limit?: number;
   }) => Promise<StoredFileWithContext[]>;
   /**
-   * Create a memory retrieval tool for LLM to search past conversations.
+   * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
    *
    * @param searchOptions - Optional search configuration (limit, minSimilarity, etc.)
@@ -563,14 +563,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    *
    * @example
    * ```ts
-   * const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+   * const memoryTool = createMemoryEngineTool({ limit: 5 });
    * await sendMessage({
    *   messages: [...],
    *   clientTools: [memoryTool],
    * });
    * ```
    */
-  createMemoryRetrievalTool: (searchOptions?: Partial<MemoryRetrievalSearchOptions>) => ToolConfig;
+  createMemoryEngineTool: (searchOptions?: Partial<MemoryEngineSearchOptions>) => ToolConfig;
 
   /**
    * Create a memory vault tool for LLM to save/update persistent memories.
@@ -1063,14 +1063,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Create a memory retrieval tool pre-configured with hook's context and auth
+   * Create a memory engine tool pre-configured with hook's context and auth
    */
-  const createMemoryRetrievalTool = useCallback(
-    (searchOptions?: Partial<MemoryRetrievalSearchOptions>): ToolConfig => {
+  const createMemoryEngineTool = useCallback(
+    (searchOptions?: Partial<MemoryEngineSearchOptions>): ToolConfig => {
       if (!getToken) {
-        throw new Error("getToken is required for memory retrieval tool");
+        throw new Error("getToken is required for memory engine tool");
       }
-      return createMemoryRetrievalToolBase(
+      return createMemoryEngineToolBase(
         storageCtx,
         { getToken, baseUrl, model: embeddingModel },
         searchOptions
@@ -2767,7 +2767,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     deleteConversation,
     getMessages,
     getAllFiles,
-    createMemoryRetrievalTool,
+    createMemoryEngineTool,
     createMemoryVaultTool,
     createMemoryVaultSearchTool,
     searchVaultMemories: searchVaultMemoriesFn,

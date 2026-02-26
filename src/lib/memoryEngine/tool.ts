@@ -1,5 +1,5 @@
 /**
- * Memory Retrieval Tool
+ * Memory Engine Tool
  *
  * Provides a tool for LLMs to search through past conversation messages
  * using semantic similarity.
@@ -9,12 +9,12 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { searchChunksOp } from "../db/chat/operations";
 import { generateEmbedding } from "./embeddings";
-import type { EmbeddingOptions, MemoryRetrievalSearchOptions } from "./types";
+import type { EmbeddingOptions, MemoryEngineSearchOptions } from "./types";
 
 /**
  * Default search options
  */
-const DEFAULT_SEARCH_OPTIONS: Required<MemoryRetrievalSearchOptions> = {
+const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   limit: 8,
   topK: 8,
   minSimilarity: 0.3,
@@ -59,7 +59,7 @@ function formatSearchResults(
 }
 
 /**
- * Creates a memory retrieval tool for use with chat completions.
+ * Creates a memory engine tool for use with chat completions.
  *
  * The tool allows the LLM to search through past conversation messages
  * using semantic similarity. Messages must have embeddings stored to be searchable.
@@ -71,7 +71,7 @@ function formatSearchResults(
  *
  * @example
  * ```ts
- * const tool = createMemoryRetrievalTool(
+ * const tool = createMemoryEngineTool(
  *   storageCtx,
  *   { getToken: () => getIdentityToken() },
  *   { limit: 5, minSimilarity: 0.4 }
@@ -84,10 +84,10 @@ function formatSearchResults(
  * });
  * ```
  */
-export function createMemoryRetrievalTool(
+export function createMemoryEngineTool(
   storageCtx: StorageOperationsContext,
   embeddingOptions: EmbeddingOptions,
-  searchOptions?: Partial<MemoryRetrievalSearchOptions>
+  searchOptions?: Partial<MemoryEngineSearchOptions>
 ): ToolConfig {
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
 

@@ -353,20 +353,20 @@ export { useModels } from "./useModels";
 export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
 export { useSubscription } from "./useSubscription";
 
-// Memory retrieval (semantic search over past messages)
+// Memory engine (semantic search over past messages)
 export type {
   ChunkingOptions,
-  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
-  MemoryRetrievalResult,
-  MemoryRetrievalSearchOptions,
+  EmbeddingOptions as MemoryEngineEmbeddingOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
   TextChunk,
-} from "../lib/memoryRetrieval";
+} from "../lib/memoryEngine";
 export {
   chunkAndEmbedAllMessages,
   // Chunking functions for sub-message semantic search
   chunkAndEmbedMessage,
   chunkText,
-  createMemoryRetrievalTool,
+  createMemoryEngineTool,
   DEFAULT_CHUNK_OVERLAP,
   DEFAULT_CHUNK_SIZE,
   DEFAULT_MIN_CHUNK_SIZE,
@@ -375,7 +375,7 @@ export {
   generateEmbedding,
   generateEmbeddings,
   shouldChunkMessage,
-} from "../lib/memoryRetrieval";
+} from "../lib/memoryEngine";
 
 // Server-side tools caching utilities
 export type { DropboxExportResult, DropboxImportResult } from "../lib/backup/dropbox/backup";

@@ -8,19 +8,19 @@ import {
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
-import type { EmbeddingOptions } from "../memoryRetrieval/types";
+import type { EmbeddingOptions } from "../memoryEngine/types";
 
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
 }));
 
-vi.mock("../memoryRetrieval/embeddings", () => ({
+vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbedding: vi.fn(),
   generateEmbeddings: vi.fn(),
 }));
 
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
-import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 const mockEmbeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
