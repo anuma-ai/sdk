@@ -146,10 +146,12 @@ export {
 
 // Memory vault
 export {
+  createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,

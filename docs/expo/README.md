@@ -172,6 +172,12 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createVaultMemoriesBatchOp
+
+Re-exports [createVaultMemoriesBatchOp](../react/Internal/functions/createVaultMemoriesBatchOp.md)
+
+***
+
 ### createVaultMemoryOp
 
 Re-exports [createVaultMemoryOp](../react/Internal/functions/createVaultMemoryOp.md)
@@ -265,6 +271,12 @@ Re-exports [generateEmbeddings](../react/Internal/functions/generateEmbeddings.m
 ### getAllVaultMemoriesOp
 
 Re-exports [getAllVaultMemoriesOp](../react/Internal/functions/getAllVaultMemoriesOp.md)
+
+***
+
+### getAllVaultMemoryContentsOp
+
+Re-exports [getAllVaultMemoryContentsOp](../react/Internal/functions/getAllVaultMemoryContentsOp.md)
 
 ***
 

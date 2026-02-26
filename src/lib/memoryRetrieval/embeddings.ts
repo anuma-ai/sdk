@@ -81,44 +81,21 @@ export async function generateEmbedding(
   return response.data.data[0].embedding;
 }
 
+const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
+const DEFAULT_EMBEDDING_BATCH_CONCURRENCY = 3;
+
 /**
- * Generate embeddings for multiple texts in a single API call
- *
- * More efficient than calling generateEmbedding multiple times.
- * Supports the same auth methods as generateEmbedding.
- *
- * @param texts - Array of texts to embed
- * @param options - Embedding options
- * @returns Array of embeddings in the same order as input texts
+ * Make a single batch embedding API call.
  */
-export async function generateEmbeddings(
+async function generateEmbeddingsBatch(
   texts: string[],
-  options: EmbeddingOptions
+  headers: Record<string, string>,
+  baseUrl: string,
+  model: string
 ): Promise<number[][]> {
-  if (texts.length === 0) return [];
-
-  const { baseUrl = BASE_URL, getToken, apiKey, model } = options;
-
-  // Build auth headers - prefer apiKey if provided
-  let headers: Record<string, string>;
-  if (apiKey) {
-    headers = { "X-API-Key": apiKey };
-  } else if (getToken) {
-    const token = await getToken();
-    if (!token) {
-      throw new Error("No token available for embedding generation");
-    }
-    headers = { Authorization: `Bearer ${token}` };
-  } else {
-    throw new Error("Either apiKey or getToken must be provided");
-  }
-
   const response = await postApiV1Embeddings({
     baseUrl,
-    body: {
-      input: texts,
-      model: model ?? DEFAULT_API_EMBEDDING_MODEL,
-    },
+    body: { input: texts, model },
     headers,
   });
 
@@ -134,8 +111,74 @@ export async function generateEmbeddings(
     throw new Error("No embeddings returned from API");
   }
 
-  // Return embeddings in the same order as input texts
   return response.data.data.map((item) => item.embedding ?? []);
+}
+
+/**
+ * Generate embeddings for multiple texts, automatically chunking large inputs.
+ *
+ * More efficient than calling generateEmbedding multiple times.
+ * Supports the same auth methods as generateEmbedding.
+ * For inputs larger than batchSize (default 100), splits into chunks
+ * processed with bounded concurrency (3 concurrent batches).
+ *
+ * @param texts - Array of texts to embed
+ * @param options - Embedding options
+ * @returns Array of embeddings in the same order as input texts
+ */
+export async function generateEmbeddings(
+  texts: string[],
+  options: EmbeddingOptions
+): Promise<number[][]> {
+  if (texts.length === 0) return [];
+
+  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize } = options;
+  const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
+
+  // Build auth headers - prefer apiKey if provided
+  let headers: Record<string, string>;
+  if (apiKey) {
+    headers = { "X-API-Key": apiKey };
+  } else if (getToken) {
+    const token = await getToken();
+    if (!token) {
+      throw new Error("No token available for embedding generation");
+    }
+    headers = { Authorization: `Bearer ${token}` };
+  } else {
+    throw new Error("Either apiKey or getToken must be provided");
+  }
+
+  const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
+
+  // Small inputs: single API call (preserves existing behavior)
+  if (texts.length <= chunkSize) {
+    return generateEmbeddingsBatch(texts, headers, baseUrl, embeddingModel);
+  }
+
+  // Large inputs: chunk and process with bounded concurrency
+  const chunks: string[][] = [];
+  for (let i = 0; i < texts.length; i += chunkSize) {
+    chunks.push(texts.slice(i, i + chunkSize));
+  }
+
+  const allEmbeddings: number[][][] = new Array(chunks.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (nextIndex < chunks.length) {
+      const i = nextIndex++;
+      allEmbeddings[i] = await generateEmbeddingsBatch(chunks[i], headers, baseUrl, embeddingModel);
+    }
+  };
+
+  const workers = Array.from(
+    { length: Math.min(DEFAULT_EMBEDDING_BATCH_CONCURRENCY, chunks.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+
+  return allEmbeddings.flat();
 }
 
 /**
@@ -332,69 +375,89 @@ export async function chunkAndEmbedAllMessages(
 ): Promise<number> {
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const { chunkSize = DEFAULT_CHUNK_SIZE } = options;
-  let embeddedCount = 0;
+  const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
 
-  // Get all conversations
+  // Collect all eligible messages first
   const conversations = await getConversationsOp(ctx);
   const targetConversations = filter?.conversationId
     ? conversations.filter((c) => c.conversationId === filter.conversationId)
     : conversations;
 
+  type ShortMessage = { uniqueId: string; content: string };
+  type LongMessage = {
+    uniqueId: string;
+    textChunks: { text: string; startOffset: number; endOffset: number }[];
+  };
+  const shortMessages: ShortMessage[] = [];
+  const longMessages: LongMessage[] = [];
+
   for (const conv of targetConversations) {
     const messages = await getMessagesOp(ctx, conv.conversationId);
 
     for (const message of messages) {
-      // Skip if already has chunks
-      if (message.chunks && message.chunks.length > 0) {
-        continue;
-      }
-
-      // Skip if has embedding and not rechunking
+      if (message.chunks && message.chunks.length > 0) continue;
       const hasVector = message.vector && message.vector.length > 0;
-      if (hasVector && !filter?.rechunkExisting) {
-        continue;
+      if (hasVector && !filter?.rechunkExisting) continue;
+      if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) continue;
+      if (message.role === "system") continue;
+      if (message.content.length < minLength) continue;
+
+      if (shouldChunkMessage(message.content, chunkSize)) {
+        longMessages.push({
+          uniqueId: message.uniqueId,
+          textChunks: chunkText(message.content, options),
+        });
+      } else {
+        shortMessages.push({ uniqueId: message.uniqueId, content: message.content });
       }
+    }
+  }
 
-      // Skip if role filter doesn't match
-      if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) {
-        continue;
-      }
+  let embeddedCount = 0;
 
-      // Skip system messages
-      if (message.role === "system") {
-        continue;
-      }
-
-      // Skip short messages that won't provide useful search context
-      const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
-      if (message.content.length < minLength) {
-        continue;
-      }
-
-      try {
-        // Use chunking for long messages
-        if (shouldChunkMessage(message.content, chunkSize)) {
-          const textChunks = chunkText(message.content, options);
-          const chunkTexts = textChunks.map((c) => c.text);
-          const embeddings = await generateEmbeddings(chunkTexts, options);
-
-          const messageChunks: MessageChunk[] = textChunks.map((chunk, i) => ({
-            text: chunk.text,
-            vector: embeddings[i],
-            startOffset: chunk.startOffset,
-            endOffset: chunk.endOffset,
-          }));
-
-          await updateMessageChunksOp(ctx, message.uniqueId, messageChunks, embeddingModel);
-        } else {
-          // Use whole-message embedding for short messages
-          const embedding = await generateEmbedding(message.content, options);
-          await updateMessageEmbeddingOp(ctx, message.uniqueId, embedding, embeddingModel);
+  // Batch-embed all short messages in one API call
+  if (shortMessages.length > 0) {
+    try {
+      const texts = shortMessages.map((m) => m.content);
+      const embeddings = await generateEmbeddings(texts, options);
+      for (let i = 0; i < shortMessages.length; i++) {
+        try {
+          await updateMessageEmbeddingOp(
+            ctx,
+            shortMessages[i].uniqueId,
+            embeddings[i],
+            embeddingModel
+          );
+          embeddedCount++;
+        } catch (error) {
+          console.error(
+            `Failed to save embedding for message ${shortMessages[i].uniqueId}:`,
+            error
+          );
         }
-        embeddedCount++;
-      } catch (error) {
-        console.error(`Failed to embed message ${message.uniqueId}:`, error);
       }
+    } catch (error) {
+      console.error("Failed to batch-embed short messages:", error);
+    }
+  }
+
+  // Process long messages in batches (chunk + embed)
+  for (const msg of longMessages) {
+    try {
+      const chunkTexts = msg.textChunks.map((c) => c.text);
+      const embeddings = await generateEmbeddings(chunkTexts, options);
+
+      const messageChunks: MessageChunk[] = msg.textChunks.map((chunk, i) => ({
+        text: chunk.text,
+        vector: embeddings[i],
+        startOffset: chunk.startOffset,
+        endOffset: chunk.endOffset,
+      }));
+
+      await updateMessageChunksOp(ctx, msg.uniqueId, messageChunks, embeddingModel);
+      embeddedCount++;
+    } catch (error) {
+      console.error(`Failed to embed message ${msg.uniqueId}:`, error);
     }
   }
 
