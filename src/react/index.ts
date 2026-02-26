@@ -518,3 +518,23 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
+
+// GitHub MCP Auth (uses backend for token exchange)
+export {
+  clearGitHubToken,
+  getAndClearGitHubPendingMessage,
+  getAndClearGitHubReturnUrl,
+  getGitHubAccessToken,
+  getGitHubMCPUrl,
+  getValidGitHubToken,
+  handleGitHubCallback,
+  hasGitHubCredentials,
+  isGitHubCallback,
+  migrateGitHubToken,
+  refreshGitHubToken,
+  revokeGitHubToken,
+  startGitHubAuth,
+  storeGitHubPendingMessage,
+  storeGitHubReturnUrl,
+  storeGitHubToken,
+} from "../lib/auth/github";
