@@ -8,7 +8,10 @@ function makePresignedUrl(amzDate: string, amzExpires: number): string {
 
 // Helper: format a Date as X-Amz-Date string (YYYYMMDDTHHmmssZ)
 function toAmzDate(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d+Z$/, "Z");
 }
 
 describe("isR2UrlExpired", () => {
@@ -71,7 +74,8 @@ describe("isR2UrlExpired", () => {
     });
 
     it("uses fallback when X-Amz-Date is malformed", () => {
-      const badUrl = "https://bucket.r2.cloudflarestorage.com/key?X-Amz-Date=not-a-date&X-Amz-Expires=3600";
+      const badUrl =
+        "https://bucket.r2.cloudflarestorage.com/key?X-Amz-Date=not-a-date&X-Amz-Expires=3600";
       const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
       expect(isR2UrlExpired(badUrl, eightDaysAgo.toISOString())).toBe(true);
     });

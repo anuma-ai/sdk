@@ -32,10 +32,7 @@ function parseAmzDate(raw: string): Date | null {
  *
  * If neither method can determine expiry, returns `false` (assume valid).
  */
-export function isR2UrlExpired(
-  sourceUrl: string,
-  createdAt?: string | number | Date,
-): boolean {
+export function isR2UrlExpired(sourceUrl: string, createdAt?: string | number | Date): boolean {
   try {
     const url = new URL(sourceUrl);
     const amzDate = url.searchParams.get("X-Amz-Date");
