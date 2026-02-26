@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminSubscriptionTierData** = `object`
 
-Defined in: [src/client/types.gen.ts:1788](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1788)
+Defined in: [src/client/types.gen.ts:1837](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1837)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1788](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersSetSubscriptionTierRequest`](HandlersSetSubscriptionTierRequest.md)
 
-Defined in: [src/client/types.gen.ts:1792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1792)
+Defined in: [src/client/types.gen.ts:1841](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1841)
 
 Set subscription tier request
 
@@ -20,7 +20,7 @@ Set subscription tier request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1793](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1793)
+Defined in: [src/client/types.gen.ts:1842](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1842)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1799)
+Defined in: [src/client/types.gen.ts:1848](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1848)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1799](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1800)
+Defined in: [src/client/types.gen.ts:1849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1849)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:1800](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/subscription-tier"`
 
-Defined in: [src/client/types.gen.ts:1801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1801)
+Defined in: [src/client/types.gen.ts:1850](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1850)

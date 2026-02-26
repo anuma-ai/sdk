@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsSyncSnagErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:2049](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2049)
+Defined in: [src/client/types.gen.ts:2134](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2134)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2049](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2053](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2053)
+Defined in: [src/client/types.gen.ts:2138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2138)
 
 Unauthorized
 
@@ -20,7 +20,7 @@ Unauthorized
 
 > **429**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2057](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2057)
+Defined in: [src/client/types.gen.ts:2142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2142)
 
 Too Many Requests
 
@@ -30,6 +30,6 @@ Too Many Requests
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2061](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2061)
+Defined in: [src/client/types.gen.ts:2146](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2146)
 
 Internal Server Error

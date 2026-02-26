@@ -2,7 +2,7 @@
 
 > **GetApiV1TasksData** = `object`
 
-Defined in: [src/client/types.gen.ts:2446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2446)
+Defined in: [src/client/types.gen.ts:2604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2604)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2446](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:2447](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2447)
+Defined in: [src/client/types.gen.ts:2605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2605)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2447](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:2448](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2448)
+Defined in: [src/client/types.gen.ts:2606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2606)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2448](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2449](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2449)
+Defined in: [src/client/types.gen.ts:2607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2607)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:2449](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/tasks"`
 
-Defined in: [src/client/types.gen.ts:2450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2450)
+Defined in: [src/client/types.gen.ts:2608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2608)
