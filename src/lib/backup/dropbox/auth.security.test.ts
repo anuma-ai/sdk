@@ -12,6 +12,7 @@ declare const global: typeof globalThis;
 import { handleDropboxCallback } from "./auth";
 import type { Client } from "../../../client/client";
 import { postAuthOauthByProviderExchange } from "../../../client/sdk.gen";
+import { getLogger } from "../../logger";
 
 // Mock the SDK function
 vi.mock("../../../client/sdk.gen", () => ({
@@ -100,8 +101,9 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
    * FIXED: Errors now return OAuthResult with error details.
    */
   it("should log or throw errors in OAuth callbacks instead of silently returning null", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const logger = getLogger();
+    const loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     // Mock API call to throw an error (e.g., network error, encryption failure)
     vi.mocked(postAuthOauthByProviderExchange).mockRejectedValue(
@@ -115,11 +117,11 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     expect(result.error).toBeDefined();
     expect(result.error.code).toBeDefined();
     expect(result.error.message).toBeDefined();
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalled();
 
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   /**
@@ -131,8 +133,9 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
    * FIXED: Encryption failures now return error result with encryption error code.
    */
   it("should handle encryption failures explicitly and distinguish them from other errors", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const logger = getLogger();
+    const loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
 
     // Mock successful API response
     vi.mocked(postAuthOauthByProviderExchange).mockResolvedValue({
@@ -160,8 +163,8 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     expect(result.error.message).toContain("encryption");
 
     storeSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
+    loggerWarnSpy.mockRestore();
   });
 
   /**
@@ -173,7 +176,8 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
    * FIXED: Error details are now preserved in OAuthResult error object.
    */
   it("should preserve error details for debugging and security monitoring", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logger = getLogger();
+    const loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
     const specificError = new Error("Network timeout after 30s");
     specificError.name = "NetworkError";
 
@@ -186,10 +190,10 @@ describe("SECURITY: Dropbox OAuth Error Handling", () => {
     expect(result.error.message).toContain("Network timeout");
     expect(result.error.originalError).toBeDefined();
     // Check that error was logged (first argument contains error message)
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    const firstCall = consoleErrorSpy.mock.calls[0];
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    const firstCall = loggerErrorSpy.mock.calls[0];
     expect(firstCall[0]).toContain("Network timeout");
 
-    consoleErrorSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
   });
 });
