@@ -2,7 +2,7 @@
 
 > **LlmapiMcpTool** = `object`
 
-Defined in: [src/client/types.gen.ts:706](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#706)
+Defined in: [src/client/types.gen.ts:755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#755)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:706](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#710)
+Defined in: [src/client/types.gen.ts:759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#759)
 
 Description is the description of the tool
 
@@ -20,7 +20,7 @@ Description is the description of the tool
 
 > `optional` **input\_schema**: `unknown`
 
-Defined in: [src/client/types.gen.ts:714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#714)
+Defined in: [src/client/types.gen.ts:763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#763)
 
 InputSchema is the JSON schema describing the tool's input
 
@@ -30,6 +30,6 @@ InputSchema is the JSON schema describing the tool's input
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:718](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#718)
+Defined in: [src/client/types.gen.ts:767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#767)
 
 Name is the name of the tool

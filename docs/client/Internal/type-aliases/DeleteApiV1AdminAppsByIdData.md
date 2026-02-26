@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:1605](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1605)
+Defined in: [src/client/types.gen.ts:1654](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1654)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1605](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:1606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1606)
+Defined in: [src/client/types.gen.ts:1655](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1655)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:1606](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1607)
+Defined in: [src/client/types.gen.ts:1656](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1656)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:1613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1613)
+Defined in: [src/client/types.gen.ts:1662](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1662)
 
 **id**
 
@@ -46,7 +46,7 @@ App ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1619)
+Defined in: [src/client/types.gen.ts:1668](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1668)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{id}"`
 
-Defined in: [src/client/types.gen.ts:1620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1620)
+Defined in: [src/client/types.gen.ts:1669](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1669)
