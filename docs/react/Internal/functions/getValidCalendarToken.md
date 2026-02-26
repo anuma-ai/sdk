@@ -2,7 +2,7 @@
 
 > **getValidCalendarToken**(`walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/google-calendar.ts:534](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#534)
+Defined in: [src/lib/auth/google-calendar.ts:535](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#535)
 
 Get stored token for Calendar (async, for tool token getters)
 

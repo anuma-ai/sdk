@@ -2,7 +2,7 @@
 
 > **hasCalendarCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/google-calendar.ts:560](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#560)
+Defined in: [src/lib/auth/google-calendar.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#561)
 
 Check if we have any stored credentials
 

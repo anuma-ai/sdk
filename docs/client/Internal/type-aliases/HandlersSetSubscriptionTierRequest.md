@@ -2,7 +2,7 @@
 
 > **HandlersSetSubscriptionTierRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#346)
+Defined in: [src/client/types.gen.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#305)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:346](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#350)
+Defined in: [src/client/types.gen.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#309)
 
 "basic", "starter", or "pro"
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:350](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:351](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#351)
+Defined in: [src/client/types.gen.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#310)

@@ -1,6 +1,6 @@
 # PdfFile
 
-Defined in: [src/react/usePdf.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#7)
+Defined in: [src/react/usePdf.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#8)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/react/usePdf.ts:7](https://github.com/anuma-ai/sdk/blob/main/sr
 
 > `optional` **filename**: `string`
 
-Defined in: [src/react/usePdf.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#10)
+Defined in: [src/react/usePdf.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#11)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/react/usePdf.ts:10](https://github.com/anuma-ai/sdk/blob/main/s
 
 > `optional` **mediaType**: `string`
 
-Defined in: [src/react/usePdf.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#9)
+Defined in: [src/react/usePdf.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#10)
 
 ***
 
@@ -24,4 +24,4 @@ Defined in: [src/react/usePdf.ts:9](https://github.com/anuma-ai/sdk/blob/main/sr
 
 > **url**: `string`
 
-Defined in: [src/react/usePdf.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#8)
+Defined in: [src/react/usePdf.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#9)

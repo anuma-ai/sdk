@@ -160,7 +160,11 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
         // Test query to ensure database is initialized and tables exist
         getLogger().debug("[useProjects] Running test query on projects table...");
         const testResult = await projColl.query(Q.take(1)).fetch();
-        getLogger().debug("[useProjects] Test query succeeded, found", testResult.length, "projects");
+        getLogger().debug(
+          "[useProjects] Test query succeeded, found",
+          testResult.length,
+          "projects"
+        );
 
         setProjectsCollection(projColl);
         setConversationsCollection(convColl);

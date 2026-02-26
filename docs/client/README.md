@@ -89,12 +89,9 @@
 | [HandlersApiKeyWithKeyResponse](Internal/type-aliases/HandlersApiKeyWithKeyResponse.md) | - |
 | [HandlersAppConfig](Internal/type-aliases/HandlersAppConfig.md) | - |
 | [HandlersAppResponse](Internal/type-aliases/HandlersAppResponse.md) | - |
-| [HandlersCancelScheduledDowngradeResponse](Internal/type-aliases/HandlersCancelScheduledDowngradeResponse.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
 | [HandlersClaimDailyCreditsResponse](Internal/type-aliases/HandlersClaimDailyCreditsResponse.md) | - |
-| [HandlersClaimTaskRewardRequest](Internal/type-aliases/HandlersClaimTaskRewardRequest.md) | - |
-| [HandlersClaimTaskRewardResponse](Internal/type-aliases/HandlersClaimTaskRewardResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
 | [HandlersCreateApiKeyRequest](Internal/type-aliases/HandlersCreateApiKeyRequest.md) | - |
 | [HandlersCreateAppRequest](Internal/type-aliases/HandlersCreateAppRequest.md) | - |
@@ -114,8 +111,6 @@
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
 | [HandlersRevokeRequest](Internal/type-aliases/HandlersRevokeRequest.md) | - |
-| [HandlersScheduleDowngradeRequest](Internal/type-aliases/HandlersScheduleDowngradeRequest.md) | - |
-| [HandlersScheduleDowngradeResponse](Internal/type-aliases/HandlersScheduleDowngradeResponse.md) | - |
 | [HandlersSeedApiKeyInput](Internal/type-aliases/HandlersSeedApiKeyInput.md) | - |
 | [HandlersSeedAppInput](Internal/type-aliases/HandlersSeedAppInput.md) | - |
 | [HandlersSeedAppsRequest](Internal/type-aliases/HandlersSeedAppsRequest.md) | - |
@@ -208,11 +203,6 @@
 | [PostApiV1CreditsClaimDailyErrors](Internal/type-aliases/PostApiV1CreditsClaimDailyErrors.md) | - |
 | [PostApiV1CreditsClaimDailyResponse](Internal/type-aliases/PostApiV1CreditsClaimDailyResponse.md) | - |
 | [PostApiV1CreditsClaimDailyResponses](Internal/type-aliases/PostApiV1CreditsClaimDailyResponses.md) | - |
-| [PostApiV1CreditsClaimTaskData](Internal/type-aliases/PostApiV1CreditsClaimTaskData.md) | - |
-| [PostApiV1CreditsClaimTaskError](Internal/type-aliases/PostApiV1CreditsClaimTaskError.md) | - |
-| [PostApiV1CreditsClaimTaskErrors](Internal/type-aliases/PostApiV1CreditsClaimTaskErrors.md) | - |
-| [PostApiV1CreditsClaimTaskResponse](Internal/type-aliases/PostApiV1CreditsClaimTaskResponse.md) | - |
-| [PostApiV1CreditsClaimTaskResponses](Internal/type-aliases/PostApiV1CreditsClaimTaskResponses.md) | - |
 | [PostApiV1CreditsPurchaseData](Internal/type-aliases/PostApiV1CreditsPurchaseData.md) | - |
 | [PostApiV1CreditsPurchaseError](Internal/type-aliases/PostApiV1CreditsPurchaseError.md) | - |
 | [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
@@ -238,11 +228,6 @@
 | [PostApiV1SubscriptionsCancelErrors](Internal/type-aliases/PostApiV1SubscriptionsCancelErrors.md) | - |
 | [PostApiV1SubscriptionsCancelResponse](Internal/type-aliases/PostApiV1SubscriptionsCancelResponse.md) | - |
 | [PostApiV1SubscriptionsCancelResponses](Internal/type-aliases/PostApiV1SubscriptionsCancelResponses.md) | - |
-| [PostApiV1SubscriptionsCancelScheduledDowngradeData](Internal/type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeData.md) | - |
-| [PostApiV1SubscriptionsCancelScheduledDowngradeError](Internal/type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeError.md) | - |
-| [PostApiV1SubscriptionsCancelScheduledDowngradeErrors](Internal/type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeErrors.md) | - |
-| [PostApiV1SubscriptionsCancelScheduledDowngradeResponse](Internal/type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeResponse.md) | - |
-| [PostApiV1SubscriptionsCancelScheduledDowngradeResponses](Internal/type-aliases/PostApiV1SubscriptionsCancelScheduledDowngradeResponses.md) | - |
 | [PostApiV1SubscriptionsCreateCheckoutSessionData](Internal/type-aliases/PostApiV1SubscriptionsCreateCheckoutSessionData.md) | - |
 | [PostApiV1SubscriptionsCreateCheckoutSessionError](Internal/type-aliases/PostApiV1SubscriptionsCreateCheckoutSessionError.md) | - |
 | [PostApiV1SubscriptionsCreateCheckoutSessionErrors](Internal/type-aliases/PostApiV1SubscriptionsCreateCheckoutSessionErrors.md) | - |
@@ -258,11 +243,6 @@
 | [PostApiV1SubscriptionsRenewErrors](Internal/type-aliases/PostApiV1SubscriptionsRenewErrors.md) | - |
 | [PostApiV1SubscriptionsRenewResponse](Internal/type-aliases/PostApiV1SubscriptionsRenewResponse.md) | - |
 | [PostApiV1SubscriptionsRenewResponses](Internal/type-aliases/PostApiV1SubscriptionsRenewResponses.md) | - |
-| [PostApiV1SubscriptionsScheduleDowngradeData](Internal/type-aliases/PostApiV1SubscriptionsScheduleDowngradeData.md) | - |
-| [PostApiV1SubscriptionsScheduleDowngradeError](Internal/type-aliases/PostApiV1SubscriptionsScheduleDowngradeError.md) | - |
-| [PostApiV1SubscriptionsScheduleDowngradeErrors](Internal/type-aliases/PostApiV1SubscriptionsScheduleDowngradeErrors.md) | - |
-| [PostApiV1SubscriptionsScheduleDowngradeResponse](Internal/type-aliases/PostApiV1SubscriptionsScheduleDowngradeResponse.md) | - |
-| [PostApiV1SubscriptionsScheduleDowngradeResponses](Internal/type-aliases/PostApiV1SubscriptionsScheduleDowngradeResponses.md) | - |
 | [PostApiV1SubscriptionsWebhookData](Internal/type-aliases/PostApiV1SubscriptionsWebhookData.md) | - |
 | [PostApiV1SubscriptionsWebhookError](Internal/type-aliases/PostApiV1SubscriptionsWebhookError.md) | - |
 | [PostApiV1SubscriptionsWebhookErrors](Internal/type-aliases/PostApiV1SubscriptionsWebhookErrors.md) | - |
@@ -322,17 +302,14 @@
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
 | [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
-| [postApiV1CreditsClaimTask](Internal/functions/postApiV1CreditsClaimTask.md) | Claim task reward |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
 | [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
-| [postApiV1SubscriptionsCancelScheduledDowngrade](Internal/functions/postApiV1SubscriptionsCancelScheduledDowngrade.md) | Cancel scheduled downgrade |
 | [postApiV1SubscriptionsCreateCheckoutSession](Internal/functions/postApiV1SubscriptionsCreateCheckoutSession.md) | Create checkout session |
 | [postApiV1SubscriptionsCustomerPortal](Internal/functions/postApiV1SubscriptionsCustomerPortal.md) | Create customer portal session |
 | [postApiV1SubscriptionsRenew](Internal/functions/postApiV1SubscriptionsRenew.md) | Renew subscription |
-| [postApiV1SubscriptionsScheduleDowngrade](Internal/functions/postApiV1SubscriptionsScheduleDowngrade.md) | Schedule subscription downgrade |
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |

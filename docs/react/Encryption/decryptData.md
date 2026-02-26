@@ -2,7 +2,7 @@
 
 > **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:503](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#503)
+Defined in: [src/react/useEncryption.ts:505](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#505)
 
 Decrypts data using AES-GCM with the stored encryption key.
 

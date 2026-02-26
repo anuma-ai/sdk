@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsWebhook**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsWebhookData`](../type-aliases/PostApiV1SubscriptionsWebhookData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsWebhookResponses`](../type-aliases/PostApiV1SubscriptionsWebhookResponses.md), [`PostApiV1SubscriptionsWebhookErrors`](../type-aliases/PostApiV1SubscriptionsWebhookErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:482](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#482)
+Defined in: [src/client/sdk.gen.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#438)
 
 Handle Stripe webhook
 

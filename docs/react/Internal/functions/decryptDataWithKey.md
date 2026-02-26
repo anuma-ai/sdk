@@ -2,7 +2,7 @@
 
 > **decryptDataWithKey**(`encryptedHex`: `string`, `key`: `CryptoKey`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:600](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#600)
+Defined in: [src/react/useEncryption.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#602)
 
 **`Internal`**
 

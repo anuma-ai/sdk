@@ -401,10 +401,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                           executorConfig.executor
                         );
 
-                        getLogger().debug("[Tool Debug] Tool execution result for", toolCall.name, ":", {
-                          result,
-                          error,
-                        });
+                        getLogger().debug(
+                          "[Tool Debug] Tool execution result for",
+                          toolCall.name,
+                          ":",
+                          {
+                            result,
+                            error,
+                          }
+                        );
 
                         return {
                           id: toolCall.id,

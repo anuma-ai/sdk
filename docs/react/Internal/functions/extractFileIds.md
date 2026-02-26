@@ -2,7 +2,7 @@
 
 > **extractFileIds**(`content`: `string`): `string`\[]
 
-Defined in: [src/lib/storage/opfs.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#26)
+Defined in: [src/lib/storage/opfs.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#28)
 
 Extracts file IDs from content containing placeholders.
 
