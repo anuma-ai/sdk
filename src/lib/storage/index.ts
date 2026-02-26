@@ -8,6 +8,11 @@ export {
   replaceMCPUrlsWithPlaceholders,
 } from "./mcpImages";
 export {
+  // R2 presigned URL expiry detection
+  isR2UrlExpired,
+  R2_DEFAULT_TTL_MS,
+} from "./r2Expiry";
+export {
   // Blob URL management
   BlobUrlManager,
   createFilePlaceholder,

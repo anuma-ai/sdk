@@ -105,6 +105,7 @@ import {
   extractFileIds,
   extractMCPImageUrls,
   isOPFSSupported,
+  isR2UrlExpired,
   readEncryptedFile,
   replaceMCPUrlsWithPlaceholders,
   writeEncryptedFile,
@@ -268,9 +269,8 @@ async function storedToLlmapiMessage(
           type: "image_url",
           image_url: { url: file.url },
         });
-      } else if (file.sourceUrl) {
-        // For MCP-cached files, include the sourceUrl
-        // If expired, AI simply won't see the image (local OPFS copy is for display only)
+      } else if (file.sourceUrl && !isR2UrlExpired(file.sourceUrl, stored.createdAt)) {
+        // For MCP-cached files with a valid (non-expired) presigned URL
         imageParts.push({
           type: "image_url",
           image_url: { url: file.sourceUrl },
@@ -298,10 +298,19 @@ async function storedToLlmapiMessage(
   } else if (stored.role === "assistant" && stored.files?.length) {
     // For assistant messages, track sourceUrls for placeholder replacement only
     // URLs are already in text as markdown images, so model can get them from context
+    const expiredFileIds: string[] = [];
     for (const file of stored.files) {
       if (file.sourceUrl) {
-        fileUrlMap.set(file.id, file.sourceUrl);
+        if (!isR2UrlExpired(file.sourceUrl, stored.createdAt)) {
+          fileUrlMap.set(file.id, file.sourceUrl);
+        } else {
+          expiredFileIds.push(file.id);
+        }
       }
+    }
+    if (expiredFileIds.length > 0) {
+      textContent +=
+        "\n\n[Note: A previously generated image exists here but its URL has expired. The image can still be viewed by the user but cannot be edited or referenced by URL.]";
     }
   }
 
@@ -311,7 +320,7 @@ async function storedToLlmapiMessage(
     try {
       const mediaItems = await resolveMediaByIds(stored.fileIds);
       for (const media of mediaItems) {
-        if (media.sourceUrl) {
+        if (media.sourceUrl && !isR2UrlExpired(media.sourceUrl, stored.createdAt)) {
           fileUrlMap.set(media.mediaId, media.sourceUrl);
         }
       }
