@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1957](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1957)
+Defined in: [src/client/types.gen.ts:2157](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2157)
 
 ## Properties
 
@@ -10,9 +10,19 @@ Defined in: [src/client/types.gen.ts:1957](https://github.com/anuma-ai/sdk/blob/
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1961](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1961)
+Defined in: [src/client/types.gen.ts:2161](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2161)
 
 Unauthorized
+
+***
+
+### 403
+
+> **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
+
+Defined in: [src/client/types.gen.ts:2165](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2165)
+
+Balance endpoint not available for this app
 
 ***
 
@@ -20,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1965](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1965)
+Defined in: [src/client/types.gen.ts:2169](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2169)
 
 Account not found
 
@@ -30,6 +40,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1969)
+Defined in: [src/client/types.gen.ts:2173](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2173)
 
 Internal Server Error

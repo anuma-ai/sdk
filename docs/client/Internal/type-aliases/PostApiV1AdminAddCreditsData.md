@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAddCreditsData** = `object`
 
-Defined in: [src/client/types.gen.ts:1283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1283)
+Defined in: [src/client/types.gen.ts:1483](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1483)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1283](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersAddCreditsRequest`](HandlersAddCreditsRequest.md)
 
-Defined in: [src/client/types.gen.ts:1287](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1287)
+Defined in: [src/client/types.gen.ts:1487](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1487)
 
 Add credits request
 
@@ -20,7 +20,7 @@ Add credits request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1288](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1288)
+Defined in: [src/client/types.gen.ts:1488](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1488)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1294](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1294)
+Defined in: [src/client/types.gen.ts:1494](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1494)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1294](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1295](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1295)
+Defined in: [src/client/types.gen.ts:1495](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1495)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:1295](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/add-credits"`
 
-Defined in: [src/client/types.gen.ts:1296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1296)
+Defined in: [src/client/types.gen.ts:1496](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1496)

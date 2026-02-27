@@ -2,7 +2,7 @@
 
 > **LlmapiModelPerRequestLimits** = `object`
 
-Defined in: [src/client/types.gen.ts:920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#920)
+Defined in: [src/client/types.gen.ts:1120](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1120)
 
 PerRequestLimits contains rate limiting information
 
@@ -12,7 +12,7 @@ PerRequestLimits contains rate limiting information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:921](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#921)
+Defined in: [src/client/types.gen.ts:1121](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1121)
 
 ***
 
@@ -20,4 +20,4 @@ Defined in: [src/client/types.gen.ts:921](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:922](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#922)
+Defined in: [src/client/types.gen.ts:1122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1122)

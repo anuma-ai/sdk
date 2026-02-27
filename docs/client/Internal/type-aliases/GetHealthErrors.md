@@ -2,7 +2,7 @@
 
 > **GetHealthErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:2774](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2774)
+Defined in: [src/client/types.gen.ts:3798](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3798)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2774](https://github.com/anuma-ai/sdk/blob/
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2778)
+Defined in: [src/client/types.gen.ts:3802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3802)
 
 Internal Server Error

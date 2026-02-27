@@ -2,7 +2,7 @@
 
 > **HandlersCreateCreditPackCheckoutRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#176)
+Defined in: [src/client/types.gen.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#200)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#177)
+Defined in: [src/client/types.gen.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#201)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#178)
+Defined in: [src/client/types.gen.ts:202](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#202)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#179)
+Defined in: [src/client/types.gen.ts:203](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#203)

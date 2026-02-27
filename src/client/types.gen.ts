@@ -68,8 +68,12 @@ export type HandlersAppConfig = {
 };
 
 export type HandlersAppResponse = {
+    app_balance_usd?: number;
+    app_uuid?: string;
     created_at?: string;
     credit_reset_enabled?: boolean;
+    default_user_cost_limit_usd?: number;
+    developer_account_id?: number;
     escrow_contract?: string;
     /**
      * Indicates if key is set, but doesn't expose it
@@ -80,6 +84,21 @@ export type HandlersAppResponse = {
     name?: string;
     privy_app_id?: string;
     updated_at?: string;
+};
+
+export type HandlersAppUsageResponse = {
+    app_uuid?: string;
+    period?: HandlersUsagePeriod;
+    timeseries?: Array<HandlersUsageTimeseriesPoint>;
+    total_cost_credits?: number;
+    total_request_tokens?: number;
+    total_requests?: number;
+    total_response_tokens?: number;
+};
+
+export type HandlersAppUserUsageResponse = {
+    pagination?: HandlersPaginationResponse;
+    users?: Array<HandlersUserUsageResponse>;
 };
 
 export type HandlersCancelScheduledDowngradeResponse = {
@@ -140,6 +159,11 @@ export type HandlersConfigResponse = {
     settlement_recipient?: string;
 };
 
+export type HandlersConfigurePrivyRequest = {
+    privy_app_id?: string;
+    privy_verification_key?: string;
+};
+
 export type HandlersCreateApiKeyRequest = {
     is_active?: boolean;
     /**
@@ -181,6 +205,14 @@ export type HandlersCreateCreditPackCheckoutRequest = {
 
 export type HandlersCreateCustomerPortalRequest = {
     return_url?: string;
+};
+
+export type HandlersCreateDeveloperAppRequest = {
+    /**
+     * credits per new user (1 credit = $0.01)
+     */
+    default_user_credits?: number;
+    name?: string;
 };
 
 export type HandlersCreditBalanceResponse = {
@@ -226,12 +258,96 @@ export type HandlersCustomerPortalResponse = {
     url?: string;
 };
 
+export type HandlersDeveloperApiKeyRequest = {
+    is_test?: boolean;
+    name?: string;
+};
+
+export type HandlersDeveloperApiKeyResponse = {
+    created_at?: string;
+    id?: number;
+    is_active?: boolean;
+    name?: string;
+};
+
+export type HandlersDeveloperApiKeyWithSecretResponse = {
+    /**
+     * Full key, only shown once
+     */
+    api_key?: string;
+    created_at?: string;
+    id?: number;
+    is_active?: boolean;
+    name?: string;
+};
+
+export type HandlersDeveloperAppResponse = {
+    app_uuid?: string;
+    /**
+     * available credits in app pool
+     */
+    balance?: number;
+    created_at?: string;
+    /**
+     * credits per new user (1 credit = $0.01)
+     */
+    default_user_credits?: number;
+    /**
+     * on-chain escrow contract address
+     */
+    escrow_contract?: string;
+    has_privy_config?: boolean;
+    is_active?: boolean;
+    name?: string;
+    updated_at?: string;
+};
+
+export type HandlersDeveloperUserResponse = {
+    address?: string;
+    created_at?: string;
+    /**
+     * available credits (1 credit = $0.01)
+     */
+    credits?: number;
+    /**
+     * on-chain enrollment status
+     */
+    is_enrolled_onchain?: boolean;
+    /**
+     * total credits ever received
+     */
+    lifetime_credits?: number;
+    /**
+     * basic/pro
+     */
+    subscription_tier?: string;
+    /**
+     * credits used/pending
+     */
+    used_credits?: number;
+};
+
 export type HandlersExchangeRequest = {
     code: string;
     /**
      * Optional - uses config default if not provided
      */
     redirect_uri?: string;
+};
+
+export type HandlersFundDeveloperAppRequest = {
+    /**
+     * URL to redirect if payment is cancelled
+     */
+    cancel_url?: string;
+    /**
+     * Number of credits to purchase (1 credit = $0.01)
+     */
+    credits?: number;
+    /**
+     * URL to redirect after successful payment
+     */
+    success_url?: string;
 };
 
 export type HandlersGeneratedApiKey = {
@@ -270,6 +386,17 @@ export type HandlersListApiKeysResponse = {
 
 export type HandlersListAppsResponse = {
     apps?: Array<HandlersAppResponse>;
+};
+
+export type HandlersListUsersResponse = {
+    pagination?: HandlersPaginationResponse;
+    users?: Array<HandlersDeveloperUserResponse>;
+};
+
+export type HandlersPaginationResponse = {
+    limit?: number;
+    offset?: number;
+    total?: number;
 };
 
 export type HandlersRefreshRequest = {
@@ -318,7 +445,23 @@ export type HandlersSeedApiKeyInput = {
 
 export type HandlersSeedAppInput = {
     api_keys?: Array<HandlersSeedApiKeyInput>;
+    /**
+     * Developer app balance in micro-USD
+     */
+    app_balance_usd?: number;
     credit_reset_enabled?: boolean;
+    /**
+     * Default credits for auto-enrollment in micro-USD
+     */
+    default_user_cost_limit_usd?: number;
+    /**
+     * Developer account ID (makes app developer-owned)
+     */
+    developer_account_id?: number;
+    /**
+     * Developer wallet (auto-creates account if not exists)
+     */
+    developer_wallet_address?: string;
     escrow_contract?: string;
     is_active?: boolean;
     name?: string;
@@ -345,7 +488,11 @@ export type HandlersSeedAppsResponse = {
 
 export type HandlersSetSubscriptionTierRequest = {
     /**
-     * "basic", "starter", or "pro"
+     * Required to identify which app enrollment to update
+     */
+    escrow_contract?: string;
+    /**
+     * "basic" or "pro"
      */
     tier?: string;
     user_address?: string;
@@ -450,6 +597,13 @@ export type HandlersTool = {
     schema?: McpToolSchema;
 };
 
+export type HandlersTopUpUserRequest = {
+    /**
+     * credits to add (1 credit = $0.01)
+     */
+    credits?: number;
+};
+
 export type HandlersUpdateApiKeyRequest = {
     app_id?: number;
     is_active?: boolean;
@@ -458,12 +612,58 @@ export type HandlersUpdateApiKeyRequest = {
 };
 
 export type HandlersUpdateAppRequest = {
+    app_balance_usd?: number;
     credit_reset_enabled?: boolean;
+    default_user_cost_limit_usd?: number;
     escrow_contract?: string;
     is_active?: boolean;
     name?: string;
     privy_app_id?: string;
     privy_verification_key?: string;
+};
+
+export type HandlersUpdateDeveloperAppRequest = {
+    /**
+     * credits per new user (1 credit = $0.01)
+     */
+    default_user_credits?: number;
+    name?: string;
+};
+
+export type HandlersUpdateUserLimitRequest = {
+    /**
+     * credit limit (1 credit = $0.01)
+     */
+    credits?: number;
+};
+
+export type HandlersUsagePeriod = {
+    end?: string;
+    start?: string;
+};
+
+export type HandlersUsageTimeseriesPoint = {
+    cost_credits?: number;
+    request_count?: number;
+    request_tokens?: number;
+    response_tokens?: number;
+    timestamp?: string;
+};
+
+export type HandlersUserUsageResponse = {
+    address?: string;
+    cost_credits?: number;
+    /**
+     * available credits (remaining balance)
+     */
+    credits?: number;
+    request_count?: number;
+    request_tokens?: number;
+    response_tokens?: number;
+    /**
+     * credits pending/in-flight
+     */
+    used_credits?: number;
 };
 
 /**
@@ -1754,9 +1954,9 @@ export type PutApiV1AdminAppsByIdData = {
     };
     path: {
         /**
-         * App ID
+         * App ID (numeric) or App UUID
          */
-        id: number;
+        id: string;
     };
     query?: never;
     url: '/api/v1/admin/apps/{id}';
@@ -1960,6 +2160,10 @@ export type GetApiV1CreditsBalanceErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Balance endpoint not available for this app
+     */
+    403: ResponseErrorResponse;
+    /**
      * Account not found
      */
     404: ResponseErrorResponse;
@@ -2002,6 +2206,10 @@ export type PostApiV1CreditsClaimDailyErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Daily credits not available for this app
+     */
+    403: ResponseErrorResponse;
     /**
      * Account not found
      */
@@ -2108,6 +2316,10 @@ export type PostApiV1CreditsPurchaseErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Internal Server Error
      */
     500: ResponseErrorResponse;
@@ -2137,6 +2349,10 @@ export type PostApiV1CreditsSyncSnagErrors = {
      */
     401: ResponseErrorResponse;
     /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
      * Too Many Requests
      */
     429: ResponseErrorResponse;
@@ -2156,6 +2372,761 @@ export type PostApiV1CreditsSyncSnagResponses = {
 };
 
 export type PostApiV1CreditsSyncSnagResponse = PostApiV1CreditsSyncSnagResponses[keyof PostApiV1CreditsSyncSnagResponses];
+
+export type GetApiV1DeveloperAppsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/developer/apps';
+};
+
+export type GetApiV1DeveloperAppsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsError = GetApiV1DeveloperAppsErrors[keyof GetApiV1DeveloperAppsErrors];
+
+export type GetApiV1DeveloperAppsResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersDeveloperAppResponse>;
+};
+
+export type GetApiV1DeveloperAppsResponse = GetApiV1DeveloperAppsResponses[keyof GetApiV1DeveloperAppsResponses];
+
+export type PostApiV1DeveloperAppsData = {
+    /**
+     * Create app request
+     */
+    body: HandlersCreateDeveloperAppRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/developer/apps';
+};
+
+export type PostApiV1DeveloperAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsError = PostApiV1DeveloperAppsErrors[keyof PostApiV1DeveloperAppsErrors];
+
+export type PostApiV1DeveloperAppsResponses = {
+    /**
+     * Created
+     */
+    201: HandlersDeveloperAppResponse;
+};
+
+export type PostApiV1DeveloperAppsResponse = PostApiV1DeveloperAppsResponses[keyof PostApiV1DeveloperAppsResponses];
+
+export type DeleteApiV1DeveloperAppsByAppUuidData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}';
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidError = DeleteApiV1DeveloperAppsByAppUuidErrors[keyof DeleteApiV1DeveloperAppsByAppUuidErrors];
+
+export type DeleteApiV1DeveloperAppsByAppUuidResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidResponse = DeleteApiV1DeveloperAppsByAppUuidResponses[keyof DeleteApiV1DeveloperAppsByAppUuidResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidError = GetApiV1DeveloperAppsByAppUuidErrors[keyof GetApiV1DeveloperAppsByAppUuidErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperAppResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidResponse = GetApiV1DeveloperAppsByAppUuidResponses[keyof GetApiV1DeveloperAppsByAppUuidResponses];
+
+export type PatchApiV1DeveloperAppsByAppUuidData = {
+    /**
+     * Update app request
+     */
+    body: HandlersUpdateDeveloperAppRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}';
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidError = PatchApiV1DeveloperAppsByAppUuidErrors[keyof PatchApiV1DeveloperAppsByAppUuidErrors];
+
+export type PatchApiV1DeveloperAppsByAppUuidResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperAppResponse;
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidResponse = PatchApiV1DeveloperAppsByAppUuidResponses[keyof PatchApiV1DeveloperAppsByAppUuidResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidApiKeysData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/api-keys';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidApiKeysError = GetApiV1DeveloperAppsByAppUuidApiKeysErrors[keyof GetApiV1DeveloperAppsByAppUuidApiKeysErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidApiKeysResponses = {
+    /**
+     * OK
+     */
+    200: Array<HandlersDeveloperApiKeyResponse>;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidApiKeysResponse = GetApiV1DeveloperAppsByAppUuidApiKeysResponses[keyof GetApiV1DeveloperAppsByAppUuidApiKeysResponses];
+
+export type PostApiV1DeveloperAppsByAppUuidApiKeysData = {
+    /**
+     * API key request
+     */
+    body: HandlersDeveloperApiKeyRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/api-keys';
+};
+
+export type PostApiV1DeveloperAppsByAppUuidApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidApiKeysError = PostApiV1DeveloperAppsByAppUuidApiKeysErrors[keyof PostApiV1DeveloperAppsByAppUuidApiKeysErrors];
+
+export type PostApiV1DeveloperAppsByAppUuidApiKeysResponses = {
+    /**
+     * Created
+     */
+    201: HandlersDeveloperApiKeyWithSecretResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidApiKeysResponse = PostApiV1DeveloperAppsByAppUuidApiKeysResponses[keyof PostApiV1DeveloperAppsByAppUuidApiKeysResponses];
+
+export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+        /**
+         * API Key ID
+         */
+        key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/api-keys/{key_id}';
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError = DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors[keyof DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors];
+
+export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponse = DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses[keyof DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses];
+
+export type DeleteApiV1DeveloperAppsByAppUuidPrivyData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/privy';
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidPrivyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidPrivyError = DeleteApiV1DeveloperAppsByAppUuidPrivyErrors[keyof DeleteApiV1DeveloperAppsByAppUuidPrivyErrors];
+
+export type DeleteApiV1DeveloperAppsByAppUuidPrivyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperAppResponse;
+};
+
+export type DeleteApiV1DeveloperAppsByAppUuidPrivyResponse = DeleteApiV1DeveloperAppsByAppUuidPrivyResponses[keyof DeleteApiV1DeveloperAppsByAppUuidPrivyResponses];
+
+export type PostApiV1DeveloperAppsByAppUuidPrivyData = {
+    /**
+     * Privy configuration
+     */
+    body: HandlersConfigurePrivyRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/privy';
+};
+
+export type PostApiV1DeveloperAppsByAppUuidPrivyErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidPrivyError = PostApiV1DeveloperAppsByAppUuidPrivyErrors[keyof PostApiV1DeveloperAppsByAppUuidPrivyErrors];
+
+export type PostApiV1DeveloperAppsByAppUuidPrivyResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperAppResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidPrivyResponse = PostApiV1DeveloperAppsByAppUuidPrivyResponses[keyof PostApiV1DeveloperAppsByAppUuidPrivyResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidUsageData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: {
+        /**
+         * Start time (RFC3339). Defaults to 30 days ago.
+         */
+        start_time?: string;
+        /**
+         * End time (RFC3339). Defaults to now.
+         */
+        end_time?: string;
+        /**
+         * Timeseries granularity: 'day' (default) or 'hour'
+         */
+        granularity?: string;
+    };
+    url: '/api/v1/developer/apps/{app_uuid}/usage';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageError = GetApiV1DeveloperAppsByAppUuidUsageErrors[keyof GetApiV1DeveloperAppsByAppUuidUsageErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidUsageResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAppUsageResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageResponse = GetApiV1DeveloperAppsByAppUuidUsageResponses[keyof GetApiV1DeveloperAppsByAppUuidUsageResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidUsageUsersData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: {
+        /**
+         * Start time (RFC3339). Defaults to 30 days ago.
+         */
+        start_time?: string;
+        /**
+         * End time (RFC3339). Defaults to now.
+         */
+        end_time?: string;
+        /**
+         * Number of results (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Offset for pagination (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/developer/apps/{app_uuid}/usage/users';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageUsersErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageUsersError = GetApiV1DeveloperAppsByAppUuidUsageUsersErrors[keyof GetApiV1DeveloperAppsByAppUuidUsageUsersErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidUsageUsersResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAppUserUsageResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsageUsersResponse = GetApiV1DeveloperAppsByAppUuidUsageUsersResponses[keyof GetApiV1DeveloperAppsByAppUuidUsageUsersResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidUsersData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: {
+        /**
+         * Maximum number of users to return (default 50, max 200)
+         */
+        limit?: number;
+        /**
+         * Number of users to skip (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/developer/apps/{app_uuid}/users';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersError = GetApiV1DeveloperAppsByAppUuidUsersErrors[keyof GetApiV1DeveloperAppsByAppUuidUsersErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidUsersResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListUsersResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersResponse = GetApiV1DeveloperAppsByAppUuidUsersResponses[keyof GetApiV1DeveloperAppsByAppUuidUsersResponses];
+
+export type GetApiV1DeveloperAppsByAppUuidUsersByAddressData = {
+    body?: never;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+        /**
+         * User wallet address
+         */
+        address: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/users/{address}';
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersByAddressError = GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors[keyof GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors];
+
+export type GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperUserResponse;
+};
+
+export type GetApiV1DeveloperAppsByAppUuidUsersByAddressResponse = GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses[keyof GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses];
+
+export type PatchApiV1DeveloperAppsByAppUuidUsersByAddressData = {
+    /**
+     * Update limit request
+     */
+    body: HandlersUpdateUserLimitRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+        /**
+         * User wallet address
+         */
+        address: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/users/{address}';
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidUsersByAddressError = PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors[keyof PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors];
+
+export type PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperUserResponse;
+};
+
+export type PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse = PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses[keyof PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses];
+
+export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData = {
+    /**
+     * Top-up request
+     */
+    body: HandlersTopUpUserRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+        /**
+         * User wallet address
+         */
+        address: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/users/{address}/top-up';
+};
+
+export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpError = PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors[keyof PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors];
+
+export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses = {
+    /**
+     * OK
+     */
+    200: HandlersDeveloperUserResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponse = PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses[keyof PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses];
 
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;
@@ -2378,6 +3349,10 @@ export type PostApiV1SubscriptionsCreateCheckoutSessionErrors = {
      * Unauthorized
      */
     401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
     /**
      * Internal Server Error
      */
@@ -2763,6 +3738,55 @@ export type PostAuthOauthByProviderRevokeResponses = {
 };
 
 export type PostAuthOauthByProviderRevokeResponse = PostAuthOauthByProviderRevokeResponses[keyof PostAuthOauthByProviderRevokeResponses];
+
+export type PostDeveloperAppsByAppUuidFundData = {
+    /**
+     * Fund request
+     */
+    body: HandlersFundDeveloperAppRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/developer/apps/{app_uuid}/fund';
+};
+
+export type PostDeveloperAppsByAppUuidFundErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostDeveloperAppsByAppUuidFundError = PostDeveloperAppsByAppUuidFundErrors[keyof PostDeveloperAppsByAppUuidFundErrors];
+
+export type PostDeveloperAppsByAppUuidFundResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostDeveloperAppsByAppUuidFundResponse = PostDeveloperAppsByAppUuidFundResponses[keyof PostDeveloperAppsByAppUuidFundResponses];
 
 export type GetHealthData = {
     body?: never;
