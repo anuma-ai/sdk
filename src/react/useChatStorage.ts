@@ -309,7 +309,7 @@ async function storedToLlmapiMessage(
     }
     if (expiredFileIds.length > 0) {
       textContent +=
-        "\n\n[Note: A previously generated image exists here but its URL has expired. The image can still be viewed by the user but cannot be edited or referenced by URL.]";
+        `\n\n[${expiredFileIds.length} expired image URL${expiredFileIds.length > 1 ? "s" : ""} omitted — the user can still see ${expiredFileIds.length > 1 ? "them" : "it"} locally]`;
     }
   }
 
