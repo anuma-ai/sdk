@@ -136,6 +136,8 @@ export {
   FILE_PLACEHOLDER_REGEX,
   fileExists,
   isOPFSSupported,
+  isR2UrlExpired,
+  R2_DEFAULT_TTL_MS,
   readEncryptedFile,
   resolveFilePlaceholders,
   writeEncryptedFile,

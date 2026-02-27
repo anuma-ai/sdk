@@ -105,8 +105,8 @@ import {
   extractFileIds,
   extractMCPImageUrls,
   isOPFSSupported,
+  isR2UrlExpired,
   readEncryptedFile,
-  replaceMCPUrlsWithPlaceholders,
   writeEncryptedFile,
 } from "../lib/storage";
 import {
@@ -268,9 +268,8 @@ async function storedToLlmapiMessage(
           type: "image_url",
           image_url: { url: file.url },
         });
-      } else if (file.sourceUrl) {
-        // For MCP-cached files, include the sourceUrl
-        // If expired, AI simply won't see the image (local OPFS copy is for display only)
+      } else if (file.sourceUrl && !isR2UrlExpired(file.sourceUrl, stored.createdAt)) {
+        // For MCP-cached files with a valid (non-expired) presigned URL
         imageParts.push({
           type: "image_url",
           image_url: { url: file.sourceUrl },
@@ -298,10 +297,18 @@ async function storedToLlmapiMessage(
   } else if (stored.role === "assistant" && stored.files?.length) {
     // For assistant messages, track sourceUrls for placeholder replacement only
     // URLs are already in text as markdown images, so model can get them from context
+    const expiredFileIds: string[] = [];
     for (const file of stored.files) {
       if (file.sourceUrl) {
-        fileUrlMap.set(file.id, file.sourceUrl);
+        if (!isR2UrlExpired(file.sourceUrl, stored.createdAt)) {
+          fileUrlMap.set(file.id, file.sourceUrl);
+        } else {
+          expiredFileIds.push(file.id);
+        }
       }
+    }
+    if (expiredFileIds.length > 0) {
+      textContent += `\n\n[${expiredFileIds.length} expired image URL${expiredFileIds.length > 1 ? "s" : ""} omitted — the user can still see ${expiredFileIds.length > 1 ? "them" : "it"} locally]`;
     }
   }
 
@@ -311,7 +318,7 @@ async function storedToLlmapiMessage(
     try {
       const mediaItems = await resolveMediaByIds(stored.fileIds);
       for (const media of mediaItems) {
-        if (media.sourceUrl) {
+        if (media.sourceUrl && !isR2UrlExpired(media.sourceUrl, stored.createdAt)) {
           fileUrlMap.set(media.mediaId, media.sourceUrl);
         }
       }
@@ -1621,10 +1628,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // No MCP images found — strip any stale MCP URLs and return
+        // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
-          const cleanedContent = replaceMCPUrlsWithPlaceholders(content, new Map(), mcpR2Domain);
-          return { fileIds: [], cleanedContent };
+          return { fileIds: [], cleanedContent: content };
         }
 
         // 2. Download images → get mediaIds
@@ -1707,12 +1713,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         });
 
-        // 4. Replace MCP URLs with __SDKFILE__ placeholders (strips failed downloads)
-        const cleanedContent = replaceMCPUrlsWithPlaceholders(
-          content,
-          urlToMediaIdMap,
-          mcpR2Domain
-        );
+        // 4. Keep original presigned URLs in content for inline rendering.
+        // Images are stored in OPFS as a fallback — the client renders them
+        // via ResponseImagePreview only after the presigned URL expires
+        // (detected at render time by isR2UrlExpired in ChatContainer).
+        const cleanedContent = content;
 
         // 5. Batch create media records
         let createdMediaIds: string[] = [];
