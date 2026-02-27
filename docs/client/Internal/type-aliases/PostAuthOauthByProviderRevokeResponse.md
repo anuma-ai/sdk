@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderRevokeResponse** = [`PostAuthOauthByProviderRevokeResponses`](PostAuthOauthByProviderRevokeResponses.md)\[keyof [`PostAuthOauthByProviderRevokeResponses`](PostAuthOauthByProviderRevokeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:2765](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2765)
+Defined in: [src/client/types.gen.ts:3740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3740)

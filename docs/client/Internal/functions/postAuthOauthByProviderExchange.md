@@ -2,7 +2,7 @@
 
 > **postAuthOauthByProviderExchange**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostAuthOauthByProviderExchangeData`](../type-aliases/PostAuthOauthByProviderExchangeData.md), `ThrowOnError`>): `RequestResult`<[`PostAuthOauthByProviderExchangeResponses`](../type-aliases/PostAuthOauthByProviderExchangeResponses.md), [`PostAuthOauthByProviderExchangeErrors`](../type-aliases/PostAuthOauthByProviderExchangeErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:522](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#522)
+Defined in: [src/client/sdk.gen.ts:738](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#738)
 
 Exchange authorization code for tokens
 

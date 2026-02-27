@@ -2,7 +2,7 @@
 
 > **LlmapiChoice** = `object`
 
-Defined in: [src/client/types.gen.ts:640](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#640)
+Defined in: [src/client/types.gen.ts:840](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#840)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:640](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **finish\_reason**: `string`
 
-Defined in: [src/client/types.gen.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#644)
+Defined in: [src/client/types.gen.ts:844](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#844)
 
 FinishReason indicates why the completion stopped
 
@@ -20,7 +20,7 @@ FinishReason indicates why the completion stopped
 
 > `optional` **index**: `number`
 
-Defined in: [src/client/types.gen.ts:648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#648)
+Defined in: [src/client/types.gen.ts:848](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#848)
 
 Index is the choice index
 
@@ -30,4 +30,4 @@ Index is the choice index
 
 > `optional` **message**: [`LlmapiMessage`](LlmapiMessage.md)
 
-Defined in: [src/client/types.gen.ts:649](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#649)
+Defined in: [src/client/types.gen.ts:849](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#849)

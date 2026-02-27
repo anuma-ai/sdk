@@ -2,7 +2,7 @@
 
 > **HandlersTaskResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:413](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#413)
+Defined in: [src/client/types.gen.ts:560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#560)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:413](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **amount\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#417)
+Defined in: [src/client/types.gen.ts:564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#564)
 
 1 credit = $0.01
 
@@ -20,7 +20,7 @@ Defined in: [src/client/types.gen.ts:417](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **cooldown\_secs**: `number`
 
-Defined in: [src/client/types.gen.ts:421](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#421)
+Defined in: [src/client/types.gen.ts:568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#568)
 
 null for one-time tasks
 
@@ -30,7 +30,7 @@ null for one-time tasks
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#422)
+Defined in: [src/client/types.gen.ts:569](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#569)
 
 ***
 
@@ -38,4 +38,4 @@ Defined in: [src/client/types.gen.ts:422](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:423](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#423)
+Defined in: [src/client/types.gen.ts:570](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#570)
