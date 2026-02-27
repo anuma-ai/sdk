@@ -107,7 +107,6 @@ import {
   isOPFSSupported,
   isR2UrlExpired,
   readEncryptedFile,
-  replaceMCPUrlsWithPlaceholders,
   writeEncryptedFile,
 } from "../lib/storage";
 import {
@@ -1630,10 +1629,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // 1. Extract image URLs using pure function
         const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
 
-        // No MCP images found — strip any stale MCP URLs and return
+        // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
         if (urls.length === 0) {
-          const cleanedContent = replaceMCPUrlsWithPlaceholders(content, new Map(), mcpR2Domain);
-          return { fileIds: [], cleanedContent };
+          return { fileIds: [], cleanedContent: content };
         }
 
         // 2. Download images → get mediaIds
@@ -1716,12 +1714,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
         });
 
-        // 4. Replace MCP URLs with __SDKFILE__ placeholders (strips failed downloads)
-        const cleanedContent = replaceMCPUrlsWithPlaceholders(
-          content,
-          urlToMediaIdMap,
-          mcpR2Domain
-        );
+        // 4. Keep original presigned URLs in content for inline rendering.
+        // Images are stored in OPFS as a fallback — the client renders them
+        // via ResponseImagePreview only after the presigned URL expires
+        // (detected at render time by isR2UrlExpired in ChatContainer).
+        const cleanedContent = content;
 
         // 5. Batch create media records
         let createdMediaIds: string[] = [];
