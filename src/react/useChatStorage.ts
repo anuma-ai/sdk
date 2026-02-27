@@ -308,8 +308,7 @@ async function storedToLlmapiMessage(
       }
     }
     if (expiredFileIds.length > 0) {
-      textContent +=
-        `\n\n[${expiredFileIds.length} expired image URL${expiredFileIds.length > 1 ? "s" : ""} omitted — the user can still see ${expiredFileIds.length > 1 ? "them" : "it"} locally]`;
+      textContent += `\n\n[${expiredFileIds.length} expired image URL${expiredFileIds.length > 1 ? "s" : ""} omitted — the user can still see ${expiredFileIds.length > 1 ? "them" : "it"} locally]`;
     }
   }
 
