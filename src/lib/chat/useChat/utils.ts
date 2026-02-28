@@ -1,7 +1,4 @@
-import type {
-  LlmapiChatCompletionTool,
-  LlmapiMessage,
-} from "../../../client";
+import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import type {
   AccumulatedToolCall,
   StreamAccumulator,
