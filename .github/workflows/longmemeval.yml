@@ -55,7 +55,7 @@ jobs:
   eval:
     needs: resolve-strategies
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 240
     strategy:
       matrix:
         strategy: ${{ fromJson(needs.resolve-strategies.outputs.strategies) }}

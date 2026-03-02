@@ -227,6 +227,8 @@ async function main(): Promise<void> {
         console.log(`\nResults written to ${args.output}`);
       }
     }
+
+    process.exit(0);
   } catch (error) {
     console.error("Benchmark failed:", error);
     process.exit(1);
