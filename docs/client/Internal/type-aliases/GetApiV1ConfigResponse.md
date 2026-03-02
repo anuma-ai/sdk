@@ -2,4 +2,4 @@
 
 > **GetApiV1ConfigResponse** = [`GetApiV1ConfigResponses`](GetApiV1ConfigResponses.md)\[keyof [`GetApiV1ConfigResponses`](GetApiV1ConfigResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1942](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1942)
+Defined in: [src/client/types.gen.ts:2198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2198)

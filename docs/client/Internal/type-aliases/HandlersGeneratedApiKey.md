@@ -2,7 +2,7 @@
 
 > **HandlersGeneratedApiKey** = `object`
 
-Defined in: [src/client/types.gen.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#237)
+Defined in: [src/client/types.gen.ts:373](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#373)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:237](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **api\_key**: `string`
 
-Defined in: [src/client/types.gen.ts:241](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#241)
+Defined in: [src/client/types.gen.ts:377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#377)
 
 Full HMAC key (anuma\_live\_\<key\_id>.<secret> or anuma\_test\_\<key\_id>.<secret>)
 
@@ -20,4 +20,4 @@ Full HMAC key (anuma\_live\_\<key\_id>.<secret> or anuma\_test\_\<key\_id>.<secr
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:242](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#242)
+Defined in: [src/client/types.gen.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#378)
