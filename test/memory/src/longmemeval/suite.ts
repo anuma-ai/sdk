@@ -322,7 +322,7 @@ If no memories to extract, return: {"items": []}`;
         "X-API-Key": api.apiKey,
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: api.llmModel,
         messages: [{ role: "user", content: extractionPrompt }],
         temperature: 0,
         max_tokens: 2000,

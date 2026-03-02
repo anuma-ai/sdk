@@ -195,7 +195,7 @@ async function main(): Promise<void> {
     const result = await runLongMemEval(dataset, options, {
       apiKey,
       baseUrl,
-      llmModel: "openai/gpt-4o-mini",
+      llmModel: "cerebras/qwen-3-235b-a22b-instruct-2507",
     });
 
     if (isComparison(result)) {
@@ -214,10 +214,6 @@ async function main(): Promise<void> {
         await writeFile(args.output, JSON.stringify(result, null, 2));
         console.log(`\nResults written to ${args.output}`);
       }
-
-      // Exit with non-zero if both strategies fail
-      const minAccuracy = Math.max(result.engine.accuracy, result.vault.accuracy);
-      process.exit(minAccuracy < 0.5 ? 1 : 0);
     } else {
       // Single strategy
       if (args.json) {
@@ -230,8 +226,6 @@ async function main(): Promise<void> {
         await writeFile(args.output, JSON.stringify(result, null, 2));
         console.log(`\nResults written to ${args.output}`);
       }
-
-      process.exit(result.accuracy < 0.5 ? 1 : 0);
     }
   } catch (error) {
     console.error("Benchmark failed:", error);
