@@ -45,8 +45,4 @@ export {
   generateEmbeddings,
 } from "./embeddings";
 export { createMemoryEngineTool } from "./tool";
-export type {
-  EmbeddingOptions,
-  MemoryEngineResult,
-  MemoryEngineSearchOptions,
-} from "./types";
+export type { EmbeddingOptions, MemoryEngineResult, MemoryEngineSearchOptions } from "./types";
