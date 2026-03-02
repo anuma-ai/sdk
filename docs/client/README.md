@@ -128,6 +128,11 @@
 | [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
 | [GetApiV1ToolsResponse](Internal/type-aliases/GetApiV1ToolsResponse.md) | - |
 | [GetApiV1ToolsResponses](Internal/type-aliases/GetApiV1ToolsResponses.md) | - |
+| [GetApiV1UsageModelsData](Internal/type-aliases/GetApiV1UsageModelsData.md) | - |
+| [GetApiV1UsageModelsError](Internal/type-aliases/GetApiV1UsageModelsError.md) | - |
+| [GetApiV1UsageModelsErrors](Internal/type-aliases/GetApiV1UsageModelsErrors.md) | - |
+| [GetApiV1UsageModelsResponse](Internal/type-aliases/GetApiV1UsageModelsResponse.md) | - |
+| [GetApiV1UsageModelsResponses](Internal/type-aliases/GetApiV1UsageModelsResponses.md) | - |
 | [GetHealthData](Internal/type-aliases/GetHealthData.md) | - |
 | [GetHealthError](Internal/type-aliases/GetHealthError.md) | - |
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
@@ -172,6 +177,8 @@
 | [HandlersListApiKeysResponse](Internal/type-aliases/HandlersListApiKeysResponse.md) | - |
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
 | [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
+| [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
+| [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
@@ -191,13 +198,16 @@
 | [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
+| [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
 | [HandlersTopUpUserRequest](Internal/type-aliases/HandlersTopUpUserRequest.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
 | [HandlersUpdateDeveloperAppRequest](Internal/type-aliases/HandlersUpdateDeveloperAppRequest.md) | - |
 | [HandlersUpdateUserLimitRequest](Internal/type-aliases/HandlersUpdateUserLimitRequest.md) | - |
+| [HandlersUsageByModelResponse](Internal/type-aliases/HandlersUsageByModelResponse.md) | - |
 | [HandlersUsagePeriod](Internal/type-aliases/HandlersUsagePeriod.md) | - |
 | [HandlersUsageTimeseriesPoint](Internal/type-aliases/HandlersUsageTimeseriesPoint.md) | - |
+| [HandlersUsageTotals](Internal/type-aliases/HandlersUsageTotals.md) | - |
 | [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
@@ -427,6 +437,7 @@
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
+| [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
 | [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
 | [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |

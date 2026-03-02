@@ -190,6 +190,10 @@ export type HandlersCreateCheckoutSessionRequest = {
      */
     interval?: string;
     price_id?: string;
+    /**
+     * Rewardful referral ID for affiliate tracking
+     */
+    referral?: string;
     success_url?: string;
     /**
      * "starter" or "pro"
@@ -200,6 +204,10 @@ export type HandlersCreateCheckoutSessionRequest = {
 export type HandlersCreateCreditPackCheckoutRequest = {
     cancel_url?: string;
     credits?: number;
+    /**
+     * Rewardful referral ID for affiliate tracking
+     */
+    referral?: string;
     success_url?: string;
 };
 
@@ -208,6 +216,10 @@ export type HandlersCreateCustomerPortalRequest = {
 };
 
 export type HandlersCreateDeveloperAppRequest = {
+    /**
+     * "standard" (default) or "pooled_api"
+     */
+    app_type?: string;
     /**
      * credits per new user (1 credit = $0.01)
      */
@@ -282,6 +294,10 @@ export type HandlersDeveloperApiKeyWithSecretResponse = {
 };
 
 export type HandlersDeveloperAppResponse = {
+    /**
+     * "standard" or "pooled_api"
+     */
+    app_type?: string;
     app_uuid?: string;
     /**
      * available credits in app pool
@@ -345,6 +361,10 @@ export type HandlersFundDeveloperAppRequest = {
      */
     credits?: number;
     /**
+     * Rewardful referral ID for affiliate tracking
+     */
+    referral?: string;
+    /**
      * URL to redirect after successful payment
      */
     success_url?: string;
@@ -391,6 +411,21 @@ export type HandlersListAppsResponse = {
 export type HandlersListUsersResponse = {
     pagination?: HandlersPaginationResponse;
     users?: Array<HandlersDeveloperUserResponse>;
+};
+
+export type HandlersModelToolUsageItem = {
+    call_count?: number;
+    cost_usd?: number;
+    model?: string;
+    tools?: Array<HandlersToolCallDetailItem>;
+};
+
+export type HandlersModelUsageItem = {
+    cost_usd?: number;
+    model?: string;
+    request_count?: number;
+    request_tokens?: number;
+    response_tokens?: number;
 };
 
 export type HandlersPaginationResponse = {
@@ -597,6 +632,12 @@ export type HandlersTool = {
     schema?: McpToolSchema;
 };
 
+export type HandlersToolCallDetailItem = {
+    call_count?: number;
+    cost_usd?: number;
+    tool?: string;
+};
+
 export type HandlersTopUpUserRequest = {
     /**
      * credits to add (1 credit = $0.01)
@@ -637,6 +678,13 @@ export type HandlersUpdateUserLimitRequest = {
     credits?: number;
 };
 
+export type HandlersUsageByModelResponse = {
+    models?: Array<HandlersModelUsageItem>;
+    period?: HandlersUsagePeriod;
+    tool_usage?: Array<HandlersModelToolUsageItem>;
+    totals?: HandlersUsageTotals;
+};
+
 export type HandlersUsagePeriod = {
     end?: string;
     start?: string;
@@ -648,6 +696,14 @@ export type HandlersUsageTimeseriesPoint = {
     request_tokens?: number;
     response_tokens?: number;
     timestamp?: string;
+};
+
+export type HandlersUsageTotals = {
+    cost_usd?: number;
+    request_count?: number;
+    tool_call_count?: number;
+    tool_cost_usd?: number;
+    total_tokens?: number;
 };
 
 export type HandlersUserUsageResponse = {
@@ -3625,6 +3681,44 @@ export type GetApiV1ToolsResponses = {
 };
 
 export type GetApiV1ToolsResponse = GetApiV1ToolsResponses[keyof GetApiV1ToolsResponses];
+
+export type GetApiV1UsageModelsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Time period. Day aliases: 7d, 30d, 90d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 90d.
+         */
+        period?: string;
+    };
+    url: '/api/v1/usage/models';
+};
+
+export type GetApiV1UsageModelsErrors = {
+    /**
+     * Invalid period
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1UsageModelsError = GetApiV1UsageModelsErrors[keyof GetApiV1UsageModelsErrors];
+
+export type GetApiV1UsageModelsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUsageByModelResponse;
+};
+
+export type GetApiV1UsageModelsResponse = GetApiV1UsageModelsResponses[keyof GetApiV1UsageModelsResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

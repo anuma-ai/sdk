@@ -92,7 +92,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260226221905",
+    "@anuma/portal": "1.0.0-next.20260228183644",
     "ai": "5.0.93",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",
