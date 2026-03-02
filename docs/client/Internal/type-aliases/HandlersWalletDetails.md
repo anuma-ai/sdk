@@ -2,7 +2,7 @@
 
 > **HandlersWalletDetails** = `object`
 
-Defined in: [src/client/types.gen.ts:728](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#728)
+Defined in: [src/client/types.gen.ts:472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#472)
 
 Wallet account details
 
@@ -12,7 +12,7 @@ Wallet account details
 
 > `optional` **account\_created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#732)
+Defined in: [src/client/types.gen.ts:476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#476)
 
 When account was first created
 
@@ -22,7 +22,7 @@ When account was first created
 
 > `optional` **account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:733](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#733)
+Defined in: [src/client/types.gen.ts:477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#477)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:733](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **balance\_updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:737](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#737)
+Defined in: [src/client/types.gen.ts:481](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#481)
 
 When balance was last synced from chain
 
@@ -40,7 +40,7 @@ When balance was last synced from chain
 
 > `optional` **cached\_balance\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#741)
+Defined in: [src/client/types.gen.ts:485](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#485)
 
 Balance in micro-dollars (USD \* 1,000,000)
 
@@ -50,7 +50,7 @@ Balance in micro-dollars (USD \* 1,000,000)
 
 > `optional` **enrolled\_app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#745)
+Defined in: [src/client/types.gen.ts:489](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#489)
 
 App ID for enrollment (0 if not enrolled)
 
@@ -60,7 +60,7 @@ App ID for enrollment (0 if not enrolled)
 
 > `optional` **is\_enrolled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#749)
+Defined in: [src/client/types.gen.ts:493](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#493)
 
 Whether enrolled in cost-limit model
 
@@ -70,7 +70,7 @@ Whether enrolled in cost-limit model
 
 > `optional` **pending\_cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#753)
+Defined in: [src/client/types.gen.ts:497](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#497)
 
 In-flight request holds in micro-dollars
 
@@ -80,7 +80,7 @@ In-flight request holds in micro-dollars
 
 > `optional` **pro\_activated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#757)
+Defined in: [src/client/types.gen.ts:501](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#501)
 
 When user became Pro subscriber
 
@@ -90,6 +90,6 @@ When user became Pro subscriber
 
 > `optional` **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#761)
+Defined in: [src/client/types.gen.ts:505](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#505)
 
 "basic" or "pro"

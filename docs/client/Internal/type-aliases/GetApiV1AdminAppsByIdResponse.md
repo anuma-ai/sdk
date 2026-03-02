@@ -2,4 +2,4 @@
 
 > **GetApiV1AdminAppsByIdResponse** = [`GetApiV1AdminAppsByIdResponses`](GetApiV1AdminAppsByIdResponses.md)\[keyof [`GetApiV1AdminAppsByIdResponses`](GetApiV1AdminAppsByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:1998](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1998)
+Defined in: [src/client/types.gen.ts:1742](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1742)

@@ -154,9 +154,9 @@ Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConver
 
 ***
 
-### createMemoryRetrievalTool
+### createMemoryEngineTool
 
-Re-exports [createMemoryRetrievalTool](../react/Internal/functions/createMemoryRetrievalTool.md)
+Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngineTool.md)
 
 ***
 
@@ -304,21 +304,21 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
-### MemoryRetrievalEmbeddingOptions
+### MemoryEngineEmbeddingOptions
 
-Re-exports [MemoryRetrievalEmbeddingOptions](../react/Internal/interfaces/MemoryRetrievalEmbeddingOptions.md)
-
-***
-
-### MemoryRetrievalResult
-
-Re-exports [MemoryRetrievalResult](../react/Internal/interfaces/MemoryRetrievalResult.md)
+Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)
 
 ***
 
-### MemoryRetrievalSearchOptions
+### MemoryEngineResult
 
-Re-exports [MemoryRetrievalSearchOptions](../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)
+Re-exports [MemoryEngineResult](../react/Internal/interfaces/MemoryEngineResult.md)
+
+***
+
+### MemoryEngineSearchOptions
+
+Re-exports [MemoryEngineSearchOptions](../react/Internal/interfaces/MemoryEngineSearchOptions.md)
 
 ***
 

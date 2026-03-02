@@ -1,6 +1,6 @@
 # eagerEmbedContent
 
-> **eagerEmbedContent**(`content`: `string`, `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `Promise`<`void`>
+> **eagerEmbedContent**(`content`: `string`, `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `Promise`<`void`>
 
 Defined in: [src/lib/memoryVault/searchTool.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#83)
 
@@ -37,7 +37,7 @@ Call this when a vault memory is created or updated.
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 </tr>

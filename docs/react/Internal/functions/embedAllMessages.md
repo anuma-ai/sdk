@@ -1,8 +1,8 @@
 # embedAllMessages
 
-> **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
+> **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#232)
+Defined in: [src/lib/memoryEngine/embeddings.ts:232](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#232)
 
 Embed all messages without embeddings in the database
 
@@ -42,7 +42,7 @@ Storage operations context
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>

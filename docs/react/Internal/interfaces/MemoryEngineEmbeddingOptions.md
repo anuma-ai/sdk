@@ -1,6 +1,6 @@
-# MemoryRetrievalEmbeddingOptions
+# MemoryEngineEmbeddingOptions
 
-Defined in: [src/lib/memoryRetrieval/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#61)
+Defined in: [src/lib/memoryEngine/types.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#61)
 
 Options for embedding generation
 
@@ -17,7 +17,7 @@ At least one of `getToken` or `apiKey` must be provided.
 
 > `optional` **apiKey**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#65)
+Defined in: [src/lib/memoryEngine/types.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#65)
 
 Direct API key for server-side usage. Uses X-API-Key header.
 
@@ -27,7 +27,7 @@ Direct API key for server-side usage. Uses X-API-Key header.
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#67)
+Defined in: [src/lib/memoryEngine/types.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#67)
 
 Base URL for the API
 
@@ -37,7 +37,7 @@ Base URL for the API
 
 > `optional` **batchSize**: `number`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#71)
+Defined in: [src/lib/memoryEngine/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#71)
 
 Max texts per API call for batch embeddings (default: 100). Larger arrays are split into chunks.
 
@@ -47,7 +47,7 @@ Max texts per API call for batch embeddings (default: 100). Larger arrays are sp
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/memoryRetrieval/types.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#63)
+Defined in: [src/lib/memoryEngine/types.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#63)
 
 Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization: Bearer header.
 
@@ -61,6 +61,6 @@ Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization:
 
 > `optional` **model**: `string`
 
-Defined in: [src/lib/memoryRetrieval/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/types.ts#69)
+Defined in: [src/lib/memoryEngine/types.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#69)
 
 Embedding model to use

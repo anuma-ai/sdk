@@ -2,7 +2,7 @@
 
 > **LlmapiResponseTool** = `object`
 
-Defined in: [src/client/types.gen.ts:1431](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1431)
+Defined in: [src/client/types.gen.ts:1175](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1175)
 
 ## Index Signature
 

@@ -1,6 +1,6 @@
 # searchVaultMemories
 
-> **searchVaultMemories**(`query`: `string`, `vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `Promise`<[`VaultSearchResult`](../interfaces/VaultSearchResult.md)\[]>
+> **searchVaultMemories**(`query`: `string`, `vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `searchOptions?`: [`MemoryVaultSearchOptions`](../interfaces/MemoryVaultSearchOptions.md)): `Promise`<[`VaultSearchResult`](../interfaces/VaultSearchResult.md)\[]>
 
 Defined in: [src/lib/memoryVault/searchTool.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#170)
 
@@ -52,7 +52,7 @@ so it can be called programmatically (e.g., for pre-retrieval injection).
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 </tr>
