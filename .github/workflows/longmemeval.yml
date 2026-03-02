@@ -20,6 +20,19 @@ on:
           - oracle
           - s
           - m
+      model:
+        description: "LLM model for answer generation and evaluation"
+        required: true
+        type: choice
+        default: "cerebras/qwen-3-235b-a22b-instruct-2507"
+        options:
+          - cerebras/qwen-3-235b-a22b-instruct-2507
+          - fireworks/accounts/fireworks/models/kimi-k2p5
+          - grok/grok-4-1-fast-non-reasoning
+          - grok/grok-4-1-fast-reasoning
+          - gemini/gemini-3-flash-preview
+          - gemini/gemini-3-pro-preview
+          - openai/gpt-5.2
       max:
         description: "Max questions (blank = all)"
         required: false
@@ -67,9 +80,10 @@ jobs:
         env:
           PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
           EVAL_VARIANT: ${{ inputs.variant }}
+          EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --json --output results.json"
+          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
           fi
