@@ -72,6 +72,37 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncrypti
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
 
+/** Image tool names recognized by the MCP image pipeline. */
+const IMAGE_TOOL_NAMES = new Set([
+  "AnumaImageMCP_generate_cloud_image",
+  "AnumaImageMCP_edit_cloud_image",
+  "AnumaImageMCP-generate_cloud_image",
+  "AnumaImageMCP-edit_cloud_image",
+  "generate_cloud_image",
+  "edit_cloud_image",
+]);
+
+/**
+ * Extract the image generation model name from tool_call_events.
+ * The MCP image tool returns `{ model, url }` in its JSON output.
+ */
+function extractImageModelFromToolEvents(
+  toolCallEvents: Array<{ name?: string; output?: string }> | undefined
+): string | undefined {
+  if (!toolCallEvents) return undefined;
+  for (const event of toolCallEvents) {
+    if (event.name && IMAGE_TOOL_NAMES.has(event.name) && event.output) {
+      try {
+        const output = JSON.parse(event.output);
+        if (output.model) return output.model as string;
+      } catch {
+        // Malformed JSON — skip
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * Convert StoredMessage to LlmapiMessage format.
  * Only adds image_url parts for non-assistant messages.
@@ -856,6 +887,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         parentMessageId,
       } = args;
 
@@ -934,6 +966,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
         });
 
@@ -1117,6 +1150,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -1154,6 +1188,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
+              imageModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
@@ -1277,12 +1312,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
+      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      const resolvedImageModel =
+        imageModel || extractImageModelFromToolEvents(responseData.tool_call_events);
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
         role: "assistant",
         content: cleanedContent,
         model: responseData.model || model,
+        imageModel: resolvedImageModel,
         usage: convertUsageToStored(responseData.usage),
         responseDuration,
         sources: combinedSources,

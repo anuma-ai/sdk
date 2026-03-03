@@ -2467,6 +2467,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
+              imageModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
@@ -2644,12 +2645,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      const resolvedImageModel =
+        imageModel ||
+        extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
         role: "assistant",
         content: cleanedContent,
         model: responseData.model || model,
+        imageModel: resolvedImageModel,
         fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
         usage: convertUsageToStored(responseData.usage),
         responseDuration,

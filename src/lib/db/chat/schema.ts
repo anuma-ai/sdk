@@ -2,7 +2,7 @@ import { appSchema, tableSchema } from "@nozbe/watermelondb";
 import { addColumns, schemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 
 export const chatStorageSchema = appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: "history",
@@ -12,6 +12,7 @@ export const chatStorageSchema = appSchema({
         { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
+        { name: "image_model", type: "string", isOptional: true },
         { name: "files", type: "string", isOptional: true },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
@@ -84,6 +85,15 @@ export const chatStorageMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "chunks", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 7,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "image_model", type: "string", isOptional: true }],
         }),
       ],
     },
