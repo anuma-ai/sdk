@@ -1,8 +1,8 @@
 # embedMessage
 
-> **embedMessage**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `messageId`: `string`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
+> **embedMessage**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `messageId`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:150](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#150)
+Defined in: [src/lib/memoryEngine/embeddings.ts:192](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#192)
 
 Embed a single message and store the embedding in the database
 
@@ -59,7 +59,7 @@ Unique ID of the message to embed
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>

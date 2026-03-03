@@ -1,9 +1,4 @@
-import type {
-  LlmapiChatCompletionTool,
-  LlmapiMessage,
-  LlmapiMessageContentPart,
-  LlmapiResponseResponse,
-} from "../../../client";
+import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import { getLogger } from "../../logger";
 import type {
   AccumulatedToolCall,
@@ -93,56 +88,6 @@ export function validateToken(token: string | null): ValidationResult {
     };
   }
   return { valid: true };
-}
-
-/**
- * Extracts text from a message content part
- */
-function extractTextFromContentPart(part: LlmapiMessageContentPart): string {
-  if (part.type === "text" && part.text) {
-    return part.text;
-  }
-  return "";
-}
-
-/**
- * Converts a messages array to a string input for the responses API.
- * Format: Each message is prefixed with its role, messages are separated by newlines.
- *
- * @deprecated This function is deprecated. The API now accepts messages as an array directly.
- * This function is kept for backward compatibility but is no longer used internally.
- */
-function messagesToInput(messages: LlmapiMessage[]): string {
-  return messages
-    .map((msg) => {
-      const role = msg.role || "user";
-
-      // Handle tool result messages - format them as system messages with tool results
-      if (role === "tool") {
-        const content = Array.isArray(msg.content)
-          ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
-          : String(msg.content || "");
-        return `system: Tool result: ${content}`;
-      }
-
-      // Handle assistant messages with tool calls
-      if (role === "assistant" && (msg as any).tool_calls) {
-        const toolCalls = (msg as any).tool_calls;
-        const toolCallsText = toolCalls
-          .map((tc: any) => {
-            const args = tc.function?.arguments || "{}";
-            return `Called ${tc.function?.name}(${args})`;
-          })
-          .join(", ");
-        return `assistant: ${toolCallsText}`;
-      }
-
-      const content = Array.isArray(msg.content)
-        ? msg.content.map(extractTextFromContentPart).filter(Boolean).join("\n")
-        : String(msg.content || "");
-      return `${role}: ${content}`;
-    })
-    .join("\n\n");
 }
 
 /**
@@ -635,52 +580,6 @@ export function processStreamingChunk(
   }
 
   return result;
-}
-
-/**
- * Builds the final response from accumulated stream data
- */
-function buildResponseResponse(accumulator: StreamAccumulator): LlmapiResponseResponse {
-  const output: LlmapiResponseResponse["output"] = [];
-
-  // Add thinking/reasoning output if present
-  if (accumulator.thinking) {
-    output.push({
-      type: "reasoning",
-      role: "assistant",
-      content: [{ type: "output_text", text: accumulator.thinking }],
-      status: "completed",
-    });
-  }
-
-  // Add tool calls if present
-  if (accumulator.toolCalls.size > 0) {
-    for (const toolCall of accumulator.toolCalls.values()) {
-      output.push({
-        type: "function_call",
-        call_id: toolCall.id,
-        name: toolCall.name,
-        arguments: toolCall.arguments,
-        status: toolCall.status,
-      });
-    }
-  }
-
-  // Add the main message output
-  output.push({
-    type: "message",
-    role: "assistant",
-    content: [{ type: "output_text", text: accumulator.content }],
-    status: "completed",
-  });
-
-  return {
-    id: accumulator.responseId,
-    model: accumulator.responseModel,
-    object: "response",
-    output,
-    usage: Object.keys(accumulator.usage).length > 0 ? accumulator.usage : undefined,
-  };
 }
 
 /**

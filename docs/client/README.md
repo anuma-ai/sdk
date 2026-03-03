@@ -15,6 +15,21 @@
 | [DeleteApiV1AdminAppsByIdErrors](Internal/type-aliases/DeleteApiV1AdminAppsByIdErrors.md) | - |
 | [DeleteApiV1AdminAppsByIdResponse](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponse.md) | - |
 | [DeleteApiV1AdminAppsByIdResponses](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponses.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponse](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponse.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidData](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidData.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidError](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidError.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidErrors](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidErrors.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidPrivyData](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyData.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidPrivyError](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyError.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidPrivyErrors](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyErrors.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidPrivyResponse](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyResponse.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidPrivyResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyResponses.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidResponse](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponse.md) | - |
+| [DeleteApiV1DeveloperAppsByAppUuidResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponses.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -50,6 +65,41 @@
 | [GetApiV1CreditsPacksErrors](Internal/type-aliases/GetApiV1CreditsPacksErrors.md) | - |
 | [GetApiV1CreditsPacksResponse](Internal/type-aliases/GetApiV1CreditsPacksResponse.md) | - |
 | [GetApiV1CreditsPacksResponses](Internal/type-aliases/GetApiV1CreditsPacksResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidApiKeysData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidApiKeysError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidApiKeysErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidApiKeysResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidApiKeysResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageUsersData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageUsersError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageUsersErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageUsersResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsageUsersResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsageUsersResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersByAddressData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersByAddressError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersByAddressResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersData](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersData.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersError](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersError.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersErrors](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersErrors.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersResponse](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersResponse.md) | - |
+| [GetApiV1DeveloperAppsByAppUuidUsersResponses](Internal/type-aliases/GetApiV1DeveloperAppsByAppUuidUsersResponses.md) | - |
+| [GetApiV1DeveloperAppsData](Internal/type-aliases/GetApiV1DeveloperAppsData.md) | - |
+| [GetApiV1DeveloperAppsError](Internal/type-aliases/GetApiV1DeveloperAppsError.md) | - |
+| [GetApiV1DeveloperAppsErrors](Internal/type-aliases/GetApiV1DeveloperAppsErrors.md) | - |
+| [GetApiV1DeveloperAppsResponse](Internal/type-aliases/GetApiV1DeveloperAppsResponse.md) | - |
+| [GetApiV1DeveloperAppsResponses](Internal/type-aliases/GetApiV1DeveloperAppsResponses.md) | - |
 | [GetApiV1DocsSwaggerJsonData](Internal/type-aliases/GetApiV1DocsSwaggerJsonData.md) | - |
 | [GetApiV1DocsSwaggerJsonResponse](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponse.md) | - |
 | [GetApiV1DocsSwaggerJsonResponses](Internal/type-aliases/GetApiV1DocsSwaggerJsonResponses.md) | - |
@@ -78,6 +128,11 @@
 | [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
 | [GetApiV1ToolsResponse](Internal/type-aliases/GetApiV1ToolsResponse.md) | - |
 | [GetApiV1ToolsResponses](Internal/type-aliases/GetApiV1ToolsResponses.md) | - |
+| [GetApiV1UsageModelsData](Internal/type-aliases/GetApiV1UsageModelsData.md) | - |
+| [GetApiV1UsageModelsError](Internal/type-aliases/GetApiV1UsageModelsError.md) | - |
+| [GetApiV1UsageModelsErrors](Internal/type-aliases/GetApiV1UsageModelsErrors.md) | - |
+| [GetApiV1UsageModelsResponse](Internal/type-aliases/GetApiV1UsageModelsResponse.md) | - |
+| [GetApiV1UsageModelsResponses](Internal/type-aliases/GetApiV1UsageModelsResponses.md) | - |
 | [GetHealthData](Internal/type-aliases/GetHealthData.md) | - |
 | [GetHealthError](Internal/type-aliases/GetHealthError.md) | - |
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
@@ -89,6 +144,8 @@
 | [HandlersApiKeyWithKeyResponse](Internal/type-aliases/HandlersApiKeyWithKeyResponse.md) | - |
 | [HandlersAppConfig](Internal/type-aliases/HandlersAppConfig.md) | - |
 | [HandlersAppResponse](Internal/type-aliases/HandlersAppResponse.md) | - |
+| [HandlersAppUsageResponse](Internal/type-aliases/HandlersAppUsageResponse.md) | - |
+| [HandlersAppUserUsageResponse](Internal/type-aliases/HandlersAppUserUsageResponse.md) | - |
 | [HandlersCancelScheduledDowngradeResponse](Internal/type-aliases/HandlersCancelScheduledDowngradeResponse.md) | - |
 | [HandlersCancelSubscriptionResponse](Internal/type-aliases/HandlersCancelSubscriptionResponse.md) | - |
 | [HandlersCheckoutSessionResponse](Internal/type-aliases/HandlersCheckoutSessionResponse.md) | - |
@@ -96,21 +153,33 @@
 | [HandlersClaimTaskRewardRequest](Internal/type-aliases/HandlersClaimTaskRewardRequest.md) | - |
 | [HandlersClaimTaskRewardResponse](Internal/type-aliases/HandlersClaimTaskRewardResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
+| [HandlersConfigurePrivyRequest](Internal/type-aliases/HandlersConfigurePrivyRequest.md) | - |
 | [HandlersCreateApiKeyRequest](Internal/type-aliases/HandlersCreateApiKeyRequest.md) | - |
 | [HandlersCreateAppRequest](Internal/type-aliases/HandlersCreateAppRequest.md) | - |
 | [HandlersCreateCheckoutSessionRequest](Internal/type-aliases/HandlersCreateCheckoutSessionRequest.md) | - |
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
+| [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
 | [HandlersCustomerPortalResponse](Internal/type-aliases/HandlersCustomerPortalResponse.md) | - |
+| [HandlersDeveloperApiKeyRequest](Internal/type-aliases/HandlersDeveloperApiKeyRequest.md) | - |
+| [HandlersDeveloperApiKeyResponse](Internal/type-aliases/HandlersDeveloperApiKeyResponse.md) | - |
+| [HandlersDeveloperApiKeyWithSecretResponse](Internal/type-aliases/HandlersDeveloperApiKeyWithSecretResponse.md) | - |
+| [HandlersDeveloperAppResponse](Internal/type-aliases/HandlersDeveloperAppResponse.md) | - |
+| [HandlersDeveloperUserResponse](Internal/type-aliases/HandlersDeveloperUserResponse.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
+| [HandlersFundDeveloperAppRequest](Internal/type-aliases/HandlersFundDeveloperAppRequest.md) | - |
 | [HandlersGeneratedApiKey](Internal/type-aliases/HandlersGeneratedApiKey.md) | - |
 | [HandlersGetToolsResponse](Internal/type-aliases/HandlersGetToolsResponse.md) | - |
 | [HandlersHealthResponse](Internal/type-aliases/HandlersHealthResponse.md) | - |
 | [HandlersListApiKeysResponse](Internal/type-aliases/HandlersListApiKeysResponse.md) | - |
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
+| [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
+| [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
+| [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
+| [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
 | [HandlersRevokeRequest](Internal/type-aliases/HandlersRevokeRequest.md) | - |
@@ -129,8 +198,17 @@
 | [HandlersTaskResponse](Internal/type-aliases/HandlersTaskResponse.md) | - |
 | [HandlersTokenResponse](Internal/type-aliases/HandlersTokenResponse.md) | - |
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
+| [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
+| [HandlersTopUpUserRequest](Internal/type-aliases/HandlersTopUpUserRequest.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
+| [HandlersUpdateDeveloperAppRequest](Internal/type-aliases/HandlersUpdateDeveloperAppRequest.md) | - |
+| [HandlersUpdateUserLimitRequest](Internal/type-aliases/HandlersUpdateUserLimitRequest.md) | - |
+| [HandlersUsageByModelResponse](Internal/type-aliases/HandlersUsageByModelResponse.md) | - |
+| [HandlersUsagePeriod](Internal/type-aliases/HandlersUsagePeriod.md) | - |
+| [HandlersUsageTimeseriesPoint](Internal/type-aliases/HandlersUsageTimeseriesPoint.md) | - |
+| [HandlersUsageTotals](Internal/type-aliases/HandlersUsageTotals.md) | - |
+| [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
 | [LlmapiChatCompletionRequest](Internal/type-aliases/LlmapiChatCompletionRequest.md) | - |
@@ -173,6 +251,16 @@
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
 | [Options](Internal/type-aliases/Options.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidData](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidData.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidError](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidError.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidErrors](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidErrors.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidResponse](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidResponse.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidResponses](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidResponses.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidUsersByAddressData](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressData.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidUsersByAddressError](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressError.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponse.md) | - |
+| [PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md) | - |
 | [PostApiV1AdminAddCreditsData](Internal/type-aliases/PostApiV1AdminAddCreditsData.md) | - |
 | [PostApiV1AdminAddCreditsError](Internal/type-aliases/PostApiV1AdminAddCreditsError.md) | - |
 | [PostApiV1AdminAddCreditsErrors](Internal/type-aliases/PostApiV1AdminAddCreditsErrors.md) | - |
@@ -223,6 +311,26 @@
 | [PostApiV1CreditsSyncSnagErrors](Internal/type-aliases/PostApiV1CreditsSyncSnagErrors.md) | - |
 | [PostApiV1CreditsSyncSnagResponse](Internal/type-aliases/PostApiV1CreditsSyncSnagResponse.md) | - |
 | [PostApiV1CreditsSyncSnagResponses](Internal/type-aliases/PostApiV1CreditsSyncSnagResponses.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidApiKeysData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysData.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidApiKeysError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysError.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidApiKeysErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysErrors.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidApiKeysResponse](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysResponse.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidApiKeysResponses](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysResponses.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidPrivyData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyData.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidPrivyError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyError.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidPrivyErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyErrors.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidPrivyResponse](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyResponse.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidPrivyResponses](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyResponses.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpError.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponse](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponse.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses.md) | - |
+| [PostApiV1DeveloperAppsData](Internal/type-aliases/PostApiV1DeveloperAppsData.md) | - |
+| [PostApiV1DeveloperAppsError](Internal/type-aliases/PostApiV1DeveloperAppsError.md) | - |
+| [PostApiV1DeveloperAppsErrors](Internal/type-aliases/PostApiV1DeveloperAppsErrors.md) | - |
+| [PostApiV1DeveloperAppsResponse](Internal/type-aliases/PostApiV1DeveloperAppsResponse.md) | - |
+| [PostApiV1DeveloperAppsResponses](Internal/type-aliases/PostApiV1DeveloperAppsResponses.md) | - |
 | [PostApiV1EmbeddingsData](Internal/type-aliases/PostApiV1EmbeddingsData.md) | - |
 | [PostApiV1EmbeddingsError](Internal/type-aliases/PostApiV1EmbeddingsError.md) | - |
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
@@ -283,6 +391,11 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
+| [PostDeveloperAppsByAppUuidFundData](Internal/type-aliases/PostDeveloperAppsByAppUuidFundData.md) | - |
+| [PostDeveloperAppsByAppUuidFundError](Internal/type-aliases/PostDeveloperAppsByAppUuidFundError.md) | - |
+| [PostDeveloperAppsByAppUuidFundErrors](Internal/type-aliases/PostDeveloperAppsByAppUuidFundErrors.md) | - |
+| [PostDeveloperAppsByAppUuidFundResponse](Internal/type-aliases/PostDeveloperAppsByAppUuidFundResponse.md) | - |
+| [PostDeveloperAppsByAppUuidFundResponses](Internal/type-aliases/PostDeveloperAppsByAppUuidFundResponses.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -301,6 +414,9 @@
 | ------ | ------ |
 | [deleteApiV1AdminAppsByAppIdApiKeysById](Internal/functions/deleteApiV1AdminAppsByAppIdApiKeysById.md) | Delete API key |
 | [deleteApiV1AdminAppsById](Internal/functions/deleteApiV1AdminAppsById.md) | Delete app |
+| [deleteApiV1DeveloperAppsByAppUuid](Internal/functions/deleteApiV1DeveloperAppsByAppUuid.md) | Delete app |
+| [deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId](Internal/functions/deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId.md) | Delete API key |
+| [deleteApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/deleteApiV1DeveloperAppsByAppUuidPrivy.md) | Remove Privy |
 | [getApiV1AdminApps](Internal/functions/getApiV1AdminApps.md) | List all apps |
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
@@ -308,13 +424,23 @@
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
 | [getApiV1CreditsBalance](Internal/functions/getApiV1CreditsBalance.md) | Get credit balance |
 | [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |
+| [getApiV1DeveloperApps](Internal/functions/getApiV1DeveloperApps.md) | List apps |
+| [getApiV1DeveloperAppsByAppUuid](Internal/functions/getApiV1DeveloperAppsByAppUuid.md) | Get app |
+| [getApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/getApiV1DeveloperAppsByAppUuidApiKeys.md) | List API keys |
+| [getApiV1DeveloperAppsByAppUuidUsage](Internal/functions/getApiV1DeveloperAppsByAppUuidUsage.md) | Get app usage |
+| [getApiV1DeveloperAppsByAppUuidUsageUsers](Internal/functions/getApiV1DeveloperAppsByAppUuidUsageUsers.md) | Get app user usage |
+| [getApiV1DeveloperAppsByAppUuidUsers](Internal/functions/getApiV1DeveloperAppsByAppUuidUsers.md) | List users |
+| [getApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/getApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Get user |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
+| [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
+| [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
+| [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |
 | [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
@@ -325,6 +451,10 @@
 | [postApiV1CreditsClaimTask](Internal/functions/postApiV1CreditsClaimTask.md) | Claim task reward |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
 | [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
+| [postApiV1DeveloperApps](Internal/functions/postApiV1DeveloperApps.md) | Create app |
+| [postApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/postApiV1DeveloperAppsByAppUuidApiKeys.md) | Create API key |
+| [postApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/postApiV1DeveloperAppsByAppUuidPrivy.md) | Configure Privy |
+| [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
@@ -337,5 +467,6 @@
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
+| [postDeveloperAppsByAppUuidFund](Internal/functions/postDeveloperAppsByAppUuidFund.md) | Fund developer app balance |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |

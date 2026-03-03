@@ -230,8 +230,8 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
     if (!isReady || !mediaCollection) {
       return null;
     }
-    return { database };
-  }, [database, mediaCollection, isReady]);
+    return { database, walletAddress };
+  }, [database, mediaCollection, isReady, walletAddress]);
 
   // ============================================================================
   // CRUD Operations

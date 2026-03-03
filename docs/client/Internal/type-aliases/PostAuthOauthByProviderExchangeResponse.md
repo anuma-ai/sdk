@@ -2,4 +2,4 @@
 
 > **PostAuthOauthByProviderExchangeResponse** = [`PostAuthOauthByProviderExchangeResponses`](PostAuthOauthByProviderExchangeResponses.md)\[keyof [`PostAuthOauthByProviderExchangeResponses`](PostAuthOauthByProviderExchangeResponses.md)]
 
-Defined in: [src/client/types.gen.ts:2689](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2689)
+Defined in: [src/client/types.gen.ts:3758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3758)

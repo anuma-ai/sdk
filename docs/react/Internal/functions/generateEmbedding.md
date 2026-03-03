@@ -1,8 +1,8 @@
 # generateEmbedding
 
-> **generateEmbedding**(`text`: `string`, `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<`number`\[]>
+> **generateEmbedding**(`text`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#41)
+Defined in: [src/lib/memoryEngine/embeddings.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#40)
 
 Generate an embedding for text using the API
 
@@ -41,7 +41,7 @@ Supports two auth methods:
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 </tr>

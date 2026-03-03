@@ -1,6 +1,6 @@
 # createMemoryVaultTool
 
-> **createMemoryVaultTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: [`MemoryVaultToolOptions`](../interfaces/MemoryVaultToolOptions.md), `embeddingOptions?`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache?`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `ToolConfig`
+> **createMemoryVaultTool**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: [`MemoryVaultToolOptions`](../interfaces/MemoryVaultToolOptions.md), `embeddingOptions?`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache?`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)): `ToolConfig`
 
 Defined in: [src/lib/memoryVault/tool.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#80)
 
@@ -62,7 +62,7 @@ Optional configuration (onSave callback for confirmation)
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>

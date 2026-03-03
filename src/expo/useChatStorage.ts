@@ -57,12 +57,12 @@ import {
   WalletPoller,
 } from "../lib/db/queue";
 import {
-  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
-  type MemoryRetrievalSearchOptions,
-} from "../lib/memoryRetrieval";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+  type MemoryEngineSearchOptions,
+} from "../lib/memoryEngine";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
@@ -177,7 +177,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Send a message and automatically store it (Expo version) */
   sendMessage: (args: SendMessageWithStorageArgs) => Promise<SendMessageWithStorageResult>;
   /**
-   * Create a memory retrieval tool for LLM to search past conversations.
+   * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
    *
    * @param searchOptions - Optional search configuration (limit, minSimilarity, etc.)
@@ -185,14 +185,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    *
    * @example
    * ```ts
-   * const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+   * const memoryTool = createMemoryEngineTool({ limit: 5 });
    * await sendMessage({
    *   messages: [...],
    *   clientTools: [memoryTool],
    * });
    * ```
    */
-  createMemoryRetrievalTool: (searchOptions?: Partial<MemoryRetrievalSearchOptions>) => ToolConfig;
+  createMemoryEngineTool: (searchOptions?: Partial<MemoryEngineSearchOptions>) => ToolConfig;
 
   /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
@@ -532,14 +532,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Create a memory retrieval tool pre-configured with hook's context and auth
+   * Create a memory engine tool pre-configured with hook's context and auth
    */
-  const createMemoryRetrievalTool = useCallback(
-    (searchOptions?: Partial<MemoryRetrievalSearchOptions>): ToolConfig => {
+  const createMemoryEngineTool = useCallback(
+    (searchOptions?: Partial<MemoryEngineSearchOptions>): ToolConfig => {
       if (!getToken) {
-        throw new Error("getToken is required for memory retrieval tool");
+        throw new Error("getToken is required for memory engine tool");
       }
-      return createMemoryRetrievalToolBase(
+      return createMemoryEngineToolBase(
         storageCtx,
         { getToken, baseUrl, model: embeddingModel },
         searchOptions
@@ -1354,7 +1354,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     updateConversationTitle,
     deleteConversation,
     getMessages,
-    createMemoryRetrievalTool,
+    createMemoryEngineTool,
     createMemoryVaultTool,
     getVaultMemories,
     deleteVaultMemory,

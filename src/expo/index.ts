@@ -146,10 +146,12 @@ export {
 
 // Memory vault
 export {
+  createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
@@ -172,16 +174,16 @@ export {
   getServerTools,
 } from "../lib/tools";
 
-// Memory retrieval (semantic search over past messages)
+// Memory engine (semantic search over past messages)
 export type {
-  EmbeddingOptions as MemoryRetrievalEmbeddingOptions,
-  MemoryRetrievalResult,
-  MemoryRetrievalSearchOptions,
-} from "../lib/memoryRetrieval";
+  EmbeddingOptions as MemoryEngineEmbeddingOptions,
+  MemoryEngineResult,
+  MemoryEngineSearchOptions,
+} from "../lib/memoryEngine";
 export {
-  createMemoryRetrievalTool,
+  createMemoryEngineTool,
   embedAllMessages,
   embedMessage,
   generateEmbedding,
   generateEmbeddings,
-} from "../lib/memoryRetrieval";
+} from "../lib/memoryEngine";

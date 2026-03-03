@@ -68,6 +68,47 @@ export async function createVaultMemoryOp(
   return vaultMemoryToStored(created, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
+export async function createVaultMemoriesBatchOp(
+  ctx: VaultMemoryOperationsContext,
+  optionsArray: CreateVaultMemoryOptions[]
+): Promise<StoredVaultMemory[]> {
+  if (optionsArray.length === 0) return [];
+
+  // Pre-encrypt all contents in parallel
+  const encryptedContents = await Promise.all(
+    optionsArray.map(async (opts) => {
+      if (ctx.walletAddress && ctx.signMessage) {
+        return encryptVaultMemoryContent(
+          opts.content,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        );
+      }
+      return opts.content;
+    })
+  );
+
+  // Single write transaction with batch create
+  const created = await ctx.database.write(async () => {
+    const prepared = optionsArray.map((opts, i) =>
+      ctx.vaultMemoryCollection.prepareCreate((record) => {
+        record._setRaw("content", encryptedContents[i]);
+        record._setRaw("scope", opts.scope ?? "private");
+        record._setRaw("is_deleted", false);
+      })
+    );
+    await ctx.database.batch(...prepared);
+    return prepared;
+  });
+
+  return Promise.all(
+    created.map((record) =>
+      vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+    )
+  );
+}
+
 export async function getVaultMemoryOp(
   ctx: VaultMemoryOperationsContext,
   id: string
@@ -97,11 +138,45 @@ export async function getAllVaultMemoriesOp(
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
 
-  return Promise.all(
-    results.map((record) =>
-      vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-    )
-  );
+  // Bounded concurrency to avoid UI freezing with 1000+ memories
+  const CONCURRENCY = 50;
+  const stored: StoredVaultMemory[] = [];
+  for (let i = 0; i < results.length; i += CONCURRENCY) {
+    const chunk = results.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map((record) =>
+        vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      )
+    );
+    stored.push(...chunkResults);
+  }
+  return stored;
+}
+
+export async function getAllVaultMemoryContentsOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<string[]> {
+  const conditions = [Q.where("is_deleted", false)];
+  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
+
+  const CONCURRENCY = 50;
+  const contents: string[] = [];
+  for (let i = 0; i < results.length; i += CONCURRENCY) {
+    const chunk = results.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map(async (record) => {
+        const stored = await vaultMemoryToStored(
+          record,
+          ctx.walletAddress,
+          ctx.signMessage,
+          ctx.embeddedWalletSigner
+        );
+        return stored.content;
+      })
+    );
+    contents.push(...chunkResults);
+  }
+  return contents;
 }
 
 export async function updateVaultMemoryOp(

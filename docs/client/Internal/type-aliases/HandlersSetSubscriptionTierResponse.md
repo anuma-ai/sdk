@@ -2,7 +2,7 @@
 
 > **HandlersSetSubscriptionTierResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#354)
+Defined in: [src/client/types.gen.ts:536](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#536)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:354](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:355](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#355)
+Defined in: [src/client/types.gen.ts:537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#537)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:355](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#356)
+Defined in: [src/client/types.gen.ts:538](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#538)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:356](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#357)
+Defined in: [src/client/types.gen.ts:539](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#539)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:357](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#358)
+Defined in: [src/client/types.gen.ts:540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#540)

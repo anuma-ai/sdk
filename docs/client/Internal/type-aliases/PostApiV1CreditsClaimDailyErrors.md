@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1996)
+Defined in: [src/client/types.gen.ts:2256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2256)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1996](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2000)
+Defined in: [src/client/types.gen.ts:2260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2260)
 
 Already claimed today or invalid timezone
 
@@ -20,9 +20,19 @@ Already claimed today or invalid timezone
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2004)
+Defined in: [src/client/types.gen.ts:2264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2264)
 
 Unauthorized
+
+***
+
+### 403
+
+> **403**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
+
+Defined in: [src/client/types.gen.ts:2268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2268)
+
+Daily credits not available for this app
 
 ***
 
@@ -30,7 +40,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2008)
+Defined in: [src/client/types.gen.ts:2272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2272)
 
 Account not found
 
@@ -40,6 +50,6 @@ Account not found
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2012](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2012)
+Defined in: [src/client/types.gen.ts:2276](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2276)
 
 Internal Server Error

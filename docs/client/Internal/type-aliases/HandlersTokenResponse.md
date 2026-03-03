@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#426)
+Defined in: [src/client/types.gen.ts:608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#608)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:426](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:427](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#427)
+Defined in: [src/client/types.gen.ts:609](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#609)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:427](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:431](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#431)
+Defined in: [src/client/types.gen.ts:613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#613)
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:435](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#435)
+Defined in: [src/client/types.gen.ts:617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#617)
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:439](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#439)
+Defined in: [src/client/types.gen.ts:621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#621)
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > `optional` **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#443)
+Defined in: [src/client/types.gen.ts:625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#625)
 
 Usually "Bearer"

@@ -1,6 +1,6 @@
 import type { VaultEmbeddingCache } from "./searchTool";
 
-export const DEFAULT_VAULT_CACHE_SIZE = 1000;
+export const DEFAULT_VAULT_CACHE_SIZE = 5000;
 
 /**
  * A simple LRU (Least Recently Used) cache that extends Map.
