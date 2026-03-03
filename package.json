@@ -47,6 +47,12 @@
       "require": "./dist/next/index.cjs",
       "default": "./dist/next/index.cjs"
     },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.mjs",
+      "require": "./dist/client/index.cjs",
+      "default": "./dist/client/index.cjs"
+    },
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.mjs",
