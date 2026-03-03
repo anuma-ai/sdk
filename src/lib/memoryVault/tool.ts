@@ -12,7 +12,7 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
-import type { EmbeddingOptions } from "../memoryRetrieval/types";
+import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
 /**

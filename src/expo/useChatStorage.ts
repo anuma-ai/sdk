@@ -57,12 +57,12 @@ import {
   WalletPoller,
 } from "../lib/db/queue";
 import {
-  createMemoryRetrievalTool as createMemoryRetrievalToolBase,
+  createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
   generateEmbedding,
-  type MemoryRetrievalSearchOptions,
-} from "../lib/memoryRetrieval";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryRetrieval/constants";
+  type MemoryEngineSearchOptions,
+} from "../lib/memoryEngine";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
@@ -71,6 +71,37 @@ import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
+
+/** Image tool names recognized by the MCP image pipeline. */
+const IMAGE_TOOL_NAMES = new Set([
+  "AnumaImageMCP_generate_cloud_image",
+  "AnumaImageMCP_edit_cloud_image",
+  "AnumaImageMCP-generate_cloud_image",
+  "AnumaImageMCP-edit_cloud_image",
+  "generate_cloud_image",
+  "edit_cloud_image",
+]);
+
+/**
+ * Extract the image generation model name from tool_call_events.
+ * The MCP image tool returns `{ model, url }` in its JSON output.
+ */
+function extractImageModelFromToolEvents(
+  toolCallEvents: Array<{ name?: string; output?: string }> | undefined
+): string | undefined {
+  if (!toolCallEvents) return undefined;
+  for (const event of toolCallEvents) {
+    if (event.name && IMAGE_TOOL_NAMES.has(event.name) && event.output) {
+      try {
+        const output = JSON.parse(event.output);
+        if (output.model) return output.model as string;
+      } catch {
+        // Malformed JSON — skip
+      }
+    }
+  }
+  return undefined;
+}
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -176,7 +207,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
   /** Send a message and automatically store it (Expo version) */
   sendMessage: (args: SendMessageWithStorageArgs) => Promise<SendMessageWithStorageResult>;
   /**
-   * Create a memory retrieval tool for LLM to search past conversations.
+   * Create a memory engine tool for LLM to search past conversations.
    * The tool is pre-configured with the hook's storage context and auth.
    *
    * @param searchOptions - Optional search configuration (limit, minSimilarity, etc.)
@@ -184,14 +215,14 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    *
    * @example
    * ```ts
-   * const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+   * const memoryTool = createMemoryEngineTool({ limit: 5 });
    * await sendMessage({
    *   messages: [...],
    *   clientTools: [memoryTool],
    * });
    * ```
    */
-  createMemoryRetrievalTool: (searchOptions?: Partial<MemoryRetrievalSearchOptions>) => ToolConfig;
+  createMemoryEngineTool: (searchOptions?: Partial<MemoryEngineSearchOptions>) => ToolConfig;
 
   /** Create a memory vault tool pre-configured with hook's vault context and encryption. */
   createMemoryVaultTool: (options?: MemoryVaultToolOptions) => ToolConfig;
@@ -531,14 +562,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   );
 
   /**
-   * Create a memory retrieval tool pre-configured with hook's context and auth
+   * Create a memory engine tool pre-configured with hook's context and auth
    */
-  const createMemoryRetrievalTool = useCallback(
-    (searchOptions?: Partial<MemoryRetrievalSearchOptions>): ToolConfig => {
+  const createMemoryEngineTool = useCallback(
+    (searchOptions?: Partial<MemoryEngineSearchOptions>): ToolConfig => {
       if (!getToken) {
-        throw new Error("getToken is required for memory retrieval tool");
+        throw new Error("getToken is required for memory engine tool");
       }
-      return createMemoryRetrievalToolBase(
+      return createMemoryEngineToolBase(
         storageCtx,
         { getToken, baseUrl, model: embeddingModel },
         searchOptions
@@ -856,6 +887,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         parentMessageId,
       } = args;
 
@@ -934,6 +966,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
         });
 
@@ -1117,6 +1150,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -1154,6 +1188,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
+              imageModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
@@ -1277,12 +1312,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
+      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      const resolvedImageModel =
+        imageModel || extractImageModelFromToolEvents(responseData.tool_call_events);
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
         role: "assistant",
         content: cleanedContent,
         model: responseData.model || model,
+        imageModel: resolvedImageModel,
         usage: convertUsageToStored(responseData.usage),
         responseDuration,
         sources: combinedSources,
@@ -1353,7 +1393,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     updateConversationTitle,
     deleteConversation,
     getMessages,
-    createMemoryRetrievalTool,
+    createMemoryEngineTool,
     createMemoryVaultTool,
     getVaultMemories,
     deleteVaultMemory,

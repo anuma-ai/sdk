@@ -92,6 +92,17 @@ export default defineConfig([
     },
   },
   {
+    entry: ["src/client/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/client",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
     entry: ["src/tools/index.ts"],
     format: ["esm", "cjs"],
     dts: true,

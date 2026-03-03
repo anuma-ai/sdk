@@ -154,9 +154,9 @@ Re-exports [CreateConversationOptions](../react/Internal/interfaces/CreateConver
 
 ***
 
-### createMemoryRetrievalTool
+### createMemoryEngineTool
 
-Re-exports [createMemoryRetrievalTool](../react/Internal/functions/createMemoryRetrievalTool.md)
+Re-exports [createMemoryEngineTool](../react/Internal/functions/createMemoryEngineTool.md)
 
 ***
 
@@ -169,6 +169,12 @@ Re-exports [createMemoryVaultTool](../react/Internal/functions/createMemoryVault
 ### CreateMessageOptions
 
 Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOptions.md)
+
+***
+
+### createVaultMemoriesBatchOp
+
+Re-exports [createVaultMemoriesBatchOp](../react/Internal/functions/createVaultMemoriesBatchOp.md)
 
 ***
 
@@ -268,6 +274,12 @@ Re-exports [getAllVaultMemoriesOp](../react/Internal/functions/getAllVaultMemori
 
 ***
 
+### getAllVaultMemoryContentsOp
+
+Re-exports [getAllVaultMemoryContentsOp](../react/Internal/functions/getAllVaultMemoryContentsOp.md)
+
+***
+
 ### getCachedServerTools
 
 Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerTools.md)
@@ -292,21 +304,21 @@ Re-exports [hasEncryptionKey](../react/Internal/functions/hasEncryptionKey.md)
 
 ***
 
-### MemoryRetrievalEmbeddingOptions
+### MemoryEngineEmbeddingOptions
 
-Re-exports [MemoryRetrievalEmbeddingOptions](../react/Internal/interfaces/MemoryRetrievalEmbeddingOptions.md)
-
-***
-
-### MemoryRetrievalResult
-
-Re-exports [MemoryRetrievalResult](../react/Internal/interfaces/MemoryRetrievalResult.md)
+Re-exports [MemoryEngineEmbeddingOptions](../react/Internal/interfaces/MemoryEngineEmbeddingOptions.md)
 
 ***
 
-### MemoryRetrievalSearchOptions
+### MemoryEngineResult
 
-Re-exports [MemoryRetrievalSearchOptions](../react/Internal/interfaces/MemoryRetrievalSearchOptions.md)
+Re-exports [MemoryEngineResult](../react/Internal/interfaces/MemoryEngineResult.md)
+
+***
+
+### MemoryEngineSearchOptions
+
+Re-exports [MemoryEngineSearchOptions](../react/Internal/interfaces/MemoryEngineSearchOptions.md)
 
 ***
 

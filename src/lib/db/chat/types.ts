@@ -114,6 +114,8 @@ export interface StoredMessage {
   role: ChatRole;
   content: string;
   model?: string;
+  /** Image generation model used for this message (e.g., "nano-banana-flash") */
+  imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
   /** Array of media_id references for direct lookup in media table */
@@ -206,6 +208,8 @@ export interface CreateMessageOptions {
   role: ChatRole;
   content: string;
   model?: string;
+  /** Image generation model used for this message */
+  imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
   /** Array of media_id references for direct lookup in media table */
@@ -235,6 +239,8 @@ export interface CreateConversationOptions {
 export interface UpdateMessageOptions {
   content?: string;
   model?: string;
+  /** Image generation model used for this message */
+  imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
   files?: FileMetadata[];
   /** Array of media_id references for direct lookup in media table */

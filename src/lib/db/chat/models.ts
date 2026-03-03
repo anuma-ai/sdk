@@ -25,6 +25,7 @@ export class Message extends Model {
   @text("role") role!: ChatRole;
   @text("content") content!: string;
   @text("model") model?: string;
+  @text("image_model") imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
   @json("files", (json) => json) files?: FileMetadata[];
   /** Array of media_id references for direct lookup */

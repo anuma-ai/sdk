@@ -1,13 +1,15 @@
 # generateEmbeddings
 
-> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
+> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#94)
+Defined in: [src/lib/memoryEngine/embeddings.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#129)
 
-Generate embeddings for multiple texts in a single API call
+Generate embeddings for multiple texts, automatically chunking large inputs.
 
 More efficient than calling generateEmbedding multiple times.
 Supports the same auth methods as generateEmbedding.
+For inputs larger than batchSize (default 100), splits into chunks
+processed with bounded concurrency (3 concurrent batches).
 
 ## Parameters
 
@@ -45,7 +47,7 @@ Array of texts to embed
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>

@@ -125,7 +125,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `optional` **chunks**: [`MessageChunk`](../interfaces/MessageChunk.md)\[]
 
-Defined in: [src/lib/db/chat/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#36)
+Defined in: [src/lib/db/chat/models.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#37)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [src/lib/db/chat/models.ts:24](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#32)
+Defined in: [src/lib/db/chat/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#33)
 
 ***
 
@@ -169,7 +169,7 @@ Defined in: [src/lib/db/chat/models.ts:32](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#35)
+Defined in: [src/lib/db/chat/models.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#36)
 
 ***
 
@@ -177,7 +177,7 @@ Defined in: [src/lib/db/chat/models.ts:35](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **error**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#41)
+Defined in: [src/lib/db/chat/models.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#42)
 
 ***
 
@@ -185,7 +185,7 @@ Defined in: [src/lib/db/chat/models.ts:41](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **feedback**: [`MessageFeedback`](../type-aliases/MessageFeedback.md)
 
-Defined in: [src/lib/db/chat/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#45)
+Defined in: [src/lib/db/chat/models.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#46)
 
 ***
 
@@ -193,7 +193,7 @@ Defined in: [src/lib/db/chat/models.ts:45](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **fileIds**: `string`\[]
 
-Defined in: [src/lib/db/chat/models.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#31)
+Defined in: [src/lib/db/chat/models.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#32)
 
 Array of media\_id references for direct lookup
 
@@ -203,11 +203,19 @@ Array of media\_id references for direct lookup
 
 > `optional` **files**: [`FileMetadata`](../interfaces/FileMetadata.md)\[]
 
-Defined in: [src/lib/db/chat/models.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#29)
+Defined in: [src/lib/db/chat/models.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#30)
 
 **Deprecated**
 
 Use fileIds with media table instead
+
+***
+
+### imageModel?
+
+> `optional` **imageModel**: `string`
+
+Defined in: [src/lib/db/chat/models.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#28)
 
 ***
 
@@ -231,7 +239,7 @@ Defined in: [src/lib/db/chat/models.ts:27](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#44)
+Defined in: [src/lib/db/chat/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#45)
 
 ***
 
@@ -239,7 +247,7 @@ Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **responseDuration**: `number`
 
-Defined in: [src/lib/db/chat/models.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#39)
+Defined in: [src/lib/db/chat/models.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#40)
 
 ***
 
@@ -255,7 +263,7 @@ Defined in: [src/lib/db/chat/models.ts:25](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **sources**: [`SearchSource`](../interfaces/SearchSource.md)\[]
 
-Defined in: [src/lib/db/chat/models.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#38)
+Defined in: [src/lib/db/chat/models.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#39)
 
 ***
 
@@ -263,7 +271,7 @@ Defined in: [src/lib/db/chat/models.ts:38](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **thinking**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#43)
+Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#44)
 
 ***
 
@@ -271,7 +279,7 @@ Defined in: [src/lib/db/chat/models.ts:43](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/models.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#42)
+Defined in: [src/lib/db/chat/models.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#43)
 
 ***
 
@@ -279,7 +287,7 @@ Defined in: [src/lib/db/chat/models.ts:42](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#33)
+Defined in: [src/lib/db/chat/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#34)
 
 ***
 
@@ -287,7 +295,7 @@ Defined in: [src/lib/db/chat/models.ts:33](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](../interfaces/StoredChatCompletionUsage.md)
 
-Defined in: [src/lib/db/chat/models.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#37)
+Defined in: [src/lib/db/chat/models.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#38)
 
 ***
 
@@ -295,7 +303,7 @@ Defined in: [src/lib/db/chat/models.ts:37](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **vector**: `number`\[]
 
-Defined in: [src/lib/db/chat/models.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#34)
+Defined in: [src/lib/db/chat/models.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#35)
 
 ***
 
@@ -303,7 +311,7 @@ Defined in: [src/lib/db/chat/models.ts:34](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **wasStopped**: `boolean`
 
-Defined in: [src/lib/db/chat/models.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#40)
+Defined in: [src/lib/db/chat/models.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#41)
 
 ***
 

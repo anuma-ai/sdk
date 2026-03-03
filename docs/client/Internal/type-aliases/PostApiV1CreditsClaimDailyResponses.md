@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimDailyResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2017)
+Defined in: [src/client/types.gen.ts:2281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2281)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2017](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersClaimDailyCreditsResponse`](HandlersClaimDailyCreditsResponse.md)
 
-Defined in: [src/client/types.gen.ts:2021](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2021)
+Defined in: [src/client/types.gen.ts:2285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2285)
 
 OK

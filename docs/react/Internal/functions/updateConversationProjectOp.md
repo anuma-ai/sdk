@@ -2,7 +2,7 @@
 
 > **updateConversationProjectOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `id`: `string`, `projectId`: `string` | `null`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/operations.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#281)
+Defined in: [src/lib/db/chat/operations.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#282)
 
 Update a conversation's project assignment.
 Pass null to remove the conversation from any project.

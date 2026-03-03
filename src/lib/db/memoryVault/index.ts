@@ -1,8 +1,10 @@
 export { VaultMemory } from "./models";
 export {
+  createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,

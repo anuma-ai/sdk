@@ -99,7 +99,7 @@ describe("createVaultEmbeddingCache", () => {
 });
 
 describe("DEFAULT_VAULT_CACHE_SIZE", () => {
-  it("is 1000", () => {
-    expect(DEFAULT_VAULT_CACHE_SIZE).toBe(1000);
+  it("is 5000", () => {
+    expect(DEFAULT_VAULT_CACHE_SIZE).toBe(5000);
   });
 });

@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:736](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#736)
+Defined in: [src/client/types.gen.ts:992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#992)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#740)
+Defined in: [src/client/types.gen.ts:996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#996)
 
 CostMicroUSD is the inference cost for this embedding request
 
@@ -22,7 +22,7 @@ CostMicroUSD is the inference cost for this embedding request
 
 > `optional` **credits\_used**: `number`
 
-Defined in: [src/client/types.gen.ts:744](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#744)
+Defined in: [src/client/types.gen.ts:1000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1000)
 
 CreditsUsed is the number of credits consumed by this embedding request
 
@@ -32,7 +32,7 @@ CreditsUsed is the number of credits consumed by this embedding request
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#748)
+Defined in: [src/client/types.gen.ts:1004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1004)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -42,6 +42,6 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#752)
+Defined in: [src/client/types.gen.ts:1008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1008)
 
 TotalTokens is the total number of tokens used

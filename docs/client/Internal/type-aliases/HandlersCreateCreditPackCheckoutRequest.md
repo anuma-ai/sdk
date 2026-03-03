@@ -2,7 +2,7 @@
 
 > **HandlersCreateCreditPackCheckoutRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#176)
+Defined in: [src/client/types.gen.ts:204](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#204)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:176](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **cancel\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#177)
+Defined in: [src/client/types.gen.ts:205](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#205)
 
 ***
 
@@ -18,7 +18,17 @@ Defined in: [src/client/types.gen.ts:177](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **credits**: `number`
 
-Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#178)
+Defined in: [src/client/types.gen.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#206)
+
+***
+
+### referral?
+
+> `optional` **referral**: `string`
+
+Defined in: [src/client/types.gen.ts:210](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#210)
+
+Rewardful referral ID for affiliate tracking
 
 ***
 
@@ -26,4 +36,4 @@ Defined in: [src/client/types.gen.ts:178](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **success\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:179](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#179)
+Defined in: [src/client/types.gen.ts:211](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#211)

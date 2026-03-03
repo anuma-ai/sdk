@@ -1,8 +1,8 @@
 # chunkAndEmbedAllMessages
 
-> **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
+> **chunkAndEmbedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#319)
+Defined in: [src/lib/memoryEngine/embeddings.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#362)
 
 Chunk and embed all messages without embeddings/chunks in the database.
 Uses chunking for long messages, whole-message embedding for short ones.
@@ -43,7 +43,7 @@ Storage operations context
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md) & [`ChunkingOptions`](../interfaces/ChunkingOptions.md)
 
 </td>
 <td>
