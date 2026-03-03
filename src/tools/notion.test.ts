@@ -588,9 +588,7 @@ describe("Notion MCP Tools", () => {
 
       // Retry returns large result
       const largeResult = { content: [{ type: "text", text: "b".repeat(80_000) }] };
-      mockFetch.mockResolvedValueOnce(
-        jsonResponse({ jsonrpc: "2.0", id: 5, result: largeResult })
-      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 5, result: largeResult }));
 
       const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
       const result = await tool.executor!({ query: "test" });
