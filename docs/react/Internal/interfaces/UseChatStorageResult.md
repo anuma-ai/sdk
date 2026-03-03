@@ -31,7 +31,7 @@ Discards pending operations without writing them.
 
 > **conversationId**: `string` | `null`
 
-Defined in: [src/lib/db/chat/types.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#626)
+Defined in: [src/lib/db/chat/types.ts:632](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#632)
 
 **Inherited from**
 
@@ -43,7 +43,7 @@ Defined in: [src/lib/db/chat/types.ts:626](https://github.com/anuma-ai/sdk/blob/
 
 > **createConversation**: (`options?`: [`CreateConversationOptions`](CreateConversationOptions.md)) => `Promise`<[`StoredConversation`](StoredConversation.md)>
 
-Defined in: [src/lib/db/chat/types.ts:628](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#628)
+Defined in: [src/lib/db/chat/types.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#634)
 
 **Parameters**
 
@@ -301,7 +301,7 @@ Optional scope (defaults to "private")
 
 > **deleteConversation**: (`id`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:632](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#632)
+Defined in: [src/lib/db/chat/types.ts:638](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#638)
 
 **Parameters**
 
@@ -463,7 +463,7 @@ Returns files with conversation context for building file browser UIs.
 
 > **getConversation**: (`id`: `string`) => `Promise`<[`StoredConversation`](StoredConversation.md) | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:629](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#629)
+Defined in: [src/lib/db/chat/types.ts:635](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#635)
 
 **Parameters**
 
@@ -504,7 +504,7 @@ Defined in: [src/lib/db/chat/types.ts:629](https://github.com/anuma-ai/sdk/blob/
 
 > **getConversations**: () => `Promise`<[`StoredConversation`](StoredConversation.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#630)
+Defined in: [src/lib/db/chat/types.ts:636](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#636)
 
 **Returns**
 
@@ -520,7 +520,7 @@ Defined in: [src/lib/db/chat/types.ts:630](https://github.com/anuma-ai/sdk/blob/
 
 > **getMessages**: (`conversationId`: `string`) => `Promise`<[`StoredMessage`](StoredMessage.md)\[]>
 
-Defined in: [src/lib/db/chat/types.ts:633](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#633)
+Defined in: [src/lib/db/chat/types.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#639)
 
 **Parameters**
 
@@ -624,7 +624,7 @@ Optional filtering (scopes to include)
 
 > **isLoading**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:624](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#624)
+Defined in: [src/lib/db/chat/types.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#630)
 
 **Inherited from**
 
@@ -1420,7 +1420,7 @@ if (result.error) {
 
 > **setConversationId**: (`id`: `string` | `null`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:627](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#627)
+Defined in: [src/lib/db/chat/types.ts:633](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#633)
 
 **Parameters**
 
@@ -1461,7 +1461,7 @@ Defined in: [src/lib/db/chat/types.ts:627](https://github.com/anuma-ai/sdk/blob/
 
 > **stop**: () => `void`
 
-Defined in: [src/lib/db/chat/types.ts:625](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#625)
+Defined in: [src/lib/db/chat/types.ts:631](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#631)
 
 **Returns**
 
@@ -1477,7 +1477,7 @@ Defined in: [src/lib/db/chat/types.ts:625](https://github.com/anuma-ai/sdk/blob/
 
 > **updateConversationTitle**: (`id`: `string`, `title`: `string`) => `Promise`<`boolean`>
 
-Defined in: [src/lib/db/chat/types.ts:631](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#631)
+Defined in: [src/lib/db/chat/types.ts:637](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#637)
 
 **Parameters**
 
