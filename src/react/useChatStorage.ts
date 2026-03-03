@@ -2647,8 +2647,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Resolve image model: prefer user-provided, fall back to MCP tool response
       const resolvedImageModel =
-        imageModel ||
-        extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
+        imageModel || extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
