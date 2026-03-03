@@ -1,8 +1,8 @@
 # generateEmbeddings
 
-> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
+> **generateEmbeddings**(`texts`: `string`\[], `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<`number`\[]\[]>
 
-Defined in: [src/lib/memoryRetrieval/embeddings.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/embeddings.ts#129)
+Defined in: [src/lib/memoryEngine/embeddings.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#129)
 
 Generate embeddings for multiple texts, automatically chunking large inputs.
 
@@ -47,7 +47,7 @@ Array of texts to embed
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>

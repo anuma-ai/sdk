@@ -80,13 +80,13 @@ Defined in: [src/lib/db/chat/types.ts:628](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
-### createMemoryRetrievalTool()
+### createMemoryEngineTool()
 
-> **createMemoryRetrievalTool**: (`searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>) => `ToolConfig`
+> **createMemoryEngineTool**: (`searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](MemoryEngineSearchOptions.md)>) => `ToolConfig`
 
 Defined in: [src/react/useChatStorage.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#573)
 
-Create a memory retrieval tool for LLM to search past conversations.
+Create a memory engine tool for LLM to search past conversations.
 The tool is pre-configured with the hook's storage context and auth.
 
 **Parameters**
@@ -108,7 +108,7 @@ The tool is pre-configured with the hook's storage context and auth.
 </td>
 <td>
 
-`Partial`<[`MemoryRetrievalSearchOptions`](MemoryRetrievalSearchOptions.md)>
+`Partial`<[`MemoryEngineSearchOptions`](MemoryEngineSearchOptions.md)>
 
 </td>
 <td>
@@ -129,7 +129,7 @@ A ToolConfig that can be passed to sendMessage's clientTools
 **Example**
 
 ```ts
-const memoryTool = createMemoryRetrievalTool({ limit: 5 });
+const memoryTool = createMemoryEngineTool({ limit: 5 });
 await sendMessage({
   messages: [...],
   clientTools: [memoryTool],

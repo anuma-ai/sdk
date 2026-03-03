@@ -1,6 +1,6 @@
 # preEmbedVaultMemories
 
-> **preEmbedVaultMemories**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `options?`: `object`): `Promise`<`void`>
+> **preEmbedVaultMemories**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `options?`: `object`): `Promise`<`void`>
 
 Defined in: [src/lib/memoryVault/searchTool.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#55)
 
@@ -37,7 +37,7 @@ Call this at init time so searches are instant.
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 </tr>

@@ -1,10 +1,10 @@
-# createMemoryRetrievalTool
+# createMemoryEngineTool
 
-> **createMemoryRetrievalTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryRetrievalSearchOptions`](../interfaces/MemoryRetrievalSearchOptions.md)>): `ToolConfig`
+> **createMemoryEngineTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>): `ToolConfig`
 
-Defined in: [src/lib/memoryRetrieval/tool.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryRetrieval/tool.ts#87)
+Defined in: [src/lib/memoryEngine/tool.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#87)
 
-Creates a memory retrieval tool for use with chat completions.
+Creates a memory engine tool for use with chat completions.
 
 The tool allows the LLM to search through past conversation messages
 using semantic similarity. Messages must have embeddings stored to be searchable.
@@ -45,7 +45,7 @@ Storage operations context for database access
 </td>
 <td>
 
-[`MemoryRetrievalEmbeddingOptions`](../interfaces/MemoryRetrievalEmbeddingOptions.md)
+[`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)
 
 </td>
 <td>
@@ -62,7 +62,7 @@ Options for embedding generation
 </td>
 <td>
 
-`Partial`<[`MemoryRetrievalSearchOptions`](../interfaces/MemoryRetrievalSearchOptions.md)>
+`Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>
 
 </td>
 <td>
@@ -83,7 +83,7 @@ A ToolConfig that can be passed to chat completion tools
 ## Example
 
 ```ts
-const tool = createMemoryRetrievalTool(
+const tool = createMemoryEngineTool(
   storageCtx,
   { getToken: () => getIdentityToken() },
   { limit: 5, minSimilarity: 0.4 }

@@ -8,8 +8,8 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
-import { generateEmbedding, generateEmbeddings } from "../memoryRetrieval/embeddings";
-import type { EmbeddingOptions } from "../memoryRetrieval/types";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import type { EmbeddingOptions } from "../memoryEngine/types";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
