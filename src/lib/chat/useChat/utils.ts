@@ -440,7 +440,10 @@ export function processStreamingChunk(
     if (chunk.response.id && !accumulator.responseId) {
       accumulator.responseId = chunk.response.id;
     }
-    if (chunk.response.model && !accumulator.responseModel) {
+    if (
+      chunk.response.model &&
+      (!accumulator.responseModel || accumulator.responseModel === "auto")
+    ) {
       accumulator.responseModel = chunk.response.model;
     }
     return result;
@@ -478,7 +481,7 @@ export function processStreamingChunk(
   if (chunk.id && !accumulator.responseId) {
     accumulator.responseId = chunk.id;
   }
-  if (chunk.model && !accumulator.responseModel) {
+  if (chunk.model && (!accumulator.responseModel || accumulator.responseModel === "auto")) {
     accumulator.responseModel = chunk.model;
   }
 

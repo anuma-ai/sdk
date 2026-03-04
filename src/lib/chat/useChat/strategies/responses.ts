@@ -53,7 +53,10 @@ export class ResponsesStrategy implements ApiStrategy {
       if (typedChunk.response.id && !accumulator.responseId) {
         accumulator.responseId = typedChunk.response.id;
       }
-      if (typedChunk.response.model && !accumulator.responseModel) {
+      if (
+        typedChunk.response.model &&
+        (!accumulator.responseModel || accumulator.responseModel === "auto")
+      ) {
         accumulator.responseModel = typedChunk.response.model;
       }
       if (typedChunk.response.tools_checksum && !accumulator.toolsChecksum) {
@@ -113,7 +116,7 @@ export class ResponsesStrategy implements ApiStrategy {
     if (typedChunk.id && !accumulator.responseId) {
       accumulator.responseId = typedChunk.id;
     }
-    if (typedChunk.model && !accumulator.responseModel) {
+    if (typedChunk.model && (!accumulator.responseModel || accumulator.responseModel === "auto")) {
       accumulator.responseModel = typedChunk.model;
     }
     // Capture tools_checksum from top-level if present
