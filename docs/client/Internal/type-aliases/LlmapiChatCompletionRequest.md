@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:786](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#786)
+Defined in: [src/client/types.gen.ts:842](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#842)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:786](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **image\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#791)
+Defined in: [src/client/types.gen.ts:847](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#847)
 
 ImageModel is the user-selected image generation model.
 When set, the portal overrides the model field in image tool call arguments.
@@ -21,7 +21,7 @@ When set, the portal overrides the model field in image tool call arguments.
 
 > **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:795](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#795)
+Defined in: [src/client/types.gen.ts:851](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#851)
 
 Messages is the conversation history
 
@@ -31,7 +31,7 @@ Messages is the conversation history
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:799](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#799)
+Defined in: [src/client/types.gen.ts:855](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#855)
 
 Model is the model identifier
 
@@ -41,7 +41,7 @@ Model is the model identifier
 
 > `optional` **stream**: `boolean`
 
-Defined in: [src/client/types.gen.ts:803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#803)
+Defined in: [src/client/types.gen.ts:859](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#859)
 
 Stream indicates if response should be streamed
 
@@ -51,7 +51,7 @@ Stream indicates if response should be streamed
 
 > `optional` **tool\_choice**: [`LlmapiChatCompletionToolChoice`](LlmapiChatCompletionToolChoice.md)
 
-Defined in: [src/client/types.gen.ts:804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#804)
+Defined in: [src/client/types.gen.ts:860](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#860)
 
 ***
 
@@ -59,6 +59,6 @@ Defined in: [src/client/types.gen.ts:804](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tools**: [`LlmapiChatCompletionTool`](LlmapiChatCompletionTool.md)\[]
 
-Defined in: [src/client/types.gen.ts:808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#808)
+Defined in: [src/client/types.gen.ts:864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#864)
 
 Tools is an array of tool schemas describing which tools the model can use

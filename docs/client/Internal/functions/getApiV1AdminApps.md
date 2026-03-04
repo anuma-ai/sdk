@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:42](https://github.com/anuma-ai/sdk/blob/main
 
 List all apps
 
-Returns all registered apps. Requires admin API key.
+Returns all registered apps with pagination. Requires admin API key.
 
 ## Type Parameters
 

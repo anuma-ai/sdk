@@ -101,6 +101,21 @@ export type HandlersAppUserUsageResponse = {
     users?: Array<HandlersUserUsageResponse>;
 };
 
+export type HandlersBillingHistoryResponse = {
+    pagination?: HandlersPaginationResponse;
+    payments?: Array<HandlersBillingRecordResponse>;
+};
+
+export type HandlersBillingRecordResponse = {
+    amount_cents?: number;
+    app_uuid?: string;
+    created_at?: string;
+    credits?: number;
+    currency?: string;
+    id?: number;
+    status?: string;
+};
+
 export type HandlersCancelScheduledDowngradeResponse = {
     message?: string;
 };
@@ -217,6 +232,10 @@ export type HandlersCreateCustomerPortalRequest = {
 
 export type HandlersCreateDeveloperAppRequest = {
     /**
+     * allowed CORS origins for API key requests
+     */
+    allowed_origins?: Array<string>;
+    /**
      * "standard" (default) or "pooled_api"
      */
     app_type?: string;
@@ -294,6 +313,10 @@ export type HandlersDeveloperApiKeyWithSecretResponse = {
 };
 
 export type HandlersDeveloperAppResponse = {
+    /**
+     * allowed CORS origins (empty = unrestricted)
+     */
+    allowed_origins?: Array<string>;
     /**
      * "standard" or "pooled_api"
      */
@@ -402,10 +425,22 @@ export type HandlersHealthResponse = {
 
 export type HandlersListApiKeysResponse = {
     api_keys?: Array<HandlersApiKeyResponse>;
+    pagination?: HandlersPaginationResponse;
 };
 
 export type HandlersListAppsResponse = {
     apps?: Array<HandlersAppResponse>;
+    pagination?: HandlersPaginationResponse;
+};
+
+export type HandlersListDeveloperApiKeysResponse = {
+    api_keys?: Array<HandlersDeveloperApiKeyResponse>;
+    pagination?: HandlersPaginationResponse;
+};
+
+export type HandlersListDeveloperAppsResponse = {
+    apps?: Array<HandlersDeveloperAppResponse>;
+    pagination?: HandlersPaginationResponse;
 };
 
 export type HandlersListUsersResponse = {
@@ -665,6 +700,10 @@ export type HandlersUpdateAppRequest = {
 
 export type HandlersUpdateDeveloperAppRequest = {
     /**
+     * nil=skip, []=clear, populated=set
+     */
+    allowed_origins?: Array<string>;
+    /**
      * credits per new user (1 credit = $0.01)
      */
     default_user_credits?: number;
@@ -676,6 +715,23 @@ export type HandlersUpdateUserLimitRequest = {
      * credit limit (1 credit = $0.01)
      */
     credits?: number;
+};
+
+export type HandlersUpgradeSubscriptionRequest = {
+    /**
+     * Optional: "month" or "year" (defaults to current)
+     */
+    interval?: string;
+    /**
+     * Required: "starter" or "pro"
+     */
+    tier?: string;
+};
+
+export type HandlersUpgradeSubscriptionResponse = {
+    message?: string;
+    new_interval?: string;
+    new_plan?: string;
 };
 
 export type HandlersUsageByModelResponse = {
@@ -1591,11 +1647,24 @@ export type GetApiV1AdminAppsData = {
         'X-Admin-API-Key': string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of apps to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of apps to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/admin/apps';
 };
 
 export type GetApiV1AdminAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -1673,11 +1742,24 @@ export type GetApiV1AdminAppsByAppIdApiKeysData = {
          */
         app_id: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of API keys to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of API keys to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/admin/apps/{app_id}/api-keys';
 };
 
 export type GetApiV1AdminAppsByAppIdApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2432,11 +2514,24 @@ export type PostApiV1CreditsSyncSnagResponse = PostApiV1CreditsSyncSnagResponses
 export type GetApiV1DeveloperAppsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of apps to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of apps to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/developer/apps';
 };
 
 export type GetApiV1DeveloperAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2453,7 +2548,7 @@ export type GetApiV1DeveloperAppsResponses = {
     /**
      * OK
      */
-    200: Array<HandlersDeveloperAppResponse>;
+    200: HandlersListDeveloperAppsResponse;
 };
 
 export type GetApiV1DeveloperAppsResponse = GetApiV1DeveloperAppsResponses[keyof GetApiV1DeveloperAppsResponses];
@@ -2637,11 +2732,24 @@ export type GetApiV1DeveloperAppsByAppUuidApiKeysData = {
          */
         app_uuid: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of API keys to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of API keys to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/developer/apps/{app_uuid}/api-keys';
 };
 
 export type GetApiV1DeveloperAppsByAppUuidApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2666,7 +2774,7 @@ export type GetApiV1DeveloperAppsByAppUuidApiKeysResponses = {
     /**
      * OK
      */
-    200: Array<HandlersDeveloperApiKeyResponse>;
+    200: HandlersListDeveloperApiKeysResponse;
 };
 
 export type GetApiV1DeveloperAppsByAppUuidApiKeysResponse = GetApiV1DeveloperAppsByAppUuidApiKeysResponses[keyof GetApiV1DeveloperAppsByAppUuidApiKeysResponses];
@@ -3184,6 +3292,48 @@ export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses = {
 
 export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponse = PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses[keyof PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses];
 
+export type GetApiV1DeveloperBillingData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Maximum number of records to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of records to skip (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/developer/billing';
+};
+
+export type GetApiV1DeveloperBillingErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperBillingError = GetApiV1DeveloperBillingErrors[keyof GetApiV1DeveloperBillingErrors];
+
+export type GetApiV1DeveloperBillingResponses = {
+    /**
+     * OK
+     */
+    200: HandlersBillingHistoryResponse;
+};
+
+export type GetApiV1DeveloperBillingResponse = GetApiV1DeveloperBillingResponses[keyof GetApiV1DeveloperBillingResponses];
+
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;
     path?: never;
@@ -3596,6 +3746,54 @@ export type GetApiV1SubscriptionsStatusResponses = {
 };
 
 export type GetApiV1SubscriptionsStatusResponse = GetApiV1SubscriptionsStatusResponses[keyof GetApiV1SubscriptionsStatusResponses];
+
+export type PostApiV1SubscriptionsUpgradeData = {
+    /**
+     * Upgrade request with target tier and optional interval
+     */
+    body: HandlersUpgradeSubscriptionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/upgrade';
+};
+
+export type PostApiV1SubscriptionsUpgradeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsUpgradeError = PostApiV1SubscriptionsUpgradeErrors[keyof PostApiV1SubscriptionsUpgradeErrors];
+
+export type PostApiV1SubscriptionsUpgradeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUpgradeSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsUpgradeResponse = PostApiV1SubscriptionsUpgradeResponses[keyof PostApiV1SubscriptionsUpgradeResponses];
 
 export type PostApiV1SubscriptionsWebhookData = {
     body?: {

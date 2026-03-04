@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsCustomerPortalError** = [`PostApiV1SubscriptionsCustomerPortalErrors`](PostApiV1SubscriptionsCustomerPortalErrors.md)\[keyof [`PostApiV1SubscriptionsCustomerPortalErrors`](PostApiV1SubscriptionsCustomerPortalErrors.md)]
 
-Defined in: [src/client/types.gen.ts:3458](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3458)
+Defined in: [src/client/types.gen.ts:3608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3608)

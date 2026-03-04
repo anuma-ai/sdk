@@ -2,7 +2,7 @@
 
 > **HandlersClaimDailyCreditsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#118)
+Defined in: [src/client/types.gen.ts:133](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#133)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:118](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **credits\_awarded**: `number`
 
-Defined in: [src/client/types.gen.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#122)
+Defined in: [src/client/types.gen.ts:137](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#137)
 
 Credits awarded (1 credit = $0.01)
 
@@ -20,7 +20,7 @@ Credits awarded (1 credit = $0.01)
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#123)
+Defined in: [src/client/types.gen.ts:138](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#138)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:123](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **next\_claim\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:127](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#127)
+Defined in: [src/client/types.gen.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#142)
 
 ISO8601 timestamp when next claim is available
 
@@ -38,4 +38,4 @@ ISO8601 timestamp when next claim is available
 
 > `optional` **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:128](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#128)
+Defined in: [src/client/types.gen.ts:143](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#143)

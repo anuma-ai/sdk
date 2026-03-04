@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageModelsData** = `object`
 
-Defined in: [src/client/types.gen.ts:3685](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3685)
+Defined in: [src/client/types.gen.ts:3883](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3883)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3685](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:3686](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3686)
+Defined in: [src/client/types.gen.ts:3884](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3884)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3686](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:3687](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3687)
+Defined in: [src/client/types.gen.ts:3885](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3885)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3687](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:3688](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3688)
+Defined in: [src/client/types.gen.ts:3886](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3886)
 
 **period?**
 
@@ -40,4 +40,4 @@ Time period. Day aliases: 7d, 30d, 90d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 7
 
 > **url**: `"/api/v1/usage/models"`
 
-Defined in: [src/client/types.gen.ts:3694](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3694)
+Defined in: [src/client/types.gen.ts:3892](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3892)

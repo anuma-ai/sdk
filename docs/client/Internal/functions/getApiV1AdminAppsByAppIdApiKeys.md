@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:70](https://github.com/anuma-ai/sdk/blob/main
 
 List API keys for an app
 
-Returns all API keys for the specified app. Requires admin API key.
+Returns API keys for the specified app with pagination. Requires admin API key.
 
 ## Type Parameters
 
