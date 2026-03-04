@@ -34,8 +34,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v14: Added feedback column to history table for like/dislike on responses
  * - v15: Replaced memories table with memory_vault table for persistent memory vault
  * - v16: Added scope column to memory_vault table for memory partitioning
+ * - v17: Added image_model column to history table for AI-generated image model tracking
  */
-export const SDK_SCHEMA_VERSION = 16;
+export const SDK_SCHEMA_VERSION = 17;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -79,6 +80,7 @@ export const sdkSchema = appSchema({
         { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
+        { name: "image_model", type: "string", isOptional: true }, // AI model used for image generation
         { name: "files", type: "string", isOptional: true }, // Deprecated: use file_ids with media table
         { name: "file_ids", type: "string", isOptional: true }, // JSON array of media_id references
         { name: "created_at", type: "number", isIndexed: true },
@@ -215,6 +217,7 @@ export const sdkSchema = appSchema({
  * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
  * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
+ * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -418,6 +421,16 @@ export const sdkMigrations = schemaMigrations({
         unsafeExecuteSql(
           "UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';"
         ),
+      ],
+    },
+    // v16 -> v17: Added image_model column to history for AI-generated image model tracking
+    {
+      toVersion: 17,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "image_model", type: "string", isOptional: true }],
+        }),
       ],
     },
   ],

@@ -1165,15 +1165,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
           // Find the message output item (type: "message") for main content
-          const messageOutput = abortedResult.data?.output?.find((item) => item.type === "message");
+          const abortOutput = (abortedResult.data?.output ?? []).filter(Boolean);
+          const messageOutput = abortOutput.find((item) => item?.type === "message");
           const assistantContent =
             messageOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
             "";
 
           // Find the reasoning output item (type: "reasoning") for thinking content
-          const reasoningOutput = abortedResult.data?.output?.find(
-            (item) => item.type === "reasoning"
-          );
+          const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
           const abortedThinkingContent =
             reasoningOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
             undefined;
@@ -1267,17 +1266,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let assistantContent = "";
       let thinkingContent: string | undefined;
 
-      if ("output" in responseData && responseData.output) {
+      if ("output" in responseData && Array.isArray(responseData.output)) {
         // Responses API format
         type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-        const messageOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "message"
-        );
+        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
+        const messageOutput = outputItems.find((item) => item?.type === "message");
         assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
-        const reasoningOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "reasoning"
-        );
+        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
         thinkingContent =
           reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
       } else if ("choices" in responseData && responseData.choices) {
