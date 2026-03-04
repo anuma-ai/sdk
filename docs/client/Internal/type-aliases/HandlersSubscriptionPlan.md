@@ -2,7 +2,7 @@
 
 > **HandlersSubscriptionPlan** = `object`
 
-Defined in: [src/client/types.gen.ts:543](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#543)
+Defined in: [src/client/types.gen.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#578)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:543](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **annual\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#544)
+Defined in: [src/client/types.gen.ts:579](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#579)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:544](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **annual\_price**: `number`
 
-Defined in: [src/client/types.gen.ts:545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#545)
+Defined in: [src/client/types.gen.ts:580](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#580)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:545](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **currency**: `string`
 
-Defined in: [src/client/types.gen.ts:546](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#546)
+Defined in: [src/client/types.gen.ts:581](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#581)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:546](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **monthly\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:547](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#547)
+Defined in: [src/client/types.gen.ts:582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#582)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:547](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **monthly\_price**: `number`
 
-Defined in: [src/client/types.gen.ts:548](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#548)
+Defined in: [src/client/types.gen.ts:583](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#583)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:548](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:549](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#549)
+Defined in: [src/client/types.gen.ts:584](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#584)

@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCancelData** = `object`
 
-Defined in: [src/client/types.gen.ts:3323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3323)
+Defined in: [src/client/types.gen.ts:3473](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3473)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3323](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:3324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3324)
+Defined in: [src/client/types.gen.ts:3474](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3474)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3324](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:3325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3325)
+Defined in: [src/client/types.gen.ts:3475](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3475)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3325](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:3326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3326)
+Defined in: [src/client/types.gen.ts:3476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3476)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:3326](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/cancel"`
 
-Defined in: [src/client/types.gen.ts:3327](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3327)
+Defined in: [src/client/types.gen.ts:3477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3477)

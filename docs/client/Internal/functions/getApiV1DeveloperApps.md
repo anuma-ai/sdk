@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:318](https://github.com/anuma-ai/sdk/blob/mai
 
 List apps
 
-Lists all apps owned by the authenticated developer.
+Lists all apps owned by the authenticated developer with pagination.
 
 ## Type Parameters
 

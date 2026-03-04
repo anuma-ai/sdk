@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:386](https://github.com/anuma-ai/sdk/blob/mai
 
 List API keys
 
-Lists all API keys for the app (without secrets).
+Lists all API keys for the app (without secrets) with pagination.
 
 ## Type Parameters
 
