@@ -5,17 +5,17 @@ export type ClientOptions = {
 };
 
 export type HandlersApiKeyResponse = {
-    app_id?: number;
-    created_at?: string;
+    app_id: number;
+    created_at: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
-    has_key?: boolean;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
-    wallet_address?: string;
+    has_key: boolean;
+    id: number;
+    is_active: boolean;
+    name: string;
+    updated_at: string;
+    wallet_address: string;
     wallet_details?: HandlersWalletDetails;
 };
 
@@ -23,14 +23,14 @@ export type HandlersApiKeyWithKeyResponse = {
     /**
      * Only included in create response
      */
-    api_key?: string;
-    app_id?: number;
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
-    wallet_address?: string;
+    api_key: string;
+    app_id: number;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
+    updated_at: string;
+    wallet_address: string;
 };
 
 export type HandlersAddCreditsRequest = {
@@ -46,88 +46,88 @@ export type HandlersAddCreditsRequest = {
 };
 
 export type HandlersAddCreditsResponse = {
-    credits_added?: number;
+    credits_added: number;
     /**
      * Escrow contract used for the operation
      */
     escrow_contract?: string;
     message?: string;
-    success?: boolean;
-    user_address?: string;
+    success: boolean;
+    user_address: string;
 };
 
 export type HandlersAppConfig = {
     /**
      * EscrowContract is the escrow contract address for this app
      */
-    escrow_contract?: string;
+    escrow_contract: string;
     /**
      * Name is the human-readable name of the app
      */
-    name?: string;
+    name: string;
 };
 
 export type HandlersAppResponse = {
-    app_balance_usd?: number;
-    app_uuid?: string;
-    created_at?: string;
-    credit_reset_enabled?: boolean;
-    default_user_cost_limit_usd?: number;
+    app_balance_usd: number;
+    app_uuid: string;
+    created_at: string;
+    credit_reset_enabled: boolean;
+    default_user_cost_limit_usd: number;
     developer_account_id?: number;
-    escrow_contract?: string;
+    escrow_contract: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
-    has_privy_verification_key?: boolean;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    has_privy_verification_key: boolean;
+    id: number;
+    is_active: boolean;
+    name: string;
     privy_app_id?: string;
-    updated_at?: string;
+    updated_at: string;
 };
 
 export type HandlersAppUsageResponse = {
-    app_uuid?: string;
-    period?: HandlersUsagePeriod;
-    timeseries?: Array<HandlersUsageTimeseriesPoint>;
-    total_cost_credits?: number;
-    total_request_tokens?: number;
-    total_requests?: number;
-    total_response_tokens?: number;
+    app_uuid: string;
+    period: HandlersUsagePeriod;
+    timeseries: Array<HandlersUsageTimeseriesPoint>;
+    total_cost_credits: number;
+    total_request_tokens: number;
+    total_requests: number;
+    total_response_tokens: number;
 };
 
 export type HandlersAppUserUsageResponse = {
-    pagination?: HandlersPaginationResponse;
-    users?: Array<HandlersUserUsageResponse>;
+    pagination: HandlersPaginationResponse;
+    users: Array<HandlersUserUsageResponse>;
 };
 
 export type HandlersBillingHistoryResponse = {
-    pagination?: HandlersPaginationResponse;
-    payments?: Array<HandlersBillingRecordResponse>;
+    pagination: HandlersPaginationResponse;
+    payments: Array<HandlersBillingRecordResponse>;
 };
 
 export type HandlersBillingRecordResponse = {
-    amount_cents?: number;
-    app_uuid?: string;
-    created_at?: string;
-    credits?: number;
-    currency?: string;
-    id?: number;
-    status?: string;
+    amount_cents: number;
+    app_uuid: string;
+    created_at: string;
+    credits: number;
+    currency: string;
+    id: number;
+    status: string;
 };
 
 export type HandlersCancelScheduledDowngradeResponse = {
-    message?: string;
+    message: string;
 };
 
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
-    message?: string;
+    message: string;
 };
 
 export type HandlersCheckoutSessionResponse = {
-    url?: string;
+    url: string;
 };
 
 export type HandlersClaimDailyCreditsResponse = {
@@ -135,12 +135,12 @@ export type HandlersClaimDailyCreditsResponse = {
      * Credits awarded (1 credit = $0.01)
      */
     credits_awarded?: number;
-    message?: string;
+    message: string;
     /**
      * ISO8601 timestamp when next claim is available
      */
     next_claim_at?: string;
-    success?: boolean;
+    success: boolean;
 };
 
 export type HandlersClaimTaskRewardRequest = {
@@ -149,10 +149,10 @@ export type HandlersClaimTaskRewardRequest = {
 };
 
 export type HandlersClaimTaskRewardResponse = {
-    already_claimed?: boolean;
+    already_claimed: boolean;
     credits_awarded?: number;
-    message?: string;
-    success?: boolean;
+    message: string;
+    success: boolean;
 };
 
 export type HandlersConfigResponse = {
@@ -250,43 +250,43 @@ export type HandlersCreditBalanceResponse = {
     /**
      * Available credits (1 credit = $0.01)
      */
-    available_credits?: number;
-    can_claim_daily?: boolean;
+    available_credits: number;
+    can_claim_daily: boolean;
     /**
      * Which import providers have been claimed
      */
-    claimed_import_rewards?: Array<string>;
+    claimed_import_rewards: Array<string>;
     /**
      * Whether enrolled on-chain
      */
-    is_enrolled?: boolean;
+    is_enrolled: boolean;
     last_claim_at?: string;
     /**
      * Total credits ever received (1 credit = $0.01)
      */
-    lifetime_credits?: number;
+    lifetime_credits: number;
     next_claim_at?: string;
     /**
      * "basic" or "pro"
      */
-    subscription_tier?: string;
-    wallet_address?: string;
+    subscription_tier: string;
+    wallet_address: string;
 };
 
 export type HandlersCreditPack = {
-    bonus_percent?: number;
-    credits?: number;
-    currency?: string;
-    pro_credits?: number;
-    unit_amount?: number;
+    bonus_percent: number;
+    credits: number;
+    currency: string;
+    pro_credits: number;
+    unit_amount: number;
 };
 
 export type HandlersCreditPacksResponse = {
-    packs?: Array<HandlersCreditPack>;
+    packs: Array<HandlersCreditPack>;
 };
 
 export type HandlersCustomerPortalResponse = {
-    url?: string;
+    url: string;
 };
 
 export type HandlersDeveloperApiKeyRequest = {
@@ -295,75 +295,75 @@ export type HandlersDeveloperApiKeyRequest = {
 };
 
 export type HandlersDeveloperApiKeyResponse = {
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
 };
 
 export type HandlersDeveloperApiKeyWithSecretResponse = {
     /**
      * Full key, only shown once
      */
-    api_key?: string;
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    api_key: string;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
 };
 
 export type HandlersDeveloperAppResponse = {
     /**
      * allowed CORS origins (empty = unrestricted)
      */
-    allowed_origins?: Array<string>;
+    allowed_origins: Array<string>;
     /**
      * "standard" or "pooled_api"
      */
-    app_type?: string;
-    app_uuid?: string;
+    app_type: string;
+    app_uuid: string;
     /**
      * available credits in app pool
      */
-    balance?: number;
-    created_at?: string;
+    balance: number;
+    created_at: string;
     /**
      * credits per new user (1 credit = $0.01)
      */
-    default_user_credits?: number;
+    default_user_credits: number;
     /**
      * on-chain escrow contract address
      */
     escrow_contract?: string;
-    has_privy_config?: boolean;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
+    has_privy_config: boolean;
+    is_active: boolean;
+    name: string;
+    updated_at: string;
 };
 
 export type HandlersDeveloperUserResponse = {
-    address?: string;
-    created_at?: string;
+    address: string;
+    created_at: string;
     /**
      * available credits (1 credit = $0.01)
      */
-    credits?: number;
+    credits: number;
     /**
      * on-chain enrollment status
      */
-    is_enrolled_onchain?: boolean;
+    is_enrolled_onchain: boolean;
     /**
      * total credits ever received
      */
-    lifetime_credits?: number;
+    lifetime_credits: number;
     /**
      * basic/pro
      */
-    subscription_tier?: string;
+    subscription_tier: string;
     /**
      * credits used/pending
      */
-    used_credits?: number;
+    used_credits: number;
 };
 
 export type HandlersExchangeRequest = {
@@ -397,13 +397,13 @@ export type HandlersGeneratedApiKey = {
     /**
      * Full HMAC key (anuma_live_<key_id>.<secret> or anuma_test_<key_id>.<secret>)
      */
-    api_key?: string;
-    name?: string;
+    api_key: string;
+    name: string;
 };
 
 export type HandlersGetToolsResponse = {
-    checksum?: string;
-    tools?: {
+    checksum: string;
+    tools: {
         [key: string]: HandlersTool;
     };
 };
@@ -412,61 +412,61 @@ export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
      */
-    status?: string;
+    status: string;
     /**
      * Timestamp is the Unix timestamp of the response
      */
-    timestamp?: number;
+    timestamp: number;
     /**
      * Version is the current API version
      */
-    version?: string;
+    version: string;
 };
 
 export type HandlersListApiKeysResponse = {
-    api_keys?: Array<HandlersApiKeyResponse>;
-    pagination?: HandlersPaginationResponse;
+    api_keys: Array<HandlersApiKeyResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListAppsResponse = {
-    apps?: Array<HandlersAppResponse>;
-    pagination?: HandlersPaginationResponse;
+    apps: Array<HandlersAppResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListDeveloperApiKeysResponse = {
-    api_keys?: Array<HandlersDeveloperApiKeyResponse>;
-    pagination?: HandlersPaginationResponse;
+    api_keys: Array<HandlersDeveloperApiKeyResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListDeveloperAppsResponse = {
-    apps?: Array<HandlersDeveloperAppResponse>;
-    pagination?: HandlersPaginationResponse;
+    apps: Array<HandlersDeveloperAppResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListUsersResponse = {
-    pagination?: HandlersPaginationResponse;
-    users?: Array<HandlersDeveloperUserResponse>;
+    pagination: HandlersPaginationResponse;
+    users: Array<HandlersDeveloperUserResponse>;
 };
 
 export type HandlersModelToolUsageItem = {
-    call_count?: number;
-    cost_usd?: number;
-    model?: string;
-    tools?: Array<HandlersToolCallDetailItem>;
+    call_count: number;
+    cost_usd: number;
+    model: string;
+    tools: Array<HandlersToolCallDetailItem>;
 };
 
 export type HandlersModelUsageItem = {
-    cost_usd?: number;
-    model?: string;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
+    cost_usd: number;
+    model: string;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
 };
 
 export type HandlersPaginationResponse = {
-    limit?: number;
-    offset?: number;
-    total?: number;
+    limit: number;
+    offset: number;
+    total: number;
 };
 
 export type HandlersRefreshRequest = {
@@ -475,7 +475,7 @@ export type HandlersRefreshRequest = {
 
 export type HandlersRenewSubscriptionResponse = {
     current_period_end?: number;
-    message?: string;
+    message: string;
 };
 
 export type HandlersRevokeRequest = {
@@ -495,12 +495,12 @@ export type HandlersScheduleDowngradeRequest = {
 
 export type HandlersScheduleDowngradeResponse = {
     current_period_end?: number;
-    message?: string;
+    message: string;
     /**
      * "month" or "year"
      */
     scheduled_interval?: string;
-    scheduled_plan?: string;
+    scheduled_plan: string;
 };
 
 export type HandlersSeedApiKeyInput = {
@@ -544,16 +544,16 @@ export type HandlersSeedAppsRequest = {
 };
 
 export type HandlersSeedAppsResponse = {
-    apps_seeded?: number;
+    apps_seeded: number;
     /**
      * Map of app name to generated keys
      */
     generated_keys?: {
         [key: string]: Array<HandlersGeneratedApiKey>;
     };
-    keys_seeded?: number;
+    keys_seeded: number;
     message?: string;
-    success?: boolean;
+    success: boolean;
 };
 
 export type HandlersSetSubscriptionTierRequest = {
@@ -570,29 +570,29 @@ export type HandlersSetSubscriptionTierRequest = {
 
 export type HandlersSetSubscriptionTierResponse = {
     message?: string;
-    success?: boolean;
-    tier?: string;
-    user_address?: string;
+    success: boolean;
+    tier: string;
+    user_address: string;
 };
 
 export type HandlersSubscriptionPlan = {
-    annual_credits?: number;
-    annual_price?: number;
-    currency?: string;
-    monthly_credits?: number;
-    monthly_price?: number;
-    tier?: string;
+    annual_credits: number;
+    annual_price: number;
+    currency: string;
+    monthly_credits: number;
+    monthly_price: number;
+    tier: string;
 };
 
 export type HandlersSubscriptionPlansResponse = {
-    plans?: Array<HandlersSubscriptionPlan>;
+    plans: Array<HandlersSubscriptionPlan>;
 };
 
 export type HandlersSubscriptionStatusResponse = {
     /**
      * true if scheduled to cancel
      */
-    cancel_at_period_end?: boolean;
+    cancel_at_period_end: boolean;
     /**
      * Unix timestamp, only present if subscribed
      */
@@ -604,7 +604,7 @@ export type HandlersSubscriptionStatusResponse = {
     /**
      * "free" | "starter" | "pro"
      */
-    plan?: string;
+    plan: string;
     /**
      * billing interval of the scheduled plan
      */
@@ -616,14 +616,14 @@ export type HandlersSubscriptionStatusResponse = {
     /**
      * "none" | "active" | "canceling" | "past_due" | "canceled"
      */
-    status?: string;
+    status: string;
 };
 
 export type HandlersSyncSnagResponse = {
     credits_awarded?: number;
-    message?: string;
+    message: string;
     next_sync_at?: string;
-    success?: boolean;
+    success: boolean;
     total_converted?: number;
 };
 
@@ -631,21 +631,21 @@ export type HandlersTaskResponse = {
     /**
      * 1 credit = $0.01
      */
-    amount_credits?: number;
+    amount_credits: number;
     /**
      * null for one-time tasks
      */
     cooldown_secs?: number;
-    description?: string;
-    type?: string;
+    description: string;
+    type: string;
 };
 
 export type HandlersTokenResponse = {
-    access_token?: string;
+    access_token: string;
     /**
      * Seconds until expiration
      */
-    expires_in?: number;
+    expires_in: number;
     /**
      * May not be present on refresh
      */
@@ -657,20 +657,20 @@ export type HandlersTokenResponse = {
     /**
      * Usually "Bearer"
      */
-    token_type?: string;
+    token_type: string;
 };
 
 export type HandlersTool = {
-    cost?: number;
-    embedding?: Array<number>;
-    name?: string;
-    schema?: McpToolSchema;
+    cost: number;
+    embedding: Array<number>;
+    name: string;
+    schema: McpToolSchema;
 };
 
 export type HandlersToolCallDetailItem = {
-    call_count?: number;
-    cost_usd?: number;
-    tool?: string;
+    call_count: number;
+    cost_usd: number;
+    tool: string;
 };
 
 export type HandlersTopUpUserRequest = {
@@ -729,53 +729,53 @@ export type HandlersUpgradeSubscriptionRequest = {
 };
 
 export type HandlersUpgradeSubscriptionResponse = {
-    message?: string;
-    new_interval?: string;
-    new_plan?: string;
+    message: string;
+    new_interval: string;
+    new_plan: string;
 };
 
 export type HandlersUsageByModelResponse = {
-    models?: Array<HandlersModelUsageItem>;
-    period?: HandlersUsagePeriod;
-    tool_usage?: Array<HandlersModelToolUsageItem>;
-    totals?: HandlersUsageTotals;
+    models: Array<HandlersModelUsageItem>;
+    period: HandlersUsagePeriod;
+    tool_usage: Array<HandlersModelToolUsageItem>;
+    totals: HandlersUsageTotals;
 };
 
 export type HandlersUsagePeriod = {
-    end?: string;
-    start?: string;
+    end: string;
+    start: string;
 };
 
 export type HandlersUsageTimeseriesPoint = {
-    cost_credits?: number;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
-    timestamp?: string;
+    cost_credits: number;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
+    timestamp: string;
 };
 
 export type HandlersUsageTotals = {
-    cost_usd?: number;
-    request_count?: number;
-    tool_call_count?: number;
-    tool_cost_usd?: number;
-    total_tokens?: number;
+    cost_usd: number;
+    request_count: number;
+    tool_call_count: number;
+    tool_cost_usd: number;
+    total_tokens: number;
 };
 
 export type HandlersUserUsageResponse = {
-    address?: string;
-    cost_credits?: number;
+    address: string;
+    cost_credits: number;
     /**
      * available credits (remaining balance)
      */
-    credits?: number;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
+    credits: number;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
     /**
      * credits pending/in-flight
      */
-    used_credits?: number;
+    used_credits: number;
 };
 
 /**
@@ -794,7 +794,7 @@ export type HandlersWalletDetails = {
     /**
      * Balance in micro-dollars (USD * 1,000,000)
      */
-    cached_balance_usd?: number;
+    cached_balance_usd: number;
     /**
      * App ID for enrollment (0 if not enrolled)
      */
@@ -802,11 +802,11 @@ export type HandlersWalletDetails = {
     /**
      * Whether enrolled in cost-limit model
      */
-    is_enrolled?: boolean;
+    is_enrolled: boolean;
     /**
      * In-flight request holds in micro-dollars
      */
-    pending_cost_usd?: number;
+    pending_cost_usd: number;
     /**
      * When user became Pro subscriber
      */
@@ -814,7 +814,7 @@ export type HandlersWalletDetails = {
     /**
      * "basic" or "pro"
      */
-    subscription_tier?: string;
+    subscription_tier: string;
 };
 
 /**
@@ -1586,7 +1586,7 @@ export type McpToolSchema = {
 
 export type ResponseErrorResponse = {
     code?: string;
-    error?: string;
+    error: string;
     request_id?: string;
     trace_id?: string;
     type?: string;

@@ -14,8 +14,8 @@ Defined in: [src/client/types.gen.ts:477](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### message?
+### message
 
-> `optional` **message**: `string`
+> **message**: `string`
 
 Defined in: [src/client/types.gen.ts:478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#478)

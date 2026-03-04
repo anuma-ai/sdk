@@ -6,24 +6,24 @@ Defined in: [src/client/types.gen.ts:466](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### limit?
+### limit
 
-> `optional` **limit**: `number`
+> **limit**: `number`
 
 Defined in: [src/client/types.gen.ts:467](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#467)
 
 ***
 
-### offset?
+### offset
 
-> `optional` **offset**: `number`
+> **offset**: `number`
 
 Defined in: [src/client/types.gen.ts:468](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#468)
 
 ***
 
-### total?
+### total
 
-> `optional` **total**: `number`
+> **total**: `number`
 
 Defined in: [src/client/types.gen.ts:469](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#469)

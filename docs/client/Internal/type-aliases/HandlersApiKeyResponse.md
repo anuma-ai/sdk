@@ -6,25 +6,25 @@ Defined in: [src/client/types.gen.ts:7](https://github.com/anuma-ai/sdk/blob/mai
 
 ## Properties
 
-### app\_id?
+### app\_id
 
-> `optional` **app\_id**: `number`
+> **app\_id**: `number`
 
 Defined in: [src/client/types.gen.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#8)
 
 ***
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#9)
 
 ***
 
-### has\_key?
+### has\_key
 
-> `optional` **has\_key**: `boolean`
+> **has\_key**: `boolean`
 
 Defined in: [src/client/types.gen.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#13)
 
@@ -32,41 +32,41 @@ Indicates if key is set, but doesn't expose it
 
 ***
 
-### id?
+### id
 
-> `optional` **id**: `number`
+> **id**: `number`
 
 Defined in: [src/client/types.gen.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#14)
 
 ***
 
-### is\_active?
+### is\_active
 
-> `optional` **is\_active**: `boolean`
+> **is\_active**: `boolean`
 
 Defined in: [src/client/types.gen.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#15)
 
 ***
 
-### name?
+### name
 
-> `optional` **name**: `string`
+> **name**: `string`
 
 Defined in: [src/client/types.gen.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#16)
 
 ***
 
-### updated\_at?
+### updated\_at
 
-> `optional` **updated\_at**: `string`
+> **updated\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#17)
 
 ***
 
-### wallet\_address?
+### wallet\_address
 
-> `optional` **wallet\_address**: `string`
+> **wallet\_address**: `string`
 
 Defined in: [src/client/types.gen.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#18)
 

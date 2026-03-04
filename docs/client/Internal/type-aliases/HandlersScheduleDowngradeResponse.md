@@ -14,9 +14,9 @@ Defined in: [src/client/types.gen.ts:497](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### message?
+### message
 
-> `optional` **message**: `string`
+> **message**: `string`
 
 Defined in: [src/client/types.gen.ts:498](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#498)
 
@@ -32,8 +32,8 @@ Defined in: [src/client/types.gen.ts:502](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### scheduled\_plan?
+### scheduled\_plan
 
-> `optional` **scheduled\_plan**: `string`
+> **scheduled\_plan**: `string`
 
 Defined in: [src/client/types.gen.ts:503](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#503)

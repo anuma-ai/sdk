@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:411](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### status?
+### status
 
-> `optional` **status**: `string`
+> **status**: `string`
 
 Defined in: [src/client/types.gen.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#415)
 
@@ -16,9 +16,9 @@ Status indicates the service health status
 
 ***
 
-### timestamp?
+### timestamp
 
-> `optional` **timestamp**: `number`
+> **timestamp**: `number`
 
 Defined in: [src/client/types.gen.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#419)
 
@@ -26,9 +26,9 @@ Timestamp is the Unix timestamp of the response
 
 ***
 
-### version?
+### version
 
-> `optional` **version**: `string`
+> **version**: `string`
 
 Defined in: [src/client/types.gen.ts:423](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#423)
 

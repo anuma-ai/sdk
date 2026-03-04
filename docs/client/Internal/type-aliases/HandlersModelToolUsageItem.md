@@ -6,32 +6,32 @@ Defined in: [src/client/types.gen.ts:451](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### call\_count?
+### call\_count
 
-> `optional` **call\_count**: `number`
+> **call\_count**: `number`
 
 Defined in: [src/client/types.gen.ts:452](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#452)
 
 ***
 
-### cost\_usd?
+### cost\_usd
 
-> `optional` **cost\_usd**: `number`
+> **cost\_usd**: `number`
 
 Defined in: [src/client/types.gen.ts:453](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#453)
 
 ***
 
-### model?
+### model
 
-> `optional` **model**: `string`
+> **model**: `string`
 
 Defined in: [src/client/types.gen.ts:454](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#454)
 
 ***
 
-### tools?
+### tools
 
-> `optional` **tools**: [`HandlersToolCallDetailItem`](HandlersToolCallDetailItem.md)\[]
+> **tools**: [`HandlersToolCallDetailItem`](HandlersToolCallDetailItem.md)\[]
 
 Defined in: [src/client/types.gen.ts:455](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#455)

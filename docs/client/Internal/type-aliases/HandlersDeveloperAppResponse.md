@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:315](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### allowed\_origins?
+### allowed\_origins
 
-> `optional` **allowed\_origins**: `string`\[]
+> **allowed\_origins**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:319](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#319)
 
@@ -16,9 +16,9 @@ allowed CORS origins (empty = unrestricted)
 
 ***
 
-### app\_type?
+### app\_type
 
-> `optional` **app\_type**: `string`
+> **app\_type**: `string`
 
 Defined in: [src/client/types.gen.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#323)
 
@@ -26,17 +26,17 @@ Defined in: [src/client/types.gen.ts:323](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### app\_uuid?
+### app\_uuid
 
-> `optional` **app\_uuid**: `string`
+> **app\_uuid**: `string`
 
 Defined in: [src/client/types.gen.ts:324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#324)
 
 ***
 
-### balance?
+### balance
 
-> `optional` **balance**: `number`
+> **balance**: `number`
 
 Defined in: [src/client/types.gen.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#328)
 
@@ -44,17 +44,17 @@ available credits in app pool
 
 ***
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#329)
 
 ***
 
-### default\_user\_credits?
+### default\_user\_credits
 
-> `optional` **default\_user\_credits**: `number`
+> **default\_user\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#333)
 
@@ -72,32 +72,32 @@ on-chain escrow contract address
 
 ***
 
-### has\_privy\_config?
+### has\_privy\_config
 
-> `optional` **has\_privy\_config**: `boolean`
+> **has\_privy\_config**: `boolean`
 
 Defined in: [src/client/types.gen.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#338)
 
 ***
 
-### is\_active?
+### is\_active
 
-> `optional` **is\_active**: `boolean`
+> **is\_active**: `boolean`
 
 Defined in: [src/client/types.gen.ts:339](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#339)
 
 ***
 
-### name?
+### name
 
-> `optional` **name**: `string`
+> **name**: `string`
 
 Defined in: [src/client/types.gen.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#340)
 
 ***
 
-### updated\_at?
+### updated\_at
 
-> `optional` **updated\_at**: `string`
+> **updated\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#341)

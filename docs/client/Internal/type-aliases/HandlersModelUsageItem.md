@@ -6,40 +6,40 @@ Defined in: [src/client/types.gen.ts:458](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### cost\_usd?
+### cost\_usd
 
-> `optional` **cost\_usd**: `number`
+> **cost\_usd**: `number`
 
 Defined in: [src/client/types.gen.ts:459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#459)
 
 ***
 
-### model?
+### model
 
-> `optional` **model**: `string`
+> **model**: `string`
 
 Defined in: [src/client/types.gen.ts:460](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#460)
 
 ***
 
-### request\_count?
+### request\_count
 
-> `optional` **request\_count**: `number`
+> **request\_count**: `number`
 
 Defined in: [src/client/types.gen.ts:461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#461)
 
 ***
 
-### request\_tokens?
+### request\_tokens
 
-> `optional` **request\_tokens**: `number`
+> **request\_tokens**: `number`
 
 Defined in: [src/client/types.gen.ts:462](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#462)
 
 ***
 
-### response\_tokens?
+### response\_tokens
 
-> `optional` **response\_tokens**: `number`
+> **response\_tokens**: `number`
 
 Defined in: [src/client/types.gen.ts:463](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#463)
