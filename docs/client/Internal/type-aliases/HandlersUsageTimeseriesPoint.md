@@ -6,40 +6,40 @@ Defined in: [src/client/types.gen.ts:749](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### cost\_credits?
+### cost\_credits
 
-> `optional` **cost\_credits**: `number`
+> **cost\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#750)
 
 ***
 
-### request\_count?
+### request\_count
 
-> `optional` **request\_count**: `number`
+> **request\_count**: `number`
 
 Defined in: [src/client/types.gen.ts:751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#751)
 
 ***
 
-### request\_tokens?
+### request\_tokens
 
-> `optional` **request\_tokens**: `number`
+> **request\_tokens**: `number`
 
 Defined in: [src/client/types.gen.ts:752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#752)
 
 ***
 
-### response\_tokens?
+### response\_tokens
 
-> `optional` **response\_tokens**: `number`
+> **response\_tokens**: `number`
 
 Defined in: [src/client/types.gen.ts:753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#753)
 
 ***
 
-### timestamp?
+### timestamp
 
-> `optional` **timestamp**: `string`
+> **timestamp**: `string`
 
 Defined in: [src/client/types.gen.ts:754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#754)

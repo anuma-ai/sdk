@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:249](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### available\_credits?
+### available\_credits
 
-> `optional` **available\_credits**: `number`
+> **available\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#253)
 
@@ -16,17 +16,17 @@ Available credits (1 credit = $0.01)
 
 ***
 
-### can\_claim\_daily?
+### can\_claim\_daily
 
-> `optional` **can\_claim\_daily**: `boolean`
+> **can\_claim\_daily**: `boolean`
 
 Defined in: [src/client/types.gen.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#254)
 
 ***
 
-### claimed\_import\_rewards?
+### claimed\_import\_rewards
 
-> `optional` **claimed\_import\_rewards**: `string`\[]
+> **claimed\_import\_rewards**: `string`\[]
 
 Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#258)
 
@@ -34,9 +34,9 @@ Which import providers have been claimed
 
 ***
 
-### is\_enrolled?
+### is\_enrolled
 
-> `optional` **is\_enrolled**: `boolean`
+> **is\_enrolled**: `boolean`
 
 Defined in: [src/client/types.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#262)
 
@@ -52,9 +52,9 @@ Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### lifetime\_credits?
+### lifetime\_credits
 
-> `optional` **lifetime\_credits**: `number`
+> **lifetime\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#267)
 
@@ -70,9 +70,9 @@ Defined in: [src/client/types.gen.ts:268](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### subscription\_tier?
+### subscription\_tier
 
-> `optional` **subscription\_tier**: `string`
+> **subscription\_tier**: `string`
 
 Defined in: [src/client/types.gen.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#272)
 
@@ -80,8 +80,8 @@ Defined in: [src/client/types.gen.ts:272](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### wallet\_address?
+### wallet\_address
 
-> `optional` **wallet\_address**: `string`
+> **wallet\_address**: `string`
 
 Defined in: [src/client/types.gen.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#273)

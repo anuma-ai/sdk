@@ -6,16 +6,16 @@ Defined in: [src/client/types.gen.ts:744](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### end?
+### end
 
-> `optional` **end**: `string`
+> **end**: `string`
 
 Defined in: [src/client/types.gen.ts:745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#745)
 
 ***
 
-### start?
+### start
 
-> `optional` **start**: `string`
+> **start**: `string`
 
 Defined in: [src/client/types.gen.ts:746](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#746)

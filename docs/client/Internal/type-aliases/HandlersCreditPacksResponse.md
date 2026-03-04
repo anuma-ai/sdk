@@ -6,8 +6,8 @@ Defined in: [src/client/types.gen.ts:284](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### packs?
+### packs
 
-> `optional` **packs**: [`HandlersCreditPack`](HandlersCreditPack.md)\[]
+> **packs**: [`HandlersCreditPack`](HandlersCreditPack.md)\[]
 
 Defined in: [src/client/types.gen.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#285)

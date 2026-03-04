@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:630](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### amount\_credits?
+### amount\_credits
 
-> `optional` **amount\_credits**: `number`
+> **amount\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:634](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#634)
 
@@ -26,16 +26,16 @@ null for one-time tasks
 
 ***
 
-### description?
+### description
 
-> `optional` **description**: `string`
+> **description**: `string`
 
 Defined in: [src/client/types.gen.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#639)
 
 ***
 
-### type?
+### type
 
-> `optional` **type**: `string`
+> **type**: `string`
 
 Defined in: [src/client/types.gen.ts:640](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#640)

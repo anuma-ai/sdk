@@ -6,32 +6,32 @@ Defined in: [src/client/types.gen.ts:737](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### models?
+### models
 
-> `optional` **models**: [`HandlersModelUsageItem`](HandlersModelUsageItem.md)\[]
+> **models**: [`HandlersModelUsageItem`](HandlersModelUsageItem.md)\[]
 
 Defined in: [src/client/types.gen.ts:738](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#738)
 
 ***
 
-### period?
+### period
 
-> `optional` **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
+> **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
 
 Defined in: [src/client/types.gen.ts:739](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#739)
 
 ***
 
-### tool\_usage?
+### tool\_usage
 
-> `optional` **tool\_usage**: [`HandlersModelToolUsageItem`](HandlersModelToolUsageItem.md)\[]
+> **tool\_usage**: [`HandlersModelToolUsageItem`](HandlersModelToolUsageItem.md)\[]
 
 Defined in: [src/client/types.gen.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#740)
 
 ***
 
-### totals?
+### totals
 
-> `optional` **totals**: [`HandlersUsageTotals`](HandlersUsageTotals.md)
+> **totals**: [`HandlersUsageTotals`](HandlersUsageTotals.md)
 
 Defined in: [src/client/types.gen.ts:741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#741)

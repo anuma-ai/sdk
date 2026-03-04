@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:591](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### cancel\_at\_period\_end?
+### cancel\_at\_period\_end
 
-> `optional` **cancel\_at\_period\_end**: `boolean`
+> **cancel\_at\_period\_end**: `boolean`
 
 Defined in: [src/client/types.gen.ts:595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#595)
 
@@ -36,9 +36,9 @@ Defined in: [src/client/types.gen.ts:603](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### plan?
+### plan
 
-> `optional` **plan**: `string`
+> **plan**: `string`
 
 Defined in: [src/client/types.gen.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#607)
 
@@ -66,9 +66,9 @@ tier user will switch to at period end
 
 ***
 
-### status?
+### status
 
-> `optional` **status**: `string`
+> **status**: `string`
 
 Defined in: [src/client/types.gen.ts:619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#619)
 

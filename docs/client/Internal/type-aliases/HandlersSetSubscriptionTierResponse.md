@@ -14,24 +14,24 @@ Defined in: [src/client/types.gen.ts:572](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### success?
+### success
 
-> `optional` **success**: `boolean`
+> **success**: `boolean`
 
 Defined in: [src/client/types.gen.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#573)
 
 ***
 
-### tier?
+### tier
 
-> `optional` **tier**: `string`
+> **tier**: `string`
 
 Defined in: [src/client/types.gen.ts:574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#574)
 
 ***
 
-### user\_address?
+### user\_address
 
-> `optional` **user\_address**: `string`
+> **user\_address**: `string`
 
 Defined in: [src/client/types.gen.ts:575](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#575)

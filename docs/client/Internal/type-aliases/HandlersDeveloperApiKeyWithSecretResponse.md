@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:304](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### api\_key?
+### api\_key
 
-> `optional` **api\_key**: `string`
+> **api\_key**: `string`
 
 Defined in: [src/client/types.gen.ts:308](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#308)
 
@@ -16,32 +16,32 @@ Full key, only shown once
 
 ***
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#309)
 
 ***
 
-### id?
+### id
 
-> `optional` **id**: `number`
+> **id**: `number`
 
 Defined in: [src/client/types.gen.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#310)
 
 ***
 
-### is\_active?
+### is\_active
 
-> `optional` **is\_active**: `boolean`
+> **is\_active**: `boolean`
 
 Defined in: [src/client/types.gen.ts:311](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#311)
 
 ***
 
-### name?
+### name
 
-> `optional` **name**: `string`
+> **name**: `string`
 
 Defined in: [src/client/types.gen.ts:312](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#312)

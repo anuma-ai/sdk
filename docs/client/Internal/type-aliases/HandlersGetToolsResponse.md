@@ -6,17 +6,17 @@ Defined in: [src/client/types.gen.ts:404](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### checksum?
+### checksum
 
-> `optional` **checksum**: `string`
+> **checksum**: `string`
 
 Defined in: [src/client/types.gen.ts:405](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#405)
 
 ***
 
-### tools?
+### tools
 
-> `optional` **tools**: `object`
+> **tools**: `object`
 
 Defined in: [src/client/types.gen.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#406)
 

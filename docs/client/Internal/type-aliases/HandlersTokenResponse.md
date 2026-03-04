@@ -6,17 +6,17 @@ Defined in: [src/client/types.gen.ts:643](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### access\_token?
+### access\_token
 
-> `optional` **access\_token**: `string`
+> **access\_token**: `string`
 
 Defined in: [src/client/types.gen.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#644)
 
 ***
 
-### expires\_in?
+### expires\_in
 
-> `optional` **expires\_in**: `number`
+> **expires\_in**: `number`
 
 Defined in: [src/client/types.gen.ts:648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#648)
 
@@ -44,9 +44,9 @@ Granted scopes
 
 ***
 
-### token\_type?
+### token\_type
 
-> `optional` **token\_type**: `string`
+> **token\_type**: `string`
 
 Defined in: [src/client/types.gen.ts:660](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#660)
 

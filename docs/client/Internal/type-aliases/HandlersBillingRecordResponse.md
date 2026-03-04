@@ -6,56 +6,56 @@ Defined in: [src/client/types.gen.ts:109](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### amount\_cents?
+### amount\_cents
 
-> `optional` **amount\_cents**: `number`
+> **amount\_cents**: `number`
 
 Defined in: [src/client/types.gen.ts:110](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#110)
 
 ***
 
-### app\_uuid?
+### app\_uuid
 
-> `optional` **app\_uuid**: `string`
+> **app\_uuid**: `string`
 
 Defined in: [src/client/types.gen.ts:111](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#111)
 
 ***
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#112)
 
 ***
 
-### credits?
+### credits
 
-> `optional` **credits**: `number`
+> **credits**: `number`
 
 Defined in: [src/client/types.gen.ts:113](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#113)
 
 ***
 
-### currency?
+### currency
 
-> `optional` **currency**: `string`
+> **currency**: `string`
 
 Defined in: [src/client/types.gen.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#114)
 
 ***
 
-### id?
+### id
 
-> `optional` **id**: `number`
+> **id**: `number`
 
 Defined in: [src/client/types.gen.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#115)
 
 ***
 
-### status?
+### status
 
-> `optional` **status**: `string`
+> **status**: `string`
 
 Defined in: [src/client/types.gen.ts:116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#116)

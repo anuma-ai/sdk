@@ -6,16 +6,16 @@ Defined in: [src/client/types.gen.ts:441](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### apps?
+### apps
 
-> `optional` **apps**: [`HandlersDeveloperAppResponse`](HandlersDeveloperAppResponse.md)\[]
+> **apps**: [`HandlersDeveloperAppResponse`](HandlersDeveloperAppResponse.md)\[]
 
 Defined in: [src/client/types.gen.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#442)
 
 ***
 
-### pagination?
+### pagination
 
-> `optional` **pagination**: [`HandlersPaginationResponse`](HandlersPaginationResponse.md)
+> **pagination**: [`HandlersPaginationResponse`](HandlersPaginationResponse.md)
 
 Defined in: [src/client/types.gen.ts:443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#443)

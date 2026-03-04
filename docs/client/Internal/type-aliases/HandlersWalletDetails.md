@@ -36,9 +36,9 @@ When balance was last synced from chain
 
 ***
 
-### cached\_balance\_usd?
+### cached\_balance\_usd
 
-> `optional` **cached\_balance\_usd**: `number`
+> **cached\_balance\_usd**: `number`
 
 Defined in: [src/client/types.gen.ts:797](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#797)
 
@@ -56,9 +56,9 @@ App ID for enrollment (0 if not enrolled)
 
 ***
 
-### is\_enrolled?
+### is\_enrolled
 
-> `optional` **is\_enrolled**: `boolean`
+> **is\_enrolled**: `boolean`
 
 Defined in: [src/client/types.gen.ts:805](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#805)
 
@@ -66,9 +66,9 @@ Whether enrolled in cost-limit model
 
 ***
 
-### pending\_cost\_usd?
+### pending\_cost\_usd
 
-> `optional` **pending\_cost\_usd**: `number`
+> **pending\_cost\_usd**: `number`
 
 Defined in: [src/client/types.gen.ts:809](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#809)
 
@@ -86,9 +86,9 @@ When user became Pro subscriber
 
 ***
 
-### subscription\_tier?
+### subscription\_tier
 
-> `optional` **subscription\_tier**: `string`
+> **subscription\_tier**: `string`
 
 Defined in: [src/client/types.gen.ts:817](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#817)
 

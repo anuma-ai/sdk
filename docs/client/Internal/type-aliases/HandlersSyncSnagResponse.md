@@ -14,9 +14,9 @@ Defined in: [src/client/types.gen.ts:623](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### message?
+### message
 
-> `optional` **message**: `string`
+> **message**: `string`
 
 Defined in: [src/client/types.gen.ts:624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#624)
 
@@ -30,9 +30,9 @@ Defined in: [src/client/types.gen.ts:625](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### success?
+### success
 
-> `optional` **success**: `boolean`
+> **success**: `boolean`
 
 Defined in: [src/client/types.gen.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#626)
 

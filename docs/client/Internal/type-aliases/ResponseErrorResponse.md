@@ -14,9 +14,9 @@ Defined in: [src/client/types.gen.ts:1588](https://github.com/anuma-ai/sdk/blob/
 
 ***
 
-### error?
+### error
 
-> `optional` **error**: `string`
+> **error**: `string`
 
 Defined in: [src/client/types.gen.ts:1589](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1589)
 

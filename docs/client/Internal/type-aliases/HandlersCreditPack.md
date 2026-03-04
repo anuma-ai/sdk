@@ -6,40 +6,40 @@ Defined in: [src/client/types.gen.ts:276](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### bonus\_percent?
+### bonus\_percent
 
-> `optional` **bonus\_percent**: `number`
+> **bonus\_percent**: `number`
 
 Defined in: [src/client/types.gen.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#277)
 
 ***
 
-### credits?
+### credits
 
-> `optional` **credits**: `number`
+> **credits**: `number`
 
 Defined in: [src/client/types.gen.ts:278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#278)
 
 ***
 
-### currency?
+### currency
 
-> `optional` **currency**: `string`
+> **currency**: `string`
 
 Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
 
 ***
 
-### pro\_credits?
+### pro\_credits
 
-> `optional` **pro\_credits**: `number`
+> **pro\_credits**: `number`
 
 Defined in: [src/client/types.gen.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#280)
 
 ***
 
-### unit\_amount?
+### unit\_amount
 
-> `optional` **unit\_amount**: `number`
+> **unit\_amount**: `number`
 
 Defined in: [src/client/types.gen.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#281)

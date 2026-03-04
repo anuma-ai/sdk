@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:546](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### apps\_seeded?
+### apps\_seeded
 
-> `optional` **apps\_seeded**: `number`
+> **apps\_seeded**: `number`
 
 Defined in: [src/client/types.gen.ts:547](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#547)
 
@@ -28,9 +28,9 @@ Map of app name to generated keys
 
 ***
 
-### keys\_seeded?
+### keys\_seeded
 
-> `optional` **keys\_seeded**: `number`
+> **keys\_seeded**: `number`
 
 Defined in: [src/client/types.gen.ts:554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#554)
 
@@ -44,8 +44,8 @@ Defined in: [src/client/types.gen.ts:555](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
-### success?
+### success
 
-> `optional` **success**: `boolean`
+> **success**: `boolean`
 
 Defined in: [src/client/types.gen.ts:556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#556)

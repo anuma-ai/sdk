@@ -6,32 +6,32 @@ Defined in: [src/client/types.gen.ts:663](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### cost?
+### cost
 
-> `optional` **cost**: `number`
+> **cost**: `number`
 
 Defined in: [src/client/types.gen.ts:664](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#664)
 
 ***
 
-### embedding?
+### embedding
 
-> `optional` **embedding**: `number`\[]
+> **embedding**: `number`\[]
 
 Defined in: [src/client/types.gen.ts:665](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#665)
 
 ***
 
-### name?
+### name
 
-> `optional` **name**: `string`
+> **name**: `string`
 
 Defined in: [src/client/types.gen.ts:666](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#666)
 
 ***
 
-### schema?
+### schema
 
-> `optional` **schema**: [`McpToolSchema`](McpToolSchema.md)
+> **schema**: [`McpToolSchema`](McpToolSchema.md)
 
 Defined in: [src/client/types.gen.ts:667](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#667)

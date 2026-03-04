@@ -6,8 +6,8 @@ Defined in: [src/client/types.gen.ts:129](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
-### url?
+### url
 
-> `optional` **url**: `string`
+> **url**: `string`
 
 Defined in: [src/client/types.gen.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#130)
