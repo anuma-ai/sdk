@@ -124,7 +124,7 @@ export class CompletionsStrategy implements ApiStrategy {
     if (typedChunk.id && !accumulator.responseId) {
       accumulator.responseId = typedChunk.id;
     }
-    if (typedChunk.model && !accumulator.responseModel) {
+    if (typedChunk.model && (!accumulator.responseModel || accumulator.responseModel === "auto")) {
       accumulator.responseModel = typedChunk.model;
     }
     // Capture tools_checksum if present
