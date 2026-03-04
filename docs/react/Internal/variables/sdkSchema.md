@@ -2,7 +2,7 @@
 
 > `const` **sdkSchema**: `Readonly`<{ `tables`: `TableMap`; `unsafeSql?`: (`_`: `string`, `__`: `AppSchemaUnsafeSqlKind`) => `string`; `version`: `number`; }>
 
-Defined in: [src/lib/db/schema.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#70)
+Defined in: [src/lib/db/schema.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#71)
 
 Combined WatermelonDB schema for all SDK storage modules.
 
