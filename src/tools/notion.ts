@@ -26,6 +26,7 @@ const MAX_CONTENT_LENGTH = 50000;
  * Stringifies objects before checking length.
  */
 function truncateToolResult(result: unknown): unknown {
+  if (result === undefined || result === null) return result;
   const stringified = typeof result === "string" ? result : JSON.stringify(result);
   if (stringified.length <= MAX_CONTENT_LENGTH) {
     return result;
