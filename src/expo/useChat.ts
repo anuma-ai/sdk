@@ -91,17 +91,23 @@ function processSSELines(
           accumulator: StreamAccumulator
         ) => { content: string | null; thinking: string | null });
 
-    const { content: contentDelta, thinking: thinkingDelta } = processor(
-      chunk as unknown,
-      accumulator
-    );
+    try {
+      const { content: contentDelta, thinking: thinkingDelta } = processor(
+        chunk as unknown,
+        accumulator
+      );
 
-    if (contentDelta && onData) {
-      onData(contentDelta);
-    }
+      if (contentDelta && onData) {
+        onData(contentDelta);
+      }
 
-    if (thinkingDelta && onThinking) {
-      onThinking(thinkingDelta);
+      if (thinkingDelta && onThinking) {
+        onThinking(thinkingDelta);
+      }
+    } catch (err) {
+      // Log crash details for debugging (processStreamChunk should not throw)
+      console.error("[useChat] processStreamChunk error:", err);
+      throw err;
     }
   }
 }
@@ -306,6 +312,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           xhr.setRequestHeader("Accept", "text/event-stream");
 
           xhr.onprogress = () => {
+            try {
             // Process new data since last check
             const newData = xhr.responseText.substring(lastProcessedIndex);
             lastProcessedIndex = xhr.responseText.length;
@@ -324,10 +331,15 @@ export function useChat(options?: UseChatOptions): UseChatResult {
             }
 
             processSSELines(lines, accumulator, smoothedOnData, smoothedOnThinking, strategy);
+            } catch (progressErr) {
+              console.error("[useChat] onprogress error:", progressErr);
+            }
           };
 
           xhr.onload = async () => {
             abortController.signal.removeEventListener("abort", abortHandler);
+
+            try {
 
             // Process any remaining data in the buffer
             if (incompleteLineBuffer) {
@@ -601,6 +613,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
               thinkingSmoother.destroy();
               const errorMsg = `Request failed with status ${xhr.status}`;
               setIsLoading(false);
+              if (onError) onError(new Error(errorMsg));
+              resolve({ data: null, error: errorMsg });
+            }
+
+            } catch (onloadErr) {
+              console.error("[useChat] onload error:", onloadErr);
+              contentSmoother.destroy();
+              thinkingSmoother.destroy();
+              setIsLoading(false);
+              const errorMsg = onloadErr instanceof Error ? onloadErr.message : String(onloadErr);
               if (onError) onError(new Error(errorMsg));
               resolve({ data: null, error: errorMsg });
             }
