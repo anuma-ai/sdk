@@ -138,7 +138,11 @@ function encodeComparison(table: string, comparison: Comparison): string {
   }
   // PostgreSQL requires IS NULL / IS NOT NULL (not = null / != null)
   const rightValue = comparison.right.value;
-  if ((rightValue === null || rightValue === undefined) && !comparison.right.values && !comparison.right.column) {
+  if (
+    (rightValue === null || rightValue === undefined) &&
+    !comparison.right.values &&
+    !comparison.right.column
+  ) {
     if (comparison.operator === "eq") return "is null";
     if (comparison.operator === "notEq") return "is not null";
   }
@@ -321,18 +325,17 @@ export function schemaToCreateSQL(schema: AppSchema, pgSchema = "public"): strin
       cols.push(`"${col.name}" ${pgType}${nullable}${def}`);
 
       if (col.isIndexed) {
-        const indexName = pgSchema === "public"
-          ? `"${tableName}_${col.name}"`
-          : `"${pgSchema}_${tableName}_${col.name}"`;
+        const indexName =
+          pgSchema === "public"
+            ? `"${tableName}_${col.name}"`
+            : `"${pgSchema}_${tableName}_${col.name}"`;
         indexes.push(
           `create index if not exists ${indexName} on ${qualify(tableName)} ("${col.name}");`
         );
       }
     }
 
-    statements.push(
-      `create table if not exists ${qualify(tableName)} (${cols.join(", ")});`
-    );
+    statements.push(`create table if not exists ${qualify(tableName)} (${cols.join(", ")});`);
     statements.push(...indexes);
   }
 
@@ -568,11 +571,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     });
   }
 
-  provideSyncJson(
-    _id: number,
-    _syncPullResultJson: string,
-    callback: ResultCallback<void>
-  ): void {
+  provideSyncJson(_id: number, _syncPullResultJson: string, callback: ResultCallback<void>): void {
     callback({ error: new Error("provideSyncJson is not supported by PostgreSQLAdapter") } as {
       error: Error;
     });
@@ -616,7 +615,9 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       );
       return;
     }
-    callback({ error: new Error("unsafeExecute: only sql modes supported by PostgreSQLAdapter") } as {
+    callback({
+      error: new Error("unsafeExecute: only sql modes supported by PostgreSQLAdapter"),
+    } as {
       error: Error;
     });
   }

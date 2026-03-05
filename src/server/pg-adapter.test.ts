@@ -74,9 +74,7 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
       }
 
       // --- SELECT * with WHERE id ---
-      const selectByIdMatch = text.match(
-        /select \* from "(\w+)" where "id" = \$1/i
-      );
+      const selectByIdMatch = text.match(/select \* from "(\w+)" where "id" = \$1/i);
       if (selectByIdMatch) {
         const rows = getTable(selectByIdMatch[1]).filter((r) => r.id === values?.[0]);
         return { rows };
@@ -341,9 +339,7 @@ describe("PostgreSQLAdapter", () => {
       expect((found as any).title).toBe("Updated First");
 
       // Destroy permanently
-      await toPromise((cb) =>
-        adapter.batch([["destroyPermanently", "tasks", "t2" as any]], cb)
-      );
+      await toPromise((cb) => adapter.batch([["destroyPermanently", "tasks", "t2" as any]], cb));
 
       count = await toPromise((cb) => adapter.count(allTasksQuery(), cb));
       expect(count).toBe(1);
@@ -371,9 +367,7 @@ describe("PostgreSQLAdapter", () => {
         )
       );
 
-      await toPromise((cb) =>
-        adapter.batch([["markAsDeleted", "tasks", "t1" as any]], cb)
-      );
+      await toPromise((cb) => adapter.batch([["markAsDeleted", "tasks", "t1" as any]], cb));
 
       const deleted = await toPromise((cb) => adapter.getDeletedRecords("tasks", cb));
       expect(deleted).toContain("t1");
