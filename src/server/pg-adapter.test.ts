@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
+import { schemaMigrations, addColumns, createTable } from "@nozbe/watermelondb/Schema/migrations";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
 import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
 import type { PgPoolLike } from "./pg-adapter";
@@ -158,6 +159,18 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
       const deleteAllMatch = text.match(/^delete from "(\w+)"$/i);
       if (deleteAllMatch) {
         tables.set(deleteAllMatch[1], []);
+        return { rows: [] };
+      }
+
+      // --- DROP TABLE ---
+      const dropMatch = text.match(/^drop table if exists "(\w+)"/i);
+      if (dropMatch) {
+        tables.delete(dropMatch[1]);
+        return { rows: [] };
+      }
+
+      // --- ALTER TABLE ADD COLUMN (no-op in mock) ---
+      if (/^alter table/i.test(text)) {
         return { rows: [] };
       }
 
@@ -513,6 +526,157 @@ describe("PostgreSQLAdapter", () => {
 
       const local = await toPromise((cb) => adapter.getLocal("k", cb));
       expect(local).toBeUndefined();
+    });
+  });
+
+  describe("migrations", () => {
+    it("applies add_columns migration when schema version bumps", async () => {
+      // Start with v1 schema
+      const v1Schema = appSchema({
+        version: 1,
+        tables: [
+          tableSchema({
+            name: "tasks",
+            columns: [
+              { name: "title", type: "string" },
+              { name: "is_done", type: "boolean" },
+            ],
+          }),
+        ],
+      });
+
+      const sharedPool = createMockPool();
+
+      // Create v1 adapter — sets up initial tables and stores version
+      const v1Adapter = new PostgreSQLAdapter({
+        pool: sharedPool,
+        schema: v1Schema,
+        dbName: "test-db",
+      });
+      await toPromise((cb) => v1Adapter.getLocal("__noop__", cb));
+
+      // Insert a record in v1
+      await toPromise((cb) =>
+        v1Adapter.batch(
+          [
+            [
+              "create",
+              "tasks",
+              {
+                id: "t1",
+                _status: "created",
+                _changed: "",
+                title: "Original",
+                is_done: 0,
+              } as any,
+            ],
+          ],
+          cb
+        )
+      );
+
+      // Now create v2 schema with a new column
+      const v2Schema = appSchema({
+        version: 2,
+        tables: [
+          tableSchema({
+            name: "tasks",
+            columns: [
+              { name: "title", type: "string" },
+              { name: "is_done", type: "boolean" },
+              { name: "priority", type: "number", isOptional: true },
+            ],
+          }),
+        ],
+      });
+
+      const migrations = schemaMigrations({
+        migrations: [
+          {
+            toVersion: 2,
+            steps: [
+              addColumns({
+                table: "tasks",
+                columns: [{ name: "priority", type: "number", isOptional: true }],
+              }),
+            ],
+          },
+        ],
+      });
+
+      // Create v2 adapter with migrations on the same pool
+      const v2Adapter = new PostgreSQLAdapter({
+        pool: sharedPool,
+        schema: v2Schema,
+        migrations,
+        dbName: "test-db",
+      });
+      await toPromise((cb) => v2Adapter.getLocal("__noop__", cb));
+
+      // Original data should still be there
+      const found = await toPromise((cb) => v2Adapter.find("tasks", "t1", cb));
+      expect(found).toBeDefined();
+      expect((found as any).title).toBe("Original");
+    });
+
+    it("does destructive reset when migrations are not available", async () => {
+      const v1Schema = appSchema({
+        version: 1,
+        tables: [
+          tableSchema({
+            name: "tasks",
+            columns: [{ name: "title", type: "string" }],
+          }),
+        ],
+      });
+
+      const sharedPool = createMockPool();
+
+      const v1Adapter = new PostgreSQLAdapter({
+        pool: sharedPool,
+        schema: v1Schema,
+        dbName: "test-db",
+      });
+      await toPromise((cb) => v1Adapter.getLocal("__noop__", cb));
+
+      await toPromise((cb) =>
+        v1Adapter.batch(
+          [
+            [
+              "create",
+              "tasks",
+              { id: "t1", _status: "created", _changed: "", title: "Gone" } as any,
+            ],
+          ],
+          cb
+        )
+      );
+
+      // Jump to v3 with no migrations — should reset
+      const v3Schema = appSchema({
+        version: 3,
+        tables: [
+          tableSchema({
+            name: "tasks",
+            columns: [
+              { name: "title", type: "string" },
+              { name: "priority", type: "number", isOptional: true },
+            ],
+          }),
+        ],
+      });
+
+      const v3Adapter = new PostgreSQLAdapter({
+        pool: sharedPool,
+        schema: v3Schema,
+        dbName: "test-db",
+        // No migrations provided
+      });
+      await toPromise((cb) => v3Adapter.getLocal("__noop__", cb));
+
+      // Data should be gone after destructive reset
+      const found = await toPromise((cb) => v3Adapter.find("tasks", "t1", cb));
+      expect(found).toBeUndefined();
     });
   });
 });

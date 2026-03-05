@@ -34,7 +34,8 @@ import type { RecordId } from "@nozbe/watermelondb/Model";
 import type { SerializedQuery } from "@nozbe/watermelondb/Query";
 import type { RawRecord } from "@nozbe/watermelondb/RawRecord";
 import type { AppSchema, ColumnSchema, TableName } from "@nozbe/watermelondb/Schema";
-import type { SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
+import type { MigrationStep, SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
+import { stepsForMigration } from "@nozbe/watermelondb/Schema/migrations/stepsForMigration";
 import type { ResultCallback } from "@nozbe/watermelondb/utils/fp/Result";
 
 // ---------------------------------------------------------------------------
@@ -391,14 +392,148 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this.initialized = this._initialize();
   }
 
+  private static SCHEMA_VERSION_KEY = "__schema_version";
+
   private async _initialize(): Promise<void> {
     if (this._pgSchema !== "public") {
       await this.pool.query(`create schema if not exists "${this._pgSchema}"`);
     }
+
+    // Always ensure the local_storage table exists (needed to read schema version)
+    await this.pool.query(
+      `create table if not exists ${this.qualify("local_storage")} ("key" text primary key, "value" text not null);`
+    );
+
+    const storedVersion = await this._getStoredSchemaVersion();
+    const targetVersion = this.schema.version;
+
+    if (storedVersion === 0) {
+      // Fresh database — create all tables
+      const statements = schemaToCreateSQL(this.schema, this._pgSchema);
+      for (const sql of statements) {
+        await this.pool.query(sql);
+      }
+      await this._setStoredSchemaVersion(targetVersion);
+    } else if (storedVersion < targetVersion) {
+      // Existing database needs migration
+      await this._migrate(storedVersion, targetVersion);
+    }
+    // storedVersion === targetVersion → nothing to do
+    // storedVersion > targetVersion → user downgraded SDK, we don't handle that
+  }
+
+  private async _getStoredSchemaVersion(): Promise<number> {
+    const { rows } = await this.pool.query(
+      `select "value" from ${this.qualify("local_storage")} where "key" = $1`,
+      [PostgreSQLAdapter.SCHEMA_VERSION_KEY]
+    );
+    if (rows.length === 0) return 0;
+    return Number(rows[0].value) || 0;
+  }
+
+  private async _setStoredSchemaVersion(version: number): Promise<void> {
+    await this.pool.query(
+      `insert into ${this.qualify("local_storage")} ("key", "value") values ($1, $2) on conflict ("key") do update set "value" = $2`,
+      [PostgreSQLAdapter.SCHEMA_VERSION_KEY, String(version)]
+    );
+  }
+
+  private async _migrate(fromVersion: number, toVersion: number): Promise<void> {
+    if (!this.migrations) {
+      await this._resetAndRecreate(toVersion);
+      return;
+    }
+
+    const steps = stepsForMigration({
+      migrations: this.migrations,
+      fromVersion,
+      toVersion,
+    });
+
+    if (!steps) {
+      // Migration range not available — destructive reset
+      await this._resetAndRecreate(toVersion);
+      return;
+    }
+
+    for (const step of steps) {
+      await this._applyMigrationStep(step);
+    }
+    await this._setStoredSchemaVersion(toVersion);
+  }
+
+  private async _applyMigrationStep(step: MigrationStep): Promise<void> {
+    switch (step.type) {
+      case "create_table": {
+        const ts = (step).schema;
+        const cols = [
+          `"id" text primary key`,
+          `"_status" text not null default 'created'`,
+          `"_changed" text not null default ''`,
+        ];
+        for (const col of ts.columnArray) {
+          const pgType = columnTypeToPg(col);
+          const nullable = col.isOptional ? "" : " not null";
+          const def = ` default ${columnDefault(col)}`;
+          cols.push(`"${col.name}" ${pgType}${nullable}${def}`);
+        }
+        await this.pool.query(
+          `create table if not exists ${this.qualify(ts.name)} (${cols.join(", ")});`
+        );
+        for (const col of ts.columnArray) {
+          if (col.isIndexed) {
+            const indexName =
+              this._pgSchema === "public"
+                ? `"${ts.name}_${col.name}"`
+                : `"${this._pgSchema}_${ts.name}_${col.name}"`;
+            await this.pool.query(
+              `create index if not exists ${indexName} on ${this.qualify(ts.name)} ("${col.name}");`
+            );
+          }
+        }
+        break;
+      }
+      case "add_columns": {
+        const { table, columns } = step;
+        for (const col of columns) {
+          const pgType = columnTypeToPg(col);
+          const nullable = col.isOptional ? "" : " not null";
+          const def = ` default ${columnDefault(col)}`;
+          await this.pool.query(
+            `alter table ${this.qualify(table)} add column if not exists "${col.name}" ${pgType}${nullable}${def};`
+          );
+          if (col.isIndexed) {
+            const indexName =
+              this._pgSchema === "public"
+                ? `"${table}_${col.name}"`
+                : `"${this._pgSchema}_${table}_${col.name}"`;
+            await this.pool.query(
+              `create index if not exists ${indexName} on ${this.qualify(table)} ("${col.name}");`
+            );
+          }
+        }
+        break;
+      }
+      case "sql": {
+        await this.pool.query(step.sql);
+        break;
+      }
+    }
+  }
+
+  private async _resetAndRecreate(targetVersion: number): Promise<void> {
+    // Drop all existing SDK tables
+    for (const tableName of Object.keys(this.schema.tables)) {
+      await this.pool.query(`drop table if exists ${this.qualify(tableName)} cascade;`);
+    }
+    await this.pool.query(`delete from ${this.qualify("local_storage")}`);
+
+    // Recreate from current schema
     const statements = schemaToCreateSQL(this.schema, this._pgSchema);
     for (const sql of statements) {
       await this.pool.query(sql);
     }
+    await this._setStoredSchemaVersion(targetVersion);
   }
 
   private async _ready(): Promise<void> {
