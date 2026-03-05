@@ -23,6 +23,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     uniqueId: memory.id,
     content: memory.content,
     scope: memory.scope,
+    folderId: memory.folderId ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -62,6 +63,7 @@ export async function createVaultMemoryOp(
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
       record._setRaw("is_deleted", false);
+      if (opts.folderId !== undefined) record._setRaw("folder_id", opts.folderId ?? null);
     });
   });
 
@@ -203,6 +205,9 @@ export async function updateVaultMemoryOp(
         r._setRaw("content", encryptedContent);
         if (opts.scope !== undefined) {
           r._setRaw("scope", opts.scope);
+        }
+        if (opts.folderId !== undefined) {
+          r._setRaw("folder_id", opts.folderId ?? null);
         }
       });
     });

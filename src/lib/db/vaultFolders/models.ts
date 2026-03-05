@@ -1,12 +1,10 @@
 import { Model } from "@nozbe/watermelondb";
 import { date, field, readonly, text } from "@nozbe/watermelondb/decorators";
 
-export class VaultMemory extends Model {
-  static table = "memory_vault";
+export class VaultFolder extends Model {
+  static table = "vault_folders";
 
-  @text("content") content!: string;
-  @text("scope") scope!: string;
-  @text("folder_id") folderId!: string | null;
+  @text("name") name!: string;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;

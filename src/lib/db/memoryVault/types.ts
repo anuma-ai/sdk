@@ -5,6 +5,8 @@ export interface StoredVaultMemory {
   content: string;
   /** Scope for partitioning memories (e.g., "private", "shared") */
   scope: string;
+  /** Folder ID for organization, null if unfiled */
+  folderId: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -14,10 +16,14 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
+  /** Optional folder ID to file this memory under. */
+  folderId?: string | null;
 }
 
 export interface UpdateVaultMemoryOptions {
   content: string;
   /** If provided, updates the memory's scope. */
   scope?: string;
+  /** If provided, updates the memory's folder. */
+  folderId?: string | null;
 }

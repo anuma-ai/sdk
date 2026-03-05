@@ -225,6 +225,20 @@ export {
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+// Vault folders
+export {
+  createVaultFolderOp,
+  type CreateVaultFolderOptions,
+  deleteVaultFolderOp,
+  getAllVaultFoldersOp,
+  getVaultFolderMemoryCountOp,
+  moveMemoriesToFolderOp,
+  type StoredVaultFolder,
+  VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderOp,
+  type UpdateVaultFolderOptions,
+  type VaultFolderOperationsContext,
+} from "../lib/db/vaultFolders";
 export {
   type CreateModelPreferenceOptions,
   /** @deprecated Use sdkSchema instead */

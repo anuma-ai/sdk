@@ -12,6 +12,7 @@ import { Conversation, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
+import { VaultFolder } from "./vaultFolders/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
 
@@ -35,8 +36,9 @@ import { UserPreference } from "./userPreferences/models";
  * - v15: Replaced memories table with memory_vault table for persistent memory vault
  * - v16: Added scope column to memory_vault table for memory partitioning
  * - v17: Added image_model column to history table for AI-generated image model tracking
+ * - v18: Added vault_folders table and folder_id column to memory_vault for folder organization
  */
-export const SDK_SCHEMA_VERSION = 17;
+export const SDK_SCHEMA_VERSION = 18;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -154,6 +156,17 @@ export const sdkSchema = appSchema({
       columns: [
         { name: "content", type: "string" },
         { name: "scope", type: "string", isIndexed: true },
+        { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number" },
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+      ],
+    }),
+    // Vault folder organization
+    tableSchema({
+      name: "vault_folders",
+      columns: [
+        { name: "name", type: "string" },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
@@ -218,6 +231,7 @@ export const sdkSchema = appSchema({
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
  * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
  * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
+ * - v17 → v18: Added `vault_folders` table and `folder_id` column to memory_vault for folder organization
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -433,6 +447,27 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v17 -> v18: Added vault_folders table and folder_id to memory_vault
+    {
+      toVersion: 18,
+      steps: [
+        createTable({
+          name: "vault_folders",
+          columns: [
+            { name: "name", type: "string" },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -458,6 +493,7 @@ export const sdkModelClasses: Class<Model>[] = [
   Conversation,
   Project,
   VaultMemory,
+  VaultFolder,
   Media,
   ModelPreference,
   UserPreference,
