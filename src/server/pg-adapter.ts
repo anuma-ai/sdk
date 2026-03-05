@@ -465,7 +465,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   private async _applyMigrationStep(step: MigrationStep): Promise<void> {
     switch (step.type) {
       case "create_table": {
-        const ts = (step).schema;
+        const ts = step.schema;
         const cols = [
           `"id" text primary key`,
           `"_status" text not null default 'created'`,
