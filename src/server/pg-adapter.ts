@@ -434,8 +434,8 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql);
+        const [sql, values] = encodeQuery(query, this.qualify);
+        const { rows } = await this.pool.query(sql, values);
         return rows.map(rowToRaw) as CachedQueryResult;
       })(),
       callback
@@ -446,8 +446,8 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql] = encodeQuery(query, this.qualify, false, true);
-        const { rows } = await this.pool.query(sql);
+        const [sql, values] = encodeQuery(query, this.qualify, false, true);
+        const { rows } = await this.pool.query(sql, values);
         return rows.map((r) => r.id as RecordId);
       })(),
       callback
@@ -459,8 +459,8 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql] = encodeQuery(query, this.qualify);
-        const { rows } = await this.pool.query(sql);
+        const [sql, values] = encodeQuery(query, this.qualify);
+        const { rows } = await this.pool.query(sql, values);
         return rows;
       })(),
       callback
@@ -471,8 +471,8 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        const [sql] = encodeQuery(query, this.qualify, true);
-        const { rows } = await this.pool.query(sql);
+        const [sql, values] = encodeQuery(query, this.qualify, true);
+        const { rows } = await this.pool.query(sql, values);
         return Number(rows[0]?.count ?? 0);
       })(),
       callback
