@@ -6,7 +6,7 @@ export class VaultMemory extends Model {
 
   @text("content") content!: string;
   @text("scope") scope!: string;
-  @text("folder_id") folderId!: string | null;
+  @field("folder_id") folderId!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
