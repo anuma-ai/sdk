@@ -70,7 +70,7 @@ export async function updateVaultFolderOp(
     const record = await ctx.vaultFolderCollection.find(id);
     if (record.isDeleted) return null;
 
-    const scopeChanged = opts.scope && opts.scope !== record.scope;
+    const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
     const updated = await ctx.database.write(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mixed model types in batch
