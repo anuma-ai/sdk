@@ -155,7 +155,12 @@ interface Association {
   info: { type: "belongs_to" | "has_many"; key?: string; foreignKey?: string };
 }
 
-function encodeWhere(params: unknown[], table: string, associations: Association[], clause: Where): string {
+function encodeWhere(
+  params: unknown[],
+  table: string,
+  associations: Association[],
+  clause: Where
+): string {
   switch (clause.type) {
     case "and":
       return `(${clause.conditions.map((c) => encodeWhere(params, table, associations, c)).join(" and ")})`;
@@ -519,10 +524,9 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
               }
               case "markAsDeleted": {
                 const id = rawOrId as unknown as RecordId;
-                await q.query(
-                  `update ${this.q(table)} set "_status" = 'deleted' where "id" = $1`,
-                  [id]
-                );
+                await q.query(`update ${this.q(table)} set "_status" = 'deleted' where "id" = $1`, [
+                  id,
+                ]);
                 break;
               }
               case "destroyPermanently": {
