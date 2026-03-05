@@ -4,7 +4,7 @@
  * Tests the SDK's on-demand memory retrieval from conversations.
  * Stores LongMemEval sessions as messages in WatermelonDB, chunks and embeds
  * them using the SDK's chunkAndEmbedAllMessages, then searches via
- * createMemoryRetrievalTool.
+ * createMemoryEngineTool.
  */
 
 import type { Database } from "@nozbe/watermelondb";
@@ -18,8 +18,8 @@ import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
 import {
   chunkAndEmbedAllMessages,
   generateEmbedding,
-} from "../../../../src/lib/memoryRetrieval/embeddings.js";
-import { createMemoryRetrievalTool } from "../../../../src/lib/memoryRetrieval/tool.js";
+} from "../../../../src/lib/memoryEngine/embeddings.js";
+import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
 import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
 import {
   setupDatabase,
@@ -48,7 +48,7 @@ function createStorageContext(db: Database): StorageOperationsContext {
  * Flow:
  * 1. Store each haystack session as a conversation with messages in WatermelonDB
  * 2. Chunk and embed all messages using SDK's chunkAndEmbedAllMessages
- * 3. Search via createMemoryRetrievalTool's executor
+ * 3. Search via createMemoryEngineTool's executor
  * 4. Two-step LLM flow: question -> tool call -> answer
  */
 export async function processEntryMemoryEngine(
@@ -119,7 +119,7 @@ export async function processEntryMemoryEngine(
     }
 
     // Step 3: Create the retrieval tool via SDK
-    const retrievalTool = createMemoryRetrievalTool(storageCtx, embeddingOptions, {
+    const retrievalTool = createMemoryEngineTool(storageCtx, embeddingOptions, {
       topK: 12,
       minSimilarity: 0.1,
       includeAssistant: true,
