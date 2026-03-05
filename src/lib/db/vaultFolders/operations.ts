@@ -19,6 +19,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
   return {
     uniqueId: folder.id,
     name: folder.name,
+    scope: folder.scope,
     createdAt: folder.createdAt,
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
@@ -35,6 +36,7 @@ export async function createVaultFolderOp(
   const created = await ctx.database.write(async () => {
     return ctx.vaultFolderCollection.create((record) => {
       record._setRaw("name", opts.name);
+      record._setRaw("scope", opts.scope ?? "private");
       record._setRaw("is_deleted", false);
     });
   });
@@ -56,7 +58,8 @@ export async function getAllVaultFoldersOp(
 }
 
 /**
- * Update a vault folder's name.
+ * Update a vault folder's name and/or scope.
+ * When scope changes, cascades to all contained memories atomically.
  */
 export async function updateVaultFolderOp(
   ctx: VaultFolderOperationsContext,
@@ -67,10 +70,34 @@ export async function updateVaultFolderOp(
     const record = await ctx.vaultFolderCollection.find(id);
     if (record.isDeleted) return null;
 
+    const scopeChanged = opts.scope && opts.scope !== record.scope;
+
     await ctx.database.write(async () => {
-      await record.update((r) => {
-        r._setRaw("name", opts.name);
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mixed model types in batch
+      const updates: any[] = [];
+
+      updates.push(
+        record.prepareUpdate((r) => {
+          if (opts.name !== undefined) r._setRaw("name", opts.name);
+          if (opts.scope !== undefined) r._setRaw("scope", opts.scope);
+        })
+      );
+
+      if (scopeChanged) {
+        const memories = await ctx.vaultMemoryCollection
+          .query(Q.where("folder_id", id), Q.where("is_deleted", false))
+          .fetch();
+
+        for (const memory of memories) {
+          updates.push(
+            memory.prepareUpdate((r) => {
+              r._setRaw("scope", opts.scope!);
+            })
+          );
+        }
+      }
+
+      await ctx.database.batch(...updates);
     });
 
     return folderToStored(record);
@@ -126,6 +153,13 @@ export async function moveMemoriesToFolderOp(
 
   try {
     await ctx.database.write(async () => {
+      // If moving to a folder, inherit the folder's scope
+      let folderScope: string | null = null;
+      if (folderId) {
+        const folder = await ctx.vaultFolderCollection.find(folderId);
+        folderScope = folder.scope;
+      }
+
       const memories = await Promise.all(
         memoryIds.map((id) => ctx.vaultMemoryCollection.find(id))
       );
@@ -133,6 +167,7 @@ export async function moveMemoriesToFolderOp(
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", folderId);
+          if (folderScope) r._setRaw("scope", folderScope);
         })
       );
 

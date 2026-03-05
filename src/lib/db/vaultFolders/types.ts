@@ -3,6 +3,8 @@ export interface StoredVaultFolder {
   uniqueId: string;
   /** Folder display name */
   name: string;
+  /** Scope for partitioning ("private" | "shared") */
+  scope: string;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -10,8 +12,12 @@ export interface StoredVaultFolder {
 
 export interface CreateVaultFolderOptions {
   name: string;
+  /** Defaults to "private" if omitted. */
+  scope?: string;
 }
 
 export interface UpdateVaultFolderOptions {
-  name: string;
+  name?: string;
+  /** If provided, updates the folder's scope and cascades to all contained memories. */
+  scope?: string;
 }
