@@ -38,7 +38,7 @@ import { UserPreference } from "./userPreferences/models";
  * - v17: Added image_model column to history table for AI-generated image model tracking
  * - v18: Added vault_folders table and folder_id column to memory_vault for folder organization
  */
-export const SDK_SCHEMA_VERSION = 19;
+export const SDK_SCHEMA_VERSION = 18;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -232,7 +232,7 @@ export const sdkSchema = appSchema({
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
  * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
  * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
- * - v17 → v18: Added `vault_folders` table and `folder_id` column to memory_vault for folder organization
+ * - v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory_vault for folder organization
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -465,16 +465,6 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "folder_id", type: "string", isOptional: true, isIndexed: true }],
-        }),
-      ],
-    },
-    // v18 -> v19: Added scope column to vault_folders
-    {
-      toVersion: 19,
-      steps: [
-        addColumns({
-          table: "vault_folders",
-          columns: [{ name: "scope", type: "string" }],
         }),
       ],
     },
