@@ -1,5 +1,5 @@
 export interface StoredVaultMemory {
-  /** WatermelonDB internal ID */
+  /** Unique identifier for the memory */
   uniqueId: string;
   /** Plain text memory content */
   content: string;

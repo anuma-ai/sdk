@@ -44,7 +44,8 @@ export {
   searchVaultMemories,
 } from "../lib/memoryVault/searchTool";
 
-// Tools
+// Tools — createMemoryVaultTool requires a full MemoryStore (read+write).
+// PostgresMemoryStore is read-only; bring your own MemoryStore implementation for write support.
 export { createMemoryVaultTool } from "../lib/memoryVault/tool";
 
 // Embeddings

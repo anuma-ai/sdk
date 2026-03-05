@@ -24,6 +24,8 @@ interface MemoryCacheRow extends Record<string, unknown> {
   is_deleted: boolean;
 }
 
+const VALID_TABLE_NAME = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 export class PostgresMemoryStore implements MemoryStoreReader {
   private client: PostgresClient;
   private accountId: string;
@@ -31,10 +33,16 @@ export class PostgresMemoryStore implements MemoryStoreReader {
   private table: string;
 
   constructor(options: PostgresMemoryStoreOptions) {
+    const table = options.table ?? "memory_cache";
+    if (!VALID_TABLE_NAME.test(table)) {
+      throw new Error(
+        `Invalid table name "${table}": must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`
+      );
+    }
     this.client = options.client;
     this.accountId = options.accountId;
     this.appId = options.appId;
-    this.table = options.table ?? "memory_cache";
+    this.table = table;
   }
 
   async getAll(options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> {

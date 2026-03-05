@@ -117,5 +117,17 @@ describe("PostgresMemoryStore", () => {
         expect.any(Array)
       );
     });
+
+    it("rejects invalid table names", () => {
+      expect(
+        () =>
+          new PostgresMemoryStore({
+            client: mockClient,
+            accountId: "acc-1",
+            appId: "app-1",
+            table: "; DROP TABLE users; --",
+          })
+      ).toThrow("Invalid table name");
+    });
   });
 });
