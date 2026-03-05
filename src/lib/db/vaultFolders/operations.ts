@@ -72,7 +72,7 @@ export async function updateVaultFolderOp(
 
     const scopeChanged = opts.scope && opts.scope !== record.scope;
 
-    await ctx.database.write(async () => {
+    const updated = await ctx.database.write(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mixed model types in batch
       const updates: any[] = [];
 
@@ -98,10 +98,13 @@ export async function updateVaultFolderOp(
       }
 
       await ctx.database.batch(...updates);
+      // Re-fetch to get fresh data after batch update
+      return ctx.vaultFolderCollection.find(id);
     });
 
-    return folderToStored(record);
-  } catch {
+    return folderToStored(updated);
+  } catch (error) {
+    console.error("[VaultFolders] updateVaultFolderOp failed:", error);
     return null;
   }
 }
@@ -136,7 +139,8 @@ export async function deleteVaultFolderOp(
     });
 
     return true;
-  } catch {
+  } catch (error) {
+    console.error("[VaultFolders] deleteVaultFolderOp failed:", error);
     return false;
   }
 }
@@ -153,11 +157,11 @@ export async function moveMemoriesToFolderOp(
 
   try {
     await ctx.database.write(async () => {
-      // If moving to a folder, inherit the folder's scope
-      let folderScope: string | null = null;
+      // If moving to a folder, inherit the folder's scope; if unfiling, revert to "private"
+      let targetScope: string = "private";
       if (folderId) {
         const folder = await ctx.vaultFolderCollection.find(folderId);
-        folderScope = folder.scope;
+        targetScope = folder.scope;
       }
 
       const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
@@ -165,7 +169,7 @@ export async function moveMemoriesToFolderOp(
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", folderId);
-          if (folderScope) r._setRaw("scope", folderScope);
+          r._setRaw("scope", targetScope);
         })
       );
 
@@ -173,7 +177,8 @@ export async function moveMemoriesToFolderOp(
     });
 
     return true;
-  } catch {
+  } catch (error) {
+    console.error("[VaultFolders] moveMemoriesToFolderOp failed:", error);
     return false;
   }
 }
