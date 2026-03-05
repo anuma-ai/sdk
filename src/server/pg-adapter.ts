@@ -263,7 +263,7 @@ function encodeQuery(
 
   // LIMIT / OFFSET
   let limitOffset = "";
-  if (description.take) {
+  if (description.take !== undefined) {
     limitOffset = ` limit ${description.take}`;
     if (description.skip) {
       limitOffset += ` offset ${description.skip}`;
