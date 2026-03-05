@@ -7,9 +7,10 @@
  *
  * @example
  * ```ts
- * import { createMemoryVaultTool } from "@anthropic/sdk/lib/memoryVault";
+ * import { createMemoryVaultTool, WatermelonDBMemoryStore } from "@anuma/sdk";
  *
- * const tool = createMemoryVaultTool(vaultCtx, {
+ * const store = new WatermelonDBMemoryStore(vaultCtx);
+ * const tool = createMemoryVaultTool(store, {
  *   onSave: async (op) => showConfirmationToast(op),
  * });
  * ```
@@ -21,6 +22,7 @@ export type {
   VaultSearchResult,
 } from "./searchTool";
 export {
+  cosineSimilarity,
   createMemoryVaultSearchTool,
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
@@ -29,8 +31,6 @@ export {
   searchVaultMemories,
 } from "./searchTool";
 export type { MemoryStore, MemoryStoreReader } from "./memoryStore";
-export { PostgresMemoryStore, type PostgresClient } from "./postgresStore";
-export { cosineSimilarity } from "./searchTool";
 export type { MemoryVaultToolOptions, VaultSaveOperation } from "./tool";
 export { createMemoryVaultTool } from "./tool";
 export { WatermelonDBMemoryStore } from "./watermelonStore";

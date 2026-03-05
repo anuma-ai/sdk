@@ -24,7 +24,7 @@ interface MemoryCacheRow extends Record<string, unknown> {
   is_deleted: boolean;
 }
 
-const VALID_TABLE_NAME = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const VALID_TABLE_NAME = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/;
 
 export class PostgresMemoryStore implements MemoryStoreReader {
   private client: PostgresClient;
@@ -36,7 +36,7 @@ export class PostgresMemoryStore implements MemoryStoreReader {
     const table = options.table ?? "memory_cache";
     if (!VALID_TABLE_NAME.test(table)) {
       throw new Error(
-        `Invalid table name "${table}": must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`
+        `Invalid table name "${table}": must be a valid identifier (e.g. "memory_cache" or "public.memory_cache")`
       );
     }
     this.client = options.client;
@@ -46,7 +46,8 @@ export class PostgresMemoryStore implements MemoryStoreReader {
   }
 
   async getAll(options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> {
-    let sql = `SELECT id, content, scope, created_at, updated_at, is_deleted FROM ${this.table} WHERE account_id = $1 AND app_id = $2 AND is_deleted = false`;
+    const quotedTable = this.table.split(".").map(p => `"${p}"`).join(".");
+    let sql = `SELECT id, content, scope, created_at, updated_at, is_deleted FROM ${quotedTable} WHERE account_id = $1 AND app_id = $2 AND is_deleted = false`;
     const params: unknown[] = [this.accountId, this.appId];
 
     if (options?.scopes?.length) {
@@ -61,8 +62,9 @@ export class PostgresMemoryStore implements MemoryStoreReader {
   }
 
   async getById(id: string): Promise<StoredVaultMemory | null> {
+    const quotedTable = this.table.split(".").map(p => `"${p}"`).join(".");
     const { rows } = await this.client.query<MemoryCacheRow>(
-      `SELECT id, content, scope, created_at, updated_at, is_deleted FROM ${this.table} WHERE id = $1 AND account_id = $2 AND app_id = $3 AND is_deleted = false`,
+      `SELECT id, content, scope, created_at, updated_at, is_deleted FROM ${quotedTable} WHERE id = $1 AND account_id = $2 AND app_id = $3 AND is_deleted = false`,
       [id, this.accountId, this.appId]
     );
     return rows.length > 0 ? rowToStoredVaultMemory(rows[0]) : null;

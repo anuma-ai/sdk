@@ -113,7 +113,24 @@ describe("PostgresMemoryStore", () => {
       await customStore.getAll();
 
       expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining("FROM custom_memories"),
+        expect.stringContaining('"custom_memories"'),
+        expect.any(Array)
+      );
+    });
+
+    it("accepts schema-qualified table names", async () => {
+      const customStore = new PostgresMemoryStore({
+        client: mockClient,
+        accountId: "acc-1",
+        appId: "app-1",
+        table: "public.memory_cache",
+      });
+      vi.mocked(mockClient.query).mockResolvedValue({ rows: [] });
+
+      await customStore.getAll();
+
+      expect(mockClient.query).toHaveBeenCalledWith(
+        expect.stringContaining('"public"."memory_cache"'),
         expect.any(Array)
       );
     });

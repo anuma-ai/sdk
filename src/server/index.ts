@@ -44,10 +44,6 @@ export {
   searchVaultMemories,
 } from "../lib/memoryVault/searchTool";
 
-// Tools — createMemoryVaultTool requires a full MemoryStore (read+write).
-// PostgresMemoryStore is read-only; bring your own MemoryStore implementation for write support.
-export { createMemoryVaultTool } from "../lib/memoryVault/tool";
-
 // Embeddings
 export { generateEmbedding, generateEmbeddings } from "../lib/memoryEngine/embeddings";
 
@@ -59,5 +55,4 @@ export type {
   VaultEmbeddingCache,
   VaultSearchResult,
 } from "../lib/memoryVault/searchTool";
-export type { MemoryVaultToolOptions, VaultSaveOperation } from "../lib/memoryVault/tool";
 export type { ToolConfig } from "../lib/chat/useChat/types";
