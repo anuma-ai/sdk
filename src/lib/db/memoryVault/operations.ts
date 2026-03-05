@@ -98,6 +98,7 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
         record._setRaw("is_deleted", false);
+        if (opts.folderId !== undefined) record._setRaw("folder_id", opts.folderId ?? null);
       })
     );
     await ctx.database.batch(...prepared);
