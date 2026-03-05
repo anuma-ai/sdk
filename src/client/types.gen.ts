@@ -169,6 +169,10 @@ export type HandlersConfigResponse = {
      */
     operator_address?: string;
     /**
+     * PhoneCallsEnabled indicates whether Bland phone calling is available
+     */
+    phone_calls_enabled?: boolean;
+    /**
      * SettlementRecipient is the address that receives settlement payments
      */
     settlement_recipient?: string;
@@ -244,6 +248,15 @@ export type HandlersCreateDeveloperAppRequest = {
      */
     default_user_credits?: number;
     name?: string;
+};
+
+export type HandlersCreatePhoneCallRequest = {
+    caller_name?: string;
+    context?: string;
+    objective: string;
+    phone_number: string;
+    questions?: Array<string>;
+    recipient_name?: string;
 };
 
 export type HandlersCreditBalanceResponse = {
@@ -469,8 +482,37 @@ export type HandlersPaginationResponse = {
     total: number;
 };
 
+export type HandlersPhoneCallResponse = {
+    answered_by?: string;
+    call_ended_by?: string;
+    call_id: string;
+    completed?: boolean;
+    concatenated_transcript?: string;
+    created_at?: string;
+    end_reason?: string;
+    ended_at?: string;
+    error_message?: string;
+    phone_number?: string;
+    queue_status?: string;
+    recipient_name?: string;
+    started_at?: string;
+    status?: string;
+    summary?: string;
+    transcripts?: Array<HandlersPhoneCallTranscriptEntry>;
+};
+
+export type HandlersPhoneCallTranscriptEntry = {
+    created_at?: string;
+    speaker?: string;
+    text?: string;
+};
+
 export type HandlersRefreshRequest = {
     refresh_token: string;
+};
+
+export type HandlersRegisterTextResponse = {
+    status: string;
 };
 
 export type HandlersRenewSubscriptionResponse = {
@@ -678,6 +720,10 @@ export type HandlersTopUpUserRequest = {
      * credits to add (1 credit = $0.01)
      */
     credits?: number;
+};
+
+export type HandlersUnregisterTextResponse = {
+    status: string;
 };
 
 export type HandlersUpdateApiKeyRequest = {
@@ -1582,6 +1628,32 @@ export type McpToolSchema = {
     description?: string;
     name?: string;
     parameters?: unknown;
+};
+
+export type ModelsRegisterTextRequest = {
+    identifier: string;
+    preferred_model?: string;
+};
+
+export type ModelsTextChannel = string;
+
+export type ModelsTextLookupResult = {
+    account_id?: number;
+    app_id?: number;
+    channel?: string;
+    identifier?: string;
+    linq_chat_id?: string;
+    preferred_model?: string;
+    wallet_address?: string;
+};
+
+export type ModelsTextStatusResponse = {
+    channel?: ModelsTextChannel;
+    created_at?: string;
+    identifier?: string;
+    preferred_model?: string;
+    registered: boolean;
+    verified?: boolean;
 };
 
 export type ResponseErrorResponse = {
@@ -3483,6 +3555,92 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
+export type PostApiV1PhoneCallsData = {
+    /**
+     * Phone call request
+     */
+    body: HandlersCreatePhoneCallRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/phone-calls';
+};
+
+export type PostApiV1PhoneCallsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostApiV1PhoneCallsError = PostApiV1PhoneCallsErrors[keyof PostApiV1PhoneCallsErrors];
+
+export type PostApiV1PhoneCallsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type PostApiV1PhoneCallsResponse = PostApiV1PhoneCallsResponses[keyof PostApiV1PhoneCallsResponses];
+
+export type GetApiV1PhoneCallsByCallIdData = {
+    body?: never;
+    path: {
+        /**
+         * Bland call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/api/v1/phone-calls/{call_id}';
+};
+
+export type GetApiV1PhoneCallsByCallIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdError = GetApiV1PhoneCallsByCallIdErrors[keyof GetApiV1PhoneCallsByCallIdErrors];
+
+export type GetApiV1PhoneCallsByCallIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdResponse = GetApiV1PhoneCallsByCallIdResponses[keyof GetApiV1PhoneCallsByCallIdResponses];
+
 export type PostApiV1ResponsesData = {
     /**
      * Response request
@@ -3903,6 +4061,170 @@ export type GetApiV1TasksResponses = {
 };
 
 export type GetApiV1TasksResponse = GetApiV1TasksResponses[keyof GetApiV1TasksResponses];
+
+export type GetApiV1TextByChannelLookupData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query: {
+        /**
+         * Channel identifier (e.g., E.164 phone number for SMS)
+         */
+        identifier: string;
+    };
+    url: '/api/v1/text/{channel}/lookup';
+};
+
+export type GetApiV1TextByChannelLookupErrors = {
+    /**
+     * Invalid channel or identifier format
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * No registration found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1TextByChannelLookupError = GetApiV1TextByChannelLookupErrors[keyof GetApiV1TextByChannelLookupErrors];
+
+export type GetApiV1TextByChannelLookupResponses = {
+    /**
+     * OK
+     */
+    200: ModelsTextLookupResult;
+};
+
+export type GetApiV1TextByChannelLookupResponse = GetApiV1TextByChannelLookupResponses[keyof GetApiV1TextByChannelLookupResponses];
+
+export type PostApiV1TextByChannelRegisterData = {
+    /**
+     * Registration data
+     */
+    body: ModelsRegisterTextRequest;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/register';
+};
+
+export type PostApiV1TextByChannelRegisterErrors = {
+    /**
+     * Invalid channel, identifier, or identifier not in linked accounts
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Identifier registered to another account
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1TextByChannelRegisterError = PostApiV1TextByChannelRegisterErrors[keyof PostApiV1TextByChannelRegisterErrors];
+
+export type PostApiV1TextByChannelRegisterResponses = {
+    /**
+     * OK
+     */
+    200: HandlersRegisterTextResponse;
+};
+
+export type PostApiV1TextByChannelRegisterResponse = PostApiV1TextByChannelRegisterResponses[keyof PostApiV1TextByChannelRegisterResponses];
+
+export type GetApiV1TextByChannelStatusData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/status';
+};
+
+export type GetApiV1TextByChannelStatusErrors = {
+    /**
+     * Invalid channel
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1TextByChannelStatusError = GetApiV1TextByChannelStatusErrors[keyof GetApiV1TextByChannelStatusErrors];
+
+export type GetApiV1TextByChannelStatusResponses = {
+    /**
+     * OK
+     */
+    200: ModelsTextStatusResponse;
+};
+
+export type GetApiV1TextByChannelStatusResponse = GetApiV1TextByChannelStatusResponses[keyof GetApiV1TextByChannelStatusResponses];
+
+export type DeleteApiV1TextByChannelUnregisterData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/unregister';
+};
+
+export type DeleteApiV1TextByChannelUnregisterErrors = {
+    /**
+     * Invalid channel
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1TextByChannelUnregisterError = DeleteApiV1TextByChannelUnregisterErrors[keyof DeleteApiV1TextByChannelUnregisterErrors];
+
+export type DeleteApiV1TextByChannelUnregisterResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUnregisterTextResponse;
+};
+
+export type DeleteApiV1TextByChannelUnregisterResponse = DeleteApiV1TextByChannelUnregisterResponses[keyof DeleteApiV1TextByChannelUnregisterResponses];
 
 export type GetApiV1ToolsData = {
     body?: never;

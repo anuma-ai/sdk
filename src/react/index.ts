@@ -348,6 +348,12 @@ export {
 } from "../lib/processors";
 export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
 export { useCredits } from "./useCredits";
+export type {
+  PhoneCallPollingOptions,
+  UsePhoneCallsOptions,
+  UsePhoneCallsResult,
+} from "./usePhoneCalls";
+export { usePhoneCalls } from "./usePhoneCalls";
 export type { UseModelsResult } from "./useModels";
 export { useModels } from "./useModels";
 export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
