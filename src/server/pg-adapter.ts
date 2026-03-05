@@ -33,7 +33,7 @@ import type {
 import type { RecordId } from "@nozbe/watermelondb/Model";
 import type { SerializedQuery } from "@nozbe/watermelondb/Query";
 import type { RawRecord } from "@nozbe/watermelondb/RawRecord";
-import type { AppSchema, ColumnSchema,TableName } from "@nozbe/watermelondb/Schema";
+import type { AppSchema, ColumnSchema, TableName } from "@nozbe/watermelondb/Schema";
 import type { SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 import type { ResultCallback } from "@nozbe/watermelondb/utils/fp/Result";
 
