@@ -2876,6 +2876,55 @@ export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses = {
 
 export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponse = DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses[keyof DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses];
 
+export type PostApiV1DeveloperAppsByAppUuidFundData = {
+    /**
+     * Fund request
+     */
+    body: HandlersFundDeveloperAppRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/fund';
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundError = PostApiV1DeveloperAppsByAppUuidFundErrors[keyof PostApiV1DeveloperAppsByAppUuidFundErrors];
+
+export type PostApiV1DeveloperAppsByAppUuidFundResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundResponse = PostApiV1DeveloperAppsByAppUuidFundResponses[keyof PostApiV1DeveloperAppsByAppUuidFundResponses];
+
 export type DeleteApiV1DeveloperAppsByAppUuidPrivyData = {
     body?: never;
     path: {
@@ -4038,55 +4087,6 @@ export type PostAuthOauthByProviderRevokeResponses = {
 };
 
 export type PostAuthOauthByProviderRevokeResponse = PostAuthOauthByProviderRevokeResponses[keyof PostAuthOauthByProviderRevokeResponses];
-
-export type PostDeveloperAppsByAppUuidFundData = {
-    /**
-     * Fund request
-     */
-    body: HandlersFundDeveloperAppRequest;
-    path: {
-        /**
-         * App UUID
-         */
-        app_uuid: string;
-    };
-    query?: never;
-    url: '/developer/apps/{app_uuid}/fund';
-};
-
-export type PostDeveloperAppsByAppUuidFundErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Forbidden
-     */
-    403: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostDeveloperAppsByAppUuidFundError = PostDeveloperAppsByAppUuidFundErrors[keyof PostDeveloperAppsByAppUuidFundErrors];
-
-export type PostDeveloperAppsByAppUuidFundResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCheckoutSessionResponse;
-};
-
-export type PostDeveloperAppsByAppUuidFundResponse = PostDeveloperAppsByAppUuidFundResponses[keyof PostDeveloperAppsByAppUuidFundResponses];
 
 export type GetHealthData = {
     body?: never;

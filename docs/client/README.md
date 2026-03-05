@@ -327,6 +327,11 @@
 | [PostApiV1DeveloperAppsByAppUuidApiKeysErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysErrors.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidApiKeysResponse](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysResponse.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidApiKeysResponses](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysResponses.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidFundData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidFundData.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidFundError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidFundError.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidFundErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidFundErrors.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidFundResponse](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidFundResponse.md) | - |
+| [PostApiV1DeveloperAppsByAppUuidFundResponses](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidFundResponses.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidPrivyData](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyData.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidPrivyError](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyError.md) | - |
 | [PostApiV1DeveloperAppsByAppUuidPrivyErrors](Internal/type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyErrors.md) | - |
@@ -407,11 +412,6 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
-| [PostDeveloperAppsByAppUuidFundData](Internal/type-aliases/PostDeveloperAppsByAppUuidFundData.md) | - |
-| [PostDeveloperAppsByAppUuidFundError](Internal/type-aliases/PostDeveloperAppsByAppUuidFundError.md) | - |
-| [PostDeveloperAppsByAppUuidFundErrors](Internal/type-aliases/PostDeveloperAppsByAppUuidFundErrors.md) | - |
-| [PostDeveloperAppsByAppUuidFundResponse](Internal/type-aliases/PostDeveloperAppsByAppUuidFundResponse.md) | - |
-| [PostDeveloperAppsByAppUuidFundResponses](Internal/type-aliases/PostDeveloperAppsByAppUuidFundResponses.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -470,6 +470,7 @@
 | [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1DeveloperApps](Internal/functions/postApiV1DeveloperApps.md) | Create app |
 | [postApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/postApiV1DeveloperAppsByAppUuidApiKeys.md) | Create API key |
+| [postApiV1DeveloperAppsByAppUuidFund](Internal/functions/postApiV1DeveloperAppsByAppUuidFund.md) | Fund developer app balance |
 | [postApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/postApiV1DeveloperAppsByAppUuidPrivy.md) | Configure Privy |
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
@@ -485,6 +486,5 @@
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
-| [postDeveloperAppsByAppUuidFund](Internal/functions/postDeveloperAppsByAppUuidFund.md) | Fund developer app balance |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |
