@@ -3885,7 +3885,15 @@ export type GetApiV1UsageModelsData = {
     path?: never;
     query?: {
         /**
-         * Time period. Day aliases: 7d, 30d, 90d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 90d.
+         * Start of date range in RFC 3339 format (e.g. 2024-01-01T00:00:00Z). Must be used with end. Takes precedence over period.
+         */
+        start?: string;
+        /**
+         * End of date range in RFC 3339 format (e.g. 2024-01-31T23:59:59Z). Must be used with start. Takes precedence over period.
+         */
+        end?: string;
+        /**
+         * Time period. Day aliases: 7d, 30d, 90d, 180d, 365d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 365d.
          */
         period?: string;
     };
