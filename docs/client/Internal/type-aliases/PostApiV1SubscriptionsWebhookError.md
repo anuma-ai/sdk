@@ -2,4 +2,4 @@
 
 > **PostApiV1SubscriptionsWebhookError** = [`PostApiV1SubscriptionsWebhookErrors`](PostApiV1SubscriptionsWebhookErrors.md)\[keyof [`PostApiV1SubscriptionsWebhookErrors`](PostApiV1SubscriptionsWebhookErrors.md)]
 
-Defined in: [src/client/types.gen.ts:3820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3820)
+Defined in: [src/client/types.gen.ts:3869](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3869)
