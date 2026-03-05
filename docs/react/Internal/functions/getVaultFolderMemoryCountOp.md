@@ -2,7 +2,7 @@
 
 > **getVaultFolderMemoryCountOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `folderId`: `string`): `Promise`<`number`>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#184)
+Defined in: [src/lib/db/vaultFolders/operations.ts:189](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#189)
 
 Get the count of non-deleted memories in a folder.
 

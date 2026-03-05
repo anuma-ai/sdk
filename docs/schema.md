@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v19**
+Current version: **v18**
 
 ```mermaid
 graph LR
@@ -136,7 +136,6 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
-| v19 | Added `scope` to `vault_folders` |
 | v18 | Added `vault_folders` table; Added `folder_id` to `memory_vault` |
 | v17 | Added `image_model` to `history` |
 | v16 | Added `scope` to `memory_vault`; `UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';` |
