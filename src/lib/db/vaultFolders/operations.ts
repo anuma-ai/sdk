@@ -128,6 +128,7 @@ export async function deleteVaultFolderOp(
       const preparedMemories = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", null);
+          r._setRaw("scope", "private");
         })
       );
 
@@ -156,13 +157,15 @@ export async function moveMemoriesToFolderOp(
   if (memoryIds.length === 0) return true;
 
   try {
+    // If moving to a folder, inherit the folder's scope; if unfiling, revert to "private"
+    let targetScope: string = "private";
+    if (folderId) {
+      const folder = await ctx.vaultFolderCollection.find(folderId);
+      if (folder.isDeleted) return false;
+      targetScope = folder.scope;
+    }
+
     await ctx.database.write(async () => {
-      // If moving to a folder, inherit the folder's scope; if unfiling, revert to "private"
-      let targetScope: string = "private";
-      if (folderId) {
-        const folder = await ctx.vaultFolderCollection.find(folderId);
-        targetScope = folder.scope;
-      }
 
       const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
 
