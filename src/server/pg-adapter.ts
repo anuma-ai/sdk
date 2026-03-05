@@ -89,22 +89,15 @@ function makeQualify(pgSchema: string): (table: string) => string {
 // Helpers: WatermelonDB query → SQL
 // ---------------------------------------------------------------------------
 
-function encodeValue(value: unknown): string {
-  if (value === true) return "true";
-  if (value === false) return "false";
-  if (value === null || value === undefined) return "null";
-  if (typeof value === "number") {
-    if (Number.isNaN(value)) return "null";
-    return String(value);
-  }
-  if (typeof value === "string") {
-    return `'${value.replace(/'/g, "''")}'`;
-  }
-  throw new Error(`Invalid value to encode: ${typeof value}`);
+/** Push a value into the params array and return its $N placeholder. */
+function param(params: unknown[], value: unknown): string {
+  params.push(value);
+  return `$${params.length}`;
 }
 
-function encodeValues(values: unknown[]): string {
-  return `(${values.map(encodeValue).join(", ")})`;
+/** Push multiple values and return a parenthesized placeholder list: ($1, $2, ...) */
+function paramList(params: unknown[], values: unknown[]): string {
+  return `(${values.map((v) => param(params, v)).join(", ")})`;
 }
 
 type ComparisonRight = { value?: unknown; values?: unknown[]; column?: string };
@@ -131,16 +124,16 @@ const operators: Record<string, string> = {
   notLike: "not like",
 };
 
-function getComparisonRight(table: string, right: ComparisonRight): string {
-  if (right.values) return encodeValues(right.values);
+function getComparisonRight(params: unknown[], table: string, right: ComparisonRight): string {
+  if (right.values) return paramList(params, right.values);
   if (right.column) return `"${table}"."${right.column}"`;
-  return right.value !== undefined ? encodeValue(right.value) : "null";
+  return right.value !== undefined ? param(params, right.value) : "null";
 }
 
-function encodeComparison(table: string, comparison: Comparison): string {
+function encodeComparison(params: unknown[], table: string, comparison: Comparison): string {
   if (comparison.operator === "between") {
     const vals = comparison.right.values;
-    if (vals) return `between ${encodeValue(vals[0])} and ${encodeValue(vals[1])}`;
+    if (vals) return `between ${param(params, vals[0])} and ${param(params, vals[1])}`;
     return "";
   }
   // PostgreSQL requires IS NULL / IS NOT NULL (not = null / != null)
@@ -153,7 +146,7 @@ function encodeComparison(table: string, comparison: Comparison): string {
     if (comparison.operator === "eq") return "is null";
     if (comparison.operator === "notEq") return "is not null";
   }
-  return `${operators[comparison.operator]} ${getComparisonRight(table, comparison.right)}`;
+  return `${operators[comparison.operator]} ${getComparisonRight(params, table, comparison.right)}`;
 }
 
 interface Association {
@@ -162,21 +155,21 @@ interface Association {
   info: { type: "belongs_to" | "has_many"; key?: string; foreignKey?: string };
 }
 
-function encodeWhere(table: string, associations: Association[], clause: Where): string {
+function encodeWhere(params: unknown[], table: string, associations: Association[], clause: Where): string {
   switch (clause.type) {
     case "and":
-      return `(${clause.conditions.map((c) => encodeWhere(table, associations, c)).join(" and ")})`;
+      return `(${clause.conditions.map((c) => encodeWhere(params, table, associations, c)).join(" and ")})`;
     case "or":
-      return `(${clause.conditions.map((c) => encodeWhere(table, associations, c)).join(" or ")})`;
+      return `(${clause.conditions.map((c) => encodeWhere(params, table, associations, c)).join(" or ")})`;
     case "where": {
       const { left, comparison } = clause;
       if (comparison.operator === "includes") {
-        return `position(${getComparisonRight(table, comparison.right)} in "${table}"."${left}") > 0`;
+        return `position(${getComparisonRight(params, table, comparison.right)} in "${table}"."${left}") > 0`;
       }
-      return `"${table}"."${left}" ${encodeComparison(table, comparison)}`;
+      return `"${table}"."${left}" ${encodeComparison(params, table, comparison)}`;
     }
     case "on":
-      return `(${clause.conditions.map((c) => encodeWhere(clause.table, associations, c)).join(" and ")})`;
+      return `(${clause.conditions.map((c) => encodeWhere(params, clause.table, associations, c)).join(" and ")})`;
     case "sql":
       return clause.expr;
     default:
@@ -217,6 +210,7 @@ function encodeQuery(
     return [description.sql.sql, description.sql.values];
   }
 
+  const params: unknown[] = [];
   const hasToManyJoins = associations.some((a) => a.info.type === "has_many");
   const distinct = hasToManyJoins ? "distinct " : "";
   const qualifiedTable = qualify(table);
@@ -251,7 +245,7 @@ function encodeQuery(
 
   // WHERE
   const whereClauses = description.where
-    .map((w) => encodeWhere(table, associations, w))
+    .map((w) => encodeWhere(params, table, associations, w))
     .filter(Boolean);
   const whereStr = whereClauses.length ? ` where ${whereClauses.join(" and ")}` : "";
 
@@ -270,7 +264,7 @@ function encodeQuery(
     }
   }
 
-  return [`${select}${joins}${whereStr}${orderBy}${limitOffset}`, []];
+  return [`${select}${joins}${whereStr}${orderBy}${limitOffset}`, params];
 }
 
 // ---------------------------------------------------------------------------
