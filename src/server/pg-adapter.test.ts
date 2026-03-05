@@ -172,6 +172,13 @@ function createMockPool(): PgPoolLike & { tables: Map<string, Row[]> } {
 
       return { rows: [] };
     },
+    async connect() {
+      const pool = this as PgPoolLike;
+      return {
+        query: (text: string, values?: unknown[]) => pool.query(text, values),
+        release: () => {},
+      };
+    },
   };
 }
 

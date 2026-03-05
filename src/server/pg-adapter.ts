@@ -41,8 +41,15 @@ import type { ResultCallback } from "@nozbe/watermelondb/utils/fp/Result";
 // pg Pool interface (dependency injection — no hard dep on `pg`)
 // ---------------------------------------------------------------------------
 
+export interface PgClientLike {
+  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  release(): void;
+}
+
 export interface PgPoolLike {
   query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  /** Optional. When provided, batch operations run inside a transaction on a dedicated connection. */
+  connect?(): Promise<PgClientLike>;
 }
 
 // ---------------------------------------------------------------------------
@@ -484,51 +491,69 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       (async () => {
         await this._ready();
 
-        for (const operation of operations) {
-          const [type, table, rawOrId] = operation;
+        const runOps = async (q: Pick<PgPoolLike, "query">) => {
+          for (const operation of operations) {
+            const [type, table, rawOrId] = operation;
 
-          switch (type) {
-            case "create": {
-              const raw = rawOrId as unknown as RawRecord;
-              const record = raw as unknown as Record<string, unknown>;
-              const keys = Object.keys(record);
-              const cols = keys.map((k) => `"${k}"`).join(", ");
-              const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-              const values = keys.map((k) => record[k]);
-              await this.pool.query(
-                `insert into ${this.q(table)} (${cols}) values (${placeholders})`,
-                values
-              );
-              break;
-            }
-            case "update": {
-              const raw = rawOrId as unknown as RawRecord;
-              const record = raw as unknown as Record<string, unknown>;
-              const id = record.id;
-              const keys = Object.keys(record).filter((k) => k !== "id");
-              const sets = keys.map((k, i) => `"${k}" = $${i + 1}`).join(", ");
-              const values = keys.map((k) => record[k]);
-              values.push(id);
-              await this.pool.query(
-                `update ${this.q(table)} set ${sets} where "id" = $${values.length}`,
-                values
-              );
-              break;
-            }
-            case "markAsDeleted": {
-              const id = rawOrId as unknown as RecordId;
-              await this.pool.query(
-                `update ${this.q(table)} set "_status" = 'deleted' where "id" = $1`,
-                [id]
-              );
-              break;
-            }
-            case "destroyPermanently": {
-              const id = rawOrId as unknown as RecordId;
-              await this.pool.query(`delete from ${this.q(table)} where "id" = $1`, [id]);
-              break;
+            switch (type) {
+              case "create": {
+                const raw = rawOrId as unknown as RawRecord;
+                const record = raw as unknown as Record<string, unknown>;
+                const keys = Object.keys(record);
+                const cols = keys.map((k) => `"${k}"`).join(", ");
+                const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
+                const values = keys.map((k) => record[k]);
+                await q.query(
+                  `insert into ${this.q(table)} (${cols}) values (${placeholders})`,
+                  values
+                );
+                break;
+              }
+              case "update": {
+                const raw = rawOrId as unknown as RawRecord;
+                const record = raw as unknown as Record<string, unknown>;
+                const id = record.id;
+                const keys = Object.keys(record).filter((k) => k !== "id");
+                const sets = keys.map((k, i) => `"${k}" = $${i + 1}`).join(", ");
+                const values = keys.map((k) => record[k]);
+                values.push(id);
+                await q.query(
+                  `update ${this.q(table)} set ${sets} where "id" = $${values.length}`,
+                  values
+                );
+                break;
+              }
+              case "markAsDeleted": {
+                const id = rawOrId as unknown as RecordId;
+                await q.query(
+                  `update ${this.q(table)} set "_status" = 'deleted' where "id" = $1`,
+                  [id]
+                );
+                break;
+              }
+              case "destroyPermanently": {
+                const id = rawOrId as unknown as RecordId;
+                await q.query(`delete from ${this.q(table)} where "id" = $1`, [id]);
+                break;
+              }
             }
           }
+        };
+
+        if (this.pool.connect) {
+          const client = await this.pool.connect();
+          try {
+            await client.query("BEGIN");
+            await runOps(client);
+            await client.query("COMMIT");
+          } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+          } finally {
+            client.release();
+          }
+        } else {
+          await runOps(this.pool);
         }
       })(),
       callback

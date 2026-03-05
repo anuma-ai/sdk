@@ -46,7 +46,7 @@ export { serverPlatformStorage } from "./storage";
 
 // ── PostgreSQL Adapter ──
 
-export type { PgPoolLike, PostgreSQLAdapterOptions } from "./pg-adapter";
+export type { PgClientLike, PgPoolLike, PostgreSQLAdapterOptions } from "./pg-adapter";
 export { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
 
 // ── Schema & Models ──
