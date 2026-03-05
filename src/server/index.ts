@@ -56,9 +56,8 @@ export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from ".
 // ── Chat (conversations + messages) ──
 
 export {
-  Conversation,
-  Message,
   clearMessagesOp,
+  Conversation,
   createConversationOp,
   createMessageOp,
   deleteConversationOp,
@@ -69,6 +68,7 @@ export {
   getMessagesOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
+  Message,
   searchChunksOp,
   searchMessagesOp,
   type StorageOperationsContext,
@@ -79,7 +79,6 @@ export {
   updateMessageErrorOp,
   updateMessageFeedbackOp,
 } from "../lib/db/chat";
-
 export {
   type ChatCompletionUsage,
   type ChatRole,
@@ -100,46 +99,46 @@ export {
 // ── Memory Vault ──
 
 export {
-  VaultMemory,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
+  type CreateVaultMemoryOptions,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
-  updateVaultMemoryOp,
-  type VaultMemoryOperationsContext,
-  type CreateVaultMemoryOptions,
   type StoredVaultMemory,
+  updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
+  VaultMemory,
+  type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 
 // ── Projects ──
 
 export {
-  Project,
   createProjectOp,
+  type CreateProjectOptions,
   deleteProjectOp,
+  generateProjectId,
   getProjectConversationCountOp,
   getProjectConversationsOp,
   getProjectOp,
   getProjectsOp,
+  Project,
   type ProjectOperationsContext,
   projectToStored,
+  type StoredProject,
   updateProjectNameOp,
   updateProjectOp,
-  type CreateProjectOptions,
-  generateProjectId,
-  type StoredProject,
   type UpdateProjectOptions,
 } from "../lib/db/project";
 
 // ── Media ──
 
 export {
-  Media,
   createMediaBatchOp,
   createMediaOp,
+  type CreateMediaOptions,
   deleteMediaByConversationOp,
   deleteMediaByMessageOp,
   deleteMediaOp,
@@ -165,6 +164,7 @@ export {
   getVideosOp,
   hardDeleteMediaOp,
   isSupportedMediaType,
+  Media,
   type MediaDimensions,
   type MediaFilterOptions,
   type MediaMetadata,
@@ -174,7 +174,6 @@ export {
   type MediaType,
   searchMediaOp,
   type StoredMedia,
-  type CreateMediaOptions,
   updateMediaMessageIdBatchOp,
   updateMediaOp,
   type UpdateMediaOptions,
@@ -183,35 +182,35 @@ export {
 // ── User Preferences ──
 
 export {
-  UserPreference,
+  type CreateUserPreferenceOptions,
+  DEFAULT_PERSONALITY_SETTINGS,
   deleteUserPreferenceOp,
   getUserPreferenceOp,
   migrateFromModelPreferencesOp,
-  setUserPreferenceOp,
-  updateModelsOp,
-  updatePersonalityOp,
-  updateProfileOp,
-  type UserPreferencesStorageOperationsContext,
-  type CreateUserPreferenceOptions,
-  DEFAULT_PERSONALITY_SETTINGS,
   type PersonalitySettings,
   type PersonalitySliders,
   type PersonalityStyle,
   type ProfileUpdate,
+  setUserPreferenceOp,
   SLIDER_CONFIG,
   type StoredUserPreference,
+  updateModelsOp,
+  updatePersonalityOp,
+  updateProfileOp,
   type UpdateUserPreferenceOptions,
+  UserPreference,
+  type UserPreferencesStorageOperationsContext,
 } from "../lib/db/userPreferences";
 
 // ── Settings (deprecated, use userPreferences) ──
 
 export {
-  ModelPreference,
+  type CreateModelPreferenceOptions,
   deleteModelPreferenceOp,
   getModelPreferenceOp,
+  ModelPreference,
   setModelPreferenceOp,
   type SettingsStorageOperationsContext,
-  type CreateModelPreferenceOptions,
   type StoredModelPreference,
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";

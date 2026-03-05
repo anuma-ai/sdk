@@ -23,18 +23,18 @@
  * ```
  */
 
-import type { AppSchema, TableName, ColumnSchema } from "@nozbe/watermelondb/Schema";
-import type { SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
-import type { RecordId } from "@nozbe/watermelondb/Model";
-import type { RawRecord, DirtyRaw } from "@nozbe/watermelondb/RawRecord";
-import type { SerializedQuery } from "@nozbe/watermelondb/Query";
 import type {
-  DatabaseAdapter,
-  CachedQueryResult,
-  CachedFindResult,
   BatchOperation,
+  CachedFindResult,
+  CachedQueryResult,
+  DatabaseAdapter,
   UnsafeExecuteOperations,
 } from "@nozbe/watermelondb/adapters/type";
+import type { RecordId } from "@nozbe/watermelondb/Model";
+import type { SerializedQuery } from "@nozbe/watermelondb/Query";
+import type { RawRecord } from "@nozbe/watermelondb/RawRecord";
+import type { AppSchema, ColumnSchema,TableName } from "@nozbe/watermelondb/Schema";
+import type { SchemaMigrations } from "@nozbe/watermelondb/Schema/migrations";
 import type { ResultCallback } from "@nozbe/watermelondb/utils/fp/Result";
 
 // ---------------------------------------------------------------------------
@@ -403,7 +403,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   private _fromPromise<T>(promise: Promise<T>, callback: ResultCallback<T>): void {
     promise.then(
       (value) => callback({ value } as { value: T }),
-      (error) => callback({ error } as { error: Error })
+      (error: unknown) => callback({ error } as { error: Error })
     );
   }
 
@@ -414,6 +414,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
 
   // ---------- DatabaseAdapter interface ----------
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
   find(table: TableName<any>, id: RecordId, callback: ResultCallback<CachedFindResult>): void {
     this._fromPromise(
       (async () => {
@@ -453,6 +454,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
   unsafeQueryRaw(query: SerializedQuery, callback: ResultCallback<any[]>): void {
     this._fromPromise(
       (async () => {
@@ -533,6 +535,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
   getDeletedRecords(table: TableName<any>, callback: ResultCallback<RecordId[]>): void {
     this._fromPromise(
       (async () => {
@@ -547,6 +550,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
   }
 
   destroyDeletedRecords(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
     table: TableName<any>,
     recordIds: RecordId[],
     callback: ResultCallback<void>
@@ -565,6 +569,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WatermelonDB DatabaseAdapter interface
   unsafeLoadFromSync(_jsonId: number, callback: ResultCallback<any>): void {
     callback({ error: new Error("unsafeLoadFromSync is not supported by PostgreSQLAdapter") } as {
       error: Error;
@@ -592,12 +597,15 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
 
   unsafeExecute(_operations: UnsafeExecuteOperations, callback: ResultCallback<void>): void {
     // SQL-string mode support
-    const ops = _operations as any;
+    const ops = _operations as unknown as {
+      sqlString?: string;
+      sqls?: [string, unknown[]][];
+    };
     if (ops.sqlString) {
       this._fromPromise(
         (async () => {
           await this._ready();
-          await this.pool.query(ops.sqlString);
+          await this.pool.query(ops.sqlString!);
         })(),
         callback
       );
@@ -607,7 +615,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
       this._fromPromise(
         (async () => {
           await this._ready();
-          for (const [sql, args] of ops.sqls) {
+          for (const [sql, args] of ops.sqls!) {
             await this.pool.query(sql, args);
           }
         })(),
