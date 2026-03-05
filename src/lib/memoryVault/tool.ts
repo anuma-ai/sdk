@@ -6,13 +6,8 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types";
-import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import {
-  createVaultMemoryOp,
-  getVaultMemoryOp,
-  updateVaultMemoryOp,
-} from "../db/memoryVault/operations";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import type { MemoryStore } from "./memoryStore";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
 /**
@@ -58,13 +53,13 @@ export interface MemoryVaultToolOptions {
  * The tool allows the LLM to save and update persistent memories.
  * Each operation can be intercepted for user confirmation before committing.
  *
- * @param vaultCtx - Vault operations context for database access
+ * @param store - Memory store for vault operations
  * @param options - Optional configuration (onSave callback for confirmation)
  * @returns A ToolConfig that can be passed to chat completion tools
  *
  * @example
  * ```ts
- * const tool = createMemoryVaultTool(vaultCtx, {
+ * const tool = createMemoryVaultTool(store, {
  *   onSave: async (op) => {
  *     // Show confirmation toast, return true/false
  *     return await showConfirmationToast(op);
@@ -78,7 +73,7 @@ export interface MemoryVaultToolOptions {
  * ```
  */
 export function createMemoryVaultTool(
-  vaultCtx: VaultMemoryOperationsContext,
+  store: MemoryStore,
   options?: MemoryVaultToolOptions,
   embeddingOptions?: EmbeddingOptions,
   cache?: VaultEmbeddingCache
@@ -128,7 +123,7 @@ export function createMemoryVaultTool(
 
         // For updates, fetch the existing memory to get previous content
         if (isUpdate) {
-          const existing = await getVaultMemoryOp(vaultCtx, id);
+          const existing = await store.getById(id);
           if (!existing) {
             return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
           }
@@ -156,7 +151,7 @@ export function createMemoryVaultTool(
 
         // Execute the save
         if (isUpdate) {
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content });
+          const updated = await store.update(id, { content });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }
@@ -169,7 +164,7 @@ export function createMemoryVaultTool(
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
-          const created = await createVaultMemoryOp(vaultCtx, { content, scope });
+          const created = await store.create({ content, scope });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
             eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});

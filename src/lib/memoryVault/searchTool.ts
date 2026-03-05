@@ -6,10 +6,9 @@
  */
 
 import type { ToolConfig } from "../chat/useChat/types";
-import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import type { MemoryStoreReader } from "./memoryStore";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -34,7 +33,7 @@ export interface MemoryVaultSearchOptions {
 /**
  * Compute cosine similarity between two vectors.
  */
-function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
   let dot = 0;
   let normA = 0;
@@ -53,12 +52,12 @@ function cosineSimilarity(a: number[], b: number[]): number {
  * Call this at init time so searches are instant.
  */
 export async function preEmbedVaultMemories(
-  vaultCtx: VaultMemoryOperationsContext,
+  store: MemoryStoreReader,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   options?: { scopes?: string[] }
 ): Promise<void> {
-  const memories = await getAllVaultMemoriesOp(vaultCtx, options);
+  const memories = await store.getAll(options);
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
   for (const m of memories) {
@@ -103,7 +102,7 @@ export interface VaultSearchResult {
  */
 async function searchVaultMemoriesWithSize(
   query: string,
-  vaultCtx: VaultMemoryOperationsContext,
+  store: MemoryStoreReader,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
@@ -116,7 +115,7 @@ async function searchVaultMemoriesWithSize(
     return { results: [], vaultSize: 0 };
   }
 
-  const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
+  const memories = await store.getAll(scopes?.length ? { scopes } : undefined);
   if (memories.length === 0) {
     return { results: [], vaultSize: 0 };
   }
@@ -169,14 +168,14 @@ async function searchVaultMemoriesWithSize(
  */
 export async function searchVaultMemories(
   query: string,
-  vaultCtx: VaultMemoryOperationsContext,
+  store: MemoryStoreReader,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
 ): Promise<VaultSearchResult[]> {
   const { results } = await searchVaultMemoriesWithSize(
     query,
-    vaultCtx,
+    store,
     embeddingOptions,
     cache,
     searchOptions
@@ -192,14 +191,14 @@ export async function searchVaultMemories(
  * cache (via preEmbedVaultMemories or eagerEmbedContent). Any missing
  * embeddings are computed on the fly as a fallback.
  *
- * @param vaultCtx - Vault operations context for database access
+ * @param store - Memory store for reading vault memories
  * @param embeddingOptions - Options for embedding generation (auth, base URL)
  * @param cache - Pre-populated embedding cache
  * @param searchOptions - Optional search configuration
  * @returns A ToolConfig that can be passed to chat completion tools
  */
 export function createMemoryVaultSearchTool(
-  vaultCtx: VaultMemoryOperationsContext,
+  store: MemoryStoreReader,
   embeddingOptions: EmbeddingOptions,
   cache: VaultEmbeddingCache,
   searchOptions?: MemoryVaultSearchOptions
@@ -242,7 +241,7 @@ export function createMemoryVaultSearchTool(
       try {
         const { results, vaultSize } = await searchVaultMemoriesWithSize(
           query,
-          vaultCtx,
+          store,
           embeddingOptions,
           cache,
           {

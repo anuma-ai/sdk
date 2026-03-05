@@ -113,4 +113,17 @@ export default defineConfig([
       };
     },
   },
+  // Server entry - Node.js only, no browser/React/WatermelonDB runtime deps
+  {
+    entry: ["src/server/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/server",
+    external: ["@nozbe/watermelondb", "react", "react-native"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
 ]);

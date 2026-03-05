@@ -234,11 +234,14 @@ export {
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";
 export {
+  cosineSimilarity,
   createMemoryVaultSearchTool,
   createMemoryVaultTool,
   createVaultEmbeddingCache,
   DEFAULT_VAULT_CACHE_SIZE,
   eagerEmbedContent,
+  type MemoryStore,
+  type MemoryStoreReader,
   type MemoryVaultSearchOptions,
   type MemoryVaultToolOptions,
   preEmbedVaultMemories,
@@ -246,6 +249,7 @@ export {
   type VaultEmbeddingCache,
   type VaultSaveOperation,
   type VaultSearchResult,
+  WatermelonDBMemoryStore,
 } from "../lib/memoryVault";
 export type { UseSettingsOptions, UseSettingsResult } from "./useSettings";
 export { useSettings } from "./useSettings";

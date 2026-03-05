@@ -41,12 +41,11 @@ import {
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
 import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
 import {
-  deleteVaultMemoryOp,
-  getAllVaultMemoriesOp,
   type StoredVaultMemory,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 import { VaultMemory } from "../lib/db/memoryVault/models";
+import { WatermelonDBMemoryStore } from "../lib/memoryVault/watermelonStore";
 import {
   type FlushResult,
   type QueuedOperation,
@@ -358,6 +357,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     }),
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
+  const vaultStore = useMemo(() => new WatermelonDBMemoryStore(vaultCtx), [vaultCtx]);
 
   // ── Queue Management ──
 
@@ -583,9 +583,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const createMemoryVaultTool = useCallback(
     (options?: MemoryVaultToolOptions): ToolConfig => {
-      return createMemoryVaultToolBase(vaultCtx, options);
+      return createMemoryVaultToolBase(vaultStore, options);
     },
-    [vaultCtx]
+    [vaultStore]
   );
 
   /**
@@ -593,9 +593,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const getVaultMemories = useCallback(
     (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
-      return getAllVaultMemoriesOp(vaultCtx, options);
+      return vaultStore.getAll(options);
     },
-    [vaultCtx]
+    [vaultStore]
   );
 
   /**
@@ -603,9 +603,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const deleteVaultMemory = useCallback(
     (id: string): Promise<boolean> => {
-      return deleteVaultMemoryOp(vaultCtx, id);
+      return vaultStore.delete(id);
     },
-    [vaultCtx]
+    [vaultStore]
   );
 
   // Use the underlying useChat hook (Expo version - no tools, no local chat)

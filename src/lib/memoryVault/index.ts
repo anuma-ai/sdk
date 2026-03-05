@@ -28,5 +28,9 @@ export {
   preEmbedVaultMemories,
   searchVaultMemories,
 } from "./searchTool";
+export type { MemoryStore, MemoryStoreReader } from "./memoryStore";
+export { PostgresMemoryStore, type PostgresClient } from "./postgresStore";
+export { cosineSimilarity } from "./searchTool";
 export type { MemoryVaultToolOptions, VaultSaveOperation } from "./tool";
 export { createMemoryVaultTool } from "./tool";
+export { WatermelonDBMemoryStore } from "./watermelonStore";

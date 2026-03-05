@@ -161,8 +161,11 @@ export {
 } from "../lib/db/memoryVault";
 export {
   createMemoryVaultTool,
+  type MemoryStore,
+  type MemoryStoreReader,
   type MemoryVaultToolOptions,
   type VaultSaveOperation,
+  WatermelonDBMemoryStore,
 } from "../lib/memoryVault";
 
 // Server-side tools caching utilities

@@ -57,15 +57,11 @@ import {
   updateMediaMessageIdBatchOp,
 } from "../lib/db/media";
 import {
-  createVaultMemoryOp,
-  deleteVaultMemoryOp,
-  getAllVaultMemoriesOp,
-  getVaultMemoryOp,
   type StoredVaultMemory,
-  updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
 import { VaultMemory } from "../lib/db/memoryVault/models";
+import { WatermelonDBMemoryStore } from "../lib/memoryVault/watermelonStore";
 import {
   type FlushResult,
   type QueuedOperation,
@@ -811,6 +807,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     }),
     [database, vaultMemoryCollection, walletAddress, signMessage, embeddedWalletSigner]
   );
+  const vaultStore = useMemo(() => new WatermelonDBMemoryStore(vaultCtx), [vaultCtx]);
 
   // ── Queue Management ──
 
@@ -1086,13 +1083,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     (options?: MemoryVaultToolOptions): ToolConfig => {
       const embOpts = getToken ? { getToken, baseUrl, model: embeddingModel } : undefined;
       return createMemoryVaultToolBase(
-        vaultCtx,
+        vaultStore,
         options,
         embOpts,
         embOpts ? vaultEmbeddingCacheRef.current : undefined
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultStore, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -1100,9 +1097,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const getVaultMemories = useCallback(
     (options?: { scopes?: string[] }): Promise<StoredVaultMemory[]> => {
-      return getAllVaultMemoriesOp(vaultCtx, options);
+      return vaultStore.getAll(options);
     },
-    [vaultCtx]
+    [vaultStore]
   );
 
   /**
@@ -1110,7 +1107,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const createVaultMemory = useCallback(
     async (content: string, scope?: string): Promise<StoredVaultMemory> => {
-      const result = await createVaultMemoryOp(vaultCtx, { content, scope });
+      const result = await vaultStore.create({ content, scope });
       if (getToken) {
         eagerEmbedContent(
           content,
@@ -1120,7 +1117,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultStore, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -1128,8 +1125,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
-      const existing = await getVaultMemoryOp(vaultCtx, id);
-      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope });
+      const existing = await vaultStore.getById(id);
+      const result = await vaultStore.update(id, { content, scope });
       if (result && getToken) {
         if (existing) {
           vaultEmbeddingCacheRef.current.delete(existing.content);
@@ -1142,7 +1139,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
       return result;
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultStore, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -1150,14 +1147,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
    */
   const deleteVaultMemory = useCallback(
     async (id: string): Promise<boolean> => {
-      const existing = await getVaultMemoryOp(vaultCtx, id);
-      const result = await deleteVaultMemoryOp(vaultCtx, id);
+      const existing = await vaultStore.getById(id);
+      const result = await vaultStore.delete(id);
       if (result && existing) {
         vaultEmbeddingCacheRef.current.delete(existing.content);
       }
       return result;
     },
-    [vaultCtx]
+    [vaultStore]
   );
 
   /**
@@ -1179,7 +1176,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     (async () => {
       try {
         await preEmbedVaultMemories(
-          vaultCtx,
+          vaultStore,
           { getToken, baseUrl, model: embeddingModel },
           vaultEmbeddingCacheRef.current
         );
@@ -1187,7 +1184,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Non-critical: embeddings will be generated on first search
       }
     })();
-  }, [vaultCtx, getToken, baseUrl, embeddingModel]);
+  }, [vaultStore, getToken, baseUrl, embeddingModel]);
 
   /**
    * Create a vault search tool pre-configured with hook's context, auth, and cache
@@ -1198,13 +1195,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         throw new Error("getToken is required for memory vault search tool");
       }
       return createMemoryVaultSearchToolBase(
-        vaultCtx,
+        vaultStore,
         { getToken, baseUrl, model: embeddingModel },
         vaultEmbeddingCacheRef.current,
         searchOptions
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultStore, getToken, baseUrl, embeddingModel]
   );
 
   /**
@@ -1220,13 +1217,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (!getToken) return [];
       return searchVaultMemoriesBase(
         query,
-        vaultCtx,
+        vaultStore,
         { getToken, baseUrl, model: embeddingModel },
         vaultEmbeddingCacheRef.current,
         searchOptions
       );
     },
-    [vaultCtx, getToken, baseUrl, embeddingModel]
+    [vaultStore, getToken, baseUrl, embeddingModel]
   );
 
   // Use the underlying useChat hook

@@ -1,38 +1,32 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createMemoryVaultTool } from "./tool";
 import { createMemoryVaultSearchTool, preEmbedVaultMemories } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
-import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
+import type { MemoryStore } from "./memoryStore";
 import type { StoredVaultMemory } from "../db/memoryVault/types";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-
-vi.mock("../db/memoryVault/operations", () => ({
-  createVaultMemoryOp: vi.fn(),
-  getVaultMemoryOp: vi.fn(),
-  updateVaultMemoryOp: vi.fn(),
-  getAllVaultMemoriesOp: vi.fn(),
-}));
 
 vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbedding: vi.fn(),
   generateEmbeddings: vi.fn(),
 }));
 
-import {
-  createVaultMemoryOp,
-  getVaultMemoryOp,
-  updateVaultMemoryOp,
-  getAllVaultMemoriesOp,
-} from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 
-const mockVaultCtx = {} as VaultMemoryOperationsContext;
+const mockStore: MemoryStore = {
+  getAll: vi.fn(),
+  getById: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+};
 const embeddingOptions: EmbeddingOptions = { apiKey: "test-key" };
 
 function makeMemory(id: string, content: string): StoredVaultMemory {
   return {
     uniqueId: id,
     content,
+    scope: "private",
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
@@ -44,18 +38,18 @@ describe("embedding cache lifecycle", () => {
     const cache = createVaultEmbeddingCache();
 
     // Step 1: Pre-embed existing memories (simulates mount)
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "original fact")]);
+    vi.mocked(mockStore.getAll).mockResolvedValue([makeMemory("m1", "original fact")]);
     vi.mocked(generateEmbeddings).mockResolvedValue([[1, 0, 0]]);
 
-    await preEmbedVaultMemories(mockVaultCtx, embeddingOptions, cache);
+    await preEmbedVaultMemories(mockStore, embeddingOptions, cache);
     expect(cache.size).toBe(1);
     expect(cache.get("original fact")).toEqual([1, 0, 0]);
 
     // Step 2: Create a new memory via tool (eager embed fires)
-    vi.mocked(createVaultMemoryOp).mockResolvedValue(makeMemory("m2", "new fact"));
+    vi.mocked(mockStore.create).mockResolvedValue(makeMemory("m2", "new fact"));
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
 
-    const saveTool = createMemoryVaultTool(mockVaultCtx, undefined, embeddingOptions, cache);
+    const saveTool = createMemoryVaultTool(mockStore, undefined, embeddingOptions, cache);
     await saveTool.executor!({ content: "new fact" });
     await new Promise((r) => setTimeout(r, 10)); // fire-and-forget
 
@@ -63,8 +57,8 @@ describe("embedding cache lifecycle", () => {
     expect(cache.size).toBe(2);
 
     // Step 3: Update existing memory (evicts old key, embeds new)
-    vi.mocked(getVaultMemoryOp).mockResolvedValue(makeMemory("m1", "original fact"));
-    vi.mocked(updateVaultMemoryOp).mockResolvedValue(makeMemory("m1", "updated fact"));
+    vi.mocked(mockStore.getById).mockResolvedValue(makeMemory("m1", "original fact"));
+    vi.mocked(mockStore.update).mockResolvedValue(makeMemory("m1", "updated fact"));
     vi.mocked(generateEmbedding).mockResolvedValue([0, 0, 1]);
 
     await saveTool.executor!({ content: "updated fact", id: "m1" });
@@ -75,14 +69,14 @@ describe("embedding cache lifecycle", () => {
     expect(cache.size).toBe(2); // "new fact" + "updated fact"
 
     // Step 4: Search uses cached embeddings — no batch re-embedding
-    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
+    vi.mocked(mockStore.getAll).mockResolvedValue([
       makeMemory("m1", "updated fact"),
       makeMemory("m2", "new fact"),
     ]);
     vi.mocked(generateEmbedding).mockResolvedValue([0, 0, 1]); // query
     vi.mocked(generateEmbeddings).mockClear();
 
-    const searchTool = createMemoryVaultSearchTool(mockVaultCtx, embeddingOptions, cache, {
+    const searchTool = createMemoryVaultSearchTool(mockStore, embeddingOptions, cache, {
       minSimilarity: 0,
     });
     const result = (await searchTool.executor!({
