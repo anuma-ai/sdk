@@ -744,10 +744,7 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
     this._fromPromise(
       (async () => {
         await this._ready();
-        for (const tableName of Object.keys(this.schema.tables)) {
-          await this.pool.query(`delete from ${this.q(tableName)}`);
-        }
-        await this.pool.query(`delete from ${this.q("local_storage")}`);
+        await this._resetAndRecreate(this.schema.version);
       })(),
       callback
     );
