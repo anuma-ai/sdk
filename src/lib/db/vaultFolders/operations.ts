@@ -160,9 +160,7 @@ export async function moveMemoriesToFolderOp(
         folderScope = folder.scope;
       }
 
-      const memories = await Promise.all(
-        memoryIds.map((id) => ctx.vaultMemoryCollection.find(id))
-      );
+      const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
 
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {

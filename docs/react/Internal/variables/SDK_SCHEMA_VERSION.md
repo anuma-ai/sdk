@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `17` = `17`
+> `const` **SDK\_SCHEMA\_VERSION**: `19` = `19`
 
-Defined in: [src/lib/db/schema.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#39)
+Defined in: [src/lib/db/schema.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#41)
 
 Current combined schema version for all SDK storage modules.
 
@@ -24,3 +24,4 @@ Version history:
 * v15: Replaced memories table with memory\_vault table for persistent memory vault
 * v16: Added scope column to memory\_vault table for memory partitioning
 * v17: Added image\_model column to history table for AI-generated image model tracking
+* v18: Added vault\_folders table and folder\_id column to memory\_vault for folder organization

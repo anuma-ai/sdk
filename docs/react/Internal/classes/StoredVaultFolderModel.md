@@ -1,6 +1,6 @@
-# StoredVaultMemoryModel
+# StoredVaultFolderModel
 
-Defined in: [src/lib/db/memoryVault/models.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#4)
+Defined in: [src/lib/db/vaultFolders/models.ts:4](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#4)
 
 ## Extends
 
@@ -10,7 +10,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:4](https://github.com/anuma-ai/sdk
 
 ### Constructor
 
-> **new StoredVaultMemoryModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `VaultMemory`
+> **new StoredVaultFolderModel**(`collection`: `Collection`<`Model`>, `raw`: `_RawRecord`): `VaultFolder`
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:117
 
@@ -53,7 +53,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Returns**
 
-`VaultMemory`
+`VaultFolder`
 
 **Inherited from**
 
@@ -133,27 +133,11 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
-### content
-
-> **content**: `string`
-
-Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#7)
-
-***
-
 ### createdAt
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#10)
-
-***
-
-### folderId
-
-> **folderId**: `string` | `null`
-
-Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#9)
+Defined in: [src/lib/db/vaultFolders/models.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#9)
 
 ***
 
@@ -161,7 +145,15 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
+Defined in: [src/lib/db/vaultFolders/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#11)
+
+***
+
+### name
+
+> **name**: `string`
+
+Defined in: [src/lib/db/vaultFolders/models.ts:7](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#7)
 
 ***
 
@@ -169,7 +161,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sd
 
 > **scope**: `string`
 
-Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#8)
+Defined in: [src/lib/db/vaultFolders/models.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#8)
 
 ***
 
@@ -177,7 +169,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#11)
+Defined in: [src/lib/db/vaultFolders/models.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#10)
 
 ***
 
@@ -207,9 +199,9 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### table
 
-> `static` **table**: `string` = `"memory_vault"`
+> `static` **table**: `string` = `"vault_folders"`
 
-Defined in: [src/lib/db/memoryVault/models.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#5)
+Defined in: [src/lib/db/vaultFolders/models.ts:5](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#5)
 
 **Overrides**
 
@@ -875,13 +867,13 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### observe()
 
-> **observe**(): `Observable`<`VaultMemory`>
+> **observe**(): `Observable`<`VaultFolder`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:84
 
 **Returns**
 
-`Observable`<`VaultMemory`>
+`Observable`<`VaultFolder`>
 
 **Inherited from**
 
@@ -1024,7 +1016,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ### update()
 
-> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`VaultMemory`>
+> **update**(`recordUpdater?`: (`_`: `this`) => `void`): `Promise`<`VaultFolder`>
 
 Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/watermelondb/Model/index.d.ts:55
 
@@ -1055,7 +1047,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 **Returns**
 
-`Promise`<`VaultMemory`>
+`Promise`<`VaultFolder`>
 
 **Inherited from**
 

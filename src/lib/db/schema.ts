@@ -464,9 +464,7 @@ export const sdkMigrations = schemaMigrations({
         }),
         addColumns({
           table: "memory_vault",
-          columns: [
-            { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
-          ],
+          columns: [{ name: "folder_id", type: "string", isOptional: true, isIndexed: true }],
         }),
       ],
     },
