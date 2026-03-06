@@ -1,8 +1,8 @@
 # UIInteractionProvider
 
-> **UIInteractionProvider**(`__namedParameters`: [`UIInteractionProviderProps`](../type-aliases/UIInteractionProviderProps.md)): `FunctionComponentElement`<`ProviderProps`<[`UIInteractionContextValue`](../type-aliases/UIInteractionContextValue.md) | `null`>>
+> **UIInteractionProvider**(`__namedParameters`: [`UIInteractionProviderProps`](../type-aliases/UIInteractionProviderProps.md)): `ReactElement`
 
-Defined in: [src/react/useUIInteraction.ts:79](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#79)
+Defined in: [src/react/useUIInteraction.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#80)
 
 Provider for managing UI interactions between LLM tools and user.
 
@@ -38,4 +38,4 @@ resolves the promise to send the result back to the LLM.
 
 ## Returns
 
-`FunctionComponentElement`<`ProviderProps`<[`UIInteractionContextValue`](../type-aliases/UIInteractionContextValue.md) | `null`>>
+`ReactElement`

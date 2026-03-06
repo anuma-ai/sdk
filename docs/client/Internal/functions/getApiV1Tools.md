@@ -2,7 +2,7 @@
 
 > **getApiV1Tools**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ToolsData`](../type-aliases/GetApiV1ToolsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ToolsResponses`](../type-aliases/GetApiV1ToolsResponses.md), [`GetApiV1ToolsErrors`](../type-aliases/GetApiV1ToolsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#770)
+Defined in: [src/client/sdk.gen.ts:850](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#850)
 
 List available tools
 

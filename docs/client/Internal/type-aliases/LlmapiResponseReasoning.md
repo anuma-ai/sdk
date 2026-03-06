@@ -2,7 +2,7 @@
 
 > **LlmapiResponseReasoning** = `object`
 
-Defined in: [src/client/types.gen.ts:1392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1392)
+Defined in: [src/client/types.gen.ts:1438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1438)
 
 Reasoning configures reasoning for o-series and other reasoning models
 
@@ -12,7 +12,7 @@ Reasoning configures reasoning for o-series and other reasoning models
 
 > `optional` **effort**: `string`
 
-Defined in: [src/client/types.gen.ts:1396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1396)
+Defined in: [src/client/types.gen.ts:1442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1442)
 
 Effort controls reasoning effort: "low", "medium", or "high"
 
@@ -22,6 +22,6 @@ Effort controls reasoning effort: "low", "medium", or "high"
 
 > `optional` **summary**: `string`
 
-Defined in: [src/client/types.gen.ts:1400](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1400)
+Defined in: [src/client/types.gen.ts:1446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1446)
 
 Summary controls reasoning summary: "auto", "concise", or "detailed"

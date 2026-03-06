@@ -2,7 +2,7 @@
 
 > **GetApiV1SubscriptionsStatusResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:3790](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3790)
+Defined in: [src/client/types.gen.ts:3948](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3948)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3790](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSubscriptionStatusResponse`](HandlersSubscriptionStatusResponse.md)
 
-Defined in: [src/client/types.gen.ts:3794](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3794)
+Defined in: [src/client/types.gen.ts:3952](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3952)
 
 OK

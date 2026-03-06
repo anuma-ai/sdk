@@ -2,7 +2,7 @@
 
 > **LlmapiMessage** = `object`
 
-Defined in: [src/client/types.gen.ts:1085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1085)
+Defined in: [src/client/types.gen.ts:1131](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1131)
 
 Message is the generated message
 
@@ -12,7 +12,7 @@ Message is the generated message
 
 > `optional` **content**: [`LlmapiMessageContentPart`](LlmapiMessageContentPart.md)\[]
 
-Defined in: [src/client/types.gen.ts:1089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1089)
+Defined in: [src/client/types.gen.ts:1135](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1135)
 
 Content is the message content
 
@@ -22,7 +22,7 @@ Content is the message content
 
 > `optional` **role**: [`LlmapiRole`](LlmapiRole.md)
 
-Defined in: [src/client/types.gen.ts:1090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1090)
+Defined in: [src/client/types.gen.ts:1136](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1136)
 
 ***
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:1090](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tool\_call\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1094](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1094)
+Defined in: [src/client/types.gen.ts:1140](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1140)
 
 ToolCallID is the ID of the tool call this message is responding to (only for tool role)
 
@@ -40,7 +40,7 @@ ToolCallID is the ID of the tool call this message is responding to (only for to
 
 > `optional` **tool\_calls**: [`LlmapiToolCall`](LlmapiToolCall.md)\[]
 
-Defined in: [src/client/types.gen.ts:1098](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1098)
+Defined in: [src/client/types.gen.ts:1144](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1144)
 
 ToolCalls contains tool/function calls made by the assistant (only for assistant role)
 
@@ -50,6 +50,6 @@ ToolCalls contains tool/function calls made by the assistant (only for assistant
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:1102](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1102)
+Defined in: [src/client/types.gen.ts:1148](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1148)
 
 Type is the message type (for Responses API: "message")

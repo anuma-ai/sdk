@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimTaskData** = `object`
 
-Defined in: [src/client/types.gen.ts:2372](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2372)
+Defined in: [src/client/types.gen.ts:2444](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2444)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2372](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersClaimTaskRewardRequest`](HandlersClaimTaskRewardRequest.md)
 
-Defined in: [src/client/types.gen.ts:2376](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2376)
+Defined in: [src/client/types.gen.ts:2448](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2448)
 
 Task to claim
 
@@ -20,7 +20,7 @@ Task to claim
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:2377](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2377)
+Defined in: [src/client/types.gen.ts:2449](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2449)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:2377](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2378)
+Defined in: [src/client/types.gen.ts:2450](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2450)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:2378](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/credits/claim-task"`
 
-Defined in: [src/client/types.gen.ts:2379](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2379)
+Defined in: [src/client/types.gen.ts:2451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2451)

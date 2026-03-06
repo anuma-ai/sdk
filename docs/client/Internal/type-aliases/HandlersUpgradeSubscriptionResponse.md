@@ -2,7 +2,7 @@
 
 > **HandlersUpgradeSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:731](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#731)
+Defined in: [src/client/types.gen.ts:777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#777)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:731](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#732)
+Defined in: [src/client/types.gen.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#778)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:732](https://github.com/anuma-ai/sdk/blob/m
 
 > **new\_interval**: `string`
 
-Defined in: [src/client/types.gen.ts:733](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#733)
+Defined in: [src/client/types.gen.ts:779](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#779)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:733](https://github.com/anuma-ai/sdk/blob/m
 
 > **new\_plan**: `string`
 
-Defined in: [src/client/types.gen.ts:734](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#734)
+Defined in: [src/client/types.gen.ts:780](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#780)

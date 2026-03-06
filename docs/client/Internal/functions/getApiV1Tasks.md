@@ -2,7 +2,7 @@
 
 > **getApiV1Tasks**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1TasksData`](../type-aliases/GetApiV1TasksData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1TasksResponses`](../type-aliases/GetApiV1TasksResponses.md), [`GetApiV1TasksErrors`](../type-aliases/GetApiV1TasksErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:758](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#758)
+Defined in: [src/client/sdk.gen.ts:786](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#786)
 
 Get available tasks
 

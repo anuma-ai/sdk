@@ -2,7 +2,7 @@
 
 > **LlmapiThinkingOptions** = `object`
 
-Defined in: [src/client/types.gen.ts:1536](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1536)
+Defined in: [src/client/types.gen.ts:1582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1582)
 
 Thinking configures extended thinking for Anthropic models
 
@@ -12,7 +12,7 @@ Thinking configures extended thinking for Anthropic models
 
 > `optional` **budget\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:1540](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1540)
+Defined in: [src/client/types.gen.ts:1586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1586)
 
 BudgetTokens is the token budget for thinking
 
@@ -22,6 +22,6 @@ BudgetTokens is the token budget for thinking
 
 > `optional` **type**: `string`
 
-Defined in: [src/client/types.gen.ts:1544](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1544)
+Defined in: [src/client/types.gen.ts:1590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1590)
 
 Type indicates if thinking is enabled: "enabled" or "disabled"

@@ -2,7 +2,7 @@
 
 > **GetApiV1ModelsData** = `object`
 
-Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3440)
+Defined in: [src/client/types.gen.ts:3512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3512)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3440](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:3441](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3441)
+Defined in: [src/client/types.gen.ts:3513](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3513)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3441](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:3442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3442)
+Defined in: [src/client/types.gen.ts:3514](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3514)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3442](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:3443](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3443)
+Defined in: [src/client/types.gen.ts:3515](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3515)
 
 **page\_size?**
 
@@ -52,4 +52,4 @@ Filter by provider (e.g., openai, anthropic)
 
 > **url**: `"/api/v1/models"`
 
-Defined in: [src/client/types.gen.ts:3457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3457)
+Defined in: [src/client/types.gen.ts:3529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3529)

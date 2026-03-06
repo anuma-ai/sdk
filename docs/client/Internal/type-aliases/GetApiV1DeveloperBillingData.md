@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperBillingData** = `object`
 
-Defined in: [src/client/types.gen.ts:3344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3344)
+Defined in: [src/client/types.gen.ts:3416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3416)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3344](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:3345](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3345)
+Defined in: [src/client/types.gen.ts:3417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3417)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:3345](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:3346](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3346)
+Defined in: [src/client/types.gen.ts:3418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3418)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:3346](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `object`
 
-Defined in: [src/client/types.gen.ts:3347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3347)
+Defined in: [src/client/types.gen.ts:3419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3419)
 
 **limit?**
 
@@ -46,4 +46,4 @@ Number of records to skip (default 0)
 
 > **url**: `"/api/v1/developer/billing"`
 
-Defined in: [src/client/types.gen.ts:3357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3357)
+Defined in: [src/client/types.gen.ts:3429](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3429)
