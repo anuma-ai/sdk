@@ -16,14 +16,10 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
-  /** Optional folder ID to file this memory under. */
-  folderId?: string | null;
 }
 
 export interface UpdateVaultMemoryOptions {
   content: string;
   /** If provided, updates the memory's scope. */
   scope?: string;
-  /** If provided, updates the memory's folder. */
-  folderId?: string | null;
 }
