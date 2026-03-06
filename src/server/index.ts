@@ -312,3 +312,22 @@ export type {
   QueueStatus,
 } from "../lib/db/queue";
 export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
+
+// ── File Processors (Node.js-compatible) ──
+
+export type {
+  FileProcessor,
+  FileWithData,
+  PreprocessingOptions,
+  PreprocessingResult,
+  ProcessedFileResult,
+  ZipProcessorOptions,
+} from "../lib/processors";
+export {
+  ExcelProcessor,
+  PdfProcessor,
+  preprocessFiles,
+  ProcessorRegistry,
+  WordProcessor,
+  ZipProcessor,
+} from "../lib/processors";

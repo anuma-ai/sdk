@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 
+import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
@@ -14,10 +15,15 @@ export class WordProcessor implements FileProcessor {
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
-      const arrayBuffer = await this.dataUrlToArrayBuffer(file.dataUrl);
+      const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
-      // Extract raw text from Word document
-      const result = await mammoth.extractRawText({ arrayBuffer });
+      // mammoth's Node.js build expects { buffer: Buffer }, while the browser
+      // build accepts { arrayBuffer }. Detect true Node.js (not just polyfilled
+      // Buffer) to pick the right input format.
+      const isNode =
+        typeof process !== "undefined" && process.versions != null && process.versions.node != null;
+      const input = isNode ? { buffer: Buffer.from(arrayBuffer) } : { arrayBuffer };
+      const result = await mammoth.extractRawText(input);
 
       if (!result.value || result.value.trim().length === 0) {
         return null;
@@ -36,31 +42,6 @@ export class WordProcessor implements FileProcessor {
       console.error("Error processing Word document:", error);
       throw error;
     }
-  }
-
-  /**
-   * Convert data URL to ArrayBuffer
-   */
-  private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    // Handle blob URLs and HTTPS URLs via fetch
-    if (
-      dataUrl.startsWith("blob:") ||
-      dataUrl.startsWith("http://") ||
-      dataUrl.startsWith("https://")
-    ) {
-      const response = await fetch(dataUrl);
-      return response.arrayBuffer();
-    }
-
-    // Data URL format: data:[<mediatype>][;base64],<data>
-    const base64 = dataUrl.split(",")[1];
-    const binary = atob(base64);
-    const buffer = new ArrayBuffer(binary.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binary.length; i++) {
-      view[i] = binary.charCodeAt(i);
-    }
-    return buffer;
   }
 
   /**
