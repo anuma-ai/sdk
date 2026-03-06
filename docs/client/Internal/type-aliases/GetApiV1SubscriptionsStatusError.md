@@ -2,4 +2,4 @@
 
 > **GetApiV1SubscriptionsStatusError** = [`GetApiV1SubscriptionsStatusErrors`](GetApiV1SubscriptionsStatusErrors.md)\[keyof [`GetApiV1SubscriptionsStatusErrors`](GetApiV1SubscriptionsStatusErrors.md)]
 
-Defined in: [src/client/types.gen.ts:3946](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3946)
+Defined in: [src/client/types.gen.ts:4116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4116)

@@ -2,7 +2,7 @@
 
 > **HandlersCreatePhoneCallRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#253)
+Defined in: [src/client/types.gen.ts:358](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#358)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **caller\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:254](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#254)
+Defined in: [src/client/types.gen.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#359)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:254](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **context**: `string`
 
-Defined in: [src/client/types.gen.ts:255](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#255)
+Defined in: [src/client/types.gen.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#360)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:255](https://github.com/anuma-ai/sdk/blob/m
 
 > **objective**: `string`
 
-Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#256)
+Defined in: [src/client/types.gen.ts:361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#361)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/m
 
 > **phone\_number**: `string`
 
-Defined in: [src/client/types.gen.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#257)
+Defined in: [src/client/types.gen.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#362)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:257](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **questions**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#258)
+Defined in: [src/client/types.gen.ts:363](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#363)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **recipient\_name**: `string`
 
-Defined in: [src/client/types.gen.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#259)
+Defined in: [src/client/types.gen.ts:364](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#364)

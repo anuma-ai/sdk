@@ -2,7 +2,7 @@
 
 > **postApiV1TextByChannelRegister**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1TextByChannelRegisterData`](../type-aliases/PostApiV1TextByChannelRegisterData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1TextByChannelRegisterResponses`](../type-aliases/PostApiV1TextByChannelRegisterResponses.md), [`PostApiV1TextByChannelRegisterErrors`](../type-aliases/PostApiV1TextByChannelRegisterErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:810](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#810)
+Defined in: [src/client/sdk.gen.ts:834](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#834)
 
 Register identifier for text channel
 

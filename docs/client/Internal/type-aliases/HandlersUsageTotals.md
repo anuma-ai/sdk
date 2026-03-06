@@ -2,7 +2,7 @@
 
 > **HandlersUsageTotals** = `object`
 
-Defined in: [src/client/types.gen.ts:803](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#803)
+Defined in: [src/client/types.gen.ts:909](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#909)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:803](https://github.com/anuma-ai/sdk/blob/m
 
 > **cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#804)
+Defined in: [src/client/types.gen.ts:910](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#910)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:804](https://github.com/anuma-ai/sdk/blob/m
 
 > **request\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:805](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#805)
+Defined in: [src/client/types.gen.ts:911](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#911)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:805](https://github.com/anuma-ai/sdk/blob/m
 
 > **tool\_call\_count**: `number`
 
-Defined in: [src/client/types.gen.ts:806](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#806)
+Defined in: [src/client/types.gen.ts:912](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#912)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:806](https://github.com/anuma-ai/sdk/blob/m
 
 > **tool\_cost\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:807](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#807)
+Defined in: [src/client/types.gen.ts:913](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#913)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:807](https://github.com/anuma-ai/sdk/blob/m
 
 > **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#808)
+Defined in: [src/client/types.gen.ts:914](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#914)

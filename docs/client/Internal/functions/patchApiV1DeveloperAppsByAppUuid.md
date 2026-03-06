@@ -2,7 +2,7 @@
 
 > **patchApiV1DeveloperAppsByAppUuid**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PatchApiV1DeveloperAppsByAppUuidData`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidData.md), `ThrowOnError`>): `RequestResult`<[`PatchApiV1DeveloperAppsByAppUuidResponses`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidResponses.md), [`PatchApiV1DeveloperAppsByAppUuidErrors`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#370)
+Defined in: [src/client/sdk.gen.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#394)
 
 Update app
 

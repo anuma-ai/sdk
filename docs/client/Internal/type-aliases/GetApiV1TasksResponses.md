@@ -2,7 +2,7 @@
 
 > **GetApiV1TasksResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4056](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4056)
+Defined in: [src/client/types.gen.ts:4226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4226)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4056](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersTaskResponse`](HandlersTaskResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:4060](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4060)
+Defined in: [src/client/types.gen.ts:4230](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4230)
 
 OK

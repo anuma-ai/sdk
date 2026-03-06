@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionUsage** = `object`
 
-Defined in: [src/client/types.gen.ts:971](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#971)
+Defined in: [src/client/types.gen.ts:1077](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1077)
 
 Usage contains token usage information
 
@@ -12,7 +12,7 @@ Usage contains token usage information
 
 > `optional` **completion\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:975](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#975)
+Defined in: [src/client/types.gen.ts:1081](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1081)
 
 CompletionTokens is the number of tokens in the completion
 
@@ -22,7 +22,7 @@ CompletionTokens is the number of tokens in the completion
 
 > `optional` **cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:979](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#979)
+Defined in: [src/client/types.gen.ts:1085](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1085)
 
 CostMicroUSD is the cost of this completion in micro-dollars (USD × 1,000,000)
 
@@ -32,7 +32,7 @@ CostMicroUSD is the cost of this completion in micro-dollars (USD × 1,000,000)
 
 > `optional` **credits\_used**: `number`
 
-Defined in: [src/client/types.gen.ts:983](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#983)
+Defined in: [src/client/types.gen.ts:1089](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1089)
 
 CreditsUsed is the number of credits consumed by this completion (ceiling of cost / MicroUSDPerCredit)
 
@@ -42,7 +42,7 @@ CreditsUsed is the number of credits consumed by this completion (ceiling of cos
 
 > `optional` **prompt\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#987)
+Defined in: [src/client/types.gen.ts:1093](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1093)
 
 PromptTokens is the number of tokens in the prompt
 
@@ -52,7 +52,7 @@ PromptTokens is the number of tokens in the prompt
 
 > `optional` **tool\_cost\_micro\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#991)
+Defined in: [src/client/types.gen.ts:1097](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1097)
 
 ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostMicroUSD)
 
@@ -62,6 +62,6 @@ ToolCostMicroUSD is the cost of MCP tool calls in micro-dollars (subset of CostM
 
 > `optional` **total\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:995](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#995)
+Defined in: [src/client/types.gen.ts:1101](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1101)
 
 TotalTokens is the total number of tokens used

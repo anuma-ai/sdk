@@ -2,7 +2,7 @@
 
 > **getApiV1TextByChannelLookup**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1TextByChannelLookupData`](../type-aliases/GetApiV1TextByChannelLookupData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1TextByChannelLookupResponses`](../type-aliases/GetApiV1TextByChannelLookupResponses.md), [`GetApiV1TextByChannelLookupErrors`](../type-aliases/GetApiV1TextByChannelLookupErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:798](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#798)
+Defined in: [src/client/sdk.gen.ts:822](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#822)
 
 Lookup text channel registration by identifier
 

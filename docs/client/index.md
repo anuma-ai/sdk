@@ -55,6 +55,16 @@
 | [GetApiV1AdminAppsErrors](Internal/type-aliases/GetApiV1AdminAppsErrors.md) | - |
 | [GetApiV1AdminAppsResponse](Internal/type-aliases/GetApiV1AdminAppsResponse.md) | - |
 | [GetApiV1AdminAppsResponses](Internal/type-aliases/GetApiV1AdminAppsResponses.md) | - |
+| [GetApiV1AgentsByIdData](Internal/type-aliases/GetApiV1AgentsByIdData.md) | - |
+| [GetApiV1AgentsByIdError](Internal/type-aliases/GetApiV1AgentsByIdError.md) | - |
+| [GetApiV1AgentsByIdErrors](Internal/type-aliases/GetApiV1AgentsByIdErrors.md) | - |
+| [GetApiV1AgentsByIdResponse](Internal/type-aliases/GetApiV1AgentsByIdResponse.md) | - |
+| [GetApiV1AgentsByIdResponses](Internal/type-aliases/GetApiV1AgentsByIdResponses.md) | - |
+| [GetApiV1AgentsData](Internal/type-aliases/GetApiV1AgentsData.md) | - |
+| [GetApiV1AgentsError](Internal/type-aliases/GetApiV1AgentsError.md) | - |
+| [GetApiV1AgentsErrors](Internal/type-aliases/GetApiV1AgentsErrors.md) | - |
+| [GetApiV1AgentsResponse](Internal/type-aliases/GetApiV1AgentsResponse.md) | - |
+| [GetApiV1AgentsResponses](Internal/type-aliases/GetApiV1AgentsResponses.md) | - |
 | [GetApiV1ConfigData](Internal/type-aliases/GetApiV1ConfigData.md) | - |
 | [GetApiV1ConfigError](Internal/type-aliases/GetApiV1ConfigError.md) | - |
 | [GetApiV1ConfigErrors](Internal/type-aliases/GetApiV1ConfigErrors.md) | - |
@@ -165,6 +175,9 @@
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
+| [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
+| [HandlersAgentListResponse](Internal/type-aliases/HandlersAgentListResponse.md) | - |
+| [HandlersAgentResponse](Internal/type-aliases/HandlersAgentResponse.md) | - |
 | [HandlersApiKeyResponse](Internal/type-aliases/HandlersApiKeyResponse.md) | - |
 | [HandlersApiKeyWithKeyResponse](Internal/type-aliases/HandlersApiKeyWithKeyResponse.md) | - |
 | [HandlersAppConfig](Internal/type-aliases/HandlersAppConfig.md) | - |
@@ -477,6 +490,8 @@
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
+| [getApiV1Agents](Internal/functions/getApiV1Agents.md) | List agents |
+| [getApiV1AgentsById](Internal/functions/getApiV1AgentsById.md) | Get agent |
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
 | [getApiV1CreditsBalance](Internal/functions/getApiV1CreditsBalance.md) | Get credit balance |
 | [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |

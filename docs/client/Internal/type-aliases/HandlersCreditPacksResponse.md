@@ -2,7 +2,7 @@
 
 > **HandlersCreditPacksResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#297)
+Defined in: [src/client/types.gen.ts:402](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#402)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:297](https://github.com/anuma-ai/sdk/blob/m
 
 > **packs**: [`HandlersCreditPack`](HandlersCreditPack.md)\[]
 
-Defined in: [src/client/types.gen.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#298)
+Defined in: [src/client/types.gen.ts:403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#403)

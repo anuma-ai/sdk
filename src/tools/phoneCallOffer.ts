@@ -2,7 +2,7 @@ import type { ToolConfig } from "./googleCalendar";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createDisplayTool } from "./uiInteraction";
 
-const MAX_SUGGESTED_QUESTIONS = 6;
+const MAX_SUGGESTED_QUESTIONS = 3;
 
 export type DisplayPhoneCallOfferResult =
   | {
@@ -52,7 +52,7 @@ export function createPhoneCallOfferTool(options: CreateUIToolsOptions): ToolCon
   return createDisplayTool(options, {
     name: "display_phone_call_offer",
     description:
-      "Render a contextual phone call offer for a single business or recipient when you know their phone number and a call would help confirm information or complete the user's task.",
+      "Render a phone call offer for a single business when you know their phone number and a call would help confirm reservation availability or product availability.",
     parameters: {
       type: "object",
       properties: {
@@ -66,12 +66,14 @@ export function createPhoneCallOfferTool(options: CreateUIToolsOptions): ToolCon
         },
         objective: {
           type: "string",
-          description: "What the call should accomplish on the user's behalf.",
+          description:
+            "What the call should confirm on the user's behalf, focused on reservation or product availability.",
         },
         suggestedQuestions: {
           type: "array",
           items: { type: "string" },
-          description: "Optional list of follow-up questions the call should ask.",
+          description:
+            "Optional list of up to three prewritten follow-up questions the user can choose from.",
         },
         contextSummary: {
           type: "string",

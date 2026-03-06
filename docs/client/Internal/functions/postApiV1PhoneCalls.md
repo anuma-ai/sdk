@@ -2,7 +2,7 @@
 
 > **postApiV1PhoneCalls**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PhoneCallsData`](../type-aliases/PostApiV1PhoneCallsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PhoneCallsResponses`](../type-aliases/PostApiV1PhoneCallsResponses.md), [`PostApiV1PhoneCallsErrors`](../type-aliases/PostApiV1PhoneCallsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#602)
+Defined in: [src/client/sdk.gen.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#626)
 
 Create phone call
 

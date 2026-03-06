@@ -2,4 +2,4 @@
 
 > **GetApiV1TasksError** = [`GetApiV1TasksErrors`](GetApiV1TasksErrors.md)\[keyof [`GetApiV1TasksErrors`](GetApiV1TasksErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4054](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4054)
+Defined in: [src/client/types.gen.ts:4224](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4224)

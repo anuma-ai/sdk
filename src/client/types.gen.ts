@@ -56,6 +56,111 @@ export type HandlersAddCreditsResponse = {
     user_address: string;
 };
 
+export type HandlersAgentListItem = {
+    /**
+     * Category groups agents by use case.
+     */
+    category: string;
+    /**
+     * CreatedAt is when the agent was created.
+     */
+    created_at: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * ID is the unique identifier.
+     */
+    id: number;
+    /**
+     * Name is the human-readable name.
+     */
+    name: string;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status: string;
+    /**
+     * UpdatedAt is when the agent was last updated.
+     */
+    updated_at: string;
+};
+
+export type HandlersAgentListResponse = {
+    /**
+     * Agents is the list of active agents.
+     */
+    agents: Array<HandlersAgentListItem>;
+};
+
+export type HandlersAgentResponse = {
+    /**
+     * Category groups agents by use case.
+     */
+    category: string;
+    /**
+     * CreatedAt is when the agent was created.
+     */
+    created_at: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * ID is the unique identifier.
+     */
+    id: number;
+    /**
+     * Name is the human-readable name.
+     */
+    name: string;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status: string;
+    /**
+     * SystemPrompt is the curated system prompt.
+     */
+    system_prompt?: string;
+    /**
+     * UpdatedAt is when the agent was last updated.
+     */
+    updated_at: string;
+};
+
 export type HandlersAppConfig = {
     /**
      * EscrowContract is the escrow contract address for this app
@@ -351,6 +456,7 @@ export type HandlersDeveloperAppResponse = {
     has_privy_config: boolean;
     is_active: boolean;
     name: string;
+    privy_app_id?: string;
     updated_at: string;
 };
 
@@ -1641,6 +1747,7 @@ export type ModelsTextLookupResult = {
     account_id?: number;
     app_id?: number;
     channel?: string;
+    credits?: number;
     identifier?: string;
     linq_chat_id?: string;
     preferred_model?: string;
@@ -2289,6 +2396,69 @@ export type PostApiV1AdminSubscriptionTierResponses = {
 };
 
 export type PostApiV1AdminSubscriptionTierResponse = PostApiV1AdminSubscriptionTierResponses[keyof PostApiV1AdminSubscriptionTierResponses];
+
+export type GetApiV1AgentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents';
+};
+
+export type GetApiV1AgentsErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AgentsError = GetApiV1AgentsErrors[keyof GetApiV1AgentsErrors];
+
+export type GetApiV1AgentsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAgentListResponse;
+};
+
+export type GetApiV1AgentsResponse = GetApiV1AgentsResponses[keyof GetApiV1AgentsResponses];
+
+export type GetApiV1AgentsByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/agents/{id}';
+};
+
+export type GetApiV1AgentsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AgentsByIdError = GetApiV1AgentsByIdErrors[keyof GetApiV1AgentsByIdErrors];
+
+export type GetApiV1AgentsByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAgentResponse;
+};
+
+export type GetApiV1AgentsByIdResponse = GetApiV1AgentsByIdResponses[keyof GetApiV1AgentsByIdResponses];
 
 export type PostApiV1ChatCompletionsData = {
     /**

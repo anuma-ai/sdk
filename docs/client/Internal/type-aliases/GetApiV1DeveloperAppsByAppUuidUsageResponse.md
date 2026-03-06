@@ -2,4 +2,4 @@
 
 > **GetApiV1DeveloperAppsByAppUuidUsageResponse** = [`GetApiV1DeveloperAppsByAppUuidUsageResponses`](GetApiV1DeveloperAppsByAppUuidUsageResponses.md)\[keyof [`GetApiV1DeveloperAppsByAppUuidUsageResponses`](GetApiV1DeveloperAppsByAppUuidUsageResponses.md)]
 
-Defined in: [src/client/types.gen.ts:3148](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3148)
+Defined in: [src/client/types.gen.ts:3318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3318)

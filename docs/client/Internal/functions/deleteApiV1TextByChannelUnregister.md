@@ -2,7 +2,7 @@
 
 > **deleteApiV1TextByChannelUnregister**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1TextByChannelUnregisterData`](../type-aliases/DeleteApiV1TextByChannelUnregisterData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1TextByChannelUnregisterResponses`](../type-aliases/DeleteApiV1TextByChannelUnregisterResponses.md), [`DeleteApiV1TextByChannelUnregisterErrors`](../type-aliases/DeleteApiV1TextByChannelUnregisterErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:838](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#838)
+Defined in: [src/client/sdk.gen.ts:862](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#862)
 
 Unregister text channel
 
