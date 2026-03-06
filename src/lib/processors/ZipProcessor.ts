@@ -231,7 +231,6 @@ export class ZipProcessor implements FileProcessor {
     const mimeTypes: Record<string, string> = {
       ".pdf": "application/pdf",
       ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      ".xls": "application/vnd.ms-excel",
       ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ".doc": "application/msword",
       ".txt": "text/plain",

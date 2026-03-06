@@ -2,7 +2,7 @@
 
 Defined in: [src/lib/processors/ExcelProcessor.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#8)
 
-Processor for Excel files (.xlsx, .xls) that converts to JSON structure
+Processor for Excel files (.xlsx) that converts to JSON structure
 
 ## Implements
 
@@ -38,7 +38,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#14)
+Defined in: [src/lib/processors/ExcelProcessor.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#13)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -66,7 +66,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#16)
+Defined in: [src/lib/processors/ExcelProcessor.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#15)
 
 Process a file and extract text content
 
