@@ -11,9 +11,6 @@ export { ProcessorRegistry } from "./registry";
 // Orchestration
 export { preprocessFiles } from "./preprocessor";
 
-// Encoding utilities (universal browser + Node.js)
-export { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
-
 // Types
 export type {
   FileProcessor,

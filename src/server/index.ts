@@ -324,12 +324,10 @@ export type {
   ZipProcessorOptions,
 } from "../lib/processors";
 export {
-  dataUrlToArrayBuffer,
   ExcelProcessor,
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,
-  uint8ArrayToBase64,
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";

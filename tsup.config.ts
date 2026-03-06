@@ -120,7 +120,15 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/server",
-    external: ["@nozbe/watermelondb", "@huggingface/transformers"],
+    external: [
+      "@nozbe/watermelondb",
+      "@huggingface/transformers",
+      // Processor heavy deps — only loaded when consumers use file processors
+      "pdfjs-dist",
+      "exceljs",
+      "mammoth",
+      "jszip",
+    ],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

@@ -27,6 +27,58 @@ function toDataUrl(buffer: ArrayBuffer | Buffer | Uint8Array, mimeType: string):
   return `data:${mimeType};base64,${base64}`;
 }
 
+function makeFile(name: string, type: string, dataUrl: string, size = 1000): FileWithData {
+  return { id: `test-${name}`, name, type, size, dataUrl };
+}
+
+async function createTestDocx(text: string): Promise<string> {
+  const zip = new JSZip();
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+  );
+  zip.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+  );
+  zip.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>${text}</w:t></w:r></w:p>
+  </w:body>
+</w:document>`
+  );
+  const buffer = await zip.generateAsync({ type: "uint8array" });
+  return toDataUrl(
+    buffer,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
+}
+
+async function createTestXlsx(): Promise<string> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("TestSheet");
+  sheet.columns = [
+    { header: "Name", key: "name" },
+    { header: "Value", key: "value" },
+  ];
+  sheet.addRow({ name: "Alice", value: 42 });
+  sheet.addRow({ name: "Bob", value: 99 });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return toDataUrl(buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
 // ── Encoding utility tests ──
 
 describe("encoding utilities (Node.js)", () => {
@@ -61,33 +113,15 @@ describe("encoding utilities (Node.js)", () => {
 // ── ExcelProcessor tests ──
 
 describe("ExcelProcessor (Node.js)", () => {
-  async function createTestXlsx(): Promise<string> {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("TestSheet");
-    sheet.columns = [
-      { header: "Name", key: "name" },
-      { header: "Value", key: "value" },
-    ];
-    sheet.addRow({ name: "Alice", value: 42 });
-    sheet.addRow({ name: "Bob", value: 99 });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    return toDataUrl(buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  }
-
   it("extracts spreadsheet data as JSON", async () => {
     const dataUrl = await createTestXlsx();
-    const processor = new ExcelProcessor();
+    const file = makeFile(
+      "test.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      dataUrl
+    );
 
-    const file: FileWithData = {
-      id: "test-xlsx",
-      name: "test.xlsx",
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new ExcelProcessor().process(file);
     expect(result).not.toBeNull();
     expect(result!.format).toBe("json");
 
@@ -100,17 +134,13 @@ describe("ExcelProcessor (Node.js)", () => {
 
   it("returns metadata with sheet info", async () => {
     const dataUrl = await createTestXlsx();
-    const processor = new ExcelProcessor();
+    const file = makeFile(
+      "test.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      dataUrl
+    );
 
-    const file: FileWithData = {
-      id: "test-xlsx",
-      name: "test.xlsx",
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new ExcelProcessor().process(file);
     expect(result!.metadata!.sheetCount).toBe(1);
     expect(result!.metadata!.sheetNames).toEqual(["TestSheet"]);
   });
@@ -119,64 +149,15 @@ describe("ExcelProcessor (Node.js)", () => {
 // ── WordProcessor tests ──
 
 describe("WordProcessor (Node.js)", () => {
-  /**
-   * Create a minimal DOCX file.
-   * A DOCX is a ZIP containing XML files. We build the minimum viable structure.
-   */
-  async function createTestDocx(text: string): Promise<string> {
-    const zip = new JSZip();
-
-    // [Content_Types].xml
-    zip.file(
-      "[Content_Types].xml",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`
-    );
-
-    // _rels/.rels
-    zip.file(
-      "_rels/.rels",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`
-    );
-
-    // word/document.xml
-    zip.file(
-      "word/document.xml",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    <w:p><w:r><w:t>${text}</w:t></w:r></w:p>
-  </w:body>
-</w:document>`
-    );
-
-    const buffer = await zip.generateAsync({ type: "uint8array" });
-    return toDataUrl(
-      buffer,
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
-  }
-
   it("extracts text from a Word document", async () => {
     const dataUrl = await createTestDocx("Hello from Word document");
-    const processor = new WordProcessor();
+    const file = makeFile(
+      "test.docx",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      dataUrl
+    );
 
-    const file: FileWithData = {
-      id: "test-docx",
-      name: "test.docx",
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new WordProcessor().process(file);
     expect(result).not.toBeNull();
     expect(result!.format).toBe("plain");
     expect(result!.extractedText).toContain("Hello from Word document");
@@ -184,17 +165,13 @@ describe("WordProcessor (Node.js)", () => {
 
   it("includes word count in metadata", async () => {
     const dataUrl = await createTestDocx("one two three four five");
-    const processor = new WordProcessor();
+    const file = makeFile(
+      "test.docx",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      dataUrl
+    );
 
-    const file: FileWithData = {
-      id: "test-docx",
-      name: "test.docx",
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new WordProcessor().process(file);
     expect(result!.metadata!.wordCount).toBe(5);
   });
 });
@@ -202,29 +179,15 @@ describe("WordProcessor (Node.js)", () => {
 // ── ZipProcessor tests ──
 
 describe("ZipProcessor (Node.js)", () => {
-  async function createTestZip(): Promise<string> {
+  it("lists archive contents", async () => {
     const zip = new JSZip();
     zip.file("readme.txt", "This is a readme file.");
     zip.file("data/info.txt", "Some info inside a folder.");
     zip.folder("empty/");
-
     const buffer = await zip.generateAsync({ type: "uint8array" });
-    return toDataUrl(buffer, "application/zip");
-  }
+    const file = makeFile("test.zip", "application/zip", toDataUrl(buffer, "application/zip"));
 
-  it("lists archive contents", async () => {
-    const dataUrl = await createTestZip();
-    const processor = new ZipProcessor();
-
-    const file: FileWithData = {
-      id: "test-zip",
-      name: "test.zip",
-      type: "application/zip",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new ZipProcessor().process(file);
     expect(result).not.toBeNull();
     expect(result!.format).toBe("markdown");
     expect(result!.extractedText).toContain("Archive Contents");
@@ -236,72 +199,35 @@ describe("ZipProcessor (Node.js)", () => {
     zip.file("visible.txt", "visible");
     zip.file(".hidden", "hidden");
     zip.file("__MACOSX/file", "macosx");
-
     const buffer = await zip.generateAsync({ type: "uint8array" });
-    const dataUrl = toDataUrl(buffer, "application/zip");
+    const file = makeFile("test.zip", "application/zip", toDataUrl(buffer, "application/zip"));
 
-    const processor = new ZipProcessor();
-    const file: FileWithData = {
-      id: "test-zip",
-      name: "test.zip",
-      type: "application/zip",
-      size: 1000,
-      dataUrl,
-    };
-
-    const result = await processor.process(file);
+    const result = await new ZipProcessor().process(file);
     expect(result!.extractedText).not.toContain(".hidden");
     expect(result!.extractedText).not.toContain("__MACOSX");
   });
 
   it("delegates to nested processors", async () => {
-    // Create a zip containing a DOCX
-    const innerZip = new JSZip();
-    innerZip.file(
-      "[Content_Types].xml",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-</Types>`
-    );
-    innerZip.file(
-      "_rels/.rels",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`
-    );
-    innerZip.file(
-      "word/document.xml",
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body><w:p><w:r><w:t>Nested document content</w:t></w:r></w:p></w:body>
-</w:document>`
-    );
-    const docxBuffer = await innerZip.generateAsync({ type: "uint8array" });
+    // Build a DOCX as raw bytes, then wrap in a zip
+    const docxDataUrl = await createTestDocx("Nested document content");
+    const docxBuffer = Buffer.from(await dataUrlToArrayBuffer(docxDataUrl));
 
     const outerZip = new JSZip();
     outerZip.file("nested.docx", docxBuffer);
-
     const buffer = await outerZip.generateAsync({ type: "uint8array" });
-    const dataUrl = toDataUrl(buffer, "application/zip");
 
-    // Set up registry with Word processor
     const registry = new ProcessorRegistry();
     registry.register(new WordProcessor());
     const zipProcessor = new ZipProcessor();
     zipProcessor.setRegistry(registry);
     registry.register(zipProcessor);
 
-    const file: FileWithData = {
-      id: "test-zip",
-      name: "test.zip",
-      type: "application/zip",
-      size: buffer.length,
-      dataUrl,
-    };
+    const file = makeFile(
+      "test.zip",
+      "application/zip",
+      toDataUrl(buffer, "application/zip"),
+      buffer.length
+    );
 
     const result = await zipProcessor.process(file);
     expect(result).not.toBeNull();
@@ -363,8 +289,10 @@ describe("preprocessFiles (Node.js)", () => {
     sheet.addRow({ item: "Widget" });
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${base64}`;
+    const dataUrl = toDataUrl(
+      buffer,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
 
     const result = await preprocessFiles([
       {
