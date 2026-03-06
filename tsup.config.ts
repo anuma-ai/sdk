@@ -128,6 +128,9 @@ export default defineConfig([
       "mammoth",
       "jszip",
     ],
+    // watermelondb is a peerDep (auto-externalized by tsup) but is CJS-only
+    // with no ESM exports — must be bundled to avoid ERR_UNSUPPORTED_DIR_IMPORT
+    noExternal: ["@nozbe/watermelondb"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
