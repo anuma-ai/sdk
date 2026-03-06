@@ -23,6 +23,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     uniqueId: memory.id,
     content: memory.content,
     scope: memory.scope,
+    folderId: memory.folderId ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,

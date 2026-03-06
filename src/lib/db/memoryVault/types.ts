@@ -5,6 +5,8 @@ export interface StoredVaultMemory {
   content: string;
   /** Scope for partitioning memories (e.g., "private", "shared") */
   scope: string;
+  /** Folder ID for organization, null if unfiled */
+  folderId: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

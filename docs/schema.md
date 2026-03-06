@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v17**
+Current version: **v18**
 
 ```mermaid
 graph LR
@@ -18,6 +18,7 @@ graph LR
 - [modelPreferences](#modelPreferences)
 - [userPreferences](#userPreferences)
 - [memory_vault](#memory_vault)
+- [vault_folders](#vault_folders)
 - [media](#media)
 
 ## history
@@ -94,6 +95,17 @@ graph LR
 |--------|------|---------|----------|
 | `content` | string |  |  |
 | `scope` | string | ✓ |  |
+| `folder_id` | string | ✓ | ✓ |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number |  |  |
+| `is_deleted` | boolean | ✓ |  |
+
+## vault_folders
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `name` | string |  |  |
+| `scope` | string |  |  |
 | `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
@@ -124,6 +136,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v18 | Added `vault_folders` table; Added `folder_id` to `memory_vault` |
 | v17 | Added `image_model` to `history` |
 | v16 | Added `scope` to `memory_vault`; `UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';` |
 | v15 | `DROP TABLE IF EXISTS memories;`; Added `memory_vault` table |
