@@ -61,7 +61,8 @@ export class ExcelProcessor implements FileProcessor {
 
   private resolveCellValue(value: ExcelJS.CellValue): string | number | boolean {
     if (value === null || value === undefined) return "";
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+      return value;
     if (value instanceof Date) return value.toISOString();
     if (typeof value === "object") {
       if ("richText" in value) return value.richText.map((rt) => rt.text).join("");
