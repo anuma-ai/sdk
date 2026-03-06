@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
@@ -15,29 +15,43 @@ export class ExcelProcessor implements FileProcessor {
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
-      // Convert data URL to array buffer
       const arrayBuffer = await this.dataUrlToArrayBuffer(file.dataUrl);
 
-      // Parse with xlsx
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
 
-      if (workbook.SheetNames.length === 0) {
+      if (workbook.worksheets.length === 0) {
         return null;
       }
 
-      // Convert to JSON structure preserving sheet names
-      const jsonData: Record<string, any[]> = {};
-      workbook.SheetNames.forEach((sheetName) => {
-        const sheet = workbook.Sheets[sheetName];
-        jsonData[sheetName] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      });
+      const jsonData: Record<string, Record<string, unknown>[]> = {};
+      for (const worksheet of workbook.worksheets) {
+        const rows: Record<string, unknown>[] = [];
+        const headerRow = worksheet.getRow(1);
+        const headers: string[] = [];
+        headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          headers[colNumber] = cell.text || `Column${colNumber}`;
+        });
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return; // skip header
+          const rowData: Record<string, unknown> = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const key = headers[colNumber] || `Column${colNumber}`;
+            rowData[key] = cell.value ?? "";
+          });
+          rows.push(rowData);
+        });
+
+        jsonData[worksheet.name] = rows;
+      }
 
       return {
         extractedText: JSON.stringify(jsonData, null, 2),
         format: "json",
         metadata: {
-          sheetCount: workbook.SheetNames.length,
-          sheetNames: workbook.SheetNames,
+          sheetCount: workbook.worksheets.length,
+          sheetNames: workbook.worksheets.map((ws) => ws.name),
         },
       };
     } catch (error) {
@@ -46,11 +60,7 @@ export class ExcelProcessor implements FileProcessor {
     }
   }
 
-  /**
-   * Convert data URL to ArrayBuffer
-   */
   private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    // Handle blob URLs and HTTPS URLs via fetch
     if (
       dataUrl.startsWith("blob:") ||
       dataUrl.startsWith("http://") ||
@@ -60,7 +70,6 @@ export class ExcelProcessor implements FileProcessor {
       return response.arrayBuffer();
     }
 
-    // Data URL format: data:[<mediatype>][;base64],<data>
     const base64 = dataUrl.split(",")[1];
     const binary = atob(base64);
     const buffer = new ArrayBuffer(binary.length);
