@@ -168,12 +168,14 @@ export async function moveMemoriesToFolderOp(
     await ctx.database.write(async () => {
       const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
 
-      const prepared = memories.map((memory) =>
-        memory.prepareUpdate((r) => {
-          r._setRaw("folder_id", folderId);
-          r._setRaw("scope", targetScope);
-        })
-      );
+      const prepared = memories
+        .filter((memory) => !memory.isDeleted)
+        .map((memory) =>
+          memory.prepareUpdate((r) => {
+            r._setRaw("folder_id", folderId);
+            r._setRaw("scope", targetScope);
+          })
+        );
 
       await ctx.database.batch(...prepared);
     });
