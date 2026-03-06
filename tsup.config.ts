@@ -120,7 +120,7 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/server",
-    external: ["@nozbe/watermelondb", "@huggingface/transformers"],
+    external: ["@huggingface/transformers"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
