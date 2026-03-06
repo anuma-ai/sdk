@@ -113,4 +113,28 @@ export default defineConfig([
       };
     },
   },
+  // Server entry - no React, no browser APIs
+  // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
+  {
+    entry: ["src/server/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/server",
+    external: ["@nozbe/watermelondb", "@huggingface/transformers"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
+  },
 ]);

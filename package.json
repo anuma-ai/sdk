@@ -58,6 +58,12 @@
       "import": "./dist/tools/index.mjs",
       "require": "./dist/tools/index.cjs",
       "default": "./dist/tools/index.cjs"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.cjs",
+      "default": "./dist/server/index.cjs"
     }
   },
   "files": [
@@ -105,7 +111,7 @@
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
@@ -175,7 +181,8 @@
   "pnpm": {
     "overrides": {
       "react": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
-      "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1"
+      "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
+      "tar": ">=7.5.10"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",

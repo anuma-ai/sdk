@@ -172,6 +172,18 @@ Re-exports [CreateMessageOptions](../react/Internal/interfaces/CreateMessageOpti
 
 ***
 
+### createVaultFolderOp
+
+Re-exports [createVaultFolderOp](../react/Internal/functions/createVaultFolderOp.md)
+
+***
+
+### CreateVaultFolderOptions
+
+Re-exports [CreateVaultFolderOptions](../react/Internal/interfaces/CreateVaultFolderOptions.md)
+
+***
+
 ### createVaultMemoriesBatchOp
 
 Re-exports [createVaultMemoriesBatchOp](../react/Internal/functions/createVaultMemoriesBatchOp.md)
@@ -211,6 +223,12 @@ Re-exports [DatabaseManagerOptions](../react/Internal/interfaces/DatabaseManager
 ### DEFAULT\_CACHE\_EXPIRATION\_MS
 
 Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_CACHE_EXPIRATION_MS.md)
+
+***
+
+### deleteVaultFolderOp
+
+Re-exports [deleteVaultFolderOp](../react/Internal/functions/deleteVaultFolderOp.md)
 
 ***
 
@@ -268,6 +286,12 @@ Re-exports [generateEmbeddings](../react/Internal/functions/generateEmbeddings.m
 
 ***
 
+### getAllVaultFoldersOp
+
+Re-exports [getAllVaultFoldersOp](../react/Internal/functions/getAllVaultFoldersOp.md)
+
+***
+
 ### getAllVaultMemoriesOp
 
 Re-exports [getAllVaultMemoriesOp](../react/Internal/functions/getAllVaultMemoriesOp.md)
@@ -289,6 +313,12 @@ Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerToo
 ### getServerTools
 
 Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
+
+***
+
+### getVaultFolderMemoryCountOp
+
+Re-exports [getVaultFolderMemoryCountOp](../react/Internal/functions/getVaultFolderMemoryCountOp.md)
 
 ***
 
@@ -325,6 +355,12 @@ Re-exports [MemoryEngineSearchOptions](../react/Internal/interfaces/MemoryEngine
 ### MemoryVaultToolOptions
 
 Re-exports [MemoryVaultToolOptions](../react/Internal/interfaces/MemoryVaultToolOptions.md)
+
+***
+
+### moveMemoriesToFolderOp
+
+Re-exports [moveMemoriesToFolderOp](../react/Internal/functions/moveMemoriesToFolderOp.md)
 
 ***
 
@@ -436,6 +472,18 @@ Re-exports [StoredMessageWithSimilarity](../react/Internal/interfaces/StoredMess
 
 ***
 
+### StoredVaultFolder
+
+Re-exports [StoredVaultFolder](../react/Internal/interfaces/StoredVaultFolder.md)
+
+***
+
+### StoredVaultFolderModel
+
+Re-exports [StoredVaultFolderModel](../react/Internal/classes/StoredVaultFolderModel.md)
+
+***
+
 ### StoredVaultMemory
 
 Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md)
@@ -445,6 +493,18 @@ Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md
 ### StoredVaultMemoryModel
 
 Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryModel.md)
+
+***
+
+### updateVaultFolderOp
+
+Re-exports [updateVaultFolderOp](../react/Internal/functions/updateVaultFolderOp.md)
+
+***
+
+### UpdateVaultFolderOptions
+
+Re-exports [UpdateVaultFolderOptions](../react/Internal/interfaces/UpdateVaultFolderOptions.md)
 
 ***
 
@@ -493,6 +553,12 @@ Re-exports [useModels](../react/Hooks/useModels.md)
 ### UseModelsResult
 
 Re-exports [UseModelsResult](../react/Internal/type-aliases/UseModelsResult.md)
+
+***
+
+### VaultFolderOperationsContext
+
+Re-exports [VaultFolderOperationsContext](../react/Internal/interfaces/VaultFolderOperationsContext.md)
 
 ***
 

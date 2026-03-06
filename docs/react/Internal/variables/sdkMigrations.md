@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#222)
+Defined in: [src/lib/db/schema.ts:237](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#237)
 
 Combined migrations for all SDK storage modules.
 
@@ -30,3 +30,4 @@ Migration history:
 * v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
 * v15 → v16: Added `scope` column to memory\_vault table for memory partitioning
 * v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
+* v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory\_vault for folder organization

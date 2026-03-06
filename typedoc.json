@@ -19,7 +19,7 @@
     "src/expo/index.ts"
   ],
   "indexFormat": "table",
-  "entryFileName": "README.md",
+  "entryFileName": "index.md",
   "parametersFormat": "htmlTable",
   "expandParameters": true,
   "expandObjects": false,
