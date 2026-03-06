@@ -3,15 +3,14 @@ import ExcelJS from "exceljs";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
- * Processor for Excel files (.xlsx, .xls) that converts to JSON structure
+ * Processor for Excel files (.xlsx) that converts to JSON structure
  */
 export class ExcelProcessor implements FileProcessor {
   readonly name = "excel";
   readonly supportedMimeTypes = [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-    "application/vnd.ms-excel", // .xls
   ];
-  readonly supportedExtensions = [".xlsx", ".xls"];
+  readonly supportedExtensions = [".xlsx"];
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
@@ -38,7 +37,7 @@ export class ExcelProcessor implements FileProcessor {
           const rowData: Record<string, unknown> = {};
           row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
             const key = headers[colNumber] || `Column${colNumber}`;
-            rowData[key] = cell.value ?? "";
+            rowData[key] = this.resolveCellValue(cell.value);
           });
           rows.push(rowData);
         });
@@ -58,6 +57,18 @@ export class ExcelProcessor implements FileProcessor {
       console.error("Error processing Excel file:", error);
       throw error;
     }
+  }
+
+  private resolveCellValue(value: ExcelJS.CellValue): string | number | boolean {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "object") {
+      if ("richText" in value) return value.richText.map((rt) => rt.text).join("");
+      if ("result" in value) return this.resolveCellValue(value.result);
+      if ("text" in value) return (value as { text: string }).text;
+    }
+    return String(value);
   }
 
   private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
