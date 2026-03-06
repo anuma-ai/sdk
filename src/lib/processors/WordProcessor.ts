@@ -18,9 +18,11 @@ export class WordProcessor implements FileProcessor {
       const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
       // mammoth's Node.js build expects { buffer: Buffer }, while the browser
-      // build accepts { arrayBuffer }. Provide both for universal compatibility.
-      const input =
-        typeof Buffer !== "undefined" ? { buffer: Buffer.from(arrayBuffer) } : { arrayBuffer };
+      // build accepts { arrayBuffer }. Detect true Node.js (not just polyfilled
+      // Buffer) to pick the right input format.
+      const isNode =
+        typeof process !== "undefined" && process.versions != null && process.versions.node != null;
+      const input = isNode ? { buffer: Buffer.from(arrayBuffer) } : { arrayBuffer };
       const result = await mammoth.extractRawText(input);
 
       if (!result.value || result.value.trim().length === 0) {
