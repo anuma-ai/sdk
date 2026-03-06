@@ -8,6 +8,16 @@ import { BASE_URL } from "../clientConfig";
 
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const DEFAULT_POLL_MAX_ATTEMPTS = 60;
+const TERMINAL_SUCCESS_STATUSES = new Set(["complete", "completed"]);
+const TERMINAL_FAILURE_STATUSES = new Set([
+  "failed",
+  "cancelled",
+  "canceled",
+  "busy",
+  "no-answer",
+  "no_answer",
+  "voicemail",
+]);
 
 /**
  * @inline
@@ -41,7 +51,7 @@ export type PhoneCallPollingOptions = {
    */
   maxAttempts?: number;
   /**
-   * Stop automatically when the call reports completion.
+   * Stop automatically when the call reaches a terminal state.
    */
   stopWhenCompleted?: boolean;
   /**
@@ -106,6 +116,26 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function normalizeStatus(value?: string): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function isTerminalPhoneCall(call: HandlersPhoneCallResponse): boolean {
+  if (call.completed || call.ended_at || call.error_message) {
+    return true;
+  }
+
+  const status = normalizeStatus(call.status);
+  const queueStatus = normalizeStatus(call.queue_status);
+
+  return (
+    TERMINAL_SUCCESS_STATUSES.has(status) ||
+    TERMINAL_SUCCESS_STATUSES.has(queueStatus) ||
+    TERMINAL_FAILURE_STATUSES.has(status) ||
+    TERMINAL_FAILURE_STATUSES.has(queueStatus)
+  );
 }
 
 /**
@@ -377,7 +407,7 @@ export function usePhoneCalls(options: UsePhoneCallsOptions = {}): UsePhoneCalls
 
           if (latestCall) {
             pollOptions.onUpdate?.(latestCall);
-            if (stopWhenCompleted && latestCall.completed) {
+            if (stopWhenCompleted && isTerminalPhoneCall(latestCall)) {
               break;
             }
           }
