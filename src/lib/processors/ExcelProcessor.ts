@@ -67,6 +67,7 @@ export class ExcelProcessor implements FileProcessor {
     if (typeof value === "object") {
       if ("richText" in value) return value.richText.map((rt) => rt.text).join("");
       if ("result" in value) return this.resolveCellValue(value.result);
+      if ("error" in value) return value.error;
       if ("text" in value) return (value as { text: string }).text;
     }
     return String(value);
