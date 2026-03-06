@@ -121,7 +121,6 @@ export default defineConfig([
     dts: true,
     outDir: "dist/server",
     external: [
-      "@nozbe/watermelondb",
       "@huggingface/transformers",
       // Processor heavy deps — only loaded when consumers use file processors
       "pdfjs-dist",
