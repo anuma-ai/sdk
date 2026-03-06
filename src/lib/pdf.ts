@@ -1,7 +1,9 @@
 import * as pdfjs from "pdfjs-dist";
 
-// Configure worker - using CDN to avoid bundler-specific worker configuration
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Configure worker - use CDN in browser, skip in Node.js (uses main-thread fallback)
+if (typeof window !== "undefined") {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
   try {
