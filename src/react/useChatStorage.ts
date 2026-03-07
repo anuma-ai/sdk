@@ -2620,6 +2620,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       let storedAssistantMessage: StoredMessage;
+      let assistantMsgQueueId: string | undefined;
       try {
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
@@ -2629,6 +2630,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
+        assistantMsgQueueId = assistantMsgResult.queueId;
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
@@ -2704,7 +2706,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                 model: "",
                 parentMessageId: storedAssistantMessage.uniqueId,
               }),
-            userMsgQueueId ? [userMsgQueueId] : []
+            assistantMsgQueueId ? [assistantMsgQueueId] : []
           );
         } catch {
           // Non-critical — the tool result will still be available in memory
