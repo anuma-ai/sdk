@@ -2,7 +2,7 @@
 
 > **HandlersRenewSubscriptionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:476](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#476)
+Defined in: [src/client/types.gen.ts:586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#586)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:476](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:477](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#477)
+Defined in: [src/client/types.gen.ts:587](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#587)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:477](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:478](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#478)
+Defined in: [src/client/types.gen.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#588)
