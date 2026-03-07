@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsRenew**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsRenewData`](../type-aliases/PostApiV1SubscriptionsRenewData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsRenewResponses`](../type-aliases/PostApiV1SubscriptionsRenewResponses.md), [`PostApiV1SubscriptionsRenewErrors`](../type-aliases/PostApiV1SubscriptionsRenewErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:686](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#686)
+Defined in: [src/client/sdk.gen.ts:710](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#710)
 
 Renew subscription
 

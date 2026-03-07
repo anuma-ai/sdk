@@ -2,7 +2,7 @@
 
 > **getApiV1Config**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConfigData`](../type-aliases/GetApiV1ConfigData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConfigResponses`](../type-aliases/GetApiV1ConfigResponses.md), [`GetApiV1ConfigErrors`](../type-aliases/GetApiV1ConfigErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:226](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#226)
+Defined in: [src/client/sdk.gen.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#250)
 
 Get configuration
 

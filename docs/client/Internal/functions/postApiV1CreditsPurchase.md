@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsPurchase**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsPurchaseData`](../type-aliases/PostApiV1CreditsPurchaseData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsPurchaseResponses`](../type-aliases/PostApiV1CreditsPurchaseResponses.md), [`PostApiV1CreditsPurchaseErrors`](../type-aliases/PostApiV1CreditsPurchaseErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#290)
+Defined in: [src/client/sdk.gen.ts:314](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#314)
 
 Create credit pack checkout session
 
