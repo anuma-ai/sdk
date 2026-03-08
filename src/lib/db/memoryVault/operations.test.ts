@@ -473,10 +473,7 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("soft-deletes all non-deleted memories for a given userId", async () => {
-    const records = [
-      mockRecord({ id: "mem_1" }),
-      mockRecord({ id: "mem_2" }),
-    ];
+    const records = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
     const fetchFn = vi.fn(async () => records);
     const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
     const batchFn = vi.fn(async () => {});
