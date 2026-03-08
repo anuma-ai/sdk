@@ -65,7 +65,7 @@ export async function createVaultMemoryOp(
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
-      record._setRaw("user_id", ctx.userId ?? null);
+      record._setRaw("user_id", opts.userId ?? ctx.userId ?? null);
       record._setRaw("is_deleted", false);
     });
   });
@@ -100,7 +100,7 @@ export async function createVaultMemoriesBatchOp(
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
-        record._setRaw("user_id", ctx.userId ?? null);
+        record._setRaw("user_id", opts.userId ?? ctx.userId ?? null);
         record._setRaw("is_deleted", false);
       })
     );
