@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsClaimTaskData, PostApiV1CreditsClaimTaskErrors, PostApiV1CreditsClaimTaskResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsSyncSnagData, PostApiV1CreditsSyncSnagErrors, PostApiV1CreditsSyncSnagResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
+import type { DeleteApiV1AdminAppsByAppIdApiKeysByIdData, DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors, DeleteApiV1AdminAppsByAppIdApiKeysByIdResponses, DeleteApiV1AdminAppsByIdData, DeleteApiV1AdminAppsByIdErrors, DeleteApiV1AdminAppsByIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidData, DeleteApiV1DeveloperAppsByAppUuidErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyData, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1TextByChannelUnregisterData, DeleteApiV1TextByChannelUnregisterErrors, DeleteApiV1TextByChannelUnregisterResponses, GetApiV1AdminAppsByAppIdApiKeysByIdData, GetApiV1AdminAppsByAppIdApiKeysByIdErrors, GetApiV1AdminAppsByAppIdApiKeysByIdResponses, GetApiV1AdminAppsByAppIdApiKeysData, GetApiV1AdminAppsByAppIdApiKeysErrors, GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByIdData, GetApiV1AdminAppsByIdErrors, GetApiV1AdminAppsByIdResponses, GetApiV1AdminAppsData, GetApiV1AdminAppsErrors, GetApiV1AdminAppsResponses, GetApiV1AgentsByIdData, GetApiV1AgentsByIdErrors, GetApiV1AgentsByIdResponses, GetApiV1AgentsData, GetApiV1AgentsErrors, GetApiV1AgentsResponses, GetApiV1ConfigData, GetApiV1ConfigErrors, GetApiV1ConfigResponses, GetApiV1CreditsBalanceData, GetApiV1CreditsBalanceErrors, GetApiV1CreditsBalanceResponses, GetApiV1CreditsPacksData, GetApiV1CreditsPacksErrors, GetApiV1CreditsPacksResponses, GetApiV1DeveloperAppsByAppUuidApiKeysData, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidData, GetApiV1DeveloperAppsByAppUuidErrors, GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidUsageData, GetApiV1DeveloperAppsByAppUuidUsageErrors, GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersData, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressData, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersData, GetApiV1DeveloperAppsByAppUuidUsersErrors, GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsData, GetApiV1DeveloperAppsErrors, GetApiV1DeveloperAppsResponses, GetApiV1DeveloperBillingData, GetApiV1DeveloperBillingErrors, GetApiV1DeveloperBillingResponses, GetApiV1DocsSwaggerJsonData, GetApiV1DocsSwaggerJsonResponses, GetApiV1ModelsData, GetApiV1ModelsErrors, GetApiV1ModelsResponses, GetApiV1SubscriptionsPlansData, GetApiV1SubscriptionsPlansErrors, GetApiV1SubscriptionsPlansResponses, GetApiV1SubscriptionsStatusData, GetApiV1SubscriptionsStatusErrors, GetApiV1SubscriptionsStatusResponses, GetApiV1TasksData, GetApiV1TasksErrors, GetApiV1TasksResponses, GetApiV1TextByChannelLookupData, GetApiV1TextByChannelLookupErrors, GetApiV1TextByChannelLookupResponses, GetApiV1TextByChannelStatusData, GetApiV1TextByChannelStatusErrors, GetApiV1TextByChannelStatusResponses, GetApiV1ToolsData, GetApiV1ToolsErrors, GetApiV1ToolsResponses, GetApiV1UsageModelsData, GetApiV1UsageModelsErrors, GetApiV1UsageModelsResponses, GetHealthData, GetHealthErrors, GetHealthResponses, PatchApiV1DeveloperAppsByAppUuidData, PatchApiV1DeveloperAppsByAppUuidErrors, PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PostApiV1AdminAddCreditsData, PostApiV1AdminAddCreditsErrors, PostApiV1AdminAddCreditsResponses, PostApiV1AdminAppsByAppIdApiKeysData, PostApiV1AdminAppsByAppIdApiKeysErrors, PostApiV1AdminAppsByAppIdApiKeysResponses, PostApiV1AdminAppsData, PostApiV1AdminAppsErrors, PostApiV1AdminAppsResponses, PostApiV1AdminSeedAppsData, PostApiV1AdminSeedAppsErrors, PostApiV1AdminSeedAppsResponses, PostApiV1AdminSubscriptionTierData, PostApiV1AdminSubscriptionTierErrors, PostApiV1AdminSubscriptionTierResponses, PostApiV1ChatCompletionsData, PostApiV1ChatCompletionsErrors, PostApiV1ChatCompletionsResponses, PostApiV1CreditsClaimDailyData, PostApiV1CreditsClaimDailyErrors, PostApiV1CreditsClaimDailyResponses, PostApiV1CreditsClaimTaskData, PostApiV1CreditsClaimTaskErrors, PostApiV1CreditsClaimTaskResponses, PostApiV1CreditsPurchaseData, PostApiV1CreditsPurchaseErrors, PostApiV1CreditsPurchaseResponses, PostApiV1CreditsSyncSnagData, PostApiV1CreditsSyncSnagErrors, PostApiV1CreditsSyncSnagResponses, PostApiV1DeveloperAppsByAppUuidApiKeysData, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidFundData, PostApiV1DeveloperAppsByAppUuidFundErrors, PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidPrivyData, PostApiV1DeveloperAppsByAppUuidPrivyErrors, PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsData, PostApiV1DeveloperAppsErrors, PostApiV1DeveloperAppsResponses, PostApiV1EmbeddingsData, PostApiV1EmbeddingsErrors, PostApiV1EmbeddingsResponses, PostApiV1ResponsesData, PostApiV1ResponsesErrors, PostApiV1ResponsesResponses, PostApiV1SubscriptionsCancelData, PostApiV1SubscriptionsCancelErrors, PostApiV1SubscriptionsCancelResponses, PostApiV1SubscriptionsCancelScheduledDowngradeData, PostApiV1SubscriptionsCancelScheduledDowngradeErrors, PostApiV1SubscriptionsCancelScheduledDowngradeResponses, PostApiV1SubscriptionsCreateCheckoutSessionData, PostApiV1SubscriptionsCreateCheckoutSessionErrors, PostApiV1SubscriptionsCreateCheckoutSessionResponses, PostApiV1SubscriptionsCustomerPortalData, PostApiV1SubscriptionsCustomerPortalErrors, PostApiV1SubscriptionsCustomerPortalResponses, PostApiV1SubscriptionsRenewData, PostApiV1SubscriptionsRenewErrors, PostApiV1SubscriptionsRenewResponses, PostApiV1SubscriptionsScheduleDowngradeData, PostApiV1SubscriptionsScheduleDowngradeErrors, PostApiV1SubscriptionsScheduleDowngradeResponses, PostApiV1SubscriptionsUpgradeData, PostApiV1SubscriptionsUpgradeErrors, PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsWebhookData, PostApiV1SubscriptionsWebhookErrors, PostApiV1SubscriptionsWebhookResponses, PostApiV1TextByChannelRegisterData, PostApiV1TextByChannelRegisterErrors, PostApiV1TextByChannelRegisterResponses, PostAuthOauthByProviderExchangeData, PostAuthOauthByProviderExchangeErrors, PostAuthOauthByProviderExchangeResponses, PostAuthOauthByProviderRefreshData, PostAuthOauthByProviderRefreshErrors, PostAuthOauthByProviderRefreshResponses, PostAuthOauthByProviderRevokeData, PostAuthOauthByProviderRevokeErrors, PostAuthOauthByProviderRevokeResponses, PutApiV1AdminAppsByAppIdApiKeysByIdData, PutApiV1AdminAppsByAppIdApiKeysByIdErrors, PutApiV1AdminAppsByAppIdApiKeysByIdResponses, PutApiV1AdminAppsByIdData, PutApiV1AdminAppsByIdErrors, PutApiV1AdminAppsByIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -37,7 +37,7 @@ export const postApiV1AdminAddCredits = <ThrowOnError extends boolean = false>(o
 /**
  * List all apps
  *
- * Returns all registered apps. Requires admin API key.
+ * Returns all registered apps with pagination. Requires admin API key.
  */
 export const getApiV1AdminApps = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsData, ThrowOnError>) => {
     return (options.client ?? client).get<GetApiV1AdminAppsResponses, GetApiV1AdminAppsErrors, ThrowOnError>({
@@ -65,7 +65,7 @@ export const postApiV1AdminApps = <ThrowOnError extends boolean = false>(options
 /**
  * List API keys for an app
  *
- * Returns all API keys for the specified app. Requires admin API key.
+ * Returns API keys for the specified app with pagination. Requires admin API key.
  */
 export const getApiV1AdminAppsByAppIdApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AdminAppsByAppIdApiKeysData, ThrowOnError>) => {
     return (options.client ?? client).get<GetApiV1AdminAppsByAppIdApiKeysResponses, GetApiV1AdminAppsByAppIdApiKeysErrors, ThrowOnError>({
@@ -203,6 +203,30 @@ export const postApiV1AdminSubscriptionTier = <ThrowOnError extends boolean = fa
 };
 
 /**
+ * List agents
+ *
+ * Returns all active agents available in the system
+ */
+export const getApiV1Agents = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1AgentsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1AgentsResponses, GetApiV1AgentsErrors, ThrowOnError>({
+        url: '/api/v1/agents',
+        ...options
+    });
+};
+
+/**
+ * Get agent
+ *
+ * Returns a specific agent by its ID
+ */
+export const getApiV1AgentsById = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgentsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1AgentsByIdResponses, GetApiV1AgentsByIdErrors, ThrowOnError>({
+        url: '/api/v1/agents/{id}',
+        ...options
+    });
+};
+
+/**
  * Create chat completion
  *
  * Generates a chat completion using the configured gateway. Supports streaming when stream=true.
@@ -306,6 +330,250 @@ export const postApiV1CreditsPurchase = <ThrowOnError extends boolean = false>(o
 export const postApiV1CreditsSyncSnag = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1CreditsSyncSnagData, ThrowOnError>) => {
     return (options?.client ?? client).post<PostApiV1CreditsSyncSnagResponses, PostApiV1CreditsSyncSnagErrors, ThrowOnError>({
         url: '/api/v1/credits/sync-snag',
+        ...options
+    });
+};
+
+/**
+ * List apps
+ *
+ * Lists all apps owned by the authenticated developer with pagination.
+ */
+export const getApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperAppsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1DeveloperAppsResponses, GetApiV1DeveloperAppsErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps',
+        ...options
+    });
+};
+
+/**
+ * Create app
+ *
+ * Creates a new app owned by the authenticated developer.
+ */
+export const postApiV1DeveloperApps = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1DeveloperAppsResponses, PostApiV1DeveloperAppsErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Delete app
+ *
+ * Soft-deletes an app by deactivating it. The app can be reactivated later.
+ */
+export const deleteApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidResponses, DeleteApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}',
+        ...options
+    });
+};
+
+/**
+ * Get app
+ *
+ * Retrieves details of a specific app owned by the developer.
+ */
+export const getApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidResponses, GetApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}',
+        ...options
+    });
+};
+
+/**
+ * Update app
+ *
+ * Updates an app's settings. Only provided fields are updated.
+ */
+export const patchApiV1DeveloperAppsByAppUuid = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidData, ThrowOnError>) => {
+    return (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidResponses, PatchApiV1DeveloperAppsByAppUuidErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * List API keys
+ *
+ * Lists all API keys for the app (without secrets) with pagination.
+ */
+export const getApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidApiKeysResponses, GetApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/api-keys',
+        ...options
+    });
+};
+
+/**
+ * Create API key
+ *
+ * Creates a new API key for the app. The full key is only shown once.
+ */
+export const postApiV1DeveloperAppsByAppUuidApiKeys = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidApiKeysData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidApiKeysResponses, PostApiV1DeveloperAppsByAppUuidApiKeysErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/api-keys',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Delete API key
+ *
+ * Revokes (deletes) an API key.
+ */
+export const deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses, DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/api-keys/{key_id}',
+        ...options
+    });
+};
+
+/**
+ * Fund developer app balance
+ *
+ * Creates a Stripe checkout session to purchase credits for the app balance
+ */
+export const postApiV1DeveloperAppsByAppUuidFund = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidFundData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidFundResponses, PostApiV1DeveloperAppsByAppUuidFundErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/fund',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Remove Privy
+ *
+ * Removes Privy authentication configuration from an app.
+ */
+export const deleteApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1DeveloperAppsByAppUuidPrivyResponses, DeleteApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/privy',
+        ...options
+    });
+};
+
+/**
+ * Configure Privy
+ *
+ * Configures Privy authentication for an app.
+ */
+export const postApiV1DeveloperAppsByAppUuidPrivy = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidPrivyData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidPrivyResponses, PostApiV1DeveloperAppsByAppUuidPrivyErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/privy',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Get app usage
+ *
+ * Returns aggregate usage data and timeseries for an app within a time range.
+ */
+export const getApiV1DeveloperAppsByAppUuidUsage = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageResponses, GetApiV1DeveloperAppsByAppUuidUsageErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/usage',
+        ...options
+    });
+};
+
+/**
+ * Get app user usage
+ *
+ * Returns per-user usage data for an app within a time range, paginated.
+ */
+export const getApiV1DeveloperAppsByAppUuidUsageUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsageUsersData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsageUsersResponses, GetApiV1DeveloperAppsByAppUuidUsageUsersErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/usage/users',
+        ...options
+    });
+};
+
+/**
+ * List users
+ *
+ * Lists all users enrolled in the app with their credit balances.
+ */
+export const getApiV1DeveloperAppsByAppUuidUsers = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersResponses, GetApiV1DeveloperAppsByAppUuidUsersErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/users',
+        ...options
+    });
+};
+
+/**
+ * Get user
+ *
+ * Retrieves details of a specific user enrolled in the app.
+ */
+export const getApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<GetApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1DeveloperAppsByAppUuidUsersByAddressResponses, GetApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/users/{address}',
+        ...options
+    });
+};
+
+/**
+ * Update user limit
+ *
+ * Updates a user's cost limit. Credits are transferred from the app balance.
+ */
+export const patchApiV1DeveloperAppsByAppUuidUsersByAddress = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1DeveloperAppsByAppUuidUsersByAddressData, ThrowOnError>) => {
+    return (options.client ?? client).patch<PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses, PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/users/{address}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Top up user credits
+ *
+ * Adds credits to a user's enrollment. Credits are transferred from the app balance atomically.
+ */
+export const postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp = <ThrowOnError extends boolean = false>(options: Options<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses, PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors, ThrowOnError>({
+        url: '/api/v1/developer/apps/{app_uuid}/users/{address}/top-up',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Get billing history
+ *
+ * Returns a paginated list of the developer's completed app funding payments.
+ */
+export const getApiV1DeveloperBilling = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1DeveloperBillingData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1DeveloperBillingResponses, GetApiV1DeveloperBillingErrors, ThrowOnError>({
+        url: '/api/v1/developer/billing',
         ...options
     });
 };
@@ -475,6 +743,22 @@ export const getApiV1SubscriptionsStatus = <ThrowOnError extends boolean = false
 };
 
 /**
+ * Upgrade subscription
+ *
+ * Upgrades the current subscription to a higher tier or from monthly to annual billing by modifying the existing Stripe subscription in-place. No extra credits are allocated for the current month; the new plan's credit amount starts at the next billing cycle.
+ */
+export const postApiV1SubscriptionsUpgrade = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SubscriptionsUpgradeData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1SubscriptionsUpgradeResponses, PostApiV1SubscriptionsUpgradeErrors, ThrowOnError>({
+        url: '/api/v1/subscriptions/upgrade',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
  * Handle Stripe webhook
  *
  * Receives and processes Stripe webhook events for subscription lifecycle management
@@ -503,6 +787,58 @@ export const getApiV1Tasks = <ThrowOnError extends boolean = false>(options?: Op
 };
 
 /**
+ * Lookup text channel registration by identifier
+ *
+ * Looks up an active text channel registration by identifier. Requires service-level API key authentication. Results are scoped to the calling app.
+ */
+export const getApiV1TextByChannelLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1TextByChannelLookupData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1TextByChannelLookupResponses, GetApiV1TextByChannelLookupErrors, ThrowOnError>({
+        url: '/api/v1/text/{channel}/lookup',
+        ...options
+    });
+};
+
+/**
+ * Register identifier for text channel
+ *
+ * Registers an identifier (phone, email, etc.) for text channel interaction. The identifier must be linked in the user's Privy account (for SMS). Idempotent for the same account+channel (updates preferred model).
+ */
+export const postApiV1TextByChannelRegister = <ThrowOnError extends boolean = false>(options: Options<PostApiV1TextByChannelRegisterData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostApiV1TextByChannelRegisterResponses, PostApiV1TextByChannelRegisterErrors, ThrowOnError>({
+        url: '/api/v1/text/{channel}/register',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+/**
+ * Get text channel registration status
+ *
+ * Returns the text channel registration status for the authenticated user.
+ */
+export const getApiV1TextByChannelStatus = <ThrowOnError extends boolean = false>(options: Options<GetApiV1TextByChannelStatusData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetApiV1TextByChannelStatusResponses, GetApiV1TextByChannelStatusErrors, ThrowOnError>({
+        url: '/api/v1/text/{channel}/status',
+        ...options
+    });
+};
+
+/**
+ * Unregister text channel
+ *
+ * Deactivates the text channel registration for the authenticated user.
+ */
+export const deleteApiV1TextByChannelUnregister = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1TextByChannelUnregisterData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteApiV1TextByChannelUnregisterResponses, DeleteApiV1TextByChannelUnregisterErrors, ThrowOnError>({
+        url: '/api/v1/text/{channel}/unregister',
+        ...options
+    });
+};
+
+/**
  * List available tools
  *
  * Returns a map of available MCP tool schemas indexed by tool name.
@@ -510,6 +846,18 @@ export const getApiV1Tasks = <ThrowOnError extends boolean = false>(options?: Op
 export const getApiV1Tools = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1ToolsData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetApiV1ToolsResponses, GetApiV1ToolsErrors, ThrowOnError>({
         url: '/api/v1/tools',
+        ...options
+    });
+};
+
+/**
+ * Get usage by model
+ *
+ * Returns per-model usage (spend, requests, tokens) and tool usage grouped by model for the authenticated user within a time period.
+ */
+export const getApiV1UsageModels = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1UsageModelsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetApiV1UsageModelsResponses, GetApiV1UsageModelsErrors, ThrowOnError>({
+        url: '/api/v1/usage/models',
         ...options
     });
 };
