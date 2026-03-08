@@ -16,6 +16,8 @@ export interface VaultMemoryOperationsContext {
   walletAddress?: string;
   signMessage?: SignMessageFn;
   embeddedWalletSigner?: EmbeddedWalletSignerFn;
+  /** When set, operations scope to this user (server-side multi-user). */
+  userId?: string;
 }
 
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
@@ -24,6 +26,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     content: memory.content,
     scope: memory.scope,
     folderId: memory.folderId ?? null,
+    userId: memory.userId ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -62,6 +65,7 @@ export async function createVaultMemoryOp(
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
+      record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
     });
   });
@@ -96,6 +100,7 @@ export async function createVaultMemoriesBatchOp(
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
+        record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
       })
     );
@@ -135,6 +140,7 @@ export async function getAllVaultMemoriesOp(
   const conditions = [
     Q.where("is_deleted", false),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
     Q.sortBy("created_at", Q.desc),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
@@ -157,7 +163,10 @@ export async function getAllVaultMemoriesOp(
 export async function getAllVaultMemoryContentsOp(
   ctx: VaultMemoryOperationsContext
 ): Promise<string[]> {
-  const conditions = [Q.where("is_deleted", false)];
+  const conditions = [
+    Q.where("is_deleted", false),
+    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
+  ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
 
   const CONCURRENCY = 50;
@@ -237,4 +246,26 @@ export async function deleteVaultMemoryOp(
   } catch {
     return false;
   }
+}
+
+export async function deleteAllVaultMemoriesForUserOp(
+  ctx: VaultMemoryOperationsContext,
+  userId: string
+): Promise<number> {
+  const records = await ctx.vaultMemoryCollection
+    .query(Q.where("user_id", userId), Q.where("is_deleted", false))
+    .fetch();
+
+  if (records.length === 0) return 0;
+
+  await ctx.database.write(async () => {
+    const prepared = records.map((record) =>
+      record.prepareUpdate((r) => {
+        r._setRaw("is_deleted", true);
+      })
+    );
+    await ctx.database.batch(...prepared);
+  });
+
+  return records.length;
 }

@@ -6,6 +6,7 @@ import {
   getAllVaultMemoriesOp,
   updateVaultMemoryOp,
   deleteVaultMemoryOp,
+  deleteAllVaultMemoriesForUserOp,
   vaultMemoryToStored,
 } from "./operations";
 
@@ -25,6 +26,7 @@ function mockRecord(overrides: Record<string, any> = {}) {
   const raw: Record<string, any> = {
     content: "test content",
     scope: "private",
+    user_id: null,
     is_deleted: false,
     created_at: new Date("2025-01-01"),
     updated_at: new Date("2025-01-01"),
@@ -46,6 +48,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     get isDeleted() {
       return raw.is_deleted;
     },
+    get userId() {
+      return raw.user_id;
+    },
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
@@ -55,6 +60,15 @@ function mockRecord(overrides: Record<string, any> = {}) {
           raw[k] = v;
         },
       });
+    }),
+    prepareUpdate: vi.fn((updater: (r: any) => void) => {
+      // Returns self (mimics WatermelonDB prepareUpdate)
+      return {
+        _setRaw: (k: string, v: any) => {
+          raw[k] = v;
+        },
+        updater,
+      };
     }),
     ...overrides,
   };
@@ -397,5 +411,96 @@ describe("vaultMemoryToStored", () => {
     const result = await vaultMemoryToStored(record as any, "0xabc", vi.fn() as any);
     // The mock decryptVaultMemoryFields removes "encrypted:" prefix
     expect(result.content).toBe("secret");
+  });
+});
+
+describe("userId scoping", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets user_id on create when ctx.userId is defined", async () => {
+    const ctx = makeCtx({ userId: "user_123" });
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("user_id", "user_123");
+  });
+
+  it("sets user_id to null on create when ctx.userId is undefined", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("user_id", null);
+  });
+
+  it("filters by user_id in getAllVaultMemoriesOp when ctx.userId is set", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + user_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + sortBy = 2 conditions (no user_id filter)
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
+  });
+});
+
+describe("deleteAllVaultMemoriesForUserOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("soft-deletes all non-deleted memories for a given userId", async () => {
+    const records = [
+      mockRecord({ id: "mem_1" }),
+      mockRecord({ id: "mem_2" }),
+    ];
+    const fetchFn = vi.fn(async () => records);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const batchFn = vi.fn(async () => {});
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: batchFn,
+      } as any,
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const count = await deleteAllVaultMemoriesForUserOp(ctx, "user_123");
+    expect(count).toBe(2);
+    expect(batchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 0 when no memories exist for the user", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const count = await deleteAllVaultMemoriesForUserOp(ctx, "no_such_user");
+    expect(count).toBe(0);
   });
 });
