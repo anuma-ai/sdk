@@ -62,7 +62,6 @@ function mockRecord(overrides: Record<string, any> = {}) {
       });
     }),
     prepareUpdate: vi.fn((updater: (r: any) => void) => {
-      // Returns self (mimics WatermelonDB prepareUpdate)
       return {
         _setRaw: (k: string, v: any) => {
           raw[k] = v;

@@ -18,8 +18,6 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
-  /** User ID for multi-user server-side scoping. Falls back to ctx.userId if omitted. */
-  userId?: string;
 }
 
 export interface UpdateVaultMemoryOptions {

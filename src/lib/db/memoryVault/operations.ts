@@ -20,6 +20,11 @@ export interface VaultMemoryOperationsContext {
   userId?: string;
 }
 
+/** Returns true if the record belongs to the context user (or if no user scoping is active). */
+function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory): boolean {
+  return ctx.userId === undefined || record.userId === ctx.userId;
+}
+
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
   return {
     uniqueId: memory.id,
@@ -65,7 +70,7 @@ export async function createVaultMemoryOp(
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
-      record._setRaw("user_id", opts.userId ?? ctx.userId ?? null);
+      record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
     });
   });
@@ -100,7 +105,7 @@ export async function createVaultMemoriesBatchOp(
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
-        record._setRaw("user_id", opts.userId ?? ctx.userId ?? null);
+        record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
       })
     );
@@ -121,7 +126,7 @@ export async function getVaultMemoryOp(
 ): Promise<StoredVaultMemory | null> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
-    if (record.isDeleted) return null;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
     return vaultMemoryToStored(
       record,
       ctx.walletAddress,
@@ -196,7 +201,7 @@ export async function updateVaultMemoryOp(
 ): Promise<StoredVaultMemory | null> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
-    if (record.isDeleted) return null;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return null;
 
     const encryptedContent =
       ctx.walletAddress && ctx.signMessage
@@ -234,7 +239,7 @@ export async function deleteVaultMemoryOp(
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
-    if (record.isDeleted) return false;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
 
     await ctx.database.write(async () => {
       await record.update((r) => {
@@ -252,6 +257,8 @@ export async function deleteAllVaultMemoriesForUserOp(
   ctx: VaultMemoryOperationsContext,
   userId: string
 ): Promise<number> {
+  if (ctx.userId !== undefined && ctx.userId !== userId) return 0;
+
   const records = await ctx.vaultMemoryCollection
     .query(Q.where("user_id", userId), Q.where("is_deleted", false))
     .fetch();
