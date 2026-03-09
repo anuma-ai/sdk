@@ -27,7 +27,7 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
 };
 
 /**
- * Format search results for LLM consumption
+ * Format search results for LLM consumption, grouped by conversation session.
  */
 function formatSearchResults(
   results: Array<{
@@ -43,19 +43,53 @@ function formatSearchResults(
     return "No relevant past conversation chunks found.";
   }
 
-  const sortedResults = [...results].sort((a, b) => {
-    if (sortBy === "chronological") {
-      return a.createdAt.getTime() - b.createdAt.getTime();
+  // Group results by conversation session
+  const groups = new Map<
+    string,
+    { chunks: typeof results; earliestDate: Date; bestSimilarity: number }
+  >();
+
+  for (const r of results) {
+    const group = groups.get(r.conversationId);
+    if (group) {
+      group.chunks.push(r);
+      if (r.createdAt < group.earliestDate) group.earliestDate = r.createdAt;
+      if (r.similarity > group.bestSimilarity) group.bestSimilarity = r.similarity;
+    } else {
+      groups.set(r.conversationId, {
+        chunks: [r],
+        earliestDate: r.createdAt,
+        bestSimilarity: r.similarity,
+      });
     }
-    return b.similarity - a.similarity;
+  }
+
+  // Sort groups
+  const sortedGroups = [...groups.values()].sort((a, b) => {
+    if (sortBy === "chronological") {
+      return a.earliestDate.getTime() - b.earliestDate.getTime();
+    }
+    return b.bestSimilarity - a.bestSimilarity;
   });
 
-  const formatted = sortedResults.map((r, i) => {
-    const date = r.createdAt.toISOString().replace("T", " ").slice(0, 16);
-    return `[${i + 1}] (${r.role}, ${date}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`;
+  // Format each group
+  let chunkIndex = 1;
+  const sections = sortedGroups.map((group) => {
+    // Sort chunks within a group chronologically for readability
+    const sorted = [...group.chunks].sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+    );
+    const sessionDate = group.earliestDate.toISOString().replace("T", " ").slice(0, 16);
+
+    const lines = sorted.map((r) => {
+      const date = r.createdAt.toISOString().replace("T", " ").slice(0, 16);
+      return `[${chunkIndex++}] (${r.role}, ${date}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`;
+    });
+
+    return `=== Session from ${sessionDate} ===\n\n${lines.join("\n\n")}`;
   });
 
-  return `Found ${results.length} relevant past conversation chunks:\n\n${formatted.join("\n\n---\n\n")}`;
+  return `Found ${results.length} relevant chunks across ${groups.size} sessions:\n\n${sections.join("\n\n---\n\n")}`;
 }
 
 /**
