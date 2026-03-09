@@ -96,6 +96,7 @@ export interface LongMemEvalOptions {
   verbose?: boolean;
   output?: string;
   skipUnsupported?: boolean;
+  skillDocument?: string;
 }
 
 /** API configuration for LLM and embedding calls */

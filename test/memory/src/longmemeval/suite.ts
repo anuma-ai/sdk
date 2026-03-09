@@ -284,11 +284,16 @@ export async function extractMemoriesFromSession(
   session: LongMemEvalSession,
   sessionIndex: number,
   sessionId: string,
-  api: ApiConfig
+  api: ApiConfig,
+  skillDocument?: string
 ): Promise<ExtractedMemory[]> {
   const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
 
-  const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
+  const skillSection = skillDocument
+    ? `<extraction-skill>\n${skillDocument}\n</extraction-skill>\n\n`
+    : "";
+
+  const extractionPrompt = `${skillSection}You are a memory extraction system. Extract durable user memories from this chat conversation.
 
 CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
 
@@ -544,7 +549,8 @@ export async function runLongMemEval(
             entry,
             { ...api, llmModel },
             options.verbose || false,
-            options.maxSessions
+            options.maxSessions,
+            options.skillDocument
           );
         }
 

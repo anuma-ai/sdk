@@ -1,0 +1,3602 @@
+[
+  {
+    "testCaseId": "easy-explicit-identity-000",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'My name is Maria Santos' - This is a durable identity fact.\n2. 'I'm based in Lisbon, Portugal' - Durable location fact.\n3. 'I'm 34 years old' - Durable identity fact (age).\n4. 'I've lived here my whole life' - Durable fact, lifelong resident of Lisbon.\n5. 'I'm Portuguese, born and raised' - Durable identity fact about nationality/ethnicity.\n6. 'I eat traditional Portuguese food at home all the time' - Durable preference/habit.\n7. 'I'm actually looking for something different — maybe Japanese or Korean?' - This is partly a transient request, but the interest in Japanese and Korean cuisine is a preference signal.\n8. 'I love omakase' - Durable food preference.\n9. 'I'll check both of those out this weekend' - Transient plan, skip.\n\nAll of these except the weekend plan are durable personal facts worth extracting.",
+    "extractedFacts": [
+      "The user's name is Maria Santos.",
+      "The user is 34 years old.",
+      "The user lives in Lisbon, Portugal and has lived there her whole life.",
+      "The user is Portuguese, born and raised.",
+      "The user regularly eats traditional Portuguese food at home.",
+      "The user is interested in Japanese and Korean cuisine.",
+      "The user loves omakase.",
+      "The user is already familiar with touristy spots in Lisbon."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Maria Santos"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Lisbon, Portugal"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "lifelong_resident",
+        "value": "Lisbon, Portugal"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "nationality",
+        "value": "Portuguese"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "home_cooking",
+        "value": "Traditional Portuguese food"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "cuisine_interests",
+        "value": "Japanese and Korean cuisine"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favorite_dining_style",
+        "value": "Omakase"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-identity-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm James O'Brien, I'm 28' — Name and age are durable identity facts.\n2. 'I'm from Dublin, Ireland' — Hometown/origin is a durable identity fact.\n3. 'I moved to Toronto, Canada about two years ago for work' — Current location and migration timeline are durable facts.\n4. 'I work as a software developer so I sit at a desk all day' — Occupation is a durable identity fact.\n5. 'I want to build some muscle and improve my posture' — Fitness goals are durable personal preferences/projects.\n6. 'I can probably do 4 days a week' — Workout availability is a constraint.\n7. 'I've got a gym membership' — Current gym access is a durable fact.\n8. 'I grew up playing hurling and Gaelic football' — Sports background is a durable skill/identity fact.\n9. 'I haven't done much structured weight training before' — Fitness experience level is a durable fact (for now).\n10. The workout plan discussed is a transient request/output, not a personal fact about the user, though the preference for gym workouts is noted.\n\nAll of these seem like genuine, non-sarcastic, non-hypothetical durable facts.",
+    "extractedFacts": [
+      "The user's name is James O'Brien.",
+      "The user is 28 years old.",
+      "The user is originally from Dublin, Ireland.",
+      "The user moved to Toronto, Canada approximately two years ago for work.",
+      "The user works as a software developer with a desk job.",
+      "The user wants to build muscle and improve posture.",
+      "The user can work out 4 days a week.",
+      "The user has a gym membership.",
+      "The user grew up playing hurling and Gaelic football in Ireland.",
+      "The user is new to structured weight training.",
+      "The user is following an upper/lower split 4-day gym workout plan."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "full_name",
+        "value": "James O'Brien"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "28"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "hometown",
+        "value": "Dublin, Ireland"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "current_location",
+        "value": "Toronto, Canada"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "years_in_toronto",
+        "value": "approximately 2"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Software developer"
+      },
+      {
+        "type": "project",
+        "namespace": "fitness",
+        "key": "goals",
+        "value": "Build muscle and improve posture"
+      },
+      {
+        "type": "constraint",
+        "namespace": "fitness",
+        "key": "weekly_availability",
+        "value": "4 days per week"
+      },
+      {
+        "type": "preference",
+        "namespace": "fitness",
+        "key": "workout_location",
+        "value": "Gym (has membership)"
+      },
+      {
+        "type": "skill",
+        "namespace": "sports",
+        "key": "background",
+        "value": "Grew up playing hurling and Gaelic football"
+      },
+      {
+        "type": "skill",
+        "namespace": "fitness",
+        "key": "weight_training_experience",
+        "value": "Beginner / new to structured weight training"
+      },
+      {
+        "type": "project",
+        "namespace": "fitness",
+        "key": "current_program",
+        "value": "4-day upper/lower split gym routine"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-identity-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Priya Sharma' - Name, durable identity fact.\n2. 'I'm 21' - Age, durable (though it changes over time, it's a current fact).\n3. 'third-year computer science student' - Education status, durable.\n4. 'at the University of Melbourne' - Institution, durable.\n5. 'originally from Bangalore, India' - Origin/hometown, durable.\n6. 'moved to Australia for uni' - Current country of residence and reason for moving, durable.\n7. 'My budget is around 2000 AUD' - Budget for laptop purchase, somewhat transient but relevant to an ongoing project.\n8. 'I do a lot of Python and Java programming' - Skills/activities, durable.\n9. 'I'm starting to get into machine learning this semester' - Current academic interest, durable.\n10. 'I don't game at all' - Preference/lifestyle fact, durable.\n11. 'I'm actually a big Linux fan' - OS preference, durable.\n12. 'I run Ubuntu on my current old laptop' - Current setup and OS preference, durable.\n13. 'I'd prefer something Linux-friendly' - Preference, durable.\n14. The ThinkPad T14s recommendation was accepted - indicates a purchasing decision/interest, somewhat durable.\n\nAll of these seem like genuine, non-sarcastic, non-hypothetical statements about the user.",
+    "extractedFacts": [
+      "The user's name is Priya Sharma.",
+      "The user is 21 years old.",
+      "The user is a third-year computer science student at the University of Melbourne.",
+      "The user is originally from Bangalore, India.",
+      "The user moved to Australia for university.",
+      "The user programs in Python and Java.",
+      "The user is starting to learn machine learning.",
+      "The user does not play video games.",
+      "The user is a Linux enthusiast and runs Ubuntu on their current laptop.",
+      "The user prefers Linux-friendly hardware.",
+      "The user has a laptop budget of around 2000 AUD.",
+      "The user's current laptop is old and they are looking for a replacement.",
+      "The user is interested in the Lenovo ThinkPad T14s as their next laptop."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "full_name",
+        "value": "Priya Sharma"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "21"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "hometown",
+        "value": "Bangalore, India"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "current_location",
+        "value": "Melbourne, Australia"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "university",
+        "value": "University of Melbourne"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "program",
+        "value": "Computer Science, third year"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "languages",
+        "value": "Python and Java"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "current_learning",
+        "value": "Machine learning"
+      },
+      {
+        "type": "preference",
+        "namespace": "technology",
+        "key": "operating_system",
+        "value": "Linux (Ubuntu)"
+      },
+      {
+        "type": "preference",
+        "namespace": "technology",
+        "key": "hardware_preference",
+        "value": "Linux-friendly laptops, specifically ThinkPads"
+      },
+      {
+        "type": "preference",
+        "namespace": "lifestyle",
+        "key": "gaming",
+        "value": "Does not game at all"
+      },
+      {
+        "type": "constraint",
+        "namespace": "shopping",
+        "key": "laptop_budget",
+        "value": "Around 2000 AUD"
+      },
+      {
+        "type": "project",
+        "namespace": "shopping",
+        "key": "laptop_purchase",
+        "value": "Interested in Lenovo ThinkPad T14s Gen 5 with AMD Ryzen 7"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-identity-003",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. User introduces himself as Thomas Weber, 45 years old, from Munich, Germany — these are durable identity facts.\n2. He's German but reads mostly in English — durable preference about language.\n3. He's a high school history teacher — durable identity/profession fact.\n4. He reads a lot of nonfiction for work — contextual to his profession, worth noting.\n5. For pleasure he prefers science fiction and fantasy — durable reading preference.\n6. Big fan of Brandon Sanderson and Ursula K. Le Guin — durable preference about favorite authors.\n7. He's read the Broken Earth trilogy by N.K. Jemisin and loved it — durable fact about reading history and preference.\n8. He doesn't like books that are too slow-paced — durable reading preference/constraint.\n9. Children of Time has been on his reading list — durable fact about intended reading.\n10. The Poppy War sounds appealing to him (history + fantasy) — this is more of a transient reaction, but the interest in history-fantasy crossover is a durable preference.\n\nAll of these are stated directly and sincerely, no sarcasm or hypotheticals detected.",
+    "extractedFacts": [
+      "The user's name is Thomas Weber.",
+      "The user is 45 years old.",
+      "The user is from Munich, Germany.",
+      "The user is German.",
+      "The user reads mostly in English.",
+      "The user is a high school history teacher.",
+      "The user reads a lot of nonfiction for work.",
+      "The user prefers science fiction and fantasy for pleasure reading.",
+      "The user is a big fan of Brandon Sanderson and Ursula K. Le Guin.",
+      "The user has read and loved N.K. Jemisin's Broken Earth trilogy.",
+      "The user does not like books that are too slow-paced.",
+      "The user has had Children of Time by Adrian Tchaikovsky on his reading list.",
+      "The user enjoys the combination of history and fantasy in books."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "full_name",
+        "value": "Thomas Weber"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "45"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Munich, Germany"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "nationality",
+        "value": "German"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school history teacher"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "reading_language",
+        "value": "Mostly English"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "pleasure_genres",
+        "value": "Science fiction and fantasy"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "favorite_authors",
+        "value": "Brandon Sanderson, Ursula K. Le Guin"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "loved_books",
+        "value": "N.K. Jemisin's Broken Earth trilogy"
+      },
+      {
+        "type": "constraint",
+        "namespace": "reading",
+        "key": "pacing_preference",
+        "value": "Does not like books that are too slow-paced"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "reading_list",
+        "value": "Children of Time by Adrian Tchaikovsky"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "genre_crossover_interest",
+        "value": "History combined with fantasy"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-preference-000",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. 'I'm Marco' — identity fact, durable.\n2. 'Just got home from a long day at the architecture firm' — he works at an architecture firm. Durable career fact.\n3. 'I'm a huge fan of cooking' — hobby/preference, durable.\n4. 'My favourite thing to make is homemade pasta' — preference, durable.\n5. 'My absolute favourite food is a good carbonara' — preference, durable.\n6. 'Jazz is my favourite genre — Miles Davis, Coltrane, all that stuff' — music preference, durable.\n7. 'I always have music going' while cooking — behavioral preference, durable.\n8. 'I'm really into watercolour painting' — hobby, durable.\n9. 'I mostly paint landscapes on the weekends' — specific detail about hobby, durable.\n10. 'At work I'm all about AutoCAD and Revit' — professional tools, durable.\n11. 'I prefer Revit honestly, it's just more intuitive' — tool preference, durable.\n12. 'I don't drink coffee' — constraint, durable.\n13. 'I'm strictly a tea person' — preference, durable.\n\nAll of these are stated as personal facts, none are hypothetical, sarcastic, or transient requests.",
+    "extractedFacts": [
+      "The user's name is Marco.",
+      "The user works at an architecture firm.",
+      "The user enjoys cooking as a hobby and finds it therapeutic.",
+      "The user's favourite thing to cook is homemade pasta.",
+      "The user's favourite food is carbonara.",
+      "The user's favourite music genre is jazz, particularly Miles Davis and Coltrane.",
+      "The user always listens to music while cooking.",
+      "The user is into watercolour painting, mostly painting landscapes on weekends.",
+      "The user uses AutoCAD and Revit at work.",
+      "The user prefers Revit over AutoCAD for its intuitiveness.",
+      "The user does not drink coffee.",
+      "The user is strictly a tea person."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marco"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Architect at an architecture firm"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "cooking",
+        "value": "Enjoys cooking, finds it therapeutic"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_to_cook",
+        "value": "Homemade pasta"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_food",
+        "value": "Carbonara"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_genre",
+        "value": "Jazz (Miles Davis, Coltrane)"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "cooking_habit",
+        "value": "Always listens to music while cooking"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "watercolour_painting",
+        "value": "Paints landscapes on weekends"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "software_tools",
+        "value": "AutoCAD and Revit"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "preferred_software",
+        "value": "Revit over AutoCAD"
+      },
+      {
+        "type": "constraint",
+        "namespace": "food",
+        "key": "no_coffee",
+        "value": "Does not drink coffee"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "beverage",
+        "value": "Strictly a tea person"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-preference-001",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. 'Hi! I'm Priya, 26 years old, working as a data analyst in Toronto.' — Three durable facts: name (Priya), age (26), job (data analyst), location (Toronto).\n\n2. 'Python is my favourite programming language by far — I use it every single day with pandas and Jupyter notebooks.' — Durable preferences and skills: favourite language is Python, daily tools include pandas and Jupyter notebooks.\n\n3. 'I'm a big fan of Tableau for dashboards.' — Durable preference/skill: uses Tableau for dashboards.\n\n4. 'For quick stuff in Python I prefer matplotlib over seaborn, I like the control it gives me.' — Durable preference: prefers matplotlib over seaborn.\n\n5. 'I'm obsessed with K-pop, BTS especially. That's my favourite music.' — Durable preferences: loves K-pop, favourite artist is BTS.\n\n6. 'I'm a huge fan of Thai food — green curry is my absolute favourite dish.' — Durable preferences: favourite cuisine is Thai, favourite dish is green curry.\n\n7. 'I love rock climbing! I go to the bouldering gym about three times a week.' — Durable hobby: rock climbing/bouldering, frequency ~3 times per week. Uses it to de-stress after work.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is 26 years old.",
+      "The user works as a data analyst.",
+      "The user lives in Toronto.",
+      "The user's favourite programming language is Python, which they use every day.",
+      "The user regularly uses pandas and Jupyter notebooks for data work.",
+      "The user is a big fan of Tableau for dashboards.",
+      "The user prefers matplotlib over seaborn for Python visualizations because of the control it offers.",
+      "The user loves K-pop music, with BTS being their favourite artist.",
+      "The user's favourite cuisine is Thai food.",
+      "The user's favourite dish is green curry.",
+      "The user loves rock climbing and goes to a bouldering gym about three times a week.",
+      "The user uses rock climbing as a way to de-stress after work."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "26"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Data analyst"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Toronto"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "favourite_language",
+        "value": "Python"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "daily_tools",
+        "value": "Python, pandas, Jupyter notebooks"
+      },
+      {
+        "type": "skill",
+        "namespace": "data_visualization",
+        "key": "dashboard_tool",
+        "value": "Tableau"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "python_visualization_library",
+        "value": "matplotlib over seaborn"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_genre",
+        "value": "K-pop"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_artist",
+        "value": "BTS"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_cuisine",
+        "value": "Thai food"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_dish",
+        "value": "Green curry"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "primary_hobby",
+        "value": "Rock climbing / bouldering, ~3 times per week"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-preference-002",
+    "reasoning": "Let me go through each message from the user and extract durable personal facts:\n\n1. 'Name's Devon' — identity fact: name is Devon.\n2. '34-year-old' — identity fact: age is 34.\n3. 'freelance web developer' — identity/skill fact: occupation is freelance web developer.\n4. 'based in Austin, Texas' — identity fact: location is Austin, Texas.\n5. 'Mostly frontend stuff' — skill fact: specializes in frontend development.\n6. 'TypeScript is my favourite language' — preference fact: favourite programming language is TypeScript.\n7. 'I used to prefer plain JavaScript but...switched to TypeScript I never looked back' — this is an update: previously preferred JavaScript, now prefers TypeScript. The current preference is TypeScript.\n8. 'React all the way...React is my favourite' — preference fact: favourite framework is React.\n9. 'I've tried Vue and Svelte' — skill fact: has experience with Vue and Svelte.\n10. 'I use VS Code as my editor' — preference fact: uses VS Code as code editor.\n11. 'I'm super into disc golf' — preference/hobby: plays disc golf.\n12. 'I play at least twice a week' — habit: plays disc golf at least twice a week.\n13. 'I'm a metalhead' — identity/preference: metalhead.\n14. 'my favourite genre is progressive metal' — preference: favourite music genre is progressive metal.\n15. 'Tool and Meshuggah are my top bands' — preference: favourite bands are Tool and Meshuggah.\n16. 'I'm a barbecue fanatic' — preference: loves barbecue.\n17. 'Brisket is my favourite food' — preference: favourite food is brisket.\n18. 'I don't eat seafood' — constraint: does not eat seafood.",
+    "extractedFacts": [
+      "The user's name is Devon.",
+      "The user is 34 years old.",
+      "The user is a freelance web developer.",
+      "The user is based in Austin, Texas.",
+      "The user specializes in frontend development.",
+      "The user's favourite programming language is TypeScript (previously preferred plain JavaScript but switched).",
+      "The user's favourite frontend framework is React; has also tried Vue and Svelte.",
+      "The user uses VS Code as their code editor.",
+      "The user is super into disc golf and plays at least twice a week at a local course.",
+      "The user is a metalhead whose favourite music genre is progressive metal.",
+      "The user's top bands are Tool and Meshuggah.",
+      "The user is a barbecue fanatic and their favourite food is brisket.",
+      "The user does not eat seafood and has never liked it."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Devon"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Freelance web developer"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Austin, Texas"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "specialization",
+        "value": "Frontend development"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "favourite_language",
+        "value": "TypeScript (switched from plain JavaScript)"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "favourite_framework",
+        "value": "React"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "frameworks_tried",
+        "value": "React, Vue, Svelte"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "code_editor",
+        "value": "VS Code"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "sport",
+        "value": "Disc golf, plays at least twice a week"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_genre",
+        "value": "Progressive metal"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_bands",
+        "value": "Tool, Meshuggah"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_food",
+        "value": "Brisket / barbecue"
+      },
+      {
+        "type": "constraint",
+        "namespace": "food",
+        "key": "dietary_restriction",
+        "value": "Does not eat seafood"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-preference-003",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. 'I'm Sofia' - Name, durable identity fact.\n2. '41-year-old' - Age, durable identity fact.\n3. 'high school math teacher' - Profession, durable identity fact.\n4. 'in Melbourne, Australia' - Location, durable identity fact.\n5. 'Teaching is genuinely my passion' - Attitude toward profession, durable preference.\n6. 'My favourite one is probably gardening' - Favourite hobby, durable preference.\n7. 'I spend most of my weekends in the garden' - Habit/routine, durable fact.\n8. 'I grow a lot of herbs and vegetables' - Gardening specifics, durable fact.\n9. 'Tomatoes are my favourite thing to grow' - Specific gardening preference, durable.\n10. 'my favourite cuisine is Japanese' - Food preference, durable.\n11. 'I could eat sushi every day' - Reinforces Japanese food preference, durable.\n12. 'Ramen is a close second' - Food preference, durable.\n13. 'My favourite genre is indie folk' - Music preference, durable.\n14. 'Bon Iver and Iron & Wine are my go-to artists' - Specific artist preferences, durable.\n15. 'I don't like electronic music at all' - Negative preference, durable.\n16. 'I've been teaching myself R for data analysis' - Skill/project, durable.\n17. 'I use it to analyze student performance data' - Use case for R, durable project.\n18. 'R is my favourite language' - Programming preference, durable.\n19. 'I tried Python but R just clicked better for me' - Preference context, durable.\n20. 'I also love reading — mostly historical fiction' - Hobby and genre preference, durable.\n21. 'That's probably my second favourite hobby after gardening' - Hobby ranking, durable.",
+    "extractedFacts": [
+      "The user's name is Sofia.",
+      "The user is 41 years old.",
+      "The user is a high school math teacher.",
+      "The user lives in Melbourne, Australia.",
+      "The user considers teaching her passion.",
+      "The user's favourite hobby is gardening.",
+      "The user spends most weekends in the garden.",
+      "The user grows herbs and vegetables in her garden.",
+      "The user's favourite thing to grow is tomatoes.",
+      "The user's favourite cuisine is Japanese.",
+      "The user especially loves sushi and ramen.",
+      "The user's favourite music genre is indie folk.",
+      "The user's go-to artists are Bon Iver and Iron & Wine.",
+      "The user dislikes electronic music.",
+      "The user is self-teaching R for data analysis.",
+      "The user uses R to analyze student performance data.",
+      "The user's favourite programming language is R.",
+      "The user tried Python but preferred R.",
+      "The user's second favourite hobby is reading, mostly historical fiction."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Sofia"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "41"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school math teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Melbourne, Australia"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "attitude_toward_teaching",
+        "value": "Considers it her passion"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "favourite_hobby",
+        "value": "Gardening"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "gardening_routine",
+        "value": "Spends most weekends in the garden"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "gardening_focus",
+        "value": "Herbs and vegetables, especially tomatoes"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_cuisine",
+        "value": "Japanese"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favourite_dishes",
+        "value": "Sushi (top), ramen (close second)"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_genre",
+        "value": "Indie folk"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "favourite_artists",
+        "value": "Bon Iver and Iron & Wine"
+      },
+      {
+        "type": "constraint",
+        "namespace": "music",
+        "key": "disliked_genre",
+        "value": "Electronic music"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "learning_R",
+        "value": "Self-teaching R for data analysis"
+      },
+      {
+        "type": "project",
+        "namespace": "programming",
+        "key": "R_use_case",
+        "value": "Analyzing student performance data"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "favourite_language",
+        "value": "R (preferred over Python)"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "second_favourite_hobby",
+        "value": "Reading, mostly historical fiction"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-job-000",
+    "reasoning": "Let me analyze each message from the user:\n\n1. 'Hey! I need some help setting up a new project management workflow for my team.' - This is a transient request, but implies they are setting up a new workflow (project-related).\n\n2. 'Sure! I'm Rachel, and I'm a product manager at Stripe. I lead a team of about 8 engineers working on the payments infrastructure.' - Multiple durable facts: name is Rachel, role is product manager, employer is Stripe, leads a team of ~8 engineers, team works on payments infrastructure.\n\n3. 'We've been using Jira but honestly it feels way too heavy for what we need. I want something lighter that still gives me visibility into sprint progress.' - Current tool is Jira, preference for something lighter with sprint visibility. The dissatisfaction with Jira is a durable preference.\n\n4. 'Oh we actually already use GitHub heavily for our repos, so GitHub Projects could be interesting. But I've also heard great things about Linear from some friends at other companies.' - Team uses GitHub heavily for repos. Considering GitHub Projects and Linear.\n\n5. 'Yes please, that would be super helpful. Oh and one more thing — we do two-week sprints currently, and I'd like to keep that cadence.' - Team uses two-week sprint cadence and wants to maintain it.\n\nAll of these are stated as facts about the user's current situation, not hypotheticals or sarcasm.",
+    "extractedFacts": [
+      "The user's name is Rachel.",
+      "The user is a product manager at Stripe.",
+      "The user leads a team of about 8 engineers working on payments infrastructure.",
+      "The user's team currently uses Jira for project management but finds it too heavy.",
+      "The user wants a lighter project management tool with good sprint progress visibility.",
+      "The user's team uses GitHub heavily for their repositories.",
+      "The user's team follows a two-week sprint cadence and wants to keep it.",
+      "The user is evaluating GitHub Projects and Linear as potential replacements for Jira."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Rachel"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "role",
+        "value": "Product Manager"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "employer",
+        "value": "Stripe"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "team_size",
+        "value": "About 8 engineers"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "team_domain",
+        "value": "Payments infrastructure"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "current_pm_tool",
+        "value": "Jira (looking to replace)"
+      },
+      {
+        "type": "preference",
+        "namespace": "work",
+        "key": "pm_tool_preference",
+        "value": "Lighter than Jira with good sprint progress visibility"
+      },
+      {
+        "type": "constraint",
+        "namespace": "work",
+        "key": "sprint_cadence",
+        "value": "Two-week sprints"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "version_control",
+        "value": "GitHub (heavily used)"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "pm_tools_under_evaluation",
+        "value": "GitHub Projects and Linear"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-job-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Marcus' — This is a name, a durable identity fact.\n2. 'I work as a data scientist at Netflix on the content recommendation team' — Job title, employer, and specific team. All durable identity/professional facts.\n3. 'I need to create some really polished visualizations for an executive presentation next week' — The presentation next week is transient (time-bound), but the need for executive-level visualizations is part of a current project.\n4. 'Mostly time series showing engagement metrics and some A/B test results' — This describes the current work/project context.\n5. 'I've used matplotlib a ton but the default styling is just ugly' — Experience with matplotlib (skill) and a preference against default matplotlib styling.\n6. 'I don't want to spend hours tweaking fonts and colors' — Preference for low-effort styling solutions.\n7. 'been using it for about 6 years now' — 6 years of Python experience, a durable skill fact.\n8. 'I've never actually used Plotly before' — Current skill gap, though this may change soon since they're about to learn it. Still worth noting as current state.\n9. 'Our brand team is pretty particular about using the exact Netflix red' — Constraint about Netflix branding requirements.\n10. The decision to try Plotly Express for time series — a preference/tool choice.\n\nI'll extract all durable facts and skip purely transient requests.",
+    "extractedFacts": [
+      "The user's name is Marcus.",
+      "The user works as a data scientist at Netflix on the content recommendation team.",
+      "The user has about 6 years of Python experience.",
+      "The user has extensive experience with matplotlib but dislikes its default styling.",
+      "The user had never used Plotly before but is starting to learn Plotly Express.",
+      "The user works with engagement metrics time series data and A/B test results.",
+      "The user prefers visualization tools that produce polished results with minimal styling effort.",
+      "The user needs to follow Netflix brand guidelines, including the exact Netflix red (#E50914)."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Data Scientist"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Netflix"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "team",
+        "value": "Content Recommendation"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "python_experience",
+        "value": "About 6 years"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "matplotlib",
+        "value": "Extensive experience"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "plotly",
+        "value": "Beginner, just starting to learn"
+      },
+      {
+        "type": "preference",
+        "namespace": "tools",
+        "key": "visualization_style",
+        "value": "Prefers polished results with minimal manual styling effort"
+      },
+      {
+        "type": "preference",
+        "namespace": "tools",
+        "key": "dislike",
+        "value": "Default matplotlib styling"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "data_types",
+        "value": "Engagement metrics time series and A/B test results"
+      },
+      {
+        "type": "constraint",
+        "namespace": "work",
+        "key": "branding",
+        "value": "Must follow Netflix brand guidelines, including exact Netflix red (#E50914)"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "easy-explicit-job-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'my name's Priya' — This is a durable identity fact.\n2. 'I'm a senior account executive at Salesforce' — Durable identity/career fact.\n3. 'I've been managing this account for about two years now' — This is somewhat specific to the current situation, but it tells us about her tenure/experience with long-term client relationships. It's somewhat durable.\n4. 'The client is the VP of Operations at their company' — This is about the client, not about the user. Skip.\n5. 'I tend to keep my emails pretty concise' — This is a stated personal preference/communication style. Durable.\n6. The collaborative tone preference — This could be situational, but combined with her stated relationship management style, it's worth noting.\n7. The request to draft an email is transient. Skip.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is a senior account executive at Salesforce.",
+      "The user prefers to keep emails concise.",
+      "The user has been managing a key client account for about two years.",
+      "The user prefers a collaborative communication style with clients."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Senior Account Executive"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Salesforce"
+      },
+      {
+        "type": "preference",
+        "namespace": "communication",
+        "key": "email_style",
+        "value": "Concise"
+      },
+      {
+        "type": "preference",
+        "namespace": "communication",
+        "key": "client_tone",
+        "value": "Collaborative"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "easy-explicit-job-003",
+    "reasoning": "Let me analyze each message from the user for durable personal facts:\n\n1. 'Hey, I have a question about structuring a lesson plan for high school students.' — Indicates they're a teacher, but let's get more specific info from later messages.\n\n2. 'I'm Tom, I teach 10th grade biology at Lincoln High School in Portland, Oregon.' — Multiple durable facts: name is Tom, teaches 10th grade biology, works at Lincoln High School, located in Portland, Oregon.\n\n3. 'I'm trying to plan a unit on genetics that actually gets the kids excited.' — This is a current project/transient request, but the desire to make lessons engaging seems like a durable preference.\n\n4. 'The unit is about 3 weeks. We have a decent lab but our budget is pretty tight this year — I've been buying some supplies out of pocket honestly.' — The tight budget and buying supplies out of pocket is a current constraint. Having a decent lab is a durable fact about their school resources.\n\n5. 'The DNA extraction from strawberries is something I've done before and the kids loved it.' — Has prior experience with this activity. Minor fact.\n\n6. 'I've never tried a kinesthetic activity like that.' — Transient observation, not very durable.\n\n7. 'which is what I did last year' (lecturing through slides) — Minor, about past teaching style.\n\n8. 'I've been teaching for 12 years and I'm always looking for ways to keep things fresh.' — Durable facts: 12 years of teaching experience, preference for continuously improving and refreshing teaching methods.",
+    "extractedFacts": [
+      "The user's name is Tom.",
+      "Tom teaches 10th grade biology.",
+      "Tom works at Lincoln High School in Portland, Oregon.",
+      "Tom has been teaching for 12 years.",
+      "Tom's school has a decent lab but a tight budget, and he sometimes buys supplies out of pocket.",
+      "Tom is always looking for ways to keep his teaching fresh and engaging.",
+      "Tom has previously done the strawberry DNA extraction lab with his students.",
+      "Tom is currently planning a 3-week unit on genetics for his 10th graders.",
+      "Tom prefers hands-on and kinesthetic activities over lecturing through slides."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tom"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "10th grade biology teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "school",
+        "value": "Lincoln High School, Portland, Oregon"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "years_teaching",
+        "value": "12 years"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "budget",
+        "value": "Tight school budget; sometimes buys supplies out of pocket"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "lab_resources",
+        "value": "Has a decent lab at school"
+      },
+      {
+        "type": "preference",
+        "namespace": "teaching",
+        "key": "teaching_style",
+        "value": "Prefers hands-on, kinesthetic, and engaging activities over slide-based lectures"
+      },
+      {
+        "type": "preference",
+        "namespace": "teaching",
+        "key": "professional_growth",
+        "value": "Always looking for ways to keep teaching fresh and innovative"
+      },
+      {
+        "type": "project",
+        "namespace": "teaching",
+        "key": "current_unit",
+        "value": "Planning a 3-week genetics unit for 10th grade biology"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "medium-implicit-skill-000",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. The user is debugging Kubernetes pod evictions due to ephemeral storage — this is a transient request, but reveals they work with Kubernetes.\n2. The user has a data pipeline that downloads parquet files, transforms them, and uploads to S3 — this is a project/work fact.\n3. The user wrote the pipeline in Rust — durable skill/project fact.\n4. The pipeline buffers chunks to /tmp during transform phase — project detail worth capturing.\n5. The user has been managing their Kubernetes cluster at work for about two years — durable professional fact.\n6. They use Prometheus and Grafana for monitoring — durable tooling/infrastructure fact.\n7. They're planning to refactor the Rust code to stream directly instead of buffering — project plan, somewhat durable.\n8. They're planning to set up an alert on kubelet_evictions — transient task, skip.\n\nAll of these seem genuine, no sarcasm or hypotheticals detected.",
+    "extractedFacts": [
+      "The user writes data pipelines in Rust.",
+      "The user has a data pipeline at work that downloads parquet files, transforms them, and uploads to S3.",
+      "The user has been managing a Kubernetes cluster at work for about two years.",
+      "The user uses Prometheus and Grafana for monitoring their Kubernetes cluster.",
+      "The user is refactoring their Rust data pipeline to stream transforms instead of buffering entire files to /tmp."
+    ],
+    "extractedStructured": [
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "rust",
+        "value": "Writes data pipelines in Rust"
+      },
+      {
+        "type": "skill",
+        "namespace": "infrastructure",
+        "key": "kubernetes",
+        "value": "Has been managing a Kubernetes cluster at work for about two years"
+      },
+      {
+        "type": "skill",
+        "namespace": "infrastructure",
+        "key": "monitoring",
+        "value": "Uses Prometheus and Grafana for cluster monitoring"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "data_pipeline",
+        "value": "Rust-based pipeline that downloads parquet files, transforms them, and uploads to S3"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "data_pipeline_refactor",
+        "value": "Refactoring pipeline to stream transforms instead of buffering whole files to /tmp"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-implicit-skill-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. The user is arranging a jazz standard ('All The Things You Are') for their combo — this is a current project, durable enough to extract.\n2. The user plays piano and does most of the arranging for the combo — durable fact about their role and skill.\n3. The combo has been playing together for about three years — durable fact about the group.\n4. Maria plays alto saxophone in the combo — she's solid on bebop but new to Giant Steps-type changes.\n5. Derek plays bass in the combo and has great ears.\n6. They rehearse every Thursday evening at the community arts center downtown — durable scheduling fact.\n7. The user is interested in Coltrane-style substitutions — preference/skill indicator.\n8. The user likes Thad Jones-style block voicings and big band texture in small combo settings — musical preference.\n9. The user is knowledgeable about jazz harmony (Coltrane changes, tritone subs, voice leading, block voicings) — skill level indicator.\n10. The combo is a small group (piano, alto, bass at minimum) — structural fact.",
+    "extractedFacts": [
+      "The user plays piano and does most of the arranging for their jazz combo.",
+      "The user has been playing in a combo for about three years.",
+      "The user's combo includes Maria on alto saxophone and Derek on bass.",
+      "Maria is solid on bebop changes but new to Giant Steps-type (Coltrane) harmonic material.",
+      "Derek (the bassist) has great ears.",
+      "The combo rehearses every Thursday evening at the community arts center downtown.",
+      "The user is currently arranging 'All The Things You Are' for the combo, incorporating Coltrane-style substitutions on the bridge.",
+      "The user is planning to add a Thad Jones-style shout chorus with block voicings at the end of the arrangement.",
+      "The user enjoys big band texture even in small combo settings.",
+      "The user has advanced jazz harmony knowledge including Coltrane changes, tritone substitutions, and voice leading techniques."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "music",
+        "key": "instrument",
+        "value": "Piano"
+      },
+      {
+        "type": "skill",
+        "namespace": "music",
+        "key": "role_in_combo",
+        "value": "Pianist and primary arranger"
+      },
+      {
+        "type": "skill",
+        "namespace": "music",
+        "key": "jazz_harmony_level",
+        "value": "Advanced — comfortable with Coltrane changes, tritone subs, block voicings, voice leading"
+      },
+      {
+        "type": "project",
+        "namespace": "music",
+        "key": "current_arrangement",
+        "value": "Arranging 'All The Things You Are' with Coltrane-style reharmonization on the bridge and a Thad Jones-style shout chorus"
+      },
+      {
+        "type": "identity",
+        "namespace": "music",
+        "key": "combo_members",
+        "value": "Maria (alto sax), Derek (bass), user (piano)"
+      },
+      {
+        "type": "identity",
+        "namespace": "music",
+        "key": "combo_duration",
+        "value": "About three years together"
+      },
+      {
+        "type": "constraint",
+        "namespace": "music",
+        "key": "combo_member_skill_note",
+        "value": "Maria is solid on bebop but new to Giant Steps-type changes; Derek has great ears"
+      },
+      {
+        "type": "identity",
+        "namespace": "schedule",
+        "key": "rehearsal_schedule",
+        "value": "Every Thursday evening at the community arts center downtown"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "arranging_style",
+        "value": "Enjoys big band textures (e.g., Thad Jones-style block voicings) in small combo settings"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "harmonic_approach",
+        "value": "Likes Coltrane-style substitutions and smooth voice leading"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-implicit-skill-002",
+    "reasoning": "Let me go through the conversation message by message:\n\n1. User is working on image segmentation using U-Net with dice loss plateauing at 0.72 — this is a current project detail, durable enough to extract.\n\n2. User specifies: multi-class (5 classes), satellite imagery for land cover classification, 3000 training images at 256x256, using basic augmentation (flips/rotations), Adam optimizer at 1e-3. These are project details worth extracting.\n\n3. User mentions class imbalance: water ~5% of pixels, vegetation ~40%. Project detail.\n\n4. User explicitly states they are doing a PhD at CU Boulder — strong durable identity fact.\n\n5. User mentions doing remote sensing work — durable research area.\n\n6. User has access to a decent GPU cluster — durable resource/constraint.\n\n7. User works with Sentinel-2 imagery at 10m resolution — durable project/skill detail.\n\n8. User has a ResNet-50 backbone from a previous classification project — indicates prior experience.\n\n9. User's advisor pushes them to try vision transformers, but user prefers U-Net family for dense prediction tasks — this reveals both a preference and an advisor relationship detail.\n\n10. User writes Python/PyTorch code fluently — skill fact.",
+    "extractedFacts": [
+      "The user is a PhD student at CU Boulder.",
+      "The user works on remote sensing / satellite imagery analysis.",
+      "The user is working on a multi-class (5 classes) land cover classification project using image segmentation.",
+      "The user uses Sentinel-2 satellite imagery at 10m resolution.",
+      "The user has a dataset of about 3,000 training images at 256x256 for their segmentation project.",
+      "The user's land cover classes have significant imbalance: water ~5% of pixels, vegetation ~40%.",
+      "The user has access to a decent GPU cluster through their university.",
+      "The user is proficient in Python and PyTorch for deep learning.",
+      "The user has prior experience with a ResNet-50 backbone for a classification project.",
+      "The user prefers U-Net family architectures over vision transformers for dense prediction tasks.",
+      "The user's PhD advisor pushes them to try vision transformers.",
+      "The user is implementing a U-Net with combined dice + cross-entropy loss and class weighting for their current project."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "degree_program",
+        "value": "PhD at CU Boulder"
+      },
+      {
+        "type": "project",
+        "namespace": "phd_research",
+        "key": "research_area",
+        "value": "Remote sensing / satellite imagery land cover classification"
+      },
+      {
+        "type": "project",
+        "namespace": "phd_research",
+        "key": "current_task",
+        "value": "Multi-class (5 classes) image segmentation for land cover classification using U-Net"
+      },
+      {
+        "type": "project",
+        "namespace": "phd_research",
+        "key": "data_source",
+        "value": "Sentinel-2 satellite imagery at 10m resolution"
+      },
+      {
+        "type": "project",
+        "namespace": "phd_research",
+        "key": "dataset_size",
+        "value": "~3,000 training images at 256x256"
+      },
+      {
+        "type": "project",
+        "namespace": "phd_research",
+        "key": "class_imbalance",
+        "value": "Water ~5% of pixels, vegetation ~40%"
+      },
+      {
+        "type": "constraint",
+        "namespace": "compute",
+        "key": "gpu_access",
+        "value": "Has access to a decent GPU cluster at CU Boulder"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "deep_learning_framework",
+        "value": "Proficient in Python and PyTorch"
+      },
+      {
+        "type": "skill",
+        "namespace": "deep_learning",
+        "key": "prior_experience",
+        "value": "Has used ResNet-50 backbone for a previous classification project"
+      },
+      {
+        "type": "preference",
+        "namespace": "deep_learning",
+        "key": "architecture_preference",
+        "value": "Prefers U-Net family over vision transformers for dense prediction tasks"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "advisor_preference",
+        "value": "Advisor pushes them to try vision transformers"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-implicit-skill-003",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. The user is working on a dessert for a tasting menu — this is a current project but also reveals their profession.\n2. They picked up flat matte black plates in Arita, Japan last year — durable fact about a past trip and equipment they own.\n3. They prefer minimalist plating with negative space — durable aesthetic preference.\n4. They prefer rocher over quenelle for this style of plating — skill/preference.\n5. They have technical knowledge of tuile-making with isomalt — demonstrates pastry skill.\n6. They are the pastry chef at a 40-seat tasting menu restaurant in Portland — key identity fact.\n7. Their name is Tomoko — identity fact.\n8. The restaurant does 12-course tasting menus — fact about their workplace.\n9. The yuzu curd dish is intended as a pre-dessert course — project detail.\n10. They've been refining this dish for about two weeks — transient/temporal, less durable.\n11. The goal of the pre-dessert is to bridge savory courses and main dessert — this is more of a design philosophy, somewhat durable.",
+    "extractedFacts": [
+      "The user's name is Tomoko.",
+      "Tomoko is a pastry chef at a 40-seat tasting menu restaurant in Portland.",
+      "Her restaurant serves a 12-course tasting menu.",
+      "She visited Japan and purchased flat matte black plates from Arita.",
+      "She prefers minimalist plating with negative space.",
+      "She prefers rocher technique over traditional quenelle for organic-looking presentations.",
+      "She is developing a pre-dessert course featuring yuzu curd, black sesame tuile, and matcha meringue.",
+      "She uses isomalt-based tuile recipes (1:1 black sesame paste to isomalt with glucose, baked at 160°C on Silpat).",
+      "She designs her pre-dessert to bridge savory courses and the main dessert course."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomoko"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "role",
+        "value": "Pastry chef"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "workplace",
+        "value": "40-seat tasting menu restaurant in Portland"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "menu_format",
+        "value": "12-course tasting menu"
+      },
+      {
+        "type": "preference",
+        "namespace": "plating",
+        "key": "aesthetic",
+        "value": "Minimalist with negative space"
+      },
+      {
+        "type": "preference",
+        "namespace": "plating",
+        "key": "quenelle_style",
+        "value": "Prefers rocher over traditional quenelle for organic look"
+      },
+      {
+        "type": "project",
+        "namespace": "menu_development",
+        "key": "pre_dessert",
+        "value": "Yuzu curd with black sesame tuile and matcha meringue, designed to bridge savory courses and main dessert"
+      },
+      {
+        "type": "skill",
+        "namespace": "pastry",
+        "key": "tuile_technique",
+        "value": "Isomalt-based tuiles using 1:1 black sesame paste to isomalt with glucose, spread thin on Silpat at 160°C"
+      },
+      {
+        "type": "identity",
+        "namespace": "travel",
+        "key": "japan_trip",
+        "value": "Visited Japan and purchased flat matte black plates from Arita"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "medium-multi-turn-context-000",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'planning a birthday dinner' - This is a current project/event, somewhat transient but the context is useful.\n2. 'about 12 people' - transient detail about the specific event.\n3. 'a couple of my friends are vegan' - durable social fact about their friend group.\n4. 'Cooking at home' - transient for this event, but...\n5. 'I actually went to culinary school years ago' - durable personal fact about education/skills.\n6. 'My kitchen is pretty well-equipped' - durable fact about their home.\n7. 'The dinner is for my wife — she's turning 40' - durable: user has a wife, and she's turning 40 (so born ~1984-1985 depending on current date).\n8. 'I don't do seafood. Never liked it, even in culinary school.' - durable food preference/constraint.\n9. 'mushrooms are my favorite ingredient to work with' - durable preference.\n10. 'My name's Rafael' - durable identity fact.\n\nI'll skip transient event-planning details (number of guests, specific menu choices) but keep the durable personal facts.",
+    "extractedFacts": [
+      "The user's name is Rafael.",
+      "Rafael has a wife who is turning 40.",
+      "Rafael attended culinary school.",
+      "Rafael enjoys cooking and finds it a welcome challenge.",
+      "Rafael has a well-equipped kitchen at home.",
+      "Rafael does not eat seafood and has never liked it.",
+      "Rafael's favorite ingredient to work with is mushrooms.",
+      "Some of Rafael's friends are vegan.",
+      "Rafael enjoys Italian cuisine."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Rafael"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "marital_status",
+        "value": "Married; has a wife turning 40"
+      },
+      {
+        "type": "skill",
+        "namespace": "culinary",
+        "key": "education",
+        "value": "Attended culinary school"
+      },
+      {
+        "type": "skill",
+        "namespace": "culinary",
+        "key": "cooking_ability",
+        "value": "Skilled home cook with culinary school training and well-equipped kitchen"
+      },
+      {
+        "type": "constraint",
+        "namespace": "food",
+        "key": "seafood",
+        "value": "Does not eat seafood; has never liked it"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favorite_ingredient",
+        "value": "Mushrooms"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "cuisine_preference",
+        "value": "Enjoys Italian cuisine"
+      },
+      {
+        "type": "identity",
+        "namespace": "social",
+        "key": "friend_dietary_needs",
+        "value": "Some friends are vegan"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "medium-multi-turn-context-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm a data scientist' — durable professional identity. Extract.\n2. 'I work with pretty large datasets — usually in Python with pandas and some ML frameworks' — durable skills and tools. Extract.\n3. 'Probably around $2,000-2,500' — this is a transient budget for a specific purchase, but it reflects the equipment stipend amount which is more durable. I'll extract the stipend fact.\n4. 'I work at a biotech startup in Boston' — durable employment fact. Extract.\n5. 'they give us a stipend for equipment' — durable workplace benefit. Extract.\n6. 'it has to be a Mac — our whole team is on macOS and all our tooling is set up for it' — durable constraint/preference. Extract.\n7. 'I had an M1 Pro before and it was fine but I kept running out of memory — I only had 16GB' — previous laptop ownership, provides context. Extract.\n8. 'We use AWS for the heavy stuff' — durable work infrastructure fact. Extract.\n9. 'I'm Priya' — name, durable identity. Extract.\n10. 'I mainly need the local machine for prototyping and data exploration' — durable workflow pattern. Extract.\n11. 'I spend most of my day in Jupyter notebooks' — durable workflow/tool usage. Extract.\n12. Interest in M3 Pro with 36GB RAM — this is a current purchasing decision, somewhat transient, but indicates current/upcoming hardware. Extract as a planned purchase.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is a data scientist.",
+      "The user works at a biotech startup in Boston.",
+      "The user receives an equipment stipend from their employer (around $2,000-2,500 range).",
+      "The user works with large datasets using Python, pandas, and ML frameworks.",
+      "The user's team uses macOS and all their tooling is set up for Mac.",
+      "The user previously owned a MacBook Pro with M1 Pro chip and 16GB RAM, which was insufficient for their memory needs.",
+      "The user is planning to purchase a MacBook Pro with M3 Pro and 36GB RAM.",
+      "The user's team uses AWS for heavy ML training workloads.",
+      "The user uses their local machine primarily for prototyping and data exploration.",
+      "The user spends most of their day working in Jupyter notebooks."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Data scientist"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Biotech startup in Boston"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "equipment_stipend",
+        "value": "$2,000-2,500"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "programming_language",
+        "value": "Python"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "tools",
+        "value": "pandas, ML frameworks, Jupyter notebooks"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "operating_system",
+        "value": "macOS (team-wide requirement)"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "previous_laptop",
+        "value": "MacBook Pro M1 Pro with 16GB RAM"
+      },
+      {
+        "type": "project",
+        "namespace": "professional",
+        "key": "planned_laptop_purchase",
+        "value": "MacBook Pro 16-inch M3 Pro with 36GB RAM"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "cloud_infrastructure",
+        "value": "AWS for heavy ML training"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "local_workflow",
+        "value": "Prototyping and data exploration in Jupyter notebooks"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-multi-turn-context-002",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. User is trying to get back into a fitness routine - this is a current goal/project, worth extracting.\n2. User ran competitively in college on the track team at University of Michigan - durable biographical fact.\n3. User kept running for a few years after graduating - biographical context.\n4. User had a knee injury (meniscus tear) about two years ago that forced them to stop running - durable medical/health fact.\n5. User was cleared for low-impact activity about six months ago by an orthopedist - health update, durable.\n6. User cannot do competitive running anymore due to the severity of the meniscus tear - durable constraint.\n7. User is 29 years old - durable identity fact (age).\n8. User cannot swim / never learned to swim - durable personal fact/constraint.\n9. User's partner has a Peloton - durable fact about household.\n10. User's name is Marcus - identity fact.\n11. User lives in Ann Arbor - identity/location fact.\n12. User lives near great trails - contextual to location.\n13. User works from home as a UX designer - durable career/work fact.\n14. User has schedule flexibility - derived from working from home, worth noting.\n15. User is interested in cycling as a fitness option - preference/project.\n16. User attended University of Michigan - durable identity fact (already captured with track team).",
+    "extractedFacts": [
+      "The user's name is Marcus.",
+      "The user is 29 years old.",
+      "The user lives in Ann Arbor.",
+      "The user attended the University of Michigan where he was on the track team (competitive runner).",
+      "The user suffered a meniscus tear in his knee about two years ago, ending his ability to run competitively.",
+      "The user was cleared by an orthopedist for low-impact physical activity about six months ago.",
+      "The user cannot swim and has never learned.",
+      "The user works from home as a UX designer.",
+      "The user has a partner who owns a Peloton.",
+      "The user is trying to get back into a fitness routine and is interested in cycling.",
+      "The user lives near trails in Ann Arbor suitable for outdoor cycling."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "29"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Ann Arbor"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "university",
+        "value": "University of Michigan"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "college_sport",
+        "value": "Track team (competitive runner)"
+      },
+      {
+        "type": "constraint",
+        "namespace": "health",
+        "key": "knee_injury",
+        "value": "Meniscus tear about two years ago; no competitive running allowed"
+      },
+      {
+        "type": "constraint",
+        "namespace": "health",
+        "key": "activity_clearance",
+        "value": "Cleared for low-impact activity by orthopedist about six months ago"
+      },
+      {
+        "type": "constraint",
+        "namespace": "fitness",
+        "key": "cannot_swim",
+        "value": "Never learned to swim"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "job",
+        "value": "UX designer, works from home"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "partner",
+        "value": "Has a partner who owns a Peloton"
+      },
+      {
+        "type": "project",
+        "namespace": "fitness",
+        "key": "fitness_goal",
+        "value": "Getting back into a fitness routine; interested in cycling (outdoor and possibly Peloton)"
+      },
+      {
+        "type": "preference",
+        "namespace": "fitness",
+        "key": "cycling_interest",
+        "value": "Interested in outdoor cycling near Ann Arbor trails"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-multi-turn-context-003",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. User just finished 'Piranesi' by Susanna Clarke and loved it — this is a recent reading fact, somewhat durable as a data point about their taste.\n2. User gravitates toward literary fiction with a speculative or fantastical edge — this is a durable reading preference.\n3. User tries to read about two books a month — durable habit/preference.\n4. User is a high school English teacher — durable identity/career fact.\n5. User teaches classic American lit (Fitzgerald, Morrison, Steinbeck) — durable professional detail.\n6. User uses personal reading time to branch out from what they teach — preference/habit.\n7. User prefers physical books only — durable preference.\n8. User stares at screens all day for lesson planning — contextual, supports the physical books preference.\n9. User doesn't do audiobooks and has a hard time focusing on them — durable preference/constraint.\n10. User's name is Diane — durable identity fact.\n11. User has read all of the Earthsea series — durable reading history.\n12. Ursula K. Le Guin is one of their all-time favorite authors — durable preference.\n13. Station Eleven has been on their reading list — durable intent.\n14. User is not into anything too dystopian or violent — durable reading constraint.\n15. User reads to unwind — durable motivation.\n16. User teaches 150 teenagers — durable professional detail.",
+    "extractedFacts": [
+      "The user's name is Diane.",
+      "The user is a high school English teacher.",
+      "The user teaches classic American literature, including Fitzgerald, Morrison, and Steinbeck.",
+      "The user teaches approximately 150 students.",
+      "The user tries to read about two books a month.",
+      "The user gravitates toward literary fiction with a speculative or fantastical edge.",
+      "The user recently read and loved 'Piranesi' by Susanna Clarke.",
+      "The user prefers physical books only — no e-readers.",
+      "The user doesn't listen to audiobooks and has difficulty focusing on them.",
+      "The user stares at screens all day for lesson planning.",
+      "Ursula K. Le Guin is one of the user's all-time favorite authors.",
+      "The user has read all of the Earthsea series by Ursula K. Le Guin.",
+      "The user has 'Station Eleven' by Emily St. John Mandel on their reading list.",
+      "The user avoids books that are too dystopian or violent.",
+      "The user reads to unwind after work."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Diane"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school English teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "subjects_taught",
+        "value": "Classic American literature (Fitzgerald, Morrison, Steinbeck)"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "student_count",
+        "value": "Approximately 150 students"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "genre_preference",
+        "value": "Literary fiction with a speculative or fantastical edge"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "reading_pace",
+        "value": "About two books per month"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "format_preference",
+        "value": "Physical books only; no e-readers or audiobooks"
+      },
+      {
+        "type": "constraint",
+        "namespace": "reading",
+        "key": "audiobook_difficulty",
+        "value": "Has a hard time focusing on audiobooks"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "favorite_author",
+        "value": "Ursula K. Le Guin (all-time favorite)"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "recently_read",
+        "value": "Piranesi by Susanna Clarke (loved it)"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "completed_series",
+        "value": "Earthsea series by Ursula K. Le Guin"
+      },
+      {
+        "type": "project",
+        "namespace": "reading",
+        "key": "reading_list",
+        "value": "Station Eleven by Emily St. John Mandel"
+      },
+      {
+        "type": "constraint",
+        "namespace": "reading",
+        "key": "content_avoidance",
+        "value": "Avoids books that are too dystopian or violent"
+      },
+      {
+        "type": "preference",
+        "namespace": "reading",
+        "key": "reading_motivation",
+        "value": "Reads to unwind after work"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-fact-update-000",
+    "reasoning": "Let me analyze each message from Marcus:\n\n1. 'I'm Marcus' - durable identity fact.\n2. 'trying to figure out the best way to organize my home workshop' - this is a current project/goal, worth extracting.\n3. 'I'm a furniture maker by trade' - durable professional identity.\n4. 'Been doing it for about 12 years' - initially stated as 12 years, but then corrected to 15 years. I should use the corrected version only.\n5. 'Mostly I work with oak and walnut' - durable preference/skill about materials.\n6. 'it's been closer to 15 years now' - updated fact, replaces the 12-year claim.\n7. 'I have a basic dust collection setup but it's not great' - current state of workshop equipment.\n8. 'It's about 600 square feet' - durable fact about workshop size.\n9. 'I'm in Portland, Oregon' - durable location fact.\n10. 'I have a detached garage that I converted' - durable fact about workshop setup.\n11. 'moisture control is a big concern for my wood storage' - durable concern/constraint.\n12. 'It's partially insulated but I need to finish the job' - current state of workshop.\n13. 'I don't use any CNC machines — everything I make is done with hand tools and traditional power tools' - strong preference, durable.\n14. 'I like keeping it old school' - preference for traditional methods.",
+    "extractedFacts": [
+      "The user's name is Marcus.",
+      "The user is a furniture maker by trade with approximately 15 years of experience.",
+      "The user primarily works with oak and walnut wood.",
+      "The user has a home workshop that is approximately 600 square feet.",
+      "The user lives in Portland, Oregon.",
+      "The user's workshop is a converted detached garage.",
+      "The user has a basic dust collection setup that needs upgrading.",
+      "The user's workshop is partially insulated and needs to be finished.",
+      "Moisture control is a big concern for the user's wood storage due to Portland's damp winters.",
+      "The user does not use CNC machines — he exclusively uses hand tools and traditional power tools.",
+      "The user prefers old-school/traditional woodworking methods.",
+      "The user is currently working on organizing his home workshop."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Furniture maker"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "years_of_experience",
+        "value": "Approximately 15 years"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "primary_wood_types",
+        "value": "Oak and walnut"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Portland, Oregon"
+      },
+      {
+        "type": "constraint",
+        "namespace": "workshop",
+        "key": "size",
+        "value": "Approximately 600 square feet"
+      },
+      {
+        "type": "constraint",
+        "namespace": "workshop",
+        "key": "type",
+        "value": "Converted detached garage"
+      },
+      {
+        "type": "constraint",
+        "namespace": "workshop",
+        "key": "insulation_status",
+        "value": "Partially insulated, needs to be completed"
+      },
+      {
+        "type": "constraint",
+        "namespace": "workshop",
+        "key": "dust_collection",
+        "value": "Basic setup, needs upgrading"
+      },
+      {
+        "type": "constraint",
+        "namespace": "workshop",
+        "key": "moisture_concern",
+        "value": "High concern due to damp Portland winters"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "tooling_approach",
+        "value": "Hand tools and traditional power tools only, no CNC machines"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "woodworking_style",
+        "value": "Old school / traditional methods"
+      },
+      {
+        "type": "project",
+        "namespace": "workshop",
+        "key": "current_goal",
+        "value": "Organizing home workshop"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-fact-update-001",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. 'Hi! I'm Priya, a 34-year-old data analyst looking for some recipe ideas.' - Name: Priya, Age: 34, Occupation: data analyst. 'looking for recipe ideas' is a transient request.\n\n2. 'I'm vegetarian and I live with my husband. We both love Indian and Thai food. I usually cook for two.' - Lives with husband, loves Indian and Thai food, cooks for two. Note: vegetarian is later updated to vegan.\n\n3. 'I work long hours at Deloitte so I need things that come together in 30 minutes or less.' - Works at Deloitte, prefers quick meals (30 min or less). 'Oh wait, I should mention I actually just switched to a vegan diet about a month ago' - This updates the vegetarian fact to vegan. Recently switched (about a month ago).\n\n4. 'I don't like mushrooms at all' - Dislikes mushrooms. 'I grew up in Hyderabad and my mom sent me a bunch [of spices]' - Grew up in Hyderabad, has a good spice collection from her mom.\n\n5. 'We try to meal prep on Sundays when we can.' - Meal preps on Sundays. The request for a weekly meal plan is somewhat transient but the habit of Sunday meal prep is durable.",
+    "extractedFacts": [
+      "The user's name is Priya and she is 34 years old.",
+      "The user is a data analyst.",
+      "The user works at Deloitte and works long hours.",
+      "The user lives with her husband.",
+      "The user follows a vegan diet, having recently switched from vegetarian about a month ago.",
+      "The user loves Indian and Thai food.",
+      "The user usually cooks for two people.",
+      "The user prefers quick weeknight meals that take 30 minutes or less.",
+      "The user does not like mushrooms at all.",
+      "The user grew up in Hyderabad, India.",
+      "The user has a good collection of spices, sent by her mom.",
+      "The user tries to meal prep on Sundays."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Data analyst"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Deloitte"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "household",
+        "value": "Lives with husband"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "hometown",
+        "value": "Hyderabad, India"
+      },
+      {
+        "type": "preference",
+        "namespace": "diet",
+        "key": "dietary_restriction",
+        "value": "Vegan (switched from vegetarian about a month ago)"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "favorite_cuisines",
+        "value": "Indian and Thai"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "dislikes",
+        "value": "Mushrooms"
+      },
+      {
+        "type": "constraint",
+        "namespace": "cooking",
+        "key": "max_cook_time",
+        "value": "30 minutes or less for weeknight meals"
+      },
+      {
+        "type": "constraint",
+        "namespace": "cooking",
+        "key": "servings",
+        "value": "Cooks for two"
+      },
+      {
+        "type": "preference",
+        "namespace": "cooking",
+        "key": "meal_prep",
+        "value": "Tries to meal prep on Sundays"
+      },
+      {
+        "type": "skill",
+        "namespace": "cooking",
+        "key": "spice_collection",
+        "value": "Has a good collection of spices sent by her mom from Hyderabad"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-fact-update-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Tomás' - Name, durable identity fact.\n2. 'I'm a high school history teacher in Buenos Aires' - Occupation and location, durable facts.\n3. 'I get a two-week break in July' - This is somewhat durable (relates to his job schedule), worth extracting.\n4. 'Thinking of visiting Japan — Tokyo specifically' - Initially Tokyo, but later updated to Kyoto. I should extract the updated version.\n5. 'My partner, Lucía' - Durable relationship fact.\n6. 'We've traveled a bit in South America but this would be our first time in Asia' - Travel experience, durable fact.\n7. 'We've been reconsidering and want to do Kyoto instead of Tokyo' - Updated destination preference. Extract Kyoto as the destination.\n8. 'More interested in temples and traditional culture than the big city vibe' - Travel preference, durable.\n9. 'Moderate budget — probably around $3,000 USD total for the two of us, not including flights' - Budget for this specific trip. This is project-specific but still worth extracting.\n10. 'I don't eat seafood' - Dietary restriction, durable personal fact.\n11. 'Lucía eats everything' - Fact about partner, durable.\n12. 'We'd love to stay in a traditional ryokan for at least part of the trip' - Travel preference for this trip.\n13. 'We're both 29' - Age, durable fact (both Tomás and Lucía are 29).\n14. 'Don't need anything super fancy — just authentic' - Preference for authenticity over luxury.",
+    "extractedFacts": [
+      "The user's name is Tomás.",
+      "Tomás is a high school history teacher in Buenos Aires.",
+      "Tomás gets a two-week break in July.",
+      "Tomás has a partner named Lucía.",
+      "Tomás and Lucía are both 29 years old.",
+      "Tomás and Lucía have traveled in South America but have never been to Asia.",
+      "Tomás is planning a trip to Kyoto, Japan (initially considered Tokyo but changed to Kyoto).",
+      "Tomás and Lucía are more interested in temples and traditional culture than big city experiences.",
+      "Tomás does not eat seafood.",
+      "Lucía eats everything (no dietary restrictions).",
+      "Their trip budget is around $3,000 USD total for two people, not including flights.",
+      "They want to stay in a traditional ryokan for at least part of the trip.",
+      "They prefer authentic experiences over fancy/luxury ones."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomás"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "29"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school history teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Buenos Aires"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "partner",
+        "value": "Lucía, also 29 years old"
+      },
+      {
+        "type": "constraint",
+        "namespace": "dietary",
+        "key": "restriction",
+        "value": "Does not eat seafood"
+      },
+      {
+        "type": "preference",
+        "namespace": "travel",
+        "key": "style",
+        "value": "Prefers temples, traditional culture, and authentic experiences over big city vibes and luxury"
+      },
+      {
+        "type": "project",
+        "namespace": "travel",
+        "key": "kyoto_trip",
+        "value": "Planning a two-week trip to Kyoto, Japan in July with partner Lucía; budget ~$3,000 USD excluding flights"
+      },
+      {
+        "type": "preference",
+        "namespace": "travel",
+        "key": "accommodation",
+        "value": "Wants to stay in a traditional ryokan for at least part of the Kyoto trip"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "vacation_schedule",
+        "value": "Gets a two-week break in July"
+      },
+      {
+        "type": "identity",
+        "namespace": "travel",
+        "key": "experience",
+        "value": "Has traveled in South America; never been to Asia"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "medium-fact-update-003",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. Name is Jordan - durable identity fact.\n2. Currently works as a graphic designer at a small agency - durable career fact.\n3. Initially said 6 years of design experience, then corrected to 8 years (counting freelance years before the agency) - the updated version is 8 years. Also implies they did freelance design work before the agency job.\n4. Age is 31 - durable identity fact.\n5. Feeling burnt out on client work - this is a current state/motivation, somewhat durable as it's driving a career change.\n6. Interested in transitioning to UX research (corrected from UX design) - preference/goal.\n7. More drawn to UX research than UX design, loves the psychology side of understanding users - durable preference.\n8. Uses Figma daily - durable skill fact.\n9. Has dabbled in wireframing - skill fact.\n10. Took a Coursera course on UX fundamentals last year - education/skill fact.\n11. Lives in Austin, Texas - durable location fact.\n12. Lacks UX-specific portfolio pieces - current gap/constraint.\n13. Has a bachelor's degree in psychology from UT Austin - durable education fact.\n14. No coding skills - constraint/skill gap.\n15. Did freelance design work before the agency job - career history fact.",
+    "extractedFacts": [
+      "The user's name is Jordan.",
+      "The user is 31 years old.",
+      "The user lives in Austin, Texas.",
+      "The user currently works as a graphic designer at a small agency.",
+      "The user has 8 years of design experience, including freelance years before the agency.",
+      "The user did freelance design work before joining the agency.",
+      "The user is feeling burnt out on client work.",
+      "The user is interested in transitioning into UX research (rather than UX design).",
+      "The user is more drawn to the psychology side of understanding users than wireframing.",
+      "The user uses Figma daily.",
+      "The user has dabbled in wireframing.",
+      "The user took an online Coursera course on UX fundamentals last year.",
+      "The user does not have UX-specific portfolio pieces.",
+      "The user has a bachelor's degree in psychology from UT Austin.",
+      "The user does not have any coding skills."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Jordan"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "31"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Austin, Texas"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "current_role",
+        "value": "Graphic designer at a small agency"
+      },
+      {
+        "type": "skill",
+        "namespace": "career",
+        "key": "design_experience",
+        "value": "8 years (including freelance before agency)"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "previous_work",
+        "value": "Freelance design work before current agency"
+      },
+      {
+        "type": "preference",
+        "namespace": "career",
+        "key": "career_goal",
+        "value": "Transition into UX research"
+      },
+      {
+        "type": "preference",
+        "namespace": "career",
+        "key": "interest_area",
+        "value": "Psychology side of understanding users; prefers UX research over UX design"
+      },
+      {
+        "type": "constraint",
+        "namespace": "career",
+        "key": "burnout",
+        "value": "Burnt out on client work"
+      },
+      {
+        "type": "skill",
+        "namespace": "tools",
+        "key": "figma",
+        "value": "Uses Figma daily"
+      },
+      {
+        "type": "skill",
+        "namespace": "tools",
+        "key": "wireframing",
+        "value": "Has dabbled in wireframing"
+      },
+      {
+        "type": "skill",
+        "namespace": "education",
+        "key": "ux_course",
+        "value": "Completed Coursera UX fundamentals course last year"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "degree",
+        "value": "Bachelor's degree in psychology from UT Austin"
+      },
+      {
+        "type": "constraint",
+        "namespace": "skills",
+        "key": "coding",
+        "value": "No coding skills"
+      },
+      {
+        "type": "constraint",
+        "namespace": "career",
+        "key": "portfolio_gap",
+        "value": "No UX-specific portfolio pieces"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-hypothetical-not-fact-000",
+    "reasoning": "Let me go through each message and identify durable personal facts:\n\n1. 'I'm Marcus, 34' - Durable identity facts: name is Marcus, age is 34.\n2. 'I work as a civil engineer in Portland' - Durable identity fact: occupation and location.\n3. 'I usually spend weekends hiking with my dog' - Durable preference: regular weekend hiking habit.\n4. 'I've got a golden retriever named Biscuit' - Durable fact: has a specific pet.\n5. 'if I were a chef, I'd probably spend rainy days experimenting with new recipes' - This is hypothetical/conditional, skip.\n6. 'I can barely boil pasta without burning it' - This indicates low cooking skill. Durable skill fact.\n7. 'I've been thinking about maybe picking up woodworking as a hobby' - This is tentative/aspirational but shows genuine interest. I'll extract it as a potential interest but note it's aspirational.\n8. 'I don't even own a single tool' - Relevant context for the woodworking interest, a constraint.\n9. 'I do enjoy going to the Portland Art Museum' - Durable preference.\n10. 'haven't been in a while' - Transient context, skip.\n11. 'it's been raining nonstop here' - Transient weather, skip.",
+    "extractedFacts": [
+      "The user's name is Marcus and he is 34 years old.",
+      "The user works as a civil engineer in Portland.",
+      "The user usually spends weekends hiking with his dog.",
+      "The user has a golden retriever named Biscuit.",
+      "The user has very limited cooking skills.",
+      "The user is interested in potentially picking up woodworking as a hobby but doesn't own any tools yet.",
+      "The user enjoys visiting the Portland Art Museum."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Civil engineer"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "city",
+        "value": "Portland"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "weekend_activity",
+        "value": "Hiking with his dog"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "pet",
+        "value": "Golden retriever named Biscuit"
+      },
+      {
+        "type": "skill",
+        "namespace": "cooking",
+        "key": "cooking_ability",
+        "value": "Very limited; struggles with basic tasks like boiling pasta"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "woodworking_interest",
+        "value": "Interested in picking up woodworking but does not own any tools yet"
+      },
+      {
+        "type": "preference",
+        "namespace": "hobbies",
+        "key": "museum",
+        "value": "Enjoys visiting the Portland Art Museum"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-hypothetical-not-fact-001",
+    "reasoning": "Let me go through the conversation message by message:\n\n1. User says their name is Priya — durable identity fact.\n2. User is a product manager at a fintech startup in Austin — durable identity/work facts.\n3. User has a team of 8, mostly developers and one designer — durable project/work fact.\n4. Team keeps missing sprint deadlines — this is a current challenge, somewhat transient but reflects ongoing work situation.\n5. User sets deadlines based on stakeholder wants rather than collaboratively — this is a current practice, somewhat durable.\n6. User studied business in college, not CS — durable educational background.\n7. User doesn't write code at all — durable skill/constraint fact.\n8. Team uses story points — durable project methodology fact.\n9. User has thought about learning Python — this is hypothetical/aspirational, and she herself says 'realistically I barely have time.' I'll skip the aspiration but note she doesn't know Python.\n10. User works 50-hour weeks — durable constraint.\n11. User has a tech lead named Raj who's been with the company since the beginning — durable work fact.\n12. Team uses Jira for project management — durable project fact.\n13. User is not a huge fan of Jira, finds it bloated — durable preference.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is a product manager at a fintech startup in Austin.",
+      "The user manages a team of 8 people, mostly developers and one designer.",
+      "The user studied business in college, not computer science.",
+      "The user does not write code.",
+      "The user typically works 50-hour weeks.",
+      "The user's tech lead is named Raj, who has been with the company since the beginning.",
+      "The user's team uses Jira for project management.",
+      "The user finds Jira bloated and is not a fan of it.",
+      "The user's team uses story points for estimation.",
+      "The user's team has been missing sprint deadlines.",
+      "The user tends to set sprint deadlines herself based on stakeholder expectations rather than collaboratively with the team."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "role",
+        "value": "Product manager at a fintech startup in Austin"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "team_size",
+        "value": "8 (mostly developers and one designer)"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "college_major",
+        "value": "Business (not CS)"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "coding_ability",
+        "value": "Does not write code"
+      },
+      {
+        "type": "constraint",
+        "namespace": "work",
+        "key": "work_hours",
+        "value": "Typically works 50-hour weeks"
+      },
+      {
+        "type": "identity",
+        "namespace": "work",
+        "key": "tech_lead",
+        "value": "Raj, has been with the company since the beginning"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "project_management_tool",
+        "value": "Jira"
+      },
+      {
+        "type": "preference",
+        "namespace": "work",
+        "key": "jira_opinion",
+        "value": "Not a fan; finds it bloated"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "estimation_method",
+        "value": "Story points"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "current_challenge",
+        "value": "Team keeps missing sprint deadlines; user sets deadlines based on stakeholder expectations rather than collaboratively"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-hypothetical-not-fact-002",
+    "reasoning": "Let me go through each message and identify durable personal facts:\n\n1. 'I'm Tomoko' — Name, durable identity fact.\n2. 'I live in Toronto' — Location, durable fact.\n3. 'I teach high school math' — Occupation, durable fact.\n4. 'My parents are originally from Osaka' — Family background, durable fact.\n5. 'I was born and raised here in Canada' — Birthplace/upbringing, durable fact.\n6. 'I speak conversational Japanese' — Language skill, durable fact.\n7. 'my parents spoke it at home growing up' — Context for Japanese ability, supports heritage speaker status.\n8. 'I can't read kanji very well' — Skill limitation, durable fact.\n9. 'I just bought a condo here last year' — Property ownership in Toronto, durable fact.\n10. 'I have two cats' — Pet ownership, durable fact.\n11. 'I'm the coach for our school's robotics team' — Role/activity, durable fact.\n12. 'My grandparents are still there [in Osaka] and they're getting older' — Family fact, durable.\n13. The idea of moving to Japan is described as a 'daydream' and 'what if' — this is explicitly hypothetical, so I should NOT extract 'wants to move to Japan' as a fact. However, the interest/fantasy about living in Japan is a mild preference worth noting.\n14. 'If I were to move there, I'd probably try to get a job at an international school' — Hypothetical, skip.\n15. 'I love my students' — Sentiment about current job, somewhat durable.\n16. Planning a long trip to Osaka to visit family — This is expressed as a tentative plan/intention, worth noting.",
+    "extractedFacts": [
+      "The user's name is Tomoko.",
+      "The user lives in Toronto, Canada.",
+      "The user was born and raised in Canada.",
+      "The user teaches high school math.",
+      "The user's parents are originally from Osaka, Japan.",
+      "The user speaks conversational Japanese (heritage speaker — parents spoke it at home).",
+      "The user cannot read kanji very well.",
+      "The user bought a condo in Toronto last year.",
+      "The user has two cats.",
+      "The user coaches her school's robotics team.",
+      "The user's grandparents live in Osaka and are getting older.",
+      "The user sometimes daydreams about moving to Japan but is happy with her life in Toronto.",
+      "The user is considering planning a long trip to Osaka to visit family."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomoko"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Toronto, Canada"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "birthplace",
+        "value": "Born and raised in Canada"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school math teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "extracurricular_role",
+        "value": "Robotics team coach at her school"
+      },
+      {
+        "type": "identity",
+        "namespace": "family",
+        "key": "parents_origin",
+        "value": "Osaka, Japan"
+      },
+      {
+        "type": "identity",
+        "namespace": "family",
+        "key": "grandparents",
+        "value": "Living in Osaka, elderly"
+      },
+      {
+        "type": "skill",
+        "namespace": "language",
+        "key": "japanese_speaking",
+        "value": "Conversational (heritage speaker)"
+      },
+      {
+        "type": "constraint",
+        "namespace": "language",
+        "key": "kanji_reading",
+        "value": "Limited ability to read kanji"
+      },
+      {
+        "type": "constraint",
+        "namespace": "personal",
+        "key": "property",
+        "value": "Owns a condo in Toronto (purchased last year)"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "pets",
+        "value": "Two cats"
+      },
+      {
+        "type": "preference",
+        "namespace": "personal",
+        "key": "japan_interest",
+        "value": "Daydreams about living in Japan but content with life in Toronto"
+      },
+      {
+        "type": "project",
+        "namespace": "personal",
+        "key": "travel_plan",
+        "value": "Considering a long trip to Osaka to visit grandparents and family"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "hard-hypothetical-not-fact-003",
+    "reasoning": "Let me go through each message and identify durable personal facts vs transient/hypothetical statements:\n\n1. 'I'm Dev, I'm 28' — durable identity facts: name is Dev, age is 28.\n2. 'working as a data analyst at a healthcare company in Chicago for about three years' — durable: current job title, industry, location, tenure.\n3. 'I primarily use SQL and Tableau every day' — durable skill/tool facts.\n4. 'I keep seeing data engineering roles that pay way more. I've been speculating about whether I should pivot into data engineering.' — This is speculative/hypothetical. He's considering it but hasn't committed. Later he actually decides against it.\n5. 'If I were a data engineer, I'd probably be making 30-40% more' — hypothetical, skip.\n6. 'I've been toying with the idea of learning Spark and Airflow' — This is tentative/speculative. He later decides against this direction, so skip.\n7. 'I know some Python — I use pandas occasionally for ad hoc analysis, but I wouldn't call myself proficient' — durable skill fact: knows some Python/pandas, not proficient.\n8. 'I've never built a pipeline or anything like that' — durable: no pipeline experience.\n9. 'I actually don't have a CS degree. I studied economics at Northwestern.' — durable identity/education facts.\n10. 'I genuinely enjoy the analysis and storytelling part of my job' — durable preference.\n11. 'I'd hate sitting in front of infrastructure code all day' — durable preference (doesn't want infrastructure/engineering work).\n12. 'I think I'm just attracted to the salary, not the actual work' — self-assessment about data engineering, transient reasoning but reveals preference.\n13. 'Maybe I should look into senior analyst or analytics engineering roles instead' — He later confirms this direction.\n14. 'I haven't used dbt, but I've heard of it' — durable: no dbt experience yet.\n15. 'We use Snowflake as our data warehouse at work' — durable: workplace uses Snowflake.\n16. 'I think that's the direction I'll explore' (analytics engineering/dbt) — This is a stated intention/project: plans to explore analytics engineering and dbt.",
+    "extractedFacts": [
+      "The user's name is Dev",
+      "The user is 28 years old",
+      "The user works as a data analyst at a healthcare company in Chicago",
+      "The user has been in their current role for about three years",
+      "The user primarily uses SQL and Tableau daily",
+      "The user knows some Python and uses pandas occasionally for ad hoc analysis but is not proficient",
+      "The user has never built a data pipeline",
+      "The user does not have a CS degree",
+      "The user studied economics at Northwestern University",
+      "The user genuinely enjoys the analysis and storytelling aspects of their work",
+      "The user does not want to work on infrastructure code all day",
+      "The user's workplace uses Snowflake as their data warehouse",
+      "The user has not used dbt but has heard of it",
+      "The user plans to explore analytics engineering roles and learning dbt as a career direction"
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Dev"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "28"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Data Analyst"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "industry",
+        "value": "Healthcare"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "location",
+        "value": "Chicago"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "tenure",
+        "value": "About 3 years"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "degree",
+        "value": "Economics from Northwestern University"
+      },
+      {
+        "type": "constraint",
+        "namespace": "education",
+        "key": "no_cs_degree",
+        "value": "true"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "sql",
+        "value": "Primary daily tool, strong foundation"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "tableau",
+        "value": "Primary daily tool"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "python_pandas",
+        "value": "Occasional use for ad hoc analysis, not proficient"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "data_pipelines",
+        "value": "No experience"
+      },
+      {
+        "type": "skill",
+        "namespace": "technical",
+        "key": "dbt",
+        "value": "No experience, heard of it"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "data_warehouse",
+        "value": "Snowflake"
+      },
+      {
+        "type": "preference",
+        "namespace": "career",
+        "key": "enjoys",
+        "value": "Analysis and data storytelling"
+      },
+      {
+        "type": "preference",
+        "namespace": "career",
+        "key": "dislikes",
+        "value": "Infrastructure code and pure engineering work"
+      },
+      {
+        "type": "project",
+        "namespace": "career",
+        "key": "career_direction",
+        "value": "Exploring analytics engineering roles and learning dbt"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-negation-000",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Priya' — identity fact, her name is Priya.\n2. 'I don't eat red meat. Haven't for about six years now.' — durable dietary restriction, she has avoided red meat for about 6 years.\n3. 'I'm not really into anything with coconut' — durable food preference, dislikes coconut.\n4. 'someone who grew up in Kerala' — identity fact, she grew up in Kerala, India.\n5. 'I do love Japanese flavors' — durable food preference.\n6. 'I don't have a working oven right now — it broke last week and the repair guy can't come until Friday' — this is transient (temporary situation), but I'll skip or note it's temporary. Actually, the oven being broken is transient. Skip.\n7. 'I'm not a fan of spicy food' — durable food preference.\n8. 'My family gives me grief about it constantly' — implies she has family who are presumably from Kerala/Indian background and enjoy spicy food. This is somewhat durable but vague. I'll note the family dynamic.\n9. 'I'm actually a food photographer' — durable professional identity/skill.\n\nAll of these are stated directly and sincerely, no sarcasm or hypotheticals detected.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user grew up in Kerala, India.",
+      "The user does not eat red meat and hasn't for about six years.",
+      "The user dislikes coconut.",
+      "The user does not like spicy food.",
+      "The user loves Japanese flavors.",
+      "The user is a food photographer.",
+      "The user's family teases her about her food preferences (not liking spicy food, coconut, etc.)."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "hometown_region",
+        "value": "Grew up in Kerala, India"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "red_meat",
+        "value": "Does not eat red meat (for about 6 years)"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "coconut",
+        "value": "Dislikes coconut"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "spicy_food",
+        "value": "Does not like spicy food"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "japanese_cuisine",
+        "value": "Loves Japanese flavors"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Food photographer"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "family_dynamic",
+        "value": "Family teases her about her food preferences (avoiding spice, coconut, etc.)"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "hard-negation-001",
+    "reasoning": "Let me analyze each message from Marcus:\n\n1. 'Hi, I'm Marcus. I'm a DevOps engineer' — Name and profession. Durable identity facts.\n\n2. 'I stopped using Terraform about three months ago' — He no longer uses Terraform. This is a durable preference/workflow change.\n\n3. 'I found Pulumi fits my brain better since I can use actual programming languages instead of HCL' — He uses Pulumi and prefers it over Terraform. Durable preference.\n\n4. 'Python mostly' — He uses Python with Pulumi. Durable skill/preference.\n\n5. 'I don't write TypeScript — never really got comfortable with the type system' — He doesn't use TypeScript. Durable preference/constraint.\n\n6. 'My team uses it but I've always stuck with Python for infrastructure code' — Reinforces Python preference for infra. His team uses TypeScript.\n\n7. 'I also recently ditched Slack. We moved to Mattermost for team communication because of data privacy concerns at our company.' — Company moved from Slack to Mattermost. Durable fact about his work environment.\n\n8. 'The Pulumi thing is just me and two other engineers on the infra team so far' — He's on an infra team, and only 3 of them use Pulumi so far. Durable project/team fact.\n\n9. 'I no longer do on-call rotations. I negotiated that out of my role after the burnout I went through last year.' — No longer does on-call. Experienced burnout last year. Durable constraint and personal history.\n\n10. 'I'm 34' — Age. Durable identity fact (though it will change, it's a current fact).",
+    "extractedFacts": [
+      "The user's name is Marcus.",
+      "The user is a DevOps engineer.",
+      "The user is 34 years old.",
+      "The user stopped using Terraform approximately three months ago.",
+      "The user switched to Pulumi from Terraform, preferring to use real programming languages over HCL.",
+      "The user primarily uses Python with Pulumi for infrastructure code.",
+      "The user does not write TypeScript and is not comfortable with its type system.",
+      "The user's team uses TypeScript, but he sticks with Python.",
+      "The user's company moved from Slack to Mattermost for team communication due to data privacy concerns.",
+      "The user is on an infrastructure team; he and two other engineers have adopted Pulumi so far.",
+      "The user no longer does on-call rotations, having negotiated that out of his role.",
+      "The user experienced burnout last year related to on-call duties.",
+      "The user's manager was supportive of removing on-call from his responsibilities."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "role",
+        "value": "DevOps engineer"
+      },
+      {
+        "type": "preference",
+        "namespace": "tools",
+        "key": "iac_tool",
+        "value": "Pulumi (switched from Terraform ~3 months ago)"
+      },
+      {
+        "type": "preference",
+        "namespace": "tools",
+        "key": "pulumi_language",
+        "value": "Python"
+      },
+      {
+        "type": "preference",
+        "namespace": "languages",
+        "key": "preferred_language",
+        "value": "Python for infrastructure code"
+      },
+      {
+        "type": "constraint",
+        "namespace": "languages",
+        "key": "typescript",
+        "value": "Does not write TypeScript; uncomfortable with the type system"
+      },
+      {
+        "type": "preference",
+        "namespace": "tools",
+        "key": "team_communication",
+        "value": "Mattermost (company switched from Slack for data privacy)"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "infra_team_pulumi_adoption",
+        "value": "Marcus and two other engineers on the infra team use Pulumi"
+      },
+      {
+        "type": "constraint",
+        "namespace": "work",
+        "key": "on_call",
+        "value": "No longer does on-call rotations; negotiated out of role after burnout"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "health_history",
+        "value": "Experienced burnout last year from on-call duties"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-negation-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm not a morning person at all — I rarely wake up before noon.' — This is a durable personal habit/preference. Extract it.\n\n2. 'I'm Saoirse' — Name. Extract.\n\n3. 'I'm an illustrator working freelance in Dublin' — Profession, work arrangement, and location. All durable. Extract.\n\n4. 'Looking for advice on managing client communications' — This is a transient request. Skip.\n\n5. 'It's basically all email right now' — Current state of their workflow. Durable enough to note.\n\n6. 'I tried Notion last year but I didn't stick with it — I found the interface overwhelming and I kept forgetting to check it.' — Past experience with a tool and preference against complex tools. Extract.\n\n7. 'I don't use social media for business' — Durable business decision. Extract.\n\n8. 'Can't deal with the constant self-promotion aspect' — Reason for above. Extract as part of the same fact.\n\n9. 'My work comes through referrals and a couple of creative agencies' — Durable business fact. Extract.\n\n10. 'I don't mind simple tools — it's the complex ones that lose me' — Preference. Extract.\n\n11. 'I don't take on more than three clients at a time. That's a hard rule.' — Durable business constraint. Extract.\n\n12. 'After I overcommitted two years ago and the quality of my work suffered' — Context for the rule. Can be included.\n\n13. 'I don't do rush jobs anymore. No matter what the client offers to pay.' — Hard business constraint. Extract.\n\n14. 'It destroys my creative process and I end up hating the final product' — Reason for above. Include.\n\n15. Trello might work — She expressed interest in Trello. This is somewhat transient but indicates a potential tool adoption. I'll note it lightly.",
+    "extractedFacts": [
+      "The user's name is Saoirse.",
+      "The user is a freelance illustrator based in Dublin.",
+      "The user is not a morning person and rarely wakes up before noon.",
+      "The user currently manages all client communications through email.",
+      "The user tried Notion but abandoned it because the interface was overwhelming and she kept forgetting to check it.",
+      "The user prefers simple tools over complex ones.",
+      "The user does not use social media for business because she dislikes the constant self-promotion aspect.",
+      "The user's work comes through referrals and a couple of creative agencies.",
+      "The user has a hard rule of taking on no more than three clients at a time, established after overcommitting two years ago.",
+      "The user does not accept rush jobs regardless of pay, because it destroys her creative process and she ends up hating the final product.",
+      "The user is interested in trying Trello for project/client management."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Saoirse"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Freelance illustrator"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Dublin"
+      },
+      {
+        "type": "preference",
+        "namespace": "personal",
+        "key": "sleep_schedule",
+        "value": "Not a morning person; rarely wakes before noon"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "tools",
+        "value": "Prefers simple tools; abandoned Notion for being too complex"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "social_media",
+        "value": "Does not use social media for business; dislikes self-promotion"
+      },
+      {
+        "type": "project",
+        "namespace": "professional",
+        "key": "client_acquisition",
+        "value": "Work comes through referrals and a couple of creative agencies"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "max_clients",
+        "value": "Hard limit of three clients at a time"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "rush_jobs",
+        "value": "Does not accept rush jobs regardless of pay"
+      },
+      {
+        "type": "project",
+        "namespace": "professional",
+        "key": "communication_management",
+        "value": "Currently all email; interested in trying Trello with a kanban setup"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "domain",
+        "value": "Illustration"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-negation-003",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. Name: Tomás — durable identity fact\n2. Age: 28 — durable identity fact\n3. Occupation: high school math teacher — durable identity fact\n4. Location: Lisbon — durable identity fact\n5. Used to do CrossFit — durable fact about fitness history\n6. Stopped CrossFit about a year ago due to shoulder injury — durable health/fitness fact\n7. Physical therapist cleared him for exercise last month — durable health fact (recent but relevant)\n8. Not supposed to do overhead pressing movements — durable constraint (medical restriction)\n9. Doesn't enjoy running, never has — durable preference\n10. Enjoys cycling — durable preference\n11. Bikes to school every day, rain or shine — durable habit/routine\n12. Bike commute is about 30 minutes — durable fact about routine\n13. No gym membership and not planning to renew — durable constraint/preference\n14. Owns adjustable dumbbells, resistance bands, and a pull-up bar at home — durable fact about equipment\n15. Doesn't take supplements, skeptical about the supplement industry — durable preference/belief\n16. Can't work out in mornings due to school starting at 7:45 — durable constraint\n17. Works out in the evenings — durable routine preference\n18. Looking for a mixed fitness routine (strength + cardio + flexibility) — current project/goal",
+    "extractedFacts": [
+      "The user's name is Tomás",
+      "The user is 28 years old",
+      "The user works as a high school math teacher in Lisbon",
+      "The user used to do CrossFit but stopped about a year ago due to a shoulder injury",
+      "The user was cleared by a physical therapist to exercise again recently, but cannot do overhead pressing movements",
+      "The user does not enjoy running and never has",
+      "The user enjoys cycling and bikes to school every day regardless of weather",
+      "The user's bike commute to school is about 30 minutes",
+      "The user needs to be at school by 7:45 AM",
+      "The user does not have a gym membership and is not planning to renew one",
+      "The user has adjustable dumbbells, resistance bands, and a pull-up bar at home",
+      "The user does not take supplements and is skeptical about the supplement industry",
+      "The user prefers evening workouts due to early morning school schedule",
+      "The user is looking for a mixed fitness routine combining strength, cardio, and flexibility"
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomás"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "28"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school math teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "location",
+        "value": "Lisbon"
+      },
+      {
+        "type": "constraint",
+        "namespace": "health",
+        "key": "shoulder_injury",
+        "value": "Had a shoulder injury about a year ago; cleared for exercise but cannot do overhead pressing movements"
+      },
+      {
+        "type": "skill",
+        "namespace": "fitness",
+        "key": "crossfit_background",
+        "value": "Former CrossFit practitioner (stopped ~1 year ago)"
+      },
+      {
+        "type": "preference",
+        "namespace": "fitness",
+        "key": "running",
+        "value": "Does not enjoy running; never has"
+      },
+      {
+        "type": "preference",
+        "namespace": "fitness",
+        "key": "cycling",
+        "value": "Enjoys cycling; bikes to school daily rain or shine (~30 min commute)"
+      },
+      {
+        "type": "constraint",
+        "namespace": "fitness",
+        "key": "gym_membership",
+        "value": "No gym membership; not planning to renew"
+      },
+      {
+        "type": "identity",
+        "namespace": "fitness",
+        "key": "home_equipment",
+        "value": "Adjustable dumbbells, resistance bands, and a pull-up bar"
+      },
+      {
+        "type": "preference",
+        "namespace": "health",
+        "key": "supplements",
+        "value": "Does not take supplements; skeptical about the supplement industry"
+      },
+      {
+        "type": "constraint",
+        "namespace": "schedule",
+        "key": "workout_time",
+        "value": "Cannot work out in mornings; must be at school by 7:45 AM; prefers evening workouts"
+      },
+      {
+        "type": "project",
+        "namespace": "fitness",
+        "key": "new_routine",
+        "value": "Looking for a mixed fitness routine (strength, cardio, flexibility) that is shoulder-safe and home-based"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-sarcasm-000",
+    "reasoning": "Let me analyze each message:\n\n1. 'I'm Priya' - Durable identity fact: name is Priya.\n2. 'I'm a pediatric nurse. Been doing it for about 7 years now.' - Durable career fact: pediatric nurse for ~7 years.\n3. 'Wouldn't trade it for anything' - Indicates she enjoys her job. Durable preference.\n4. 'I absolutely LOVE when parents Google symptoms and then argue with me' - This is clearly sarcasm. She finds this frustrating, not enjoyable. I'll skip extracting a positive preference here but note the sarcasm.\n5. 'I specialize in the neonatal unit now, so I'm working with newborns a lot' - Durable career fact: specializes in neonatal care.\n6. 'I moved to Chicago last year to work at Lurie Children's Hospital specifically for their NICU program' - Durable facts: lives in Chicago, moved there last year, works at Lurie Children's Hospital, specifically in their NICU program.\n7. 'I just ADORE the winters here' followed by '-20 windchill to make you feel alive' - Sarcasm. She does NOT enjoy Chicago winters.\n8. 'the city itself is great' - She likes Chicago overall despite the winters.\n9. 'I've gotten really into the food scene' - Durable interest: Chicago food scene.\n10. 'deep dish pizza is overrated though, I actually prefer the tavern-style thin crust' - Durable food preference.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is a pediatric nurse with about 7 years of experience.",
+      "The user loves her job and wouldn't trade it for anything.",
+      "The user specializes in the neonatal unit, working with newborns.",
+      "The user moved to Chicago last year.",
+      "The user works at Lurie Children's Hospital, specifically in their NICU program.",
+      "The user dislikes Chicago winters.",
+      "The user enjoys Chicago as a city overall.",
+      "The user is really into the Chicago food scene.",
+      "The user finds deep dish pizza overrated and prefers tavern-style thin crust pizza.",
+      "The user finds it frustrating when parents Google symptoms and argue about diagnoses."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "profession",
+        "value": "Pediatric nurse, ~7 years experience"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "specialization",
+        "value": "Neonatal unit (NICU)"
+      },
+      {
+        "type": "identity",
+        "namespace": "career",
+        "key": "employer",
+        "value": "Lurie Children's Hospital, Chicago"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Chicago (moved there last year)"
+      },
+      {
+        "type": "preference",
+        "namespace": "career",
+        "key": "job_satisfaction",
+        "value": "Loves working with kids and finds neonatal work intense but rewarding"
+      },
+      {
+        "type": "preference",
+        "namespace": "food",
+        "key": "pizza_preference",
+        "value": "Prefers tavern-style thin crust; finds deep dish overrated"
+      },
+      {
+        "type": "preference",
+        "namespace": "lifestyle",
+        "key": "food_scene",
+        "value": "Really into the Chicago food scene"
+      },
+      {
+        "type": "preference",
+        "namespace": "lifestyle",
+        "key": "chicago_winters",
+        "value": "Dislikes Chicago winters (sarcastic about enjoying them)"
+      },
+      {
+        "type": "constraint",
+        "namespace": "career",
+        "key": "frustration",
+        "value": "Frustrated by parents who Google symptoms and argue about diagnoses"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-sarcasm-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Marcus, 34, software architect over at Stripe' — Name, age, job title, employer. All durable facts.\n\n2. 'Mostly payment processing infrastructure. Distributed systems, high-availability stuff.' — Work domain/focus area. Durable.\n\n3. 'I actually don't use any frontend frameworks — I'm strictly backend.' — Strong preference/constraint about backend-only work.\n\n4. 'Python and Go are my bread and butter.' — Primary programming languages. Durable skill fact.\n\n5. 'Go for anything performance-critical. Python for prototyping and tooling.' — Preferences for how he uses each language. Durable.\n\n6. 'Oh, and I just LOVE when someone suggests we rewrite a battle-tested Go service in Rust because they read a blog post about it.' — This is sarcasm. He does NOT love this. He's frustrated by hype-driven rewrites. Durable preference/opinion.\n\n7. 'Rust is actually fine. I've dabbled in it.' — He has some Rust experience and doesn't dislike the language itself. Durable.\n\n8. 'It's the hype-driven rewrites that drive me crazy, not the language itself.' — Clarifies his stance: against hype-driven rewrites, not against Rust. Durable opinion.\n\n9. 'I don't think it's the right tool for our specific use cases at the moment.' — Opinion on Rust for Stripe's use cases. Somewhat situational but reflects current thinking.\n\n10. 'I'm actually on paternity leave right now' — Currently on paternity leave. Durable (time-bound but significant life event).\n\n11. 'my daughter was born three weeks ago' — Has a newborn daughter. Durable.\n\n12. 'My wife and I named her Zara.' — Daughter's name is Zara, he is married. Durable.\n\n13. 'Oh it's a BLAST getting woken up every 90 minutes. I'm having the time of my life on zero sleep.' — Sarcasm about sleep deprivation, but 'she's incredible' shows genuine positive feeling. The sleep deprivation is transient.\n\n14. 'We live in San Francisco' — Location. Durable.\n\n15. 'we're already thinking about how we'll never afford a bigger place' — Lives in SF, concerned about housing costs. Somewhat transient/humorous but reflects a real constraint.",
+    "extractedFacts": [
+      "The user's name is Marcus and he is 34 years old.",
+      "The user works as a software architect at Stripe.",
+      "The user works on payment processing infrastructure, distributed systems, and high-availability systems.",
+      "The user is strictly a backend engineer and does not use frontend frameworks.",
+      "The user's primary programming languages are Python and Go.",
+      "The user prefers Go for performance-critical work and Python for prototyping and tooling.",
+      "The user has some experience with Rust (has dabbled in it) and doesn't dislike the language itself.",
+      "The user is strongly opposed to hype-driven rewrites of battle-tested services.",
+      "The user does not think Rust is the right tool for his team's current use cases at Stripe.",
+      "The user is currently on paternity leave.",
+      "The user has a newborn daughter named Zara (born approximately three weeks ago as of this conversation).",
+      "The user is married.",
+      "The user lives in San Francisco with his wife and daughter."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Software Architect"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Stripe"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "domain",
+        "value": "Payment processing infrastructure, distributed systems, high-availability"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "engineering_focus",
+        "value": "Strictly backend, no frontend frameworks"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "primary_languages",
+        "value": "Python and Go"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "go_usage",
+        "value": "Performance-critical systems"
+      },
+      {
+        "type": "preference",
+        "namespace": "programming",
+        "key": "python_usage",
+        "value": "Prototyping and tooling"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "rust_experience",
+        "value": "Has dabbled in Rust"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "hype_driven_rewrites",
+        "value": "Strongly opposed to hype-driven rewrites of battle-tested services"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "marital_status",
+        "value": "Married"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "children",
+        "value": "Newborn daughter named Zara"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "San Francisco"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "current_status",
+        "value": "On paternity leave"
+      },
+      {
+        "type": "constraint",
+        "namespace": "personal",
+        "key": "housing",
+        "value": "Concerned about affording a bigger place in San Francisco"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "hard-sarcasm-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Tomoko' — Name, durable identity fact.\n2. 'freelance photographer based in Portland, Oregon' — Occupation and location, both durable.\n3. 'I want to do a landscape photography trip' — This is a current project/plan, worth extracting.\n4. 'thinking Iceland or Patagonia' — Part of the trip planning project.\n5. 'I'm flexible since I'm freelance' — Reinforces freelance status, schedule flexibility.\n6. 'ideally sometime in November or December' — Trip timing preference, part of the project.\n7. 'I'm vegan' — Durable dietary preference.\n8. 'Last time I went to rural Japan' — Has traveled to Japan before, durable travel history.\n9. 'I travel solo all the time' — Durable travel preference. The sarcasm about hauling gear is just humor, but the underlying fact is she travels solo frequently and prefers it.\n10. 'I genuinely prefer it for photography — no one rushing me when I want to wait two hours for the perfect light' — Preference for solo travel specifically for photography work.\n11. 'I shoot with a Sony A7R V' — Durable gear fact.\n12. 'collection of prime lenses' — Gear fact.\n13. 'I don't use zoom lenses at all' — Strong equipment preference.\n14. 'I'm terrified of heights' — Durable personal constraint/phobia.\n15. 'anything involving cliff-edge viewpoints is not really my thing' — Constraint derived from fear of heights.",
+    "extractedFacts": [
+      "The user's name is Tomoko.",
+      "The user is a freelance photographer.",
+      "The user is based in Portland, Oregon.",
+      "The user specializes in landscape photography.",
+      "The user is vegan.",
+      "The user has previously traveled to rural Japan.",
+      "The user regularly travels solo and prefers solo travel for photography work.",
+      "The user shoots with a Sony A7R V camera.",
+      "The user exclusively uses prime lenses and does not use zoom lenses.",
+      "The user is terrified of heights and avoids cliff-edge viewpoints.",
+      "The user is planning a landscape photography trip to either Iceland or Patagonia, ideally in November or December.",
+      "The user has a flexible schedule due to freelance work."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomoko"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "Freelance photographer"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Portland, Oregon"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "specialty",
+        "value": "Landscape photography"
+      },
+      {
+        "type": "preference",
+        "namespace": "dietary",
+        "key": "diet",
+        "value": "Vegan"
+      },
+      {
+        "type": "preference",
+        "namespace": "travel",
+        "key": "travel_style",
+        "value": "Solo travel, prefers it for photography to have patience for perfect light"
+      },
+      {
+        "type": "preference",
+        "namespace": "gear",
+        "key": "camera_body",
+        "value": "Sony A7R V"
+      },
+      {
+        "type": "preference",
+        "namespace": "gear",
+        "key": "lenses",
+        "value": "Exclusively prime lenses, no zoom lenses"
+      },
+      {
+        "type": "constraint",
+        "namespace": "personal",
+        "key": "phobia",
+        "value": "Terrified of heights, avoids cliff-edge viewpoints"
+      },
+      {
+        "type": "project",
+        "namespace": "travel",
+        "key": "upcoming_trip",
+        "value": "Landscape photography trip to Iceland or Patagonia, targeting November or December"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "schedule_flexibility",
+        "value": "Flexible schedule due to freelance work"
+      },
+      {
+        "type": "identity",
+        "namespace": "travel",
+        "key": "past_travel",
+        "value": "Has traveled to rural Japan"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-sarcasm-003",
+    "reasoning": "Let me go through each message and extract durable personal facts:\n\n1. 'I'm Devonte' - Identity fact, their name.\n2. 'I've been using Logic Pro for about 12 years' - Skill/tool fact about their primary DAW and duration.\n3. 'I'm a film composer' - Identity/profession fact.\n4. 'I actually just finished scoring a Netflix documentary last month' - Project fact, recent work.\n5. 'wondering if I should switch to Cubase for the better MIDI orchestration workflow' - This is a consideration/preference about switching DAWs.\n6. 'mostly virtual instruments these days' - Workflow preference.\n7. 'I use a LOT of Spitfire Audio libraries — BBC Symphony Orchestra is my go-to' - Tool preference.\n8. 'I just LOVE how affordable sample libraries are. Nothing like dropping $500 on a single string library. What a bargain.' - This is clearly sarcasm. The real sentiment is that sample libraries are expensive. This is a general complaint, not really a durable personal fact, but it does indicate budget sensitivity around sample libraries.\n9. 'converted the spare bedroom in my apartment in Atlanta' - Location and home studio setup.\n10. 'Genelec 8040B monitors, a Universal Audio Apollo x8, and way too many MIDI controllers' - Studio gear.\n11. 'My wife keeps saying the gear is taking over the apartment' - He is married.\n12. 'I don't do any electronic music production at all — it's purely orchestral and cinematic stuff' - Strong preference/constraint about genre.\n13. 'I'm 41' - Age.\n14. 'I've been composing professionally since I was about 26' - ~15 years professional experience.\n15. 'expression maps in Cubase are way ahead' - Preference reasoning for considering Cubase.\n16. 'Budget constraints' regarding live musicians - Constraint about work budgets.",
+    "extractedFacts": [
+      "The user's name is Devonte.",
+      "The user is 41 years old.",
+      "The user is a professional film composer.",
+      "The user has been composing professionally since about age 26 (~15 years).",
+      "The user has been using Logic Pro for about 12 years.",
+      "The user is considering switching from Logic Pro to Cubase for better MIDI orchestration and expression maps.",
+      "The user recently finished scoring a Netflix documentary.",
+      "The user works mostly with virtual instruments rather than live musicians due to budget constraints.",
+      "The user heavily uses Spitfire Audio libraries, with BBC Symphony Orchestra as their go-to.",
+      "The user finds sample libraries expensive.",
+      "The user lives in an apartment in Atlanta.",
+      "The user has a home studio in a converted spare bedroom.",
+      "The user's studio gear includes Genelec 8040B monitors, a Universal Audio Apollo x8, and multiple MIDI controllers.",
+      "The user is married.",
+      "The user works exclusively in orchestral and cinematic music — no electronic music production.",
+      "The user's wife comments that his gear is taking over the apartment."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Devonte"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "41"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "profession",
+        "value": "Professional film composer"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Atlanta (apartment)"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "marital_status",
+        "value": "Married"
+      },
+      {
+        "type": "skill",
+        "namespace": "music",
+        "key": "professional_experience",
+        "value": "~15 years, composing professionally since age 26"
+      },
+      {
+        "type": "skill",
+        "namespace": "music",
+        "key": "primary_daw",
+        "value": "Logic Pro (12 years of use)"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "daw_consideration",
+        "value": "Considering switching to Cubase for better expression maps and MIDI orchestration"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "genre_focus",
+        "value": "Exclusively orchestral and cinematic — no electronic music"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "primary_sample_libraries",
+        "value": "Spitfire Audio, especially BBC Symphony Orchestra"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "instrument_approach",
+        "value": "Mostly virtual instruments over live musicians"
+      },
+      {
+        "type": "constraint",
+        "namespace": "work",
+        "key": "budget",
+        "value": "Budget constraints limit use of live musicians"
+      },
+      {
+        "type": "project",
+        "namespace": "work",
+        "key": "recent_project",
+        "value": "Scored a Netflix documentary (completed recently)"
+      },
+      {
+        "type": "skill",
+        "namespace": "studio",
+        "key": "monitors",
+        "value": "Genelec 8040B"
+      },
+      {
+        "type": "skill",
+        "namespace": "studio",
+        "key": "audio_interface",
+        "value": "Universal Audio Apollo x8"
+      },
+      {
+        "type": "skill",
+        "namespace": "studio",
+        "key": "studio_setup",
+        "value": "Home studio in converted spare bedroom with multiple MIDI controllers"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-mixed-000",
+    "reasoning": "Let me go through the conversation message by message:\n\n1. User wants to organize home studio - this is a transient request, but the fact they have a home studio is durable.\n2. User's name is Tomás - durable identity fact.\n3. Produces electronic music for about 12 years - durable skill/identity fact.\n4. Produces mostly techno and ambient - durable preference/identity fact.\n5. Has a spare bedroom in apartment in Lisbon - durable fact about living situation.\n6. Room is about 3 by 4 meters - durable constraint about studio space.\n7. 'If I were a millionaire, I'd build a soundproofed warehouse' - hypothetical, skip.\n8. Uses Ableton Live as main DAW - durable fact.\n9. Has a Moog Subsequent 37 - durable fact.\n10. Originally mentioned Digitakt and Analog Four - but then corrected: sold the Digitakt last month. So the updated fact is: has Analog Four and Moog Subsequent 37, no longer has Digitakt.\n11. Doesn't use vocal mics / not into recording vocals - durable preference.\n12. 'People keep telling me I should switch to FL Studio' + sarcastic response - this is sarcasm/negation. The user does NOT want to switch to FL Studio and is committed to Ableton Live. This reinforces the Ableton preference.\n13. Lives in Lisbon - durable identity fact.\n14. Has an apartment in Lisbon - durable fact.",
+    "extractedFacts": [
+      "The user's name is Tomás.",
+      "The user has been producing electronic music for about 12 years.",
+      "The user produces mostly techno and ambient music.",
+      "The user lives in an apartment in Lisbon.",
+      "The user has a home music production studio in a spare bedroom, approximately 3 by 4 meters.",
+      "The user uses Ableton Live as their main DAW and is strongly committed to it.",
+      "The user owns a Moog Subsequent 37 synthesizer.",
+      "The user owns an Elektron Analog Four.",
+      "The user sold their Elektron Digitakt last month.",
+      "The user does not record vocals and is not interested in vocal recording.",
+      "The user works with both software (in-the-box) and hardware synths."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Tomás"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Lisbon, Portugal"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "housing",
+        "value": "Apartment in Lisbon"
+      },
+      {
+        "type": "skill",
+        "namespace": "music",
+        "key": "experience",
+        "value": "Electronic music production for about 12 years"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "genres",
+        "value": "Mostly techno and ambient"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "daw",
+        "value": "Ableton Live (strongly committed, refuses to switch)"
+      },
+      {
+        "type": "constraint",
+        "namespace": "studio",
+        "key": "room_size",
+        "value": "3 by 4 meters spare bedroom"
+      },
+      {
+        "type": "project",
+        "namespace": "studio",
+        "key": "hardware_synths",
+        "value": "Moog Subsequent 37 and Elektron Analog Four"
+      },
+      {
+        "type": "identity",
+        "namespace": "studio",
+        "key": "sold_gear",
+        "value": "Sold Elektron Digitakt last month"
+      },
+      {
+        "type": "preference",
+        "namespace": "studio",
+        "key": "vocal_recording",
+        "value": "Does not record vocals, not interested in it"
+      },
+      {
+        "type": "preference",
+        "namespace": "music",
+        "key": "workflow",
+        "value": "Hybrid - both in-the-box software and hardware synths"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "hard-mixed-001",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm celiac — diagnosed about 6 years ago' — Durable medical fact. Extract.\n2. 'My name's Priya' — Identity fact. Extract.\n3. '34-year-old' — Age, durable (though will change). Extract.\n4. 'civil engineer' — Profession, durable. Extract.\n5. 'based in Toronto' — Location, durable. Extract.\n6. 'work trip coming up to Tokyo next month' — This is somewhat transient (a specific upcoming trip), but it reveals she has work that involves international travel. I'll extract the trip as a project/plan.\n7. 'first time' visiting Japan — Durable fact. Extract.\n8. 'I'm also a vegetarian' — Then corrected: 'I'm not technically vegetarian anymore. I started eating fish again about two years ago. So I'm pescatarian now.' — The updated version is pescatarian. Extract the corrected version only.\n9. 'I don't drink alcohol either' and 'I just don't enjoy it and never have' — This is a durable preference, not sarcasm. The sarcasm/eye-roll is directed at other people's expectations, not at the fact itself. Extract.\n10. 'I work at Stantec on infrastructure projects' — Employer and work focus. Durable. Extract.\n11. 'No other allergies' — Durable health fact. Extract.",
+    "extractedFacts": [
+      "The user's name is Priya.",
+      "The user is 34 years old.",
+      "The user is a civil engineer.",
+      "The user is based in Toronto.",
+      "The user works at Stantec on infrastructure projects.",
+      "The user has celiac disease, diagnosed approximately 6 years ago (strict no-gluten diet required).",
+      "The user is pescatarian (was vegetarian but started eating fish again about 2 years ago).",
+      "The user does not drink alcohol and has never enjoyed it.",
+      "The user has no food allergies other than celiac disease.",
+      "The user has never visited Japan before.",
+      "The user has an upcoming work trip to Tokyo."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Priya"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "34"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "location",
+        "value": "Toronto"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "profession",
+        "value": "Civil engineer"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Stantec"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "focus_area",
+        "value": "Infrastructure projects"
+      },
+      {
+        "type": "constraint",
+        "namespace": "health",
+        "key": "celiac_disease",
+        "value": "Diagnosed approximately 6 years ago; strict gluten-free diet required"
+      },
+      {
+        "type": "preference",
+        "namespace": "diet",
+        "key": "dietary_pattern",
+        "value": "Pescatarian (switched from vegetarian about 2 years ago)"
+      },
+      {
+        "type": "preference",
+        "namespace": "diet",
+        "key": "alcohol",
+        "value": "Does not drink alcohol; has never enjoyed it"
+      },
+      {
+        "type": "constraint",
+        "namespace": "health",
+        "key": "other_allergies",
+        "value": "None"
+      },
+      {
+        "type": "project",
+        "namespace": "travel",
+        "key": "upcoming_trip",
+        "value": "Work trip to Tokyo next month (first time visiting Japan); company-covered"
+      }
+    ],
+    "correct": false
+  },
+  {
+    "testCaseId": "hard-mixed-002",
+    "reasoning": "Let me analyze each message for durable personal facts:\n\n1. 'I'm Marcus, 41' - Durable identity fact: name is Marcus, age is 41.\n2. 'I've been a high school history teacher in Philadelphia for 15 years' - Durable: occupation, subject, location, tenure.\n3. 'I genuinely love teaching' - Durable preference/sentiment about career.\n4. 'I got offered an assistant principal position at my school' - This is a current situation/project - durable enough as it's a real offer being considered.\n5. 'I also coach the debate team, which I've done for 8 years' - Durable fact about an extracurricular role.\n6. 'My wife Elena' - Durable: spouse's name is Elena.\n7. 'we have two kids, 7 and 10' - Durable: has two children, ages 7 and 10.\n8. 'Elena thinks I should take it for the financial security' - This is contextual to the decision, somewhat transient.\n9. 'I don't have a master's degree yet' - Durable educational fact.\n10. 'They're making an exception because of my track record' - Contextual but notable.\n11. 'I've been meaning to go back for my M.Ed. for years' - Durable: has been planning/considering pursuing an M.Ed.\n12. The sarcasm about quitting teaching to become a consultant - He's clearly NOT interested in leaving teaching for consulting. This is sarcasm/negation. He does NOT want to leave teaching for the gig economy.\n13. He has a pension (mentioned in the sarcastic comment) - durable fact about benefits.",
+    "extractedFacts": [
+      "The user's name is Marcus and he is 41 years old.",
+      "Marcus has been a high school history teacher in Philadelphia for 15 years.",
+      "Marcus genuinely loves teaching and is not burned out.",
+      "Marcus coaches his school's debate team and has done so for 8 years.",
+      "Marcus has been offered an assistant principal position at his school.",
+      "Marcus's wife's name is Elena.",
+      "Marcus has two children, ages 7 and 10.",
+      "Marcus does not have a master's degree yet.",
+      "Marcus has been considering pursuing an M.Ed. for years but hasn't started.",
+      "Marcus's school is making an exception to the typical M.Ed. requirement for the admin role due to his track record.",
+      "Marcus has a pension through his teaching career.",
+      "Marcus is not interested in leaving teaching to become a consultant or enter the gig economy.",
+      "Elena thinks Marcus should take the assistant principal role for financial security."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Marcus"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "41"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "occupation",
+        "value": "High school history teacher"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "location",
+        "value": "Philadelphia"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "tenure",
+        "value": "15 years"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "teaching_sentiment",
+        "value": "Genuinely loves teaching and is not burned out"
+      },
+      {
+        "type": "skill",
+        "namespace": "professional",
+        "key": "extracurricular_role",
+        "value": "Debate team coach for 8 years"
+      },
+      {
+        "type": "project",
+        "namespace": "professional",
+        "key": "career_decision",
+        "value": "Considering an offered assistant principal position at his school"
+      },
+      {
+        "type": "identity",
+        "namespace": "family",
+        "key": "spouse",
+        "value": "Elena (wife)"
+      },
+      {
+        "type": "identity",
+        "namespace": "family",
+        "key": "children",
+        "value": "Two kids, ages 7 and 10"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "education",
+        "value": "Does not have a master's degree yet"
+      },
+      {
+        "type": "project",
+        "namespace": "education",
+        "key": "planned_degree",
+        "value": "Has been considering pursuing an M.Ed. for years"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "benefits",
+        "value": "Has a pension through teaching career"
+      },
+      {
+        "type": "preference",
+        "namespace": "professional",
+        "key": "consulting_interest",
+        "value": "Not interested in leaving teaching for consulting or gig economy"
+      }
+    ],
+    "correct": true
+  },
+  {
+    "testCaseId": "hard-mixed-003",
+    "reasoning": "Let me go through the conversation message by message:\n\n1. User wants help picking a new programming language - transient request, skip.\n\n2. User introduces herself as Sana, 27 years old, works as a data analyst at Helix Genomics (biotech startup in San Diego). Daily work involves Python and SQL. These are all durable personal facts.\n\n3. User has been at Helix for two years. Wants to transition toward machine learning engineering. The part about 'If I were already an ML engineer, I'd probably be looking at Rust' is hypothetical/conditional - skip. The career goal of transitioning to ML engineering is durable.\n\n4. User has dabbled in scikit-learn, done a couple Kaggle competitions, but nothing production-level. She took a Scala course in college but retained nothing - she explicitly says to consider she doesn't know it. She did her undergrad in statistics at UC San Diego. These are durable facts.\n\n5. User's current role is strictly analytics and reporting with no ML project opportunities. She's doing self-study on the side, currently working through the fast.ai course. The JavaScript/Reddit comment is clearly sarcasm - she does NOT want to learn JavaScript for ML. Skip the sarcasm as a preference extraction (though it does confirm she's not interested in JavaScript for ML).\n\nLet me compile the durable facts:",
+    "extractedFacts": [
+      "The user's name is Sana.",
+      "The user is 27 years old.",
+      "The user works as a data analyst at Helix Genomics, a biotech startup in San Diego.",
+      "The user has been at Helix Genomics for two years.",
+      "The user uses Python and SQL in her day-to-day work.",
+      "The user wants to transition toward machine learning engineering for career growth.",
+      "The user has dabbled in scikit-learn and done a couple of Kaggle competitions but has no production-level ML experience.",
+      "The user took a Scala course in college but retained nothing from it.",
+      "The user did her undergraduate degree in statistics at UC San Diego.",
+      "The user's current role is strictly analytics and reporting with no ML project opportunities.",
+      "The user is currently working through the fast.ai course as self-study."
+    ],
+    "extractedStructured": [
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "name",
+        "value": "Sana"
+      },
+      {
+        "type": "identity",
+        "namespace": "personal",
+        "key": "age",
+        "value": "27"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "job_title",
+        "value": "Data analyst"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "employer",
+        "value": "Helix Genomics (biotech startup in San Diego)"
+      },
+      {
+        "type": "identity",
+        "namespace": "professional",
+        "key": "tenure",
+        "value": "2 years at Helix Genomics"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "daily_languages",
+        "value": "Python and SQL"
+      },
+      {
+        "type": "skill",
+        "namespace": "ml",
+        "key": "scikit_learn",
+        "value": "Dabbled, not production-level"
+      },
+      {
+        "type": "skill",
+        "namespace": "ml",
+        "key": "kaggle",
+        "value": "Completed a couple of competitions"
+      },
+      {
+        "type": "skill",
+        "namespace": "programming",
+        "key": "scala",
+        "value": "Took a college course but retained nothing"
+      },
+      {
+        "type": "identity",
+        "namespace": "education",
+        "key": "undergraduate",
+        "value": "Statistics at UC San Diego"
+      },
+      {
+        "type": "project",
+        "namespace": "career",
+        "key": "goal",
+        "value": "Transition from data analyst to machine learning engineer"
+      },
+      {
+        "type": "constraint",
+        "namespace": "professional",
+        "key": "current_role_scope",
+        "value": "Strictly analytics and reporting, no ML project opportunities"
+      },
+      {
+        "type": "project",
+        "namespace": "learning",
+        "key": "current_course",
+        "value": "Working through the fast.ai course"
+      }
+    ],
+    "correct": true
+  }
+]

@@ -13,7 +13,7 @@
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import {
   loadLongMemEvalDataset,
   preloadAllDatasets,
@@ -49,6 +49,7 @@ const { values: args } = parseArgs({
     "include-unsupported": { type: "boolean", default: false },
     "cache-dir": { type: "boolean", default: false },
     stats: { type: "boolean", default: false },
+    skill: { type: "string" },
     help: { type: "boolean", default: false, short: "h" },
   },
 });
@@ -77,6 +78,7 @@ Options:
   -m, --max <n>               Maximum number of questions to evaluate
   --max-sessions <n>          Max sessions to process per question (for dev)
   -t, --types <types>         Comma-separated question types to include
+  --skill <path>              Path to extraction skill document (injected into extraction prompts)
   --skip-unsupported          Skip temporal-reasoning & knowledge-update (default: true)
   --include-unsupported       Include temporal-reasoning & knowledge-update
   --json                      Output results as JSON
@@ -171,6 +173,18 @@ async function main(): Promise<void> {
     strategy = "both";
   }
 
+  // Load extraction skill document if provided
+  let skillDocument: string | undefined;
+  if (args.skill) {
+    try {
+      skillDocument = await readFile(args.skill, "utf-8");
+      console.log(`Loaded extraction skill from ${args.skill} (${skillDocument.length} chars)`);
+    } catch (error) {
+      console.error(`Failed to load skill file: ${args.skill}`);
+      process.exit(1);
+    }
+  }
+
   const options: LongMemEvalOptions = {
     variant: variant === "oracle" ? "s" : variant,
     strategy,
@@ -185,6 +199,7 @@ async function main(): Promise<void> {
     verbose: args.verbose,
     output: args.output,
     skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
+    skillDocument,
   };
 
   try {

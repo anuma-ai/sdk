@@ -54,7 +54,8 @@ export async function processEntryMemoryVault(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
-  maxSessions?: number
+  maxSessions?: number,
+  skillDocument?: string
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -92,7 +93,13 @@ export async function processEntryMemoryVault(
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
-      const extracted = await extractMemoriesFromSession(session, sessionIdx, sessionId, api);
+      const extracted = await extractMemoriesFromSession(
+        session,
+        sessionIdx,
+        sessionId,
+        api,
+        skillDocument
+      );
 
       for (const mem of extracted) {
         allMemories.push({

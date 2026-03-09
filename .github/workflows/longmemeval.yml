@@ -24,8 +24,10 @@ on:
         description: "LLM model for answer generation and evaluation"
         required: true
         type: choice
-        default: "cerebras/qwen-3-235b-a22b-instruct-2507"
+        default: "cerebras/gpt-oss-120b"
         options:
+          - cerebras/gpt-oss-120b
+          - cerebras/llama3.1-8b
           - cerebras/qwen-3-235b-a22b-instruct-2507
           - fireworks/accounts/fireworks/models/kimi-k2p5
           - fireworks/accounts/fireworks/models/deepseek-v3p2
@@ -40,6 +42,11 @@ on:
         description: "Max questions (blank = all)"
         required: false
         type: string
+      skill-path:
+        description: "Path to extraction skill document (blank = no skill)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   resolve-strategies:
@@ -85,10 +92,14 @@ jobs:
           EVAL_VARIANT: ${{ inputs.variant }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
+          EVAL_SKILL: ${{ inputs.skill-path }}
         run: |
           args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
+          fi
+          if [ -n "$EVAL_SKILL" ]; then
+            args="$args --skill $EVAL_SKILL"
           fi
           pnpm eval:longmemeval $args
 
@@ -96,5 +107,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: longmemeval-${{ matrix.strategy }}-${{ inputs.variant }}
+          name: longmemeval-${{ matrix.strategy }}-${{ inputs.variant }}-${{ inputs.model }}-${{ inputs.skill-path && 'skill' || 'noskill' }}
           path: results.json
