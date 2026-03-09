@@ -47,7 +47,7 @@ import {
   readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
-import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+import { getEncryptionKey, hasEncryptionKey, onKeyAvailable } from "./useEncryption";
 
 /**
  * Options for useFiles hook.
@@ -528,8 +528,22 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         throw new Error("OPFS is not supported in this browser.");
       }
 
-      // If we have a wallet address with encryption key, use encrypted storage
-      if (walletAddress && hasEncryptionKey(walletAddress)) {
+      // If we have a wallet address, use encrypted storage
+      // Wait for the encryption key if it hasn't been derived yet
+      if (walletAddress) {
+        if (!hasEncryptionKey(walletAddress)) {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              unsubscribe();
+              reject(new Error("Encryption key not available within timeout"));
+            }, 10_000);
+            const unsubscribe = onKeyAvailable(walletAddress, () => {
+              clearTimeout(timeout);
+              resolve();
+            });
+          });
+        }
+
         try {
           const encryptionKey = await getEncryptionKey(walletAddress);
           const result = await readEncryptedFile(mediaId, encryptionKey);
