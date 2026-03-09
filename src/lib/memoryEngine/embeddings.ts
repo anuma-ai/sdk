@@ -351,8 +351,87 @@ export async function chunkAndEmbedMessage(
 }
 
 /**
+ * Build turn blocks from a chronological list of messages.
+ *
+ * A turn block is a user message followed by its assistant reply (if any).
+ * Each block produces a single combined text that preserves conversational
+ * context, which leads to better embeddings than embedding each message
+ * in isolation.
+ *
+ * Chunks are stored on every message in the block so that search results
+ * can point back to any participating message.
+ */
+function buildTurnBlocks(
+  messages: StoredMessage[],
+  minLength: number,
+  rechunkExisting: boolean
+): { messageIds: string[]; combinedText: string }[] {
+  const blocks: { messageIds: string[]; combinedText: string }[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const msg = messages[i];
+
+    // Skip system messages
+    if (msg.role === "system") {
+      i++;
+      continue;
+    }
+
+    // Skip already-embedded messages (unless rechunking)
+    const alreadyEmbedded =
+      (msg.chunks && msg.chunks.length > 0) ||
+      (!rechunkExisting && msg.vector && msg.vector.length > 0);
+    if (alreadyEmbedded) {
+      i++;
+      continue;
+    }
+
+    // Start a turn block: collect user + following assistant
+    const blockMessages: StoredMessage[] = [msg];
+    if (
+      msg.role === "user" &&
+      i + 1 < messages.length &&
+      messages[i + 1].role === "assistant"
+    ) {
+      const next = messages[i + 1];
+      const nextAlreadyEmbedded =
+        (next.chunks && next.chunks.length > 0) ||
+        (!rechunkExisting && next.vector && next.vector.length > 0);
+      if (!nextAlreadyEmbedded && next.role !== "system") {
+        blockMessages.push(next);
+      }
+    }
+
+    // Build combined text with role labels
+    const parts = blockMessages.map(
+      (m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`
+    );
+    const combinedText = parts.join("\n");
+
+    // Skip if combined text is too short
+    if (combinedText.length < minLength) {
+      i += blockMessages.length;
+      continue;
+    }
+
+    blocks.push({
+      messageIds: blockMessages.map((m) => m.uniqueId),
+      combinedText,
+    });
+    i += blockMessages.length;
+  }
+
+  return blocks;
+}
+
+/**
  * Chunk and embed all messages without embeddings/chunks in the database.
- * Uses chunking for long messages, whole-message embedding for short ones.
+ *
+ * Groups consecutive user+assistant messages into turn blocks so that
+ * embeddings capture conversational context rather than isolated messages.
+ * Long blocks are chunked with sentence-boundary overlap; short blocks get
+ * a single whole-message embedding.
  *
  * @param ctx - Storage operations context
  * @param options - Embedding and chunking options
@@ -376,88 +455,95 @@ export async function chunkAndEmbedAllMessages(
   const embeddingModel = options.model ?? DEFAULT_API_EMBEDDING_MODEL;
   const { chunkSize = DEFAULT_CHUNK_SIZE } = options;
   const minLength = filter?.minContentLength ?? DEFAULT_MIN_CONTENT_LENGTH;
+  const rechunkExisting = filter?.rechunkExisting ?? false;
 
-  // Collect all eligible messages first
   const conversations = await getConversationsOp(ctx);
   const targetConversations = filter?.conversationId
     ? conversations.filter((c) => c.conversationId === filter.conversationId)
     : conversations;
 
-  type ShortMessage = { uniqueId: string; content: string };
-  type LongMessage = {
-    uniqueId: string;
+  // Collect turn blocks across all conversations
+  type ShortBlock = { messageIds: string[]; combinedText: string };
+  type LongBlock = {
+    messageIds: string[];
     textChunks: { text: string; startOffset: number; endOffset: number }[];
   };
-  const shortMessages: ShortMessage[] = [];
-  const longMessages: LongMessage[] = [];
+  const shortBlocks: ShortBlock[] = [];
+  const longBlocks: LongBlock[] = [];
 
   for (const conv of targetConversations) {
-    const messages = await getMessagesOp(ctx, conv.conversationId);
+    let messages = await getMessagesOp(ctx, conv.conversationId);
 
-    for (const message of messages) {
-      if (message.chunks && message.chunks.length > 0) continue;
-      const hasVector = message.vector && message.vector.length > 0;
-      if (hasVector && !filter?.rechunkExisting) continue;
-      if (filter?.roles && !filter.roles.includes(message.role as "user" | "assistant")) continue;
-      if (message.role === "system") continue;
-      if (message.content.length < minLength) continue;
+    // Apply role filter if specified
+    if (filter?.roles) {
+      const allowedRoles = new Set(filter.roles);
+      messages = messages.filter(
+        (m) => m.role === "system" || allowedRoles.has(m.role as "user" | "assistant")
+      );
+    }
 
-      if (shouldChunkMessage(message.content, chunkSize)) {
-        longMessages.push({
-          uniqueId: message.uniqueId,
-          textChunks: chunkText(message.content, options),
+    const blocks = buildTurnBlocks(messages, minLength, rechunkExisting);
+
+    for (const block of blocks) {
+      if (shouldChunkMessage(block.combinedText, chunkSize)) {
+        longBlocks.push({
+          messageIds: block.messageIds,
+          textChunks: chunkText(block.combinedText, options),
         });
       } else {
-        shortMessages.push({ uniqueId: message.uniqueId, content: message.content });
+        shortBlocks.push(block);
       }
     }
   }
 
   let embeddedCount = 0;
 
-  // Batch-embed all short messages in one API call
-  if (shortMessages.length > 0) {
+  // Batch-embed all short blocks in one API call
+  if (shortBlocks.length > 0) {
     try {
-      const texts = shortMessages.map((m) => m.content);
+      const texts = shortBlocks.map((b) => b.combinedText);
       const embeddings = await generateEmbeddings(texts, options);
-      for (let i = 0; i < shortMessages.length; i++) {
-        try {
-          await updateMessageEmbeddingOp(
-            ctx,
-            shortMessages[i].uniqueId,
-            embeddings[i],
-            embeddingModel
-          );
-          embeddedCount++;
-        } catch (error) {
-          console.error(
-            `Failed to save embedding for message ${shortMessages[i].uniqueId}:`,
-            error
-          );
+      for (let i = 0; i < shortBlocks.length; i++) {
+        const block = shortBlocks[i];
+        // Store the same embedding on every message in the block
+        for (const msgId of block.messageIds) {
+          try {
+            await updateMessageEmbeddingOp(ctx, msgId, embeddings[i], embeddingModel);
+            embeddedCount++;
+          } catch (error) {
+            console.error(`Failed to save embedding for message ${msgId}:`, error);
+          }
         }
       }
     } catch (error) {
-      console.error("Failed to batch-embed short messages:", error);
+      console.error("Failed to batch-embed short blocks:", error);
     }
   }
 
-  // Process long messages in batches (chunk + embed)
-  for (const msg of longMessages) {
+  // Process long blocks (chunk + embed)
+  for (const block of longBlocks) {
     try {
-      const chunkTexts = msg.textChunks.map((c) => c.text);
+      const chunkTexts = block.textChunks.map((c) => c.text);
       const embeddings = await generateEmbeddings(chunkTexts, options);
 
-      const messageChunks: MessageChunk[] = msg.textChunks.map((chunk, i) => ({
+      const messageChunks: MessageChunk[] = block.textChunks.map((chunk, i) => ({
         text: chunk.text,
         vector: embeddings[i],
         startOffset: chunk.startOffset,
         endOffset: chunk.endOffset,
       }));
 
-      await updateMessageChunksOp(ctx, msg.uniqueId, messageChunks, embeddingModel);
-      embeddedCount++;
+      // Store chunks on every message in the block
+      for (const msgId of block.messageIds) {
+        try {
+          await updateMessageChunksOp(ctx, msgId, messageChunks, embeddingModel);
+          embeddedCount++;
+        } catch (error) {
+          console.error(`Failed to save chunks for message ${msgId}:`, error);
+        }
+      }
     } catch (error) {
-      console.error(`Failed to embed message ${msg.uniqueId}:`, error);
+      console.error(`Failed to embed block [${block.messageIds.join(", ")}]:`, error);
     }
   }
 
