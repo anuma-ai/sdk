@@ -36,10 +36,20 @@ OperatorAddress is the operator wallet address
 
 ***
 
+### phone\_calls\_enabled?
+
+> `optional` **phone\_calls\_enabled**: `boolean`
+
+Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
+
+PhoneCallsEnabled indicates whether Bland phone calling is available
+
+***
+
 ### settlement\_recipient?
 
 > `optional` **settlement\_recipient**: `string`
 
-Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
+Defined in: [src/client/types.gen.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#283)
 
 SettlementRecipient is the address that receives settlement payments

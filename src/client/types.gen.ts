@@ -274,6 +274,10 @@ export type HandlersConfigResponse = {
      */
     operator_address?: string;
     /**
+     * PhoneCallsEnabled indicates whether Bland phone calling is available
+     */
+    phone_calls_enabled?: boolean;
+    /**
      * SettlementRecipient is the address that receives settlement payments
      */
     settlement_recipient?: string;
@@ -349,6 +353,15 @@ export type HandlersCreateDeveloperAppRequest = {
      */
     default_user_credits?: number;
     name?: string;
+};
+
+export type HandlersCreatePhoneCallRequest = {
+    caller_name?: string;
+    context?: string;
+    objective: string;
+    phone_number: string;
+    questions?: Array<string>;
+    recipient_name?: string;
 };
 
 export type HandlersCreditBalanceResponse = {
@@ -573,6 +586,31 @@ export type HandlersPaginationResponse = {
     limit: number;
     offset: number;
     total: number;
+};
+
+export type HandlersPhoneCallResponse = {
+    answered_by?: string;
+    call_ended_by?: string;
+    call_id: string;
+    completed?: boolean;
+    concatenated_transcript?: string;
+    created_at?: string;
+    end_reason?: string;
+    ended_at?: string;
+    error_message?: string;
+    phone_number?: string;
+    queue_status?: string;
+    recipient_name?: string;
+    started_at?: string;
+    status?: string;
+    summary?: string;
+    transcripts?: Array<HandlersPhoneCallTranscriptEntry>;
+};
+
+export type HandlersPhoneCallTranscriptEntry = {
+    created_at?: string;
+    speaker?: string;
+    text?: string;
 };
 
 export type HandlersRefreshRequest = {
@@ -3686,6 +3724,92 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
+
+export type PostApiV1PhoneCallsData = {
+    /**
+     * Phone call request
+     */
+    body: HandlersCreatePhoneCallRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/phone-calls';
+};
+
+export type PostApiV1PhoneCallsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostApiV1PhoneCallsError = PostApiV1PhoneCallsErrors[keyof PostApiV1PhoneCallsErrors];
+
+export type PostApiV1PhoneCallsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type PostApiV1PhoneCallsResponse = PostApiV1PhoneCallsResponses[keyof PostApiV1PhoneCallsResponses];
+
+export type GetApiV1PhoneCallsByCallIdData = {
+    body?: never;
+    path: {
+        /**
+         * Bland call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/api/v1/phone-calls/{call_id}';
+};
+
+export type GetApiV1PhoneCallsByCallIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdError = GetApiV1PhoneCallsByCallIdErrors[keyof GetApiV1PhoneCallsByCallIdErrors];
+
+export type GetApiV1PhoneCallsByCallIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdResponse = GetApiV1PhoneCallsByCallIdResponses[keyof GetApiV1PhoneCallsByCallIdResponses];
 
 export type PostApiV1ResponsesData = {
     /**

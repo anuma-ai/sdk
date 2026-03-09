@@ -128,6 +128,11 @@
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
 | [GetApiV1ModelsResponse](Internal/type-aliases/GetApiV1ModelsResponse.md) | - |
 | [GetApiV1ModelsResponses](Internal/type-aliases/GetApiV1ModelsResponses.md) | - |
+| [GetApiV1PhoneCallsByCallIdData](Internal/type-aliases/GetApiV1PhoneCallsByCallIdData.md) | - |
+| [GetApiV1PhoneCallsByCallIdError](Internal/type-aliases/GetApiV1PhoneCallsByCallIdError.md) | - |
+| [GetApiV1PhoneCallsByCallIdErrors](Internal/type-aliases/GetApiV1PhoneCallsByCallIdErrors.md) | - |
+| [GetApiV1PhoneCallsByCallIdResponse](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponse.md) | - |
+| [GetApiV1PhoneCallsByCallIdResponses](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponses.md) | - |
 | [GetApiV1SubscriptionsPlansData](Internal/type-aliases/GetApiV1SubscriptionsPlansData.md) | - |
 | [GetApiV1SubscriptionsPlansError](Internal/type-aliases/GetApiV1SubscriptionsPlansError.md) | - |
 | [GetApiV1SubscriptionsPlansErrors](Internal/type-aliases/GetApiV1SubscriptionsPlansErrors.md) | - |
@@ -195,6 +200,7 @@
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
+| [HandlersCreatePhoneCallRequest](Internal/type-aliases/HandlersCreatePhoneCallRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
@@ -217,6 +223,8 @@
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
+| [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
+| [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRegisterTextResponse](Internal/type-aliases/HandlersRegisterTextResponse.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
@@ -386,6 +394,11 @@
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
 | [PostApiV1EmbeddingsResponse](Internal/type-aliases/PostApiV1EmbeddingsResponse.md) | - |
 | [PostApiV1EmbeddingsResponses](Internal/type-aliases/PostApiV1EmbeddingsResponses.md) | - |
+| [PostApiV1PhoneCallsData](Internal/type-aliases/PostApiV1PhoneCallsData.md) | - |
+| [PostApiV1PhoneCallsError](Internal/type-aliases/PostApiV1PhoneCallsError.md) | - |
+| [PostApiV1PhoneCallsErrors](Internal/type-aliases/PostApiV1PhoneCallsErrors.md) | - |
+| [PostApiV1PhoneCallsResponse](Internal/type-aliases/PostApiV1PhoneCallsResponse.md) | - |
+| [PostApiV1PhoneCallsResponses](Internal/type-aliases/PostApiV1PhoneCallsResponses.md) | - |
 | [PostApiV1ResponsesData](Internal/type-aliases/PostApiV1ResponsesData.md) | - |
 | [PostApiV1ResponsesError](Internal/type-aliases/PostApiV1ResponsesError.md) | - |
 | [PostApiV1ResponsesErrors](Internal/type-aliases/PostApiV1ResponsesErrors.md) | - |
@@ -492,6 +505,7 @@
 | [getApiV1DeveloperBilling](Internal/functions/getApiV1DeveloperBilling.md) | Get billing history |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
+| [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
@@ -518,6 +532,7 @@
 | [postApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/postApiV1DeveloperAppsByAppUuidPrivy.md) | Configure Privy |
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
+| [postApiV1PhoneCalls](Internal/functions/postApiV1PhoneCalls.md) | Create phone call |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
 | [postApiV1SubscriptionsCancelScheduledDowngrade](Internal/functions/postApiV1SubscriptionsCancelScheduledDowngrade.md) | Cancel scheduled downgrade |
