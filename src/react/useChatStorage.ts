@@ -2596,49 +2596,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // They remain valid for 3 days (presigned) and let the LLM
       // reference images for editing. No permanent data loss.
 
-      // Store auto-executed tool results (e.g. display_chart) as a user message
-      // so they persist across page refreshes and can be rendered by the app.
-      const autoToolResults = (result as any).autoExecutedToolResults as
-        | { name: string; result: any }[]
-        | undefined;
-      if (autoToolResults && autoToolResults.length > 0) {
-        const toolSummary = autoToolResults
-          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-          .join("\n\n");
-        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
-        try {
-          await writeOrQueue(
-            "createMessage",
-            {
-              conversationId: convId,
-              role: "user",
-              content: toolResultContent,
-              model: "",
-              parentMessageId: storedUserMessage.uniqueId,
-            },
-            () =>
-              createMessageOp(storageCtx, {
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedUserMessage.uniqueId,
-              }),
-            () =>
-              makeSyntheticStoredMessage({
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedUserMessage.uniqueId,
-              }),
-            userMsgQueueId ? [userMsgQueueId] : []
-          );
-        } catch {
-          // Non-critical — the tool result will still be available in memory
-        }
-      }
-
       // Resolve image model: prefer user-provided, fall back to MCP tool response
       const resolvedImageModel =
         imageModel || extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
@@ -2663,6 +2620,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       let storedAssistantMessage: StoredMessage;
+      let assistantMsgQueueId: string | undefined;
       try {
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
@@ -2672,6 +2630,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
+        assistantMsgQueueId = assistantMsgResult.queueId;
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
@@ -2706,6 +2665,51 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           );
         } catch {
           // Non-fatal - continue without updating messageId
+        }
+      }
+
+      // Store auto-executed tool results (e.g. display_chart, display_weather) as a
+      // synthetic user message so they persist across page refreshes and can be
+      // rendered by the app. Parented to the assistant message so they appear as
+      // a continuation in the conversation tree, not as a sibling branch.
+      const autoToolResults = (result as any).autoExecutedToolResults as
+        | { name: string; result: any }[]
+        | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolSummary = autoToolResults
+          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
+          .join("\n\n");
+        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        try {
+          await writeOrQueue(
+            "createMessage",
+            {
+              conversationId: convId,
+              role: "user",
+              content: toolResultContent,
+              model: "",
+              parentMessageId: storedAssistantMessage.uniqueId,
+            },
+            () =>
+              createMessageOp(storageCtx, {
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedAssistantMessage.uniqueId,
+              }),
+            () =>
+              makeSyntheticStoredMessage({
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedAssistantMessage.uniqueId,
+              }),
+            assistantMsgQueueId ? [assistantMsgQueueId] : []
+          );
+        } catch {
+          // Non-critical — the tool result will still be available in memory
         }
       }
 

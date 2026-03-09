@@ -120,7 +120,17 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/server",
-    external: ["@nozbe/watermelondb", "@huggingface/transformers"],
+    external: [
+      "@huggingface/transformers",
+      // Processor heavy deps — only loaded when consumers use file processors
+      "pdfjs-dist",
+      "exceljs",
+      "mammoth",
+      "jszip",
+    ],
+    // watermelondb is a peerDep (auto-externalized by tsup) but is CJS-only
+    // with no ESM exports — must be bundled to avoid ERR_UNSUPPORTED_DIR_IMPORT
+    noExternal: ["@nozbe/watermelondb"],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

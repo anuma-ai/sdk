@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 
+import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
 /**
@@ -14,7 +15,7 @@ export class ExcelProcessor implements FileProcessor {
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
-      const arrayBuffer = await this.dataUrlToArrayBuffer(file.dataUrl);
+      const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(arrayBuffer);
@@ -71,25 +72,5 @@ export class ExcelProcessor implements FileProcessor {
       if ("text" in value) return (value as { text: string }).text;
     }
     return String(value);
-  }
-
-  private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    if (
-      dataUrl.startsWith("blob:") ||
-      dataUrl.startsWith("http://") ||
-      dataUrl.startsWith("https://")
-    ) {
-      const response = await fetch(dataUrl);
-      return response.arrayBuffer();
-    }
-
-    const base64 = dataUrl.split(",")[1];
-    const binary = atob(base64);
-    const buffer = new ArrayBuffer(binary.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binary.length; i++) {
-      view[i] = binary.charCodeAt(i);
-    }
-    return buffer;
   }
 }
