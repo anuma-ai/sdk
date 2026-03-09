@@ -11,10 +11,10 @@ overrides:
 
 patchedDependencies:
   pdfjs-dist@4.10.38:
-    hash: yyvcvfntvbjmmskhubwlhq2cqi
+    hash: b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb
     path: patches/pdfjs-dist@4.10.38.patch
   tesseract.js@6.0.1:
-    hash: pra5jhxpqljdfgoyzl2pcnxicq
+    hash: 11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9
     path: patches/tesseract.js@6.0.1.patch
 
 importers:
@@ -41,13 +41,13 @@ importers:
         version: 1.11.0
       pdfjs-dist:
         specifier: ^4.10.38
-        version: 4.10.38(patch_hash=yyvcvfntvbjmmskhubwlhq2cqi)
+        version: 4.10.38(patch_hash=b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb)
       react-native:
         specifier: '>=0.70.0'
         version: 0.82.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(utf-8-validate@5.0.10)
       tesseract.js:
         specifier: ^6.0.1
-        version: 6.0.1(patch_hash=pra5jhxpqljdfgoyzl2pcnxicq)
+        version: 6.0.1(patch_hash=11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9)
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -69,7 +69,7 @@ importers:
         version: 0.28.0
       '@privy-io/react-auth':
         specifier: ^3.7.0
-        version: 3.8.1(7m2ehkefjfxzfupxknu66qjxiq)
+        version: 3.8.1(f386bdad43e9796dd296356bf53da71c)
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.0(@testing-library/dom@10.4.1)(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -1082,7 +1082,7 @@ packages:
   '@lit/react@1.0.8':
     resolution: {integrity: sha512-p2+YcF+JE67SRX3mMlJ1TKCSTsgyOVdAwd/nxp3NuV1+Cb6MWALbN6nT7Ld4tpmYofcE5kcaSY1YBB9erY+6fw==}
     peerDependencies:
-      '@types/react': 19.1.0
+      '@types/react': 17 || 18 || 19
 
   '@lit/reactive-element@2.1.1':
     resolution: {integrity: sha512-N+dm5PAYdQ8e6UlywyyrgI2t++wFGXfHx+dSJ1oBrg6FAxUj40jId++EaRm80MKX5JnlH1sBsyZ5h0bcZKemCg==}
@@ -5925,11 +5925,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  semver@7.7.3:
-    resolution: {integrity: sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==}
-    engines: {node: '>=10'}
-    hasBin: true
-
   semver@7.7.4:
     resolution: {integrity: sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==}
     engines: {node: '>=10'}
@@ -8440,7 +8435,7 @@ snapshots:
 
   '@privy-io/popup@0.0.1': {}
 
-  '@privy-io/react-auth@3.8.1(7m2ehkefjfxzfupxknu66qjxiq)':
+  '@privy-io/react-auth@3.8.1(f386bdad43e9796dd296356bf53da71c)':
     dependencies:
       '@base-org/account': 1.1.1(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(utf-8-validate@5.0.10)(zod@4.2.1)
       '@coinbase/wallet-sdk': 4.3.2
@@ -10549,7 +10544,7 @@ snapshots:
       '@vitest/pretty-format': 4.0.15
       tinyrainbow: 3.0.3
 
-  '@wagmi/connectors@6.2.0(ikrqaddiwlaiq2os2stz64upsy)':
+  '@wagmi/connectors@6.2.0(d0a6ea1f9be2a29ea5e4abf481d6cc27)':
     dependencies:
       '@base-org/account': 2.4.0(@types/react@19.2.7)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(utf-8-validate@5.0.10)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.25.76)
       '@coinbase/wallet-sdk': 4.3.6(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(utf-8-validate@5.0.10)(zod@3.25.76)
@@ -10560,8 +10555,8 @@ snapshots:
       '@wagmi/core': 2.22.1(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1))
       '@walletconnect/ethereum-provider': 2.21.1(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
       cbw-sdk: '@coinbase/wallet-sdk@3.9.3'
-      porto: 0.2.35(nf6vy5kp7y4whpg2cmm3ucguna)
-      viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      porto: 0.2.35(9971400ca8e5177e8b818aee487ae6f0)
+      viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1)
     optionalDependencies:
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -13161,7 +13156,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.7.3
+      semver: 7.7.4
       serialize-error: 7.0.1
 
   global-directory@4.0.1:
@@ -14704,7 +14699,7 @@ snapshots:
 
   pathe@2.0.3: {}
 
-  pdfjs-dist@4.10.38(patch_hash=yyvcvfntvbjmmskhubwlhq2cqi):
+  pdfjs-dist@4.10.38(patch_hash=b02943f22835a165b2d0ef481725d3745cb4ef3219e203cb82f88b07559f4ecb):
     optionalDependencies:
       '@napi-rs/canvas': 0.1.83
 
@@ -14811,14 +14806,14 @@ snapshots:
 
   pony-cause@2.1.11: {}
 
-  porto@0.2.35(nf6vy5kp7y4whpg2cmm3ucguna):
+  porto@0.2.35(9971400ca8e5177e8b818aee487ae6f0):
     dependencies:
       '@wagmi/core': 2.22.1(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1))
       hono: 4.12.2
       idb-keyval: 6.2.2
       mipd: 0.0.7(typescript@5.9.3)
       ox: 0.9.17(typescript@5.9.3)(zod@4.2.1)
-      viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      viem: 2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1)
       zod: 4.2.1
       zustand: 5.0.9(@types/react@19.2.7)(react@19.2.1)(use-sync-external-store@1.4.0(react@19.2.1))
     optionalDependencies:
@@ -15335,8 +15330,6 @@ snapshots:
 
   semver@7.7.2: {}
 
-  semver@7.7.3: {}
-
   semver@7.7.4: {}
 
   send@0.19.0:
@@ -15414,7 +15407,7 @@ snapshots:
     dependencies:
       '@img/colour': 1.0.0
       detect-libc: 2.1.2
-      semver: 7.7.3
+      semver: 7.7.4
     optionalDependencies:
       '@img/sharp-darwin-arm64': 0.34.5
       '@img/sharp-darwin-x64': 0.34.5
@@ -15725,7 +15718,7 @@ snapshots:
 
   tesseract.js-core@6.0.0: {}
 
-  tesseract.js@6.0.1(patch_hash=pra5jhxpqljdfgoyzl2pcnxicq):
+  tesseract.js@6.0.1(patch_hash=11dc2161850bca4a9a634ed87637361226abd5a7315fe33ec4062674fb1bc8a9):
     dependencies:
       bmp-js: 0.1.0
       idb-keyval: 6.2.2
@@ -16278,7 +16271,7 @@ snapshots:
   wagmi@2.19.5(@tanstack/query-core@5.90.12)(@tanstack/react-query@5.90.12(react@19.2.1))(@types/react@19.2.7)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(react-native@0.82.1(@babel/core@7.28.5)(@types/react@19.2.7)(bufferutil@4.0.9)(react@19.2.1)(utf-8-validate@5.0.10))(react@19.2.1)(typescript@5.9.3)(utf-8-validate@5.0.10)(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1))(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@4.2.1):
     dependencies:
       '@tanstack/react-query': 5.90.12(react@19.2.1)
-      '@wagmi/connectors': 6.2.0(ikrqaddiwlaiq2os2stz64upsy)
+      '@wagmi/connectors': 6.2.0(d0a6ea1f9be2a29ea5e4abf481d6cc27)
       '@wagmi/core': 2.22.1(@tanstack/query-core@5.90.12)(@types/react@19.2.7)(react@19.2.1)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.1))(viem@2.41.2(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.2.1))
       react: 19.2.1
       use-sync-external-store: 1.4.0(react@19.2.1)
