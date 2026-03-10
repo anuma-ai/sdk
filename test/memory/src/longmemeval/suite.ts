@@ -8,7 +8,7 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { join } from "node:path";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
 import type {
   LongMemEvalEntry,
@@ -52,6 +52,31 @@ export interface ExtractedMemory {
   rawEvidence: string;
   confidence: number;
   embedding?: number[];
+}
+
+// ── Embedding cache persistence ──
+
+async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> {
+  try {
+    await access(path);
+    const data = await readFile(path, "utf-8");
+    const entries: [string, number[]][] = JSON.parse(data);
+    console.log(`Loaded ${entries.length} cached embeddings from disk`);
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): Promise<void> {
+  try {
+    await mkdir(join(path, ".."), { recursive: true });
+    const entries = Array.from(cache.entries());
+    await writeFile(path, JSON.stringify(entries));
+    console.log(`Saved ${entries.length} embeddings to cache`);
+  } catch (error) {
+    console.error("Failed to save embedding cache:", error);
+  }
 }
 
 // ── Database setup ──
@@ -512,7 +537,9 @@ export async function runLongMemEval(
 
   // Shared embedding cache across all questions — avoids re-embedding
   // the same haystack texts that appear in multiple questions.
-  const embeddingCache = new Map<string, number[]>();
+  // Persisted to disk so subsequent runs skip the embedding API entirely.
+  const embeddingCachePath = join(getCacheDirectory(), "embedding-cache.json");
+  const embeddingCache = await loadEmbeddingCache(embeddingCachePath);
 
   for (const strat of strategies) {
     const results: LongMemEvalResult[] = [];
@@ -580,6 +607,9 @@ export async function runLongMemEval(
     }
 
     summaries[strat] = aggregateSummary(results, latencies, options, strat);
+
+    // Persist embedding cache to disk after each strategy completes
+    await saveEmbeddingCache(embeddingCachePath, embeddingCache);
   }
 
   if (strategy === "both") {
