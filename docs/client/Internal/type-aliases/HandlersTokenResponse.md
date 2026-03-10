@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#753)
+Defined in: [src/client/types.gen.ts:643](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#643)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:753](https://github.com/anuma-ai/sdk/blob/m
 
 > **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:754](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#754)
+Defined in: [src/client/types.gen.ts:644](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#644)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:754](https://github.com/anuma-ai/sdk/blob/m
 
 > **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#758)
+Defined in: [src/client/types.gen.ts:648](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#648)
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#762)
+Defined in: [src/client/types.gen.ts:652](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#652)
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:766](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#766)
+Defined in: [src/client/types.gen.ts:656](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#656)
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#770)
+Defined in: [src/client/types.gen.ts:660](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#660)
 
 Usually "Bearer"

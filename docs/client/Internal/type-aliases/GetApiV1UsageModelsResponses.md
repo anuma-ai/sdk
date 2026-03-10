@@ -2,7 +2,7 @@
 
 > **GetApiV1UsageModelsResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4337](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4337)
+Defined in: [src/client/types.gen.ts:3969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3969)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4337](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersUsageByModelResponse`](HandlersUsageByModelResponse.md)
 
-Defined in: [src/client/types.gen.ts:4341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4341)
+Defined in: [src/client/types.gen.ts:3973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3973)
 
 OK

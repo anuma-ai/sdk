@@ -6,6 +6,16 @@ Options for memory engine search
 
 ## Properties
 
+### contextMessages?
+
+> `optional` **contextMessages**: `number`
+
+Defined in: [src/lib/memoryEngine/types.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#33)
+
+Number of surrounding messages to include around each match when expanding to full sessions. 0 returns only matched chunks (no expansion), undefined returns the entire conversation. Default: undefined (full session).
+
+***
+
 ### conversationId?
 
 > `optional` **conversationId**: `string`

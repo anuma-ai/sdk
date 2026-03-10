@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsSyncSnag**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsSyncSnagData`](../type-aliases/PostApiV1CreditsSyncSnagData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsSyncSnagResponses`](../type-aliases/PostApiV1CreditsSyncSnagResponses.md), [`PostApiV1CreditsSyncSnagErrors`](../type-aliases/PostApiV1CreditsSyncSnagErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#330)
+Defined in: [src/client/sdk.gen.ts:306](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#306)
 
 Sync Snag points
 
