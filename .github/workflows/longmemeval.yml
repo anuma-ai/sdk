@@ -76,6 +76,12 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
+      - name: Restore embedding cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/longmemeval/embedding-cache-*.json
+          key: longmemeval-embeddings-v1
+
       - name: Preload datasets
         run: pnpm eval:longmemeval --preload
 

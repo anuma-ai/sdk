@@ -128,7 +128,7 @@ export class ZipProcessor implements FileProcessor {
               result,
             });
           }
-        } catch (error) {
+        } catch {
           // Silently skip files that fail to process
           // Errors are expected for corrupted or unsupported files within archives
         }

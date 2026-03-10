@@ -55,7 +55,8 @@ export async function processEntryMemoryEngine(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
-  maxSessions?: number
+  maxSessions?: number,
+  embeddingCache?: Map<string, number[]>
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -108,6 +109,7 @@ export async function processEntryMemoryEngine(
     const embeddingOptions = {
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
+      ...(embeddingCache ? { cache: embeddingCache } : {}),
     };
 
     logProgress("Chunking and embedding messages...");
