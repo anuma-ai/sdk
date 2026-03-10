@@ -18,7 +18,8 @@
  *
  * @module
  */
-export const withAnuma = (nextConfig: any = {}) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const withAnuma = (nextConfig: Record<string, any> = {}) => {
   return {
     ...nextConfig,
     serverExternalPackages: [

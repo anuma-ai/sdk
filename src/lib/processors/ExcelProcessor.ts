@@ -10,6 +10,7 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 if (typeof process !== "undefined" && typeof process.umask !== "function") {
   // 0o22 is the default umask on POSIX systems.  The value is only used by
   // fstream for file-permission calculations which are irrelevant in Workers.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   (process as any).umask = (_mask?: number) => 0o22;
 }
 
@@ -90,6 +91,6 @@ export class ExcelProcessor implements FileProcessor {
       if ("error" in value) return value.error;
       if ("text" in value) return (value as { text: string }).text;
     }
-    return String(value);
+    return JSON.stringify(value);
   }
 }
