@@ -77,30 +77,40 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: gh repo clone anuma-ai/${{ matrix.repo }} /tmp/${{ matrix.repo }} -- --depth 1
 
+      - name: Detect package manager
+        id: pm
+        working-directory: /tmp/${{ matrix.repo }}
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "cmd=pnpm" >> $GITHUB_OUTPUT
+          else
+            echo "cmd=npm" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install SDK from tarball
         working-directory: /tmp/${{ matrix.repo }}
         run: |
-          pnpm install
+          ${{ steps.pm.outputs.cmd }} install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
-          pnpm add "$SDK_TARBALL"
+          ${{ steps.pm.outputs.cmd }} add "$SDK_TARBALL"
 
       - name: Build ${{ matrix.repo }}
         id: build
         working-directory: /tmp/${{ matrix.repo }}
         continue-on-error: true
-        run: pnpm build
+        run: ${{ steps.pm.outputs.cmd }} run build
 
       - name: Install Playwright browsers
         if: matrix.e2e && steps.build.outcome == 'success'
         working-directory: /tmp/${{ matrix.repo }}
-        run: pnpm exec playwright install --with-deps chromium
+        run: ${{ steps.pm.outputs.cmd }} exec playwright install --with-deps chromium
 
       - name: Run light e2e tests
         id: e2e
         if: matrix.e2e && steps.build.outcome == 'success'
         working-directory: /tmp/${{ matrix.repo }}
         continue-on-error: true
-        run: pnpm test:e2e:light
+        run: ${{ steps.pm.outputs.cmd }} run test:e2e:light
 
       - name: Write outcome
         run: |
