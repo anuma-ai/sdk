@@ -294,7 +294,7 @@ export async function updateVaultMemoryEmbeddingOp(
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
-    if (record.isDeleted) return false;
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("embedding", embedding);
