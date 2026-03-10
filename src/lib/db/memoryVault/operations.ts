@@ -164,8 +164,8 @@ export async function getAllVaultMemoriesOp(
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
-    Q.sortBy("created_at", Q.desc),
-    ...(options?.limit ? [Q.take(options.limit)] : []),
+    Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
+    ...(options?.limit != null && options.limit > 0 ? [Q.take(options.limit)] : []),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
   return mapInBatches(results, (record) =>
