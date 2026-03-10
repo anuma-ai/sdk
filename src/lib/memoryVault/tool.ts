@@ -165,14 +165,16 @@ export function createMemoryVaultTool(
             if (previousContent) {
               cache.delete(previousContent);
             }
-            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(() => {});
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
           const created = await createVaultMemoryOp(vaultCtx, { content, scope });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
-            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
+              () => {}
+            );
           }
           return `Memory saved successfully (ID: ${created.uniqueId}).`;
         }
