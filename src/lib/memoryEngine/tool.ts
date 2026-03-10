@@ -152,9 +152,9 @@ export function createMemoryEngineTool(
       try {
         const queryEmbedding = await generateEmbedding(query, embeddingOptions);
 
-        // Fetch more results when filtering by role or excluding conversations
+        // Fetch extra candidates to have enough diversity after dedup and filtering
         const fetchMultiplier =
-          (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
+          3 * (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
         const fetchLimit = Math.ceil(topK * fetchMultiplier);
 
         const results = await searchChunksOp(storageCtx, queryEmbedding, {
@@ -173,12 +173,41 @@ export function createMemoryEngineTool(
           ? filteredResults
           : filteredResults.filter((r) => r.message.role === "user");
 
-        // Limit to topK chunks, then collect unique conversations to expand
-        filteredResults = filteredResults.slice(0, topK);
+        // Deduplicate: ensure diverse conversation coverage by taking the
+        // best chunk per conversation first, then filling remaining slots
+        // with next-best chunks. This prevents a single conversation with
+        // many similar chunks from dominating all topK slots.
+        const convBuckets = new Map<string, typeof filteredResults>();
+        for (const r of filteredResults) {
+          const convId = r.message.conversationId;
+          const bucket = convBuckets.get(convId);
+          if (bucket) {
+            bucket.push(r);
+          } else {
+            convBuckets.set(convId, [r]);
+          }
+        }
+
+        // Round-robin: take one chunk per conversation at a time
+        const dedupedResults: typeof filteredResults = [];
+        const bucketArrays = Array.from(convBuckets.values());
+        let round = 0;
+        while (dedupedResults.length < topK) {
+          let added = false;
+          for (const bucket of bucketArrays) {
+            if (round < bucket.length) {
+              dedupedResults.push(bucket[round]);
+              added = true;
+              if (dedupedResults.length >= topK) break;
+            }
+          }
+          if (!added) break;
+          round++;
+        }
 
         // Track best similarity and matched message IDs per conversation
         const convMeta = new Map<string, { bestSimilarity: number; matchedMsgIds: Set<string> }>();
-        for (const r of filteredResults) {
+        for (const r of dedupedResults) {
           const convId = r.message.conversationId;
           const existing = convMeta.get(convId);
           if (existing) {
