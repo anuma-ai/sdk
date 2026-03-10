@@ -184,10 +184,19 @@ export function createMemoryEngineTool(
           try {
             const ranked = await rerankFn(query, documents);
             // Rebuild filteredResults in reranked order, using relevanceScore as similarity
-            filteredResults = ranked.map((r) => ({
-              ...filteredResults[r.index],
-              similarity: r.relevanceScore,
-            }));
+            filteredResults = ranked.map((r) => {
+              if (
+                !Number.isInteger(r.index) ||
+                r.index < 0 ||
+                r.index >= filteredResults.length
+              ) {
+                throw new Error(`Reranker returned invalid index: ${r.index}`);
+              }
+              return {
+                ...filteredResults[r.index],
+                similarity: r.relevanceScore,
+              };
+            });
           } catch (error) {
             // Fall back to bi-encoder ordering if reranking fails
             console.error("Reranking failed, falling back to embedding similarity:", error);
