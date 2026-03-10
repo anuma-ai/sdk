@@ -92,7 +92,7 @@ jobs:
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --output results.json"
+          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency 5 --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
           fi

@@ -18,10 +18,18 @@
  *
  * @module
  */
-export const withAnuma = (nextConfig: any = {}) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const withAnuma = (nextConfig: Record<string, any> = {}) => {
   return {
     ...nextConfig,
-    serverExternalPackages: [...(nextConfig.serverExternalPackages || []), "sharp"],
+    serverExternalPackages: [
+      ...(nextConfig.serverExternalPackages || []),
+      "sharp",
+      // exceljs pulls in unzipper → fstream which calls process.umask() at
+      // module init time, crashing Cloudflare Workers and other edge runtimes.
+      // Externalizing prevents the server bundler from including it in SSR.
+      "exceljs",
+    ],
     webpack: (config: any, options: any) => {
       const { isServer } = options;
 
