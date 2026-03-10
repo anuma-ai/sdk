@@ -1,8 +1,8 @@
 # withAnuma
 
-> **withAnuma**(`nextConfig`: `any`): `any`
+> **withAnuma**(`nextConfig`: `Record`<`string`, `any`>): `object`
 
-Defined in: [src/next/index.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/next/index.ts#21)
+Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/next/index.ts#22)
 
 ## Parameters
 
@@ -22,7 +22,7 @@ Defined in: [src/next/index.ts:21](https://github.com/anuma-ai/sdk/blob/main/src
 </td>
 <td>
 
-`any`
+`Record`<`string`, `any`>
 
 </td>
 </tr>
@@ -30,5 +30,54 @@ Defined in: [src/next/index.ts:21](https://github.com/anuma-ai/sdk/blob/main/src
 </table>
 
 ## Returns
+
+`object`
+
+### serverExternalPackages
+
+> **serverExternalPackages**: `any`\[]
+
+### webpack()
+
+> **webpack**: (`config`: `any`, `options`: `any`) => `any`
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`config`
+
+</td>
+<td>
+
+`any`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options`
+
+</td>
+<td>
+
+`any`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
 
 `any`
