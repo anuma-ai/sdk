@@ -158,6 +158,44 @@ describe("searchVaultMemories", () => {
     });
   });
 
+  it("loads persisted embeddings from DB during search instead of re-embedding", async () => {
+    const memWithEmbedding = {
+      ...makeMemory("m1", "db-persisted"),
+      embedding: JSON.stringify([1, 0, 0]),
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithEmbedding]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+
+    const cache = createVaultEmbeddingCache();
+    const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(cache.get("db-persisted")).toEqual([1, 0, 0]);
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("persists fallback-generated embeddings to DB during search", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "fallback")]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[0.9, 0.1, 0]]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+
+    const cache = createVaultEmbeddingCache();
+    await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+    });
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "m1",
+      JSON.stringify([0.9, 0.1, 0])
+    );
+  });
+
   it("populates cache for uncached entries", async () => {
     const memories = [makeMemory("m1", "cached"), makeMemory("m2", "uncached")];
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue(memories);
@@ -343,6 +381,53 @@ describe("preEmbedVaultMemories", () => {
     expect(cache.get("second")).toEqual([0, 1, 0]);
   });
 
+  it("loads persisted embeddings from DB instead of re-embedding", async () => {
+    const memWithEmbedding = {
+      ...makeMemory("m1", "persisted"),
+      embedding: JSON.stringify([9, 8, 7]),
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithEmbedding]);
+
+    const cache = createVaultEmbeddingCache();
+    await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
+
+    expect(cache.get("persisted")).toEqual([9, 8, 7]);
+    expect(generateEmbeddings).not.toHaveBeenCalled();
+  });
+
+  it("re-embeds when persisted embedding is invalid JSON", async () => {
+    const memWithBadEmbedding = {
+      ...makeMemory("m1", "bad json"),
+      embedding: "not valid json",
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithBadEmbedding]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[1, 1, 1]]);
+
+    const cache = createVaultEmbeddingCache();
+    await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
+
+    expect(generateEmbeddings).toHaveBeenCalledWith(["bad json"], mockEmbeddingOptions);
+    expect(cache.get("bad json")).toEqual([1, 1, 1]);
+  });
+
+  it("persists newly generated embeddings to DB via updateVaultMemoryEmbeddingOp", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([makeMemory("m1", "needs embed")]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[3, 2, 1]]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+
+    const cache = createVaultEmbeddingCache();
+    await preEmbedVaultMemories(mockVaultCtx, mockEmbeddingOptions, cache);
+
+    // Allow fire-and-forget promise to settle
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "m1",
+      JSON.stringify([3, 2, 1])
+    );
+  });
+
   it("skips already-cached entries", async () => {
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([
       makeMemory("m1", "cached"),
@@ -370,5 +455,35 @@ describe("eagerEmbedContent", () => {
 
     expect(generateEmbedding).toHaveBeenCalledWith("new memory text", mockEmbeddingOptions);
     expect(cache.get("new memory text")).toEqual([1, 2, 3]);
+  });
+
+  it("persists embedding to DB when vaultCtx and memoryId are provided", async () => {
+    vi.mocked(generateEmbedding).mockResolvedValue([4, 5, 6]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+
+    const cache = createVaultEmbeddingCache();
+    await eagerEmbedContent("persist me", mockEmbeddingOptions, cache, mockVaultCtx, "mem-99");
+
+    // Allow fire-and-forget promise to settle
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
+      mockVaultCtx,
+      "mem-99",
+      JSON.stringify([4, 5, 6])
+    );
+  });
+
+  it("does not call updateVaultMemoryEmbeddingOp when vaultCtx is omitted", async () => {
+    vi.mocked(generateEmbedding).mockResolvedValue([7, 8, 9]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+    vi.mocked(updateVaultMemoryEmbeddingOp).mockClear();
+
+    const cache = createVaultEmbeddingCache();
+    await eagerEmbedContent("no persist", mockEmbeddingOptions, cache);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(vi.mocked(updateVaultMemoryEmbeddingOp)).not.toHaveBeenCalled();
   });
 });
