@@ -87,6 +87,7 @@ describe("createMemoryVaultTool", () => {
 
     expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
       content: "new content",
+      embedding: null,
     });
     expect(result).toBe("Memory updated successfully (ID: mem-1).");
   });

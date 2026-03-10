@@ -28,6 +28,6 @@ export interface UpdateVaultMemoryOptions {
   content: string;
   /** If provided, updates the memory's scope. */
   scope?: string;
-  /** JSON-stringified embedding vector to persist */
-  embedding?: string;
+  /** JSON-stringified embedding vector to persist, or null to clear stale embedding */
+  embedding?: string | null;
 }

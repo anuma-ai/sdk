@@ -156,7 +156,7 @@ export function createMemoryVaultTool(
 
         // Execute the save
         if (isUpdate) {
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content });
+          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }
