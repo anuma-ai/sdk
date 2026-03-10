@@ -126,7 +126,12 @@ export async function processEntryMemoryVault(
       clearProgress();
 
       const generatedAnswer = genAnswer.content || "";
-      const earlyUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+      const earlyUsage: TokenUsage = {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        embeddingTokens: 0,
+      };
       if (genAnswer.usage) {
         earlyUsage.promptTokens += genAnswer.usage.prompt_tokens;
         earlyUsage.completionTokens += genAnswer.usage.completion_tokens;
@@ -235,9 +240,18 @@ You are a personal assistant with access to the user's past conversation history
 
     let generatedAnswer = "";
     const retrievedVaultIds = new Set<string>();
-    const tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+    const tokenUsage: TokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      embeddingTokens: 0,
+    };
 
-    function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+    function addUsage(u?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }) {
       if (!u) return;
       tokenUsage.promptTokens += u.prompt_tokens;
       tokenUsage.completionTokens += u.completion_tokens;

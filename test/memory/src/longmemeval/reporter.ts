@@ -192,9 +192,7 @@ export function attachCost(
   const llmCost = llmPricing
     ? t.promptTokens * llmPricing.prompt + t.completionTokens * llmPricing.completion
     : 0;
-  const embeddingCost = embPricing
-    ? t.embeddingTokens * embPricing.prompt
-    : 0;
+  const embeddingCost = embPricing ? t.embeddingTokens * embPricing.prompt : 0;
 
   summary.cost = {
     llmCost,

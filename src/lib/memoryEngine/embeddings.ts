@@ -206,7 +206,13 @@ export async function generateEmbeddings(
 
   // Small inputs: single API call (preserves existing behavior)
   if (uncachedTexts.length <= chunkSize) {
-    newEmbeddings = await generateEmbeddingsBatch(uncachedTexts, headers, baseUrl, embeddingModel, options.onUsage);
+    newEmbeddings = await generateEmbeddingsBatch(
+      uncachedTexts,
+      headers,
+      baseUrl,
+      embeddingModel,
+      options.onUsage
+    );
   } else {
     // Large inputs: chunk and process with bounded concurrency
     const chunks: string[][] = [];

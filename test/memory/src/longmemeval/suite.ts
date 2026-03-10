@@ -281,7 +281,10 @@ export async function evaluateAnswer(
   expectedAnswer: string,
   generatedAnswer: string,
   api: ApiConfig
-): Promise<{ isCorrect: boolean; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
+): Promise<{
+  isCorrect: boolean;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+}> {
   const prompt = `You are an answer evaluator. Determine if the generated answer correctly answers the question, matching the expected answer's meaning.
 
 Question: ${question}

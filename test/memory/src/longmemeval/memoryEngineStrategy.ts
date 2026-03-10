@@ -77,7 +77,12 @@ export async function processEntryMemoryEngine(
   const convToSession = new Map<string, string>();
 
   // Token tracking — declared early so embedding callbacks can accumulate too
-  const tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+  const tokenUsage: TokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    embeddingTokens: 0,
+  };
 
   try {
     // Step 1: Store haystack sessions as conversations + messages
@@ -182,7 +187,11 @@ You are a personal assistant with access to the user's past conversation history
 
     let generatedAnswer = "";
 
-    function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+    function addUsage(u?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }) {
       if (!u) return;
       tokenUsage.promptTokens += u.prompt_tokens;
       tokenUsage.completionTokens += u.completion_tokens;
