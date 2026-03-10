@@ -539,6 +539,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
             }, 10_000);
             const unsubscribe = onKeyAvailable(walletAddress, () => {
               clearTimeout(timeout);
+              unsubscribe();
               resolve();
             });
           });
