@@ -1,12 +1,22 @@
-import * as pdfjs from "pdfjs-dist";
+let pdfjsModule: typeof import("pdfjs-dist") | null = null;
+let workerConfigured = false;
 
-// Configure worker - use CDN in browser, skip in Node.js (uses main-thread fallback)
-if (typeof window !== "undefined") {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+async function getPdfjs() {
+  if (!pdfjsModule) {
+    pdfjsModule = await import("pdfjs-dist");
+
+    // Configure worker - use CDN in browser, skip in Node.js (uses main-thread fallback)
+    if (!workerConfigured && typeof window !== "undefined") {
+      pdfjsModule.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsModule.version}/build/pdf.worker.min.mjs`;
+      workerConfigured = true;
+    }
+  }
+  return pdfjsModule;
 }
 
 export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
   try {
+    const pdfjs = await getPdfjs();
     const loadingTask = pdfjs.getDocument(pdfDataUrl);
     const pdf = await loadingTask.promise;
 
@@ -34,6 +44,7 @@ export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> 
   const images: string[] = [];
 
   try {
+    const pdfjs = await getPdfjs();
     const loadingTask = pdfjs.getDocument(pdfDataUrl);
     const pdf = await loadingTask.promise;
 
