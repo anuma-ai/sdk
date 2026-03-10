@@ -113,6 +113,18 @@ export default defineConfig([
       };
     },
   },
+  // OpenAPI spec — re-exported so clients can import it from the SDK
+  {
+    entry: ["src/api/spec.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/api",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   // Server entry - no React, no browser APIs
   // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
   {
