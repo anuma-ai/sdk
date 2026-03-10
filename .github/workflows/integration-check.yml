@@ -207,10 +207,13 @@ jobs:
             gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
           fi
 
-          # Label management
-          if [ "$ANY_REGRESSION" == "true" ]; then
-            gh label create "breaks-integration" --description "PR breaks downstream repo build or tests" --color "d93f0b" 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-integration" || true
-          else
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-integration" 2>/dev/null || true
-          fi
+          # Label management — add/remove per-repo labels
+          for REPO in $REPOS; do
+            LABEL="breaks-${REPO}"
+            if echo "$BROKEN_REPOS" | grep -qw "$REPO"; then
+              gh label create "$LABEL" --description "PR breaks ${REPO}" --color "d93f0b" 2>/dev/null || true
+              gh pr edit ${{ github.event.pull_request.number }} --add-label "$LABEL" || true
+            else
+              gh pr edit ${{ github.event.pull_request.number }} --remove-label "$LABEL" 2>/dev/null || true
+            fi
+          done
