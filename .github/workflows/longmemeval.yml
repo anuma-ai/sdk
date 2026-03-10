@@ -110,3 +110,66 @@ jobs:
         with:
           name: longmemeval-${{ matrix.strategy }}-${{ inputs.variant }}
           path: results.json
+
+      - name: Publish summary to benchmarks branch
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Build a short model slug for the filename
+          model_slug=$(echo "${{ inputs.model }}" | sed 's|.*/||')
+          commit=$(git rev-parse --short HEAD)
+          ts=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+          filename="${{ matrix.strategy }}_${{ inputs.variant }}_${model_slug}_${ts}_${commit}.json"
+
+          # Strip per-question results array, add run metadata
+          jq '{
+            timestamp,
+            datasetName,
+            strategy,
+            totalQuestions,
+            correctAnswers,
+            accuracy,
+            byQuestionType,
+            retrieval,
+            latency,
+            tokenUsage,
+            cost,
+            meta: {
+              commit: "${{ github.sha }}",
+              commitShort: "'"${commit}"'",
+              branch: "${{ github.ref_name }}",
+              model: "${{ inputs.model }}",
+              variant: "${{ inputs.variant }}",
+              concurrency: ${{ inputs.concurrency }},
+              runUrl: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              runId: ${{ github.run_id }}
+            }
+          }' results.json > summary.json
+
+          # Clone just the benchmarks branch (or create it)
+          git clone --single-branch --branch benchmarks \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+            benchmarks-repo 2>/dev/null || {
+            mkdir benchmarks-repo && cd benchmarks-repo && git init
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            git checkout --orphan benchmarks
+            echo '# LongMemEval Benchmark Results' > README.md
+            git add README.md && git commit -m "init benchmarks branch"
+            git push -u origin benchmarks
+            cd ..
+          }
+
+          # Copy summary and push
+          mkdir -p benchmarks-repo/longmemeval
+          cp summary.json "benchmarks-repo/longmemeval/${filename}"
+          cd benchmarks-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "longmemeval: ${{ matrix.strategy }} ${{ inputs.variant }} ${model_slug} (${commit})"
+          # Retry with rebase in case another matrix job pushed concurrently
+          for i in 1 2 3; do
+            git push && break
+            git pull --rebase origin benchmarks
+          done
