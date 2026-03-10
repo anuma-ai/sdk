@@ -14,11 +14,11 @@ Defined in: [src/lib/db/memoryVault/types.ts:28](https://github.com/anuma-ai/sdk
 
 ### embedding?
 
-> `optional` **embedding**: `string`
+> `optional` **embedding**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/types.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#32)
 
-JSON-stringified embedding vector to persist
+JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 ***
 
