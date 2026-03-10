@@ -7,6 +7,7 @@ export {
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type VaultMemoryOperationsContext,
 } from "./operations";
