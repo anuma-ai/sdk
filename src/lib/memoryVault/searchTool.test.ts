@@ -12,6 +12,7 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 
 vi.mock("../db/memoryVault/operations", () => ({
   getAllVaultMemoriesOp: vi.fn(),
+  updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({

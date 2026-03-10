@@ -11,6 +11,7 @@ vi.mock("../db/memoryVault/operations", () => ({
   getVaultMemoryOp: vi.fn(),
   updateVaultMemoryOp: vi.fn(),
   getAllVaultMemoriesOp: vi.fn(),
+  updateVaultMemoryEmbeddingOp: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../memoryEngine/embeddings", () => ({
