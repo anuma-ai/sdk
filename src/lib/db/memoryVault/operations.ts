@@ -26,10 +26,7 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
 }
 
 /** Builds the base WHERE conditions shared by all vault memory queries. */
-function baseVaultConditions(
-  ctx: VaultMemoryOperationsContext,
-  options?: { since?: Date }
-) {
+function baseVaultConditions(ctx: VaultMemoryOperationsContext, options?: { since?: Date }) {
   return [
     Q.where("is_deleted", false),
     ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
@@ -42,7 +39,7 @@ async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Prom
   const BATCH = 50;
   const results: R[] = [];
   for (let i = 0; i < items.length; i += BATCH) {
-    results.push(...await Promise.all(items.slice(i, i + BATCH).map(fn)));
+    results.push(...(await Promise.all(items.slice(i, i + BATCH).map(fn))));
   }
   return results;
 }
@@ -185,7 +182,10 @@ export async function getAllVaultMemoryContentsOp(
     .fetch();
   return mapInBatches(results, async (record) => {
     const stored = await vaultMemoryToStored(
-      record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner
+      record,
+      ctx.walletAddress,
+      ctx.signMessage,
+      ctx.embeddedWalletSigner
     );
     return stored.content;
   });
