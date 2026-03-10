@@ -1115,7 +1115,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          result.uniqueId
         ).catch(() => {});
       }
       return result;
@@ -1137,7 +1139,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          id
         ).catch(() => {});
       }
       return result;
