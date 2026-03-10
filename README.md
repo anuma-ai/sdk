@@ -77,8 +77,7 @@ include:
 
 ## Documentation
 
-- [Getting Started](https://docs.anuma.ai/)
-- [API Reference](https://docs.anuma.ai/api-reference)
+https://docs.anuma.ai/
 
 ## Contributing
 
