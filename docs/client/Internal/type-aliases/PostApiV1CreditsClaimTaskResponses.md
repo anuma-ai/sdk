@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimTaskResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2603](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2603)
+Defined in: [src/client/types.gen.ts:2399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2399)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2603](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersClaimTaskRewardResponse`](HandlersClaimTaskRewardResponse.md)
 
-Defined in: [src/client/types.gen.ts:2607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2607)
+Defined in: [src/client/types.gen.ts:2403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2403)
 
 OK

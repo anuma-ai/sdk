@@ -2,7 +2,7 @@
 
 > **postApiV1SubscriptionsCancel**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1SubscriptionsCancelData`](../type-aliases/PostApiV1SubscriptionsCancelData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1SubscriptionsCancelResponses`](../type-aliases/PostApiV1SubscriptionsCancelResponses.md), [`PostApiV1SubscriptionsCancelErrors`](../type-aliases/PostApiV1SubscriptionsCancelErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:642](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#642)
+Defined in: [src/client/sdk.gen.ts:618](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#618)
 
 Cancel subscription
 

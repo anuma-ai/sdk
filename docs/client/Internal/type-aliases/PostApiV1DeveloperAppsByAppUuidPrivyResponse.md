@@ -2,4 +2,4 @@
 
 > **PostApiV1DeveloperAppsByAppUuidPrivyResponse** = [`PostApiV1DeveloperAppsByAppUuidPrivyResponses`](PostApiV1DeveloperAppsByAppUuidPrivyResponses.md)\[keyof [`PostApiV1DeveloperAppsByAppUuidPrivyResponses`](PostApiV1DeveloperAppsByAppUuidPrivyResponses.md)]
 
-Defined in: [src/client/types.gen.ts:3221](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3221)
+Defined in: [src/client/types.gen.ts:3017](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3017)

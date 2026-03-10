@@ -2,7 +2,7 @@
 
 > **HandlersAppConfig** = `object`
 
-Defined in: [src/client/types.gen.ts:164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#164)
+Defined in: [src/client/types.gen.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#59)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:164](https://github.com/anuma-ai/sdk/blob/m
 
 > **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#168)
+Defined in: [src/client/types.gen.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#63)
 
 EscrowContract is the escrow contract address for this app
 
@@ -20,6 +20,6 @@ EscrowContract is the escrow contract address for this app
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:172](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#172)
+Defined in: [src/client/types.gen.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#67)
 
 Name is the human-readable name of the app

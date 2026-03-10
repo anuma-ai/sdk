@@ -2,4 +2,4 @@
 
 > **GetApiV1ToolsResponse** = [`GetApiV1ToolsResponses`](GetApiV1ToolsResponses.md)\[keyof [`GetApiV1ToolsResponses`](GetApiV1ToolsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:4298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4298)
+Defined in: [src/client/types.gen.ts:3930](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3930)
