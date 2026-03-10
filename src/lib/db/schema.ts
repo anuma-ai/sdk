@@ -12,9 +12,9 @@ import { Conversation, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
-import { VaultFolder } from "./vaultFolders/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
+import { VaultFolder } from "./vaultFolders/models";
 
 /**
  * Current combined schema version for all SDK storage modules.
