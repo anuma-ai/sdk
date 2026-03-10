@@ -215,6 +215,7 @@ export {
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
+  deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,

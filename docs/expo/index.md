@@ -226,6 +226,12 @@ Re-exports [DEFAULT\_CACHE\_EXPIRATION\_MS](../react/Internal/variables/DEFAULT_
 
 ***
 
+### deleteAllVaultMemoriesForUserOp
+
+Re-exports [deleteAllVaultMemoriesForUserOp](../react/Internal/functions/deleteAllVaultMemoriesForUserOp.md)
+
+***
+
 ### deleteVaultFolderOp
 
 Re-exports [deleteVaultFolderOp](../react/Internal/functions/deleteVaultFolderOp.md)
