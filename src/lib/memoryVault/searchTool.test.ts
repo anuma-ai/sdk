@@ -446,6 +446,55 @@ describe("preEmbedVaultMemories", () => {
   });
 });
 
+describe("searchVaultMemories — invalid JSON in persisted embedding during search", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("falls back to re-embedding when persisted embedding is invalid JSON during search", async () => {
+    const memWithBadJson = {
+      ...makeMemory("m1", "bad embed content"),
+      embedding: "not-valid-json",
+    };
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithBadJson]);
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
+    vi.mocked(generateEmbeddings).mockResolvedValue([[0.8, 0.2, 0]]);
+
+    const cache = createVaultEmbeddingCache();
+    const results = await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
+      minSimilarity: 0,
+    });
+
+    // Should have re-embedded because JSON parse failed
+    expect(generateEmbeddings).toHaveBeenCalledWith(["bad embed content"], mockEmbeddingOptions);
+    expect(results).toHaveLength(1);
+    expect(cache.get("bad embed content")).toEqual([0.8, 0.2, 0]);
+  });
+});
+
+describe("eagerEmbedContent — failure resilience", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("still populates cache even when updateVaultMemoryEmbeddingOp rejects", async () => {
+    vi.mocked(generateEmbedding).mockResolvedValue([1, 2, 3]);
+    const { updateVaultMemoryEmbeddingOp } = await import("../db/memoryVault/operations");
+    vi.mocked(updateVaultMemoryEmbeddingOp).mockRejectedValue(new Error("DB write failed"));
+
+    const cache = createVaultEmbeddingCache();
+    // Should not throw — DB failure is fire-and-forget
+    await expect(
+      eagerEmbedContent("cache me anyway", mockEmbeddingOptions, cache, mockVaultCtx, "mem-1")
+    ).resolves.toBeUndefined();
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Cache should be populated despite DB failure
+    expect(cache.get("cache me anyway")).toEqual([1, 2, 3]);
+  });
+});
+
 describe("eagerEmbedContent", () => {
   it("generates an embedding and stores it in the cache", async () => {
     vi.mocked(generateEmbedding).mockResolvedValue([1, 2, 3]);
