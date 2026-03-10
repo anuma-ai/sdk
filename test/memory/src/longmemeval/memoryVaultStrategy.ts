@@ -18,7 +18,7 @@ import {
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
+import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
 import {
   setupDatabase,
   selectSessions,
@@ -126,10 +126,21 @@ export async function processEntryMemoryVault(
       clearProgress();
 
       const generatedAnswer = genAnswer.content || "";
+      const earlyUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+      if (genAnswer.usage) {
+        earlyUsage.promptTokens += genAnswer.usage.prompt_tokens;
+        earlyUsage.completionTokens += genAnswer.usage.completion_tokens;
+        earlyUsage.totalTokens += genAnswer.usage.total_tokens;
+      }
 
       logProgress("Evaluating answer...");
-      const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+      const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
       clearProgress();
+      if (evalResult.usage) {
+        earlyUsage.promptTokens += evalResult.usage.prompt_tokens;
+        earlyUsage.completionTokens += evalResult.usage.completion_tokens;
+        earlyUsage.totalTokens += evalResult.usage.total_tokens;
+      }
 
       const elapsed = performance.now() - startTime;
       return {
@@ -138,12 +149,13 @@ export async function processEntryMemoryVault(
         question: entry.question,
         expectedAnswer: entry.answer,
         generatedAnswer,
-        isCorrect,
+        isCorrect: evalResult.isCorrect,
         retrievedSessionIds: [],
         expectedSessionIds: entry.answer_session_ids,
         retrievalPrecision: 0,
         retrievalRecall: 0,
         latencyMs: elapsed,
+        tokenUsage: earlyUsage,
         strategy: "memory-vault",
       };
     }
@@ -223,6 +235,14 @@ You are a personal assistant with access to the user's past conversation history
 
     let generatedAnswer = "";
     const retrievedVaultIds = new Set<string>();
+    const tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+
+    function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+      if (!u) return;
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens;
+      tokenUsage.totalTokens += u.total_tokens;
+    }
 
     try {
       // Force tool use — in a real conversation the LLM would naturally call
@@ -234,6 +254,7 @@ You are a personal assistant with access to the user's past conversation history
         maxTokens: 500,
       });
       clearProgress();
+      addUsage(firstResponse.usage);
 
       transcript.firstResponse = firstResponse;
 
@@ -290,6 +311,7 @@ You are a personal assistant with access to the user's past conversation history
             { maxTokens: 500 }
           );
           clearProgress();
+          addUsage(secondResponse.usage);
 
           transcript.secondResponse = secondResponse;
           generatedAnswer = secondResponse.content || "";
@@ -331,8 +353,10 @@ You are a personal assistant with access to the user's past conversation history
 
     // Evaluate answer
     logProgress("Evaluating answer...");
-    const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
     clearProgress();
+    addUsage(evalResult.usage);
+    const isCorrect = evalResult.isCorrect;
 
     transcript.isCorrect = isCorrect;
     await saveTranscript(`${entry.question_id}_vault`, transcript, verbose);
@@ -358,6 +382,7 @@ You are a personal assistant with access to the user's past conversation history
       retrievalPrecision,
       retrievalRecall,
       latencyMs: elapsed,
+      tokenUsage,
       strategy: "memory-vault",
     };
   } catch (error) {

@@ -176,6 +176,7 @@ export async function callChatCompletion(
 ): Promise<{
   content: string;
   toolCalls?: Array<{ id: string; function: { name: string; arguments: string } }>;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }> {
   const maxAttempts = 3;
   let lastStatus: number | null = null;
@@ -232,6 +233,7 @@ export async function callChatCompletion(
             }>;
           };
         }>;
+        usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       };
 
       const message = data.choices[0]?.message;
@@ -245,7 +247,7 @@ export async function callChatCompletion(
         continue;
       }
 
-      return { content, toolCalls };
+      return { content, toolCalls, usage: data.usage };
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
@@ -266,7 +268,7 @@ export async function evaluateAnswer(
   expectedAnswer: string,
   generatedAnswer: string,
   api: ApiConfig
-): Promise<boolean> {
+): Promise<{ isCorrect: boolean; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }> {
   const prompt = `You are an answer evaluator. Determine if the generated answer correctly answers the question, matching the expected answer's meaning.
 
 Question: ${question}
@@ -293,16 +295,18 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
       }),
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) return { isCorrect: false };
 
     const data = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
+      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
     };
     const result = data.choices[0]?.message?.content?.trim().toUpperCase() || "";
-    return result.includes("CORRECT") && !result.includes("INCORRECT");
+    const isCorrect = result.includes("CORRECT") && !result.includes("INCORRECT");
+    return { isCorrect, usage: data.usage };
   } catch (error) {
     console.error("Error evaluating answer:", error);
-    return false;
+    return { isCorrect: false };
   }
 }
 
@@ -465,6 +469,16 @@ function aggregateSummary(
   const latencyStats = calculatePercentiles(latencies);
   const correctCount = results.filter((r) => r.isCorrect).length;
 
+  const totalTokenUsage = results.reduce(
+    (acc, r) => ({
+      promptTokens: acc.promptTokens + r.tokenUsage.promptTokens,
+      completionTokens: acc.completionTokens + r.tokenUsage.completionTokens,
+      totalTokens: acc.totalTokens + r.tokenUsage.totalTokens,
+      embeddingTokens: acc.embeddingTokens + r.tokenUsage.embeddingTokens,
+    }),
+    { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 }
+  );
+
   return {
     timestamp: new Date().toISOString(),
     datasetName: `longmemeval_${options.variant}_${strategy}`,
@@ -489,6 +503,7 @@ function aggregateSummary(
       p99: latencyStats.p99,
       mean: latencyStats.mean,
     },
+    tokenUsage: totalTokenUsage,
     results: options.verbose ? results : [],
   };
 }
@@ -608,6 +623,7 @@ export async function runLongMemEval(
           retrievalPrecision: 0,
           retrievalRecall: 0,
           latencyMs: 0,
+          tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 },
           strategy: strat,
           details: { error: String(error) },
         };

@@ -44,7 +44,7 @@ on:
         description: "Parallel questions"
         required: false
         type: string
-        default: "20"
+        default: "100"
 
 jobs:
   resolve-strategies:

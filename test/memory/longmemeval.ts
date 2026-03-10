@@ -14,6 +14,7 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../src/lib/memoryEngine/constants.js";
 import {
   loadLongMemEvalDataset,
   preloadAllDatasets,
@@ -22,6 +23,8 @@ import {
   runLongMemEval,
   printLongMemEvalSummary,
   printLongMemEvalJson,
+  fetchModelPricing,
+  attachCost,
 } from "./src/longmemeval/index.js";
 import type {
   LongMemEvalOptions,
@@ -195,14 +198,25 @@ async function main(): Promise<void> {
     const dataset = await loadLongMemEvalDataset(variant);
     console.log(`Loaded ${dataset.length} entries`);
 
+    const llmModel = args.llm || "cerebras/qwen-3-235b-a22b-instruct-2507";
     const result = await runLongMemEval(dataset, options, {
       apiKey,
       baseUrl,
-      llmModel: "cerebras/qwen-3-235b-a22b-instruct-2507",
+      llmModel,
     });
 
+    // Fetch model pricing and attach cost estimates
+    const pricing = await fetchModelPricing(baseUrl, apiKey);
+    const embeddingModel = DEFAULT_API_EMBEDDING_MODEL;
+
+    function attachCostToSummary(summary: LongMemEvalSummary): void {
+      attachCost(summary, llmModel, embeddingModel, pricing);
+    }
+
     if (isComparison(result)) {
-      // Both strategies — print each summary
+      attachCostToSummary(result.engine);
+      attachCostToSummary(result.vault);
+
       if (args.json) {
         printLongMemEvalJson(result.engine);
         printLongMemEvalJson(result.vault);
@@ -218,7 +232,8 @@ async function main(): Promise<void> {
         console.log(`\nResults written to ${args.output}`);
       }
     } else {
-      // Single strategy
+      attachCostToSummary(result);
+
       if (args.json) {
         printLongMemEvalJson(result);
       } else {

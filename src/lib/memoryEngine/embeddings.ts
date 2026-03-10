@@ -86,6 +86,14 @@ export async function generateEmbedding(
 
   const embedding = response.data.data[0].embedding;
 
+  // Report usage if callback provided
+  if (options.onUsage && response.data.usage) {
+    options.onUsage({
+      promptTokens: response.data.usage.prompt_tokens ?? 0,
+      totalTokens: response.data.usage.total_tokens ?? 0,
+    });
+  }
+
   // Store in cache
   if (cache) {
     cache.set(text, embedding);
@@ -104,7 +112,8 @@ async function generateEmbeddingsBatch(
   texts: string[],
   headers: Record<string, string>,
   baseUrl: string,
-  model: string
+  model: string,
+  onUsage?: EmbeddingOptions["onUsage"]
 ): Promise<number[][]> {
   const response = await postApiV1Embeddings({
     baseUrl,
@@ -122,6 +131,13 @@ async function generateEmbeddingsBatch(
 
   if (!response.data?.data) {
     throw new Error("No embeddings returned from API");
+  }
+
+  if (onUsage && response.data.usage) {
+    onUsage({
+      promptTokens: response.data.usage.prompt_tokens ?? 0,
+      totalTokens: response.data.usage.total_tokens ?? 0,
+    });
   }
 
   return response.data.data.map((item) => item.embedding ?? []);
@@ -190,7 +206,7 @@ export async function generateEmbeddings(
 
   // Small inputs: single API call (preserves existing behavior)
   if (uncachedTexts.length <= chunkSize) {
-    newEmbeddings = await generateEmbeddingsBatch(uncachedTexts, headers, baseUrl, embeddingModel);
+    newEmbeddings = await generateEmbeddingsBatch(uncachedTexts, headers, baseUrl, embeddingModel, options.onUsage);
   } else {
     // Large inputs: chunk and process with bounded concurrency
     const chunks: string[][] = [];
@@ -208,7 +224,8 @@ export async function generateEmbeddings(
           chunks[idx],
           headers,
           baseUrl,
-          embeddingModel
+          embeddingModel,
+          options.onUsage
         );
       }
     };

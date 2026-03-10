@@ -78,6 +78,8 @@ export interface EmbeddingOptions {
    * repeatedly (e.g., across eval iterations or re-indexing runs).
    */
   cache?: Map<string, number[]>;
+  /** Called after each embedding API call with the token usage from the response. */
+  onUsage?: (usage: { promptTokens: number; totalTokens: number }) => void;
 }
 
 /**

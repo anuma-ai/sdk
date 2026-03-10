@@ -16,7 +16,7 @@ import {
 import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
 import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
+import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
 import {
   setupDatabase,
   selectSessions,
@@ -76,6 +76,9 @@ export async function processEntryMemoryEngine(
   // Map conversationId -> sessionId for retrieval metrics
   const convToSession = new Map<string, string>();
 
+  // Token tracking — declared early so embedding callbacks can accumulate too
+  const tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 };
+
   try {
     // Step 1: Store haystack sessions as conversations + messages
     logProgress("Storing sessions as messages...");
@@ -106,6 +109,9 @@ export async function processEntryMemoryEngine(
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
       ...(embeddingCache ? { cache: embeddingCache } : {}),
+      onUsage: (usage: { promptTokens: number; totalTokens: number }) => {
+        tokenUsage.embeddingTokens += usage.totalTokens;
+      },
     };
 
     logProgress("Chunking and embedding messages...");
@@ -176,6 +182,13 @@ You are a personal assistant with access to the user's past conversation history
 
     let generatedAnswer = "";
 
+    function addUsage(u?: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+      if (!u) return;
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens;
+      tokenUsage.totalTokens += u.total_tokens;
+    }
+
     try {
       // Force tool use — in a real conversation the LLM would naturally call
       // the tool, but this eval sends a bare question with no prior context.
@@ -186,6 +199,7 @@ You are a personal assistant with access to the user's past conversation history
         maxTokens: 500,
       });
       clearProgress();
+      addUsage(firstResponse.usage);
 
       transcript.firstResponse = firstResponse;
 
@@ -235,6 +249,7 @@ You are a personal assistant with access to the user's past conversation history
             { maxTokens: 500 }
           );
           clearProgress();
+          addUsage(secondResponse.usage);
 
           transcript.secondResponse = secondResponse;
           generatedAnswer = secondResponse.content || "";
@@ -277,8 +292,10 @@ You are a personal assistant with access to the user's past conversation history
 
     // Evaluate answer
     logProgress("Evaluating answer...");
-    const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
     clearProgress();
+    addUsage(evalResult.usage);
+    const isCorrect = evalResult.isCorrect;
 
     transcript.isCorrect = isCorrect;
     await saveTranscript(entry.question_id, transcript, verbose);
@@ -292,6 +309,9 @@ You are a personal assistant with access to the user's past conversation history
       console.log(`  Time: ${elapsed.toFixed(0)}ms`);
     }
 
+    // Include embedding tokens in the total
+    tokenUsage.totalTokens += tokenUsage.embeddingTokens;
+
     return {
       questionId: entry.question_id,
       questionType: entry.question_type,
@@ -304,6 +324,7 @@ You are a personal assistant with access to the user's past conversation history
       retrievalPrecision,
       retrievalRecall,
       latencyMs: elapsed,
+      tokenUsage,
       strategy: "memory-engine",
     };
   } catch (error) {

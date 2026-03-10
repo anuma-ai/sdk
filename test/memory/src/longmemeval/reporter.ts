@@ -2,7 +2,7 @@
  * LongMemEval Results Reporter
  */
 
-import type { LongMemEvalSummary, LongMemEvalQuestionType } from "./types.js";
+import type { LongMemEvalSummary, LongMemEvalQuestionType, ModelPricing } from "./types.js";
 
 const COLORS = {
   reset: "\x1b[0m",
@@ -100,6 +100,26 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   console.log(`  Avg Recall:`.padEnd(20) + formatPercent(summary.retrieval.avgRecall));
   console.log();
 
+  // Token Usage & Cost
+  console.log(color("Token Usage", COLORS.bold));
+  console.log("─".repeat(70));
+  const t = summary.tokenUsage;
+  console.log(`  LLM Prompt:`.padEnd(22) + `${t.promptTokens.toLocaleString()} tokens`);
+  console.log(`  LLM Completion:`.padEnd(22) + `${t.completionTokens.toLocaleString()} tokens`);
+  console.log(`  Embedding:`.padEnd(22) + `${t.embeddingTokens.toLocaleString()} tokens`);
+  console.log(`  Total:`.padEnd(22) + `${t.totalTokens.toLocaleString()} tokens`);
+
+  if (summary.cost) {
+    const c = summary.cost;
+    console.log();
+    console.log(color("Cost Estimate", COLORS.bold));
+    console.log("─".repeat(70));
+    console.log(`  LLM (${c.llmModel}):`.padEnd(50) + `$${c.llmCost.toFixed(4)}`);
+    console.log(`  Embedding (${c.embeddingModel}):`.padEnd(50) + `$${c.embeddingCost.toFixed(4)}`);
+    console.log(`  Total:`.padEnd(50) + color(`$${c.totalCost.toFixed(4)}`, COLORS.bold));
+  }
+  console.log();
+
   // Latency
   console.log(color("Latency (per question)", COLORS.bold));
   console.log("─".repeat(70));
@@ -116,6 +136,73 @@ export function printLongMemEvalSummary(summary: LongMemEvalSummary): void {
   console.log();
 
   console.log("═".repeat(70));
+}
+
+/**
+ * Fetch per-token pricing for models from the API.
+ * Returns a map of model ID -> { prompt, completion } cost per token.
+ */
+export async function fetchModelPricing(
+  baseUrl: string,
+  apiKey: string
+): Promise<Map<string, ModelPricing>> {
+  const pricing = new Map<string, ModelPricing>();
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/models`, {
+      headers: { "X-API-Key": apiKey },
+    });
+    if (!response.ok) return pricing;
+
+    const data = (await response.json()) as {
+      data: Array<{
+        id: string;
+        pricing?: { prompt: string; completion: string };
+      }>;
+    };
+
+    for (const model of data.data) {
+      if (model.pricing) {
+        pricing.set(model.id, {
+          prompt: parseFloat(model.pricing.prompt),
+          completion: parseFloat(model.pricing.completion),
+        });
+      }
+    }
+  } catch {
+    // Best-effort — cost section will be skipped if pricing unavailable
+  }
+  return pricing;
+}
+
+/**
+ * Attach cost information to a summary using model pricing data.
+ */
+export function attachCost(
+  summary: LongMemEvalSummary,
+  llmModel: string,
+  embeddingModel: string,
+  pricing: Map<string, ModelPricing>
+): void {
+  const llmPricing = pricing.get(llmModel);
+  const embPricing = pricing.get(embeddingModel);
+
+  if (!llmPricing && !embPricing) return;
+
+  const t = summary.tokenUsage;
+  const llmCost = llmPricing
+    ? t.promptTokens * llmPricing.prompt + t.completionTokens * llmPricing.completion
+    : 0;
+  const embeddingCost = embPricing
+    ? t.embeddingTokens * embPricing.prompt
+    : 0;
+
+  summary.cost = {
+    llmCost,
+    embeddingCost,
+    totalCost: llmCost + embeddingCost,
+    llmModel,
+    embeddingModel,
+  };
 }
 
 export function printLongMemEvalJson(summary: LongMemEvalSummary): void {
