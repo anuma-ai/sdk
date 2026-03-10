@@ -165,7 +165,9 @@ export function createMemoryVaultTool(
             if (previousContent) {
               cache.delete(previousContent);
             }
-            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(() => {});
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch((err) => {
+              console.warn("[anuma/sdk] Failed to embed updated memory:", err);
+            });
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
@@ -173,7 +175,9 @@ export function createMemoryVaultTool(
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
             eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
-              () => {}
+              (err) => {
+                console.warn("[anuma/sdk] Failed to embed new memory:", err);
+              }
             );
           }
           return `Memory saved successfully (ID: ${created.uniqueId}).`;

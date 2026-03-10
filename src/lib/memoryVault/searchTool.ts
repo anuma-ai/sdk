@@ -106,7 +106,9 @@ export async function eagerEmbedContent(
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
   if (vaultCtx && memoryId) {
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch(() => {});
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch((err) => {
+      console.warn("[anuma/sdk] Failed to persist embedding:", err);
+    });
   }
 }
 
@@ -173,7 +175,9 @@ async function searchVaultMemoriesWithSize(
         vaultCtx,
         memories[uncachedIndices[j]].uniqueId,
         JSON.stringify(newEmbeddings[j])
-      ).catch(() => {});
+      ).catch((err) => {
+        console.warn("[anuma/sdk] Failed to persist embedding:", err);
+      });
     }
   }
 
