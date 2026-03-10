@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v19**
+Current version: **v20**
 
 ```mermaid
 graph LR
@@ -100,6 +100,7 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 | `user_id` | string | ✓ | ✓ |
+| `embedding` | string |  | ✓ |
 
 ## vault_folders
 
@@ -137,6 +138,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v20 | Added `embedding` to `memory_vault` |
 | v19 | Added `user_id` to `memory_vault` |
 | v18 | Added `vault_folders` table; Added `folder_id` to `memory_vault` |
 | v17 | Added `image_model` to `history` |
