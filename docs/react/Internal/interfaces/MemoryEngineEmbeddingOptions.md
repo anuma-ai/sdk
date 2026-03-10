@@ -77,3 +77,66 @@ Function to get auth token (e.g., Privy's getIdentityToken). Uses Authorization:
 Defined in: [src/lib/memoryEngine/types.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#71)
 
 Embedding model to use
+
+***
+
+### onUsage()?
+
+> `optional` **onUsage**: (`usage`: `object`) => `void`
+
+Defined in: [src/lib/memoryEngine/types.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#82)
+
+Called after each embedding API call with the token usage from the response.
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`usage`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`usage.promptTokens`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`usage.totalTokens`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`void`

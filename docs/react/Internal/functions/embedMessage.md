@@ -2,7 +2,7 @@
 
 > **embedMessage**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `messageId`: `string`, `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md)): `Promise`<[`StoredMessage`](../interfaces/StoredMessage.md) | `null`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:244](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#244)
+Defined in: [src/lib/memoryEngine/embeddings.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#261)
 
 Embed a single message and store the embedding in the database
 
