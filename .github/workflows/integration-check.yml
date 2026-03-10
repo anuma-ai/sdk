@@ -19,9 +19,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref:
-          - pr
-          - main
+        ref: [pr, main]
+        repo: [starter-next, starter-mini, starter-telegram, dashboard, text]
+        include:
+          - repo: starter-next
+            e2e: true
+          - repo: starter-mini
+            e2e: false
+          - repo: starter-telegram
+            e2e: false
+          - repo: dashboard
+            e2e: false
+          - repo: text
+            e2e: false
     env:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
@@ -62,46 +72,48 @@ jobs:
       - name: Pack SDK
         run: pnpm pack --pack-destination /tmp/sdk-pack
 
-      - name: Clone starter-next
+      - name: Clone ${{ matrix.repo }}
         env:
-          GH_TOKEN: ${{ secrets.EXAMPLES_REPO_TOKEN }}
-        run: gh repo clone anuma-ai/starter-next /tmp/starter-next -- --depth 1
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: gh repo clone anuma-ai/${{ matrix.repo }} /tmp/${{ matrix.repo }} -- --depth 1
 
       - name: Install SDK from tarball
-        working-directory: /tmp/starter-next
+        working-directory: /tmp/${{ matrix.repo }}
         run: |
           pnpm install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
           pnpm add "$SDK_TARBALL"
 
-      - name: Build starter-next
+      - name: Build ${{ matrix.repo }}
         id: build
-        working-directory: /tmp/starter-next
+        working-directory: /tmp/${{ matrix.repo }}
         continue-on-error: true
         run: pnpm build
 
       - name: Install Playwright browsers
-        if: steps.build.outcome == 'success'
-        working-directory: /tmp/starter-next
+        if: matrix.e2e && steps.build.outcome == 'success'
+        working-directory: /tmp/${{ matrix.repo }}
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run light e2e tests
         id: e2e
-        if: steps.build.outcome == 'success'
-        working-directory: /tmp/starter-next
+        if: matrix.e2e && steps.build.outcome == 'success'
+        working-directory: /tmp/${{ matrix.repo }}
         continue-on-error: true
         run: pnpm test:e2e:light
 
       - name: Write outcome
         run: |
           mkdir -p /tmp/outcomes
-          echo "${{ steps.build.outcome }}" > /tmp/outcomes/${{ matrix.ref }}-build
-          echo "${{ steps.e2e.outcome }}" > /tmp/outcomes/${{ matrix.ref }}-e2e
+          echo "${{ steps.build.outcome }}" > /tmp/outcomes/${{ matrix.repo }}-${{ matrix.ref }}-build
+          if [ "${{ matrix.e2e }}" == "true" ]; then
+            echo "${{ steps.e2e.outcome }}" > /tmp/outcomes/${{ matrix.repo }}-${{ matrix.ref }}-e2e
+          fi
 
       - name: Upload outcome
         uses: actions/upload-artifact@v4
         with:
-          name: outcome-${{ matrix.ref }}
+          name: outcome-${{ matrix.repo }}-${{ matrix.ref }}
           path: /tmp/outcomes/
 
   report:
@@ -120,56 +132,66 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_BUILD=$(cat /tmp/outcomes/pr-build)
-          PR_E2E=$(cat /tmp/outcomes/pr-e2e)
-          MAIN_BUILD=$(cat /tmp/outcomes/main-build)
-          MAIN_E2E=$(cat /tmp/outcomes/main-e2e)
+          REPOS="starter-next starter-mini starter-telegram dashboard text"
+          E2E_REPOS="starter-next"
 
-          # Build the status table
-          row() {
-            local label=$1 main_val=$2 pr_val=$3
-            local main_icon="✅" pr_icon="✅"
-            [ "$main_val" != "success" ] && main_icon="❌"
-            [ "$pr_val" != "success" ] && pr_icon="❌"
-            echo "| $label | $main_icon | $pr_icon |"
+          icon() { [ "$1" == "success" ] && echo "✅" || echo "❌"; }
+
+          has_e2e() {
+            for r in $E2E_REPOS; do [ "$r" == "$1" ] && return 0; done
+            return 1
           }
 
+          # Build the status table
           TABLE="| | main | PR |
-          |---|---|---|
-          $(row "Build" "$MAIN_BUILD" "$PR_BUILD")
-          $(row "e2e" "$MAIN_E2E" "$PR_E2E")"
+          |---|---|---|"
 
-          if [ "$PR_BUILD" == "success" ] && [ "$PR_E2E" == "success" ]; then
+          ALL_PR_OK=true
+          ANY_REGRESSION=false
+          BROKEN_REPOS=""
+
+          for REPO in $REPOS; do
+            MAIN_BUILD=$(cat /tmp/outcomes/${REPO}-main-build 2>/dev/null || echo "skipped")
+            PR_BUILD=$(cat /tmp/outcomes/${REPO}-pr-build 2>/dev/null || echo "skipped")
+            TABLE="$TABLE
+          | ${REPO} build | $(icon "$MAIN_BUILD") | $(icon "$PR_BUILD") |"
+
+            [ "$PR_BUILD" != "success" ] && ALL_PR_OK=false
+            if [ "$PR_BUILD" != "success" ] && [ "$MAIN_BUILD" == "success" ]; then
+              ANY_REGRESSION=true
+              BROKEN_REPOS="$BROKEN_REPOS $REPO"
+            fi
+
+            if has_e2e "$REPO"; then
+              MAIN_E2E=$(cat /tmp/outcomes/${REPO}-main-e2e 2>/dev/null || echo "skipped")
+              PR_E2E=$(cat /tmp/outcomes/${REPO}-pr-e2e 2>/dev/null || echo "skipped")
+              TABLE="$TABLE
+          | ${REPO} e2e | $(icon "$MAIN_E2E") | $(icon "$PR_E2E") |"
+
+              [ "$PR_E2E" != "success" ] && ALL_PR_OK=false
+              if [ "$PR_E2E" != "success" ] && [ "$PR_E2E" != "skipped" ] && [ "$MAIN_E2E" == "success" ]; then
+                ANY_REGRESSION=true
+              fi
+            fi
+          done
+
+          if [ "$ALL_PR_OK" == "true" ]; then
             BODY="<!-- integration-check -->
           ### Integration Check ✅
 
           $TABLE"
-          elif [ "$PR_BUILD" == "$MAIN_BUILD" ] && [ "$PR_E2E" == "$MAIN_E2E" ]; then
-            BODY="<!-- integration-check -->
-          ### Integration Check ✅ (baseline matches)
-
-          Failures also occur on \`main\` — not caused by this PR.
-
-          $TABLE"
-          elif [ "$PR_BUILD" != "success" ] && [ "$MAIN_BUILD" == "success" ]; then
+          elif [ "$ANY_REGRESSION" == "true" ]; then
             BODY="<!-- integration-check -->
           ### Integration Check ❌
 
-          **starter-next** fails to build against this PR but passes on \`main\`. This PR introduces a breaking change.
-
-          $TABLE"
-          elif [ "$PR_BUILD" == "success" ] && [ "$PR_E2E" != "success" ] && [ "$MAIN_E2E" == "success" ]; then
-            BODY="<!-- integration-check -->
-          ### Integration Check ⚠️
-
-          **starter-next** builds but e2e tests fail against this PR while passing on \`main\`.
+          This PR introduces regressions in:$(echo "$BROKEN_REPOS" | tr ' ' '\n' | sed '/^$/d' | sed 's/^/ **/' | sed 's/$/**/').
 
           $TABLE"
           else
             BODY="<!-- integration-check -->
-          ### Integration Check ⚠️
+          ### Integration Check ✅ (baseline matches)
 
-          Results differ between \`main\` and this PR — review the table below.
+          Failures also occur on \`main\` — not caused by this PR.
 
           $TABLE"
           fi
@@ -185,17 +207,10 @@ jobs:
             gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/integration-comment.md
           fi
 
-          # Only label if PR is strictly worse than main
-          if [ "$PR_BUILD" != "success" ] && [ "$MAIN_BUILD" == "success" ]; then
-            gh label create "breaks-starter-build" --description "PR breaks starter-next build" --color "d93f0b" 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-build" || true
+          # Label management
+          if [ "$ANY_REGRESSION" == "true" ]; then
+            gh label create "breaks-integration" --description "PR breaks downstream repo build or tests" --color "d93f0b" 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-integration" || true
           else
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-build" 2>/dev/null || true
-          fi
-
-          if [ "$PR_E2E" != "success" ] && [ "$PR_E2E" != "" ] && [ "$MAIN_E2E" == "success" ]; then
-            gh label create "breaks-starter-e2e" --description "PR breaks starter-next e2e tests" --color "d93f0b" 2>/dev/null || true
-            gh pr edit ${{ github.event.pull_request.number }} --add-label "breaks-starter-e2e" || true
-          else
-            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-starter-e2e" 2>/dev/null || true
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "breaks-integration" 2>/dev/null || true
           fi
