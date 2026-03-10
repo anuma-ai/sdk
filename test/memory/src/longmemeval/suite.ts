@@ -528,9 +528,12 @@ export async function runLongMemEval(
       ? ["memory-engine", "memory-vault"]
       : [strategy as "memory-engine" | "memory-vault"];
 
+  const concurrency = options.concurrency ?? 1;
+
   console.log(`\nRunning LongMemEval benchmark (${options.variant} variant, ${strategy} strategy)`);
   if (options.llmModel) console.log(`LLM model: ${llmModel}`);
   console.log(`Total questions: ${entries.length}`);
+  if (concurrency > 1) console.log(`Concurrency: ${concurrency}`);
   if (options.maxSessions) console.log(`Max sessions per question: ${options.maxSessions}`);
   console.log("");
 
@@ -551,16 +554,21 @@ export async function runLongMemEval(
       console.log(`\n── Strategy: ${strat} ──\n`);
     }
 
-    for (let i = 0; i < entries.length; i++) {
+    // Process entries with configurable concurrency.
+    // Results are collected in entry order regardless of completion order.
+    const orderedResults: (LongMemEvalResult | null)[] = new Array(entries.length).fill(null);
+    let completed = 0;
+
+    async function processEntry(i: number): Promise<void> {
       const entry = entries[i];
-      console.log(`[${i + 1}/${entries.length}] ${entry.question_id}`);
 
       try {
         if (options.skipExisting) {
           const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
           if (hasTranscript) {
-            console.log("  ↷ Skipping (existing transcript for same model)");
-            continue;
+            completed++;
+            console.log(`[${completed}/${entries.length}] ${entry.question_id} ↷ Skipping`);
+            return;
           }
         }
 
@@ -582,15 +590,13 @@ export async function runLongMemEval(
           );
         }
 
-        results.push(result);
-        latencies.push(result.latencyMs);
-
+        orderedResults[i] = result;
+        completed++;
         console.log(
-          `  ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
+          `[${completed}/${entries.length}] ${entry.question_id} ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
         );
       } catch (error) {
-        console.error(`  ✗ Error processing ${entry.question_id}:`, error);
-        results.push({
+        orderedResults[i] = {
           questionId: entry.question_id,
           questionType: entry.question_type,
           question: entry.question,
@@ -604,7 +610,29 @@ export async function runLongMemEval(
           latencyMs: 0,
           strategy: strat,
           details: { error: String(error) },
-        });
+        };
+        completed++;
+        console.error(`[${completed}/${entries.length}] ${entry.question_id} ✗ Error:`, error);
+      }
+    }
+
+    // Concurrency-limited executor
+    const pending = new Set<Promise<void>>();
+    for (let i = 0; i < entries.length; i++) {
+      const p = processEntry(i).then(() => {
+        pending.delete(p);
+      });
+      pending.add(p);
+      if (pending.size >= concurrency) {
+        await Promise.race(pending);
+      }
+    }
+    await Promise.all(pending);
+
+    for (const result of orderedResults) {
+      if (result) {
+        results.push(result);
+        latencies.push(result.latencyMs);
       }
     }
 

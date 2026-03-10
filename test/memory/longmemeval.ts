@@ -47,6 +47,7 @@ const { values: args } = parseArgs({
     preload: { type: "boolean", default: false },
     "skip-unsupported": { type: "boolean", default: true },
     "include-unsupported": { type: "boolean", default: false },
+    concurrency: { type: "string", short: "c" },
     "cache-dir": { type: "boolean", default: false },
     stats: { type: "boolean", default: false },
     help: { type: "boolean", default: false, short: "h" },
@@ -77,6 +78,7 @@ Options:
   -m, --max <n>               Maximum number of questions to evaluate
   --max-sessions <n>          Max sessions to process per question (for dev)
   -t, --types <types>         Comma-separated question types to include
+  -c, --concurrency <n>       Number of questions to process in parallel (default: 1)
   --skip-unsupported          Skip temporal-reasoning & knowledge-update (default: true)
   --include-unsupported       Include temporal-reasoning & knowledge-update
   --json                      Output results as JSON
@@ -185,6 +187,7 @@ async function main(): Promise<void> {
     verbose: args.verbose,
     output: args.output,
     skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
+    concurrency: args.concurrency ? parseInt(args.concurrency, 10) : undefined,
   };
 
   try {
