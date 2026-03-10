@@ -1,3 +1,1 @@
-import spec from "../../openapi/portal.swagger.json";
-
-export default spec;
+export { default as spec } from "../../openapi/portal.swagger.json";
