@@ -93,7 +93,11 @@ function formatSessionResults(
 export function createMemoryEngineTool(
   storageCtx: StorageOperationsContext,
   embeddingOptions: EmbeddingOptions,
-  searchOptions?: Partial<MemoryEngineSearchOptions>
+  searchOptions?: Partial<MemoryEngineSearchOptions>,
+  callbacks?: {
+    /** Called after retrieval with the conversation IDs that were actually returned to the LLM. */
+    onRetrieve?: (conversationIds: string[]) => void;
+  }
 ): ToolConfig {
   const defaultOpts = { ...DEFAULT_SEARCH_OPTIONS, ...searchOptions };
 
@@ -280,6 +284,8 @@ export function createMemoryEngineTool(
             })),
           });
         }
+
+        callbacks?.onRetrieve?.(sessionResults.map((s) => s.conversationId));
 
         return formatSessionResults(sessionResults, sortBy);
       } catch (error) {

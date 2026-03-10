@@ -11,14 +11,10 @@ import type { Database } from "@nozbe/watermelondb";
 import {
   createConversationOp,
   createMessageOp,
-  searchChunksOp,
   type StorageOperationsContext,
 } from "../../../../src/lib/db/chat/operations.js";
 import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
-import {
-  chunkAndEmbedAllMessages,
-  generateEmbedding,
-} from "../../../../src/lib/memoryEngine/embeddings.js";
+import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
 import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
 import {
@@ -121,11 +117,23 @@ export async function processEntryMemoryEngine(
     }
 
     // Step 3: Create the retrieval tool via SDK
-    const retrievalTool = createMemoryEngineTool(storageCtx, embeddingOptions, {
-      topK: 12,
-      minSimilarity: 0.1,
-      includeAssistant: true,
-    });
+    // Capture conversation IDs that the tool actually returns to the LLM
+    // so retrieval metrics reflect the real code path, not a separate search.
+    const retrievedConvIds = new Set<string>();
+    const retrievalTool = createMemoryEngineTool(
+      storageCtx,
+      embeddingOptions,
+      {
+        topK: 12,
+        minSimilarity: 0.1,
+        includeAssistant: true,
+      },
+      {
+        onRetrieve: (convIds) => {
+          for (const id of convIds) retrievedConvIds.add(id);
+        },
+      }
+    );
 
     // Step 4: Two-step LLM flow
     // The SDK relies on tool descriptions to guide usage, so we don't coach
@@ -167,7 +175,6 @@ You are a personal assistant with access to the user's past conversation history
     };
 
     let generatedAnswer = "";
-    const retrievedConvIds = new Set<string>();
 
     try {
       // Force tool use — in a real conversation the LLM would naturally call
@@ -243,23 +250,8 @@ You are a personal assistant with access to the user's past conversation history
 
     transcript.finalAnswer = generatedAnswer;
 
-    // Compute retrieval metrics using SDK's generateEmbedding + searchChunksOp
-    logProgress("Computing retrieval metrics...");
-    try {
-      const queryEmbedding = await generateEmbedding(entry.question, embeddingOptions);
-      const rawResults = await searchChunksOp(storageCtx, queryEmbedding, {
-        limit: 12,
-        minSimilarity: 0.1,
-      });
-      for (const r of rawResults) {
-        const convId = r.message.conversationId;
-        if (convId) retrievedConvIds.add(convId);
-      }
-    } catch (error) {
-      console.error("Retrieval metrics failed:", error);
-    }
-    clearProgress();
-
+    // Retrieval metrics are derived from the onRetrieve callback above,
+    // which captures the exact conversation IDs the tool returned to the LLM.
     const retrievedSessionIds = new Set<string>();
     for (const convId of retrievedConvIds) {
       const sessionId = convToSession.get(convId);
