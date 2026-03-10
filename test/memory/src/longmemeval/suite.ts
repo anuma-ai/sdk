@@ -8,6 +8,7 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { join } from "node:path";
+import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
 import type {
@@ -72,9 +73,21 @@ async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> 
 async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): Promise<void> {
   try {
     await mkdir(join(path, ".."), { recursive: true });
-    const entries = Array.from(cache.entries());
-    await writeFile(path, JSON.stringify(entries));
-    console.log(`Saved ${entries.length} embeddings to cache`);
+    // Stream entries one-by-one to avoid building a huge JSON string in memory.
+    const stream = createWriteStream(path);
+    stream.write("[");
+    let first = true;
+    for (const [key, value] of cache) {
+      if (!first) stream.write(",");
+      first = false;
+      stream.write(JSON.stringify([key, value]));
+    }
+    stream.write("]");
+    await new Promise<void>((resolve, reject) => {
+      stream.end(() => resolve());
+      stream.on("error", reject);
+    });
+    console.log(`Saved ${cache.size} embeddings to cache`);
   } catch (error) {
     console.error("Failed to save embedding cache:", error);
   }

@@ -96,6 +96,7 @@ jobs:
           EVAL_VARIANT: ${{ inputs.variant }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
           args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
           if [ -n "$EVAL_MAX" ]; then
