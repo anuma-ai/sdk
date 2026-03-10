@@ -532,32 +532,41 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
       // Wait for the encryption key if it hasn't been derived yet
       if (walletAddress) {
         if (!hasEncryptionKey(walletAddress)) {
-          await new Promise<void>((resolve, reject) => {
-            const cleanup = { fn: () => {} };
-            const timeout = setTimeout(() => {
-              cleanup.fn();
-              reject(new Error("Encryption key not available within timeout"));
-            }, 10_000);
-            cleanup.fn = onKeyAvailable(walletAddress, () => {
-              clearTimeout(timeout);
-              cleanup.fn();
-              resolve();
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const cleanup = { fn: () => {} };
+              const timeout = setTimeout(() => {
+                cleanup.fn();
+                reject(new Error("Encryption key not available within timeout"));
+              }, 10_000);
+              cleanup.fn = onKeyAvailable(walletAddress, () => {
+                clearTimeout(timeout);
+                cleanup.fn();
+                resolve();
+              });
             });
-          });
+          } catch {
+            // Timeout — fall through to legacy storage
+            console.warn(
+              `[useFiles] Encryption key wait timed out for ${mediaId}, trying legacy storage`
+            );
+          }
         }
 
-        try {
-          const encryptionKey = await getEncryptionKey(walletAddress);
-          const result = await readEncryptedFile(mediaId, encryptionKey);
-          if (!result) {
-            throw new Error(`File could not be found: ${mediaId}`);
+        if (hasEncryptionKey(walletAddress)) {
+          try {
+            const encryptionKey = await getEncryptionKey(walletAddress);
+            const result = await readEncryptedFile(mediaId, encryptionKey);
+            if (!result) {
+              throw new Error(`File could not be found: ${mediaId}`);
+            }
+            return new File([result.blob], result.metadata?.name || mediaId, {
+              type: result.metadata?.type || "application/octet-stream",
+            });
+          } catch (error) {
+            // If encrypted read fails, fall back to legacy storage
+            console.warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
           }
-          return new File([result.blob], result.metadata?.name || mediaId, {
-            type: result.metadata?.type || "application/octet-stream",
-          });
-        } catch (error) {
-          // If encrypted read fails, fall back to legacy storage
-          console.warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
         }
       }
 
