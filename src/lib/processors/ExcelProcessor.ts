@@ -7,7 +7,16 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 // throws "process.umask is not implemented yet!".  fstream (a transitive dep
 // of exceljs via unzipper) calls process.umask() at module-init time, so the
 // polyfill must be in place before the first `import("exceljs")` resolves.
-if (typeof process !== "undefined" && typeof process.umask !== "function") {
+let shouldPolyfillUmask = typeof process !== "undefined" && typeof process.umask !== "function";
+if (!shouldPolyfillUmask && typeof process !== "undefined") {
+  try {
+    process.umask();
+  } catch {
+    shouldPolyfillUmask = true;
+  }
+}
+
+if (shouldPolyfillUmask) {
   // 0o22 is the default umask on POSIX systems.  The value is only used by
   // fstream for file-permission calculations which are irrelevant in Workers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
