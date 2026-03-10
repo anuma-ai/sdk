@@ -510,6 +510,10 @@ export async function runLongMemEval(
 
   const summaries: Record<string, LongMemEvalSummary> = {};
 
+  // Shared embedding cache across all questions — avoids re-embedding
+  // the same haystack texts that appear in multiple questions.
+  const embeddingCache = new Map<string, number[]>();
+
   for (const strat of strategies) {
     const results: LongMemEvalResult[] = [];
     const latencies: number[] = [];
@@ -537,7 +541,8 @@ export async function runLongMemEval(
             entry,
             { ...api, llmModel },
             options.verbose || false,
-            options.maxSessions
+            options.maxSessions,
+            embeddingCache
           );
         } else {
           result = await processEntryMemoryVault(
