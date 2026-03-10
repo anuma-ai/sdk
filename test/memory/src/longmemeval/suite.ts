@@ -619,7 +619,9 @@ export async function runLongMemEval(
     // Concurrency-limited executor
     const pending = new Set<Promise<void>>();
     for (let i = 0; i < entries.length; i++) {
-      const p = processEntry(i).then(() => { pending.delete(p); });
+      const p = processEntry(i).then(() => {
+        pending.delete(p);
+      });
       pending.add(p);
       if (pending.size >= concurrency) {
         await Promise.race(pending);
