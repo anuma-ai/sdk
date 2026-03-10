@@ -533,13 +533,14 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
       if (walletAddress) {
         if (!hasEncryptionKey(walletAddress)) {
           await new Promise<void>((resolve, reject) => {
+            let unsubscribe: (() => void) | undefined;
             const timeout = setTimeout(() => {
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               reject(new Error("Encryption key not available within timeout"));
             }, 10_000);
-            const unsubscribe = onKeyAvailable(walletAddress, () => {
+            unsubscribe = onKeyAvailable(walletAddress, () => {
               clearTimeout(timeout);
-              unsubscribe();
+              if (unsubscribe) unsubscribe();
               resolve();
             });
           });
