@@ -223,7 +223,12 @@ export function createMemoryEngineTool(
 
         const contextWindow = defaultOpts.contextMessages;
 
-        // Expand: fetch messages from each matched conversation
+        // Expand: fetch messages from each matched conversation in parallel
+        const convEntries = Array.from(convMeta.entries());
+        const allConvMessages = await Promise.all(
+          convEntries.map(([convId]) => getMessagesOp(storageCtx, convId))
+        );
+
         const sessionResults: Array<{
           conversationId: string;
           bestSimilarity: number;
@@ -231,8 +236,9 @@ export function createMemoryEngineTool(
           messages: Array<{ role: string; content: string; createdAt: Date }>;
         }> = [];
 
-        for (const [convId, meta] of Array.from(convMeta.entries())) {
-          const allMessages = await getMessagesOp(storageCtx, convId);
+        for (let idx = 0; idx < convEntries.length; idx++) {
+          const [convId, meta] = convEntries[idx];
+          const allMessages = allConvMessages[idx];
 
           let selected: typeof allMessages;
 
