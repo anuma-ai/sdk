@@ -9,7 +9,7 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { StorageOperationsContext } from "../db/chat/operations";
 import { getMessagesOp, searchChunksOp } from "../db/chat/operations";
 import { generateEmbedding } from "./embeddings";
-import type { EmbeddingOptions, MemoryEngineSearchOptions } from "./types";
+import type { EmbeddingOptions, MemoryEngineSearchOptions, RerankFunction } from "./types";
 
 /**
  * Default search options
@@ -25,6 +25,7 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   endDate: undefined as unknown as string,
   sortBy: "similarity",
   contextMessages: undefined as unknown as number,
+  rerank: undefined as unknown as RerankFunction,
 };
 
 /**
@@ -152,9 +153,13 @@ export function createMemoryEngineTool(
       try {
         const queryEmbedding = await generateEmbedding(query, embeddingOptions);
 
-        // Fetch more results when filtering by role or excluding conversations
+        // When reranking, fetch more candidates for the reranker to work with
+        const rerankFn = defaultOpts.rerank;
+        const rerankMultiplier = rerankFn ? 3 : 1;
         const fetchMultiplier =
-          (includeAssistant ? 1 : 2) * (defaultOpts.excludeConversationId ? 1.5 : 1);
+          rerankMultiplier *
+          (includeAssistant ? 1 : 2) *
+          (defaultOpts.excludeConversationId ? 1.5 : 1);
         const fetchLimit = Math.ceil(topK * fetchMultiplier);
 
         const results = await searchChunksOp(storageCtx, queryEmbedding, {
@@ -173,7 +178,23 @@ export function createMemoryEngineTool(
           ? filteredResults
           : filteredResults.filter((r) => r.message.role === "user");
 
-        // Limit to topK chunks, then collect unique conversations to expand
+        // Rerank if a reranking function is provided
+        if (rerankFn && filteredResults.length > 0) {
+          const documents = filteredResults.map((r) => r.chunkText);
+          try {
+            const ranked = await rerankFn(query, documents);
+            // Rebuild filteredResults in reranked order, using relevanceScore as similarity
+            filteredResults = ranked.map((r) => ({
+              ...filteredResults[r.index],
+              similarity: r.relevanceScore,
+            }));
+          } catch (error) {
+            // Fall back to bi-encoder ordering if reranking fails
+            console.error("Reranking failed, falling back to embedding similarity:", error);
+          }
+        }
+
+        // Limit to topK after reranking
         filteredResults = filteredResults.slice(0, topK);
 
         // Track best similarity and matched message IDs per conversation

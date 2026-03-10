@@ -222,6 +222,8 @@ export type {
   EmbeddingOptions as MemoryEngineEmbeddingOptions,
   MemoryEngineResult,
   MemoryEngineSearchOptions,
+  RerankFunction,
+  RerankResult,
   TextChunk,
 } from "../lib/memoryEngine";
 export {

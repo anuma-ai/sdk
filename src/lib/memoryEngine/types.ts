@@ -8,6 +8,44 @@
 import type { StorageOperationsContext } from "../db/chat/operations";
 
 /**
+ * A single document scored by a reranker.
+ */
+export interface RerankResult {
+  /** Index of the document in the original input array */
+  index: number;
+  /** Relevance score assigned by the reranker (higher = more relevant) */
+  relevanceScore: number;
+}
+
+/**
+ * Function that reranks documents against a query.
+ *
+ * Accepts a query and an array of document strings, returns scored results
+ * sorted by relevance. Implementations can call any reranking provider
+ * (Jina, Cohere, a local cross-encoder, etc.).
+ *
+ * @example
+ * ```ts
+ * const rerank: RerankFunction = async (query, documents) => {
+ *   const response = await fetch("https://api.jina.ai/v1/rerank", {
+ *     method: "POST",
+ *     headers: { Authorization: `Bearer ${JINA_API_KEY}` },
+ *     body: JSON.stringify({ query, documents, top_n: documents.length }),
+ *   });
+ *   const data = await response.json();
+ *   return data.results.map((r) => ({
+ *     index: r.index,
+ *     relevanceScore: r.relevance_score,
+ *   }));
+ * };
+ * ```
+ */
+export type RerankFunction = (
+  query: string,
+  documents: string[]
+) => Promise<RerankResult[]>;
+
+/**
  * Options for memory engine search
  */
 export interface MemoryEngineSearchOptions {
@@ -31,6 +69,12 @@ export interface MemoryEngineSearchOptions {
   sortBy?: "similarity" | "chronological";
   /** Number of surrounding messages to include around each match when expanding to full sessions. 0 returns only matched chunks (no expansion), undefined returns the entire conversation. Default: undefined (full session). */
   contextMessages?: number;
+  /**
+   * Optional reranking function applied after initial bi-encoder retrieval.
+   * When provided, the initial retrieval fetches 3× topK candidates, reranks
+   * them with this function, then keeps the top topK results.
+   */
+  rerank?: RerankFunction;
 }
 
 /**
