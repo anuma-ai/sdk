@@ -52,7 +52,14 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react", "@privy-io/react-auth", "@huggingface/transformers", "recharts"],
+    external: [
+      "react",
+      "@privy-io/react-auth",
+      "@huggingface/transformers",
+      "recharts",
+      // Processor heavy deps — only loaded dynamically when processing files
+      "exceljs",
+    ],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",

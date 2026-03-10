@@ -21,7 +21,14 @@
 export const withAnuma = (nextConfig: any = {}) => {
   return {
     ...nextConfig,
-    serverExternalPackages: [...(nextConfig.serverExternalPackages || []), "sharp"],
+    serverExternalPackages: [
+      ...(nextConfig.serverExternalPackages || []),
+      "sharp",
+      // exceljs pulls in unzipper → fstream which calls process.umask() at
+      // module init time, crashing Cloudflare Workers and other edge runtimes.
+      // Externalizing prevents the server bundler from including it in SSR.
+      "exceljs",
+    ],
     webpack: (config: any, options: any) => {
       const { isServer } = options;
 

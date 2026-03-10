@@ -1,10 +1,23 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 
 import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
+// Polyfill process.umask for edge runtimes (Cloudflare Workers) where unenv
+// throws "process.umask is not implemented yet!".  fstream (a transitive dep
+// of exceljs via unzipper) calls process.umask() at module-init time, so the
+// polyfill must be in place before the first `import("exceljs")` resolves.
+if (typeof process !== "undefined" && typeof process.umask !== "function") {
+  // 0o22 is the default umask on POSIX systems.  The value is only used by
+  // fstream for file-permission calculations which are irrelevant in Workers.
+  (process as any).umask = (_mask?: number) => 0o22;
+}
+
 /**
- * Processor for Excel files (.xlsx) that converts to JSON structure
+ * Processor for Excel files (.xlsx) that converts to JSON structure.
+ *
+ * Uses a dynamic import for exceljs so the heavy dependency tree is only
+ * loaded when actually processing an Excel file.
  */
 export class ExcelProcessor implements FileProcessor {
   readonly name = "excel";
@@ -13,11 +26,17 @@ export class ExcelProcessor implements FileProcessor {
   ];
   readonly supportedExtensions = [".xlsx"];
 
+  private async loadExcelJS(): Promise<typeof ExcelJS> {
+    const mod = await import("exceljs");
+    return mod.default || mod;
+  }
+
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
+      const ExcelJSLib = await this.loadExcelJS();
       const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
-      const workbook = new ExcelJS.Workbook();
+      const workbook = new ExcelJSLib.Workbook();
       await workbook.xlsx.load(arrayBuffer);
 
       if (workbook.worksheets.length === 0) {
