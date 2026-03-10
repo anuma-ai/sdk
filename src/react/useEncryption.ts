@@ -26,6 +26,7 @@ interface StoredKeys {
  * and are not accessible to XSS attacks after page reload.
  */
 const encryptionKeyStore = new Map<string, StoredKeys>();
+const pendingKeyRequests = new Map<string, Promise<void>>();
 
 /**
  * Cache for imported CryptoKey objects.
@@ -740,40 +741,56 @@ export async function requestEncryptionKey(
     return; // Key already exists in memory, no need to sign again
   }
 
-  // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
-  // Always disable wallet UIs for a seamless experience
-  const signOptions: SignMessageOptions = { showWalletUIs: false };
-  let signature: string;
-  try {
-    if (embeddedWalletSigner) {
-      signature = await embeddedWalletSigner(SIGN_MESSAGE, signOptions);
-    } else {
-      signature = await signMessage(SIGN_MESSAGE, signOptions);
-    }
-  } catch (error) {
-    // If embedded wallet signer fails, fall back to standard signMessage
-    if (embeddedWalletSigner && error instanceof Error) {
-      console.warn(
-        "Embedded wallet signing failed, falling back to standard signMessage:",
-        error.message
-      );
-      signature = await signMessage(SIGN_MESSAGE, signOptions);
-    } else {
-      throw error;
-    }
+  // Deduplicate: if another call is already signing for this address, await it
+  const pending = pendingKeyRequests.get(walletAddress);
+  if (pending) {
+    await pending;
+    return;
   }
 
-  // Derive both legacy and current encryption keys from signature
-  const [legacyKey, currentKey] = await Promise.all([
-    deriveKeyFromSignature(signature),
-    deriveKeyFromSignatureV3(signature),
-  ]);
+  const promise = (async () => {
+    // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
+    // Always disable wallet UIs for a seamless experience
+    const signOptions: SignMessageOptions = { showWalletUIs: false };
+    let signature: string;
+    try {
+      if (embeddedWalletSigner) {
+        signature = await embeddedWalletSigner(SIGN_MESSAGE, signOptions);
+      } else {
+        signature = await signMessage(SIGN_MESSAGE, signOptions);
+      }
+    } catch (error) {
+      // If embedded wallet signer fails, fall back to standard signMessage
+      if (embeddedWalletSigner && error instanceof Error) {
+        console.warn(
+          "Embedded wallet signing failed, falling back to standard signMessage:",
+          error.message
+        );
+        signature = await signMessage(SIGN_MESSAGE, signOptions);
+      } else {
+        throw error;
+      }
+    }
 
-  // Store both keys in memory for dual-key migration support
-  setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
+    // Derive both legacy and current encryption keys from signature
+    const [legacyKey, currentKey] = await Promise.all([
+      deriveKeyFromSignature(signature),
+      deriveKeyFromSignatureV3(signature),
+    ]);
 
-  // Notify listeners that key is now available (triggers queue flush, etc.)
-  notifyKeyAvailable(walletAddress);
+    // Store both keys in memory for dual-key migration support
+    setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
+
+    // Notify listeners that key is now available (triggers queue flush, etc.)
+    notifyKeyAvailable(walletAddress);
+  })();
+
+  pendingKeyRequests.set(walletAddress, promise);
+  try {
+    await promise;
+  } finally {
+    pendingKeyRequests.delete(walletAddress);
+  }
 }
 
 /**
