@@ -24,6 +24,7 @@ const DEFAULT_SEARCH_OPTIONS: Required<MemoryEngineSearchOptions> = {
   startDate: undefined as unknown as string,
   endDate: undefined as unknown as string,
   sortBy: "similarity",
+  contextMessages: undefined as unknown as number,
 };
 
 /**
@@ -175,15 +176,25 @@ export function createMemoryEngineTool(
         // Limit to topK chunks, then collect unique conversations to expand
         filteredResults = filteredResults.slice(0, topK);
 
-        // Track best similarity per conversation
-        const convSimilarity = new Map<string, number>();
+        // Track best similarity and matched message IDs per conversation
+        const convMeta = new Map<string, { bestSimilarity: number; matchedMsgIds: Set<string> }>();
         for (const r of filteredResults) {
           const convId = r.message.conversationId;
-          const current = convSimilarity.get(convId) ?? 0;
-          if (r.similarity > current) convSimilarity.set(convId, r.similarity);
+          const existing = convMeta.get(convId);
+          if (existing) {
+            if (r.similarity > existing.bestSimilarity) existing.bestSimilarity = r.similarity;
+            existing.matchedMsgIds.add(r.message.uniqueId);
+          } else {
+            convMeta.set(convId, {
+              bestSimilarity: r.similarity,
+              matchedMsgIds: new Set([r.message.uniqueId]),
+            });
+          }
         }
 
-        // Expand: fetch all messages from each matched conversation
+        const contextWindow = defaultOpts.contextMessages;
+
+        // Expand: fetch messages from each matched conversation
         const sessionResults: Array<{
           conversationId: string;
           bestSimilarity: number;
@@ -191,17 +202,41 @@ export function createMemoryEngineTool(
           messages: Array<{ role: string; content: string; createdAt: Date }>;
         }> = [];
 
-        for (const [convId, bestSim] of Array.from(convSimilarity.entries())) {
+        for (const [convId, meta] of Array.from(convMeta.entries())) {
           const allMessages = await getMessagesOp(storageCtx, convId);
-          // Filter by role — always include user messages, include assistant if requested
-          const filtered = allMessages.filter(
+
+          let selected: typeof allMessages;
+
+          if (contextWindow == null) {
+            // No cap — return the full conversation
+            selected = allMessages;
+          } else if (contextWindow === 0) {
+            // No expansion — return only the matched messages
+            selected = allMessages.filter((m) => meta.matchedMsgIds.has(m.uniqueId));
+          } else {
+            // Return a window of contextMessages around each matched message
+            const includeIndices = new Set<number>();
+            for (let i = 0; i < allMessages.length; i++) {
+              if (meta.matchedMsgIds.has(allMessages[i].uniqueId)) {
+                const start = Math.max(0, i - contextWindow);
+                const end = Math.min(allMessages.length - 1, i + contextWindow);
+                for (let j = start; j <= end; j++) {
+                  includeIndices.add(j);
+                }
+              }
+            }
+            selected = allMessages.filter((_, i) => includeIndices.has(i));
+          }
+
+          // Filter by role
+          const filtered = selected.filter(
             (m) => m.role === "user" || (includeAssistant && m.role === "assistant")
           );
           if (filtered.length === 0) continue;
 
           sessionResults.push({
             conversationId: convId,
-            bestSimilarity: bestSim,
+            bestSimilarity: meta.bestSimilarity,
             earliestDate: filtered[0].createdAt,
             messages: filtered.map((m) => ({
               role: m.role,

@@ -29,6 +29,8 @@ export interface MemoryEngineSearchOptions {
   endDate?: string;
   /** Sort order for results: "similarity" (most relevant first) or "chronological" (oldest first). Default: "similarity" */
   sortBy?: "similarity" | "chronological";
+  /** Number of surrounding messages to include around each match when expanding to full sessions. 0 returns only matched chunks (no expansion), undefined returns the entire conversation. Default: undefined (full session). */
+  contextMessages?: number;
 }
 
 /**
