@@ -188,6 +188,21 @@ export {
   updateMessageFeedbackOp,
 } from "../lib/db/chat";
 
+// Phone call storage exports
+export {
+  PhoneCall,
+  type StoredPhoneCall,
+  type PhoneCallStatus,
+  type CreatePhoneCallOptions,
+  type UpdatePhoneCallOptions,
+  type PhoneCallOperationsContext,
+  phoneCallToStored,
+  createPhoneCallOp,
+  getPhoneCallByOfferOp,
+  getPhoneCallsByConversationOp,
+  updatePhoneCallOp,
+} from "../lib/db/phone_call";
+
 // Project storage exports
 export {
   createProjectOp,

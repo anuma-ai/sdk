@@ -11,6 +11,7 @@ import type { Class } from "@nozbe/watermelondb/types";
 import { Conversation, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
+import { PhoneCall } from "./phone_call/models";
 import { Project } from "./project/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
@@ -38,8 +39,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v17: Added image_model column to history table for AI-generated image model tracking
  * - v18: Added vault_folders table and folder_id column to memory_vault for folder organization
  * - v19: Added user_id column to memory_vault for multi-user server-side scoping
+ * - v20: Added phone_calls table for persisting phone call data
  */
-export const SDK_SCHEMA_VERSION = 19;
+export const SDK_SCHEMA_VERSION = 20;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -175,6 +177,20 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
+    // Phone call records (Bland AI call data)
+    tableSchema({
+      name: "phone_calls",
+      columns: [
+        { name: "call_id", type: "string", isIndexed: true },
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "offer_message_id", type: "string", isIndexed: true },
+        { name: "status", type: "string" },
+        { name: "request", type: "string", isOptional: true },
+        { name: "response", type: "string", isOptional: true },
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
+      ],
+    }),
     // Media library storage (images, videos, audio, documents)
     tableSchema({
       name: "media",
@@ -236,6 +252,7 @@ export const sdkSchema = appSchema({
  * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
  * - v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory_vault for folder organization
  * - v18 → v19: Added `user_id` column to memory_vault for multi-user server-side scoping
+ * - v19 → v20: Added `phone_calls` table for persisting phone call data
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -481,6 +498,25 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v19 -> v20: Added phone_calls table for persisting phone call data
+    {
+      toVersion: 20,
+      steps: [
+        createTable({
+          name: "phone_calls",
+          columns: [
+            { name: "call_id", type: "string", isIndexed: true },
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "offer_message_id", type: "string", isIndexed: true },
+            { name: "status", type: "string" },
+            { name: "request", type: "string", isOptional: true },
+            { name: "response", type: "string", isOptional: true },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -505,6 +541,7 @@ export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
   Project,
+  PhoneCall,
   VaultMemory,
   VaultFolder,
   Media,
