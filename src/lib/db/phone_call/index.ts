@@ -12,4 +12,5 @@ export {
   getPhoneCallByOfferOp,
   getPhoneCallsByConversationOp,
   updatePhoneCallOp,
+  deletePhoneCallsByConversationOp,
 } from "./operations";

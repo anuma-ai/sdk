@@ -201,6 +201,7 @@ export {
   getPhoneCallByOfferOp,
   getPhoneCallsByConversationOp,
   updatePhoneCallOp,
+  deletePhoneCallsByConversationOp,
 } from "../lib/db/phone_call";
 
 // Project storage exports

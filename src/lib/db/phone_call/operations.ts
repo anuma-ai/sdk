@@ -104,3 +104,24 @@ export async function updatePhoneCallOp(
   }
   return false;
 }
+
+/**
+ * Delete all phone call records for a conversation.
+ */
+export async function deletePhoneCallsByConversationOp(
+  ctx: PhoneCallOperationsContext,
+  conversationId: string
+): Promise<number> {
+  const results = await ctx.phoneCallsCollection
+    .query(Q.where("conversation_id", conversationId))
+    .fetch();
+
+  if (results.length > 0) {
+    await ctx.database.write(async () => {
+      for (const record of results) {
+        await record.destroyPermanently();
+      }
+    });
+  }
+  return results.length;
+}
