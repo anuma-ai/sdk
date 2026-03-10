@@ -22,6 +22,7 @@ import type {
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
 
@@ -538,7 +539,8 @@ export async function runLongMemEval(
   // Shared embedding cache across all questions — avoids re-embedding
   // the same haystack texts that appear in multiple questions.
   // Persisted to disk so subsequent runs skip the embedding API entirely.
-  const embeddingCachePath = join(getCacheDirectory(), "embedding-cache.json");
+  const modelSlug = DEFAULT_API_EMBEDDING_MODEL.replace(/[^a-zA-Z0-9-]/g, "-");
+  const embeddingCachePath = join(getCacheDirectory(), `embedding-cache-${modelSlug}.json`);
   const embeddingCache = await loadEmbeddingCache(embeddingCachePath);
 
   for (const strat of strategies) {
