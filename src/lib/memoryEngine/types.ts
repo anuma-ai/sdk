@@ -71,6 +71,13 @@ export interface EmbeddingOptions {
   model?: string;
   /** Max texts per API call for batch embeddings (default: 100). Larger arrays are split into chunks. */
   batchSize?: number;
+  /**
+   * Optional in-memory cache for embedding vectors. When provided, texts
+   * are looked up in this map before calling the API, and new embeddings
+   * are stored after generation. Useful when the same texts are embedded
+   * repeatedly (e.g., across eval iterations or re-indexing runs).
+   */
+  cache?: Map<string, number[]>;
 }
 
 /**

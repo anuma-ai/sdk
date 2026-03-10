@@ -43,6 +43,19 @@ Max texts per API call for batch embeddings (default: 100). Larger arrays are sp
 
 ***
 
+### cache?
+
+> `optional` **cache**: `Map`<`string`, `number`\[]>
+
+Defined in: [src/lib/memoryEngine/types.ts:78](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#78)
+
+Optional in-memory cache for embedding vectors. When provided, texts
+are looked up in this map before calling the API, and new embeddings
+are stored after generation. Useful when the same texts are embedded
+repeatedly (e.g., across eval iterations or re-indexing runs).
+
+***
+
 ### getToken()?
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
