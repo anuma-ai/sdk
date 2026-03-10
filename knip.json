@@ -6,7 +6,8 @@
     "@anuma/portal",
     "@privy-io/react-auth",
     "@vitest/coverage-v8",
-    "unist-util-visit"
+    "unist-util-visit",
+    "playwright"
   ],
   "exclude": ["optionalPeerDependencies", "unresolved"]
 }

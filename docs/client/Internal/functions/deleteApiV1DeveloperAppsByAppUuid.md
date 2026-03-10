@@ -2,7 +2,7 @@
 
 > **deleteApiV1DeveloperAppsByAppUuid**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1DeveloperAppsByAppUuidData`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1DeveloperAppsByAppUuidResponses`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponses.md), [`DeleteApiV1DeveloperAppsByAppUuidErrors`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:346](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#346)
+Defined in: [src/client/sdk.gen.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#370)
 
 Delete app
 

@@ -30,6 +30,11 @@
 | [DeleteApiV1DeveloperAppsByAppUuidPrivyResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidPrivyResponses.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidResponse](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponse.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidResponses](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidResponses.md) | - |
+| [DeleteApiV1TextByChannelUnregisterData](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterData.md) | - |
+| [DeleteApiV1TextByChannelUnregisterError](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterError.md) | - |
+| [DeleteApiV1TextByChannelUnregisterErrors](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterErrors.md) | - |
+| [DeleteApiV1TextByChannelUnregisterResponse](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterResponse.md) | - |
+| [DeleteApiV1TextByChannelUnregisterResponses](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterResponses.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -50,6 +55,16 @@
 | [GetApiV1AdminAppsErrors](Internal/type-aliases/GetApiV1AdminAppsErrors.md) | - |
 | [GetApiV1AdminAppsResponse](Internal/type-aliases/GetApiV1AdminAppsResponse.md) | - |
 | [GetApiV1AdminAppsResponses](Internal/type-aliases/GetApiV1AdminAppsResponses.md) | - |
+| [GetApiV1AgentsByIdData](Internal/type-aliases/GetApiV1AgentsByIdData.md) | - |
+| [GetApiV1AgentsByIdError](Internal/type-aliases/GetApiV1AgentsByIdError.md) | - |
+| [GetApiV1AgentsByIdErrors](Internal/type-aliases/GetApiV1AgentsByIdErrors.md) | - |
+| [GetApiV1AgentsByIdResponse](Internal/type-aliases/GetApiV1AgentsByIdResponse.md) | - |
+| [GetApiV1AgentsByIdResponses](Internal/type-aliases/GetApiV1AgentsByIdResponses.md) | - |
+| [GetApiV1AgentsData](Internal/type-aliases/GetApiV1AgentsData.md) | - |
+| [GetApiV1AgentsError](Internal/type-aliases/GetApiV1AgentsError.md) | - |
+| [GetApiV1AgentsErrors](Internal/type-aliases/GetApiV1AgentsErrors.md) | - |
+| [GetApiV1AgentsResponse](Internal/type-aliases/GetApiV1AgentsResponse.md) | - |
+| [GetApiV1AgentsResponses](Internal/type-aliases/GetApiV1AgentsResponses.md) | - |
 | [GetApiV1ConfigData](Internal/type-aliases/GetApiV1ConfigData.md) | - |
 | [GetApiV1ConfigError](Internal/type-aliases/GetApiV1ConfigError.md) | - |
 | [GetApiV1ConfigErrors](Internal/type-aliases/GetApiV1ConfigErrors.md) | - |
@@ -113,6 +128,11 @@
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
 | [GetApiV1ModelsResponse](Internal/type-aliases/GetApiV1ModelsResponse.md) | - |
 | [GetApiV1ModelsResponses](Internal/type-aliases/GetApiV1ModelsResponses.md) | - |
+| [GetApiV1PhoneCallsByCallIdData](Internal/type-aliases/GetApiV1PhoneCallsByCallIdData.md) | - |
+| [GetApiV1PhoneCallsByCallIdError](Internal/type-aliases/GetApiV1PhoneCallsByCallIdError.md) | - |
+| [GetApiV1PhoneCallsByCallIdErrors](Internal/type-aliases/GetApiV1PhoneCallsByCallIdErrors.md) | - |
+| [GetApiV1PhoneCallsByCallIdResponse](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponse.md) | - |
+| [GetApiV1PhoneCallsByCallIdResponses](Internal/type-aliases/GetApiV1PhoneCallsByCallIdResponses.md) | - |
 | [GetApiV1SubscriptionsPlansData](Internal/type-aliases/GetApiV1SubscriptionsPlansData.md) | - |
 | [GetApiV1SubscriptionsPlansError](Internal/type-aliases/GetApiV1SubscriptionsPlansError.md) | - |
 | [GetApiV1SubscriptionsPlansErrors](Internal/type-aliases/GetApiV1SubscriptionsPlansErrors.md) | - |
@@ -128,6 +148,16 @@
 | [GetApiV1TasksErrors](Internal/type-aliases/GetApiV1TasksErrors.md) | - |
 | [GetApiV1TasksResponse](Internal/type-aliases/GetApiV1TasksResponse.md) | - |
 | [GetApiV1TasksResponses](Internal/type-aliases/GetApiV1TasksResponses.md) | - |
+| [GetApiV1TextByChannelLookupData](Internal/type-aliases/GetApiV1TextByChannelLookupData.md) | - |
+| [GetApiV1TextByChannelLookupError](Internal/type-aliases/GetApiV1TextByChannelLookupError.md) | - |
+| [GetApiV1TextByChannelLookupErrors](Internal/type-aliases/GetApiV1TextByChannelLookupErrors.md) | - |
+| [GetApiV1TextByChannelLookupResponse](Internal/type-aliases/GetApiV1TextByChannelLookupResponse.md) | - |
+| [GetApiV1TextByChannelLookupResponses](Internal/type-aliases/GetApiV1TextByChannelLookupResponses.md) | - |
+| [GetApiV1TextByChannelStatusData](Internal/type-aliases/GetApiV1TextByChannelStatusData.md) | - |
+| [GetApiV1TextByChannelStatusError](Internal/type-aliases/GetApiV1TextByChannelStatusError.md) | - |
+| [GetApiV1TextByChannelStatusErrors](Internal/type-aliases/GetApiV1TextByChannelStatusErrors.md) | - |
+| [GetApiV1TextByChannelStatusResponse](Internal/type-aliases/GetApiV1TextByChannelStatusResponse.md) | - |
+| [GetApiV1TextByChannelStatusResponses](Internal/type-aliases/GetApiV1TextByChannelStatusResponses.md) | - |
 | [GetApiV1ToolsData](Internal/type-aliases/GetApiV1ToolsData.md) | - |
 | [GetApiV1ToolsError](Internal/type-aliases/GetApiV1ToolsError.md) | - |
 | [GetApiV1ToolsErrors](Internal/type-aliases/GetApiV1ToolsErrors.md) | - |
@@ -145,6 +175,9 @@
 | [GetHealthResponses](Internal/type-aliases/GetHealthResponses.md) | - |
 | [HandlersAddCreditsRequest](Internal/type-aliases/HandlersAddCreditsRequest.md) | - |
 | [HandlersAddCreditsResponse](Internal/type-aliases/HandlersAddCreditsResponse.md) | - |
+| [HandlersAgentListItem](Internal/type-aliases/HandlersAgentListItem.md) | - |
+| [HandlersAgentListResponse](Internal/type-aliases/HandlersAgentListResponse.md) | - |
+| [HandlersAgentResponse](Internal/type-aliases/HandlersAgentResponse.md) | - |
 | [HandlersApiKeyResponse](Internal/type-aliases/HandlersApiKeyResponse.md) | - |
 | [HandlersApiKeyWithKeyResponse](Internal/type-aliases/HandlersApiKeyWithKeyResponse.md) | - |
 | [HandlersAppConfig](Internal/type-aliases/HandlersAppConfig.md) | - |
@@ -167,6 +200,7 @@
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
+| [HandlersCreatePhoneCallRequest](Internal/type-aliases/HandlersCreatePhoneCallRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
 | [HandlersCreditPacksResponse](Internal/type-aliases/HandlersCreditPacksResponse.md) | - |
@@ -189,7 +223,10 @@
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
+| [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
+| [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
+| [HandlersRegisterTextResponse](Internal/type-aliases/HandlersRegisterTextResponse.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
 | [HandlersRevokeRequest](Internal/type-aliases/HandlersRevokeRequest.md) | - |
 | [HandlersScheduleDowngradeRequest](Internal/type-aliases/HandlersScheduleDowngradeRequest.md) | - |
@@ -209,6 +246,7 @@
 | [HandlersTool](Internal/type-aliases/HandlersTool.md) | - |
 | [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
 | [HandlersTopUpUserRequest](Internal/type-aliases/HandlersTopUpUserRequest.md) | - |
+| [HandlersUnregisterTextResponse](Internal/type-aliases/HandlersUnregisterTextResponse.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
 | [HandlersUpdateDeveloperAppRequest](Internal/type-aliases/HandlersUpdateDeveloperAppRequest.md) | - |
@@ -261,6 +299,10 @@
 | [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
+| [ModelsRegisterTextRequest](Internal/type-aliases/ModelsRegisterTextRequest.md) | - |
+| [ModelsTextChannel](Internal/type-aliases/ModelsTextChannel.md) | - |
+| [ModelsTextLookupResult](Internal/type-aliases/ModelsTextLookupResult.md) | - |
+| [ModelsTextStatusResponse](Internal/type-aliases/ModelsTextStatusResponse.md) | - |
 | [Options](Internal/type-aliases/Options.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidData](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidData.md) | - |
 | [PatchApiV1DeveloperAppsByAppUuidError](Internal/type-aliases/PatchApiV1DeveloperAppsByAppUuidError.md) | - |
@@ -352,6 +394,11 @@
 | [PostApiV1EmbeddingsErrors](Internal/type-aliases/PostApiV1EmbeddingsErrors.md) | - |
 | [PostApiV1EmbeddingsResponse](Internal/type-aliases/PostApiV1EmbeddingsResponse.md) | - |
 | [PostApiV1EmbeddingsResponses](Internal/type-aliases/PostApiV1EmbeddingsResponses.md) | - |
+| [PostApiV1PhoneCallsData](Internal/type-aliases/PostApiV1PhoneCallsData.md) | - |
+| [PostApiV1PhoneCallsError](Internal/type-aliases/PostApiV1PhoneCallsError.md) | - |
+| [PostApiV1PhoneCallsErrors](Internal/type-aliases/PostApiV1PhoneCallsErrors.md) | - |
+| [PostApiV1PhoneCallsResponse](Internal/type-aliases/PostApiV1PhoneCallsResponse.md) | - |
+| [PostApiV1PhoneCallsResponses](Internal/type-aliases/PostApiV1PhoneCallsResponses.md) | - |
 | [PostApiV1ResponsesData](Internal/type-aliases/PostApiV1ResponsesData.md) | - |
 | [PostApiV1ResponsesError](Internal/type-aliases/PostApiV1ResponsesError.md) | - |
 | [PostApiV1ResponsesErrors](Internal/type-aliases/PostApiV1ResponsesErrors.md) | - |
@@ -397,6 +444,11 @@
 | [PostApiV1SubscriptionsWebhookErrors](Internal/type-aliases/PostApiV1SubscriptionsWebhookErrors.md) | - |
 | [PostApiV1SubscriptionsWebhookResponse](Internal/type-aliases/PostApiV1SubscriptionsWebhookResponse.md) | - |
 | [PostApiV1SubscriptionsWebhookResponses](Internal/type-aliases/PostApiV1SubscriptionsWebhookResponses.md) | - |
+| [PostApiV1TextByChannelRegisterData](Internal/type-aliases/PostApiV1TextByChannelRegisterData.md) | - |
+| [PostApiV1TextByChannelRegisterError](Internal/type-aliases/PostApiV1TextByChannelRegisterError.md) | - |
+| [PostApiV1TextByChannelRegisterErrors](Internal/type-aliases/PostApiV1TextByChannelRegisterErrors.md) | - |
+| [PostApiV1TextByChannelRegisterResponse](Internal/type-aliases/PostApiV1TextByChannelRegisterResponse.md) | - |
+| [PostApiV1TextByChannelRegisterResponses](Internal/type-aliases/PostApiV1TextByChannelRegisterResponses.md) | - |
 | [PostAuthOauthByProviderExchangeData](Internal/type-aliases/PostAuthOauthByProviderExchangeData.md) | - |
 | [PostAuthOauthByProviderExchangeError](Internal/type-aliases/PostAuthOauthByProviderExchangeError.md) | - |
 | [PostAuthOauthByProviderExchangeErrors](Internal/type-aliases/PostAuthOauthByProviderExchangeErrors.md) | - |
@@ -433,10 +485,13 @@
 | [deleteApiV1DeveloperAppsByAppUuid](Internal/functions/deleteApiV1DeveloperAppsByAppUuid.md) | Delete app |
 | [deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId](Internal/functions/deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId.md) | Delete API key |
 | [deleteApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/deleteApiV1DeveloperAppsByAppUuidPrivy.md) | Remove Privy |
+| [deleteApiV1TextByChannelUnregister](Internal/functions/deleteApiV1TextByChannelUnregister.md) | Unregister text channel |
 | [getApiV1AdminApps](Internal/functions/getApiV1AdminApps.md) | List all apps |
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
+| [getApiV1Agents](Internal/functions/getApiV1Agents.md) | List agents |
+| [getApiV1AgentsById](Internal/functions/getApiV1AgentsById.md) | Get agent |
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
 | [getApiV1CreditsBalance](Internal/functions/getApiV1CreditsBalance.md) | Get credit balance |
 | [getApiV1CreditsPacks](Internal/functions/getApiV1CreditsPacks.md) | List available credit packs |
@@ -450,9 +505,12 @@
 | [getApiV1DeveloperBilling](Internal/functions/getApiV1DeveloperBilling.md) | Get billing history |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
+| [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
 | [getApiV1Tasks](Internal/functions/getApiV1Tasks.md) | Get available tasks |
+| [getApiV1TextByChannelLookup](Internal/functions/getApiV1TextByChannelLookup.md) | Lookup text channel registration by identifier |
+| [getApiV1TextByChannelStatus](Internal/functions/getApiV1TextByChannelStatus.md) | Get text channel registration status |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
 | [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
@@ -474,6 +532,7 @@
 | [postApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/postApiV1DeveloperAppsByAppUuidPrivy.md) | Configure Privy |
 | [postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp](Internal/functions/postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp.md) | Top up user credits |
 | [postApiV1Embeddings](Internal/functions/postApiV1Embeddings.md) | Create embeddings |
+| [postApiV1PhoneCalls](Internal/functions/postApiV1PhoneCalls.md) | Create phone call |
 | [postApiV1Responses](Internal/functions/postApiV1Responses.md) | Create response |
 | [postApiV1SubscriptionsCancel](Internal/functions/postApiV1SubscriptionsCancel.md) | Cancel subscription |
 | [postApiV1SubscriptionsCancelScheduledDowngrade](Internal/functions/postApiV1SubscriptionsCancelScheduledDowngrade.md) | Cancel scheduled downgrade |
@@ -483,6 +542,7 @@
 | [postApiV1SubscriptionsScheduleDowngrade](Internal/functions/postApiV1SubscriptionsScheduleDowngrade.md) | Schedule subscription downgrade |
 | [postApiV1SubscriptionsUpgrade](Internal/functions/postApiV1SubscriptionsUpgrade.md) | Upgrade subscription |
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
+| [postApiV1TextByChannelRegister](Internal/functions/postApiV1TextByChannelRegister.md) | Register identifier for text channel |
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |

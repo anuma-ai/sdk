@@ -2,7 +2,7 @@
 
 > **patchApiV1DeveloperAppsByAppUuidUsersByAddress**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PatchApiV1DeveloperAppsByAppUuidUsersByAddressData`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressData.md), `ThrowOnError`>): `RequestResult`<[`PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressResponses.md), [`PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors`](../type-aliases/PatchApiV1DeveloperAppsByAppUuidUsersByAddressErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#518)
+Defined in: [src/client/sdk.gen.ts:542](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#542)
 
 Update user limit
 

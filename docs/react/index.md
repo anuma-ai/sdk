@@ -87,6 +87,7 @@ function ChatComponent() {
 | [useModels](Hooks/useModels.md) | React hook for fetching available LLM models. Automatically fetches all available models. |
 | [useOCR](Hooks/useOCR.md) | React hook for extracting text from images using OCR. |
 | [usePdf](Hooks/usePdf.md) | React hook for extracting text from PDF files. |
+| [usePhoneCalls](Hooks/usePhoneCalls.md) | React hook for phone calling: checking availability, creating calls, fetching their status, and polling for completion. |
 | [useProjects](Hooks/useProjects.md) | A React hook for managing projects (conversation groups). |
 | [useSettings](Hooks/useSettings.md) | A React hook for managing user settings with automatic persistence using WatermelonDB. |
 | [useSubscription](Hooks/useSubscription.md) | React hook for managing subscription status and billing operations. Provides methods to check status, upgrade, manage billing, cancel, and renew subscriptions. |
