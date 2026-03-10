@@ -2,7 +2,7 @@
 
 > **postApiV1Responses**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ResponsesData`](../type-aliases/PostApiV1ResponsesData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ResponsesResponses`](../type-aliases/PostApiV1ResponsesResponses.md), [`PostApiV1ResponsesErrors`](../type-aliases/PostApiV1ResponsesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#602)
+Defined in: [src/client/sdk.gen.ts:654](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#654)
 
 Create response
 

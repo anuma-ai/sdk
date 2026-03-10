@@ -2,4 +2,4 @@
 
 > **PostApiV1EmbeddingsResponse** = [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)\[keyof [`PostApiV1EmbeddingsResponses`](PostApiV1EmbeddingsResponses.md)]
 
-Defined in: [src/client/types.gen.ts:3438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3438)
+Defined in: [src/client/types.gen.ts:3680](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3680)

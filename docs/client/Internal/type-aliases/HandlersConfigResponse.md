@@ -2,7 +2,7 @@
 
 > **HandlersConfigResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:158](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#158)
+Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#263)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:158](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **apps**: [`HandlersAppConfig`](HandlersAppConfig.md)\[]
 
-Defined in: [src/client/types.gen.ts:162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#162)
+Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#267)
 
 Apps is the list of active apps with their escrow contracts
 
@@ -20,7 +20,7 @@ Apps is the list of active apps with their escrow contracts
 
 > `optional` **chain\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:166](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#166)
+Defined in: [src/client/types.gen.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#271)
 
 ChainID is the blockchain chain ID
 
@@ -30,9 +30,19 @@ ChainID is the blockchain chain ID
 
 > `optional` **operator\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#170)
+Defined in: [src/client/types.gen.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#275)
 
 OperatorAddress is the operator wallet address
+
+***
+
+### phone\_calls\_enabled?
+
+> `optional` **phone\_calls\_enabled**: `boolean`
+
+Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
+
+PhoneCallsEnabled indicates whether Bland phone calling is available
 
 ***
 
@@ -40,6 +50,6 @@ OperatorAddress is the operator wallet address
 
 > `optional` **settlement\_recipient**: `string`
 
-Defined in: [src/client/types.gen.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#174)
+Defined in: [src/client/types.gen.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#283)
 
 SettlementRecipient is the address that receives settlement payments

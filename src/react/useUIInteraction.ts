@@ -1,6 +1,7 @@
 import {
   createContext,
   createElement,
+  type ReactElement,
   type ReactNode,
   useCallback,
   useContext,
@@ -79,7 +80,7 @@ export type UIInteractionProviderProps = {
 export function UIInteractionProvider({
   children,
   timeout = 5 * 60 * 1000,
-}: UIInteractionProviderProps) {
+}: UIInteractionProviderProps): ReactElement {
   const [pendingInteractions, setPendingInteractions] = useState<Map<string, PendingInteraction>>(
     new Map()
   );

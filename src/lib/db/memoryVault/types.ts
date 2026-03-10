@@ -7,6 +7,8 @@ export interface StoredVaultMemory {
   scope: string;
   /** Folder ID for organization, null if unfiled */
   folderId: string | null;
+  /** User ID for multi-user server-side scoping, null on client */
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
