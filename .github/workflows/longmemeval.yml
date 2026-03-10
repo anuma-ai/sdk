@@ -40,6 +40,11 @@ on:
         description: "Max questions (blank = all)"
         required: false
         type: string
+      concurrency:
+        description: "Parallel questions"
+        required: false
+        type: string
+        default: "20"
 
 jobs:
   resolve-strategies:
@@ -92,7 +97,7 @@ jobs:
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency 5 --output results.json"
+          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
           fi
