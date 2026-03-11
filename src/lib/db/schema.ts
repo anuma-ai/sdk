@@ -38,9 +38,10 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v17: Added image_model column to history table for AI-generated image model tracking
  * - v18: Added vault_folders table and folder_id column to memory_vault for folder organization
  * - v19: Added user_id column to memory_vault for multi-user server-side scoping
- * - v20: Added embedding column to memory_vault for persisted embedding vectors
+ * - v20: Added index on updated_at column of memory_vault for efficient since-based filtering
+ * - v21: Added embedding column to memory_vault for persisted embedding vectors
  */
-export const SDK_SCHEMA_VERSION = 20;
+export const SDK_SCHEMA_VERSION = 21;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -160,7 +161,7 @@ export const sdkSchema = appSchema({
         { name: "scope", type: "string", isIndexed: true },
         { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
         { name: "created_at", type: "number", isIndexed: true },
-        { name: "updated_at", type: "number" },
+        { name: "updated_at", type: "number", isIndexed: true },
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
@@ -238,7 +239,8 @@ export const sdkSchema = appSchema({
  * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
  * - v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory_vault for folder organization
  * - v18 → v19: Added `user_id` column to memory_vault for multi-user server-side scoping
- * - v19 → v20: Added `embedding` column to memory_vault for persisted embedding vectors
+ * - v19 → v20: Added index on `updated_at` column of memory_vault for efficient since-based filtering
+ * - v20 → v21: Added `embedding` column to memory_vault for persisted embedding vectors
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -484,9 +486,18 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
-    // v19 -> v20: Added embedding column to memory_vault for persisted embedding vectors
+    // v19 -> v20: Added index on updated_at for efficient since-based filtering
     {
       toVersion: 20,
+      steps: [
+        unsafeExecuteSql(
+          "CREATE INDEX IF NOT EXISTS memory_vault_updated_at ON memory_vault (updated_at);"
+        ),
+      ],
+    },
+    // v20 -> v21: Added embedding column to memory_vault for persisted embedding vectors
+    {
+      toVersion: 21,
       steps: [
         addColumns({
           table: "memory_vault",

@@ -4,6 +4,7 @@ import {
   createVaultMemoryOp,
   getVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
   updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
@@ -264,6 +265,120 @@ describe("getAllVaultMemoriesOp", () => {
 
     const callArgs = queryFn.mock.calls[0];
     expect(callArgs.length).toBe(2);
+  });
+
+  it("adds since condition when options.since is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + since + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds limit condition when options.limit is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { limit: 5 });
+
+    // is_deleted + sortBy + take = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds both since and limit conditions together", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01"), limit: 10 });
+
+    // is_deleted + since + sortBy + take = 4 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(4);
+  });
+
+  it("combines since with scopes and userId", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { scopes: ["shared"], since: new Date("2025-06-01") });
+
+    // is_deleted + scope + user_id + since + sortBy = 5 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(5);
+  });
+
+  it("returns empty array when since is in the future", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const results = await getAllVaultMemoriesOp(ctx, { since: new Date("2099-01-01") });
+    expect(results).toHaveLength(0);
+  });
+
+  it("returns all memories when since is omitted (backward compat)", async () => {
+    const ctx = makeCtx();
+    const results = await getAllVaultMemoriesOp(ctx);
+    expect(results).toHaveLength(2);
+  });
+});
+
+describe("getAllVaultMemoryContentsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns all contents when since is omitted", async () => {
+    const ctx = makeCtx();
+    const results = await getAllVaultMemoryContentsOp(ctx);
+    expect(results).toHaveLength(2);
+    expect(typeof results[0]).toBe("string");
+  });
+
+  it("adds since condition when options.since is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + since = 2 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
+  });
+
+  it("adds both userId and since conditions together", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + user_id + since = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
   });
 });
 
