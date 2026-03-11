@@ -1,8 +1,8 @@
 # getAllVaultMemoryContentsOp
 
-> **getAllVaultMemoryContentsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)): `Promise`<`string`\[]>
+> **getAllVaultMemoryContentsOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<`string`\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:168](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#168)
+Defined in: [src/lib/db/memoryVault/operations.ts:176](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#176)
 
 ## Parameters
 
@@ -23,6 +23,30 @@ Defined in: [src/lib/db/memoryVault/operations.ts:168](https://github.com/anuma-
 <td>
 
 [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.since?`
+
+</td>
+<td>
+
+`Date`
 
 </td>
 </tr>
