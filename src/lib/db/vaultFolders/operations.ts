@@ -105,8 +105,8 @@ export async function updateVaultFolderOp(
     });
 
     return folderToStored(updated);
-  } catch (error) {
-    console.error("[VaultFolders] updateVaultFolderOp failed:", error);
+  } catch {
+    // Update failed (record not found or write error) – return null to caller
     return null;
   }
 }
@@ -142,8 +142,8 @@ export async function deleteVaultFolderOp(
     });
 
     return true;
-  } catch (error) {
-    console.error("[VaultFolders] deleteVaultFolderOp failed:", error);
+  } catch {
+    // Delete failed (record not found or write error) – return false to caller
     return false;
   }
 }
@@ -183,8 +183,8 @@ export async function moveMemoriesToFolderOp(
     });
 
     return true;
-  } catch (error) {
-    console.error("[VaultFolders] moveMemoriesToFolderOp failed:", error);
+  } catch {
+    // Move failed (record not found or write error) – return false to caller
     return false;
   }
 }
