@@ -18,6 +18,8 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
+  /** Folder ID to file the memory into. */
+  folderId?: string;
 }
 
 export interface UpdateVaultMemoryOptions {

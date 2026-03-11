@@ -23,6 +23,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     createdAt: folder.createdAt,
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
+    isSystem: folder.isSystem ?? false,
   };
 }
 
@@ -37,6 +38,7 @@ export async function createVaultFolderOp(
     return ctx.vaultFolderCollection.create((record) => {
       record._setRaw("name", opts.name);
       record._setRaw("scope", opts.scope ?? "private");
+      record._setRaw("is_system", opts.isSystem ?? false);
       record._setRaw("is_deleted", false);
     });
   });

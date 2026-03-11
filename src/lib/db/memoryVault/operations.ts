@@ -70,6 +70,7 @@ export async function createVaultMemoryOp(
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
+      record._setRaw("folder_id", opts.folderId ?? null);
       record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
     });
@@ -105,6 +106,7 @@ export async function createVaultMemoriesBatchOp(
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
+        record._setRaw("folder_id", opts.folderId ?? null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
       })
@@ -251,6 +253,34 @@ export async function deleteVaultMemoryOp(
   } catch {
     return false;
   }
+}
+
+/**
+ * Get all non-deleted, unfiled vault memories (folder_id is null).
+ */
+export async function getUnfiledVaultMemoriesOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<StoredVaultMemory[]> {
+  const conditions = [
+    Q.where("folder_id", null),
+    Q.where("is_deleted", false),
+    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
+    Q.sortBy("created_at", Q.desc),
+  ];
+  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
+
+  const CONCURRENCY = 50;
+  const stored: StoredVaultMemory[] = [];
+  for (let i = 0; i < results.length; i += CONCURRENCY) {
+    const chunk = results.slice(i, i + CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map((record) =>
+        vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+      )
+    );
+    stored.push(...chunkResults);
+  }
+  return stored;
 }
 
 export async function deleteAllVaultMemoriesForUserOp(

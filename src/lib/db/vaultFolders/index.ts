@@ -1,3 +1,4 @@
+export { DEFAULT_FOLDER_NAMES, ensureDefaultFoldersOp, type DefaultFolderName } from "./defaults";
 export { VaultFolder } from "./models";
 export {
   createVaultFolderOp,

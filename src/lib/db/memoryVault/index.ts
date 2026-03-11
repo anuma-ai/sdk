@@ -5,6 +5,7 @@ export {
   deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getUnfiledVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
   getVaultMemoryOp,
   updateVaultMemoryOp,
