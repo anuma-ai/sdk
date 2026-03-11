@@ -11,16 +11,12 @@ import type { Database } from "@nozbe/watermelondb";
 import {
   createConversationOp,
   createMessageOp,
-  searchChunksOp,
   type StorageOperationsContext,
 } from "../../../../src/lib/db/chat/operations.js";
 import { Message, Conversation } from "../../../../src/lib/db/chat/models.js";
-import {
-  chunkAndEmbedAllMessages,
-  generateEmbedding,
-} from "../../../../src/lib/memoryEngine/embeddings.js";
+import { chunkAndEmbedAllMessages } from "../../../../src/lib/memoryEngine/embeddings.js";
 import { createMemoryEngineTool } from "../../../../src/lib/memoryEngine/tool.js";
-import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig } from "./types.js";
+import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
 import {
   setupDatabase,
   selectSessions,
@@ -80,6 +76,14 @@ export async function processEntryMemoryEngine(
   // Map conversationId -> sessionId for retrieval metrics
   const convToSession = new Map<string, string>();
 
+  // Token tracking — declared early so embedding callbacks can accumulate too
+  const tokenUsage: TokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    embeddingTokens: 0,
+  };
+
   try {
     // Step 1: Store haystack sessions as conversations + messages
     logProgress("Storing sessions as messages...");
@@ -110,6 +114,9 @@ export async function processEntryMemoryEngine(
       apiKey: api.apiKey,
       baseUrl: api.baseUrl,
       ...(embeddingCache ? { cache: embeddingCache } : {}),
+      onUsage: (usage: { promptTokens: number; totalTokens: number }) => {
+        tokenUsage.embeddingTokens += usage.totalTokens;
+      },
     };
 
     logProgress("Chunking and embedding messages...");
@@ -121,11 +128,23 @@ export async function processEntryMemoryEngine(
     }
 
     // Step 3: Create the retrieval tool via SDK
-    const retrievalTool = createMemoryEngineTool(storageCtx, embeddingOptions, {
-      topK: 12,
-      minSimilarity: 0.1,
-      includeAssistant: true,
-    });
+    // Capture conversation IDs that the tool actually returns to the LLM
+    // so retrieval metrics reflect the real code path, not a separate search.
+    const retrievedConvIds = new Set<string>();
+    const retrievalTool = createMemoryEngineTool(
+      storageCtx,
+      embeddingOptions,
+      {
+        topK: 12,
+        minSimilarity: 0.1,
+        includeAssistant: true,
+      },
+      {
+        onRetrieve: (convIds) => {
+          for (const id of convIds) retrievedConvIds.add(id);
+        },
+      }
+    );
 
     // Step 4: Two-step LLM flow
     // The SDK relies on tool descriptions to guide usage, so we don't coach
@@ -167,7 +186,17 @@ You are a personal assistant with access to the user's past conversation history
     };
 
     let generatedAnswer = "";
-    const retrievedConvIds = new Set<string>();
+
+    function addUsage(u?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }) {
+      if (!u) return;
+      tokenUsage.promptTokens += u.prompt_tokens;
+      tokenUsage.completionTokens += u.completion_tokens;
+      tokenUsage.totalTokens += u.total_tokens;
+    }
 
     try {
       // Force tool use — in a real conversation the LLM would naturally call
@@ -179,6 +208,7 @@ You are a personal assistant with access to the user's past conversation history
         maxTokens: 500,
       });
       clearProgress();
+      addUsage(firstResponse.usage);
 
       transcript.firstResponse = firstResponse;
 
@@ -228,6 +258,7 @@ You are a personal assistant with access to the user's past conversation history
             { maxTokens: 500 }
           );
           clearProgress();
+          addUsage(secondResponse.usage);
 
           transcript.secondResponse = secondResponse;
           generatedAnswer = secondResponse.content || "";
@@ -243,23 +274,8 @@ You are a personal assistant with access to the user's past conversation history
 
     transcript.finalAnswer = generatedAnswer;
 
-    // Compute retrieval metrics using SDK's generateEmbedding + searchChunksOp
-    logProgress("Computing retrieval metrics...");
-    try {
-      const queryEmbedding = await generateEmbedding(entry.question, embeddingOptions);
-      const rawResults = await searchChunksOp(storageCtx, queryEmbedding, {
-        limit: 12,
-        minSimilarity: 0.1,
-      });
-      for (const r of rawResults) {
-        const convId = r.message.conversationId;
-        if (convId) retrievedConvIds.add(convId);
-      }
-    } catch (error) {
-      console.error("Retrieval metrics failed:", error);
-    }
-    clearProgress();
-
+    // Retrieval metrics are derived from the onRetrieve callback above,
+    // which captures the exact conversation IDs the tool returned to the LLM.
     const retrievedSessionIds = new Set<string>();
     for (const convId of retrievedConvIds) {
       const sessionId = convToSession.get(convId);
@@ -285,8 +301,10 @@ You are a personal assistant with access to the user's past conversation history
 
     // Evaluate answer
     logProgress("Evaluating answer...");
-    const isCorrect = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
+    const evalResult = await evaluateAnswer(entry.question, entry.answer, generatedAnswer, api);
     clearProgress();
+    addUsage(evalResult.usage);
+    const isCorrect = evalResult.isCorrect;
 
     transcript.isCorrect = isCorrect;
     await saveTranscript(entry.question_id, transcript, verbose);
@@ -300,6 +318,9 @@ You are a personal assistant with access to the user's past conversation history
       console.log(`  Time: ${elapsed.toFixed(0)}ms`);
     }
 
+    // Include embedding tokens in the total
+    tokenUsage.totalTokens += tokenUsage.embeddingTokens;
+
     return {
       questionId: entry.question_id,
       questionType: entry.question_type,
@@ -312,6 +333,7 @@ You are a personal assistant with access to the user's past conversation history
       retrievalPrecision,
       retrievalRecall,
       latencyMs: elapsed,
+      tokenUsage,
       strategy: "memory-engine",
     };
   } catch (error) {

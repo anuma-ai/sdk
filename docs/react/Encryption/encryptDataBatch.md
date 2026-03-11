@@ -2,7 +2,7 @@
 
 > **encryptDataBatch**(`values`: (`string` | `Uint8Array`<`ArrayBufferLike`>)\[], `address`: `string`): `Promise`<`string`\[]>
 
-Defined in: [src/react/useEncryption.ts:641](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#641)
+Defined in: [src/react/useEncryption.ts:642](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#642)
 
 Batch encrypt multiple values efficiently with a single key lookup.
 Much faster than calling encryptData for each value individually.

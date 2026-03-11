@@ -87,6 +87,7 @@ describe("createMemoryVaultTool", () => {
 
     expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
       content: "new content",
+      embedding: null,
     });
     expect(result).toBe("Memory updated successfully (ID: mem-1).");
   });
@@ -220,7 +221,13 @@ describe("createMemoryVaultTool", () => {
       const tool = createMemoryVaultTool(mockVaultCtx, undefined, embeddingOptions, cache);
       await tool.executor!({ content: "embed this" });
 
-      expect(eagerEmbedContent).toHaveBeenCalledWith("embed this", embeddingOptions, cache);
+      expect(eagerEmbedContent).toHaveBeenCalledWith(
+        "embed this",
+        embeddingOptions,
+        cache,
+        mockVaultCtx,
+        "new-1"
+      );
     });
 
     it("evicts old cache entry and embeds new content on update", async () => {
@@ -236,7 +243,13 @@ describe("createMemoryVaultTool", () => {
       await tool.executor!({ content: "new content", id: "mem-1" });
 
       expect(cache.has("old content")).toBe(false);
-      expect(eagerEmbedContent).toHaveBeenCalledWith("new content", embeddingOptions, cache);
+      expect(eagerEmbedContent).toHaveBeenCalledWith(
+        "new content",
+        embeddingOptions,
+        cache,
+        mockVaultCtx,
+        "mem-1"
+      );
     });
   });
 });

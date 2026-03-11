@@ -781,6 +781,54 @@ describe("useEncryption - Key Pair Generation", () => {
     });
   });
 
+  describe("requestEncryptionKey deduplication", () => {
+    it("concurrent callers all receive the same error when signing fails", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+      clearEncryptionKey(address);
+
+      const failingSignMessage: SignMessageFn = async () => {
+        throw new Error("User rejected signing");
+      };
+
+      // Fire multiple concurrent requests — all should reject with the same error
+      const results = await Promise.allSettled([
+        requestEncryptionKey(address, failingSignMessage),
+        requestEncryptionKey(address, failingSignMessage),
+        requestEncryptionKey(address, failingSignMessage),
+      ]);
+
+      for (const result of results) {
+        expect(result.status).toBe("rejected");
+        if (result.status === "rejected") {
+          expect(result.reason).toBeInstanceOf(Error);
+        }
+      }
+      // Key should not be stored after failure
+      expect(hasEncryptionKey(address)).toBe(false);
+    });
+
+    it("after a failed request, a subsequent call can succeed", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+      clearEncryptionKey(address);
+
+      const failingSignMessage: SignMessageFn = async () => {
+        throw new Error("User rejected signing");
+      };
+
+      // First attempt fails
+      await expect(requestEncryptionKey(address, failingSignMessage)).rejects.toThrow();
+      expect(hasEncryptionKey(address)).toBe(false);
+
+      // pendingKeyRequests should be cleaned up by `finally`, so a second call with
+      // a working signMessage should succeed
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+      });
+
+      expect(hasEncryptionKey(address)).toBe(true);
+    });
+  });
+
   describe("HKDF Key Derivation (v3)", () => {
     it("should derive both legacy and HKDF keys from the same signature", async () => {
       const address = "0x1234567890123456789012345678901234567890";

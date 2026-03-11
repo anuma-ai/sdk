@@ -34,12 +34,26 @@ on:
           - grok/grok-4-1-fast-reasoning
           - gemini/gemini-3-flash-preview
           - gemini/gemini-3-pro-preview
+          - openai/gpt-5.4
           - openai/gpt-5.2
+          - openai/gpt-5.1
+          - openai/o3
+          - openai/o4-mini
+          - anthropic/claude-opus-4-6
+          - anthropic/claude-sonnet-4-6
+          - anthropic/claude-opus-4-5
+          - anthropic/claude-sonnet-4-5
+          - anthropic/claude-haiku-4-5-20251001
           - fireworks/accounts/fireworks/models/minimax-m2p5
       max:
         description: "Max questions (blank = all)"
         required: false
         type: string
+      concurrency:
+        description: "Parallel questions"
+        required: false
+        type: string
+        default: "100"
 
 jobs:
   resolve-strategies:
@@ -91,8 +105,9 @@ jobs:
           EVAL_VARIANT: ${{ inputs.variant }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_MAX: ${{ inputs.max }}
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: |
-          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency 5 --output results.json"
+          args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
           fi
@@ -104,3 +119,122 @@ jobs:
         with:
           name: longmemeval-${{ matrix.strategy }}-${{ inputs.variant }}
           path: results.json
+
+      - name: Publish summary to benchmarks branch
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Build a short model slug for the filename
+          model_slug=$(echo "${{ inputs.model }}" | sed 's|.*/||')
+          commit=$(git rev-parse --short HEAD)
+          ts=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+          filename="${{ matrix.strategy }}_${{ inputs.variant }}_${model_slug}_${ts}_${commit}.json"
+
+          # Strip per-question results array, add run metadata
+          jq '{
+            timestamp,
+            datasetName,
+            strategy,
+            totalQuestions,
+            correctAnswers,
+            accuracy,
+            byQuestionType,
+            retrieval,
+            latency,
+            tokenUsage,
+            cost,
+            meta: {
+              commit: "${{ github.sha }}",
+              commitShort: "'"${commit}"'",
+              branch: "${{ github.ref_name }}",
+              model: "${{ inputs.model }}",
+              variant: "${{ inputs.variant }}",
+              concurrency: ${{ inputs.concurrency }},
+              runUrl: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              runId: ${{ github.run_id }}
+            }
+          }' results.json > summary.json
+
+          # Configure git identity (needed for both orphan init and result commit)
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone just the benchmarks branch (or create it)
+          git clone --single-branch --branch benchmarks \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+            benchmarks-repo 2>/dev/null || {
+            mkdir benchmarks-repo && cd benchmarks-repo && git init
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            git checkout --orphan benchmarks
+            echo '# LongMemEval Benchmark Results' > README.md
+            git add README.md && git commit -m "init benchmarks branch"
+            git push -u origin benchmarks
+            cd ..
+          }
+
+          # Copy summary and push
+          mkdir -p benchmarks-repo/longmemeval
+          cp summary.json "benchmarks-repo/longmemeval/${filename}"
+          cd benchmarks-repo
+          git add .
+          git commit -m "longmemeval: ${{ matrix.strategy }} ${{ inputs.variant }} ${model_slug} (${commit})"
+          # Retry with rebase in case another matrix job pushed concurrently
+          for i in 1 2 3; do
+            git push && break
+            git pull --rebase origin benchmarks
+          done
+
+  aggregate:
+    needs: eval
+    if: always() && contains(needs.eval.result, 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate results on benchmarks branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --single-branch --branch benchmarks \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+            benchmarks-repo 2>/dev/null || exit 0
+
+          cd benchmarks-repo
+
+          # Combine all individual result JSONs into a single array (exclude all-results.json itself)
+          find longmemeval -name '*.json' ! -name 'all-results.json' -print0 \
+            | sort -z \
+            | xargs -0 jq -s '.' > longmemeval/all-results.json.tmp
+          mv longmemeval/all-results.json.tmp longmemeval/all-results.json
+
+          # Generate README.md with a summary table
+          printf '# LongMemEval Benchmark Results\n\n' > README.md
+
+          # Build the markdown table from all results, sorted by timestamp descending
+          jq -r '
+            sort_by(.timestamp) | reverse |
+            ["| Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |",
+             "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |"] +
+            [.[] |
+              "| " +
+              (.timestamp | split("T")[0]) + " | " +
+              .strategy + " | " +
+              .meta.variant + " | " +
+              (.meta.model | split("/") | last) + " | " +
+              ((.accuracy * 100 * 10 | round / 10 | tostring) + "%") + " | " +
+              "\(.correctAnswers)/\(.totalQuestions)" + " | " +
+              ((.retrieval.avgPrecision * 100 * 10 | round / 10 | tostring) + "%") + " | " +
+              ((.retrieval.avgRecall * 100 * 10 | round / 10 | tostring) + "%") + " | " +
+              "[`\(.meta.commitShort)`](\(.meta.runUrl | split("/actions")[0])/commit/\(.meta.commit))" + " | " +
+              "[link](\(.meta.runUrl))" + " |"
+            ] | .[]
+          ' longmemeval/all-results.json >> README.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet && exit 0
+          git commit -m "update aggregated results and README"
+          for i in 1 2 3; do
+            git push && break
+            git pull --rebase origin benchmarks
+          done

@@ -223,6 +223,7 @@ export {
   getVaultMemoryOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,

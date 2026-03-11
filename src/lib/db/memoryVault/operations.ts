@@ -25,6 +25,25 @@ function isOwnedByCtxUser(ctx: VaultMemoryOperationsContext, record: VaultMemory
   return ctx.userId === undefined || record.userId === ctx.userId;
 }
 
+/** Builds the base WHERE conditions shared by all vault memory queries. */
+function baseVaultConditions(ctx: VaultMemoryOperationsContext, options?: { since?: Date }) {
+  return [
+    Q.where("is_deleted", false),
+    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
+    ...(options?.since ? [Q.where("updated_at", Q.gt(options.since.getTime()))] : []),
+  ];
+}
+
+/** Processes items in batches of 50 to avoid blocking the event loop. */
+async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Promise<R[]> {
+  const BATCH = 50;
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += BATCH) {
+    results.push(...(await Promise.all(items.slice(i, i + BATCH).map(fn))));
+  }
+  return results;
+}
+
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
   return {
     uniqueId: memory.id,
@@ -32,6 +51,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     scope: memory.scope,
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
+    embedding: memory.embedding ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -73,6 +93,9 @@ export async function createVaultMemoryOp(
       record._setRaw("folder_id", opts.folderId ?? null);
       record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
+      if (opts.embedding !== undefined) {
+        record._setRaw("embedding", opts.embedding);
+      }
     });
   });
 
@@ -109,6 +132,9 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("folder_id", opts.folderId ?? null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
+        if (optionsArray[i].embedding !== undefined) {
+          record._setRaw("embedding", optionsArray[i].embedding!);
+        }
       })
     );
     await ctx.database.batch(...prepared);
@@ -142,58 +168,36 @@ export async function getVaultMemoryOp(
 
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[] }
+  options?: { scopes?: string[]; since?: Date; limit?: number }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
-    Q.where("is_deleted", false),
+    ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
-    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
-    Q.sortBy("created_at", Q.desc),
+    Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
+    ...(options?.limit != null && options.limit > 0 ? [Q.take(options.limit)] : []),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
-
-  // Bounded concurrency to avoid UI freezing with 1000+ memories
-  const CONCURRENCY = 50;
-  const stored: StoredVaultMemory[] = [];
-  for (let i = 0; i < results.length; i += CONCURRENCY) {
-    const chunk = results.slice(i, i + CONCURRENCY);
-    const chunkResults = await Promise.all(
-      chunk.map((record) =>
-        vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-      )
-    );
-    stored.push(...chunkResults);
-  }
-  return stored;
+  return mapInBatches(results, (record) =>
+    vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
 }
 
 export async function getAllVaultMemoryContentsOp(
-  ctx: VaultMemoryOperationsContext
+  ctx: VaultMemoryOperationsContext,
+  options?: { since?: Date }
 ): Promise<string[]> {
-  const conditions = [
-    Q.where("is_deleted", false),
-    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
-  ];
-  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
-
-  const CONCURRENCY = 50;
-  const contents: string[] = [];
-  for (let i = 0; i < results.length; i += CONCURRENCY) {
-    const chunk = results.slice(i, i + CONCURRENCY);
-    const chunkResults = await Promise.all(
-      chunk.map(async (record) => {
-        const stored = await vaultMemoryToStored(
-          record,
-          ctx.walletAddress,
-          ctx.signMessage,
-          ctx.embeddedWalletSigner
-        );
-        return stored.content;
-      })
+  const results = await ctx.vaultMemoryCollection
+    .query(...baseVaultConditions(ctx, options))
+    .fetch();
+  return mapInBatches(results, async (record) => {
+    const stored = await vaultMemoryToStored(
+      record,
+      ctx.walletAddress,
+      ctx.signMessage,
+      ctx.embeddedWalletSigner
     );
-    contents.push(...chunkResults);
-  }
-  return contents;
+    return stored.content;
+  });
 }
 
 export async function updateVaultMemoryOp(
@@ -220,6 +224,9 @@ export async function updateVaultMemoryOp(
         r._setRaw("content", encryptedContent);
         if (opts.scope !== undefined) {
           r._setRaw("scope", opts.scope);
+        }
+        if (opts.embedding !== undefined) {
+          r._setRaw("embedding", opts.embedding);
         }
       });
     });
@@ -305,4 +312,23 @@ export async function deleteAllVaultMemoriesForUserOp(
   });
 
   return records.length;
+}
+
+export async function updateVaultMemoryEmbeddingOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  embedding: string
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+    await ctx.database.write(async () => {
+      await record.update((r) => {
+        r._setRaw("embedding", embedding);
+      });
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

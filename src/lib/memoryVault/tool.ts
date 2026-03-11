@@ -170,7 +170,7 @@ export function createMemoryVaultTool(
 
         // Execute the save
         if (isUpdate) {
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content });
+          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }
@@ -179,7 +179,9 @@ export function createMemoryVaultTool(
             if (previousContent) {
               cache.delete(previousContent);
             }
-            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch((err) => {
+              console.warn("[anuma/sdk] Failed to embed updated memory:", err);
+            });
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
@@ -187,7 +189,11 @@ export function createMemoryVaultTool(
           const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
-            eagerEmbedContent(content, embeddingOptions, cache).catch(() => {});
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
+              (err) => {
+                console.warn("[anuma/sdk] Failed to embed new memory:", err);
+              }
+            );
           }
           return `Memory saved successfully (ID: ${created.uniqueId}).`;
         }

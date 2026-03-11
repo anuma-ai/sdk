@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v19**
+Current version: **v21**
 
 ```mermaid
 graph LR
@@ -97,9 +97,10 @@ graph LR
 | `scope` | string | ✓ |  |
 | `folder_id` | string | ✓ | ✓ |
 | `created_at` | number | ✓ |  |
-| `updated_at` | number |  |  |
+| `updated_at` | number | ✓ |  |
 | `is_deleted` | boolean | ✓ |  |
 | `user_id` | string | ✓ | ✓ |
+| `embedding` | string |  | ✓ |
 
 ## vault_folders
 
@@ -137,6 +138,8 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v21 | Added `embedding` to `memory_vault` |
+| v20 | `CREATE INDEX IF NOT EXISTS memory_vault_updated_at ON memory_vault (updated_at);` |
 | v19 | Added `user_id` to `memory_vault` |
 | v18 | Added `vault_folders` table; Added `folder_id` to `memory_vault` |
 | v17 | Added `image_model` to `history` |
