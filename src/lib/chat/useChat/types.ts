@@ -163,6 +163,8 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
    * @param chunk - The content delta from the current chunk
    */
   onData?: (chunk: string) => void;
+  /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
+  conversationId?: string;
 };
 
 /**
