@@ -1,51 +1,31 @@
 # @anuma/sdk
 
-A TypeScript SDK that empowers developers to build AI-powered applications. It
-enables you to send prompts to LLMs with streaming support, manage long-term
-memories, and encrypt sensitive data, all without needing your own LLM API key.
+A TypeScript SDK for building AI-powered applications with streaming chat
+completions, long-term memory, tool calling, and end-to-end encryption.
+
+To learn more, check out the [Documentation](https://docs.anuma.ai/).
 
 ## Installation
 
 ```bash
-pnpm install @anuma/sdk@next
+npm install @anuma/sdk@next
 ```
 
-> **Note:** Currently, the SDK is pre-release so all new versions are released
-> under the `next` tag (released on every merge to the `main` branch). Check out
-> npm to see the latest version.
+## Getting Started
 
-## Configuration
+Create an app on the [Anuma Dashboard](https://dashboard.anuma.ai/) to get your
+API key or configure Privy authentication.
 
-To use the SDK, you'll need to configure your Privy provider and API URL.
+## Usage
 
-```env
-PRIVY_APP_ID=cmhwlx82v000xle0cde4rjy5y
-API_URL=https://portal.anuma-dev.ai
-```
+### React Hooks
 
-## Authentication
-
-The SDK currently only supports authentication via [Privy](https://privy.io) and
-expects a Privy identity token.
-
-```typescript
-import { useIdentityToken } from "@privy-io/react-auth";
-
-const { identityToken } = useIdentityToken();
-```
-
-## Quick Start
-
-For React applications, use the hooks from `@anuma/sdk/react`:
-
-```typescript
+```tsx
 import { useChat } from "@anuma/sdk/react";
 
 const { sendMessage, isLoading, stop } = useChat({
-  getToken: async () => identityToken || null,
-  onFinish: (response) => console.log("Chat finished:", response),
-  onError: (error) => console.error("Chat error:", error),
-  onData: (chunk) => console.log("Received chunk:", chunk),
+  getToken: async () => token,
+  onData: (chunk) => console.log(chunk),
 });
 
 await sendMessage({
@@ -54,47 +34,55 @@ await sendMessage({
 });
 ```
 
-For React Native/Expo, use `@anuma/sdk/expo` instead.
+### API Functions
 
-For direct API access without React hooks, use the functions from this package:
-
-```typescript
-import { postApiV1Responses } from "@anuma/sdk";
+```ts
+import { postApiV1Responses } from "@anuma/sdk/client";
 
 const response = await postApiV1Responses({
   body: {
     messages: [
-      { role: "user", content: [{ type: "text", text: "Tell me a joke" }] },
+      { role: "user", content: [{ type: "text", text: "Hello!" }] },
     ],
     model: "gpt-4o-mini",
   },
   headers: {
-    Authorization: `Bearer ${identityToken}`,
+    Authorization: `Bearer ${apiKey}`,
   },
 });
 ```
 
-## What's Included
+### Platforms
 
-The SDK provides everything you need to integrate AI capabilities into your
-applications:
+The SDK provides entry points for different platforms:
 
-* **Chat completions** with streaming support and tool calling
-* **Image generation** from text prompts
-* **Text embeddings** for semantic search
-* **Web search** integration
-* **PDF and image text extraction** (OCR)
-* **Memory and context management** for conversational AI
-* **Wallet-based encryption** for secure data storage
+* `@anuma/sdk/react` — React hooks
+* `@anuma/sdk/expo` — React Native / Expo
+* `@anuma/sdk/client` — Generated API client and types
+
+## Features
+
+The SDK gives you access to a unified API across multiple LLM providers (OpenAI,
+Anthropic, Google, and more) through a single integration. Key capabilities
+include:
+
+* Streaming chat completions with tool calling and auto-execution
+* Extended thinking (Claude) and reasoning (o-series) support
+* Long-term memory with semantic search and encrypted storage
+* Voice recording and transcription via Whisper
+* PDF and image text extraction (OCR)
+* Phone call integration
+* End-to-end encryption with wallet-based key management
+* Credit and subscription management
 
 ## Documentation
 
-https://ai-docs.zetachain.app
+https://docs.anuma.ai/
 
-## Example Usage
+## Contributing
 
-For a complete example of how to use this SDK, check out [the example
-repo](https://github.com/zeta-chain/ai-examples).
+Contributions are welcome. Please open an issue or pull request on
+[GitHub](https://github.com/anuma-ai/sdk).
 
 ## Modules
 
