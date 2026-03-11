@@ -2,7 +2,7 @@
 
 > **getVaultMemoryOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `id`: `string`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md) | `null`>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#142)
+Defined in: [src/lib/db/memoryVault/operations.ts:149](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#149)
 
 ## Parameters
 

@@ -6,6 +6,7 @@ import {
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
+  updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
   deleteAllVaultMemoriesForUserOp,
   vaultMemoryToStored,
@@ -580,6 +581,150 @@ describe("userId scoping", () => {
     // is_deleted + sortBy = 2 conditions (no user_id filter)
     const callArgs = queryFn.mock.calls[0];
     expect(callArgs.length).toBe(2);
+  });
+});
+
+describe("updateVaultMemoryEmbeddingOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns true and writes the embedding string to the record", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+
+    expect(result).toBe(true);
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
+  });
+
+  it("returns false for soft-deleted records", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ isDeleted: true })),
+      } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when find throws (record not found)", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
+      } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when database.write throws", async () => {
+    const record = mockRecord({
+      update: vi.fn(async () => {
+        throw new Error("write failed");
+      }),
+    });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+});
+
+describe("updateVaultMemoryOp — embedding field handling", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets embedding to null when opts.embedding is null (clears stale embedding)", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", { content: "new content", embedding: null });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", null);
+  });
+
+  it("sets embedding to the provided string when opts.embedding is a string", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", {
+      content: "new content",
+      embedding: "[0.5,0.5]",
+    });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[0.5,0.5]");
+  });
+
+  it("does NOT set embedding when opts.embedding is undefined (preserves existing embedding)", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", { content: "new content" });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
+  });
+});
+
+describe("createVaultMemoryOp — embedding field", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets embedding when opts.embedding is provided", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello", embedding: "[1,2,3]" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,2,3]");
+  });
+
+  it("does NOT set embedding when opts.embedding is omitted", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
   });
 });
 

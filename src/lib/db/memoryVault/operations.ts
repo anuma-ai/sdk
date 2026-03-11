@@ -51,6 +51,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     scope: memory.scope,
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
+    embedding: memory.embedding ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -91,6 +92,9 @@ export async function createVaultMemoryOp(
       record._setRaw("scope", scope);
       record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
+      if (opts.embedding !== undefined) {
+        record._setRaw("embedding", opts.embedding);
+      }
     });
   });
 
@@ -126,6 +130,9 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("scope", opts.scope ?? "private");
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
+        if (optionsArray[i].embedding !== undefined) {
+          record._setRaw("embedding", optionsArray[i].embedding!);
+        }
       })
     );
     await ctx.database.batch(...prepared);
@@ -216,6 +223,9 @@ export async function updateVaultMemoryOp(
         if (opts.scope !== undefined) {
           r._setRaw("scope", opts.scope);
         }
+        if (opts.embedding !== undefined) {
+          r._setRaw("embedding", opts.embedding);
+        }
       });
     });
 
@@ -272,4 +282,23 @@ export async function deleteAllVaultMemoriesForUserOp(
   });
 
   return records.length;
+}
+
+export async function updateVaultMemoryEmbeddingOp(
+  ctx: VaultMemoryOperationsContext,
+  id: string,
+  embedding: string
+): Promise<boolean> {
+  try {
+    const record = await ctx.vaultMemoryCollection.find(id);
+    if (record.isDeleted || !isOwnedByCtxUser(ctx, record)) return false;
+    await ctx.database.write(async () => {
+      await record.update((r) => {
+        r._setRaw("embedding", embedding);
+      });
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

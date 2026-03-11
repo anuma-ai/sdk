@@ -7,7 +7,7 @@
 
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
+import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 
@@ -61,17 +61,33 @@ export async function preEmbedVaultMemories(
   const memories = await getAllVaultMemoriesOp(vaultCtx, options);
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
+  const uncachedIds: string[] = [];
   for (const m of memories) {
     const key = m.content;
     if (!cache.has(key)) {
+      // Check for persisted embedding in DB first
+      if (m.embedding) {
+        try {
+          const parsed = JSON.parse(m.embedding) as number[];
+          cache.set(key, parsed);
+          continue;
+        } catch {
+          // Invalid JSON, re-embed
+        }
+      }
       uncachedTexts.push(m.content);
       uncachedKeys.push(key);
+      uncachedIds.push(m.uniqueId);
     }
   }
   if (uncachedTexts.length > 0) {
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
       cache.set(uncachedKeys[i], embeddings[i]);
+      // Persist embedding to DB (fire-and-forget)
+      updateVaultMemoryEmbeddingOp(vaultCtx, uncachedIds[i], JSON.stringify(embeddings[i])).catch(
+        () => {}
+      );
     }
   }
 }
@@ -83,10 +99,17 @@ export async function preEmbedVaultMemories(
 export async function eagerEmbedContent(
   content: string,
   embeddingOptions: EmbeddingOptions,
-  cache: VaultEmbeddingCache
+  cache: VaultEmbeddingCache,
+  vaultCtx?: VaultMemoryOperationsContext,
+  memoryId?: string
 ): Promise<void> {
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
+  if (vaultCtx && memoryId) {
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch((err) => {
+      console.warn("[anuma/sdk] Failed to persist embedding:", err);
+    });
+  }
 }
 
 /**
@@ -129,6 +152,16 @@ async function searchVaultMemoriesWithSize(
   const uncachedIndices: number[] = [];
   for (let i = 0; i < memories.length; i++) {
     if (!cache.has(memories[i].content)) {
+      // Check for persisted embedding in DB first
+      if (memories[i].embedding) {
+        try {
+          const parsed = JSON.parse(memories[i].embedding!) as number[];
+          cache.set(memories[i].content, parsed);
+          continue;
+        } catch {
+          // Invalid JSON, re-embed
+        }
+      }
       uncachedTexts.push(memories[i].content);
       uncachedIndices.push(i);
     }
@@ -137,6 +170,14 @@ async function searchVaultMemoriesWithSize(
     const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let j = 0; j < uncachedTexts.length; j++) {
       cache.set(memories[uncachedIndices[j]].content, newEmbeddings[j]);
+      // Persist embedding to DB (fire-and-forget)
+      updateVaultMemoryEmbeddingOp(
+        vaultCtx,
+        memories[uncachedIndices[j]].uniqueId,
+        JSON.stringify(newEmbeddings[j])
+      ).catch((err) => {
+        console.warn("[anuma/sdk] Failed to persist embedding:", err);
+      });
     }
   }
 

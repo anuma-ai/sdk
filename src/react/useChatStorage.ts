@@ -1115,7 +1115,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          result.uniqueId
         ).catch(() => {});
       }
       return result;
@@ -1129,7 +1131,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
       const existing = await getVaultMemoryOp(vaultCtx, id);
-      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope });
+      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope, embedding: null });
       if (result && getToken) {
         if (existing) {
           vaultEmbeddingCacheRef.current.delete(existing.content);
@@ -1137,7 +1139,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          id
         ).catch(() => {});
       }
       return result;

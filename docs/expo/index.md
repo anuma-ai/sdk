@@ -514,6 +514,12 @@ Re-exports [UpdateVaultFolderOptions](../react/Internal/interfaces/UpdateVaultFo
 
 ***
 
+### updateVaultMemoryEmbeddingOp
+
+Re-exports [updateVaultMemoryEmbeddingOp](../react/Internal/functions/updateVaultMemoryEmbeddingOp.md)
+
+***
+
 ### updateVaultMemoryOp
 
 Re-exports [updateVaultMemoryOp](../react/Internal/functions/updateVaultMemoryOp.md)
