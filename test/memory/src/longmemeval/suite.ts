@@ -13,7 +13,6 @@ import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
 import type {
   LongMemEvalEntry,
-  LongMemEvalSession,
   LongMemEvalResult,
   LongMemEvalSummary,
   LongMemEvalComparisonSummary,
@@ -41,20 +40,6 @@ console.warn = (...args: any[]) => {
   if (typeof args[0] === "string" && args[0].includes("[🍉]")) return;
   originalWarn(...args);
 };
-
-// ── Shared types ──
-
-export interface ExtractedMemory {
-  sessionIndex: number;
-  sessionId: string;
-  type: "identity" | "preference" | "project" | "skill" | "constraint";
-  namespace: string;
-  key: string;
-  value: string;
-  rawEvidence: string;
-  confidence: number;
-  embedding?: number[];
-}
 
 // ── Embedding cache persistence ──
 
@@ -117,26 +102,6 @@ export async function setupDatabase(): Promise<Database> {
     adapter,
     modelClasses: sdkModelClasses,
   });
-}
-
-// ── JSON extraction ──
-
-export function extractJsonFromResponse(content: string): string {
-  let jsonStr = content.trim();
-
-  if (jsonStr.includes("```")) {
-    const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (match) {
-      jsonStr = match[1].trim();
-    }
-  }
-
-  const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    jsonStr = jsonMatch[0];
-  }
-
-  return jsonStr;
 }
 
 // ── Transcript helpers ──
@@ -323,89 +288,6 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
   } catch (error) {
     console.error("Error evaluating answer:", error);
     return { isCorrect: false };
-  }
-}
-
-export async function extractMemoriesFromSession(
-  session: LongMemEvalSession,
-  sessionIndex: number,
-  sessionId: string,
-  api: ApiConfig
-): Promise<ExtractedMemory[]> {
-  const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
-
-  const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
-
-CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
-
-Only extract clear, factual statements about the user that might be relevant for future conversations.
-Focus on: identity facts, preferences, projects, skills, constraints, and personal information.
-
-Conversation:
-${conversationText}
-
-Response format:
-{
-  "items": [
-    {
-      "type": "identity|preference|project|skill|constraint",
-      "namespace": "category",
-      "key": "attribute_name",
-      "value": "the value",
-      "rawEvidence": "exact quote from conversation",
-      "confidence": 0.0-1.0
-    }
-  ]
-}
-
-If no memories to extract, return: {"items": []}`;
-
-  try {
-    const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: api.llmModel,
-        messages: [{ role: "user", content: extractionPrompt }],
-        temperature: 0,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) return [];
-
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const content = data.choices[0]?.message?.content || "{}";
-    const jsonStr = extractJsonFromResponse(content);
-
-    const parsed = JSON.parse(jsonStr) as {
-      items: Array<{
-        type: string;
-        namespace: string;
-        key: string;
-        value: string;
-        rawEvidence: string;
-        confidence: number;
-      }>;
-    };
-
-    return (parsed.items || []).map((item) => ({
-      sessionIndex,
-      sessionId,
-      type: item.type as ExtractedMemory["type"],
-      namespace: item.namespace || "general",
-      key: item.key || "unknown",
-      value: item.value || "",
-      rawEvidence: item.rawEvidence || "",
-      confidence: item.confidence || 0.5,
-    }));
-  } catch {
-    return [];
   }
 }
 
