@@ -41,8 +41,8 @@ export type RunToolLoopOptions = {
   messages: LlmapiMessage[];
   /** Model identifier (e.g. "gpt-4o", "anthropic/claude-3-7-sonnet-20250219"). */
   model: string;
-  /** Bearer token for the Portal API. */
-  token: string;
+  /** Bearer token for the Portal API. Omit when using API-key auth via `headers`. */
+  token?: string;
   /** Base URL for the Portal API. @default "https://portal.anuma-dev.ai" */
   baseUrl?: string;
   /** Additional headers to include with each request. */
@@ -110,7 +110,7 @@ function makeStreamingRequest(options: {
   baseUrl: string;
   endpoint: string;
   body: Record<string, unknown>;
-  token: string;
+  token?: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onSseError?: (error: unknown) => void;
@@ -122,7 +122,7 @@ function makeStreamingRequest(options: {
     serializedBody: JSON.stringify(options.body),
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${options.token}`,
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : undefined),
       ...options.headers,
     },
     signal: options.signal,
@@ -199,8 +199,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: modelValidation.message };
   }
 
-  if (!token) {
-    const msg = "No access token available.";
+  if (!token && !headers) {
+    const msg = "No access token available. Provide `token` or auth via `headers`.";
     if (onError) onError(new Error(msg));
     return { data: null, error: msg };
   }
