@@ -968,7 +968,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           thinking,
           imageModel,
           apiType: effectiveApiType,
-          conversationId: currentConversationId,
+          conversationId: currentConversationId ?? undefined,
         });
 
         if (result.error || !result.data) {
