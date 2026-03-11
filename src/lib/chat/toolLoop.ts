@@ -305,8 +305,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentMessages = messages;
     let toolIteration = 0;
     const effectiveMaxToolRounds = maxToolRounds ?? 3;
-    const isConnectorTool = (name: string) =>
-      CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
+    const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
 
@@ -516,8 +515,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Continue the conversation with tool results
       currentMessages = [...currentMessages, ...toolResultMessages];
 
-      const continuationToolChoice =
-        toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
+      const continuationToolChoice = toolIteration >= effectiveMaxToolRounds ? "none" : toolChoice;
 
       const continuationRequestBody = strategy.buildRequestBody({
         messages: currentMessages,

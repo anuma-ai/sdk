@@ -102,7 +102,9 @@ describe("useChat multi-turn tool loop", () => {
     const autoTool = makeAutoTool("auto_tool", async (args) => `result for ${args.input}`);
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", { input: "hello" })) as any)
+      .mockReturnValueOnce(
+        makeMockStream(makeToolCallStream("auto_tool", { input: "hello" })) as any
+      )
       .mockReturnValueOnce(makeMockStream(makeTextStream("Here is the result.")) as any);
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
@@ -533,7 +535,9 @@ describe("useChat multi-turn tool loop", () => {
     // First call: model calls memory_save
     // Second call: model responds with text
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("memory_save", { content: "test" })) as any)
+      .mockReturnValueOnce(
+        makeMockStream(makeToolCallStream("memory_save", { content: "test" })) as any
+      )
       .mockReturnValueOnce(makeMockStream(makeTextStream("Done!")) as any);
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
