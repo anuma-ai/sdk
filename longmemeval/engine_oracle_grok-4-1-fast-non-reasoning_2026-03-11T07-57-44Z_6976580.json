@@ -1,0 +1,57 @@
+{
+  "timestamp": "2026-03-11T07:57:25.595Z",
+  "datasetName": "longmemeval_s_memory-engine",
+  "strategy": "memory-engine",
+  "totalQuestions": 289,
+  "correctAnswers": 227,
+  "accuracy": 0.7854671280276817,
+  "byQuestionType": {
+    "single-session-user": {
+      "total": 70,
+      "correct": 65,
+      "accuracy": 0.9285714285714286
+    },
+    "single-session-assistant": {
+      "total": 56,
+      "correct": 56,
+      "accuracy": 1
+    },
+    "single-session-preference": {
+      "total": 30,
+      "correct": 22,
+      "accuracy": 0.7333333333333333
+    },
+    "multi-session": {
+      "total": 133,
+      "correct": 84,
+      "accuracy": 0.631578947368421
+    }
+  },
+  "retrieval": {
+    "avgPrecision": 0.9965397923875432,
+    "avgRecall": 0.9946943483275664
+  },
+  "latency": {
+    "p50": 49320.26620300001,
+    "p95": 118100.13121139997,
+    "p99": 151615.14201660003,
+    "mean": 55255.62862722835
+  },
+  "tokenUsage": {
+    "promptTokens": 3030676,
+    "completionTokens": 37800,
+    "totalTokens": 5221710,
+    "embeddingTokens": 2153234
+  },
+  "cost": null,
+  "meta": {
+    "commit": "6976580af6c4d1ef7430553681c9d8fdf281b2c4",
+    "commitShort": "6976580",
+    "branch": "feat/expand-search-to-full-sessions",
+    "model": "grok/grok-4-1-fast-non-reasoning",
+    "variant": "oracle",
+    "concurrency": 100,
+    "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/22942370424",
+    "runId": 22942370424
+  }
+}
