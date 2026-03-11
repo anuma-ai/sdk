@@ -1,8 +1,8 @@
 # createMemoryEngineTool
 
-> **createMemoryEngineTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>): `ToolConfig`
+> **createMemoryEngineTool**(`storageCtx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `searchOptions?`: `Partial`<[`MemoryEngineSearchOptions`](../interfaces/MemoryEngineSearchOptions.md)>, `callbacks?`: `object`): `ToolConfig`
 
-Defined in: [src/lib/memoryEngine/tool.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#87)
+Defined in: [src/lib/memoryEngine/tool.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/tool.ts#93)
 
 Creates a memory engine tool for use with chat completions.
 
@@ -68,6 +68,40 @@ Options for embedding generation
 <td>
 
 Default search options (can be overridden per-call)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`callbacks?`
+
+</td>
+<td>
+
+`object`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`callbacks.onRetrieve?`
+
+</td>
+<td>
+
+(`conversationIds`: `string`\[]) => `void`
+
+</td>
+<td>
+
+Called after retrieval with the conversation IDs that were actually returned to the LLM.
 
 </td>
 </tr>
