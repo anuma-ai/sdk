@@ -332,3 +332,16 @@ export {
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";
+
+// ── Tool Loop (framework-agnostic agent core) ──
+
+export { runToolLoop } from "../lib/chat/toolLoop";
+export type {
+  AutoExecutedToolResult,
+  RunToolLoopOptions,
+  RunToolLoopResult,
+} from "../lib/chat/toolLoop";
+export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
+export type { ApiType, ApiResponse } from "../lib/chat/useChat/strategies/types";
+export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
+export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
