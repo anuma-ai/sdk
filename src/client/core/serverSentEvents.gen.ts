@@ -2,6 +2,19 @@
 
 import type { Config } from './types.gen';
 
+/**
+ * Error thrown when the SSE connection receives a non-OK HTTP response.
+ * Preserves the HTTP status code for programmatic error handling.
+ */
+export class SseError extends Error {
+  statusCode: number;
+  constructor(statusCode: number, statusText: string) {
+    super(`SSE failed: ${statusCode} ${statusText}`);
+    this.name = 'SseError';
+    this.statusCode = statusCode;
+  }
+}
+
 export type ServerSentEventsOptions<TData = unknown> = Omit<
   RequestInit,
   'method'
@@ -142,9 +155,7 @@ export const createSseClient = <TData = unknown>({
         const response = await _fetch(request);
 
         if (!response.ok)
-          throw new Error(
-            `SSE failed: ${response.status} ${response.statusText}`,
-          );
+          throw new SseError(response.status, response.statusText);
 
         if (!response.body) throw new Error('No body in SSE response');
 
