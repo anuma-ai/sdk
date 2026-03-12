@@ -7,6 +7,7 @@ import type {
 } from "../../client";
 import { BASE_URL } from "../../clientConfig";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
+import { SseError } from "../errors";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -640,10 +641,15 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
-    const statusCode =
-      err instanceof Error && "statusCode" in err
-        ? (err as { statusCode: number }).statusCode
-        : undefined;
+    // Use SseError for structured status codes. Defensive fallback: if codegen
+    // ran without the patch, parse the status code from the "SSE failed: NNN" message.
+    let statusCode: number | undefined;
+    if (err instanceof SseError) {
+      statusCode = err.statusCode;
+    } else if (err instanceof Error) {
+      const match = err.message.match(/^SSE failed: (\d+)/);
+      if (match) statusCode = parseInt(match[1]!, 10);
+    }
     return { data: null, error: errorMsg, statusCode };
   }
 }

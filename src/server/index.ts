@@ -333,6 +333,10 @@ export {
   ZipProcessor,
 } from "../lib/processors";
 
+// ── Errors ──
+
+export { SseError } from "../lib/errors";
+
 // ── Tool Loop (framework-agnostic agent core) ──
 
 export { runToolLoop } from "../lib/chat/toolLoop";
