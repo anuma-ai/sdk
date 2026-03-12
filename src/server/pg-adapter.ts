@@ -515,7 +515,25 @@ export class PostgreSQLAdapter implements DatabaseAdapter {
         break;
       }
       case "sql": {
-        await this.pool.query(step.sql);
+        // Raw SQL from unsafeExecuteSql may use unqualified table names.
+        // When using a non-public schema, run inside a transaction with
+        // SET LOCAL search_path so unqualified names resolve correctly.
+        if (this._pgSchema !== "public" && this.pool.connect) {
+          const client = await this.pool.connect();
+          try {
+            await client.query("BEGIN");
+            await client.query(`SET LOCAL search_path TO "${this._pgSchema}", public`);
+            await client.query(step.sql);
+            await client.query("COMMIT");
+          } catch (err) {
+            await client.query("ROLLBACK");
+            throw err;
+          } finally {
+            client.release();
+          }
+        } else {
+          await this.pool.query(step.sql);
+        }
         break;
       }
     }
