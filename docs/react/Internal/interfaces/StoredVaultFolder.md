@@ -20,6 +20,16 @@ Defined in: [src/lib/db/vaultFolders/types.ts:10](https://github.com/anuma-ai/sd
 
 ***
 
+### isSystem
+
+> **isSystem**: `boolean`
+
+Defined in: [src/lib/db/vaultFolders/types.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#12)
+
+Whether this is a system-created default folder
+
+***
+
 ### name
 
 > **name**: `string`

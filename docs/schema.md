@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v21**
+Current version: **v22**
 
 ```mermaid
 graph LR
@@ -111,6 +111,7 @@ graph LR
 | `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
+| `is_system` | boolean |  | ✓ |
 
 ## media
 
@@ -138,6 +139,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v22 | Added `is_system` to `vault_folders` |
 | v21 | Added `embedding` to `memory_vault` |
 | v20 | `CREATE INDEX IF NOT EXISTS memory_vault_updated_at ON memory_vault (updated_at);` |
 | v19 | Added `user_id` to `memory_vault` |

@@ -16,9 +16,19 @@ Defined in: [src/lib/db/memoryVault/types.ts:20](https://github.com/anuma-ai/sdk
 
 > `optional` **embedding**: `string`
 
-Defined in: [src/lib/db/memoryVault/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#24)
+Defined in: [src/lib/db/memoryVault/types.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#26)
 
 JSON-stringified embedding vector to persist
+
+***
+
+### folderId?
+
+> `optional` **folderId**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#24)
+
+Folder ID to file the memory into.
 
 ***
 

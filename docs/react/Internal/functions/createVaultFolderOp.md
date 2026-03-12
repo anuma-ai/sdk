@@ -2,7 +2,7 @@
 
 > **createVaultFolderOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `opts`: [`CreateVaultFolderOptions`](../interfaces/CreateVaultFolderOptions.md)): `Promise`<[`StoredVaultFolder`](../interfaces/StoredVaultFolder.md)>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#32)
+Defined in: [src/lib/db/vaultFolders/operations.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#33)
 
 Create a new vault folder.
 
