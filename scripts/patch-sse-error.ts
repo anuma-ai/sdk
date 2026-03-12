@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 
 const FILE = resolve(
   import.meta.dirname ?? __dirname,
-  "../src/client/core/serverSentEvents.gen.ts",
+  "../src/client/core/serverSentEvents.gen.ts"
 );
 
 let source = readFileSync(FILE, "utf-8");
@@ -19,8 +19,7 @@ let changed = false;
 const IMPORT_LINE = `import { SseError } from '../../lib/errors';`;
 
 // 1. Remove any inline SseError class definition the codegen may have added
-const inlineClassRe =
-  /^export class SseError extends Error \{[\s\S]*?^\}\n?/m;
+const inlineClassRe = /^export class SseError extends Error \{[\s\S]*?^\}\n?/m;
 if (inlineClassRe.test(source)) {
   source = source.replace(inlineClassRe, "");
   changed = true;
@@ -32,8 +31,7 @@ if (!source.includes(IMPORT_LINE)) {
   const lastImportIdx = source.lastIndexOf("import ");
   if (lastImportIdx !== -1) {
     const eol = source.indexOf("\n", lastImportIdx);
-    source =
-      source.slice(0, eol + 1) + "\n" + IMPORT_LINE + "\n" + source.slice(eol + 1);
+    source = source.slice(0, eol + 1) + "\n" + IMPORT_LINE + "\n" + source.slice(eol + 1);
   } else {
     source = IMPORT_LINE + "\n\n" + source;
   }
