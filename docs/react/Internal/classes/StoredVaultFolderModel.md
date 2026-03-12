@@ -149,6 +149,14 @@ Defined in: [src/lib/db/vaultFolders/models.ts:11](https://github.com/anuma-ai/s
 
 ***
 
+### isSystem
+
+> **isSystem**: `boolean`
+
+Defined in: [src/lib/db/vaultFolders/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#12)
+
+***
+
 ### name
 
 > **name**: `string`

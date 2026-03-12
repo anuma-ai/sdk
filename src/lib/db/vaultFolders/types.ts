@@ -8,12 +8,16 @@ export interface StoredVaultFolder {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  /** Whether this is a system-created default folder */
+  isSystem: boolean;
 }
 
 export interface CreateVaultFolderOptions {
   name: string;
   /** Defaults to "private" if omitted. */
   scope?: string;
+  /** Whether this is a system-created default folder */
+  isSystem?: boolean;
 }
 
 export interface UpdateVaultFolderOptions {

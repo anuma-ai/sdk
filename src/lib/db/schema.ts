@@ -40,8 +40,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v19: Added user_id column to memory_vault for multi-user server-side scoping
  * - v20: Added index on updated_at column of memory_vault for efficient since-based filtering
  * - v21: Added embedding column to memory_vault for persisted embedding vectors
+ * - v22: Added is_system column to vault_folders for default system folders
  */
-export const SDK_SCHEMA_VERSION = 21;
+export const SDK_SCHEMA_VERSION = 22;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -176,6 +177,7 @@ export const sdkSchema = appSchema({
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
+        { name: "is_system", type: "boolean", isOptional: true },
       ],
     }),
     // Media library storage (images, videos, audio, documents)
@@ -241,6 +243,7 @@ export const sdkSchema = appSchema({
  * - v18 → v19: Added `user_id` column to memory_vault for multi-user server-side scoping
  * - v19 → v20: Added index on `updated_at` column of memory_vault for efficient since-based filtering
  * - v20 → v21: Added `embedding` column to memory_vault for persisted embedding vectors
+ * - v21 → v22: Added `is_system` column to vault_folders for default system folders
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -502,6 +505,16 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "memory_vault",
           columns: [{ name: "embedding", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v21 -> v22: Added is_system column to vault_folders for default system folders
+    {
+      toVersion: 22,
+      steps: [
+        addColumns({
+          table: "vault_folders",
+          columns: [{ name: "is_system", type: "boolean", isOptional: true }],
         }),
       ],
     },

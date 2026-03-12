@@ -20,6 +20,8 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
+  /** Folder ID to file the memory into. */
+  folderId?: string;
   /** JSON-stringified embedding vector to persist */
   embedding?: string;
 }
@@ -28,6 +30,8 @@ export interface UpdateVaultMemoryOptions {
   content: string;
   /** If provided, updates the memory's scope. */
   scope?: string;
+  /** If provided, moves the memory to this folder. */
+  folderId?: string;
   /** JSON-stringified embedding vector to persist, or null to clear stale embedding */
   embedding?: string | null;
 }

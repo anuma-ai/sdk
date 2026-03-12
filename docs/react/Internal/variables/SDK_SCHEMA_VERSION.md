@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `21` = `21`
+> `const` **SDK\_SCHEMA\_VERSION**: `22` = `22`
 
-Defined in: [src/lib/db/schema.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#44)
+Defined in: [src/lib/db/schema.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#45)
 
 Current combined schema version for all SDK storage modules.
 
@@ -28,3 +28,4 @@ Version history:
 * v19: Added user\_id column to memory\_vault for multi-user server-side scoping
 * v20: Added index on updated\_at column of memory\_vault for efficient since-based filtering
 * v21: Added embedding column to memory\_vault for persisted embedding vectors
+* v22: Added is\_system column to vault\_folders for default system folders

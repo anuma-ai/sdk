@@ -9,4 +9,5 @@ export class VaultFolder extends Model {
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
+  @field("is_system") isSystem!: boolean;
 }
