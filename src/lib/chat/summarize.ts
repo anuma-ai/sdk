@@ -8,7 +8,16 @@
  * https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain_classic/memory/prompt.py
  */
 
+import type { Database } from "@nozbe/watermelondb";
+
 import type { LlmapiMessage } from "../../client";
+import { BASE_URL } from "../../clientConfig";
+import {
+  createSummaryContext,
+  deleteConversationSummaryOp,
+  getConversationSummaryOp,
+  upsertConversationSummaryOp,
+} from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
 
 /** Default token threshold before summarization triggers */
@@ -108,7 +117,9 @@ export function splitMessagesAtThreshold(
   let cumulativeTokens = 0;
   let cutoffIndex = messages.length; // Start assuming everything is in the window
 
-  // Walk backwards from the most recent message
+  // Walk backwards from the most recent message.
+  // Note: the message that pushes over the threshold is placed in toSummarize (conservative).
+  // This means the window is always strictly under the threshold, never at it.
   for (let i = messages.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(messages[i].content);
     if (cumulativeTokens + msgTokens > tokenThreshold && messages.length - i >= minWindowMessages) {
@@ -238,4 +249,160 @@ export function summaryToSystemMessage(summary: string): LlmapiMessage {
       },
     ],
   };
+}
+
+/**
+ * Lightweight, non-streaming LLM call for summarization.
+ *
+ * Uses a direct fetch to the chat completions endpoint instead of `baseSendMessage`
+ * to avoid side effects (isLoading state, abortController, conversationId tracking).
+ * No conversationId is sent — summarization calls are invisible to server-side billing/tracking.
+ */
+export async function callSummarizationLlm(
+  prompt: string,
+  model: string,
+  token: string,
+  baseUrl?: string
+): Promise<string> {
+  const url = `${baseUrl || BASE_URL}/api/v1/chat/completions`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+  };
+
+  // Chat Completions API format
+  if (data.choices?.[0]?.message?.content) {
+    const content = data.choices[0].message.content;
+    if (Array.isArray(content)) {
+      return content.map((part) => part.text || "").join("");
+    }
+    return String(content);
+  }
+
+  throw new Error("Unexpected API response format for summarization");
+}
+
+/** Options for `maybeSummarizeHistory` */
+export interface MaybeSummarizeHistoryOptions {
+  database: Database;
+  conversationId: string;
+  messages: StoredMessage[];
+  summarizeHistory: boolean;
+  summaryTokenThreshold: number;
+  summaryMinWindowMessages: number;
+  summaryModel: string;
+  /** Auth token for the summarization LLM call */
+  token: string;
+  /** Base URL for the API */
+  baseUrl?: string;
+}
+
+/** Result of `maybeSummarizeHistory` */
+export interface MaybeSummarizeHistoryResult {
+  /** Messages to convert and send (window messages if summarized, all if not) */
+  messagesToConvert: StoredMessage[];
+  /** Summary system message to prepend, or null if no summary */
+  summarySystemMessage: LlmapiMessage | null;
+}
+
+/**
+ * Shared summarization logic for both React and Expo useChatStorage hooks.
+ *
+ * Checks if history needs summarization, calls the LLM if so, persists the result,
+ * and returns the window messages + optional summary system message.
+ *
+ * Falls back to sending all messages verbatim on any error.
+ */
+export async function maybeSummarizeHistory(
+  options: MaybeSummarizeHistoryOptions
+): Promise<MaybeSummarizeHistoryResult> {
+  const {
+    database,
+    conversationId,
+    messages,
+    summarizeHistory,
+    summaryTokenThreshold,
+    summaryMinWindowMessages,
+    summaryModel,
+    token,
+    baseUrl,
+  } = options;
+
+  if (!summarizeHistory || messages.length <= summaryMinWindowMessages) {
+    return { messagesToConvert: messages, summarySystemMessage: null };
+  }
+
+  try {
+    const summaryCtx = createSummaryContext(database);
+    const cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+
+    // Get messages after the summary cutoff point
+    let unsummarized: StoredMessage[];
+    if (cachedSummary?.summarizedUpTo) {
+      const cutoffIndex = messages.findIndex((msg) => msg.uniqueId === cachedSummary.summarizedUpTo);
+      unsummarized = cutoffIndex >= 0 ? messages.slice(cutoffIndex + 1) : messages;
+    } else {
+      unsummarized = messages;
+    }
+
+    const callLlm = (prompt: string, llmModel: string) =>
+      callSummarizationLlm(prompt, llmModel, token, baseUrl);
+
+    const summarizeResult = await progressiveSummarize({
+      cachedSummary,
+      unsummarizedMessages: unsummarized,
+      tokenThreshold: summaryTokenThreshold,
+      minWindowMessages: summaryMinWindowMessages,
+      callLlm,
+      model: summaryModel,
+    });
+
+    // Persist the updated summary if summarization was performed
+    if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
+      await upsertConversationSummaryOp(
+        summaryCtx,
+        conversationId,
+        summarizeResult.summary,
+        summarizeResult.summarizedUpTo,
+        summarizeResult.summaryTokenCount
+      );
+    }
+
+    return {
+      messagesToConvert: summarizeResult.windowMessages,
+      summarySystemMessage: summarizeResult.summary ? summaryToSystemMessage(summarizeResult.summary) : null,
+    };
+  } catch {
+    // Summarization failed — fall back to sending all messages verbatim
+    return { messagesToConvert: messages, summarySystemMessage: null };
+  }
+}
+
+/**
+ * Delete the conversation summary cache. Logs a warning on failure
+ * rather than throwing, since this is a cascade cleanup operation.
+ */
+export async function cleanupConversationSummary(database: Database, conversationId: string): Promise<void> {
+  try {
+    const summaryCtx = createSummaryContext(database);
+    await deleteConversationSummaryOp(summaryCtx, conversationId);
+  } catch (err) {
+    console.warn("[summarize] Failed to delete conversation summary cache:", err);
+  }
 }

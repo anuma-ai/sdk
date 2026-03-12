@@ -7,6 +7,13 @@ import type {
   LlmapiMessage,
   LlmapiResponseResponse,
 } from "../client";
+import {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  maybeSummarizeHistory,
+} from "../lib/chat/summarize";
 import { type ApiResponse, type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
@@ -39,19 +46,6 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
-import {
-  createSummaryContext,
-  deleteConversationSummaryOp,
-  getConversationSummaryOp,
-  upsertConversationSummaryOp,
-} from "../lib/db/chat/summaryOperations";
-import {
-  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
-  DEFAULT_SUMMARY_MODEL,
-  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
-  progressiveSummarize,
-  summaryToSystemMessage,
-} from "../lib/chat/summarize";
 import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
 import {
   deleteVaultMemoryOp,
@@ -706,8 +700,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           id
         );
         // Cascade delete conversation summary cache
-        const summaryCtx = createSummaryContext(storageCtx.database);
-        await deleteConversationSummaryOp(summaryCtx, id).catch(() => {});
+        await cleanupConversationSummary(storageCtx.database, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
@@ -1038,77 +1031,21 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
 
-        let messagesToConvert: StoredMessage[] = limitedMessages;
-        let summarySystemMessage: LlmapiMessage | null = null;
-
-        if (summarizeHistory && limitedMessages.length > summaryMinWindowMessages) {
-          try {
-            const summaryCtx = createSummaryContext(database);
-            const cachedSummary = await getConversationSummaryOp(summaryCtx, convId);
-
-            // Get messages after the summary cutoff point
-            let unsummarized: StoredMessage[];
-            if (cachedSummary?.summarizedUpTo) {
-              const cutoffIndex = limitedMessages.findIndex(
-                (msg) => msg.uniqueId === cachedSummary.summarizedUpTo
-              );
-              unsummarized = cutoffIndex >= 0 ? limitedMessages.slice(cutoffIndex + 1) : limitedMessages;
-            } else {
-              unsummarized = limitedMessages;
-            }
-
-            const callLlm = async (prompt: string, llmModel: string): Promise<string> => {
-              const result = await baseSendMessage({
-                messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
-                model: llmModel,
-                conversationId: convId,
-              });
-              if (result.error || !result.data) {
-                throw new Error(result.error ?? "Summarization call failed");
-              }
-              const data = result.data;
-              if ("output" in data && Array.isArray(data.output)) {
-                type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-                const msg = (data.output as OutputItem[]).find((item) => item?.type === "message");
-                return msg?.content?.map((part) => part.text || "").join("") || "";
-              }
-              if ("choices" in data && data.choices?.[0]?.message?.content) {
-                const content = data.choices[0].message.content;
-                if (Array.isArray(content)) {
-                  return content.map((part: { text?: string }) => part.text || "").join("");
-                }
-                return String(content);
-              }
-              throw new Error("Unexpected API response format for summarization");
-            };
-
-            const summarizeResult = await progressiveSummarize({
-              cachedSummary,
-              unsummarizedMessages: unsummarized,
-              tokenThreshold: summaryTokenThreshold,
-              minWindowMessages: summaryMinWindowMessages,
-              callLlm,
-              model: summaryModel,
-            });
-
-            if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
-              await upsertConversationSummaryOp(
-                summaryCtx,
-                convId,
-                summarizeResult.summary,
-                summarizeResult.summarizedUpTo,
-                summarizeResult.summaryTokenCount
-              );
-            }
-
-            messagesToConvert = summarizeResult.windowMessages;
-            if (summarizeResult.summary) {
-              summarySystemMessage = summaryToSystemMessage(summarizeResult.summary);
-            }
-          } catch {
-            messagesToConvert = limitedMessages;
-          }
-        }
+        // Determine which messages to send: summarized + window or all verbatim.
+        // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
+        // corrupting isLoading state and abortController during summarization.
+        const summaryToken = getToken ? await getToken() : null;
+        const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
+          database,
+          conversationId: convId,
+          messages: limitedMessages,
+          summarizeHistory,
+          summaryTokenThreshold,
+          summaryMinWindowMessages,
+          summaryModel,
+          token: summaryToken ?? "",
+          baseUrl,
+        });
 
         messagesToSend = [
           ...(summarySystemMessage ? [summarySystemMessage] : []),
