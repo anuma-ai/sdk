@@ -174,7 +174,11 @@ export function createMemoryVaultTool(
         // Execute the save
         if (isUpdate) {
           const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null, folderId });
+          const updated = await updateVaultMemoryOp(vaultCtx, id, {
+            content,
+            embedding: null,
+            folderId,
+          });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }
