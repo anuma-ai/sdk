@@ -90,6 +90,7 @@ export function createMemoryVaultTool(
   cache?: VaultEmbeddingCache
 ): ToolConfig {
   const hasOnSave = !!options?.onSave;
+  const folderNames = options?.folderMap ? Array.from(options.folderMap.keys()) : [];
 
   return {
     type: "function",
@@ -116,13 +117,15 @@ export function createMemoryVaultTool(
               "If omitted, a new memory is created. " +
               "Prefer updating existing memories over creating new ones.",
           },
-          folderName: {
-            type: "string",
-            description:
-              "The name of the folder to save the memory in. " +
-              "Choose from available folders based on the memory content. " +
-              "Omit if no folder is a good fit.",
-          },
+          ...(folderNames.length > 0 && {
+            folderName: {
+              type: "string",
+              description:
+                `The name of the folder to save or move the memory into. ` +
+                `Available folders: ${folderNames.join(", ")}. ` +
+                `Omit if no folder is a good fit.`,
+            },
+          }),
         },
         required: ["content"],
       },
@@ -170,7 +173,8 @@ export function createMemoryVaultTool(
 
         // Execute the save
         if (isUpdate) {
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null });
+          const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null, folderId });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }

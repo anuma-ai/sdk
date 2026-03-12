@@ -167,20 +167,20 @@ export async function moveMemoriesToFolderOp(
       targetScope = folder.scope;
     }
 
-    // Resolve memories individually so one bad ID doesn't abort the entire batch
-    const memories: VaultMemory[] = [];
-    for (const id of memoryIds) {
-      try {
-        const m = await ctx.vaultMemoryCollection.find(id);
-        if (!m.isDeleted) memories.push(m);
-      } catch {
-        // skip invalid/missing IDs
-      }
-    }
-
-    if (memories.length === 0) return memoryIds.length === 0;
-
+    // Resolve and update memories inside a single write lock to avoid races
     await ctx.database.write(async () => {
+      const memories: VaultMemory[] = [];
+      for (const id of memoryIds) {
+        try {
+          const m = await ctx.vaultMemoryCollection.find(id);
+          if (!m.isDeleted) memories.push(m);
+        } catch {
+          // skip invalid/missing IDs
+        }
+      }
+
+      if (memories.length === 0) return;
+
       const prepared = memories.map((memory) =>
         memory.prepareUpdate((r) => {
           r._setRaw("folder_id", folderId);

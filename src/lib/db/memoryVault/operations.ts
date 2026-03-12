@@ -225,6 +225,9 @@ export async function updateVaultMemoryOp(
         if (opts.scope !== undefined) {
           r._setRaw("scope", opts.scope);
         }
+        if (opts.folderId !== undefined) {
+          r._setRaw("folder_id", opts.folderId);
+        }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
         }
