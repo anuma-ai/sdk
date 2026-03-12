@@ -968,6 +968,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           thinking,
           imageModel,
           apiType: effectiveApiType,
+          conversationId: currentConversationId ?? undefined,
         });
 
         if (result.error || !result.data) {
@@ -1151,6 +1152,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         reasoning,
         thinking,
         imageModel,
+        conversationId: convId,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;

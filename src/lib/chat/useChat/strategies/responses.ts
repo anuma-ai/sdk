@@ -28,6 +28,7 @@ export class ResponsesStrategy implements ApiStrategy {
       reasoning,
       thinking,
       imageModel,
+      conversationId,
     } = args;
 
     return {
@@ -41,6 +42,7 @@ export class ResponsesStrategy implements ApiStrategy {
       ...(reasoning && { reasoning }),
       ...(thinking && { thinking }),
       ...(imageModel && { image_model: imageModel }),
+      ...(conversationId && { conversation_id: conversationId }),
     };
   }
 

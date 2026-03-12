@@ -38,6 +38,8 @@ export interface BuildRequestBodyArgs {
   reasoning?: LlmapiResponseReasoning;
   thinking?: LlmapiThinkingOptions;
   imageModel?: string;
+  /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
+  conversationId?: string;
 }
 
 /**

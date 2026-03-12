@@ -69,6 +69,8 @@ export type RunToolLoopOptions = {
   thinking?: LlmapiThinkingOptions;
   /** User-selected image generation model. */
   imageModel?: string;
+  /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
+  conversationId?: string;
   /** Controls adaptive output smoothing for streaming. @default true */
   smoothing?: StreamSmoothingConfig | boolean;
   /** AbortSignal to cancel the request. */
@@ -174,6 +176,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     reasoning,
     thinking,
     imageModel,
+    conversationId,
     smoothing,
     signal,
     onData,
@@ -226,6 +229,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       reasoning,
       thinking,
       imageModel,
+      conversationId,
     });
 
     const sseResult = makeStreamingRequest({
@@ -528,6 +532,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         reasoning,
         thinking,
         imageModel,
+        conversationId,
       });
 
       const continuationResult = makeStreamingRequest({
