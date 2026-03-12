@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         ref: [pr, main]
-        repo: [starter-next, starter-mini, starter-telegram, dashboard, text, cli]
+        repo: [starter-next, starter-mini, starter-telegram, starter-agent, dashboard, text, cli]
         include:
           - repo: starter-next
             e2e: true
@@ -31,6 +31,8 @@ jobs:
           - repo: dashboard
             e2e: false
           - repo: text
+            e2e: false
+          - repo: starter-agent
             e2e: false
           - repo: cli
             e2e: false
@@ -144,7 +146,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          REPOS="starter-next starter-mini starter-telegram dashboard text cli"
+          REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli"
           E2E_REPOS="starter-next"
 
           icon() { [ "$1" == "success" ] && echo "✅" || echo "❌"; }
