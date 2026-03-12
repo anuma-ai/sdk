@@ -7,9 +7,7 @@ import { createVaultFolderOp, getAllVaultFoldersOp } from "./operations";
  * Default system folders for auto-sorting memories.
  * These are created on first use and used by the LLM to classify memories.
  */
-export const DEFAULT_FOLDER_NAMES = ["Personal", "Work", "Interests", "Preferences"] as const;
-
-export type DefaultFolderName = (typeof DEFAULT_FOLDER_NAMES)[number];
+const DEFAULT_FOLDER_NAMES = ["Personal", "Work", "Interests", "Preferences"] as const;
 
 /** Per-database lock to prevent concurrent calls from creating duplicate system folders. */
 const ensureDefaultFoldersLocks = new WeakMap<Database, Promise<Map<string, string>>>();
