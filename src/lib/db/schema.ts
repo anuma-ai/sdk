@@ -8,7 +8,7 @@ import {
 } from "@nozbe/watermelondb/Schema/migrations";
 import type { Class } from "@nozbe/watermelondb/types";
 
-import { Conversation, Message } from "./chat/models";
+import { Conversation, ConversationSummary, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
@@ -42,7 +42,7 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v21: Added embedding column to memory_vault for persisted embedding vectors
  * - v22: Added is_system column to vault_folders for default system folders
  */
-export const SDK_SCHEMA_VERSION = 22;
+export const SDK_SCHEMA_VERSION = 23;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -180,6 +180,18 @@ export const sdkSchema = appSchema({
         { name: "is_system", type: "boolean", isOptional: true },
       ],
     }),
+    // Conversation summary cache for progressive history summarization
+    tableSchema({
+      name: "conversation_summaries",
+      columns: [
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "summary", type: "string" },
+        { name: "summarized_up_to", type: "string" }, // uniqueId of last summarized message
+        { name: "token_count", type: "number" },
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
+      ],
+    }),
     // Media library storage (images, videos, audio, documents)
     tableSchema({
       name: "media",
@@ -244,6 +256,7 @@ export const sdkSchema = appSchema({
  * - v19 → v20: Added index on `updated_at` column of memory_vault for efficient since-based filtering
  * - v20 → v21: Added `embedding` column to memory_vault for persisted embedding vectors
  * - v21 → v22: Added `is_system` column to vault_folders for default system folders
+ * - v22 → v23: Added `conversation_summaries` table for progressive history summarization
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -518,6 +531,23 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v22 -> v23: Added conversation_summaries table for progressive history summarization
+    {
+      toVersion: 23,
+      steps: [
+        createTable({
+          name: "conversation_summaries",
+          columns: [
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "summary", type: "string" },
+            { name: "summarized_up_to", type: "string" },
+            { name: "token_count", type: "number" },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -541,6 +571,7 @@ export const sdkMigrations = schemaMigrations({
 export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
+  ConversationSummary,
   Project,
   VaultMemory,
   VaultFolder,

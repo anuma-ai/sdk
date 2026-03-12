@@ -165,6 +165,28 @@ export interface StoredMessageWithSimilarity extends StoredMessage {
 }
 
 /**
+ * Cached conversation summary for progressive history summarization.
+ *
+ * Instead of sending all conversation history verbatim on every message,
+ * older messages are progressively summarized into a compact text.
+ * This reduces input tokens by 50-70% for long conversations.
+ */
+export interface StoredConversationSummary {
+  /** WatermelonDB record ID */
+  uniqueId: string;
+  /** Conversation this summary belongs to */
+  conversationId: string;
+  /** The progressive summary text */
+  summary: string;
+  /** uniqueId of the last message included in the summary */
+  summarizedUpTo: string;
+  /** Approximate token count of the summary (chars / 4) */
+  tokenCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
  * A chunk of a message with its own embedding for fine-grained search
  */
 export interface MessageChunk {
@@ -437,6 +459,57 @@ export interface BaseSendMessageWithStorageArgs {
    * @default 50
    */
   maxHistoryMessages?: number;
+
+  /**
+   * Enable progressive summarization of conversation history.
+   *
+   * When enabled, older messages are summarized into a compact text using a cheap
+   * model, while recent messages are kept verbatim. This reduces input tokens by
+   * 50-70% for long conversations.
+   *
+   * Requires `includeHistory` to be true (default). When `includeHistory` is false
+   * or `summarizeHistory` is false, all history is sent verbatim (current behavior).
+   *
+   * @default true
+   */
+  summarizeHistory?: boolean;
+
+  /**
+   * Token threshold for conversation history before summarization triggers.
+   *
+   * When the total token count of the cached summary + unsummarized messages
+   * exceeds this value, older messages are summarized to fit within the budget.
+   *
+   * How to choose a value:
+   * - Lower (2000-3000): aggressive summarization, lowest cost, less verbatim context.
+   * - Default (4000): balanced — keeps history under ~$0.01/message at typical pricing
+   *   ($2.50/1M tokens). Triggers for most conversations after 5-10 turns.
+   * - Higher (8000-16000): less frequent summarization, more context, higher cost.
+   *   Good for code review or legal conversations needing precise recall.
+   *
+   * The fixed overhead (system prompt + tools + memory ≈ 3,500 tokens) is NOT
+   * included — it is additive. Total input ≈ overhead + threshold + current message.
+   *
+   * @default 4000
+   */
+  summaryTokenThreshold?: number;
+
+  /**
+   * Minimum number of recent messages to always keep verbatim (never summarized).
+   * Ensures the LLM always has immediate conversational context.
+   * Even if these messages exceed the token threshold, they are kept.
+   *
+   * @default 4 (2 user-assistant turns)
+   */
+  summaryMinWindowMessages?: number;
+
+  /**
+   * Model to use for generating conversation summaries.
+   * Should be a cheap, fast model since summarization is a straightforward task.
+   *
+   * @default 'google/gemini-2.0-flash' ($0.10/1M input tokens)
+   */
+  summaryModel?: string;
 
   /**
    * File attachments to include with the message (images, documents, etc.).

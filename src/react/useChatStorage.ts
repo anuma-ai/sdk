@@ -46,6 +46,21 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import {
+  createSummaryContext,
+  deleteConversationSummaryOp,
+  getConversationSummaryOp,
+  upsertConversationSummaryOp,
+} from "../lib/db/chat/summaryOperations";
+import {
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  estimateMessagesTokens,
+  estimateTokens,
+  progressiveSummarize,
+  summaryToSystemMessage,
+} from "../lib/chat/summarize";
+import {
   createMediaBatchOp,
   type CreateMediaOptions,
   deleteMediaByConversationOp,
@@ -1318,13 +1333,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         await clearMessagesOp(storageCtx, id);
         // Cascade delete media for this conversation
         await deleteMediaByConversationOp(mediaCtx, id);
+        // Cascade delete conversation summary cache
+        const summaryCtx = createSummaryContext(database);
+        await deleteConversationSummaryOp(summaryCtx, id).catch(() => {});
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
       }
       return deleted;
     },
-    [storageCtx, mediaCtx, currentConversationId]
+    [storageCtx, mediaCtx, database, currentConversationId]
   );
 
   /**
@@ -1901,6 +1919,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
+        summarizeHistory = true,
+        summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+        summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+        summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         onData: perRequestOnData,
         headers,
@@ -2154,8 +2176,87 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // Failed to get encryption key for history
           }
         }
+
+        // Determine which messages to send: summarized + window or all verbatim
+        let messagesToConvert: StoredMessage[] = limitedMessages;
+        let summarySystemMessage: LlmapiMessage | null = null;
+
+        if (summarizeHistory && limitedMessages.length > summaryMinWindowMessages) {
+          try {
+            const summaryCtx = createSummaryContext(database);
+            const cachedSummary = await getConversationSummaryOp(summaryCtx, convId);
+
+            // Get messages after the summary cutoff point
+            let unsummarized: StoredMessage[];
+            if (cachedSummary?.summarizedUpTo) {
+              const cutoffIndex = limitedMessages.findIndex(
+                (msg) => msg.uniqueId === cachedSummary.summarizedUpTo
+              );
+              unsummarized = cutoffIndex >= 0 ? limitedMessages.slice(cutoffIndex + 1) : limitedMessages;
+            } else {
+              unsummarized = limitedMessages;
+            }
+
+            // LLM caller for summarization — reuses the existing baseSendMessage
+            const callLlm = async (prompt: string, llmModel: string): Promise<string> => {
+              const result = await baseSendMessage({
+                messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+                model: llmModel,
+                conversationId: convId,
+              });
+              if (result.error || !result.data) {
+                throw new Error(result.error ?? "Summarization call failed");
+              }
+              // Extract content from either Responses API or Completions API format
+              const data = result.data;
+              if ("output" in data && Array.isArray(data.output)) {
+                type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+                const msg = (data.output as OutputItem[]).find((item) => item?.type === "message");
+                return msg?.content?.map((part) => part.text || "").join("") || "";
+              }
+              if ("choices" in data && data.choices?.[0]?.message?.content) {
+                const content = data.choices[0].message.content;
+                if (Array.isArray(content)) {
+                  return content.map((part: { text?: string }) => part.text || "").join("");
+                }
+                return String(content);
+              }
+              throw new Error("Unexpected API response format for summarization");
+            };
+
+            const summarizeResult = await progressiveSummarize({
+              cachedSummary,
+              unsummarizedMessages: unsummarized,
+              tokenThreshold: summaryTokenThreshold,
+              minWindowMessages: summaryMinWindowMessages,
+              callLlm,
+              model: summaryModel,
+            });
+
+            // Persist the updated summary if summarization was performed
+            if (summarizeResult.didSummarize && summarizeResult.summary && summarizeResult.summarizedUpTo) {
+              await upsertConversationSummaryOp(
+                summaryCtx,
+                convId,
+                summarizeResult.summary,
+                summarizeResult.summarizedUpTo,
+                summarizeResult.summaryTokenCount
+              );
+            }
+
+            // Use the window messages instead of all messages
+            messagesToConvert = summarizeResult.windowMessages;
+            if (summarizeResult.summary) {
+              summarySystemMessage = summaryToSystemMessage(summarizeResult.summary);
+            }
+          } catch {
+            // Summarization failed — fall back to sending all messages verbatim
+            messagesToConvert = limitedMessages;
+          }
+        }
+
         // Batch: collect all fileIds across all messages, resolve once
-        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        const allFileIds = messagesToConvert.flatMap((msg) => msg.fileIds ?? []);
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
@@ -2169,9 +2270,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
-          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
+          messagesToConvert.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
         );
-        messagesToSend = [...historyMessages, ...messages];
+
+        // Assemble: [summary (if exists), window messages, new messages]
+        messagesToSend = [
+          ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...historyMessages,
+          ...messages,
+        ];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];

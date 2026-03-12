@@ -1,4 +1,4 @@
-export { Conversation, Message } from "./models";
+export { Conversation, ConversationSummary, Message } from "./models";
 export {
   clearMessagesOp,
   createConversationOp,
@@ -45,6 +45,7 @@ export {
   type ServerToolsFilter,
   type ServerToolsFilterFn,
   type StoredConversation,
+  type StoredConversationSummary,
   type StoredFileWithContext,
   type StoredMessage,
   type StoredMessageWithSimilarity,
