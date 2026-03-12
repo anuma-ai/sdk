@@ -5,13 +5,14 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../client";
-import { BASE_URL } from "../../clientConfig";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
+import { BASE_URL } from "../../clientConfig";
 import { SseError } from "../errors";
-import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
+import { getStrategy } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
+import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
 import type { ServerToolCallEvent } from "./useChat/utils";
 import {
   createStreamAccumulator,
@@ -23,7 +24,6 @@ import {
   validateMessages,
   validateModel,
 } from "./useChat/utils";
-import { getStrategy } from "./useChat/strategies";
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
@@ -648,7 +648,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       statusCode = err.statusCode;
     } else if (err instanceof Error) {
       const match = err.message.match(/^SSE failed: (\d+)/);
-      if (match) statusCode = parseInt(match[1]!, 10);
+      if (match) statusCode = parseInt(match[1], 10);
     }
     return { data: null, error: errorMsg, statusCode };
   }
