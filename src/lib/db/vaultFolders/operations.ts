@@ -168,6 +168,7 @@ export async function moveMemoriesToFolderOp(
     }
 
     // Resolve and update memories inside a single write lock to avoid races
+    let movedCount = 0;
     await ctx.database.write(async () => {
       const memories: VaultMemory[] = [];
       for (const id of memoryIds) {
@@ -189,9 +190,10 @@ export async function moveMemoriesToFolderOp(
       );
 
       await ctx.database.batch(...prepared);
+      movedCount = memories.length;
     });
 
-    return true;
+    return movedCount > 0;
   } catch {
     // Move failed (record not found or write error) – return false to caller
     return false;
