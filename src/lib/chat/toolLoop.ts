@@ -641,7 +641,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
     const statusCode =
-      err instanceof Error && 'statusCode' in err
+      err instanceof Error && "statusCode" in err
         ? (err as { statusCode: number }).statusCode
         : undefined;
     return { data: null, error: errorMsg, statusCode };
