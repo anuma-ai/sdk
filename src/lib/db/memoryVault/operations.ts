@@ -273,8 +273,7 @@ export async function getUnfiledVaultMemoriesOp(
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     Q.where("folder_id", null),
-    Q.where("is_deleted", false),
-    ...(ctx.userId !== undefined ? [Q.where("user_id", ctx.userId)] : []),
+    ...baseVaultConditions(ctx),
     Q.sortBy("created_at", Q.desc),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
