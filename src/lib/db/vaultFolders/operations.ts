@@ -178,7 +178,7 @@ export async function moveMemoriesToFolderOp(
       }
     }
 
-    if (memories.length === 0) return true;
+    if (memories.length === 0) return memoryIds.length === 0;
 
     await ctx.database.write(async () => {
       const prepared = memories.map((memory) =>
