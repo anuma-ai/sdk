@@ -9,11 +9,28 @@ export const DEFAULT_FOLDER_NAMES = ["Personal", "Work", "Interests", "Preferenc
 
 export type DefaultFolderName = (typeof DEFAULT_FOLDER_NAMES)[number];
 
+/** Module-level lock to prevent concurrent calls from creating duplicate system folders. */
+let ensureDefaultFoldersPromise: Promise<Map<string, string>> | null = null;
+
 /**
  * Ensure all default system folders exist. Idempotent — skips folders that already exist.
+ * Uses a module-level promise lock so concurrent callers share a single in-flight operation.
  * Returns a map of ALL folder names (system + user-created) to their IDs.
  */
 export async function ensureDefaultFoldersOp(
+  ctx: VaultFolderOperationsContext
+): Promise<Map<string, string>> {
+  if (ensureDefaultFoldersPromise) return ensureDefaultFoldersPromise;
+
+  ensureDefaultFoldersPromise = _ensureDefaultFoldersImpl(ctx);
+  try {
+    return await ensureDefaultFoldersPromise;
+  } finally {
+    ensureDefaultFoldersPromise = null;
+  }
+}
+
+async function _ensureDefaultFoldersImpl(
   ctx: VaultFolderOperationsContext
 ): Promise<Map<string, string>> {
   const existing = await getAllVaultFoldersOp(ctx);

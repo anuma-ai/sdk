@@ -167,17 +167,26 @@ export async function moveMemoriesToFolderOp(
       targetScope = folder.scope;
     }
 
-    await ctx.database.write(async () => {
-      const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
+    // Resolve memories individually so one bad ID doesn't abort the entire batch
+    const memories: VaultMemory[] = [];
+    for (const id of memoryIds) {
+      try {
+        const m = await ctx.vaultMemoryCollection.find(id);
+        if (!m.isDeleted) memories.push(m);
+      } catch {
+        // skip invalid/missing IDs
+      }
+    }
 
-      const prepared = memories
-        .filter((memory) => !memory.isDeleted)
-        .map((memory) =>
-          memory.prepareUpdate((r) => {
-            r._setRaw("folder_id", folderId);
-            r._setRaw("scope", targetScope);
-          })
-        );
+    if (memories.length === 0) return true;
+
+    await ctx.database.write(async () => {
+      const prepared = memories.map((memory) =>
+        memory.prepareUpdate((r) => {
+          r._setRaw("folder_id", folderId);
+          r._setRaw("scope", targetScope);
+        })
+      );
 
       await ctx.database.batch(...prepared);
     });

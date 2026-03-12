@@ -275,19 +275,9 @@ export async function getUnfiledVaultMemoriesOp(
     Q.sortBy("created_at", Q.desc),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
-
-  const CONCURRENCY = 50;
-  const stored: StoredVaultMemory[] = [];
-  for (let i = 0; i < results.length; i += CONCURRENCY) {
-    const chunk = results.slice(i, i + CONCURRENCY);
-    const chunkResults = await Promise.all(
-      chunk.map((record) =>
-        vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
-      )
-    );
-    stored.push(...chunkResults);
-  }
-  return stored;
+  return mapInBatches(results, (record) =>
+    vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
 }
 
 export async function deleteAllVaultMemoriesForUserOp(
