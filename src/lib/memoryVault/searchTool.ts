@@ -29,6 +29,8 @@ export interface MemoryVaultSearchOptions {
   minSimilarity?: number;
   /** When provided, only search memories with these scopes */
   scopes?: string[];
+  /** When provided, only search memories in this folder (null for unfiled) */
+  folderId?: string | null;
 }
 
 /**
@@ -139,7 +141,16 @@ async function searchVaultMemoriesWithSize(
     return { results: [], vaultSize: 0 };
   }
 
-  const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
+  const folderId = searchOptions?.folderId;
+
+  const queryOpts: { scopes?: string[]; folderId?: string | null } = {};
+  if (scopes?.length) queryOpts.scopes = scopes;
+  if (folderId !== undefined) queryOpts.folderId = folderId;
+
+  const memories = await getAllVaultMemoriesOp(
+    vaultCtx,
+    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+  );
   if (memories.length === 0) {
     return { results: [], vaultSize: 0 };
   }
@@ -268,6 +279,12 @@ export function createMemoryVaultSearchTool(
             type: "integer",
             description: `Maximum number of results to return. Default: ${limit}.`,
           },
+          folder_id: {
+            type: "string",
+            description:
+              "Optional folder ID to scope the search to a specific folder. " +
+              "Omit to search all folders.",
+          },
         },
         required: ["query"],
       },
@@ -275,6 +292,7 @@ export function createMemoryVaultSearchTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
       const requestLimit = (args.limit as number) ?? limit;
+      const argFolderId = args.folder_id as string | undefined;
 
       if (!query || typeof query !== "string") {
         return "Error: A search query is required.";
@@ -290,6 +308,7 @@ export function createMemoryVaultSearchTool(
             ...searchOptions,
             limit: requestLimit,
             minSimilarity,
+            ...(argFolderId !== undefined && { folderId: argFolderId }),
           }
         );
 

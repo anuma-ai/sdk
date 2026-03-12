@@ -20,6 +20,8 @@ export interface CreateVaultMemoryOptions {
   content: string;
   /** Scope for the memory. Defaults to "private" if omitted. */
   scope?: string;
+  /** Folder ID for organization, null or omitted if unfiled */
+  folderId?: string | null;
   /** JSON-stringified embedding vector to persist */
   embedding?: string;
 }

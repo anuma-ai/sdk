@@ -110,6 +110,12 @@ export function createMemoryVaultTool(
               "If omitted, a new memory is created. " +
               "Prefer updating existing memories over creating new ones.",
           },
+          folder_id: {
+            type: "string",
+            description:
+              "Optional folder ID to file this memory under. " +
+              "Only used when creating a new memory (not updates).",
+          },
         },
         required: ["content"],
       },
@@ -117,6 +123,7 @@ export function createMemoryVaultTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const content = args.content as string;
       const id = args.id as string | undefined;
+      const folderId = args.folder_id as string | undefined;
 
       if (!content || typeof content !== "string") {
         return "Error: content is required and must be a string.";
@@ -171,7 +178,7 @@ export function createMemoryVaultTool(
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
-          const created = await createVaultMemoryOp(vaultCtx, { content, scope });
+          const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
             eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(

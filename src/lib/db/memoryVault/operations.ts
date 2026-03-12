@@ -90,6 +90,7 @@ export async function createVaultMemoryOp(
     return ctx.vaultMemoryCollection.create((record) => {
       record._setRaw("content", encryptedContent);
       record._setRaw("scope", scope);
+      record._setRaw("folder_id", opts.folderId ?? null);
       record._setRaw("user_id", ctx.userId ?? null);
       record._setRaw("is_deleted", false);
       if (opts.embedding !== undefined) {
@@ -128,6 +129,7 @@ export async function createVaultMemoriesBatchOp(
       ctx.vaultMemoryCollection.prepareCreate((record) => {
         record._setRaw("content", encryptedContents[i]);
         record._setRaw("scope", opts.scope ?? "private");
+        record._setRaw("folder_id", opts.folderId ?? null);
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
@@ -166,11 +168,12 @@ export async function getVaultMemoryOp(
 
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; since?: Date; limit?: number }
+  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit != null && options.limit > 0 ? [Q.take(options.limit)] : []),
   ];
