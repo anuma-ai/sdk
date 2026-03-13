@@ -9,6 +9,13 @@ import type {
   LlmapiToolCallEvent,
 } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  maybeSummarizeHistory,
+} from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
 import {
@@ -1318,13 +1325,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         await clearMessagesOp(storageCtx, id);
         // Cascade delete media for this conversation
         await deleteMediaByConversationOp(mediaCtx, id);
+        // Cascade delete conversation summary cache
+        await cleanupConversationSummary(database, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
       }
       return deleted;
     },
-    [storageCtx, mediaCtx, currentConversationId]
+    [storageCtx, mediaCtx, database, currentConversationId]
   );
 
   /**
@@ -1901,6 +1910,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
+        summarizeHistory = false,
+        summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+        summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+        summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         onData: perRequestOnData,
         headers,
@@ -2154,8 +2167,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // Failed to get encryption key for history
           }
         }
+
+        // Determine which messages to send: summarized + window or all verbatim.
+        // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
+        // corrupting isLoading state and abortController during summarization.
+        if (summarizeHistory && !getToken) {
+          console.warn(
+            "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
+          );
+        }
+        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
+          database,
+          conversationId: convId,
+          messages: limitedMessages,
+          summarizeHistory,
+          summaryTokenThreshold,
+          summaryMinWindowMessages,
+          summaryModel,
+          token: summaryToken ?? "",
+          baseUrl,
+        });
+
         // Batch: collect all fileIds across all messages, resolve once
-        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        const allFileIds = messagesToConvert.flatMap((msg) => msg.fileIds ?? []);
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
@@ -2169,9 +2204,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
-          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
+          messagesToConvert.map((msg) =>
+            storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+          )
         );
-        messagesToSend = [...historyMessages, ...messages];
+
+        // Assemble: [summary (if exists), window messages, new messages]
+        messagesToSend = [
+          ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...historyMessages,
+          ...messages,
+        ];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];

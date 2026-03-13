@@ -7,6 +7,13 @@ import type {
   LlmapiMessage,
   LlmapiResponseResponse,
 } from "../client";
+import {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  maybeSummarizeHistory,
+} from "../lib/chat/summarize";
 import { type ApiResponse, type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
@@ -692,6 +699,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           { database: storageCtx.database, walletAddress, signMessage, embeddedWalletSigner },
           id
         );
+        // Cascade delete conversation summary cache
+        await cleanupConversationSummary(storageCtx.database, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
@@ -871,6 +880,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
+        summarizeHistory = false,
+        summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+        summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+        summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
@@ -1017,7 +1030,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = [...limitedMessages.map(storedToLlmapiMessage), ...messages];
+
+        // Determine which messages to send: summarized + window or all verbatim.
+        // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
+        // corrupting isLoading state and abortController during summarization.
+        if (summarizeHistory && !getToken) {
+          console.warn(
+            "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
+          );
+        }
+        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
+          database,
+          conversationId: convId,
+          messages: limitedMessages,
+          summarizeHistory,
+          summaryTokenThreshold,
+          summaryMinWindowMessages,
+          summaryModel,
+          token: summaryToken ?? "",
+          baseUrl,
+        });
+
+        messagesToSend = [
+          ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...messagesToConvert.map(storedToLlmapiMessage),
+          ...messages,
+        ];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
