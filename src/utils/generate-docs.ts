@@ -27,15 +27,11 @@ function resolveGithubBase(cwd: string): string {
 
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
   const url: string | undefined =
-    typeof pkg.repository === "string"
-      ? pkg.repository
-      : pkg.repository?.url;
+    typeof pkg.repository === "string" ? pkg.repository : pkg.repository?.url;
 
   if (!url) return "";
 
-  const cleaned = url
-    .replace(/^git\+/, "")
-    .replace(/\.git$/, "");
+  const cleaned = url.replace(/^git\+/, "").replace(/\.git$/, "");
   return `${cleaned}/blob/main/`;
 }
 
@@ -73,7 +69,7 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
 
   function extractRegion(
     filePath: string,
-    region: string | null,
+    region: string | null
   ): { content: string[]; startLine: number; endLine: number } | null {
     const lines = readLines(filePath);
     if (!lines) {
@@ -93,9 +89,7 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
       if (start === -1 && startRe.test(trimmed)) {
         start = i;
       } else if (start !== -1 && endRe.test(trimmed)) {
-        const content = lines
-          .slice(start + 1, i)
-          .filter((l) => !regionMarkerRe.test(l));
+        const content = lines.slice(start + 1, i).filter((l) => !regionMarkerRe.test(l));
         return { content, startLine: start + 2, endLine: i };
       }
     }
@@ -153,9 +147,7 @@ export function generateDocs(options: GenerateDocsOptions = {}): void {
       out.push("```");
 
       if (githubBase) {
-        const fragment = region
-          ? `#L${extracted.startLine}-L${extracted.endLine}`
-          : "";
+        const fragment = region ? `#L${extracted.startLine}-L${extracted.endLine}` : "";
         out.push(`\n[${refPath}](${githubBase}${refPath}${fragment})`);
       }
     }
