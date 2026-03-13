@@ -67,6 +67,12 @@ New summary:`;
  * Known limitation: CJK/Arabic/emoji-heavy text can be 2-3x off because a
  * single character may map to 1-3 tokens. For multilingual products, this means
  * summarization may trigger later than expected for non-Latin-script users.
+ *
+ * Note: This intentionally counts only text tokens. Non-text content (images,
+ * files) is not counted, so image-bearing messages stay in the verbatim window
+ * longer. This is a deliberate trade-off — better conversation quality by
+ * preserving visual context, at the cost of slightly higher token usage for
+ * image-heavy conversations.
  */
 export function estimateTokens(text: string): number {
   if (!text) return 0;
