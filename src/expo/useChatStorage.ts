@@ -7,7 +7,7 @@ import type {
   LlmapiMessage,
   LlmapiResponseResponse,
 } from "../client";
-import type { ApiResponse, ApiType } from "../lib/chat/useChat";
+import { type ApiResponse, type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type BaseSendMessageWithStorageArgs,
@@ -902,7 +902,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
-        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+        const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
         // Fetch server tools if needed
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -1065,7 +1065,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const startTime = Date.now();
 
       // Determine effective API type for this request
-      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
       // Fetch and merge server-side tools with client tools
       let mergedTools = clientTools;

@@ -87,6 +87,7 @@
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "update-model-apis": "tsx scripts/update-model-apis.ts",
     "api-report": "node scripts/api-extractor-run.mjs",
     "api-report:update": "node scripts/api-extractor-run.mjs --local",
     "lint": "eslint .",
