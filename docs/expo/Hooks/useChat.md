@@ -171,6 +171,25 @@ Use this to show activity indicators like "Searching..." in the UI.
 <tr>
 <td>
 
+`options.onStepFinish?`
+
+</td>
+<td>
+
+(`event`: [`StepFinishEvent`](../../react/Internal/type-aliases/StepFinishEvent.md)) => `void`
+
+</td>
+<td>
+
+Called after each tool execution round completes.
+Receives the round index, model content, tool calls, results, and token usage.
+Useful for progress indicators, cost tracking, and custom early-exit logic.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.onThinking?`
 
 </td>

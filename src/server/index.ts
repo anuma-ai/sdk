@@ -339,6 +339,7 @@ export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,
   RunToolLoopResult,
+  StepFinishEvent,
 } from "../lib/chat/toolLoop";
 export { runToolLoop } from "../lib/chat/toolLoop";
 export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";

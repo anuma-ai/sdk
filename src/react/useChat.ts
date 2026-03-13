@@ -17,7 +17,6 @@ import {
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
-import type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**
@@ -149,6 +148,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     onServerToolCall,
+    onStepFinish,
     apiType: defaultApiType = "auto",
     smoothing,
   } = options || {};
@@ -290,6 +290,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError,
           onToolCall,
           onServerToolCall,
+          onStepFinish,
         });
 
         return result;
@@ -314,6 +315,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       onServerToolCall,
+      onStepFinish,
       defaultApiType,
       smoothing,
     ]

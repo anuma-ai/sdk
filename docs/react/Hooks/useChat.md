@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/react/useChat.ts:142](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#142)
+Defined in: [src/react/useChat.ts:141](https://github.com/anuma-ai/sdk/blob/main/src/react/useChat.ts#141)
 
 A React hook for managing chat completions with authentication.
 
@@ -167,6 +167,25 @@ Receives raw API response - either Responses API or Completions API format.
 
 Callback function to be called when a server-side tool (MCP) is invoked during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStepFinish?`
+
+</td>
+<td>
+
+(`event`: [`StepFinishEvent`](../Internal/type-aliases/StepFinishEvent.md)) => `void`
+
+</td>
+<td>
+
+Called after each tool execution round completes.
+Receives the round index, model content, tool calls, results, and token usage.
+Useful for progress indicators, cost tracking, and custom early-exit logic.
 
 </td>
 </tr>
