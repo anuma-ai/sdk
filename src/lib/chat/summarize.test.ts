@@ -798,6 +798,28 @@ describe("maybeSummarizeHistory", () => {
     fetchSpy.mockRestore();
   });
 
+  it("preserves system messages when under threshold (no summarization)", async () => {
+    // Under threshold: 3 messages with system msg, well below 4000 token threshold
+    const msgs = [
+      makeMsg("sys-1", "system", "You are a helpful assistant"),
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+    ];
+    mockedGetSummary.mockResolvedValueOnce(null);
+
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      messages: msgs,
+    });
+
+    // All messages including system should be preserved
+    expect(result.messagesToConvert).toHaveLength(4);
+    expect(result.messagesToConvert.map((m) => m.role)).toContain("system");
+    expect(result.messagesToConvert[0].uniqueId).toBe("sys-1");
+    expect(result.summarySystemMessage).toBeNull();
+  });
+
   it("concurrent calls await the in-progress result (H3 fix)", async () => {
     const msgs = Array.from({ length: 10 }, (_, i) =>
       makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)

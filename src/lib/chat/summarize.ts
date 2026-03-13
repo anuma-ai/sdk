@@ -630,8 +630,13 @@ async function doSummarizeHistory(
     // progressiveSummarize only sees nonSystemMessages, so its windowMessages
     // won't contain system messages. We find the window boundary in the original
     // unsummarized array and include system messages from that point onwards.
-    let messagesToConvert = summarizeResult.windowMessages;
+    // When no summarization occurred, return all messages (including system messages).
+    // progressiveSummarize filters out system messages, so windowMessages won't contain
+    // them. Only apply the M2 system-message re-injection when summarization actually
+    // split the messages into summarized + window portions.
+    let messagesToConvert: StoredMessage[] = unsummarized;
     if (
+      summarizeResult.didSummarize &&
       summarizeResult.windowMessages.length > 0 &&
       summarizeResult.windowMessages.length < unsummarized.length
     ) {
