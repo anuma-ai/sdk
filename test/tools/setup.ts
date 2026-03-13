@@ -1,44 +1,30 @@
 /**
  * Shared setup for tool e2e tests.
  *
- * Parses CLI args, reads environment variables, and provides
- * helpers for printing results and running test suites.
- *
  * Environment:
  *   PORTAL_API_KEY   (required)  Portal API key
  *   ANUMA_API_URL    (optional)  Portal API base URL override
+ *   E2E_MODEL        (optional)  Model to use (default: fireworks kimi-k2p5)
+ *   E2E_API_TYPE     (optional)  "completions" or "responses" (default: completions)
  */
 
 import "dotenv/config";
-import { parseArgs } from "node:util";
 import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
 import type { ToolConfig } from "../../src/lib/chat/useChat/types.js";
 import type { ApiType } from "../../src/lib/chat/useChat/strategies/types.js";
 
-const { values: parsedArgs } = parseArgs({
-  options: {
-    model: { type: "string", default: "fireworks/accounts/fireworks/models/kimi-k2p5" },
-    completions: { type: "boolean", default: true },
-  },
-});
-
 export const config = {
-  model: parsedArgs.model!,
-  apiType: (parsedArgs.completions ? "completions" : "responses") as ApiType,
+  model: process.env.E2E_MODEL || "fireworks/accounts/fireworks/models/kimi-k2p5",
+  apiType: (process.env.E2E_API_TYPE || "completions") as ApiType,
   baseUrl: process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai",
   portalKey: process.env.PORTAL_API_KEY || "",
 };
 
 if (!config.portalKey) {
-  console.error("PORTAL_API_KEY is required. Add it to .env or pass inline.");
-  process.exit(1);
+  throw new Error("PORTAL_API_KEY is required. Add it to .env or set the environment variable.");
 }
 
 // ── Result helpers ───────────────────────────────────────────────────────────
-
-export function header(label: string) {
-  console.log(`\n${"─".repeat(60)}\n  ${label}\n${"─".repeat(60)}`);
-}
 
 export function extractText(result: Awaited<ReturnType<typeof runToolLoop>>): string {
   if (result.error) return "";
@@ -65,22 +51,14 @@ export function extractText(result: Awaited<ReturnType<typeof runToolLoop>>): st
   return "";
 }
 
-export function printResult(result: Awaited<ReturnType<typeof runToolLoop>>): boolean {
+export function printResult(result: Awaited<ReturnType<typeof runToolLoop>>) {
   if (result.error) {
     console.error("  ERROR:", result.error);
     if ("statusCode" in result) console.error("  Status:", result.statusCode);
-    return false;
+    return;
   }
   const text = extractText(result);
   console.log("  Response:", (text || "(empty)").slice(0, 400));
-  if ("autoExecutedToolResults" in result && result.autoExecutedToolResults?.length) {
-    console.log(`  Auto-executed tools (${result.autoExecutedToolResults.length}):`);
-    for (const t of result.autoExecutedToolResults) {
-      const preview = JSON.stringify(t.result).slice(0, 150);
-      console.log(`    - ${t.name}: ${preview}`);
-    }
-  }
-  return true;
 }
 
 // ── Tool wrapping ────────────────────────────────────────────────────────────
@@ -99,44 +77,4 @@ export function wrapTool(tool: ToolConfig, log: ToolCallLog[]): ToolConfig {
   };
 
   return tool;
-}
-
-// ── Assertions ───────────────────────────────────────────────────────────────
-
-export function assert(errors: string[], condition: boolean, message: string) {
-  if (!condition) errors.push(message);
-}
-
-export function printAssertions(errors: string[], passes: string[]) {
-  for (const e of errors) console.log(`  ✗ ${e}`);
-  if (errors.length === 0) {
-    for (const p of passes) console.log(`  ✓ ${p}`);
-  }
-}
-
-// ── Test runner ──────────────────────────────────────────────────────────────
-
-export type TestFn = () => Promise<boolean>;
-
-export async function runTests(tests: Array<{ name: string; run: TestFn }>) {
-  console.log(`Portal:  ${config.baseUrl}`);
-  console.log(`Model:   ${config.model}`);
-  console.log(`API:     ${config.apiType}`);
-
-  const results: Array<{ name: string; ok: boolean }> = [];
-  for (const t of tests) {
-    results.push({ name: t.name, ok: await t.run() });
-  }
-
-  header("Summary");
-  for (const r of results) {
-    console.log(`  ${r.ok ? "✓" : "✗"} ${r.name}`);
-  }
-
-  const failed = results.filter((r) => !r.ok);
-  if (failed.length) {
-    console.error(`\n${failed.length} test(s) failed.`);
-    process.exit(1);
-  }
-  console.log("\nAll tests passed.");
 }
