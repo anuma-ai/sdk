@@ -127,7 +127,9 @@ async function main() {
     }
   }
 
-  console.log(`Found ${models.length} models (including ${EXTRA_MODELS.length} extra). Probing endpoints...\n`);
+  console.log(
+    `Found ${models.length} models (including ${EXTRA_MODELS.length} extra). Probing endpoints...\n`
+  );
 
   const results: ModelResult[] = [];
   const concurrency = 5;
