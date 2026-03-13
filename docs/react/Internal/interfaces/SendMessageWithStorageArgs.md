@@ -607,7 +607,7 @@ Should be a cheap, fast model since summarization is a straightforward task.
 **Default**
 
 ```ts
-'google/gemini-2.0-flash' ($0.10/1M input tokens)
+'cerebras/qwen-3-235b-a22b-instruct-2507' ($0.60/1M input tokens)
 ```
 
 **Inherited from**
