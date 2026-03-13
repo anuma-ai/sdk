@@ -1,6 +1,7 @@
 name: Knip
 
 on:
+  merge_group:
   pull_request:
     branches: [main]
 
