@@ -5,7 +5,7 @@
 
 import type { ToolConfig } from "../lib/chat/useChat/types";
 
-export interface GeolocateResult {
+interface GeolocateResult {
   ip: string;
   country: string;
   region: string;
@@ -46,7 +46,18 @@ export function createIpGeolocationTool(): ToolConfig {
           return `Error: Geolocation failed (${resp.status})`;
         }
 
-        const data = await resp.json();
+        const data: {
+          status: string;
+          message?: string;
+          query: string;
+          country: string;
+          regionName: string;
+          city: string;
+          isp: string;
+          lat: number;
+          lon: number;
+          timezone: string;
+        } = await resp.json();
         if (data.status === "fail") {
           return `Error: ${data.message || "Invalid IP address"}`;
         }
