@@ -20,8 +20,7 @@ import { createGoogleTokenManager } from "./googleAuth.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-const SHARED_DRIVE_ID =
-  process.env.GOOGLE_SHARED_DRIVE_ID || "0AGHJLkMBeCEPUk9PVA";
+const SHARED_DRIVE_ID = process.env.GOOGLE_SHARED_DRIVE_ID || "0AGHJLkMBeCEPUk9PVA";
 
 const auth = createGoogleTokenManager("https://www.googleapis.com/auth/drive");
 let testFileId: string | null = null;
@@ -97,10 +96,9 @@ async function cleanupOrphanedTestFiles() {
     includeItemsFromAllDrives: "true",
     fields: "files(id)",
   });
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) return;
   const data = await res.json();
   for (const f of data.files || []) {
