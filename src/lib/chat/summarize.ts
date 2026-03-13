@@ -93,14 +93,23 @@ export function estimateMessagesTokens(messages: StoredMessage[]): number {
 
 /**
  * Format stored messages as "Human: ..\nAI: .." for the summarization prompt.
- * Skips system messages (they are re-injected fresh each request and shouldn't be summarized).
+ * Skips system messages and empty-content messages (e.g., tool-call invocations
+ * with no text). Tool-call JSON blobs are replaced with a readable placeholder
+ * to avoid polluting the summarization prompt with raw JSON.
  */
 function formatMessagesForPrompt(messages: StoredMessage[]): string {
   return messages
     .filter((msg) => msg.role !== "system")
+    .filter((msg) => msg.content.trim().length > 0)
     .map((msg) => {
       const role = msg.role === "user" ? "Human" : "AI";
-      return `${role}: ${msg.content}`;
+      // Detect tool-call JSON blobs (common in agentic conversations) and
+      // replace with a readable placeholder to keep the summary coherent.
+      const content = msg.content.trim();
+      if (role === "AI" && content.startsWith("{") && content.includes("tool_calls")) {
+        return `${role}: [used a tool]`;
+      }
+      return `${role}: ${content}`;
     })
     .join("\n");
 }
@@ -457,12 +466,17 @@ export async function maybeSummarizeHistory(
       messagesToConvert: messages,
       summarySystemMessage: null,
     };
-    const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) =>
-      setTimeout(() => resolve(verbatimFallback), 15_000)
-    );
+    let staleGuardTimerId: ReturnType<typeof setTimeout>;
+    const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) => {
+      staleGuardTimerId = setTimeout(() => resolve(verbatimFallback), 15_000);
+    });
     // Swallow rejections on inProgress — if the stale guard wins the race and
     // inProgress later rejects, the rejection would otherwise be unobserved.
-    return Promise.race([inProgress.catch(() => verbatimFallback), staleGuard]);
+    try {
+      return await Promise.race([inProgress.catch(() => verbatimFallback), staleGuard]);
+    } finally {
+      clearTimeout(staleGuardTimerId!);
+    }
   }
 
   const promise = doSummarizeHistory(options);
