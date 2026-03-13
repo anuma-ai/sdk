@@ -470,7 +470,7 @@ export interface BaseSendMessageWithStorageArgs {
    * Requires `includeHistory` to be true (default). When `includeHistory` is false
    * or `summarizeHistory` is false, all history is sent verbatim (current behavior).
    *
-   * @default true
+   * @default false
    */
   summarizeHistory?: boolean;
 

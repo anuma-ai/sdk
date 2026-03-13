@@ -93,15 +93,14 @@ export async function deleteConversationSummaryOp(
   ctx: SummaryOperationsContext,
   conversationId: string
 ): Promise<void> {
-  const existing = await ctx.summariesCollection
-    .query(Q.where("conversation_id", conversationId))
-    .fetch();
+  await ctx.database.write(async () => {
+    // Query inside write() to prevent TOCTOU race with concurrent deletes.
+    const existing = await ctx.summariesCollection
+      .query(Q.where("conversation_id", conversationId))
+      .fetch();
 
-  if (existing.length > 0) {
-    await ctx.database.write(async () => {
-      for (const record of existing) {
-        await record.destroyPermanently();
-      }
-    });
-  }
+    for (const record of existing) {
+      await record.destroyPermanently();
+    }
+  });
 }

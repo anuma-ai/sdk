@@ -1910,7 +1910,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
-        summarizeHistory = true,
+        summarizeHistory = false,
         summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
         summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
         summaryModel = DEFAULT_SUMMARY_MODEL,

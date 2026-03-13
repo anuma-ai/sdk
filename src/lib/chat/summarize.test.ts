@@ -53,12 +53,12 @@ describe("estimateMessagesTokens", () => {
     expect(estimateMessagesTokens([])).toBe(0);
   });
 
-  it("sums token estimates across messages", () => {
+  it("sums token estimates across messages including per-message overhead", () => {
     const msgs = [
-      makeMsg("1", "user", "a".repeat(40)), // 10 tokens
-      makeMsg("2", "assistant", "b".repeat(80)), // 20 tokens
+      makeMsg("1", "user", "a".repeat(40)), // 10 content tokens + 4 overhead = 14
+      makeMsg("2", "assistant", "b".repeat(80)), // 20 content tokens + 4 overhead = 24
     ];
-    expect(estimateMessagesTokens(msgs)).toBe(30);
+    expect(estimateMessagesTokens(msgs)).toBe(38); // 14 + 24
   });
 });
 
@@ -385,18 +385,22 @@ describe("callSummarizationLlm", () => {
     const result = await callSummarizationLlm("summarize this", "gemini-flash", "test-token", "https://api.test");
 
     expect(result).toBe("This is a summary.");
-    expect(fetchSpy).toHaveBeenCalledWith("https://api.test/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer test-token",
-      },
-      body: JSON.stringify({
-        model: "gemini-flash",
-        stream: false,
-        messages: [{ role: "user", content: "summarize this" }],
-      }),
-    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/api/v1/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer test-token",
+        },
+        body: JSON.stringify({
+          model: "gemini-flash",
+          stream: false,
+          messages: [{ role: "user", content: "summarize this" }],
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
 
     fetchSpy.mockRestore();
   });
@@ -441,5 +445,25 @@ describe("callSummarizationLlm", () => {
     );
 
     fetchSpy.mockRestore();
+  });
+
+  it("aborts fetch when timeout is exceeded", async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          (options as RequestInit).signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        })
+    );
+
+    const promise = callSummarizationLlm("prompt", "model", "token");
+    vi.advanceTimersByTime(10_000);
+
+    await expect(promise).rejects.toThrow("aborted");
+
+    fetchSpy.mockRestore();
+    vi.useRealTimers();
   });
 });

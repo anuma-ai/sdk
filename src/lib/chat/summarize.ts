@@ -68,11 +68,15 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+/** Approximate overhead per message for role/framing tokens (e.g., <|im_start|>role\n...<|im_end|>) */
+const PER_MESSAGE_OVERHEAD_TOKENS = 4;
+
 /**
  * Estimate total tokens for an array of stored messages.
+ * Includes a per-message overhead for role/framing tokens that chat models add.
  */
 export function estimateMessagesTokens(messages: StoredMessage[]): number {
-  return messages.reduce((sum, msg) => sum + estimateTokens(msg.content), 0);
+  return messages.reduce((sum, msg) => sum + estimateTokens(msg.content) + PER_MESSAGE_OVERHEAD_TOKENS, 0);
 }
 
 /**
@@ -95,7 +99,11 @@ function formatMessagesForPrompt(messages: StoredMessage[]): string {
 function buildSummarizationPrompt(existingSummary: string | undefined, newMessages: StoredMessage[]): string {
   const summary = existingSummary || "No previous summary.";
   const newLines = formatMessagesForPrompt(newMessages);
-  return SUMMARIZATION_PROMPT.replace("{summary}", summary).replace("{new_lines}", newLines);
+  // Split on placeholders to avoid chained .replace() — prevents corruption if
+  // the summary text contains the literal string "{new_lines}".
+  const [before, afterSummary] = SUMMARIZATION_PROMPT.split("{summary}");
+  const [middle, after] = afterSummary.split("{new_lines}");
+  return before + summary + middle + newLines + after;
 }
 
 /**
@@ -253,12 +261,17 @@ export function summaryToSystemMessage(summary: string): LlmapiMessage {
   };
 }
 
+/** Timeout for the summarization LLM call (ms). If exceeded, falls back to verbatim. */
+const SUMMARIZATION_TIMEOUT_MS = 10_000;
+
 /**
  * Lightweight, non-streaming LLM call for summarization.
  *
  * Uses a direct fetch to the chat completions endpoint instead of `baseSendMessage`
  * to avoid side effects (isLoading state, abortController, conversationId tracking).
  * No conversationId is sent — summarization calls are invisible to server-side billing/tracking.
+ *
+ * Includes a timeout to prevent slow/hanging summarization from blocking the user's message.
  */
 export async function callSummarizationLlm(
   prompt: string,
@@ -267,18 +280,27 @@ export async function callSummarizationLlm(
   baseUrl?: string
 ): Promise<string> {
   const url = `${baseUrl || BASE_URL}/api/v1/chat/completions`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SUMMARIZATION_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
