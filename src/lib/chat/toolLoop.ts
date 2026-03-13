@@ -7,6 +7,35 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+
+/**
+ * Error thrown when the SSE connection receives a non-OK HTTP response.
+ * Preserves the HTTP status code for programmatic error handling.
+ */
+class SseError extends Error {
+  statusCode: number;
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = "SseError";
+    this.statusCode = statusCode;
+  }
+}
+
+function parseStatusCode(message: string): number | undefined {
+  const match = message.match(/^SSE failed: (\d+) /);
+  return match ? Number(match[1]) : undefined;
+}
+
+function wrapSseError(error: unknown): Error {
+  if (error instanceof Error) {
+    const statusCode = parseStatusCode(error.message);
+    if (statusCode !== undefined) {
+      return new SseError(statusCode, error.message);
+    }
+    return error;
+  }
+  return new Error(String(error));
+}
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -243,7 +272,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       headers,
       signal,
       onSseError: (error) => {
-        sseError = error instanceof Error ? error : new Error(String(error));
+        sseError = wrapSseError(error);
       },
     });
 
@@ -546,7 +575,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         headers,
         signal,
         onSseError: (error) => {
-          sseError = error instanceof Error ? error : new Error(String(error));
+          sseError = wrapSseError(error);
         },
       });
 
