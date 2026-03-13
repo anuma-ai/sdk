@@ -106,10 +106,30 @@ interface ModelResult {
   responses_error?: string;
 }
 
+// Models that work but don't appear in the /models endpoint.
+const EXTRA_MODELS: string[] = [
+  "cerebras/qwen-3-235b-a22b-instruct-2507",
+  "cerebras/zai-glm-4.7",
+  "fireworks/accounts/fireworks/models/minimax-m2p1",
+  "fireworks/accounts/fireworks/models/minimax-m2p5",
+  "fireworks/accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+];
+
 async function main() {
   console.log(`Fetching models from ${BASE_URL}...`);
   const models = await fetchModels();
-  console.log(`Found ${models.length} models. Probing endpoints...\n`);
+
+  // Add extra models that aren't in the endpoint
+  const knownIds = new Set(models.map((m) => m.id));
+  for (const id of EXTRA_MODELS) {
+    if (!knownIds.has(id)) {
+      models.push({ id } as LlmapiModel);
+    }
+  }
+
+  console.log(
+    `Found ${models.length} models (including ${EXTRA_MODELS.length} extra). Probing endpoints...\n`
+  );
 
   const results: ModelResult[] = [];
   const concurrency = 5;
