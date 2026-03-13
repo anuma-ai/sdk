@@ -5,6 +5,7 @@ name: Check Exports
 # issues that are invisible during development but break published consumers.
 
 on:
+  merge_group:
   pull_request:
     branches: [main]
 
