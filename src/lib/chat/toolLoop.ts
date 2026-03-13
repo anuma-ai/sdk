@@ -62,6 +62,20 @@ export type AutoExecutedToolResult = {
   result: unknown;
 };
 
+/** Information emitted after each tool execution round completes. */
+export type StepFinishEvent = {
+  /** 1-based index of this tool round. */
+  stepIndex: number;
+  /** Text content the model produced in this round (may be empty if the model only called tools). */
+  content: string;
+  /** Tool calls the model made in this round. */
+  toolCalls: Array<{ name: string; arguments: string }>;
+  /** Results from auto-executed tools in this round. */
+  toolResults: Array<{ name: string; result: unknown; error?: string }>;
+  /** Token usage for this round, if available. */
+  usage: { inputTokens?: number; outputTokens?: number };
+};
+
 /**
  * Options for `runToolLoop`.
  */
@@ -116,6 +130,11 @@ export type RunToolLoopOptions = {
   onToolCall?: (toolCall: LlmapiToolCall) => void;
   /** Called when a server-side tool (MCP) is invoked during streaming. */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
+  /**
+   * Called after each tool execution round completes.
+   * Receives the round index, model content, tool calls, results, and usage.
+   */
+  onStepFinish?: (event: StepFinishEvent) => void;
 };
 
 export type RunToolLoopResult =
@@ -216,6 +235,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onError,
     onToolCall,
     onServerToolCall,
+    onStepFinish,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
@@ -495,6 +515,27 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           })
           .join("\n");
         thinkingSmoother.push(`${resultsText}\n`);
+      }
+
+      // Fire onStepFinish callback
+      if (onStepFinish) {
+        onStepFinish({
+          stepIndex: toolIteration,
+          content: currentAccumulator.content,
+          toolCalls: toolCallsToExecute.map((tc) => ({
+            name: tc.name,
+            arguments: tc.arguments,
+          })),
+          toolResults: executionResults.map((r) => ({
+            name: r.name ?? "",
+            result: r.result,
+            ...(r.error ? { error: r.error } : undefined),
+          })),
+          usage: {
+            inputTokens: currentAccumulator.usage.prompt_tokens,
+            outputTokens: currentAccumulator.usage.completion_tokens,
+          },
+        });
       }
 
       // Drain thinking smoother before continuation to avoid interleaved output

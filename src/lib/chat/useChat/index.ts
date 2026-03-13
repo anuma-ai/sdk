@@ -1,4 +1,4 @@
-export type { AutoExecutedToolResult, RunToolLoopResult } from "../toolLoop";
+export type { AutoExecutedToolResult, RunToolLoopResult, StepFinishEvent } from "../toolLoop";
 export { runToolLoop } from "../toolLoop";
 export * from "./strategies";
 export { StreamSmoother } from "./StreamSmoother";

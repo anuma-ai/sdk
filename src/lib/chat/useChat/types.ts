@@ -8,6 +8,7 @@ import type {
 } from "../../../client";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
+import type { StepFinishEvent } from "../toolLoop";
 import type { ServerToolCallEvent } from "./utils";
 
 /**
@@ -240,6 +241,12 @@ export type BaseUseChatOptions = {
    * @default true
    */
   smoothing?: StreamSmoothingConfig | boolean;
+  /**
+   * Called after each tool execution round completes.
+   * Receives the round index, model content, tool calls, results, and token usage.
+   * Useful for progress indicators, cost tracking, and custom early-exit logic.
+   */
+  onStepFinish?: (event: StepFinishEvent) => void;
 };
 
 /**
