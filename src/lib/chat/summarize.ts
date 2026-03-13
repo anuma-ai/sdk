@@ -349,11 +349,16 @@ export async function callSummarizationLlm(
     }
   };
 
+  let raceTimeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error("Summarization timeout")), SUMMARIZATION_TIMEOUT_MS);
+    raceTimeoutId = setTimeout(() => reject(new Error("Summarization timeout")), SUMMARIZATION_TIMEOUT_MS);
   });
 
-  return Promise.race([doRequest(), timeoutPromise]);
+  try {
+    return await Promise.race([doRequest(), timeoutPromise]);
+  } finally {
+    clearTimeout(raceTimeoutId!);
+  }
 }
 
 /**
@@ -446,10 +451,16 @@ export async function maybeSummarizeHistory(
     // Safety timeout: if the in-progress promise is stuck (e.g., fetch hangs past
     // AbortController, WatermelonDB write deadlocks), auto-expire after 15s and
     // fall back to verbatim rather than blocking indefinitely.
+    const verbatimFallback: MaybeSummarizeHistoryResult = {
+      messagesToConvert: messages,
+      summarySystemMessage: null,
+    };
     const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) =>
-      setTimeout(() => resolve({ messagesToConvert: messages, summarySystemMessage: null }), 15_000)
+      setTimeout(() => resolve(verbatimFallback), 15_000)
     );
-    return Promise.race([inProgress, staleGuard]);
+    // Swallow rejections on inProgress — if the stale guard wins the race and
+    // inProgress later rejects, the rejection would otherwise be unobserved.
+    return Promise.race([inProgress.catch(() => verbatimFallback), staleGuard]);
   }
 
   const promise = doSummarizeHistory(options);
