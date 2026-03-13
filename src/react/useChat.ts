@@ -191,6 +191,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       thinking,
       imageModel,
       apiType: requestApiType,
+      conversationId,
     }: SendMessageArgs): Promise<SendMessageResult> => {
       // Abort any pending request
       if (abortControllerRef.current) {
@@ -273,6 +274,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           reasoning,
           thinking,
           imageModel,
+          conversationId,
           smoothing,
           signal: abortController.signal,
           onData: (chunk) => {

@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
-import { schemaMigrations, addColumns, createTable } from "@nozbe/watermelondb/Schema/migrations";
+import {
+  schemaMigrations,
+  addColumns,
+  createTable,
+  unsafeExecuteSql,
+} from "@nozbe/watermelondb/Schema/migrations";
 import { toPromise } from "@nozbe/watermelondb/utils/fp/Result";
 import { PostgreSQLAdapter, schemaToCreateSQL } from "./pg-adapter";
 import type { PgPoolLike } from "./pg-adapter";
@@ -617,6 +622,80 @@ describe("PostgreSQLAdapter", () => {
       const found = await toPromise((cb) => v2Adapter.find("tasks", "t1", cb));
       expect(found).toBeDefined();
       expect((found as any).title).toBe("Original");
+    });
+
+    it("wraps unsafeExecuteSql in a search_path transaction when using custom pgSchema", async () => {
+      // Track all queries (including those run through connect() clients).
+      // The mock pool only understands unqualified table names, so we strip
+      // schema prefixes (e.g. "custom"."table" → "table") before forwarding.
+      const queries: string[] = [];
+
+      const innerPool = createMockPool();
+      // Seed version 1 in local_storage so the adapter takes the migration path
+      await innerPool.query(
+        'insert into "local_storage" ("key", "value") values ($1, $2) on conflict ("key") do update set "value" = $2',
+        ["__schema_version", "1"]
+      );
+
+      const stripSchema = (sql: string) => sql.replace(/"custom"\./g, "");
+      const trackedPool: typeof innerPool = {
+        ...innerPool,
+        tables: innerPool.tables,
+        async query(text: string, values?: unknown[]) {
+          queries.push(text);
+          return innerPool.query(stripSchema(text), values);
+        },
+        async connect() {
+          return {
+            async query(text: string, values?: unknown[]) {
+              queries.push(text);
+              return innerPool.query(stripSchema(text), values);
+            },
+            release: () => {},
+          };
+        },
+      };
+
+      const v2Schema = appSchema({
+        version: 2,
+        tables: [
+          tableSchema({
+            name: "tasks",
+            columns: [
+              { name: "title", type: "string" },
+              { name: "is_done", type: "boolean" },
+            ],
+          }),
+        ],
+      });
+
+      const migrations = schemaMigrations({
+        migrations: [
+          {
+            toVersion: 2,
+            steps: [unsafeExecuteSql("CREATE INDEX IF NOT EXISTS tasks_title ON tasks (title);")],
+          },
+        ],
+      });
+
+      queries.length = 0;
+
+      const adapter = new PostgreSQLAdapter({
+        pool: trackedPool,
+        schema: v2Schema,
+        migrations,
+        dbName: "test-db",
+        pgSchema: "custom",
+      });
+      await toPromise((cb) => adapter.getLocal("__noop__", cb));
+
+      // Verify the raw SQL was wrapped with BEGIN, SET LOCAL search_path, COMMIT
+      expect(queries).toContain("BEGIN");
+      expect(queries).toContain('SET LOCAL search_path TO "custom", public');
+      expect(
+        queries.some((q) => q.includes("CREATE INDEX IF NOT EXISTS tasks_title ON tasks"))
+      ).toBe(true);
+      expect(queries).toContain("COMMIT");
     });
 
     it("does destructive reset when migrations are not available", async () => {

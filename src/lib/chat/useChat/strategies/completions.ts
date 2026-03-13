@@ -94,8 +94,17 @@ export class CompletionsStrategy implements ApiStrategy {
   readonly endpoint = "/api/v1/chat/completions";
 
   buildRequestBody(args: BuildRequestBodyArgs): Record<string, unknown> {
-    const { messages, model, stream, temperature, maxOutputTokens, tools, toolChoice, imageModel } =
-      args;
+    const {
+      messages,
+      model,
+      stream,
+      temperature,
+      maxOutputTokens,
+      tools,
+      toolChoice,
+      imageModel,
+      conversationId,
+    } = args;
 
     return {
       messages,
@@ -106,6 +115,7 @@ export class CompletionsStrategy implements ApiStrategy {
       ...(tools && { tools }),
       ...(toolChoice && { tool_choice: toolChoice }),
       ...(imageModel && { image_model: imageModel }),
+      ...(conversationId && { conversation_id: conversationId }),
     };
   }
 

@@ -262,6 +262,12 @@ Re-exports [embedMessage](../react/Internal/functions/embedMessage.md)
 
 ***
 
+### ensureDefaultFoldersOp
+
+Re-exports [ensureDefaultFoldersOp](../react/Internal/functions/ensureDefaultFoldersOp.md)
+
+***
+
 ### FileMetadata
 
 Re-exports [FileMetadata](../react/Internal/interfaces/FileMetadata.md)
@@ -319,6 +325,12 @@ Re-exports [getCachedServerTools](../react/Internal/functions/getCachedServerToo
 ### getServerTools
 
 Re-exports [getServerTools](../react/Internal/functions/getServerTools.md)
+
+***
+
+### getUnfiledVaultMemoriesOp
+
+Re-exports [getUnfiledVaultMemoriesOp](../react/Internal/functions/getUnfiledVaultMemoriesOp.md)
 
 ***
 

@@ -6,6 +6,17 @@ Options for creating a memory vault tool.
 
 ## Properties
 
+### folderMap?
+
+> `optional` **folderMap**: `Map`<`string`, `string`>
+
+Defined in: [src/lib/memoryVault/tool.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/tool.ts#58)
+
+Map of folder names to folder IDs for auto-classification.
+When provided, the LLM can specify a folderName argument.
+
+***
+
 ### onSave()?
 
 > `optional` **onSave**: (`operation`: [`VaultSaveOperation`](VaultSaveOperation.md)) => `Promise`<`boolean`>

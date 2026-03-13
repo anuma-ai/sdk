@@ -69,6 +69,8 @@ export type RunToolLoopOptions = {
   thinking?: LlmapiThinkingOptions;
   /** User-selected image generation model. */
   imageModel?: string;
+  /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
+  conversationId?: string;
   /** Controls adaptive output smoothing for streaming. @default true */
   smoothing?: StreamSmoothingConfig | boolean;
   /** AbortSignal to cancel the request. */
@@ -99,6 +101,8 @@ export type RunToolLoopResult =
   | {
       data: ApiResponse | null;
       error: string;
+      /** HTTP status code from the SSE connection, if available */
+      statusCode?: number;
       /** Checksum of tools used to generate this response */
       toolsChecksum?: string;
     };
@@ -174,6 +178,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     reasoning,
     thinking,
     imageModel,
+    conversationId,
     smoothing,
     signal,
     onData,
@@ -226,6 +231,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       reasoning,
       thinking,
       imageModel,
+      conversationId,
     });
 
     const sseResult = makeStreamingRequest({
@@ -528,6 +534,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         reasoning,
         thinking,
         imageModel,
+        conversationId,
       });
 
       const continuationResult = makeStreamingRequest({
@@ -633,6 +640,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
     const errorObj = err instanceof Error ? err : new Error(errorMsg);
     if (onError) onError(errorObj);
-    return { data: null, error: errorMsg };
+    const statusCode =
+      err instanceof Error && "statusCode" in err
+        ? (err as { statusCode: number }).statusCode
+        : undefined;
+    return { data: null, error: errorMsg, statusCode };
   }
 }

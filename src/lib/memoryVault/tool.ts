@@ -51,6 +51,12 @@ export interface MemoryVaultToolOptions {
    * This is injected by the client, not controlled by the LLM.
    */
   scope?: string;
+
+  /**
+   * Map of folder names to folder IDs for auto-classification.
+   * When provided, the LLM can specify a folderName argument.
+   */
+  folderMap?: Map<string, string>;
 }
 
 /**
@@ -85,6 +91,7 @@ export function createMemoryVaultTool(
   cache?: VaultEmbeddingCache
 ): ToolConfig {
   const hasOnSave = !!options?.onSave;
+  const folderNames = options?.folderMap ? Array.from(options.folderMap.keys()) : [];
 
   return {
     type: "function",
@@ -117,6 +124,15 @@ export function createMemoryVaultTool(
               "Optional folder ID to file this memory under. " +
               "Only used when creating a new memory (not updates).",
           },
+          ...(folderNames.length > 0 && {
+            folderName: {
+              type: "string",
+              description:
+                `The name of the folder to save or move the memory into. ` +
+                `Available folders: ${folderNames.join(", ")}. ` +
+                `Omit if no folder is a good fit.`,
+            },
+          }),
         },
         required: ["content"],
       },
@@ -125,6 +141,7 @@ export function createMemoryVaultTool(
       const content = args.content as string;
       const id = args.id as string | undefined;
       const folderId = args.folder_id as string | undefined;
+      const folderName = args.folderName as string | undefined;
 
       if (!content || typeof content !== "string") {
         return "Error: content is required and must be a string.";
@@ -177,7 +194,12 @@ export function createMemoryVaultTool(
 
         // Execute the save
         if (isUpdate) {
-          const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null });
+          const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+          const updated = await updateVaultMemoryOp(vaultCtx, id, {
+            content,
+            embedding: null,
+            folderId,
+          });
           if (!updated) {
             return `Error: Failed to update memory "${id}".`;
           }

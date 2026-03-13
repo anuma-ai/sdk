@@ -23,6 +23,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     createdAt: folder.createdAt,
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
+    isSystem: folder.isSystem ?? false,
   };
 }
 
@@ -37,6 +38,7 @@ export async function createVaultFolderOp(
     return ctx.vaultFolderCollection.create((record) => {
       record._setRaw("name", opts.name);
       record._setRaw("scope", opts.scope ?? "private");
+      record._setRaw("is_system", opts.isSystem ?? false);
       record._setRaw("is_deleted", false);
     });
   });
@@ -103,8 +105,8 @@ export async function updateVaultFolderOp(
     });
 
     return folderToStored(updated);
-  } catch (error) {
-    console.error("[VaultFolders] updateVaultFolderOp failed:", error);
+  } catch {
+    // Update failed (record not found or write error) – return null to caller
     return null;
   }
 }
@@ -140,8 +142,8 @@ export async function deleteVaultFolderOp(
     });
 
     return true;
-  } catch (error) {
-    console.error("[VaultFolders] deleteVaultFolderOp failed:", error);
+  } catch {
+    // Delete failed (record not found or write error) – return false to caller
     return false;
   }
 }
@@ -165,24 +167,35 @@ export async function moveMemoriesToFolderOp(
       targetScope = folder.scope;
     }
 
+    // Resolve and update memories inside a single write lock to avoid races
+    let movedCount = 0;
     await ctx.database.write(async () => {
-      const memories = await Promise.all(memoryIds.map((id) => ctx.vaultMemoryCollection.find(id)));
+      const memories: VaultMemory[] = [];
+      for (const id of memoryIds) {
+        try {
+          const m = await ctx.vaultMemoryCollection.find(id);
+          if (!m.isDeleted) memories.push(m);
+        } catch {
+          // skip invalid/missing IDs
+        }
+      }
 
-      const prepared = memories
-        .filter((memory) => !memory.isDeleted)
-        .map((memory) =>
-          memory.prepareUpdate((r) => {
-            r._setRaw("folder_id", folderId);
-            r._setRaw("scope", targetScope);
-          })
-        );
+      if (memories.length === 0) return;
+
+      const prepared = memories.map((memory) =>
+        memory.prepareUpdate((r) => {
+          r._setRaw("folder_id", folderId);
+          r._setRaw("scope", targetScope);
+        })
+      );
 
       await ctx.database.batch(...prepared);
+      movedCount = memories.length;
     });
 
-    return true;
-  } catch (error) {
-    console.error("[VaultFolders] moveMemoriesToFolderOp failed:", error);
+    return movedCount > 0;
+  } catch {
+    // Move failed (record not found or write error) – return false to caller
     return false;
   }
 }

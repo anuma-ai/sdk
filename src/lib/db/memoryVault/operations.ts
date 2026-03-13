@@ -226,6 +226,9 @@ export async function updateVaultMemoryOp(
         if (opts.scope !== undefined) {
           r._setRaw("scope", opts.scope);
         }
+        if (opts.folderId !== undefined) {
+          r._setRaw("folder_id", opts.folderId);
+        }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
         }
@@ -261,6 +264,23 @@ export async function deleteVaultMemoryOp(
   } catch {
     return false;
   }
+}
+
+/**
+ * Get all non-deleted, unfiled vault memories (folder_id is null).
+ */
+export async function getUnfiledVaultMemoriesOp(
+  ctx: VaultMemoryOperationsContext
+): Promise<StoredVaultMemory[]> {
+  const conditions = [
+    Q.where("folder_id", null),
+    ...baseVaultConditions(ctx),
+    Q.sortBy("created_at", Q.desc),
+  ];
+  const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
+  return mapInBatches(results, (record) =>
+    vaultMemoryToStored(record, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner)
+  );
 }
 
 export async function deleteAllVaultMemoriesForUserOp(
