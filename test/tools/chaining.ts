@@ -18,10 +18,17 @@ describe("tool-chaining", () => {
     const timezoneTool = wrapTool(createTimezoneTool(), log);
 
     const result = await runToolLoop({
-      messages: [{
-        role: "user",
-        content: [{ type: "text", text: "What is the current time at the location of IP address 8.8.8.8? First look up where it is, then get the current time for that timezone." }],
-      }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "What is the current time at the location of IP address 8.8.8.8? First look up where it is, then get the current time for that timezone.",
+            },
+          ],
+        },
+      ],
       model: config.model,
       baseUrl: config.baseUrl,
       headers: { "X-API-Key": config.portalKey },

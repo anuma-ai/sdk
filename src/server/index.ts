@@ -341,7 +341,7 @@ export type {
   RunToolLoopResult,
 } from "../lib/chat/toolLoop";
 export { runToolLoop } from "../lib/chat/toolLoop";
-export type { ApiResponse,ApiType } from "../lib/chat/useChat/strategies/types";
+export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types";
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";

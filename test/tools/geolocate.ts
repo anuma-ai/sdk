@@ -16,7 +16,12 @@ describe("geolocate-ip", () => {
     const geolocateTool = wrapTool(createIpGeolocationTool(), log);
 
     const result = await runToolLoop({
-      messages: [{ role: "user", content: [{ type: "text", text: "Where is the IP address 8.8.8.8 located?" }] }],
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Where is the IP address 8.8.8.8 located?" }],
+        },
+      ],
       model: config.model,
       baseUrl: config.baseUrl,
       headers: { "X-API-Key": config.portalKey },
@@ -36,8 +41,6 @@ describe("geolocate-ip", () => {
     expect((geo.isp as string).toLowerCase()).toContain("google");
 
     const responseText = extractText(result).toLowerCase();
-    expect(
-      responseText.includes("united states") || responseText.includes("ashburn"),
-    ).toBe(true);
+    expect(responseText.includes("united states") || responseText.includes("ashburn")).toBe(true);
   });
 });
