@@ -815,4 +815,124 @@ describe("maybeSummarizeHistory", () => {
 
     fetchSpy.mockRestore();
   });
+
+  it("compacts oversized summary instead of invalidating (H1 fix)", async () => {
+    const msgs = Array.from({ length: 6 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
+    );
+    // Cached summary exceeds 80% of threshold (3500 > 4000 * 0.8 = 3200)
+    const oversizedSummary: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-test",
+      summary: "x".repeat(14000), // 3500 tokens
+      summarizedUpTo: "msg-0",
+      tokenCount: 3500,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockedGetSummary.mockResolvedValueOnce(oversizedSummary);
+
+    let fetchCallCount = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount === 1) {
+        // First call = compaction
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ choices: [{ message: { content: "Compacted summary." } }] }),
+        } as Response);
+      }
+      // Second call = regular summarization (if needed)
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "New summary." } }] }),
+      } as Response);
+    });
+
+    await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+
+    // Compaction should have triggered (first fetch call)
+    expect(fetchCallCount).toBeGreaterThanOrEqual(1);
+    // Compacted summary should be persisted
+    expect(mockedUpsertSummary).toHaveBeenCalledWith(
+      expect.anything(),
+      "conv-test",
+      "Compacted summary.",
+      "msg-0", // summarizedUpTo preserved
+      expect.any(Number)
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("falls back gracefully when compaction LLM call fails", async () => {
+    const msgs = Array.from({ length: 6 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 100)
+    );
+    const oversizedSummary: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-test",
+      summary: "x".repeat(14000), // 3500 tokens > 80% of 4000
+      summarizedUpTo: "msg-0",
+      tokenCount: 3500,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockedGetSummary.mockResolvedValueOnce(oversizedSummary);
+
+    let fetchCallCount = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount === 1) {
+        // Compaction fails
+        return Promise.resolve({ ok: false, status: 500, statusText: "Error" } as Response);
+      }
+      // Subsequent calls succeed (regular summarization)
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
+      } as Response);
+    });
+
+    // Should not throw — graceful degradation
+    const result = await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+    expect(result.messagesToConvert).toBeDefined();
+    expect(result.messagesToConvert.length).toBeGreaterThan(0);
+
+    fetchSpy.mockRestore();
+  });
+
+  it("does not compact when summary is below 80% threshold", async () => {
+    const msgs = Array.from({ length: 6 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+    );
+    // Cached summary is below 80% of threshold (500 < 4000 * 0.8 = 3200)
+    const smallSummary: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-test",
+      summary: "x".repeat(2000), // 500 tokens
+      summarizedUpTo: "msg-0",
+      tokenCount: 500,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockedGetSummary.mockResolvedValueOnce(smallSummary);
+
+    let fetchCallCount = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      fetchCallCount++;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
+      } as Response);
+    });
+
+    await maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+
+    // Should have at most 1 fetch call (regular summarization), no compaction
+    // If compaction happened, there would be 2 calls
+    expect(fetchCallCount).toBeLessThanOrEqual(1);
+
+    fetchSpy.mockRestore();
+  });
 });

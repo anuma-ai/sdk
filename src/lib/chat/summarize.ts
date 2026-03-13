@@ -417,6 +417,9 @@ export async function maybeSummarizeHistory(
 
   // H3 fix: If another summarization is in progress for this conversation,
   // await its result instead of skipping (avoids paying full verbatim cost).
+  // Known limitation: the second caller gets the first caller's window, which may
+  // miss the most recent message. This is acceptable — the missing message is one
+  // turn of context, and the alternative (no lock) risks duplicate LLM calls.
   const inProgress = summarizationLocks.get(conversationId);
   if (inProgress) {
     return inProgress;
@@ -467,7 +470,10 @@ async function doSummarizeHistory(
     // spike that would occur from re-summarizing the full history from scratch.
     if (cachedSummary && cachedSummary.tokenCount > summaryTokenThreshold * MAX_SUMMARY_TOKEN_RATIO) {
       try {
-        const compactPrompt = COMPACTION_PROMPT.replace("{summary}", cachedSummary.summary);
+        // Use split+concat (not .replace()) to avoid JS replacement pattern injection
+        // if the summary contains $&, $', or $` characters.
+        const [before, after] = COMPACTION_PROMPT.split("{summary}");
+        const compactPrompt = before + cachedSummary.summary + after;
         const compactedSummary = await callSummarizationLlm(compactPrompt, summaryModel, token, baseUrl);
         const compactedTokens = estimateTokens(compactedSummary);
         await upsertConversationSummaryOp(
