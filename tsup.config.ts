@@ -132,6 +132,18 @@ export default defineConfig([
       };
     },
   },
+  // Utils — build-time utilities (doc generation, etc.)
+  {
+    entry: ["src/utils/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/utils",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
   // Server entry - no React, no browser APIs
   // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
   {
