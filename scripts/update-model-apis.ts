@@ -20,8 +20,7 @@ import {
 } from "../src/client/sdk.gen";
 import type { LlmapiModel } from "../src/client/types.gen";
 
-const BASE_URL =
-  process.env.ANUMA_API_URL ?? "https://portal.anuma-dev.ai";
+const BASE_URL = process.env.ANUMA_API_URL ?? "https://portal.anuma-dev.ai";
 const API_KEY = process.env.PORTAL_API_KEY;
 
 if (!API_KEY) {
@@ -61,10 +60,7 @@ async function fetchModels(): Promise<LlmapiModel[]> {
 
 type Endpoint = "completions" | "responses";
 
-async function probe(
-  model: string,
-  endpoint: Endpoint
-): Promise<{ ok: boolean; error?: string }> {
+async function probe(model: string, endpoint: Endpoint): Promise<{ ok: boolean; error?: string }> {
   try {
     if (endpoint === "completions") {
       const { error } = await postApiV1ChatCompletions({
@@ -124,10 +120,7 @@ async function main() {
     const batchResults = await Promise.all(
       batch.map(async (m) => {
         const id = m.id ?? "";
-        const [comp, resp] = await Promise.all([
-          probe(id, "completions"),
-          probe(id, "responses"),
-        ]);
+        const [comp, resp] = await Promise.all([probe(id, "completions"), probe(id, "responses")]);
 
         const result: ModelResult = {
           model: id,
@@ -139,9 +132,7 @@ async function main() {
 
         const compIcon = comp.ok ? "✓" : "✗";
         const respIcon = resp.ok ? "✓" : "✗";
-        console.log(
-          `  ${id.padEnd(50)} completions: ${compIcon}  responses: ${respIcon}`
-        );
+        console.log(`  ${id.padEnd(50)} completions: ${compIcon}  responses: ${respIcon}`);
 
         return result;
       })
@@ -171,16 +162,16 @@ async function main() {
     "",
     'import type { ApiType } from "./types";',
     "",
-    "type ApiSupport = ApiType | \"both\";",
+    'type ApiSupport = ApiType | "both";',
     "",
-    "export const MODEL_API_SUPPORT: Record<string, ApiSupport> = {",
+    "const MODEL_API_SUPPORT: Record<string, ApiSupport> = {",
     ...entries.map(([model, support]) => `  "${model}": "${support}",`),
     "};",
     "",
     "/**",
     " * Returns the best API type for a model.",
     " * - Known models: uses the probed support map.",
-    " * - Unknown models: falls back to \"responses\" (the default).",
+    ' * - Unknown models: falls back to "responses" (the default).',
     " */",
     'export function getApiTypeForModel(model: string): "responses" | "completions" {',
     "  const support = MODEL_API_SUPPORT[model];",
@@ -190,24 +181,29 @@ async function main() {
     "",
   ];
 
-  const tsPath = path.resolve(
-    scriptDir,
-    "../src/lib/chat/useChat/strategies/modelApiSupport.ts"
-  );
+  const tsPath = path.resolve(scriptDir, "../src/lib/chat/useChat/strategies/modelApiSupport.ts");
   fs.writeFileSync(tsPath, tsLines.join("\n"));
   console.log(`TS map written to ${tsPath} (${chatModels.length} chat models)`);
 
   // Print summary table
-  console.log("\n┌─────────────────────────────────────────────────────┬──────────────┬────────────┐");
-  console.log("│ Model                                               │ Completions  │ Responses  │");
-  console.log("├─────────────────────────────────────────────────────┼──────────────┼────────────┤");
+  console.log(
+    "\n┌─────────────────────────────────────────────────────┬──────────────┬────────────┐"
+  );
+  console.log(
+    "│ Model                                               │ Completions  │ Responses  │"
+  );
+  console.log(
+    "├─────────────────────────────────────────────────────┼──────────────┼────────────┤"
+  );
   for (const r of results) {
     const model = r.model.padEnd(51);
     const comp = (r.completions ? "yes" : "no").padEnd(12);
     const resp = (r.responses ? "yes" : "no").padEnd(10);
     console.log(`│ ${model} │ ${comp} │ ${resp} │`);
   }
-  console.log("└─────────────────────────────────────────────────────┴──────────────┴────────────┘");
+  console.log(
+    "└─────────────────────────────────────────────────────┴──────────────┴────────────┘"
+  );
 
   // Summary
   const both = results.filter((r) => r.completions && r.responses).length;

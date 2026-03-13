@@ -5,12 +5,13 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../client";
-import { BASE_URL } from "../../clientConfig";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
-import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
+import { BASE_URL } from "../../clientConfig";
+import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
+import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
 import type { ServerToolCallEvent } from "./useChat/utils";
 import {
   createStreamAccumulator,
@@ -22,7 +23,6 @@ import {
   validateMessages,
   validateModel,
 } from "./useChat/utils";
-import { getStrategy, resolveApiType } from "./useChat/strategies";
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];

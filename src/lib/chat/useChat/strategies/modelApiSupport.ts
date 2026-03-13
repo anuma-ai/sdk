@@ -5,7 +5,7 @@ import type { ApiType } from "./types";
 
 type ApiSupport = ApiType | "both";
 
-export const MODEL_API_SUPPORT: Record<string, ApiSupport> = {
+const MODEL_API_SUPPORT: Record<string, ApiSupport> = {
   "anthropic/claude-3-haiku-20240307": "both",
   "anthropic/claude-haiku-4-5-20251001": "both",
   "anthropic/claude-opus-4-1-20250805": "both",

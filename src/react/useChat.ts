@@ -7,15 +7,15 @@ import { BASE_URL } from "../clientConfig";
 import {
   type ApiResponse,
   type ApiType,
+  type AutoExecutedToolResult,
   type BaseSendMessageArgs,
   type BaseUseChatOptions,
   type BaseUseChatResult,
-  type AutoExecutedToolResult,
-  type RunToolLoopResult,
   createErrorResult,
   runToolLoop,
-  validateTokenGetter,
+  type RunToolLoopResult,
   validateToken,
+  validateTokenGetter,
 } from "../lib/chat/useChat";
 import type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
 

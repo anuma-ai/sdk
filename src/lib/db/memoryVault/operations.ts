@@ -133,7 +133,7 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("user_id", ctx.userId ?? null);
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
-          record._setRaw("embedding", optionsArray[i].embedding!);
+          record._setRaw("embedding", optionsArray[i].embedding);
         }
       })
     );
