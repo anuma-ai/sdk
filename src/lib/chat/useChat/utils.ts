@@ -730,19 +730,26 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } =
-      tool as ToolConfig & Record<string, unknown>;
+    const {
+      executor: _executor,
+      autoExecute: _autoExecute,
+      skipContinuation: _skipContinuation,
+      removeAfterExecution: _removeAfterExecution,
+      ...apiTool
+    } = tool as ToolConfig & Record<string, unknown>;
 
-    const func = (apiTool as any).function;
+    const func = (apiTool as Record<string, unknown>).function as
+      | Record<string, unknown>
+      | undefined;
 
     // Normalize tool format based on API type
     if (apiType === "responses" && func) {
       // Responses API expects flat format: { type, name, description, parameters }
       return {
         type: "function",
-        name: func.name,
-        description: func.description,
-        parameters: func.parameters || func.arguments,
+        name: func.name as string,
+        description: func.description as string,
+        parameters: (func.parameters || func.arguments) as Record<string, unknown>,
       };
     }
 
