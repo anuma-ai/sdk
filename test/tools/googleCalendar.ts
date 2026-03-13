@@ -12,7 +12,6 @@ import {
   createGoogleCalendarTool,
   createGoogleCalendarCreateEventTool,
 } from "../../src/tools/googleCalendar.js";
-import type { ToolConfig } from "../../src/lib/chat/useChat/types.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 
 // ── Service account auth ──────────────────────────────────────────────────────
@@ -95,27 +94,6 @@ async function deleteEvent(eventId: string) {
   });
 }
 
-/**
- * The Google Calendar tools use `function.arguments` for their schema,
- * but runToolLoop sends tools as-is via toolsToApiFormat (which only strips
- * executor/autoExecute). The Completions API expects `function.parameters`,
- * so the model never sees the schema and sends empty args.
- *
- * This helper converts `arguments` → `parameters` so the model gets the schema.
- */
-function fixToolSchema(tool: any): ToolConfig {
-  if (tool.function?.arguments && !tool.function?.parameters) {
-    return {
-      ...tool,
-      function: {
-        ...tool.function,
-        parameters: tool.function.arguments,
-      },
-    };
-  }
-  return tool;
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-calendar", () => {
@@ -136,7 +114,7 @@ describe("google-calendar", () => {
 
     const log: ToolCallLog[] = [];
     const listTool = wrapTool(
-      fixToolSchema(createGoogleCalendarTool(getAccessToken, requestCalendarAccess)),
+      createGoogleCalendarTool(getAccessToken, requestCalendarAccess),
       log
     );
 
@@ -171,7 +149,7 @@ describe("google-calendar", () => {
 
     const log: ToolCallLog[] = [];
     const createTool = wrapTool(
-      fixToolSchema(createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess)),
+      createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess),
       log
     );
 
@@ -231,11 +209,11 @@ describe("google-calendar", () => {
 
     const log: ToolCallLog[] = [];
     const listTool = wrapTool(
-      fixToolSchema(createGoogleCalendarTool(getAccessToken, requestCalendarAccess)),
+      createGoogleCalendarTool(getAccessToken, requestCalendarAccess),
       log
     );
     const createTool = wrapTool(
-      fixToolSchema(createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess)),
+      createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess),
       log
     );
 
