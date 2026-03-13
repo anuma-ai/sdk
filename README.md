@@ -1,4 +1,4 @@
-# @anuma/sdk
+# Anuma SDK
 
 A TypeScript SDK for building AI-powered applications with streaming chat
 completions, long-term memory, tool calling, and end-to-end encryption.
