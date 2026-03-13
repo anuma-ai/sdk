@@ -301,6 +301,43 @@ describe("progressiveSummarize", () => {
     );
   });
 
+  it("adjusts window budget to account for cached summary tokens", async () => {
+    // 4 messages at 100 tokens each (+ 4 overhead = 104 each)
+    const msgs = [
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+      makeMsgWithTokens("4", "assistant", 100),
+    ];
+    const cached: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-1",
+      summary: "x".repeat(800), // 200 cached tokens
+      summarizedUpTo: "0",
+      tokenCount: 200,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const callLlm = makeCallLlm("New summary.");
+
+    // tokenThreshold=400, cachedTokens=200 → window budget = 200
+    // 4 messages at 104 tokens each = 416 total → exceeds threshold (200 + 416 = 616 > 400)
+    // Window budget = 400 - 200 = 200. Walking backwards: msg4=104, msg3=208 > 200
+    // So window = [msg4], toSummarize = [msg1, msg2, msg3]
+    const result = await progressiveSummarize({
+      cachedSummary: cached,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 400,
+      minWindowMessages: 1,
+      callLlm,
+      model: "test",
+    });
+
+    expect(result.didSummarize).toBe(true);
+    // Window should be smaller because the cached summary eats into the budget
+    expect(result.windowMessages.length).toBeLessThan(msgs.length);
+  });
+
   it("excludes system messages from the summarization prompt", async () => {
     const msgs = [
       makeMsg("1", "system", "You are a helpful assistant"),

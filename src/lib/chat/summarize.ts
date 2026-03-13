@@ -206,8 +206,10 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
     };
   }
 
-  // Over threshold — split and summarize
-  const { toSummarize, window } = splitMessagesAtThreshold(unsummarizedMessages, tokenThreshold, minWindowMessages);
+  // Over threshold — split and summarize.
+  // Subtract cached summary tokens so window + summary stays within the total budget.
+  const windowBudget = Math.max(0, tokenThreshold - cachedTokens);
+  const { toSummarize, window } = splitMessagesAtThreshold(unsummarizedMessages, windowBudget, minWindowMessages);
 
   // Nothing to summarize (all messages fit in the window due to min window constraint)
   if (toSummarize.length === 0) {
