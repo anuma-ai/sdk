@@ -259,6 +259,9 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
   try {
     const prompt = buildSummarizationPrompt(cachedSummary?.summary, toSummarize);
     const newSummary = await callLlm(prompt, model);
+    if (!newSummary || newSummary.trim().length === 0) {
+      throw new Error("Summarization returned empty response");
+    }
 
     const lastSummarized = toSummarize[toSummarize.length - 1];
 
