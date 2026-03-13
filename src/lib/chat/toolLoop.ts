@@ -317,6 +317,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
       toolIteration++;
+      sseError = null;
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 

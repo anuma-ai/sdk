@@ -106,13 +106,32 @@ export {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   VaultMemory,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+
+// ── Vault Folders ──
+
+export {
+  createVaultFolderOp,
+  type CreateVaultFolderOptions,
+  deleteVaultFolderOp,
+  ensureDefaultFoldersOp,
+  getAllVaultFoldersOp,
+  getVaultFolderMemoryCountOp,
+  moveMemoriesToFolderOp,
+  type StoredVaultFolder,
+  VaultFolder,
+  updateVaultFolderOp,
+  type UpdateVaultFolderOptions,
+  type VaultFolderOperationsContext,
+} from "../lib/db/vaultFolders";
 
 // ── Projects ──
 

@@ -35,7 +35,6 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
 
     return textParts.join("\n\n");
   } catch (error) {
-    console.error("Error extracting text from PDF:", error);
     throw error;
   }
 }
@@ -68,7 +67,6 @@ export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> 
       images.push(canvas.toDataURL("image/png"));
     }
   } catch (error) {
-    console.error("Error converting PDF to images:", error);
     throw error;
   }
 
