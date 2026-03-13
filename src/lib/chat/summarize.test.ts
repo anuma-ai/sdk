@@ -1,15 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
+import { getConversationSummaryOp, upsertConversationSummaryOp } from "../db/chat/summaryOperations";
 
 import {
   callSummarizationLlm,
   estimateMessagesTokens,
   estimateTokens,
+  maybeSummarizeHistory,
+  MAX_MESSAGES_PER_SUMMARIZATION,
   progressiveSummarize,
   splitMessagesAtThreshold,
+  summarizationLocks,
   summaryToSystemMessage,
 } from "./summarize";
+
+// Mock DB operations for maybeSummarizeHistory tests
+vi.mock("../db/chat/summaryOperations", () => ({
+  createSummaryContext: vi.fn(() => ({ database: {}, summariesCollection: {} })),
+  getConversationSummaryOp: vi.fn(() => Promise.resolve(null)),
+  upsertConversationSummaryOp: vi.fn(() => Promise.resolve()),
+  deleteConversationSummaryOp: vi.fn(() => Promise.resolve()),
+}));
 
 /** Helper to create a minimal StoredMessage for testing */
 function makeMsg(id: string, role: "user" | "assistant" | "system", content: string): StoredMessage {
@@ -503,5 +515,304 @@ describe("callSummarizationLlm", () => {
 
     fetchSpy.mockRestore();
     vi.useRealTimers();
+  });
+});
+
+describe("summarizationLocks", () => {
+  it("is exported as a Map for concurrent summarization with await support", () => {
+    expect(summarizationLocks).toBeInstanceOf(Map);
+    expect(summarizationLocks.size).toBe(0);
+  });
+});
+
+describe("progressiveSummarize — message cap per summarization", () => {
+  const makeCallLlm = (response: string) => vi.fn().mockResolvedValue(response);
+
+  it("caps toSummarize at MAX_MESSAGES_PER_SUMMARIZATION and moves excess to window", async () => {
+    // Create more messages than the cap
+    const msgCount = MAX_MESSAGES_PER_SUMMARIZATION + 10;
+    const msgs = Array.from({ length: msgCount }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 50)
+    );
+    const callLlm = makeCallLlm("Summarized.");
+
+    const result = await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 200, // Very small to force most messages into toSummarize
+      minWindowMessages: 2,
+      callLlm,
+      model: "test",
+    });
+
+    expect(result.didSummarize).toBe(true);
+    // The window should contain more messages than just minWindowMessages
+    // because excess messages from the cap are moved to the window
+    expect(result.windowMessages.length).toBeGreaterThan(2);
+    // The prompt's "New lines of conversation" section should only contain
+    // at most MAX_MESSAGES_PER_SUMMARIZATION messages (exclude the template example)
+    const promptArg = callLlm.mock.calls[0]?.[0] as string;
+    const newLinesSection = promptArg.split("New lines of conversation:\n").pop()!.split("\n\nNew summary:")[0];
+    const conversationLines = newLinesSection.split("\n").filter((l: string) => l.startsWith("Human:") || l.startsWith("AI:"));
+    expect(conversationLines.length).toBeLessThanOrEqual(MAX_MESSAGES_PER_SUMMARIZATION);
+  });
+
+  it("does not cap when toSummarize is within limit", async () => {
+    const msgs = [
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+      makeMsgWithTokens("4", "assistant", 100),
+      makeMsgWithTokens("5", "user", 100),
+      makeMsgWithTokens("6", "assistant", 100),
+    ];
+    const callLlm = makeCallLlm("Summary.");
+
+    const result = await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 250,
+      minWindowMessages: 2,
+      callLlm,
+      model: "test",
+    });
+
+    expect(result.didSummarize).toBe(true);
+    // 6 messages < MAX_MESSAGES_PER_SUMMARIZATION, so no capping occurs
+    // Window should be the normal split result
+    expect(result.windowMessages.length).toBeLessThan(msgs.length);
+  });
+});
+
+describe("progressiveSummarize — degenerate summary growth (H2 scenario)", () => {
+  const makeCallLlm = (response: string) => vi.fn().mockResolvedValue(response);
+
+  it("still summarizes when cachedTokens consume most of the budget (windowBudget near 0)", async () => {
+    // Simulates H2 scenario: cached summary is 3500 tokens, threshold is 4000
+    // windowBudget = max(0, 4000 - 3500) = 500
+    const msgs = [
+      makeMsgWithTokens("1", "user", 200),
+      makeMsgWithTokens("2", "assistant", 200),
+      makeMsgWithTokens("3", "user", 200),
+      makeMsgWithTokens("4", "assistant", 200),
+    ];
+    const cached: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-1",
+      summary: "x".repeat(14000), // 3500 tokens
+      summarizedUpTo: "0",
+      tokenCount: 3500,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const callLlm = makeCallLlm("Compact new summary.");
+
+    const result = await progressiveSummarize({
+      cachedSummary: cached,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 4000,
+      minWindowMessages: 2,
+      callLlm,
+      model: "test",
+    });
+
+    // Even with tiny windowBudget, minWindowMessages keeps at least 2 in the window
+    expect(result.windowMessages.length).toBeGreaterThanOrEqual(2);
+    // Should still call LLM since total exceeds threshold
+    expect(result.didSummarize).toBe(true);
+  });
+
+  it("keeps minWindowMessages even when windowBudget is 0", async () => {
+    // Extreme case: cached summary equals threshold → windowBudget = 0
+    const msgs = [
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+      makeMsgWithTokens("4", "assistant", 100),
+    ];
+    const cached: StoredConversationSummary = {
+      uniqueId: "s1",
+      conversationId: "conv-1",
+      summary: "x".repeat(16000), // 4000 tokens = threshold
+      summarizedUpTo: "0",
+      tokenCount: 4000,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const callLlm = makeCallLlm("Compact summary.");
+
+    const result = await progressiveSummarize({
+      cachedSummary: cached,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 4000,
+      minWindowMessages: 4,
+      callLlm,
+      model: "test",
+    });
+
+    // minWindowMessages=4 and we have 4 messages, so all stay in window
+    expect(result.windowMessages).toHaveLength(4);
+    // No messages to summarize → didSummarize = false
+    expect(result.didSummarize).toBe(false);
+  });
+});
+
+describe("maybeSummarizeHistory", () => {
+  const mockedGetSummary = vi.mocked(getConversationSummaryOp);
+  const mockedUpsertSummary = vi.mocked(upsertConversationSummaryOp);
+
+  const baseOptions = {
+    database: {} as any,
+    conversationId: "conv-test",
+    summarizeHistory: true,
+    summaryTokenThreshold: 4000,
+    summaryMinWindowMessages: 4,
+    summaryModel: "gemini-flash",
+    token: "test-token",
+    baseUrl: "https://api.test",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    summarizationLocks.clear();
+  });
+
+  it("returns all messages verbatim when summarizeHistory is false", async () => {
+    const msgs = [makeMsgWithTokens("1", "user", 100), makeMsgWithTokens("2", "assistant", 100)];
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      summarizeHistory: false,
+      messages: msgs,
+    });
+    expect(result.messagesToConvert).toEqual(msgs);
+    expect(result.summarySystemMessage).toBeNull();
+  });
+
+  it("returns all messages verbatim when no auth token", async () => {
+    const msgs = [
+      makeMsgWithTokens("1", "user", 100),
+      makeMsgWithTokens("2", "assistant", 100),
+      makeMsgWithTokens("3", "user", 100),
+      makeMsgWithTokens("4", "assistant", 100),
+      makeMsgWithTokens("5", "user", 100),
+    ];
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      token: "",
+      messages: msgs,
+    });
+    expect(result.messagesToConvert).toEqual(msgs);
+    expect(result.summarySystemMessage).toBeNull();
+  });
+
+  it("returns all messages verbatim when message count <= minWindowMessages", async () => {
+    const msgs = [makeMsgWithTokens("1", "user", 100), makeMsgWithTokens("2", "assistant", 100)];
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      messages: msgs,
+    });
+    expect(result.messagesToConvert).toEqual(msgs);
+    expect(result.summarySystemMessage).toBeNull();
+  });
+
+  it("performs summarization when over threshold", async () => {
+    const msgs = Array.from({ length: 10 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+    );
+    mockedGetSummary.mockResolvedValueOnce(null);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: "Test summary." } }] }),
+    } as Response);
+
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      messages: msgs,
+    });
+
+    expect(result.summarySystemMessage).not.toBeNull();
+    expect(result.messagesToConvert.length).toBeLessThan(msgs.length);
+    expect(mockedUpsertSummary).toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("re-injects system messages into the window (M2 fix)", async () => {
+    const msgs = [
+      makeMsgWithTokens("1", "user", 500),
+      makeMsgWithTokens("2", "assistant", 500),
+      makeMsg("3", "system", "You are a helpful assistant"),
+      makeMsgWithTokens("4", "user", 500),
+      makeMsgWithTokens("5", "assistant", 500),
+      makeMsgWithTokens("6", "user", 500),
+    ];
+    mockedGetSummary.mockResolvedValueOnce(null);
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
+    } as Response);
+
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      summaryMinWindowMessages: 2,
+      messages: msgs,
+    });
+
+    // System message at index 3 should be re-injected if it's in the window range
+    const roles = result.messagesToConvert.map((m) => m.role);
+    if (result.messagesToConvert.length < msgs.length) {
+      // If summarization happened, check system messages are preserved in window
+      const hasSystem = roles.includes("system");
+      // The system message at index 3 should be included if msgs 4+ are in the window
+      const windowIds = result.messagesToConvert.map((m) => m.uniqueId);
+      if (windowIds.includes("4") || windowIds.includes("5") || windowIds.includes("6")) {
+        expect(hasSystem).toBe(true);
+      }
+    }
+
+    fetchSpy.mockRestore();
+  });
+
+  it("concurrent calls await the in-progress result (H3 fix)", async () => {
+    const msgs = Array.from({ length: 10 }, (_, i) =>
+      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+    );
+    mockedGetSummary.mockResolvedValue(null);
+
+    let resolveFirst: (value: Response) => void;
+    const firstCallPromise = new Promise<Response>((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    let fetchCallCount = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      fetchCallCount++;
+      if (fetchCallCount === 1) return firstCallPromise;
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
+      } as Response);
+    });
+
+    // Launch two concurrent calls
+    const promise1 = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+    const promise2 = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+
+    // Resolve the first call
+    resolveFirst!({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: "Summary." } }] }),
+    } as Response);
+
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+
+    // Both should get the same result (second awaits the first)
+    expect(result1).toEqual(result2);
+    // Only one fetch should have been made (not two)
+    expect(fetchCallCount).toBe(1);
+
+    fetchSpy.mockRestore();
   });
 });

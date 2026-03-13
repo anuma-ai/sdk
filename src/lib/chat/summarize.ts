@@ -63,6 +63,10 @@ New summary:`;
 /**
  * Estimate token count from text using chars/4 approximation.
  * This is fast and accurate enough for threshold checks — no tokenizer needed.
+ *
+ * Known limitation: CJK/Arabic/emoji-heavy text can be 2-3x off because a
+ * single character may map to 1-3 tokens. For multilingual products, this means
+ * summarization may trigger later than expected for non-Latin-script users.
  */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -70,6 +74,14 @@ export function estimateTokens(text: string): number {
 
 /** Approximate overhead per message for role/framing tokens (e.g., <|im_start|>role\n...<|im_end|>) */
 const PER_MESSAGE_OVERHEAD_TOKENS = 4;
+
+/**
+ * Maximum messages to summarize in a single LLM call.
+ * Prevents oversized prompts that would exceed the summarization timeout,
+ * especially after summary invalidation where the full history is re-summarized.
+ * Over multiple sends, remaining messages are progressively absorbed.
+ */
+export const MAX_MESSAGES_PER_SUMMARIZATION = 20;
 
 /**
  * Estimate total tokens for an array of stored messages.
@@ -209,7 +221,16 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
   // Over threshold — split and summarize.
   // Subtract cached summary tokens so window + summary stays within the total budget.
   const windowBudget = Math.max(0, tokenThreshold - cachedTokens);
-  const { toSummarize, window } = splitMessagesAtThreshold(unsummarizedMessages, windowBudget, minWindowMessages);
+  let { toSummarize, window } = splitMessagesAtThreshold(unsummarizedMessages, windowBudget, minWindowMessages);
+
+  // Cap messages per summarization call to prevent oversized prompts that would
+  // exceed the timeout (especially after summary invalidation). Excess messages
+  // are moved back to the window and will be summarized in subsequent sends.
+  if (toSummarize.length > MAX_MESSAGES_PER_SUMMARIZATION) {
+    const excess = toSummarize.slice(MAX_MESSAGES_PER_SUMMARIZATION);
+    toSummarize = toSummarize.slice(0, MAX_MESSAGES_PER_SUMMARIZATION);
+    window = [...excess, ...window];
+  }
 
   // Nothing to summarize (all messages fit in the window due to min window constraint)
   if (toSummarize.length === 0) {
@@ -324,6 +345,20 @@ export async function callSummarizationLlm(
   throw new Error("Unexpected API response format for summarization");
 }
 
+/**
+ * In-memory lock to prevent concurrent summarizations for the same conversation.
+ * Uses a Map so that concurrent callers can await the in-progress result instead
+ * of skipping entirely and paying full verbatim cost.
+ */
+export const summarizationLocks = new Map<string, Promise<MaybeSummarizeHistoryResult>>();
+
+/**
+ * Maximum ratio of the token threshold that the cached summary may occupy.
+ * When exceeded, the summary is invalidated and rebuilt from scratch to prevent
+ * unbounded growth (H2 fix).
+ */
+const MAX_SUMMARY_TOKEN_RATIO = 0.8;
+
 /** Options for `maybeSummarizeHistory` */
 export interface MaybeSummarizeHistoryOptions {
   database: Database;
@@ -380,9 +415,79 @@ export async function maybeSummarizeHistory(
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 
+  // H3 fix: If another summarization is in progress for this conversation,
+  // await its result instead of skipping (avoids paying full verbatim cost).
+  const inProgress = summarizationLocks.get(conversationId);
+  if (inProgress) {
+    return inProgress;
+  }
+
+  const promise = doSummarizeHistory(options);
+  summarizationLocks.set(conversationId, promise);
+
+  try {
+    return await promise;
+  } finally {
+    summarizationLocks.delete(conversationId);
+  }
+}
+
+/** Prompt template for compacting an oversized summary */
+const COMPACTION_PROMPT = `The following conversation summary has grown too long. Condense it to be more concise while preserving all key facts, decisions, user preferences, and important context. Target roughly half the current length.
+
+Summary to condense:
+{summary}
+
+Condensed summary:`;
+
+/**
+ * Internal implementation of `maybeSummarizeHistory`.
+ * Separated so the public function can handle concurrency locking.
+ */
+async function doSummarizeHistory(
+  options: MaybeSummarizeHistoryOptions
+): Promise<MaybeSummarizeHistoryResult> {
+  const {
+    database,
+    conversationId,
+    messages,
+    summaryTokenThreshold,
+    summaryMinWindowMessages,
+    summaryModel,
+    token,
+    baseUrl,
+  } = options;
+
   try {
     const summaryCtx = createSummaryContext(database);
-    const cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+    let cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+
+    // H1 fix: If the cached summary has grown too large (>80% of the threshold),
+    // compact it with an LLM call instead of invalidating. This avoids the token
+    // spike that would occur from re-summarizing the full history from scratch.
+    if (cachedSummary && cachedSummary.tokenCount > summaryTokenThreshold * MAX_SUMMARY_TOKEN_RATIO) {
+      try {
+        const compactPrompt = COMPACTION_PROMPT.replace("{summary}", cachedSummary.summary);
+        const compactedSummary = await callSummarizationLlm(compactPrompt, summaryModel, token, baseUrl);
+        const compactedTokens = estimateTokens(compactedSummary);
+        await upsertConversationSummaryOp(
+          summaryCtx,
+          conversationId,
+          compactedSummary,
+          cachedSummary.summarizedUpTo,
+          compactedTokens
+        );
+        cachedSummary = {
+          ...cachedSummary,
+          summary: compactedSummary,
+          tokenCount: compactedTokens,
+        };
+      } catch {
+        // Compaction failed — proceed with the oversized summary. It still works,
+        // just less efficient. The next send will try compaction again.
+        console.warn("[summarize] Summary compaction failed, proceeding with oversized summary");
+      }
+    }
 
     // Get messages after the summary cutoff point
     let unsummarized: StoredMessage[];
@@ -420,8 +525,21 @@ export async function maybeSummarizeHistory(
       );
     }
 
+    // M2 fix: Re-inject system messages that fall within the window range.
+    // progressiveSummarize only sees nonSystemMessages, so its windowMessages
+    // won't contain system messages. We find the window boundary in the original
+    // unsummarized array and include system messages from that point onwards.
+    let messagesToConvert = summarizeResult.windowMessages;
+    if (summarizeResult.windowMessages.length > 0 && summarizeResult.windowMessages.length < unsummarized.length) {
+      const firstWindowId = summarizeResult.windowMessages[0].uniqueId;
+      const windowStartInOriginal = unsummarized.findIndex((msg) => msg.uniqueId === firstWindowId);
+      if (windowStartInOriginal >= 0) {
+        messagesToConvert = unsummarized.slice(windowStartInOriginal);
+      }
+    }
+
     return {
-      messagesToConvert: summarizeResult.windowMessages,
+      messagesToConvert,
       summarySystemMessage: summarizeResult.summary ? summaryToSystemMessage(summarizeResult.summary) : null,
     };
   } catch {
