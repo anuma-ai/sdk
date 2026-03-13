@@ -178,7 +178,7 @@ Use this to show activity indicators like "Searching..." in the UI.
 </td>
 <td>
 
-(`event`: `StepFinishEvent`) => `void`
+(`event`: [`StepFinishEvent`](../Internal/type-aliases/StepFinishEvent.md)) => `void`
 
 </td>
 <td>
