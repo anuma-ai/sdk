@@ -146,7 +146,10 @@ export function splitMessagesAtThreshold(
   }
 
   let cumulativeTokens = 0;
-  let cutoffIndex = messages.length; // Start assuming everything is in the window
+  // Initialize to messages.length so that if the loop reaches i=0 without
+  // finding a split point, the i=0 branch sets cutoffIndex=0 (everything in window).
+  // This initial value is never used as-is — the loop always completes.
+  let cutoffIndex = messages.length;
 
   // Walk backwards from the most recent message.
   // Note: the message that pushes over the threshold is placed in toSummarize (conservative).

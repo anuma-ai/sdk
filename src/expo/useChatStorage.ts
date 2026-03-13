@@ -1034,6 +1034,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Determine which messages to send: summarized + window or all verbatim.
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
+        if (summarizeHistory && !getToken) {
+          console.warn("[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped");
+        }
         const summaryToken = summarizeHistory && getToken ? await getToken() : null;
         const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
           database,
