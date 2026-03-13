@@ -141,5 +141,3 @@ vite.config.ts.timestamp-*
 # API Extractor temp and output files
 temp/
 etc/
-
-.key

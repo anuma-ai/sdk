@@ -68,7 +68,9 @@ async function getServiceAccountToken(key: ServiceAccountKey): Promise<string> {
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-  throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY is required. Add it to .env or set the environment variable.");
+  throw new Error(
+    "GOOGLE_SERVICE_ACCOUNT_KEY is required. Add it to .env or set the environment variable."
+  );
 }
 const serviceKey: ServiceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 
@@ -87,13 +89,10 @@ const requestCalendarAccess = async () => ensureToken();
 
 async function deleteEvent(eventId: string) {
   const token = await ensureToken();
-  await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+  await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 /**
