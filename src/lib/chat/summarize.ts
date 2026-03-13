@@ -451,17 +451,7 @@ interface MaybeSummarizeHistoryResult {
 export async function maybeSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
 ): Promise<MaybeSummarizeHistoryResult> {
-  const {
-    database,
-    conversationId,
-    messages,
-    summarizeHistory,
-    summaryTokenThreshold,
-    summaryMinWindowMessages,
-    summaryModel,
-    token,
-    baseUrl,
-  } = options;
+  const { conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } = options;
 
   if (!summarizeHistory || messages.length <= summaryMinWindowMessages) {
     return { messagesToConvert: messages, summarySystemMessage: null };
