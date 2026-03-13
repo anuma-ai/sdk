@@ -13,7 +13,7 @@ to other processors for supported file types
 
 ### Constructor
 
-> **new ZipProcessor**(`options`: [`ZipProcessorOptions`](../interfaces/ZipProcessorOptions.md)): `ZipProcessor`
+> **new ZipProcessor**(`options?`: [`ZipProcessorOptions`](../interfaces/ZipProcessorOptions.md)): `ZipProcessor`
 
 Defined in: [src/lib/processors/ZipProcessor.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#41)
 

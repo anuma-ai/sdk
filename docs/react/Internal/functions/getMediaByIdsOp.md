@@ -1,6 +1,6 @@
 # getMediaByIdsOp
 
-> **getMediaByIdsOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaIds`: `string`\[], `includeDeleted`: `boolean`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
+> **getMediaByIdsOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaIds`: `string`\[], `includeDeleted?`: `boolean`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
 Defined in: [src/lib/db/media/operations.ts:529](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#529)
 

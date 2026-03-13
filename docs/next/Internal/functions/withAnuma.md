@@ -1,6 +1,6 @@
 # withAnuma
 
-> **withAnuma**(`nextConfig`: `Record`<`string`, `any`>): `object`
+> **withAnuma**(`nextConfig?`: `Record`<`string`, `any`>): `object`
 
 Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/next/index.ts#22)
 

@@ -1,6 +1,6 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `22` = `22`
+> `const` **SDK\_SCHEMA\_VERSION**: `23` = `23`
 
 Defined in: [src/lib/db/schema.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#45)
 

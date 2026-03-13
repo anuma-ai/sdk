@@ -1,6 +1,6 @@
 # decryptDataBytes
 
-> **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
+> **decryptDataBytes**(`encryptedHex`: `string`, `address`: `string`, `version?`: `EncryptionKeyVersion`): `Promise`<`Uint8Array`<`ArrayBufferLike`>>
 
 Defined in: [src/react/useEncryption.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#518)
 

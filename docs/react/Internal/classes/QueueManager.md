@@ -332,7 +332,7 @@ Pause the queue for a wallet (stops flush mid-way).
 
 ### queueOperation()
 
-> **queueOperation**(`walletAddress`: `string`, `type`: [`QueuedOperationType`](../type-aliases/QueuedOperationType.md), `payload`: `Record`<`string`, `any`>, `dependencies`: `string`\[], `maxRetries`: `number`): `string` | `null`
+> **queueOperation**(`walletAddress`: `string`, `type`: [`QueuedOperationType`](../type-aliases/QueuedOperationType.md), `payload`: `Record`<`string`, `any`>, `dependencies?`: `string`\[], `maxRetries?`: `number`): `string` | `null`
 
 Defined in: [src/lib/db/queue/manager.ts:129](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#129)
 

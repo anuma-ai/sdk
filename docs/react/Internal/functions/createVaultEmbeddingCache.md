@@ -1,6 +1,6 @@
 # createVaultEmbeddingCache
 
-> **createVaultEmbeddingCache**(`maxSize`: `number`): [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
+> **createVaultEmbeddingCache**(`maxSize?`: `number`): [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md)
 
 Defined in: [src/lib/memoryVault/lruCache.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/lruCache.ts#45)
 

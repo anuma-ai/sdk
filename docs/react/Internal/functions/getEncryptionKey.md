@@ -1,6 +1,6 @@
 # getEncryptionKey
 
-> **getEncryptionKey**(`address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`CryptoKey`>
+> **getEncryptionKey**(`address`: `string`, `version?`: `EncryptionKeyVersion`): `Promise`<`CryptoKey`>
 
 Defined in: [src/react/useEncryption.ts:399](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#399)
 

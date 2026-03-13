@@ -1,6 +1,6 @@
 # UseChatStorageOptions
 
-Defined in: [src/react/useChatStorage.ts:385](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#385)
+Defined in: [src/react/useChatStorage.ts:392](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#392)
 
 Options for useChatStorage hook (React version)
 
@@ -16,7 +16,7 @@ Extends base options with apiType support.
 
 > `optional` **apiType**: `ApiType`
 
-Defined in: [src/react/useChatStorage.ts:391](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#391)
+Defined in: [src/react/useChatStorage.ts:398](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#398)
 
 Which API endpoint to use. Default: "responses"
 
@@ -29,7 +29,7 @@ Which API endpoint to use. Default: "responses"
 
 > `optional` **autoCreateConversation**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:273](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#273)
+Defined in: [src/lib/db/chat/types.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#295)
 
 Automatically create a new conversation if none is set (default: true)
 
@@ -43,7 +43,7 @@ Automatically create a new conversation if none is set (default: true)
 
 > `optional` **autoEmbedMessages**: `boolean`
 
-Defined in: [src/lib/db/chat/types.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#326)
+Defined in: [src/lib/db/chat/types.ts:348](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#348)
 
 Automatically generate embeddings for messages after saving.
 Enables semantic search over past conversations via searchMessages().
@@ -64,7 +64,7 @@ true
 
 > `optional` **autoFlushOnKeyAvailable**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:440](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#440)
+Defined in: [src/react/useChatStorage.ts:447](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#447)
 
 Automatically flush queued operations when the encryption key becomes
 available. Requires `enableQueue` to be true.
@@ -81,7 +81,7 @@ true
 
 > `optional` **baseUrl**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#279)
+Defined in: [src/lib/db/chat/types.ts:301](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#301)
 
 Base URL for the chat API endpoint
 
@@ -95,7 +95,7 @@ Base URL for the chat API endpoint
 
 > `optional` **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#271)
+Defined in: [src/lib/db/chat/types.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#293)
 
 ID of an existing conversation to load and continue
 
@@ -109,7 +109,7 @@ ID of an existing conversation to load and continue
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/chat/types.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#269)
+Defined in: [src/lib/db/chat/types.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#291)
 
 WatermelonDB database instance for storing conversations and messages
 
@@ -123,7 +123,7 @@ WatermelonDB database instance for storing conversations and messages
 
 > `optional` **defaultConversationTitle**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#275)
+Defined in: [src/lib/db/chat/types.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#297)
 
 Title for auto-created conversations (default: "New conversation")
 
@@ -137,7 +137,7 @@ Title for auto-created conversations (default: "New conversation")
 
 > `optional` **embeddedWalletSigner**: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)
 
-Defined in: [src/react/useChatStorage.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#418)
+Defined in: [src/react/useChatStorage.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#425)
 
 Function for silent signing with Privy embedded wallets.
 When provided, enables automatic encryption key derivation without
@@ -149,7 +149,7 @@ user confirmation modals.
 
 > `optional` **embeddingModel**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#331)
+Defined in: [src/lib/db/chat/types.ts:353](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#353)
 
 Embedding model to use when autoEmbedMessages is enabled.
 
@@ -169,7 +169,7 @@ DEFAULT_API_EMBEDDING_MODEL
 
 > `optional` **enableQueue**: `boolean`
 
-Defined in: [src/react/useChatStorage.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#433)
+Defined in: [src/react/useChatStorage.ts:440](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#440)
 
 Enable the in-memory write queue for operations when encryption key
 isn't yet available. When enabled, operations are held in memory and
@@ -187,7 +187,7 @@ true
 
 > `optional` **fileProcessingOptions**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#303)
+Defined in: [src/lib/db/chat/types.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#325)
 
 Options for file preprocessing behavior
 
@@ -319,7 +319,7 @@ Callback for progress updates
 
 > `optional` **fileProcessors**: `any`\[] | `null`
 
-Defined in: [src/lib/db/chat/types.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#299)
+Defined in: [src/lib/db/chat/types.ts:321](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#321)
 
 File preprocessors to use for automatic text extraction.
 
@@ -337,7 +337,7 @@ File preprocessors to use for automatic text extraction.
 
 > `optional` **getToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/lib/db/chat/types.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#277)
+Defined in: [src/lib/db/chat/types.ts:299](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#299)
 
 Function to retrieve the auth token for API requests
 
@@ -355,7 +355,7 @@ Function to retrieve the auth token for API requests
 
 > `optional` **getWalletAddress**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useChatStorage.ts:425](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#425)
+Defined in: [src/react/useChatStorage.ts:432](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#432)
 
 Async function that returns the wallet address when available.
 Used for polling during Privy embedded wallet initialization.
@@ -371,7 +371,7 @@ When the wallet isn't ready yet, should return null.
 
 > `optional` **mcpR2Domain**: `string`
 
-Defined in: [src/lib/db/chat/types.ts:343](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#343)
+Defined in: [src/lib/db/chat/types.ts:365](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#365)
 
 R2 domain for identifying MCP-generated image URLs.
 When set, enables OPFS caching of generated images.
@@ -387,7 +387,7 @@ Defaults to the hardcoded MCP\_R2\_DOMAIN from clientConfig.
 
 > `optional` **minContentLength**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#337)
+Defined in: [src/lib/db/chat/types.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#359)
 
 Minimum content length required to generate embeddings.
 Messages shorter than this are skipped as they provide limited semantic value.
@@ -408,7 +408,7 @@ Messages shorter than this are skipped as they provide limited semantic value.
 
 > `optional` **onData**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#281)
+Defined in: [src/lib/db/chat/types.ts:303](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#303)
 
 Callback invoked with each streamed response chunk
 
@@ -451,7 +451,7 @@ Callback invoked with each streamed response chunk
 
 > `optional` **onError**: (`error`: `Error`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:287](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#287)
+Defined in: [src/lib/db/chat/types.ts:309](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#309)
 
 Callback invoked when an error occurs during the request
 
@@ -494,7 +494,7 @@ Callback invoked when an error occurs during the request
 
 > `optional` **onFinish**: (`response`: [`LlmapiResponseResponse`](../../../client/Internal/type-aliases/LlmapiResponseResponse.md)) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:285](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#285)
+Defined in: [src/lib/db/chat/types.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#307)
 
 Callback invoked when the response completes successfully
 
@@ -537,7 +537,7 @@ Callback invoked when the response completes successfully
 
 > `optional` **onServerToolCall**: (`toolCall`: `ServerToolCallEvent`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:292](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#292)
+Defined in: [src/lib/db/chat/types.ts:314](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#314)
 
 Callback invoked when a server-side tool (MCP) is called during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
@@ -581,7 +581,7 @@ Use this to show activity indicators like "Searching..." in the UI.
 
 > `optional` **onThinking**: (`chunk`: `string`) => `void`
 
-Defined in: [src/lib/db/chat/types.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#283)
+Defined in: [src/lib/db/chat/types.ts:305](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#305)
 
 Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
 
@@ -624,7 +624,7 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 
 > `optional` **serverTools**: `object`
 
-Defined in: [src/lib/db/chat/types.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#317)
+Defined in: [src/lib/db/chat/types.ts:339](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#339)
 
 Configuration for server-side tools fetching and caching.
 Server tools are fetched from /api/v1/tools and cached in localStorage.
@@ -645,7 +645,7 @@ Cache expiration time in milliseconds (default: 86400000 = 1 day)
 
 > `optional` **signMessage**: [`SignMessageFn`](../type-aliases/SignMessageFn.md)
 
-Defined in: [src/react/useChatStorage.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#411)
+Defined in: [src/react/useChatStorage.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#418)
 
 Function to sign a message for encryption key derivation.
 Typically from Privy's useSignMessage hook.
@@ -657,7 +657,7 @@ Required together with walletAddress for field-level encryption.
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useChatStorage.ts:404](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#404)
+Defined in: [src/react/useChatStorage.ts:411](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#411)
 
 Wallet address for encrypted file storage and field-level encryption.
 When provided with signMessage, all sensitive message content, conversation titles,

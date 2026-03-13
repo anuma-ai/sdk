@@ -5,7 +5,7 @@ import { ConversationSummary } from "./models";
 import type { StoredConversationSummary } from "./types";
 
 /** Context needed for summary operations */
-export interface SummaryOperationsContext {
+interface SummaryOperationsContext {
   database: Database;
   summariesCollection: Collection<ConversationSummary>;
 }

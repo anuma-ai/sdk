@@ -89,7 +89,10 @@ export const MAX_MESSAGES_PER_SUMMARIZATION = 20;
  * Includes a per-message overhead for role/framing tokens that chat models add.
  */
 export function estimateMessagesTokens(messages: StoredMessage[]): number {
-  return messages.reduce((sum, msg) => sum + estimateTokens(msg.content) + PER_MESSAGE_OVERHEAD_TOKENS, 0);
+  return messages.reduce(
+    (sum, msg) => sum + estimateTokens(msg.content) + PER_MESSAGE_OVERHEAD_TOKENS,
+    0
+  );
 }
 
 /**
@@ -118,7 +121,10 @@ function formatMessagesForPrompt(messages: StoredMessage[]): string {
 /**
  * Build the full summarization prompt with template variables filled in.
  */
-function buildSummarizationPrompt(existingSummary: string | undefined, newMessages: StoredMessage[]): string {
+function buildSummarizationPrompt(
+  existingSummary: string | undefined,
+  newMessages: StoredMessage[]
+): string {
   const summary = existingSummary || "No previous summary.";
   const newLines = formatMessagesForPrompt(newMessages);
   // Split on placeholders to avoid chained .replace() — prevents corruption if
@@ -157,7 +163,10 @@ export function splitMessagesAtThreshold(
   // This means the window is always strictly under the threshold, never at it.
   for (let i = messages.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(messages[i].content) + PER_MESSAGE_OVERHEAD_TOKENS;
-    if (cumulativeTokens + msgTokens > tokenThreshold && messages.length - i - 1 >= minWindowMessages) {
+    if (
+      cumulativeTokens + msgTokens > tokenThreshold &&
+      messages.length - i - 1 >= minWindowMessages
+    ) {
       cutoffIndex = i + 1;
       break;
     }
@@ -175,7 +184,7 @@ export function splitMessagesAtThreshold(
 }
 
 /** Options for the progressive summarization call */
-export interface SummarizeOptions {
+interface SummarizeOptions {
   /** Existing cached summary (null on first summarization) */
   cachedSummary: StoredConversationSummary | null;
   /** Messages that haven't been summarized yet */
@@ -191,7 +200,7 @@ export interface SummarizeOptions {
 }
 
 /** Result of progressive summarization */
-export interface SummarizeResult {
+interface SummarizeResult {
   /** The new/updated summary text (null if no summarization needed) */
   summary: string | null;
   /** uniqueId of the last message included in the summary */
@@ -214,7 +223,8 @@ export interface SummarizeResult {
  * Falls back gracefully: if summarization fails, returns all messages verbatim.
  */
 export async function progressiveSummarize(options: SummarizeOptions): Promise<SummarizeResult> {
-  const { cachedSummary, unsummarizedMessages, tokenThreshold, minWindowMessages, callLlm, model } = options;
+  const { cachedSummary, unsummarizedMessages, tokenThreshold, minWindowMessages, callLlm, model } =
+    options;
 
   const cachedTokens = cachedSummary?.tokenCount ?? 0;
   const messagesTokens = estimateMessagesTokens(unsummarizedMessages);
@@ -234,7 +244,11 @@ export async function progressiveSummarize(options: SummarizeOptions): Promise<S
   // Over threshold — split and summarize.
   // Subtract cached summary tokens so window + summary stays within the total budget.
   const windowBudget = Math.max(0, tokenThreshold - cachedTokens);
-  let { toSummarize, window } = splitMessagesAtThreshold(unsummarizedMessages, windowBudget, minWindowMessages);
+  let { toSummarize, window } = splitMessagesAtThreshold(
+    unsummarizedMessages,
+    windowBudget,
+    minWindowMessages
+  );
 
   // Cap messages per summarization call to prevent oversized prompts that would
   // exceed the timeout (especially after summary invalidation). Excess messages
@@ -404,7 +418,7 @@ const COMPACTION_COOLDOWN_MS = 60_000;
 const MAX_SUMMARY_TOKEN_RATIO = 0.8;
 
 /** Options for `maybeSummarizeHistory` */
-export interface MaybeSummarizeHistoryOptions {
+interface MaybeSummarizeHistoryOptions {
   database: Database;
   conversationId: string;
   messages: StoredMessage[];
@@ -419,7 +433,7 @@ export interface MaybeSummarizeHistoryOptions {
 }
 
 /** Result of `maybeSummarizeHistory` */
-export interface MaybeSummarizeHistoryResult {
+interface MaybeSummarizeHistoryResult {
   /** Messages to convert and send (window messages if summarized, all if not) */
   messagesToConvert: StoredMessage[];
   /** Summary system message to prepend, or null if no summary */
@@ -542,7 +556,12 @@ async function doSummarizeHistory(
         // if the summary contains $&, $', or $` characters.
         const [before, after] = COMPACTION_PROMPT.split("{summary}");
         const compactPrompt = before + cachedSummary.summary + after;
-        const compactedSummary = await callSummarizationLlm(compactPrompt, summaryModel, token, baseUrl);
+        const compactedSummary = await callSummarizationLlm(
+          compactPrompt,
+          summaryModel,
+          token,
+          baseUrl
+        );
         const compactedTokens = estimateTokens(compactedSummary);
         await upsertConversationSummaryOp(
           summaryCtx,
@@ -568,7 +587,9 @@ async function doSummarizeHistory(
     // Get messages after the summary cutoff point
     let unsummarized: StoredMessage[];
     if (cachedSummary?.summarizedUpTo) {
-      const cutoffIndex = messages.findIndex((msg) => msg.uniqueId === cachedSummary.summarizedUpTo);
+      const cutoffIndex = messages.findIndex(
+        (msg) => msg.uniqueId === cachedSummary.summarizedUpTo
+      );
       if (cutoffIndex >= 0) {
         unsummarized = messages.slice(cutoffIndex + 1);
       } else {
@@ -614,7 +635,10 @@ async function doSummarizeHistory(
     // won't contain system messages. We find the window boundary in the original
     // unsummarized array and include system messages from that point onwards.
     let messagesToConvert = summarizeResult.windowMessages;
-    if (summarizeResult.windowMessages.length > 0 && summarizeResult.windowMessages.length < unsummarized.length) {
+    if (
+      summarizeResult.windowMessages.length > 0 &&
+      summarizeResult.windowMessages.length < unsummarized.length
+    ) {
       const firstWindowId = summarizeResult.windowMessages[0].uniqueId;
       const windowStartInOriginal = unsummarized.findIndex((msg) => msg.uniqueId === firstWindowId);
       if (windowStartInOriginal >= 0) {
@@ -624,7 +648,9 @@ async function doSummarizeHistory(
 
     return {
       messagesToConvert,
-      summarySystemMessage: summarizeResult.summary ? summaryToSystemMessage(summarizeResult.summary) : null,
+      summarySystemMessage: summarizeResult.summary
+        ? summaryToSystemMessage(summarizeResult.summary)
+        : null,
     };
   } catch (err) {
     // Summarization failed — fall back to sending all messages verbatim.
@@ -638,7 +664,10 @@ async function doSummarizeHistory(
  * Delete the conversation summary cache. Logs a warning on failure
  * rather than throwing, since this is a cascade cleanup operation.
  */
-export async function cleanupConversationSummary(database: Database, conversationId: string): Promise<void> {
+export async function cleanupConversationSummary(
+  database: Database,
+  conversationId: string
+): Promise<void> {
   try {
     const summaryCtx = createSummaryContext(database);
     await deleteConversationSummaryOp(summaryCtx, conversationId);

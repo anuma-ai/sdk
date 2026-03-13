@@ -1,6 +1,6 @@
 # useModels
 
-> **useModels**(`options`: `object`): [`UseModelsResult`](../Internal/type-aliases/UseModelsResult.md)
+> **useModels**(`options?`: `object`): [`UseModelsResult`](../Internal/type-aliases/UseModelsResult.md)
 
 Defined in: [src/react/useModels.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useModels.ts#43)
 

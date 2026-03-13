@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
-import { getConversationSummaryOp, upsertConversationSummaryOp } from "../db/chat/summaryOperations";
+import {
+  getConversationSummaryOp,
+  upsertConversationSummaryOp,
+} from "../db/chat/summaryOperations";
 
 import {
   callSummarizationLlm,
@@ -24,7 +27,11 @@ vi.mock("../db/chat/summaryOperations", () => ({
 }));
 
 /** Helper to create a minimal StoredMessage for testing */
-function makeMsg(id: string, role: "user" | "assistant" | "system", content: string): StoredMessage {
+function makeMsg(
+  id: string,
+  role: "user" | "assistant" | "system",
+  content: string
+): StoredMessage {
   return {
     uniqueId: id,
     conversationId: "conv-1",
@@ -233,7 +240,10 @@ describe("progressiveSummarize", () => {
     expect(result.windowMessages.length).toBeGreaterThan(0);
     expect(result.windowMessages.length).toBeLessThan(msgs.length);
     expect(callLlm).toHaveBeenCalledOnce();
-    expect(callLlm).toHaveBeenCalledWith(expect.stringContaining("Current summary:"), "gemini-flash");
+    expect(callLlm).toHaveBeenCalledWith(
+      expect.stringContaining("Current summary:"),
+      "gemini-flash"
+    );
   });
 
   it("sets summarizedUpTo to the last summarized message ID", async () => {
@@ -435,7 +445,12 @@ describe("callSummarizationLlm", () => {
       json: () => Promise.resolve(mockResponse),
     } as Response);
 
-    const result = await callSummarizationLlm("summarize this", "gemini-flash", "test-token", "https://api.test");
+    const result = await callSummarizationLlm(
+      "summarize this",
+      "gemini-flash",
+      "test-token",
+      "https://api.test"
+    );
 
     expect(result).toBe("This is a summary.");
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -555,8 +570,13 @@ describe("progressiveSummarize — message cap per summarization", () => {
     // The prompt's "New lines of conversation" section should only contain
     // at most MAX_MESSAGES_PER_SUMMARIZATION messages (exclude the template example)
     const promptArg = callLlm.mock.calls[0]?.[0] as string;
-    const newLinesSection = promptArg.split("New lines of conversation:\n").pop()!.split("\n\nNew summary:")[0];
-    const conversationLines = newLinesSection.split("\n").filter((l: string) => l.startsWith("Human:") || l.startsWith("AI:"));
+    const newLinesSection = promptArg
+      .split("New lines of conversation:\n")
+      .pop()!
+      .split("\n\nNew summary:")[0];
+    const conversationLines = newLinesSection
+      .split("\n")
+      .filter((l: string) => l.startsWith("Human:") || l.startsWith("AI:"));
     expect(conversationLines.length).toBeLessThanOrEqual(MAX_MESSAGES_PER_SUMMARIZATION);
   });
 
@@ -842,7 +862,8 @@ describe("maybeSummarizeHistory", () => {
         // First call = compaction
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ choices: [{ message: { content: "Compacted summary." } }] }),
+          json: () =>
+            Promise.resolve({ choices: [{ message: { content: "Compacted summary." } }] }),
         } as Response);
       }
       // Second call = regular summarization (if needed)
