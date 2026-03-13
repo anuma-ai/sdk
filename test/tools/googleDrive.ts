@@ -20,7 +20,12 @@ import { createGoogleTokenManager } from "./googleAuth.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-const SHARED_DRIVE_ID = process.env.GOOGLE_SHARED_DRIVE_ID || "0AGHJLkMBeCEPUk9PVA";
+if (!process.env.GOOGLE_SHARED_DRIVE_ID) {
+  throw new Error(
+    "GOOGLE_SHARED_DRIVE_ID is required. Add it to .env or set the environment variable."
+  );
+}
+const SHARED_DRIVE_ID = process.env.GOOGLE_SHARED_DRIVE_ID;
 
 const auth = createGoogleTokenManager("https://www.googleapis.com/auth/drive");
 let testFileId: string | null = null;
