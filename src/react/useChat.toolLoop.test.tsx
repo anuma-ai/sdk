@@ -457,7 +457,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // Tool should still be present since it failed
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name);
+    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).toContain("flaky_tool");
   });
 
@@ -554,7 +554,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // Continuation should still have web_search but not memory_save
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name);
+    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).not.toContain("memory_save");
     expect(toolNames).toContain("web_search");
   });
