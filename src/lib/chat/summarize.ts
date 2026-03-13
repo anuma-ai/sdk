@@ -109,7 +109,7 @@ export function estimateMessagesTokens(messages: StoredMessage[]): number {
 function isToolCallJson(content: string): boolean {
   if (!content.startsWith("{")) return false;
   try {
-    const parsed = JSON.parse(content);
+    const parsed: unknown = JSON.parse(content);
     return typeof parsed === "object" && parsed !== null && "tool_calls" in parsed;
   } catch {
     return false;
