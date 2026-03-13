@@ -13,6 +13,7 @@ export interface GeolocateResult {
   isp: string;
   lat: number;
   lon: number;
+  timezone: string;
 }
 
 /**
@@ -24,7 +25,7 @@ export function createIpGeolocationTool(): ToolConfig {
     function: {
       name: "geolocate_ip",
       description:
-        "Look up the geographic location of an IP address. Returns country, city, ISP, and coordinates.",
+        "Look up the geographic location of an IP address. Returns country, city, ISP, coordinates, and timezone.",
       parameters: {
         type: "object",
         properties: {
@@ -58,6 +59,7 @@ export function createIpGeolocationTool(): ToolConfig {
           isp: data.isp,
           lat: data.lat,
           lon: data.lon,
+          timezone: data.timezone,
         };
       } catch (error) {
         return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;

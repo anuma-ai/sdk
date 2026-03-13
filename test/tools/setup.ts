@@ -12,6 +12,7 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
+import type { ToolConfig } from "../../src/lib/chat/useChat/types.js";
 import type { ApiType } from "../../src/lib/chat/useChat/strategies/types.js";
 
 const { values: parsedArgs } = parseArgs({
@@ -32,6 +33,8 @@ if (!config.portalKey) {
   console.error("PORTAL_API_KEY is required. Add it to .env or pass inline.");
   process.exit(1);
 }
+
+// ── Result helpers ───────────────────────────────────────────────────────────
 
 export function header(label: string) {
   console.log(`\n${"─".repeat(60)}\n  ${label}\n${"─".repeat(60)}`);
@@ -79,6 +82,39 @@ export function printResult(result: Awaited<ReturnType<typeof runToolLoop>>): bo
   }
   return true;
 }
+
+// ── Tool wrapping ────────────────────────────────────────────────────────────
+
+export type ToolCallLog = { name: string; args: Record<string, unknown>; result: unknown };
+
+export function wrapTool(tool: ToolConfig, log: ToolCallLog[]): ToolConfig {
+  const originalExecutor = tool.executor!;
+  const name = (tool as any).function.name;
+
+  tool.executor = async (a: Record<string, unknown>) => {
+    console.log(`  [executor] ${name} called: ${JSON.stringify(a)}`);
+    const result = await originalExecutor(a);
+    log.push({ name, args: a, result });
+    return typeof result === "string" ? result : JSON.stringify(result);
+  };
+
+  return tool;
+}
+
+// ── Assertions ───────────────────────────────────────────────────────────────
+
+export function assert(errors: string[], condition: boolean, message: string) {
+  if (!condition) errors.push(message);
+}
+
+export function printAssertions(errors: string[], passes: string[]) {
+  for (const e of errors) console.log(`  ✗ ${e}`);
+  if (errors.length === 0) {
+    for (const p of passes) console.log(`  ✓ ${p}`);
+  }
+}
+
+// ── Test runner ──────────────────────────────────────────────────────────────
 
 export type TestFn = () => Promise<boolean>;
 
