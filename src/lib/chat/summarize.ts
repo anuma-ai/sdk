@@ -77,9 +77,11 @@ export function estimateMessagesTokens(messages: StoredMessage[]): number {
 
 /**
  * Format stored messages as "Human: ..\nAI: .." for the summarization prompt.
+ * Skips system messages (they are re-injected fresh each request and shouldn't be summarized).
  */
 function formatMessagesForPrompt(messages: StoredMessage[]): string {
   return messages
+    .filter((msg) => msg.role !== "system")
     .map((msg) => {
       const role = msg.role === "user" ? "Human" : "AI";
       return `${role}: ${msg.content}`;
@@ -345,6 +347,12 @@ export async function maybeSummarizeHistory(
   } = options;
 
   if (!summarizeHistory || messages.length <= summaryMinWindowMessages) {
+    return { messagesToConvert: messages, summarySystemMessage: null };
+  }
+
+  // Skip summarization if no auth token — would silently fail with 401
+  if (!token) {
+    console.warn("[summarize] No auth token available, skipping summarization");
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 

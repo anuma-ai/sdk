@@ -57,13 +57,15 @@ export async function upsertConversationSummaryOp(
   summarizedUpTo: string,
   tokenCount: number
 ): Promise<StoredConversationSummary> {
-  const existing = await ctx.summariesCollection
-    .query(Q.where("conversation_id", conversationId))
-    .fetch();
-
   let record: ConversationSummary;
 
   await ctx.database.write(async () => {
+    // Query inside write() to prevent race conditions (two rapid sends
+    // both seeing length === 0 and creating duplicate rows).
+    const existing = await ctx.summariesCollection
+      .query(Q.where("conversation_id", conversationId))
+      .fetch();
+
     if (existing.length > 0) {
       record = await existing[0].update((rec) => {
         rec.summary = summary;

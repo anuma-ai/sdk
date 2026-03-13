@@ -12,7 +12,7 @@ import {
 } from "./summarize";
 
 /** Helper to create a minimal StoredMessage for testing */
-function makeMsg(id: string, role: "user" | "assistant", content: string): StoredMessage {
+function makeMsg(id: string, role: "user" | "assistant" | "system", content: string): StoredMessage {
   return {
     uniqueId: id,
     conversationId: "conv-1",
@@ -298,6 +298,33 @@ describe("progressiveSummarize", () => {
       expect.stringContaining("User asked about quantum computing."),
       "test"
     );
+  });
+
+  it("excludes system messages from the summarization prompt", async () => {
+    const msgs = [
+      makeMsg("1", "system", "You are a helpful assistant"),
+      makeMsgWithTokens("2", "user", 200),
+      makeMsgWithTokens("3", "assistant", 200),
+      makeMsgWithTokens("4", "user", 200),
+      makeMsgWithTokens("5", "assistant", 200),
+      makeMsgWithTokens("6", "user", 200),
+    ];
+    const callLlm = makeCallLlm("Summary without system prompt.");
+
+    await progressiveSummarize({
+      cachedSummary: null,
+      unsummarizedMessages: msgs,
+      tokenThreshold: 300,
+      minWindowMessages: 2,
+      callLlm,
+      model: "test",
+    });
+
+    // The prompt should NOT contain the system message content
+    const promptArg = callLlm.mock.calls[0]?.[0] as string;
+    expect(promptArg).not.toContain("You are a helpful assistant");
+    // But it should contain user/assistant messages
+    expect(promptArg).toContain("Human:");
   });
 
   it("returns no-op when all messages fit in window due to minWindowMessages", async () => {
