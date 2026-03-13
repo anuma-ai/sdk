@@ -472,9 +472,10 @@ interface MaybeSummarizeHistoryResult {
 export async function maybeSummarizeHistory(
   options: MaybeSummarizeHistoryOptions
 ): Promise<MaybeSummarizeHistoryResult> {
-  const { conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } = options;
+  const { database, conversationId, messages, summarizeHistory, summaryMinWindowMessages, token } =
+    options;
 
-  if (!summarizeHistory || messages.length <= summaryMinWindowMessages) {
+  if (!summarizeHistory) {
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 
@@ -482,6 +483,25 @@ export async function maybeSummarizeHistory(
   if (!token) {
     console.warn("[summarize] No auth token available, skipping summarization");
     return { messagesToConvert: messages, summarySystemMessage: null };
+  }
+
+  // When message count is at or below the minimum window, skip the LLM call but
+  // still return any cached summary. This handles the common case where
+  // maxHistoryMessages truncates loaded messages to a small window — without
+  // the cached summary, context from older (summarized) messages would be lost.
+  if (messages.length <= summaryMinWindowMessages) {
+    try {
+      const summaryCtx = createSummaryContext(database);
+      const cachedSummary = await getConversationSummaryOp(summaryCtx, conversationId);
+      return {
+        messagesToConvert: messages,
+        summarySystemMessage: cachedSummary?.summary
+          ? summaryToSystemMessage(cachedSummary.summary)
+          : null,
+      };
+    } catch {
+      return { messagesToConvert: messages, summarySystemMessage: null };
+    }
   }
 
   // H3 fix: If another summarization is in progress for this conversation,

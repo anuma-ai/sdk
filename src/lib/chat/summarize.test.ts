@@ -728,7 +728,7 @@ describe("maybeSummarizeHistory", () => {
     expect(result.summarySystemMessage).toBeNull();
   });
 
-  it("returns all messages verbatim when message count <= minWindowMessages", async () => {
+  it("returns all messages verbatim when message count <= minWindowMessages (no cached summary)", async () => {
     const msgs = [makeMsgWithTokens("1", "user", 100), makeMsgWithTokens("2", "assistant", 100)];
     const result = await maybeSummarizeHistory({
       ...baseOptions,
@@ -736,6 +736,29 @@ describe("maybeSummarizeHistory", () => {
     });
     expect(result.messagesToConvert).toEqual(msgs);
     expect(result.summarySystemMessage).toBeNull();
+  });
+
+  it("returns cached summary when message count <= minWindowMessages", async () => {
+    mockedGetSummary.mockResolvedValueOnce({
+      conversationId: "conv-1",
+      summary: "User discussed cross-chain DEX design with ZetaChain.",
+      summarizedUpTo: "old-msg-96",
+      tokenCount: 50,
+    });
+    const msgs = [makeMsgWithTokens("97", "user", 100), makeMsgWithTokens("98", "assistant", 100)];
+    const result = await maybeSummarizeHistory({
+      ...baseOptions,
+      messages: msgs,
+    });
+    expect(result.messagesToConvert).toEqual(msgs);
+    expect(result.summarySystemMessage).not.toBeNull();
+    expect(result.summarySystemMessage?.content).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          text: expect.stringContaining("cross-chain DEX design"),
+        }),
+      ])
+    );
   });
 
   it("performs summarization when over threshold", async () => {
