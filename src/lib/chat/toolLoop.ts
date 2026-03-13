@@ -22,7 +22,7 @@ import {
   validateMessages,
   validateModel,
 } from "./useChat/utils";
-import { getStrategy } from "./useChat/strategies";
+import { getStrategy, resolveApiType } from "./useChat/strategies";
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
@@ -47,7 +47,7 @@ export type RunToolLoopOptions = {
   baseUrl?: string;
   /** Additional headers to include with each request. */
   headers?: Record<string, string>;
-  /** Which API backend to use. @default "responses" */
+  /** Which API backend to use. @default "auto" */
   apiType?: ApiType;
   /** Controls randomness (0.0 to 2.0). */
   temperature?: number;
@@ -169,7 +169,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     token,
     baseUrl = BASE_URL,
     headers,
-    apiType = "responses",
+    apiType = "auto",
     temperature,
     maxOutputTokens,
     tools,
@@ -189,7 +189,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
   } = options;
 
-  const strategy = getStrategy(apiType);
+  const resolved = resolveApiType(apiType, model);
+  const strategy = getStrategy(resolved);
 
   // Validate inputs
   const messagesValidation = validateMessages(messages);

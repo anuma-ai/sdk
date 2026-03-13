@@ -49,7 +49,7 @@ type SendMessageArgs = BaseSendMessageArgs & {
   /**
    * Override the API type for this request only.
    * Useful when different models need different APIs.
-   * @default Uses the hook-level apiType or "responses"
+   * @default Uses the hook-level apiType or "auto"
    */
   apiType?: ApiType;
 };
@@ -75,7 +75,8 @@ type SendMessageResult =
  */
 interface UseChatOptions extends BaseUseChatOptions {
   /**
-   * Which API endpoint to use. Default: "responses"
+   * Which API endpoint to use. Default: "auto"
+   * - "auto": automatically selects the best API based on model support
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
@@ -148,7 +149,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     onServerToolCall,
-    apiType: defaultApiType = "responses",
+    apiType: defaultApiType = "auto",
     smoothing,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);

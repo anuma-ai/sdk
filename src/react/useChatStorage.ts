@@ -9,7 +9,7 @@ import type {
   LlmapiToolCallEvent,
 } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
-import type { ApiType } from "../lib/chat/useChat";
+import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
 import {
   type ActivityPhase,
@@ -1941,7 +1941,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
-        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+        const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
         // Fetch server tools if needed (still useful for one-off requests)
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -2289,7 +2289,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const startTime = Date.now();
 
       // Determine effective API type for this request
-      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
       // Fetch and merge server-side tools with client tools
       let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;

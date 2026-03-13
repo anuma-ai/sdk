@@ -1,0 +1,225 @@
+/**
+ * Probes each model from /api/v1/models against both the completions and
+ * responses endpoints to determine which API each model supports.
+ *
+ * Usage:
+ *   PORTAL_API_KEY=<key> tsx scripts/update-model-apis.ts
+ *
+ * Outputs:
+ *   - src/lib/chat/useChat/strategies/modelApiSupport.ts  (importable map)
+ *   - a table printed to stdout
+ */
+
+import "dotenv/config";
+
+import { createClient } from "../src/client/client";
+import {
+  getApiV1Models,
+  postApiV1ChatCompletions,
+  postApiV1Responses,
+} from "../src/client/sdk.gen";
+import type { LlmapiModel } from "../src/client/types.gen";
+
+const BASE_URL =
+  process.env.ANUMA_API_URL ?? "https://portal.anuma-dev.ai";
+const API_KEY = process.env.PORTAL_API_KEY;
+
+if (!API_KEY) {
+  console.error("PORTAL_API_KEY is required. Set it in .env or as an env var.");
+  process.exit(1);
+}
+
+const client = createClient({
+  baseUrl: BASE_URL,
+  headers: { "X-API-Key": API_KEY },
+});
+
+// ── Fetch all models ────────────────────────────────────────────────
+
+async function fetchModels(): Promise<LlmapiModel[]> {
+  const models: LlmapiModel[] = [];
+  let pageToken: string | undefined;
+
+  while (true) {
+    const { data, error } = await getApiV1Models({
+      client,
+      query: { page_size: 100, page_token: pageToken },
+    });
+    if (error) {
+      throw new Error(`Failed to fetch models: ${JSON.stringify(error)}`);
+    }
+    models.push(...(data?.data ?? []));
+
+    pageToken = data?.next_page_token;
+    if (!pageToken) break;
+  }
+
+  return models;
+}
+
+// ── Probe a single endpoint for a model ─────────────────────────────
+
+type Endpoint = "completions" | "responses";
+
+async function probe(
+  model: string,
+  endpoint: Endpoint
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    if (endpoint === "completions") {
+      const { error } = await postApiV1ChatCompletions({
+        client,
+        body: {
+          model,
+          messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+          stream: false,
+        },
+      });
+      if (error) return { ok: false, error: JSON.stringify(error).slice(0, 200) };
+      return { ok: true };
+    }
+
+    const { error } = await postApiV1Responses({
+      client,
+      body: {
+        model,
+        // The server expects `input` as a flat messages array (like the ResponsesStrategy does),
+        // not the typed { messages: [...] } wrapper from the OpenAPI spec.
+        input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }] as never,
+        max_output_tokens: 1,
+        stream: false,
+      },
+    });
+    if (error) return { ok: false, error: JSON.stringify(error).slice(0, 200) };
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// ── Main ────────────────────────────────────────────────────────────
+
+interface ModelResult {
+  model: string;
+  completions: boolean;
+  responses: boolean;
+  completions_error?: string;
+  responses_error?: string;
+}
+
+async function main() {
+  console.log(`Fetching models from ${BASE_URL}...`);
+  const models = await fetchModels();
+  console.log(`Found ${models.length} models. Probing endpoints...\n`);
+
+  const results: ModelResult[] = [];
+  const concurrency = 5;
+
+  // Process in batches to avoid hammering the API
+  for (let i = 0; i < models.length; i += concurrency) {
+    const batch = models.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (m) => {
+        const id = m.id ?? "";
+        const [comp, resp] = await Promise.all([
+          probe(id, "completions"),
+          probe(id, "responses"),
+        ]);
+
+        const result: ModelResult = {
+          model: id,
+          completions: comp.ok,
+          responses: resp.ok,
+        };
+        if (!comp.ok) result.completions_error = comp.error;
+        if (!resp.ok) result.responses_error = resp.error;
+
+        const compIcon = comp.ok ? "✓" : "✗";
+        const respIcon = resp.ok ? "✓" : "✗";
+        console.log(
+          `  ${id.padEnd(50)} completions: ${compIcon}  responses: ${respIcon}`
+        );
+
+        return result;
+      })
+    );
+    results.push(...batchResults);
+  }
+
+  // Write JSON
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const scriptDir = path.dirname(new URL(import.meta.url).pathname);
+
+  // Generate importable TS map (only chat-capable models)
+  const chatModels = results.filter((r) => r.completions || r.responses);
+  chatModels.sort((a, b) => a.model.localeCompare(b.model));
+
+  type Support = "both" | "completions" | "responses";
+  const entries = chatModels.map((r): [string, Support] => {
+    if (r.completions && r.responses) return [r.model, "both"];
+    if (r.completions) return [r.model, "completions"];
+    return [r.model, "responses"];
+  });
+
+  const tsLines = [
+    "// Auto-generated by `pnpm update-model-apis` — do not edit manually.",
+    `// Last updated: ${new Date().toISOString().slice(0, 10)}`,
+    "",
+    'import type { ApiType } from "./types";',
+    "",
+    "type ApiSupport = ApiType | \"both\";",
+    "",
+    "export const MODEL_API_SUPPORT: Record<string, ApiSupport> = {",
+    ...entries.map(([model, support]) => `  "${model}": "${support}",`),
+    "};",
+    "",
+    "/**",
+    " * Returns the best API type for a model.",
+    " * - Known models: uses the probed support map.",
+    " * - Unknown models: falls back to \"responses\" (the default).",
+    " */",
+    'export function getApiTypeForModel(model: string): "responses" | "completions" {',
+    "  const support = MODEL_API_SUPPORT[model];",
+    '  if (support === "completions") return "completions";',
+    '  return "responses";',
+    "}",
+    "",
+  ];
+
+  const tsPath = path.resolve(
+    scriptDir,
+    "../src/lib/chat/useChat/strategies/modelApiSupport.ts"
+  );
+  fs.writeFileSync(tsPath, tsLines.join("\n"));
+  console.log(`TS map written to ${tsPath} (${chatModels.length} chat models)`);
+
+  // Print summary table
+  console.log("\n┌─────────────────────────────────────────────────────┬──────────────┬────────────┐");
+  console.log("│ Model                                               │ Completions  │ Responses  │");
+  console.log("├─────────────────────────────────────────────────────┼──────────────┼────────────┤");
+  for (const r of results) {
+    const model = r.model.padEnd(51);
+    const comp = (r.completions ? "yes" : "no").padEnd(12);
+    const resp = (r.responses ? "yes" : "no").padEnd(10);
+    console.log(`│ ${model} │ ${comp} │ ${resp} │`);
+  }
+  console.log("└─────────────────────────────────────────────────────┴──────────────┴────────────┘");
+
+  // Summary
+  const both = results.filter((r) => r.completions && r.responses).length;
+  const compOnly = results.filter((r) => r.completions && !r.responses).length;
+  const respOnly = results.filter((r) => !r.completions && r.responses).length;
+  const neither = results.filter((r) => !r.completions && !r.responses).length;
+  console.log(
+    `\nSummary: ${both} both, ${compOnly} completions-only, ${respOnly} responses-only, ${neither} neither`
+  );
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

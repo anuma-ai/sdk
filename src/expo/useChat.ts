@@ -16,6 +16,7 @@ import {
   createToolExecutorMap,
   executeToolCall,
   getStrategy,
+  resolveApiType,
   handleError,
   parseSSEDataLine,
   processStreamingChunk,
@@ -46,7 +47,7 @@ type SendMessageArgs = BaseSendMessageArgs & {
   /**
    * Override the API type for this request only.
    * Useful when different models need different APIs.
-   * @default Uses the hook-level apiType or "responses"
+   * @default Uses the hook-level apiType or "auto"
    */
   apiType?: ApiType;
 };
@@ -58,7 +59,8 @@ type SendMessageResult = BaseSendMessageResult;
  */
 interface UseChatOptions extends BaseUseChatOptions {
   /**
-   * Which API endpoint to use. Default: "responses"
+   * Which API endpoint to use. Default: "auto"
+   * - "auto": automatically selects the best API based on model support
    * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
    * - "completions": OpenAI Chat Completions API (wider model compatibility)
    */
@@ -158,7 +160,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onFinish,
     onError,
     onToolCall,
-    apiType: defaultApiType = "responses",
+    apiType: defaultApiType = "auto",
     smoothing,
   } = options || {};
   const [isLoading, setIsLoading] = useState(false);
@@ -200,8 +202,8 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       apiType: requestApiType,
       conversationId,
     }: SendMessageArgs): Promise<SendMessageResult> => {
-      const effectiveApiType = requestApiType ?? defaultApiType;
-      const strategy = getStrategy(effectiveApiType);
+      const resolved = resolveApiType(requestApiType ?? defaultApiType, model);
+      const strategy = getStrategy(resolved);
 
       // Validate inputs
       const messagesValidation = validateMessages(messages);
