@@ -17,7 +17,6 @@ import {
   validateToken,
   validateTokenGetter,
 } from "../lib/chat/useChat";
-import type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
 
 type SendMessageArgs = BaseSendMessageArgs & {
   /**

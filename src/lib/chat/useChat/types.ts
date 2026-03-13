@@ -6,9 +6,9 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
-import type { StepFinishEvent } from "../toolLoop";
 import type { ServerToolCallEvent } from "./utils";
 
 /**
