@@ -230,6 +230,14 @@ export {
 } from "../lib/db/memoryVault";
 // Vault folders
 export {
+  type CreateModelPreferenceOptions,
+  /** @deprecated Use sdkSchema instead */
+  settingsStorageSchema,
+  type StoredModelPreference,
+  ModelPreference as StoredModelPreferenceModel,
+  type UpdateModelPreferenceOptions,
+} from "../lib/db/settings";
+export {
   createVaultFolderOp,
   type CreateVaultFolderOptions,
   deleteVaultFolderOp,
@@ -243,14 +251,6 @@ export {
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
 } from "../lib/db/vaultFolders";
-export {
-  type CreateModelPreferenceOptions,
-  /** @deprecated Use sdkSchema instead */
-  settingsStorageSchema,
-  type StoredModelPreference,
-  ModelPreference as StoredModelPreferenceModel,
-  type UpdateModelPreferenceOptions,
-} from "../lib/db/settings";
 export {
   createMemoryVaultSearchTool,
   createMemoryVaultTool,
@@ -366,14 +366,14 @@ export {
 } from "../lib/processors";
 export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
 export { useCredits } from "./useCredits";
+export type { UseModelsResult } from "./useModels";
+export { useModels } from "./useModels";
 export type {
   PhoneCallPollingOptions,
   UsePhoneCallsOptions,
   UsePhoneCallsResult,
 } from "./usePhoneCalls";
 export { usePhoneCalls } from "./usePhoneCalls";
-export type { UseModelsResult } from "./useModels";
-export { useModels } from "./useModels";
 export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
 export { useSubscription } from "./useSubscription";
 

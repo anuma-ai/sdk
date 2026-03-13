@@ -11,10 +11,11 @@ import type { ProcessChunkResult } from "../utils";
 
 /**
  * API type selector for useChat
+ * - "auto": automatically selects the best API based on the model's known support
  * - "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
  * - "completions": OpenAI Chat Completions API (wider model compatibility)
  */
-export type ApiType = "responses" | "completions";
+export type ApiType = "auto" | "responses" | "completions";
 
 /**
  * Union type for API responses - raw pass-through from server.

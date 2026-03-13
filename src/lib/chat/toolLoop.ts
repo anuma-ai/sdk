@@ -5,12 +5,42 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../client";
-import { BASE_URL } from "../../clientConfig";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
-import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
+import { BASE_URL } from "../../clientConfig";
+
+/**
+ * Error thrown when the SSE connection receives a non-OK HTTP response.
+ * Preserves the HTTP status code for programmatic error handling.
+ */
+class SseError extends Error {
+  statusCode: number;
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = "SseError";
+    this.statusCode = statusCode;
+  }
+}
+
+function parseStatusCode(message: string): number | undefined {
+  const match = message.match(/^SSE failed: (\d+) /);
+  return match ? Number(match[1]) : undefined;
+}
+
+function wrapSseError(error: unknown): Error {
+  if (error instanceof Error) {
+    const statusCode = parseStatusCode(error.message);
+    if (statusCode !== undefined) {
+      return new SseError(statusCode, error.message);
+    }
+    return error;
+  }
+  return new Error(String(error));
+}
+import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
+import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
 import type { ServerToolCallEvent } from "./useChat/utils";
 import {
   createStreamAccumulator,
@@ -22,7 +52,6 @@ import {
   validateMessages,
   validateModel,
 } from "./useChat/utils";
-import { getStrategy } from "./useChat/strategies";
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
@@ -47,7 +76,7 @@ export type RunToolLoopOptions = {
   baseUrl?: string;
   /** Additional headers to include with each request. */
   headers?: Record<string, string>;
-  /** Which API backend to use. @default "responses" */
+  /** Which API backend to use. @default "auto" */
   apiType?: ApiType;
   /** Controls randomness (0.0 to 2.0). */
   temperature?: number;
@@ -169,7 +198,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     token,
     baseUrl = BASE_URL,
     headers,
-    apiType = "responses",
+    apiType = "auto",
     temperature,
     maxOutputTokens,
     tools,
@@ -189,7 +218,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
   } = options;
 
-  const strategy = getStrategy(apiType);
+  const resolved = resolveApiType(apiType, model);
+  const strategy = getStrategy(resolved);
 
   // Validate inputs
   const messagesValidation = validateMessages(messages);
@@ -242,7 +272,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       headers,
       signal,
       onSseError: (error) => {
-        sseError = error instanceof Error ? error : new Error(String(error));
+        sseError = wrapSseError(error);
       },
     });
 
@@ -545,7 +575,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         headers,
         signal,
         onSseError: (error) => {
-          sseError = error instanceof Error ? error : new Error(String(error));
+          sseError = wrapSseError(error);
         },
       });
 

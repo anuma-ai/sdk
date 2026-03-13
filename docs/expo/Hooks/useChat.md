@@ -2,7 +2,7 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:152](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#152)
+Defined in: [src/expo/useChat.ts:154](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#154)
 
 A React hook for managing chat completions with authentication.
 
@@ -51,8 +51,9 @@ Optional configuration object
 </td>
 <td>
 
-Which API endpoint to use. Default: "responses"
+Which API endpoint to use. Default: "auto"
 
+* "auto": automatically selects the best API based on model support
 * "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
 * "completions": OpenAI Chat Completions API (wider model compatibility)
 
