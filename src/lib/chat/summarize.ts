@@ -303,46 +303,57 @@ export async function callSummarizationLlm(
   baseUrl?: string
 ): Promise<string> {
   const url = `${baseUrl || BASE_URL}/api/v1/chat/completions`;
+
+  // Wrap the entire fetch + JSON parse in a single timeout via Promise.race.
+  // The AbortController covers the fetch itself, but response.json() could also
+  // hang if the server trickles the body — Promise.race covers both.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), SUMMARIZATION_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), SUMMARIZATION_TIMEOUT_MS);
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        messages: [{ role: "user", content: prompt }],
-      }),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  const doRequest = async (): Promise<string> => {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        signal: controller.signal,
+      });
 
-  if (!response.ok) {
-    throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
-  }
+      if (!response.ok) {
+        throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
+      }
 
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+      };
+
+      // Chat Completions API format
+      if (data.choices?.[0]?.message?.content) {
+        const content = data.choices[0].message.content;
+        if (Array.isArray(content)) {
+          return content.map((part) => part.text || "").join("");
+        }
+        return String(content);
+      }
+
+      throw new Error("Unexpected API response format for summarization");
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
-  // Chat Completions API format
-  if (data.choices?.[0]?.message?.content) {
-    const content = data.choices[0].message.content;
-    if (Array.isArray(content)) {
-      return content.map((part) => part.text || "").join("");
-    }
-    return String(content);
-  }
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("Summarization timeout")), SUMMARIZATION_TIMEOUT_MS);
+  });
 
-  throw new Error("Unexpected API response format for summarization");
+  return Promise.race([doRequest(), timeoutPromise]);
 }
 
 /**
@@ -596,6 +607,7 @@ export async function cleanupConversationSummary(database: Database, conversatio
   try {
     const summaryCtx = createSummaryContext(database);
     await deleteConversationSummaryOp(summaryCtx, conversationId);
+    lastCompactionTime.delete(conversationId);
   } catch (err) {
     console.warn("[summarize] Failed to delete conversation summary cache:", err);
   }

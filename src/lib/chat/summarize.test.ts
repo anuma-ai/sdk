@@ -511,7 +511,7 @@ describe("callSummarizationLlm", () => {
     const promise = callSummarizationLlm("prompt", "model", "token");
     vi.advanceTimersByTime(10_000);
 
-    await expect(promise).rejects.toThrow("aborted");
+    await expect(promise).rejects.toThrow("Summarization timeout");
 
     fetchSpy.mockRestore();
     vi.useRealTimers();
