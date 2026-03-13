@@ -304,68 +304,62 @@ export async function callSummarizationLlm(
 ): Promise<string> {
   const url = `${baseUrl || BASE_URL}/api/v1/chat/completions`;
 
-  // Wrap the entire fetch + JSON parse in a single timeout via Promise.race.
-  // The AbortController covers the fetch itself, but response.json() could also
-  // hang if the server trickles the body — Promise.race covers both.
+  // Single timeout mechanism: AbortController aborts the fetch, Promise.race
+  // ensures response.json() is also covered. One timer, one responsibility.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SUMMARIZATION_TIMEOUT_MS);
 
   const doRequest = async (): Promise<string> => {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          messages: [{ role: "user", content: prompt }],
-        }),
-        signal: controller.signal,
-      });
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: controller.signal,
+    });
 
-      if (!response.ok) {
-        throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
-      };
-
-      // Chat Completions API format
-      if (data.choices?.[0]?.message?.content) {
-        const content = data.choices[0].message.content;
-        if (Array.isArray(content)) {
-          return content.map((part) => part.text || "").join("");
-        }
-        return String(content);
-      }
-
-      throw new Error("Unexpected API response format for summarization");
-    } finally {
-      clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`Summarization LLM call failed: ${response.status} ${response.statusText}`);
     }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+    };
+
+    // Chat Completions API format
+    if (data.choices?.[0]?.message?.content) {
+      const content = data.choices[0].message.content;
+      if (Array.isArray(content)) {
+        return content.map((part) => part.text || "").join("");
+      }
+      return String(content);
+    }
+
+    throw new Error("Unexpected API response format for summarization");
   };
 
-  let raceTimeoutId: ReturnType<typeof setTimeout>;
+  let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    raceTimeoutId = setTimeout(() => {
-      controller.abort(); // Clean up the orphaned fetch when timeout wins
+    timeoutId = setTimeout(() => {
+      controller.abort();
       reject(new Error("Summarization timeout"));
     }, SUMMARIZATION_TIMEOUT_MS);
   });
 
   // Swallow orphaned rejection from doRequest if the timeout wins the race.
-  // The fetch is aborted above, so the rejection is expected.
+  // The fetch is aborted above, so the AbortError rejection is expected.
   const doRequestPromise = doRequest();
   doRequestPromise.catch(() => {});
 
   try {
     return await Promise.race([doRequestPromise, timeoutPromise]);
   } finally {
-    clearTimeout(raceTimeoutId!);
+    clearTimeout(timeoutId!);
   }
 }
 
