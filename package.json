@@ -70,6 +70,12 @@
       "import": "./dist/api/spec.mjs",
       "require": "./dist/api/spec.cjs",
       "default": "./dist/api/spec.cjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.cjs",
+      "default": "./dist/utils/index.cjs"
     }
   },
   "files": [
