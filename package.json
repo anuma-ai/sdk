@@ -82,6 +82,7 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
+    "e2e:tools": "vitest run --config vitest.e2e.config.mts",
     "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
