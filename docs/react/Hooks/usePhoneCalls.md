@@ -1,6 +1,6 @@
 # usePhoneCalls
 
-> **usePhoneCalls**(`options?`: `object`): [`UsePhoneCallsResult`](../Internal/type-aliases/UsePhoneCallsResult.md)
+> **usePhoneCalls**(`options`: `object`): [`UsePhoneCallsResult`](../Internal/type-aliases/UsePhoneCallsResult.md)
 
 Defined in: [src/react/usePhoneCalls.ts:146](https://github.com/anuma-ai/sdk/blob/main/src/react/usePhoneCalls.ts#146)
 

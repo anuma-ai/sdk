@@ -1,6 +1,6 @@
 # shouldChunkMessage
 
-> **shouldChunkMessage**(`content`: `string`, `chunkSize?`: `number`): `boolean`
+> **shouldChunkMessage**(`content`: `string`, `chunkSize`: `number`): `boolean`
 
 Defined in: [src/lib/memoryEngine/chunking.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/chunking.ts#212)
 

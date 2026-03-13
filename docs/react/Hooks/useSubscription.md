@@ -1,6 +1,6 @@
 # useSubscription
 
-> **useSubscription**(`options?`: `object`): [`UseSubscriptionResult`](../Internal/type-aliases/UseSubscriptionResult.md)
+> **useSubscription**(`options`: `object`): [`UseSubscriptionResult`](../Internal/type-aliases/UseSubscriptionResult.md)
 
 Defined in: [src/react/useSubscription.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/react/useSubscription.ts#90)
 

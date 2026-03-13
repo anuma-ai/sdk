@@ -1,6 +1,6 @@
 # decryptData
 
-> **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version?`: `EncryptionKeyVersion`): `Promise`<`string`>
+> **decryptData**(`encryptedHex`: `string`, `address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`string`>
 
 Defined in: [src/react/useEncryption.ts:504](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#504)
 

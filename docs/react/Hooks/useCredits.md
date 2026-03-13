@@ -1,6 +1,6 @@
 # useCredits
 
-> **useCredits**(`options?`: `object`): [`UseCreditsResult`](../Internal/type-aliases/UseCreditsResult.md)
+> **useCredits**(`options`: `object`): [`UseCreditsResult`](../Internal/type-aliases/UseCreditsResult.md)
 
 Defined in: [src/react/useCredits.ts:86](https://github.com/anuma-ai/sdk/blob/main/src/react/useCredits.ts#86)
 
