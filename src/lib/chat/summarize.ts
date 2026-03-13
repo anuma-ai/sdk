@@ -131,7 +131,7 @@ export function splitMessagesAtThreshold(
   // Note: the message that pushes over the threshold is placed in toSummarize (conservative).
   // This means the window is always strictly under the threshold, never at it.
   for (let i = messages.length - 1; i >= 0; i--) {
-    const msgTokens = estimateTokens(messages[i].content);
+    const msgTokens = estimateTokens(messages[i].content) + PER_MESSAGE_OVERHEAD_TOKENS;
     if (cumulativeTokens + msgTokens > tokenThreshold && messages.length - i >= minWindowMessages) {
       cutoffIndex = i + 1;
       break;
@@ -391,12 +391,16 @@ export async function maybeSummarizeHistory(
       unsummarized = messages;
     }
 
+    // Filter out system messages before summarization — they are re-injected fresh
+    // each request and shouldn't count toward the token threshold or be summarized.
+    const nonSystemMessages = unsummarized.filter((msg) => msg.role !== "system");
+
     const callLlm = (prompt: string, llmModel: string) =>
       callSummarizationLlm(prompt, llmModel, token, baseUrl);
 
     const summarizeResult = await progressiveSummarize({
       cachedSummary,
-      unsummarizedMessages: unsummarized,
+      unsummarizedMessages: nonSystemMessages,
       tokenThreshold: summaryTokenThreshold,
       minWindowMessages: summaryMinWindowMessages,
       callLlm,

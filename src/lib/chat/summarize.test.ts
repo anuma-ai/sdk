@@ -120,10 +120,11 @@ describe("splitMessagesAtThreshold", () => {
       makeMsgWithTokens("5", "user", 50),
       makeMsgWithTokens("6", "assistant", 50),
     ];
-    // Threshold 150: walking backwards from msg6
-    // msg6=50, msg5=100, msg4=150 (exactly at threshold, not over)
-    // msg3: 150+50=200 > 150, and window has 3 msgs >= minWindow=2 → cutoff at i=2+1=3
-    const result = splitMessagesAtThreshold(msgs, 150, 2);
+    // Each message = 50 content + 4 overhead = 54 tokens
+    // Threshold 162: walking backwards from msg6
+    // msg6=54, msg5=108, msg4=162 (exactly at threshold, not over)
+    // msg3: 162+54=216 > 162, and window has 3 msgs >= minWindow=2 → cutoff at i=2+1=3
+    const result = splitMessagesAtThreshold(msgs, 162, 2);
     expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1", "2", "3"]);
     expect(result.window.map((m) => m.uniqueId)).toEqual(["4", "5", "6"]);
   });
