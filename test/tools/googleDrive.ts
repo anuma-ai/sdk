@@ -69,28 +69,61 @@ async function uploadTestFile(): Promise<string> {
   return data.id;
 }
 
-async function deleteTestFile(fileId: string) {
+async function trashFile(fileId: string) {
   const token = await auth.ensureToken();
-  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ trashed: true }),
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    console.warn(`  [cleanup] Failed to trash ${fileId} (${res.status}): ${text}`);
+  }
+}
+
+async function cleanupOrphanedTestFiles() {
+  const token = await auth.ensureToken();
+  const params = new URLSearchParams({
+    q: `name = '${TEST_FILE_NAME}' and trashed = false`,
+    corpora: "allDrives",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+    fields: "files(id)",
   });
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) return;
+  const data = await res.json();
+  for (const f of data.files || []) {
+    await trashFile(f.id);
+    console.log(`  [cleanup] Trashed orphaned file ${f.id}`);
+  }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-drive", () => {
   beforeAll(async () => {
+    await cleanupOrphanedTestFiles();
     testFileId = await uploadTestFile();
   });
 
   afterAll(async () => {
     if (testFileId) {
       try {
-        await deleteTestFile(testFileId);
-        console.log(`  [cleanup] Deleted test file ${testFileId}`);
+        await trashFile(testFileId);
+        console.log(`  [cleanup] Trashed test file ${testFileId}`);
       } catch {
-        console.warn(`  [cleanup] Failed to delete test file ${testFileId}`);
+        console.warn(`  [cleanup] Failed to trash test file ${testFileId}`);
       }
     }
   });
