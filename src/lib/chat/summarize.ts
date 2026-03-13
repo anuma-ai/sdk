@@ -353,6 +353,16 @@ export async function callSummarizationLlm(
 export const summarizationLocks = new Map<string, Promise<MaybeSummarizeHistoryResult>>();
 
 /**
+ * Tracks when compaction was last performed per conversation (epoch ms).
+ * Prevents compaction from re-triggering on every send when the compacted
+ * summary is still above the 80% threshold.
+ */
+const lastCompactionTime = new Map<string, number>();
+
+/** Minimum interval between compaction attempts (ms) */
+const COMPACTION_COOLDOWN_MS = 60_000;
+
+/**
  * Maximum ratio of the token threshold that the cached summary may occupy.
  * When exceeded, the summary is invalidated and rebuilt from scratch to prevent
  * unbounded growth (H2 fix).
@@ -422,7 +432,13 @@ export async function maybeSummarizeHistory(
   // turn of context, and the alternative (no lock) risks duplicate LLM calls.
   const inProgress = summarizationLocks.get(conversationId);
   if (inProgress) {
-    return inProgress;
+    // Safety timeout: if the in-progress promise is stuck (e.g., fetch hangs past
+    // AbortController, WatermelonDB write deadlocks), auto-expire after 15s and
+    // fall back to verbatim rather than blocking indefinitely.
+    const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) =>
+      setTimeout(() => resolve({ messagesToConvert: messages, summarySystemMessage: null }), 15_000)
+    );
+    return Promise.race([inProgress, staleGuard]);
   }
 
   const promise = doSummarizeHistory(options);
@@ -468,7 +484,14 @@ async function doSummarizeHistory(
     // H1 fix: If the cached summary has grown too large (>80% of the threshold),
     // compact it with an LLM call instead of invalidating. This avoids the token
     // spike that would occur from re-summarizing the full history from scratch.
-    if (cachedSummary && cachedSummary.tokenCount > summaryTokenThreshold * MAX_SUMMARY_TOKEN_RATIO) {
+    // Cooldown prevents re-triggering every send when compacted summary is still large.
+    const lastCompacted = lastCompactionTime.get(conversationId) ?? 0;
+    const compactionCooledDown = Date.now() - lastCompacted > COMPACTION_COOLDOWN_MS;
+    if (
+      cachedSummary &&
+      cachedSummary.tokenCount > summaryTokenThreshold * MAX_SUMMARY_TOKEN_RATIO &&
+      compactionCooledDown
+    ) {
       try {
         // Use split+concat (not .replace()) to avoid JS replacement pattern injection
         // if the summary contains $&, $', or $` characters.
@@ -488,9 +511,11 @@ async function doSummarizeHistory(
           summary: compactedSummary,
           tokenCount: compactedTokens,
         };
+        lastCompactionTime.set(conversationId, Date.now());
       } catch {
         // Compaction failed — proceed with the oversized summary. It still works,
-        // just less efficient. The next send will try compaction again.
+        // just less efficient. Will retry after cooldown.
+        lastCompactionTime.set(conversationId, Date.now());
         console.warn("[summarize] Summary compaction failed, proceeding with oversized summary");
       }
     }
@@ -499,7 +524,14 @@ async function doSummarizeHistory(
     let unsummarized: StoredMessage[];
     if (cachedSummary?.summarizedUpTo) {
       const cutoffIndex = messages.findIndex((msg) => msg.uniqueId === cachedSummary.summarizedUpTo);
-      unsummarized = cutoffIndex >= 0 ? messages.slice(cutoffIndex + 1) : messages;
+      if (cutoffIndex >= 0) {
+        unsummarized = messages.slice(cutoffIndex + 1);
+      } else {
+        // The summarizedUpTo message was deleted or edited (branching). Invalidate
+        // the cached summary to avoid building on stale/incorrect content.
+        cachedSummary = null;
+        unsummarized = messages;
+      }
     } else {
       unsummarized = messages;
     }
@@ -548,8 +580,10 @@ async function doSummarizeHistory(
       messagesToConvert,
       summarySystemMessage: summarizeResult.summary ? summaryToSystemMessage(summarizeResult.summary) : null,
     };
-  } catch {
-    // Summarization failed — fall back to sending all messages verbatim
+  } catch (err) {
+    // Summarization failed — fall back to sending all messages verbatim.
+    // Log the error so developers can diagnose issues (e.g., auth token expiry).
+    console.warn("[summarize] Summarization failed, falling back to verbatim:", err);
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 }
