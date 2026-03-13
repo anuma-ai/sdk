@@ -102,6 +102,21 @@ export function estimateMessagesTokens(messages: StoredMessage[]): number {
 }
 
 /**
+ * Check if a string is a JSON object containing a `tool_calls` key.
+ * Used to detect raw tool-call blobs stored as assistant message content
+ * during agentic tool loops (e.g., web search, chart generation).
+ */
+function isToolCallJson(content: string): boolean {
+  if (!content.startsWith("{")) return false;
+  try {
+    const parsed = JSON.parse(content);
+    return typeof parsed === "object" && parsed !== null && "tool_calls" in parsed;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Format stored messages as "Human: ..\nAI: .." for the summarization prompt.
  * Skips system messages and empty-content messages (e.g., tool-call invocations
  * with no text). Tool-call JSON blobs are replaced with a readable placeholder
@@ -116,7 +131,7 @@ function formatMessagesForPrompt(messages: StoredMessage[]): string {
       // Detect tool-call JSON blobs (common in agentic conversations) and
       // replace with a readable placeholder to keep the summary coherent.
       const content = msg.content.trim();
-      if (role === "AI" && content.startsWith("{") && content.includes("tool_calls")) {
+      if (role === "AI" && isToolCallJson(content)) {
         return `${role}: [used a tool]`;
       }
       return `${role}: ${content}`;
