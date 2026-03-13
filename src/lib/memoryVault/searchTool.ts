@@ -108,9 +108,10 @@ export async function eagerEmbedContent(
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
   if (vaultCtx && memoryId) {
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch((err) => {
-      console.warn("[anuma/sdk] Failed to persist embedding:", err);
-    });
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch(
+      // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+      () => {}
+    );
   }
 }
 
@@ -186,9 +187,10 @@ async function searchVaultMemoriesWithSize(
         vaultCtx,
         memories[uncachedIndices[j]].uniqueId,
         JSON.stringify(newEmbeddings[j])
-      ).catch((err) => {
-        console.warn("[anuma/sdk] Failed to persist embedding:", err);
-      });
+      ).catch(
+        // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+        () => {}
+      );
     }
   }
 
@@ -280,9 +282,10 @@ export function createMemoryVaultSearchTool(
             description: `Maximum number of results to return. Default: ${limit}.`,
           },
           folder_id: {
-            type: "string",
+            type: ["string", "null"],
             description:
               "Optional folder ID to scope the search to a specific folder. " +
+              "Pass null to search only unfiled memories. " +
               "Omit to search all folders.",
           },
         },
@@ -292,7 +295,7 @@ export function createMemoryVaultSearchTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
       const requestLimit = (args.limit as number) ?? limit;
-      const argFolderId = args.folder_id as string | undefined;
+      const argFolderId = args.folder_id as string | null | undefined;
 
       if (!query || typeof query !== "string") {
         return "Error: A search query is required.";
@@ -308,7 +311,9 @@ export function createMemoryVaultSearchTool(
             ...searchOptions,
             limit: requestLimit,
             minSimilarity,
-            ...(argFolderId !== undefined && { folderId: argFolderId }),
+            // Only use LLM's folder_id when the host app hasn't set one
+            ...(searchOptions?.folderId === undefined &&
+              argFolderId !== undefined && { folderId: argFolderId }),
           }
         );
 

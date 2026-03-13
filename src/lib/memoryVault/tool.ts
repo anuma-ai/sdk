@@ -12,6 +12,7 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
+import type { VaultFolder } from "../db/vaultFolders/models";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
@@ -161,6 +162,19 @@ export function createMemoryVaultTool(
           }
         }
 
+        // Validate folder_id if provided for new memories
+        if (!isUpdate && folderId) {
+          try {
+            const folderCollection = vaultCtx.database.get<VaultFolder>("vault_folders");
+            const folder = await folderCollection.find(folderId);
+            if (folder.isDeleted) {
+              return `Error: Folder with ID "${folderId}" does not exist. Please save the memory without a folder_id, or use a valid folder ID.`;
+            }
+          } catch {
+            return `Error: Folder with ID "${folderId}" does not exist. Please save the memory without a folder_id, or use a valid folder ID.`;
+          }
+        }
+
         // Execute the save
         if (isUpdate) {
           const updated = await updateVaultMemoryOp(vaultCtx, id, { content, embedding: null });
@@ -172,9 +186,10 @@ export function createMemoryVaultTool(
             if (previousContent) {
               cache.delete(previousContent);
             }
-            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch((err) => {
-              console.warn("[anuma/sdk] Failed to embed updated memory:", err);
-            });
+            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
+              // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+              () => {}
+            );
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
@@ -182,9 +197,8 @@ export function createMemoryVaultTool(
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
             eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
-              (err) => {
-                console.warn("[anuma/sdk] Failed to embed new memory:", err);
-              }
+              // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+              () => {}
             );
           }
           return `Memory saved successfully (ID: ${created.uniqueId}).`;

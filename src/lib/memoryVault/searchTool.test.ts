@@ -31,6 +31,7 @@ function makeMemory(id: string, content: string, scope = "private"): StoredVault
     uniqueId: id,
     content,
     scope,
+    folderId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
@@ -443,6 +444,60 @@ describe("preEmbedVaultMemories", () => {
     expect(generateEmbeddings).toHaveBeenCalledWith(["not cached"], mockEmbeddingOptions);
     expect(cache.get("cached")).toEqual([1, 0, 0]); // unchanged
     expect(cache.get("not cached")).toEqual([0, 1, 0]);
+  });
+});
+
+describe("searchVaultMemories — folderId filtering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("passes folderId through search options to getAllVaultMemoriesOp", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    const cache = createVaultEmbeddingCache();
+    await searchVaultMemories("test", mockVaultCtx, mockEmbeddingOptions, cache, {
+      folderId: "folder_1",
+    });
+
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(mockVaultCtx, {
+      folderId: "folder_1",
+    });
+  });
+});
+
+describe("createMemoryVaultSearchTool — folderId scoping", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("host-app searchOptions.folderId cannot be overridden by LLM's folder_id", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
+      folderId: "host_folder",
+    });
+    await tool.executor!({ query: "test", folder_id: "llm_folder" });
+
+    // The host's folderId should win — LLM's folder_id is ignored
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      mockVaultCtx,
+      expect.objectContaining({ folderId: "host_folder" })
+    );
+  });
+
+  it("uses LLM's folder_id when host-app has not set folderId", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
+    await tool.executor!({ query: "test", folder_id: "llm_folder" });
+
+    expect(getAllVaultMemoriesOp).toHaveBeenCalledWith(
+      mockVaultCtx,
+      expect.objectContaining({ folderId: "llm_folder" })
+    );
   });
 });
 
