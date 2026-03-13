@@ -69,6 +69,7 @@ New summary:`;
  * summarization may trigger later than expected for non-Latin-script users.
  */
 export function estimateTokens(text: string): number {
+  if (!text) return 0;
   return Math.ceil(text.length / 4);
 }
 
@@ -568,9 +569,10 @@ async function doSummarizeHistory(
       if (cutoffIndex >= 0) {
         unsummarized = messages.slice(cutoffIndex + 1);
       } else {
-        // The summarizedUpTo message was deleted or edited (branching). Invalidate
-        // the cached summary to avoid building on stale/incorrect content.
-        cachedSummary = null;
+        // summarizedUpTo is not in the current messages array. This typically means
+        // the message is older than the truncated window (maxHistoryMessages), NOT
+        // that it was deleted. The cached summary already captures that earlier
+        // history, so we keep it and treat all current messages as unsummarized.
         unsummarized = messages;
       }
     } else {
