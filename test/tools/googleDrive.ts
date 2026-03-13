@@ -144,8 +144,12 @@ describe("google-drive", () => {
       messages: [
         {
           role: "system",
-          content:
-            "You are a file assistant. When asked to search for files, call the tool immediately with the search query. Do not ask for confirmation.",
+          content: [
+            {
+              type: "text",
+              text: "You are a file assistant. When asked to search for files, call the tool immediately with the search query. Do not ask for confirmation.",
+            },
+          ],
         },
         {
           role: "user",
@@ -195,8 +199,12 @@ describe("google-drive", () => {
       messages: [
         {
           role: "system",
-          content:
-            "You are a file assistant. When asked to read a file, call the tool immediately with the provided file ID. Do not ask for confirmation.",
+          content: [
+            {
+              type: "text",
+              text: "You are a file assistant. When asked to read a file, call the tool immediately with the provided file ID. Do not ask for confirmation.",
+            },
+          ],
         },
         {
           role: "user",
@@ -245,8 +253,12 @@ describe("google-drive", () => {
       messages: [
         {
           role: "system",
-          content:
-            "You are a file assistant. Execute tool calls immediately without asking for confirmation. When listing files and reading content, use the tools directly.",
+          content: [
+            {
+              type: "text",
+              text: "You are a file assistant. Execute tool calls immediately without asking for confirmation. When listing files and reading content, use the tools directly.",
+            },
+          ],
         },
         {
           role: "user",

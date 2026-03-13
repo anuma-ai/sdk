@@ -93,8 +93,12 @@ describe("google-calendar", () => {
       messages: [
         {
           role: "system",
-          content:
-            "You are a calendar assistant. When asked to create an event, call the tool immediately with all required arguments. Do not ask for confirmation.",
+          content: [
+            {
+              type: "text",
+              text: "You are a calendar assistant. When asked to create an event, call the tool immediately with all required arguments. Do not ask for confirmation.",
+            },
+          ],
         },
         {
           role: "user",
@@ -156,8 +160,12 @@ describe("google-calendar", () => {
       messages: [
         {
           role: "system",
-          content:
-            "You are a calendar assistant. Execute tool calls immediately without asking for confirmation. When checking availability and creating events, use the tools directly.",
+          content: [
+            {
+              type: "text",
+              text: "You are a calendar assistant. Execute tool calls immediately without asking for confirmation. When checking availability and creating events, use the tools directly.",
+            },
+          ],
         },
         {
           role: "user",
