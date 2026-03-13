@@ -6,88 +6,21 @@
  */
 
 import { describe, it, expect, afterAll } from "vitest";
-import { createSign } from "crypto";
 import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
 import {
   createGoogleCalendarTool,
   createGoogleCalendarCreateEventTool,
 } from "../../src/tools/googleCalendar.js";
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
-
-// ── Service account auth ──────────────────────────────────────────────────────
-
-interface ServiceAccountKey {
-  client_email: string;
-  private_key: string;
-  token_uri: string;
-}
-
-function base64url(data: string | Buffer): string {
-  const buf = typeof data === "string" ? Buffer.from(data) : data;
-  return buf.toString("base64url");
-}
-
-function createJwt(key: ServiceAccountKey): string {
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const payload = base64url(
-    JSON.stringify({
-      iss: key.client_email,
-      scope: "https://www.googleapis.com/auth/calendar",
-      aud: key.token_uri,
-      iat: now,
-      exp: now + 3600,
-    })
-  );
-  const signable = `${header}.${payload}`;
-  const sign = createSign("RSA-SHA256");
-  sign.update(signable);
-  const signature = sign.sign(key.private_key, "base64url");
-  return `${signable}.${signature}`;
-}
-
-async function getServiceAccountToken(key: ServiceAccountKey): Promise<string> {
-  const jwt = createJwt(key);
-  const res = await fetch(key.token_uri, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to get service account token (${res.status}): ${text}`);
-  }
-  const data = await res.json();
-  return data.access_token;
-}
+import { createGoogleTokenManager } from "./googleAuth.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-  throw new Error(
-    "GOOGLE_SERVICE_ACCOUNT_KEY is required. Add it to .env or set the environment variable."
-  );
-}
-const serviceKey: ServiceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-
-let accessToken: string | null = null;
+const auth = createGoogleTokenManager("https://www.googleapis.com/auth/calendar");
 const createdEventIds: string[] = [];
 
-async function ensureToken(): Promise<string> {
-  if (!accessToken) {
-    accessToken = await getServiceAccountToken(serviceKey);
-  }
-  return accessToken;
-}
-
-const getAccessToken = () => accessToken;
-const requestCalendarAccess = async () => ensureToken();
-
 async function deleteEvent(eventId: string) {
-  const token = await ensureToken();
+  const token = await auth.ensureToken();
   await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
@@ -97,7 +30,6 @@ async function deleteEvent(eventId: string) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-calendar", () => {
-  // Clean up any events created during tests
   afterAll(async () => {
     for (const id of createdEventIds) {
       try {
@@ -110,11 +42,11 @@ describe("google-calendar", () => {
   });
 
   it("lists calendar events", async () => {
-    await ensureToken();
+    await auth.ensureToken();
 
     const log: ToolCallLog[] = [];
     const listTool = wrapTool(
-      createGoogleCalendarTool(getAccessToken, requestCalendarAccess),
+      createGoogleCalendarTool(auth.getAccessToken, auth.requestAccess),
       log
     );
 
@@ -145,11 +77,11 @@ describe("google-calendar", () => {
   });
 
   it("creates a calendar event", async () => {
-    await ensureToken();
+    await auth.ensureToken();
 
     const log: ToolCallLog[] = [];
     const createTool = wrapTool(
-      createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess),
+      createGoogleCalendarCreateEventTool(auth.getAccessToken, auth.requestAccess),
       log
     );
 
@@ -189,7 +121,6 @@ describe("google-calendar", () => {
     expect(log.length).toBeGreaterThanOrEqual(1);
     expect(log[0].name).toBe("google_calendar_create_event");
 
-    // Track created event for cleanup
     const createResult = log[0].result as Record<string, unknown>;
     if (createResult?.id) {
       createdEventIds.push(createResult.id as string);
@@ -205,15 +136,15 @@ describe("google-calendar", () => {
   });
 
   it("chains list → create: checks availability then creates an event", async () => {
-    await ensureToken();
+    await auth.ensureToken();
 
     const log: ToolCallLog[] = [];
     const listTool = wrapTool(
-      createGoogleCalendarTool(getAccessToken, requestCalendarAccess),
+      createGoogleCalendarTool(auth.getAccessToken, auth.requestAccess),
       log
     );
     const createTool = wrapTool(
-      createGoogleCalendarCreateEventTool(getAccessToken, requestCalendarAccess),
+      createGoogleCalendarCreateEventTool(auth.getAccessToken, auth.requestAccess),
       log
     );
 
@@ -257,12 +188,10 @@ describe("google-calendar", () => {
     expect(listCalls.length).toBeGreaterThanOrEqual(1);
     expect(createCalls.length).toBeGreaterThanOrEqual(1);
 
-    // List should come before create
     const firstListIdx = log.indexOf(listCalls[0]);
     const firstCreateIdx = log.indexOf(createCalls[0]);
     expect(firstListIdx).toBeLessThan(firstCreateIdx);
 
-    // Track created event for cleanup
     const createResult = createCalls[0].result as Record<string, unknown>;
     if (createResult?.id) {
       createdEventIds.push(createResult.id as string);
