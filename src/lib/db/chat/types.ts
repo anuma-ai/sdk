@@ -507,7 +507,7 @@ export interface BaseSendMessageWithStorageArgs {
    * Model to use for generating conversation summaries.
    * Should be a cheap, fast model since summarization is a straightforward task.
    *
-   * @default 'google/gemini-2.0-flash' ($0.10/1M input tokens)
+   * @default 'cerebras/qwen-3-235b-a22b-instruct-2507' ($0.60/1M input tokens)
    */
   summaryModel?: string;
 

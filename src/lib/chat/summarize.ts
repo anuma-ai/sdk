@@ -2,7 +2,7 @@
  * Progressive conversation history summarization.
  *
  * Summarizes older messages into a compact text while keeping recent messages
- * verbatim. Uses a cheap model (e.g., Gemini Flash) to minimize cost.
+ * verbatim. Uses a cheap, private-friendly model (Cerebras) to minimize cost.
  *
  * Based on LangChain's ConversationSummaryBufferMemory pattern:
  * https://github.com/langchain-ai/langchain/blob/master/libs/langchain/langchain_classic/memory/prompt.py
@@ -27,7 +27,7 @@ export const DEFAULT_SUMMARY_TOKEN_THRESHOLD = 4000;
 export const DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES = 4;
 
 /** Default model for summarization */
-export const DEFAULT_SUMMARY_MODEL = "google/gemini-2.0-flash";
+export const DEFAULT_SUMMARY_MODEL = "cerebras/qwen-3-235b-a22b-instruct-2507";
 
 /**
  * Summarization prompt adapted from LangChain's ConversationSummaryBufferMemory.
