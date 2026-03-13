@@ -141,17 +141,20 @@ describe("splitMessagesAtThreshold", () => {
     expect(result.window.map((m) => m.uniqueId)).toEqual(["4", "5", "6"]);
   });
 
-  it("handles single message above threshold", () => {
+  it("handles single message above threshold — respects minWindowMessages", () => {
     const msgs = [
       makeMsgWithTokens("1", "user", 10),
       makeMsgWithTokens("2", "assistant", 10),
       makeMsgWithTokens("3", "user", 1000),
     ];
-    // Threshold 5, minWindow=2: msg3 alone is 1000 > 5, but need 2 msgs in window first
-    // At i=1: cumulative = 1000 (msg3), adding msg2 = 1010 > 5, window has 2 msgs → cutoff at 2
+    // Threshold 5, minWindow=2: every msg exceeds threshold, but we need at least 2 in window.
+    // Walking backwards: i=2 (1004>5, window would be 0 < 2 → skip),
+    //   i=1 (1018>5, window would be 1 < 2 → skip),
+    //   i=0 (1032>5, window would be 2 >= 2 → cutoff=1)
+    // window = [msg2, msg3], toSummarize = [msg1]
     const result = splitMessagesAtThreshold(msgs, 5, 2);
-    expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1", "2"]);
-    expect(result.window.map((m) => m.uniqueId)).toEqual(["3"]);
+    expect(result.toSummarize.map((m) => m.uniqueId)).toEqual(["1"]);
+    expect(result.window.map((m) => m.uniqueId)).toEqual(["2", "3"]);
   });
 });
 

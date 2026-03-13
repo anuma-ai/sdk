@@ -144,7 +144,7 @@ export function splitMessagesAtThreshold(
   // This means the window is always strictly under the threshold, never at it.
   for (let i = messages.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(messages[i].content) + PER_MESSAGE_OVERHEAD_TOKENS;
-    if (cumulativeTokens + msgTokens > tokenThreshold && messages.length - i >= minWindowMessages) {
+    if (cumulativeTokens + msgTokens > tokenThreshold && messages.length - i - 1 >= minWindowMessages) {
       cutoffIndex = i + 1;
       break;
     }
@@ -351,11 +351,19 @@ export async function callSummarizationLlm(
 
   let raceTimeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    raceTimeoutId = setTimeout(() => reject(new Error("Summarization timeout")), SUMMARIZATION_TIMEOUT_MS);
+    raceTimeoutId = setTimeout(() => {
+      controller.abort(); // Clean up the orphaned fetch when timeout wins
+      reject(new Error("Summarization timeout"));
+    }, SUMMARIZATION_TIMEOUT_MS);
   });
 
+  // Swallow orphaned rejection from doRequest if the timeout wins the race.
+  // The fetch is aborted above, so the rejection is expected.
+  const doRequestPromise = doRequest();
+  doRequestPromise.catch(() => {});
+
   try {
-    return await Promise.race([doRequest(), timeoutPromise]);
+    return await Promise.race([doRequestPromise, timeoutPromise]);
   } finally {
     clearTimeout(raceTimeoutId!);
   }
