@@ -744,12 +744,14 @@ export function toolsToApiFormat(
 
     // Normalize tool format based on API type
     if (apiType === "responses" && func) {
-      // Responses API expects flat format: { type, name, description, parameters }
+      // Responses API expects flat format: { type, name, description, parameters, ... }
+      const { name, description, parameters, arguments: args, ...restFunc } = func;
       return {
         type: "function",
-        name: func.name as string,
-        description: func.description as string,
-        parameters: (func.parameters || func.arguments) as Record<string, unknown>,
+        name: name as string,
+        description: description as string,
+        parameters: (parameters || args) as Record<string, unknown>,
+        ...restFunc,
       };
     }
 
