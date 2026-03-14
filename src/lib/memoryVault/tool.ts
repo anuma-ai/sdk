@@ -12,7 +12,6 @@ import {
   getVaultMemoryOp,
   updateVaultMemoryOp,
 } from "../db/memoryVault/operations";
-import type { VaultFolder } from "../db/vaultFolders/models";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 import { eagerEmbedContent, type VaultEmbeddingCache } from "./searchTool";
 
@@ -140,7 +139,6 @@ export function createMemoryVaultTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const content = args.content as string;
       const id = args.id as string | undefined;
-      const folderId = args.folder_id as string | undefined;
       const folderName = args.folderName as string | undefined;
 
       if (!content || typeof content !== "string") {
@@ -179,19 +177,6 @@ export function createMemoryVaultTool(
           }
         }
 
-        // Validate folder_id if provided for new memories
-        if (!isUpdate && folderId) {
-          try {
-            const folderCollection = vaultCtx.database.get<VaultFolder>("vault_folders");
-            const folder = await folderCollection.find(folderId);
-            if (folder.isDeleted) {
-              return `Error: Folder with ID "${folderId}" does not exist. Please save the memory without a folder_id, or use a valid folder ID.`;
-            }
-          } catch {
-            return `Error: Folder with ID "${folderId}" does not exist. Please save the memory without a folder_id, or use a valid folder ID.`;
-          }
-        }
-
         // Execute the save
         if (isUpdate) {
           const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
@@ -215,6 +200,7 @@ export function createMemoryVaultTool(
           }
           return `Memory updated successfully (ID: ${updated.uniqueId}).`;
         } else {
+          const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
           const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
           // Eagerly embed the new memory so it's searchable immediately
           if (embeddingOptions && cache) {
