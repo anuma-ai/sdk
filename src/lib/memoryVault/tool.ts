@@ -117,12 +117,6 @@ export function createMemoryVaultTool(
               "If omitted, a new memory is created. " +
               "Prefer updating existing memories over creating new ones.",
           },
-          folder_id: {
-            type: "string",
-            description:
-              "Optional folder ID to file this memory under. " +
-              "Only used when creating a new memory (not updates).",
-          },
           ...(folderNames.length > 0 && {
             folderName: {
               type: "string",
