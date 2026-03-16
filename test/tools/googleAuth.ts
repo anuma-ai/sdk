@@ -72,10 +72,13 @@ export function createGoogleTokenManager(scope: string) {
   }
 
   let accessToken: string | null = null;
+  let tokenExpiresAt = 0;
 
   async function ensureToken(): Promise<string> {
-    if (!accessToken) {
+    if (!accessToken || Date.now() >= tokenExpiresAt) {
       accessToken = await fetchToken(serviceKey, scope);
+      // Refresh 5 minutes before the 1-hour expiry
+      tokenExpiresAt = Date.now() + 55 * 60 * 1000;
     }
     return accessToken;
   }
