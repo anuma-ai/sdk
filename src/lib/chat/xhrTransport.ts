@@ -124,7 +124,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       } else {
         const error = new Error(`SSE failed: ${xhr.status} ${xhr.statusText}`);
         if (options.onSseError) options.onSseError(error);
-        push({ type: "error", error });
+        push({ type: "done" });
       }
       finished = true;
     };
@@ -133,7 +133,7 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       options.signal?.removeEventListener("abort", abortHandler);
       const error = new Error("Network error");
       if (options.onSseError) options.onSseError(error);
-      push({ type: "error", error });
+      push({ type: "done" });
       finished = true;
     };
 
