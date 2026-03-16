@@ -22,6 +22,8 @@ jobs:
     env:
       PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+      GOOGLE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_SHARED_DRIVE_ID }}
 
     steps:
       - uses: actions/checkout@v4

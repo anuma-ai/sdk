@@ -267,7 +267,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
   try {
     let sseError: Error | null = null;
 
-    let apiTools = toolsToApiFormat(tools);
+    let apiTools = toolsToApiFormat(tools, resolved);
     let toolChoice = toolChoiceArg;
 
     const requestBody = strategy.buildRequestBody({

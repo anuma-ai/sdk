@@ -12,7 +12,7 @@
  * @see https://modelcontextprotocol.io
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 // MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";

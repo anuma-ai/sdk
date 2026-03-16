@@ -3,24 +3,7 @@
  * This tool allows the LLM to list events from the user's Google Calendar.
  */
 
-/**
- * Tool configuration type that extends the SDK's tool type with executor support.
- * The SDK runtime supports these properties even though the base types don't include them.
- *
- * Note: Client tools use "arguments" internally. The SDK converts this to "parameters"
- * when sending to the API (see serverTools.ts mergeTools function).
- */
-export interface ToolConfig {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    arguments: Record<string, unknown>;
-  };
-  executor?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
-  autoExecute?: boolean;
-  skipContinuation?: boolean;
-}
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 export interface ListEventsArgs {
   timeMin?: string;
@@ -299,7 +282,7 @@ export function createGoogleCalendarTool(
       name: "google_calendar_list_events",
       description:
         "Lists upcoming events from the user's Google Calendar. Returns events within a specified time range. If no time range is specified, returns events for the next 7 days.",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           timeMin: {
@@ -363,7 +346,7 @@ export function createGoogleCalendarCreateEventTool(
       name: "google_calendar_create_event",
       description:
         "Creates a new event in the user's Google Calendar. Supports both timed events (with specific times) and all-day events (date only).",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           summary: {
@@ -443,7 +426,7 @@ export function createGoogleCalendarUpdateEventTool(
       name: "google_calendar_update_event",
       description:
         "Updates an existing event in the user's Google Calendar. Only the fields provided will be updated; other fields remain unchanged. Use google_calendar_list_events first to get the event ID.",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           eventId: {

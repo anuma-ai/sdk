@@ -241,7 +241,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
         }
 
         // Convert tools to API format (strip executors)
-        const apiTools = toolsToApiFormat(tools);
+        const apiTools = toolsToApiFormat(tools, resolved);
 
         // Inject memory context as a system message at the beginning if provided
         let messagesWithContext = messages;

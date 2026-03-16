@@ -721,7 +721,8 @@ export async function executeToolCall(
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>,
+  apiType?: string
 ): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;
@@ -729,8 +730,40 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } =
-      tool as ToolConfig & Record<string, unknown>;
+    const {
+      executor: _executor,
+      autoExecute: _autoExecute,
+      skipContinuation: _skipContinuation,
+      removeAfterExecution: _removeAfterExecution,
+      ...apiTool
+    } = tool as ToolConfig & Record<string, unknown>;
+
+    const func = (apiTool as Record<string, unknown>).function as
+      | Record<string, unknown>
+      | undefined;
+
+    // Normalize tool format based on API type
+    if (apiType === "responses" && func) {
+      // Responses API expects flat format: { type, name, description, parameters, ... }
+      const { name, description, parameters, arguments: args, ...restFunc } = func;
+      return {
+        type: "function",
+        name: name as string,
+        description: description as string,
+        parameters: (parameters || args) as Record<string, unknown>,
+        ...restFunc,
+      };
+    }
+
+    if (apiType === "completions" && func && !func.parameters && func.arguments) {
+      // Completions API expects function.parameters, convert from arguments
+      const { arguments: args, ...restFunc } = func;
+      return {
+        ...apiTool,
+        function: { ...restFunc, parameters: args },
+      };
+    }
+
     return apiTool;
   });
 }

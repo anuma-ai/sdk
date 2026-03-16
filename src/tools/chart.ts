@@ -6,7 +6,7 @@
  * it through for rendering by the ChartCard component.
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import type { CreateUIToolsOptions } from "./uiInteraction";
 import { createDisplayTool } from "./uiInteraction";
 
