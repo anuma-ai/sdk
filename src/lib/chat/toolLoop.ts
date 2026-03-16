@@ -136,6 +136,12 @@ export type RunToolLoopOptions = {
    * Receives the round index, model content, tool calls, results, and usage.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Custom streaming transport. Defaults to a fetch-based SSE client.
+   * React Native environments can supply an XHR-based transport since
+   * `fetch` response body streaming isn't available in RN.
+   */
+  transport?: StreamingTransport;
 };
 
 export type RunToolLoopResult =
@@ -156,10 +162,8 @@ export type RunToolLoopResult =
       toolsChecksum?: string;
     };
 
-/**
- * Makes a streaming SSE request to the Portal API.
- */
-function makeStreamingRequest(options: {
+/** Options passed to a streaming transport function. */
+export type StreamingTransportOptions = {
   baseUrl: string;
   endpoint: string;
   body: Record<string, unknown>;
@@ -167,7 +171,24 @@ function makeStreamingRequest(options: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   onSseError?: (error: unknown) => void;
-}) {
+};
+
+/** Result returned by a streaming transport function. */
+export type StreamingTransportResult = {
+  stream: AsyncIterable<unknown>;
+};
+
+/**
+ * A pluggable transport function for streaming SSE requests.
+ * The default uses `fetch` + `ReadableStream`. React Native environments
+ * can supply an XHR-based transport instead.
+ */
+export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
+
+/**
+ * Default fetch-based streaming transport for the Portal API.
+ */
+const defaultTransport: StreamingTransport = (options) => {
   const url = `${options.baseUrl}${options.endpoint}`;
   return createSseClient({
     method: "POST",
@@ -182,7 +203,7 @@ function makeStreamingRequest(options: {
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
   });
-}
+};
 
 /**
  * Framework-agnostic tool execution loop.
@@ -237,6 +258,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onToolCall,
     onServerToolCall,
     onStepFinish,
+    transport: makeStreamingRequest = defaultTransport,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
