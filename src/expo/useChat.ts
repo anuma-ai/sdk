@@ -20,6 +20,7 @@ import {
   parseSSEDataLine,
   processStreamingChunk,
   resolveApiType,
+  safeJsonStringify,
   type StreamAccumulator,
   StreamSmoother,
   toolsToApiFormat,
@@ -459,7 +460,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                       for (const execResult of executionResults) {
                         const resultContent = execResult.error
                           ? `Error: ${execResult.error}`
-                          : JSON.stringify(execResult.result);
+                          : safeJsonStringify(execResult.result);
 
                         toolResultMessages.push({
                           role: "tool",

@@ -686,8 +686,24 @@ export function createToolExecutorMap(
   return map;
 }
 
+/** Default timeout for tool executor calls (30 seconds). */
+const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
+
 /**
- * Executes a tool call with the provided executor
+ * Safely serializes a value to JSON, returning a fallback string on failure
+ * (e.g. circular references, BigInt, or non-serializable types).
+ */
+export function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "null";
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Executes a tool call with the provided executor.
+ * Applies a 30-second timeout to prevent hanging executors from blocking the loop.
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
@@ -706,8 +722,13 @@ export async function executeToolCall(
       }
     }
 
-    // Execute the tool
-    const result = await executor(args);
+    // Execute the tool with a timeout
+    const result = await Promise.race([
+      executor(args),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Tool execution timed out")), TOOL_EXECUTOR_TIMEOUT_MS)
+      ),
+    ]);
     return { result };
   } catch (e) {
     return {
