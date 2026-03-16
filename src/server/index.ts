@@ -58,13 +58,17 @@ export { SDK_SCHEMA_VERSION, sdkMigrations, sdkModelClasses, sdkSchema } from ".
 export {
   clearMessagesOp,
   Conversation,
+  ConversationSummary,
   createConversationOp,
   createMessageOp,
+  createSummaryContext,
   deleteConversationOp,
+  deleteConversationSummaryOp,
   getAllFilesOp,
   getConversationOp,
   getConversationsByProjectOp,
   getConversationsOp,
+  getConversationSummaryOp,
   getMessagesOp,
   makeSyntheticStoredConversation,
   makeSyntheticStoredMessage,
@@ -78,6 +82,7 @@ export {
   updateMessageEmbeddingOp,
   updateMessageErrorOp,
   updateMessageFeedbackOp,
+  upsertConversationSummaryOp,
 } from "../lib/db/chat";
 export {
   type ChatCompletionUsage,
@@ -91,10 +96,27 @@ export {
   type MessageFeedback,
   type SearchSource,
   type StoredConversation,
+  type StoredConversationSummary,
   type StoredFileWithContext,
   type StoredMessage,
   type StoredMessageWithSimilarity,
 } from "../lib/db/chat";
+
+// ── Summarization ──
+
+export {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  estimateMessagesTokens,
+  estimateTokens,
+  maybeSummarizeHistory,
+  MAX_MESSAGES_PER_SUMMARIZATION,
+  progressiveSummarize,
+  splitMessagesAtThreshold,
+  summaryToSystemMessage,
+} from "../lib/chat/summarize";
 
 // ── Memory Vault ──
 
