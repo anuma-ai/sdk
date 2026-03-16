@@ -100,4 +100,5 @@ describe("display_chart", () => {
       expect(chart.dataKeys.length).toBeGreaterThanOrEqual(1);
     }
   });
+
 });
