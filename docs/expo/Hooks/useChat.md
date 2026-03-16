@@ -2,13 +2,13 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:155](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#155)
+Defined in: [src/expo/useChat.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#120)
 
 A React hook for managing chat completions with authentication.
 
-**React Native version** - This is a lightweight version that only supports
-API-based chat completions. Local chat and client-side tools are not available
-in React Native.
+**React Native version** — Uses XMLHttpRequest for streaming since
+`fetch` response body streaming isn't available in React Native.
+Delegates all tool loop logic to the shared `runToolLoop`.
 
 ## Parameters
 
