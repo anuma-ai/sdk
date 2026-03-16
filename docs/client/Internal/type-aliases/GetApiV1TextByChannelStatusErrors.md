@@ -2,7 +2,7 @@
 
 > **GetApiV1TextByChannelStatusErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:4335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4335)
+Defined in: [src/client/types.gen.ts:4326](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4326)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4335](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4339](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4339)
+Defined in: [src/client/types.gen.ts:4330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4330)
 
 Invalid channel
 
@@ -20,7 +20,7 @@ Invalid channel
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4343)
+Defined in: [src/client/types.gen.ts:4334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4334)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4347)
+Defined in: [src/client/types.gen.ts:4338](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4338)
 
 Internal Server Error

@@ -2,4 +2,4 @@
 
 > **DeleteApiV1AdminAppsByIdResponse** = [`DeleteApiV1AdminAppsByIdResponses`](DeleteApiV1AdminAppsByIdResponses.md)\[keyof [`DeleteApiV1AdminAppsByIdResponses`](DeleteApiV1AdminAppsByIdResponses.md)]
 
-Defined in: [src/client/types.gen.ts:2215](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2215)
+Defined in: [src/client/types.gen.ts:2206](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2206)
