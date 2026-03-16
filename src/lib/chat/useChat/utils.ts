@@ -723,13 +723,18 @@ export async function executeToolCall(
     }
 
     // Execute the tool with a timeout
-    const result = await Promise.race([
-      executor(args),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Tool execution timed out")), TOOL_EXECUTOR_TIMEOUT_MS)
-      ),
-    ]);
-    return { result };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        executor(args),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Tool execution timed out")), TOOL_EXECUTOR_TIMEOUT_MS);
+        }),
+      ]);
+      return { result };
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (e) {
     return {
       error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
