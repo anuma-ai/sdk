@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  LlmapiChatCompletionResponse,
-  LlmapiMessage,
-  LlmapiResponseResponse,
-} from "../client";
+import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -14,7 +10,7 @@ import {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   maybeSummarizeHistory,
 } from "../lib/chat/summarize";
-import { type ApiResponse, type ApiType, resolveApiType } from "../lib/chat/useChat";
+import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type BaseSendMessageWithStorageArgs,
@@ -30,7 +26,6 @@ import {
   type CreateMessageOptions,
   deleteConversationOp,
   extractUserMessageFromMessages,
-  type FileMetadata,
   finalizeThoughtProcess,
   getConversationOp,
   getConversationsOp,

@@ -686,8 +686,24 @@ export function createToolExecutorMap(
   return map;
 }
 
+/** Default timeout for tool executor calls (30 seconds). */
+const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
+
 /**
- * Executes a tool call with the provided executor
+ * Safely serializes a value to JSON, returning a fallback string on failure
+ * (e.g. circular references, BigInt, or non-serializable types).
+ */
+export function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "null";
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Executes a tool call with the provided executor.
+ * Applies a 30-second timeout to prevent hanging executors from blocking the loop.
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
@@ -706,9 +722,22 @@ export async function executeToolCall(
       }
     }
 
-    // Execute the tool
-    const result = await executor(args);
-    return { result };
+    // Execute the tool with a timeout
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        executor(args),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Tool execution timed out")),
+            TOOL_EXECUTOR_TIMEOUT_MS
+          );
+        }),
+      ]);
+      return { result };
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (e) {
     return {
       error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -742,26 +771,44 @@ export function toolsToApiFormat(
       | Record<string, unknown>
       | undefined;
 
+    // Detect flat-format tools (name at top level, no function wrapper)
+    const flatName = !func && (apiTool as any).name;
+
     // Normalize tool format based on API type
-    if (apiType === "responses" && func) {
-      // Responses API expects flat format: { type, name, description, parameters, ... }
-      const { name, description, parameters, arguments: args, ...restFunc } = func;
-      return {
-        type: "function",
-        name: name as string,
-        description: description as string,
-        parameters: (parameters || args) as Record<string, unknown>,
-        ...restFunc,
-      };
+    if (apiType === "responses") {
+      if (func) {
+        // Nested → flat for Responses API
+        const { name, description, parameters, arguments: args, ...restFunc } = func;
+        return {
+          type: "function",
+          name: name as string,
+          description: description as string,
+          parameters: (parameters || args) as Record<string, unknown>,
+          ...restFunc,
+        };
+      }
+      // Already flat — pass through
+      return apiTool;
     }
 
-    if (apiType === "completions" && func && !func.parameters && func.arguments) {
-      // Completions API expects function.parameters, convert from arguments
-      const { arguments: args, ...restFunc } = func;
-      return {
-        ...apiTool,
-        function: { ...restFunc, parameters: args },
-      };
+    if (apiType === "completions") {
+      if (flatName) {
+        // Flat → nested for Completions API
+        const { type: _type, name, description, parameters, ...rest } = apiTool as any;
+        return {
+          type: "function",
+          ...rest,
+          function: { name, description, parameters },
+        };
+      }
+      if (func && !func.parameters && func.arguments) {
+        // Completions API expects function.parameters, convert from arguments
+        const { arguments: args, ...restFunc } = func;
+        return {
+          ...apiTool,
+          function: { ...restFunc, parameters: args },
+        };
+      }
     }
 
     return apiTool;

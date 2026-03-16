@@ -48,6 +48,7 @@ import {
   executeToolCall,
   isAbortError,
   isDoneMarker,
+  safeJsonStringify,
   toolsToApiFormat,
   validateMessages,
   validateModel,
@@ -510,7 +511,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               return `${r.name}: Error - ${r.error}`;
             }
             const resultStr =
-              typeof r.result === "object" ? JSON.stringify(r.result) : String(r.result);
+              typeof r.result === "object" ? safeJsonStringify(r.result) : String(r.result);
             return `${r.name}: ${resultStr}`;
           })
           .join("\n");
@@ -580,7 +581,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       for (const execResult of continueResults) {
         const resultContent = execResult.error
           ? `Error: ${execResult.error}`
-          : JSON.stringify(execResult.result);
+          : safeJsonStringify(execResult.result);
 
         toolResultMessages.push({
           role: "tool",

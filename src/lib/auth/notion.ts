@@ -149,7 +149,7 @@ async function discoverOAuthMetadata(): Promise<OAuthMetadata> {
     }
 
     return metadata;
-  } catch (error) {
+  } catch {
     // Discovery failed, use fallback endpoints
     return {
       authorization_endpoint: FALLBACK_OAUTH_AUTHORIZE,

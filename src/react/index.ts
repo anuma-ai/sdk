@@ -55,8 +55,8 @@
  *
  * @module react
  */
-export { useChat } from "./useChat";
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export { useChat } from "./useChat";
 
 // Chart display components
 export type { ChartCardProps, ChartConfig } from "./chart";
