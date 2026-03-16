@@ -763,26 +763,44 @@ export function toolsToApiFormat(
       | Record<string, unknown>
       | undefined;
 
+    // Detect flat-format tools (name at top level, no function wrapper)
+    const flatName = !func && (apiTool as any).name;
+
     // Normalize tool format based on API type
-    if (apiType === "responses" && func) {
-      // Responses API expects flat format: { type, name, description, parameters, ... }
-      const { name, description, parameters, arguments: args, ...restFunc } = func;
-      return {
-        type: "function",
-        name: name as string,
-        description: description as string,
-        parameters: (parameters || args) as Record<string, unknown>,
-        ...restFunc,
-      };
+    if (apiType === "responses") {
+      if (func) {
+        // Nested → flat for Responses API
+        const { name, description, parameters, arguments: args, ...restFunc } = func;
+        return {
+          type: "function",
+          name: name as string,
+          description: description as string,
+          parameters: (parameters || args) as Record<string, unknown>,
+          ...restFunc,
+        };
+      }
+      // Already flat — pass through
+      return apiTool;
     }
 
-    if (apiType === "completions" && func && !func.parameters && func.arguments) {
-      // Completions API expects function.parameters, convert from arguments
-      const { arguments: args, ...restFunc } = func;
-      return {
-        ...apiTool,
-        function: { ...restFunc, parameters: args },
-      };
+    if (apiType === "completions") {
+      if (flatName) {
+        // Flat → nested for Completions API
+        const { type: _type, name, description, parameters, ...rest } = apiTool as any;
+        return {
+          type: "function",
+          ...rest,
+          function: { name, description, parameters },
+        };
+      }
+      if (func && !func.parameters && func.arguments) {
+        // Completions API expects function.parameters, convert from arguments
+        const { arguments: args, ...restFunc } = func;
+        return {
+          ...apiTool,
+          function: { ...restFunc, parameters: args },
+        };
+      }
     }
 
     return apiTool;
