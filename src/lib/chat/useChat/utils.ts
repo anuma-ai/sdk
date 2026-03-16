@@ -728,7 +728,10 @@ export async function executeToolCall(
       const result = await Promise.race([
         executor(args),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("Tool execution timed out")), TOOL_EXECUTOR_TIMEOUT_MS);
+          timer = setTimeout(
+            () => reject(new Error("Tool execution timed out")),
+            TOOL_EXECUTOR_TIMEOUT_MS
+          );
         }),
       ]);
       return { result };
