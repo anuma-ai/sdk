@@ -1,10 +1,5 @@
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
-import type {
-  AccumulatedToolCall,
-  StreamAccumulator,
-  ToolConfig,
-  ToolExecutor,
-} from "./types";
+import type { AccumulatedToolCall, StreamAccumulator, ToolConfig, ToolExecutor } from "./types";
 
 /**
  * Validation error types
