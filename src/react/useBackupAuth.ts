@@ -375,7 +375,9 @@ export function BackupAuthProvider({
       setIcloudUserRecordName(userIdentity.userRecordName);
       return userIdentity.userRecordName;
     } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
+      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud", {
+        cause: err,
+      });
     }
   }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
 

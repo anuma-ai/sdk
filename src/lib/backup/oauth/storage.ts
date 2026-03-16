@@ -130,7 +130,8 @@ export async function storeTokenData(
       console.warn(`Failed to encrypt OAuth token for ${provider}, storing temporarily:`, error);
       sessionStorage.setItem(key, json);
       throw new Error(
-        `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
+        `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   } else {
