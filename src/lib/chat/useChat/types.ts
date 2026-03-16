@@ -172,7 +172,7 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
  * Base result type for sendMessage.
  * Returns raw API response - either Responses API or Completions API format.
  */
-export type BaseSendMessageResult =
+type BaseSendMessageResult =
   | {
       data: ApiResponse;
       error: null;

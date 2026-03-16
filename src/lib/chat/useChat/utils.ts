@@ -429,7 +429,7 @@ export type ProcessChunkResult = {
  * Processes a streaming chunk and updates the accumulator
  * Returns the content and thinking deltas if present
  */
-export function processStreamingChunk(
+function processStreamingChunk(
   chunk: StreamingChunk,
   accumulator: StreamAccumulator
 ): ProcessChunkResult {
@@ -600,7 +600,7 @@ export function createErrorResult<T extends { data: null; error: string }>(
 /**
  * Handles an error and returns an error result
  */
-export function handleError<T extends { data: null; error: string }>(
+function handleError<T extends { data: null; error: string }>(
   err: unknown,
   onError?: (error: Error) => void
 ): T {
@@ -634,7 +634,7 @@ export function isDoneMarker(chunk: unknown): boolean {
 /**
  * Parses an SSE data line and returns the chunk if valid
  */
-export function parseSSEDataLine(line: string): StreamingChunk | null {
+function parseSSEDataLine(line: string): StreamingChunk | null {
   if (!line.startsWith("data: ")) {
     return null;
   }
