@@ -4,7 +4,6 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
-export type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 export interface ListEventsArgs {
   timeMin?: string;
