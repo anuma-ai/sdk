@@ -92,6 +92,7 @@ export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { useModels } from "../react/useModels";
 export { useChat } from "./useChat";
+export { xhrTransport } from "../lib/chat/xhrTransport";
 export type {
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
