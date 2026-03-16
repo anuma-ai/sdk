@@ -1461,16 +1461,7 @@ export type LlmapiResponseExtraFields = {
  * Input can be a simple text string or an array of messages for multi-turn conversations.
  * When continuing after client tool calls, pass the messages array from the previous response.
  */
-export type LlmapiResponseInput = {
-    /**
-     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
-     */
-    messages?: Array<LlmapiMessage>;
-    /**
-     * Text is set when input is a simple string
-     */
-    text?: string;
-};
+export type LlmapiResponseInput = string | Array<LlmapiMessage>;
 
 export type LlmapiResponseOutputContent = {
     /**
