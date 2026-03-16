@@ -28,7 +28,6 @@ describe("createPhoneCallOfferTool", () => {
       suggestedQuestions: ["Is the dish prepared in a shared pan?"],
       contextSummary: "The menu labels the risotto as vegetarian but not gluten free.",
     });
-    expect(tool.autoExecute).toBe(true);
     expect(tool.skipContinuation).toBe(true);
     expect(createDisplayInteraction).toHaveBeenCalledTimes(1);
     expect(createDisplayInteraction.mock.calls[0]?.[1]).toBe("phone_call_offer");

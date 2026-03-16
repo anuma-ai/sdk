@@ -39,9 +39,8 @@ export interface MemoryVaultToolOptions {
    * Callback invoked before each save operation.
    * Return `true` to confirm the save, `false` to cancel it.
    *
-   * When provided, the tool uses autoExecute with the confirmation
-   * built into the executor. When not provided, the tool uses
-   * autoExecute: false so the host app can handle it via onToolCall.
+   * When provided, the confirmation is built into the executor.
+   * When not provided, the tool saves without confirmation.
    */
   onSave?: (operation: VaultSaveOperation) => Promise<boolean>;
 
@@ -210,7 +209,6 @@ export function createMemoryVaultTool(
         return `Error saving memory: ${message}`;
       }
     },
-    autoExecute: hasOnSave,
     removeAfterExecution: hasOnSave,
   };
 }

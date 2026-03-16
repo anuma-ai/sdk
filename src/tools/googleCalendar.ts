@@ -328,7 +328,6 @@ export function createGoogleCalendarTool(
 
       return fetchCalendarEvents(token, typedArgs);
     },
-    autoExecute: true,
   };
 }
 
@@ -408,7 +407,6 @@ export function createGoogleCalendarCreateEventTool(
 
       return createCalendarEvent(token, typedArgs);
     },
-    autoExecute: true,
   };
 }
 
@@ -495,7 +493,6 @@ export function createGoogleCalendarUpdateEventTool(
 
       return updateCalendarEvent(token, typedArgs);
     },
-    autoExecute: true,
   };
 }
 

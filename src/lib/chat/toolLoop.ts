@@ -127,7 +127,7 @@ export type RunToolLoopOptions = {
   onFinish?: (response: ApiResponse) => void;
   /** Called when an unexpected error occurs (not called for aborts). */
   onError?: (error: Error) => void;
-  /** Called for tool calls that don't have an executor or have autoExecute=false. */
+  /** Called for tool calls that don't have an executor (e.g. server-side tools). */
   onToolCall?: (toolCall: LlmapiToolCall) => void;
   /** Called when a server-side tool (MCP) is invoked during streaming. */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
@@ -371,11 +371,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-      // Determine which tools to execute vs emit as events
+      // Execute tools that have an executor; emit onToolCall for the rest
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
 
-        if (executorConfig && executorConfig.autoExecute) {
+        if (executorConfig) {
           toolCallsToExecute.push(toolCall);
         } else {
           if (onToolCall) {

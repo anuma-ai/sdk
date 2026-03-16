@@ -369,17 +369,16 @@ export function useChat(options?: UseChatOptions): UseChatResult {
                   const executorMap = createToolExecutorMap(tools);
                   const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-                  // Determine which tools to execute vs emit as events
+                  // Execute tools that have an executor; emit onToolCall for the rest
                   for (const toolCall of accumulator.toolCalls.values()) {
                     console.log("[Tool Debug] Processing tool call:", toolCall.name);
                     const executorConfig = executorMap.get(toolCall.name);
 
-                    if (executorConfig && executorConfig.autoExecute) {
-                      // Will execute automatically
-                      console.log("[Tool Debug] Will auto-execute:", toolCall.name);
+                    if (executorConfig) {
+                      console.log("[Tool Debug] Will execute:", toolCall.name);
                       toolCallsToExecute.push(toolCall);
                     } else {
-                      // Emit event for manual handling
+                      // Emit event for tools without an executor
                       console.log("[Tool Debug] Emitting onToolCall event for:", toolCall.name);
                       if (onToolCall) {
                         onToolCall({
