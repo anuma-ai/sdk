@@ -869,8 +869,7 @@ async function persistKeyPair(address: string): Promise<void> {
     localStorage.setItem(storageKey, encryptedHex);
   } catch (error) {
     throw new Error(
-      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error }
+      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
