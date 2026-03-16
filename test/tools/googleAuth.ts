@@ -64,7 +64,12 @@ export function createGoogleTokenManager(scope: string) {
       "GOOGLE_SERVICE_ACCOUNT_KEY is required. Add it to .env or set the environment variable."
     );
   }
-  const serviceKey: ServiceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  let serviceKey: ServiceAccountKey;
+  try {
+    serviceKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  } catch {
+    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY contains invalid JSON.");
+  }
 
   let accessToken: string | null = null;
 
