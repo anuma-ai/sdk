@@ -65,9 +65,9 @@ export type {
   CalendarEvent,
   CreateEventArgs,
   ListEventsArgs,
-  ToolConfig,
   UpdateEventArgs,
 } from "./googleCalendar";
+export type { ToolConfig } from "../lib/chat/useChat/types.js";
 export {
   createChatTools,
   createGoogleCalendarCreateEventTool,

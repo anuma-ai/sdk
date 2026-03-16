@@ -6,7 +6,7 @@
  * promise resolution). Apps provide the tool schema and any custom logic.
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 /**
  * Minimal context interface required by tool factories.

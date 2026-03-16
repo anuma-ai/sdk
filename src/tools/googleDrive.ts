@@ -3,7 +3,7 @@
  * This tool allows the LLM to search files in the user's Google Drive.
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 export interface SearchFilesArgs {
   query: string;
