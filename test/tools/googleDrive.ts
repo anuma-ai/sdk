@@ -20,19 +20,13 @@ import { createGoogleTokenManager } from "./googleAuth.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
-if (!process.env.GOOGLE_SHARED_DRIVE_ID) {
-  throw new Error(
-    "GOOGLE_SHARED_DRIVE_ID is required. Add it to .env or set the environment variable."
-  );
-}
-const SHARED_DRIVE_ID = process.env.GOOGLE_SHARED_DRIVE_ID;
-
-const auth = createGoogleTokenManager("https://www.googleapis.com/auth/drive");
-let testFileId: string | null = null;
 const TEST_FILE_NAME = "E2E_Test_Document.txt";
 const TEST_FILE_CONTENT = "This is an automated e2e test file for the Google Drive tool.";
 
-async function uploadTestFile(): Promise<string> {
+async function uploadTestFile(
+  auth: ReturnType<typeof createGoogleTokenManager>,
+  SHARED_DRIVE_ID: string
+): Promise<string> {
   const token = await auth.ensureToken();
 
   const metadata = {
@@ -73,7 +67,7 @@ async function uploadTestFile(): Promise<string> {
   return data.id;
 }
 
-async function trashFile(fileId: string) {
+async function trashFile(auth: ReturnType<typeof createGoogleTokenManager>, fileId: string) {
   const token = await auth.ensureToken();
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
@@ -92,7 +86,7 @@ async function trashFile(fileId: string) {
   }
 }
 
-async function cleanupOrphanedTestFiles() {
+async function cleanupOrphanedTestFiles(auth: ReturnType<typeof createGoogleTokenManager>) {
   const token = await auth.ensureToken();
   const params = new URLSearchParams({
     q: `name = '${TEST_FILE_NAME}' and trashed = false`,
@@ -107,7 +101,7 @@ async function cleanupOrphanedTestFiles() {
   if (!res.ok) return;
   const data = await res.json();
   for (const f of data.files || []) {
-    await trashFile(f.id);
+    await trashFile(auth, f.id);
     console.log(`  [cleanup] Trashed orphaned file ${f.id}`);
   }
 }
@@ -115,15 +109,24 @@ async function cleanupOrphanedTestFiles() {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-drive", () => {
+  if (!process.env.GOOGLE_SHARED_DRIVE_ID) {
+    throw new Error(
+      "GOOGLE_SHARED_DRIVE_ID is required. Add it to .env or set the environment variable."
+    );
+  }
+  const SHARED_DRIVE_ID = process.env.GOOGLE_SHARED_DRIVE_ID;
+  const auth = createGoogleTokenManager("https://www.googleapis.com/auth/drive");
+  let testFileId: string | null = null;
+
   beforeAll(async () => {
-    await cleanupOrphanedTestFiles();
-    testFileId = await uploadTestFile();
+    await cleanupOrphanedTestFiles(auth);
+    testFileId = await uploadTestFile(auth, SHARED_DRIVE_ID);
   });
 
   afterAll(async () => {
     if (testFileId) {
       try {
-        await trashFile(testFileId);
+        await trashFile(auth, testFileId);
         console.log(`  [cleanup] Trashed test file ${testFileId}`);
       } catch {
         console.warn(`  [cleanup] Failed to trash test file ${testFileId}`);

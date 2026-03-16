@@ -14,22 +14,20 @@ import {
 import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 import { createGoogleTokenManager } from "./googleAuth.js";
 
-// ── Setup ─────────────────────────────────────────────────────────────────────
-
-const auth = createGoogleTokenManager("https://www.googleapis.com/auth/calendar");
-const createdEventIds: string[] = [];
-
-async function deleteEvent(eventId: string) {
-  const token = await auth.ensureToken();
-  await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("google-calendar", () => {
+  const auth = createGoogleTokenManager("https://www.googleapis.com/auth/calendar");
+  const createdEventIds: string[] = [];
+
+  async function deleteEvent(eventId: string) {
+    const token = await auth.ensureToken();
+    await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
   afterAll(async () => {
     for (const id of createdEventIds) {
       try {
