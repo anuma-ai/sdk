@@ -256,7 +256,7 @@ export class CompletionsStrategy implements ApiStrategy {
           const toolCall = choice.messages.tool_calls[i];
           const toolKey = `tool_${i}`;
           accumulator.toolCalls.set(toolKey, {
-            id: toolCall.id || `tool_${i}`,
+            id: toolCall.id || `tool_${Date.now()}_${i}`,
             type: toolCall.type || "function",
             name: toolCall.function?.name || "",
             arguments: toolCall.function?.arguments || "",
@@ -324,7 +324,7 @@ export class CompletionsStrategy implements ApiStrategy {
             const toolCall = choice.message.tool_calls[i];
             const toolKey = `tool_${i}`;
             accumulator.toolCalls.set(toolKey, {
-              id: toolCall.id || `tool_${i}`,
+              id: toolCall.id || `tool_${Date.now()}_${i}`,
               type: toolCall.type || "function",
               name: toolCall.function?.name || "",
               arguments: toolCall.function?.arguments || "",
