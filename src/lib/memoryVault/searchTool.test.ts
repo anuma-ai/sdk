@@ -501,6 +501,28 @@ describe("createMemoryVaultSearchTool — folderId scoping", () => {
       expect.objectContaining({ folderId: "llm_folder" })
     );
   });
+
+  it("returns folder-specific message when folder is empty, not 'vault is empty'", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache, {
+      folderId: "empty_folder",
+    });
+    const result = await tool.executor!({ query: "test" });
+
+    expect(result).toBe("No memories found in this folder.");
+  });
+
+  it("returns folder-specific message when LLM provides folder_id for empty folder", async () => {
+    vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([]);
+
+    const cache = createVaultEmbeddingCache();
+    const tool = createMemoryVaultSearchTool(mockVaultCtx, mockEmbeddingOptions, cache);
+    const result = await tool.executor!({ query: "test", folder_id: "empty_folder" });
+
+    expect(result).toBe("No memories found in this folder.");
+  });
 });
 
 describe("searchVaultMemories — invalid JSON in persisted embedding during search", () => {

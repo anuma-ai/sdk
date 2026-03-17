@@ -318,6 +318,12 @@ export function createMemoryVaultSearchTool(
         );
 
         if (vaultSize === 0) {
+          // Distinguish between a truly empty vault and an empty folder-scoped query
+          const hasFolderFilter =
+            searchOptions?.folderId !== undefined || argFolderId !== undefined;
+          if (hasFolderFilter) {
+            return "No memories found in this folder.";
+          }
           return "The memory vault is empty. No memories have been saved yet.";
         }
 
