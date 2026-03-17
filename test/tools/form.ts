@@ -67,6 +67,7 @@ describe("prompt_user_form", () => {
     expect(log.length).toBeGreaterThanOrEqual(1);
     expect(log[0].name).toBe("prompt_user_form");
 
+    // Verify the LLM provided valid arguments
     const args = log[0].args;
     expect(args.title).toBeTruthy();
     expect(Array.isArray(args.fields)).toBe(true);
@@ -78,6 +79,16 @@ describe("prompt_user_form", () => {
       expect(VALID_FIELD_TYPES).toContain(field.type);
     }
 
+    // Verify the executor returned the user submission with _meta
+    const raw = log[0].result;
+    const toolResult = typeof raw === "string" ? JSON.parse(raw) : raw;
+    expect(toolResult.destination).toBe("Tokyo");
+    expect(toolResult.budget).toBe(3000);
+    expect(toolResult._meta).toBeDefined();
+    expect(toolResult._meta.title).toBeTruthy();
+    expect(toolResult._meta.fields.length).toBeGreaterThanOrEqual(2);
+
+    // Verify the model used the submission in its response
     const responseText = extractText(result).toLowerCase();
     expect(responseText).toContain("tokyo");
   });

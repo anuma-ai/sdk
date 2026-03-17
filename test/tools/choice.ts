@@ -58,6 +58,7 @@ describe("prompt_user_choice", () => {
     expect(log.length).toBeGreaterThanOrEqual(1);
     expect(log[0].name).toBe("prompt_user_choice");
 
+    // Verify the LLM provided valid arguments
     const args = log[0].args;
     expect(args.title).toBeTruthy();
     expect(Array.isArray(args.options)).toBe(true);
@@ -68,6 +69,15 @@ describe("prompt_user_choice", () => {
       expect(opt.label).toBeTruthy();
     }
 
+    // Verify the executor returned the user selection with _meta
+    const raw = log[0].result;
+    const toolResult = typeof raw === "string" ? JSON.parse(raw) : raw;
+    expect(toolResult.selected).toBe("italian");
+    expect(toolResult._meta).toBeDefined();
+    expect(toolResult._meta.title).toBeTruthy();
+    expect(toolResult._meta.options.length).toBeGreaterThanOrEqual(2);
+
+    // Verify the model used the selection in its response
     const responseText = extractText(result).toLowerCase();
     expect(responseText).toContain("italian");
   });
