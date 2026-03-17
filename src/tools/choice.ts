@@ -103,10 +103,7 @@ export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
         options.every((o) => o.value && o.label)
       );
     },
-    mapResult: (
-      result: Record<string, unknown>,
-      args: Record<string, unknown>
-    ) => ({
+    mapResult: (result: Record<string, unknown>, args: Record<string, unknown>) => ({
       ...result,
       _meta: {
         title: args.title as string,

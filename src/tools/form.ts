@@ -171,10 +171,7 @@ export function createFormTool(options: CreateUIToolsOptions): ToolConfig {
       }
       return true;
     },
-    mapResult: (
-      result: Record<string, unknown>,
-      args: Record<string, unknown>
-    ) => ({
+    mapResult: (result: Record<string, unknown>, args: Record<string, unknown>) => ({
       ...result,
       _meta: {
         title: args.title as string,
