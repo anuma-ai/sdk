@@ -32,6 +32,8 @@ function makeMemory(id: string, content: string, scope = "private"): StoredVault
     content,
     scope,
     folderId: null,
+    userId: null,
+    embedding: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,

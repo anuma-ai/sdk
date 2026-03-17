@@ -29,6 +29,8 @@ function makeStoredMemory(overrides: Partial<StoredVaultMemory> = {}): StoredVau
     content: "User likes cats",
     scope: "private",
     folderId: null,
+    userId: null,
+    embedding: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,

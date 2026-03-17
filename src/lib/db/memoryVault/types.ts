@@ -31,7 +31,7 @@ export interface UpdateVaultMemoryOptions {
   /** If provided, updates the memory's scope. */
   scope?: string;
   /** If provided, moves the memory to this folder. */
-  folderId?: string;
+  folderId?: string | null;
   /** JSON-stringified embedding vector to persist, or null to clear stale embedding */
   embedding?: string | null;
 }
