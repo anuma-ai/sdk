@@ -99,6 +99,14 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * execution fails, allowing the model to retry.
    */
   removeAfterExecution?: boolean;
+  /**
+   * Timeout in milliseconds for this tool's executor.
+   * Overrides the default 30-second timeout.
+   * Set to `Infinity` to disable the timeout (e.g. for interactive tools
+   * that wait for user input).
+   * @default 30000
+   */
+  executorTimeout?: number;
 };
 
 /**

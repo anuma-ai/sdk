@@ -456,8 +456,11 @@ export function isDoneMarker(chunk: unknown): boolean {
  */
 export function createToolExecutorMap(
   tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
-): Map<string, { executor: ToolExecutor; skipContinuation: boolean }> {
-  const map = new Map<string, { executor: ToolExecutor; skipContinuation: boolean }>();
+): Map<string, { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }> {
+  const map = new Map<
+    string,
+    { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }
+  >();
 
   if (!tools) {
     return map;
@@ -474,6 +477,9 @@ export function createToolExecutorMap(
       map.set(toolName, {
         executor: toolWithExecutor.executor,
         skipContinuation: toolWithExecutor.skipContinuation === true, // Default to false
+        ...(toolWithExecutor.executorTimeout !== undefined && {
+          executorTimeout: toolWithExecutor.executorTimeout,
+        }),
       });
     }
   }
@@ -498,11 +504,13 @@ export function safeJsonStringify(value: unknown): string {
 
 /**
  * Executes a tool call with the provided executor.
- * Applies a 30-second timeout to prevent hanging executors from blocking the loop.
+ * Applies a timeout (default 30s) to prevent hanging executors from blocking the loop.
+ * Pass `Infinity` as timeoutMs to disable the timeout (e.g. for interactive tools).
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
-  executor: ToolExecutor
+  executor: ToolExecutor,
+  timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS
 ): Promise<{ result?: unknown; error?: string }> {
   try {
     // Parse arguments
@@ -517,7 +525,11 @@ export async function executeToolCall(
       }
     }
 
-    // Execute the tool with a timeout
+    // Execute the tool, optionally with a timeout
+    if (!isFinite(timeoutMs)) {
+      return { result: await executor(args) };
+    }
+
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
@@ -525,7 +537,7 @@ export async function executeToolCall(
         new Promise<never>((_, reject) => {
           timer = setTimeout(
             () => reject(new Error("Tool execution timed out")),
-            TOOL_EXECUTOR_TIMEOUT_MS
+            timeoutMs
           );
         }),
       ]);
@@ -558,6 +570,7 @@ export function toolsToApiFormat(
       executor: _executor,
       skipContinuation: _skipContinuation,
       removeAfterExecution: _removeAfterExecution,
+      executorTimeout: _executorTimeout,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 

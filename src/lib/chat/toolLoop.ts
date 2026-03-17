@@ -446,7 +446,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             };
           }
 
-          const { result, error } = await executeToolCall(toolCall, executorConfig.executor);
+          const { result, error } = await executeToolCall(
+            toolCall,
+            executorConfig.executor,
+            executorConfig.executorTimeout
+          );
 
           return {
             id: toolCall.id,

@@ -194,6 +194,9 @@ export function createInteractiveTool(
         return { cancelled: true };
       }
     },
+    // Interactive tools wait for user input and should not be subject
+    // to the default 30-second executor timeout.
+    executorTimeout: Infinity,
   };
 }
 
