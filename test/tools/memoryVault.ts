@@ -92,16 +92,56 @@ describe("memory_vault", () => {
     expect(result.error).toBeNull();
     expect(log.length).toBeGreaterThanOrEqual(1);
     expect(log[0].name).toBe("memory_vault_save");
-    expect(log[0].args.content).toBeTruthy();
+    const savedContent = log[0].args.content as string;
+    expect(savedContent).toBeTruthy();
 
     const toolResult = typeof log[0].result === "string" ? log[0].result : String(log[0].result);
     expect(toolResult).toContain("Memory saved successfully");
 
-    // Verify it's actually in the database
+    // Verify the exact content the LLM provided is in the database
     const records = await vaultCtx.vaultMemoryCollection.query().fetch();
-    expect(records.length).toBeGreaterThanOrEqual(1);
-    const saved = records.find((r) => r.content.toLowerCase().includes("rust"));
-    expect(saved).toBeDefined();
+    expect(records.length).toBe(1);
+    expect(records[0].content).toBe(savedContent);
+    expect(records[0].scope).toBe("private");
+    expect(records[0].isDeleted).toBe(false);
+  });
+
+  it("saves a second memory without overwriting the first", async () => {
+    const log: ToolCallLog[] = [];
+    const tool = wrapTool(
+      createMemoryVaultTool(vaultCtx, { onSave: async () => true }),
+      log,
+    );
+
+    await runToolLoop({
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Remember that I live in Berlin. Use the memory_vault_save tool.",
+            },
+          ],
+        },
+      ],
+      model: config.model,
+      baseUrl: config.baseUrl,
+      headers: { "X-API-Key": config.portalKey },
+      apiType: config.apiType,
+      tools: [tool],
+      toolChoice: "auto",
+      maxToolRounds: 3,
+    });
+
+    expect(log[0].name).toBe("memory_vault_save");
+
+    // Both memories should exist
+    const records = await vaultCtx.vaultMemoryCollection.query().fetch();
+    expect(records.length).toBe(2);
+    const contents = records.map((r) => r.content.toLowerCase());
+    expect(contents.some((c) => c.includes("rust"))).toBe(true);
+    expect(contents.some((c) => c.includes("berlin"))).toBe(true);
   });
 
   it("searches vault memories with real embeddings", async () => {
@@ -152,5 +192,46 @@ describe("memory_vault", () => {
 
     const responseText = extractText(result).toLowerCase();
     expect(responseText).toContain("blue");
+  });
+
+  it("returns no results for unrelated search queries", async () => {
+    const log: ToolCallLog[] = [];
+    const tool = wrapTool(
+      createMemoryVaultSearchTool(vaultCtx, embeddingOptions, cache),
+      log,
+    );
+
+    const result = await runToolLoop({
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Do I have any memories about quantum computing? Use the memory_vault_search tool.",
+            },
+          ],
+        },
+      ],
+      model: config.model,
+      baseUrl: config.baseUrl,
+      headers: { "X-API-Key": config.portalKey },
+      apiType: config.apiType,
+      tools: [tool],
+      toolChoice: "auto",
+      maxToolRounds: 3,
+    });
+
+    printResult(result);
+
+    expect(result.error).toBeNull();
+    expect(log.length).toBeGreaterThanOrEqual(1);
+    expect(log[0].name).toBe("memory_vault_search");
+
+    // The vault has memories about Rust, Berlin, and blue — nothing about quantum computing.
+    // The search may return low-similarity results or "No relevant memories found".
+    // Either way, "quantum" should not appear in the tool result.
+    const toolResult = typeof log[0].result === "string" ? log[0].result : String(log[0].result);
+    expect(toolResult.toLowerCase()).not.toContain("quantum");
   });
 });
