@@ -502,6 +502,15 @@ export function safeJsonStringify(value: unknown): string {
   }
 }
 
+export type ToolExecutionErrorType = "parse" | "timeout" | "execution";
+
+export type ToolExecutionResult = {
+  result?: unknown;
+  error?: string;
+  /** Distinguishes parse errors, timeouts, and execution failures. */
+  errorType?: ToolExecutionErrorType;
+};
+
 /**
  * Executes a tool call with the provided executor.
  * Applies a timeout (default 30s) to prevent hanging executors from blocking the loop.
@@ -511,20 +520,21 @@ export async function executeToolCall(
   toolCall: AccumulatedToolCall,
   executor: ToolExecutor,
   timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS
-): Promise<{ result?: unknown; error?: string }> {
-  try {
-    // Parse arguments
-    let args: Record<string, unknown> = {};
-    if (toolCall.arguments) {
-      try {
-        args = JSON.parse(toolCall.arguments);
-      } catch (e) {
-        return {
-          error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
-        };
-      }
+): Promise<ToolExecutionResult> {
+  // Parse arguments
+  let args: Record<string, unknown> = {};
+  if (toolCall.arguments) {
+    try {
+      args = JSON.parse(toolCall.arguments);
+    } catch (e) {
+      return {
+        error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
+        errorType: "parse",
+      };
     }
+  }
 
+  try {
     // Execute the tool, optionally with a timeout
     if (!isFinite(timeoutMs)) {
       return { result: await executor(args) };
@@ -546,8 +556,11 @@ export async function executeToolCall(
       clearTimeout(timer);
     }
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    const isTimeout = message === "Tool execution timed out";
     return {
-      error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Tool execution failed: ${message}`,
+      errorType: isTimeout ? "timeout" : "execution",
     };
   }
 }

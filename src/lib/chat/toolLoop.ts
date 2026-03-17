@@ -142,6 +142,13 @@ export type RunToolLoopOptions = {
    * `fetch` response body streaming isn't available in RN.
    */
   transport?: StreamingTransport;
+  /**
+   * Maximum number of connector tool calls (notion, google calendar, google drive)
+   * before they are removed from subsequent rounds. Set to `Infinity` to disable.
+   * Only applies to fast models (cerebras) by default.
+   * @default 2
+   */
+  maxConnectorCalls?: number;
 };
 
 export type RunToolLoopResult =
@@ -259,6 +266,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
+    maxConnectorCalls = 2,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
@@ -461,25 +469,25 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         })
       );
 
-      // Remove connector tools after 2 total calls (fast models only)
+      // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
-      if (isFastModel && apiTools) {
+      if (isFastModel && apiTools && isFinite(maxConnectorCalls)) {
         for (const tc of toolCallsToExecute) {
           if (isConnectorTool(tc.name)) {
             connectorCallCount.total++;
           }
         }
 
-        if (connectorCallCount.total >= 2) {
+        if (connectorCallCount.total >= maxConnectorCalls) {
           apiTools = apiTools.filter((t) => {
             const name = (t as any).function?.name || (t as any).name;
             return !name || !isConnectorTool(name);
           });
           if (apiTools.length === 0) {
             apiTools = undefined;
-            toolChoice = undefined;
+            toolChoice = "auto";
           } else if (typeof toolChoice === "string" && isConnectorTool(toolChoice)) {
-            toolChoice = undefined;
+            toolChoice = "auto";
           }
           for (const [name] of executorMap) {
             if (isConnectorTool(name)) executorMap.delete(name);
@@ -518,9 +526,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             });
             if (apiTools.length === 0) {
               apiTools = undefined;
-              toolChoice = undefined;
+              toolChoice = "auto";
             } else if (typeof toolChoice === "string" && toolsToRemove.has(toolChoice)) {
-              toolChoice = undefined;
+              toolChoice = "auto";
             }
             for (const name of toolsToRemove) {
               executorMap.delete(name);
