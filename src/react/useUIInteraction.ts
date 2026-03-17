@@ -179,14 +179,22 @@ export function UIInteractionProvider({
   }, []);
 
   /**
-   * Clear all interactions (e.g. on conversation switch)
+   * Clear all interactions (e.g. on conversation switch).
+   * Rejects any unsettled promises so the tool loop doesn't hang.
    */
   const clearInteractions = useCallback(() => {
     for (const timer of timersRef.current.values()) {
       clearTimeout(timer);
     }
     timersRef.current.clear();
-    setPendingInteractions(new Map());
+    setPendingInteractions((prev) => {
+      for (const interaction of prev.values()) {
+        if (!interaction.resolved) {
+          interaction.reject(new Error("Interaction cleared"));
+        }
+      }
+      return new Map();
+    });
   }, []);
 
   /**
