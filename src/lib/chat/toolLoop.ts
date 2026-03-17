@@ -41,7 +41,7 @@ import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
-import type { ServerToolCallEvent } from "./useChat/utils";
+import type { ServerToolCallEvent, ToolExecutionErrorType } from "./useChat/utils";
 import {
   createStreamAccumulator,
   createToolExecutorMap,
@@ -72,7 +72,7 @@ export type StepFinishEvent = {
   /** Tool calls the model made in this round. */
   toolCalls: Array<{ name: string; arguments: string }>;
   /** Results from auto-executed tools in this round. */
-  toolResults: Array<{ name: string; result: unknown; error?: string }>;
+  toolResults: Array<{ name: string; result: unknown; error?: string; errorType?: ToolExecutionErrorType }>;
   /** Token usage for this round, if available. */
   usage: { inputTokens?: number; outputTokens?: number };
 };
@@ -454,7 +454,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             };
           }
 
-          const { result, error } = await executeToolCall(
+          const { result, error, errorType } = await executeToolCall(
             toolCall,
             executorConfig.executor,
             executorConfig.executorTimeout
@@ -465,6 +465,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             name: toolCall.name,
             result,
             error,
+            errorType,
           };
         })
       );
@@ -565,6 +566,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             name: r.name ?? "",
             result: r.result,
             ...(r.error ? { error: r.error } : undefined),
+            ...(r.errorType ? { errorType: r.errorType } : undefined),
           })),
           usage: {
             inputTokens: currentAccumulator.usage.prompt_tokens,
