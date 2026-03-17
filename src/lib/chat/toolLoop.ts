@@ -72,7 +72,12 @@ export type StepFinishEvent = {
   /** Tool calls the model made in this round. */
   toolCalls: Array<{ name: string; arguments: string }>;
   /** Results from auto-executed tools in this round. */
-  toolResults: Array<{ name: string; result: unknown; error?: string; errorType?: ToolExecutionErrorType }>;
+  toolResults: Array<{
+    name: string;
+    result: unknown;
+    error?: string;
+    errorType?: ToolExecutionErrorType;
+  }>;
   /** Token usage for this round, if available. */
   usage: { inputTokens?: number; outputTokens?: number };
 };
