@@ -35,9 +35,9 @@ describe("prompt_user_form", () => {
           dates: "2026-04-10",
           budget: 3000,
           notes: "Vegetarian meals preferred",
-        }),
+        })
       ),
-      log,
+      log
     );
 
     const result = await runToolLoop({

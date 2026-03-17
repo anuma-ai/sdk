@@ -26,10 +26,7 @@ function makeAutoResolveContext(resolveWith: unknown) {
 describe("prompt_user_choice", () => {
   it("presents choices and processes the user selection", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createChoiceTool(makeAutoResolveContext({ selected: "italian" })),
-      log,
-    );
+    const tool = wrapTool(createChoiceTool(makeAutoResolveContext({ selected: "italian" })), log);
 
     const result = await runToolLoop({
       messages: [
