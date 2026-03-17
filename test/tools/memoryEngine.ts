@@ -30,7 +30,10 @@ const CONV_ID = "e2e-test-conv-1";
 /** Seed messages that will be pre-embedded for search */
 const seedMessages = [
   { role: "user", content: "I'm planning a trip to Japan next spring" },
-  { role: "assistant", content: "That sounds wonderful! Spring is cherry blossom season in Japan." },
+  {
+    role: "assistant",
+    content: "That sounds wonderful! Spring is cherry blossom season in Japan.",
+  },
   { role: "user", content: "My budget is about $5000 for two weeks" },
   { role: "user", content: "I'm allergic to shellfish, so I need to be careful with food" },
 ];
@@ -61,7 +64,7 @@ beforeAll(async () => {
 
   // Generate real embeddings for seed messages
   const embeddings = await Promise.all(
-    seedMessages.map((m) => generateEmbedding(m.content, embeddingOptions)),
+    seedMessages.map((m) => generateEmbedding(m.content, embeddingOptions))
   );
 
   // Seed the database with a conversation and pre-embedded messages
@@ -104,10 +107,7 @@ afterAll(async () => {
 describe("search_memory", () => {
   it("finds relevant past conversation messages via semantic search", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryEngineTool(storageCtx, embeddingOptions),
-      log,
-    );
+    const tool = wrapTool(createMemoryEngineTool(storageCtx, embeddingOptions), log);
 
     const result = await runToolLoop({
       messages: [
@@ -142,10 +142,7 @@ describe("search_memory", () => {
 
   it("finds travel budget information from past conversations", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryEngineTool(storageCtx, embeddingOptions),
-      log,
-    );
+    const tool = wrapTool(createMemoryEngineTool(storageCtx, embeddingOptions), log);
 
     const result = await runToolLoop({
       messages: [

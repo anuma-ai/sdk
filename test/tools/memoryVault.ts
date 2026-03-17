@@ -61,10 +61,7 @@ afterAll(async () => {
 describe("memory_vault", () => {
   it("saves a memory via LLM tool call and persists it to the database", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryVaultTool(vaultCtx, { onSave: async () => true }),
-      log,
-    );
+    const tool = wrapTool(createMemoryVaultTool(vaultCtx, { onSave: async () => true }), log);
 
     const result = await runToolLoop({
       messages: [
@@ -108,10 +105,7 @@ describe("memory_vault", () => {
 
   it("saves a second memory without overwriting the first", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryVaultTool(vaultCtx, { onSave: async () => true }),
-      log,
-    );
+    const tool = wrapTool(createMemoryVaultTool(vaultCtx, { onSave: async () => true }), log);
 
     await runToolLoop({
       messages: [
@@ -155,10 +149,7 @@ describe("memory_vault", () => {
     });
 
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryVaultSearchTool(vaultCtx, embeddingOptions, cache),
-      log,
-    );
+    const tool = wrapTool(createMemoryVaultSearchTool(vaultCtx, embeddingOptions, cache), log);
 
     const result = await runToolLoop({
       messages: [
@@ -196,10 +187,7 @@ describe("memory_vault", () => {
 
   it("returns no results for unrelated search queries", async () => {
     const log: ToolCallLog[] = [];
-    const tool = wrapTool(
-      createMemoryVaultSearchTool(vaultCtx, embeddingOptions, cache),
-      log,
-    );
+    const tool = wrapTool(createMemoryVaultSearchTool(vaultCtx, embeddingOptions, cache), log);
 
     const result = await runToolLoop({
       messages: [
