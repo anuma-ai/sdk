@@ -86,7 +86,14 @@ export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
         const geoRes = await fetch(
           `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
         );
-        const geoData = await geoRes.json();
+        const geoData = (await geoRes.json()) as {
+          results?: {
+            latitude: number;
+            longitude: number;
+            name: string;
+            country?: string;
+          }[];
+        };
 
         if (!geoData.results || geoData.results.length === 0) {
           return {
@@ -100,7 +107,22 @@ export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
         const weatherRes = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto`
         );
-        const weatherData = await weatherRes.json();
+        const weatherData = (await weatherRes.json()) as {
+          current: {
+            temperature_2m: number;
+            apparent_temperature: number;
+            relative_humidity_2m: number;
+            wind_speed_10m: number;
+            weather_code: number;
+            is_day: number;
+          };
+          daily?: {
+            time?: string[];
+            weather_code: number[];
+            temperature_2m_max: number[];
+            temperature_2m_min: number[];
+          };
+        };
         const current = weatherData.current;
         const daily = weatherData.daily;
 

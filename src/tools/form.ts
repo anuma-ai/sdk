@@ -153,12 +153,16 @@ export function createFormTool(options: CreateUIToolsOptions): ToolConfig {
       required: ["title", "fields"],
     },
     interactionType: "form",
-    validate: (args: any) => {
-      if (!args.title || typeof args.title !== "string") return false;
-      if (!Array.isArray(args.fields) || args.fields.length === 0) return false;
-      for (const field of args.fields) {
+    validate: (args: Record<string, unknown>) => {
+      const { title, fields } = args as {
+        title?: unknown;
+        fields?: { name: unknown; label: unknown; type: string; options?: unknown[] }[];
+      };
+      if (!title || typeof title !== "string") return false;
+      if (!Array.isArray(fields) || fields.length === 0) return false;
+      for (const field of fields) {
         if (!field.name || !field.label || !field.type) return false;
-        if (!VALID_FIELD_TYPES.includes(field.type)) return false;
+        if (!VALID_FIELD_TYPES.includes(field.type as FormFieldType)) return false;
         if (
           field.type === "select" &&
           (!Array.isArray(field.options) || field.options.length === 0)
@@ -167,12 +171,15 @@ export function createFormTool(options: CreateUIToolsOptions): ToolConfig {
       }
       return true;
     },
-    mapResult: (result: any, args: any) => ({
+    mapResult: (
+      result: Record<string, unknown>,
+      args: Record<string, unknown>
+    ) => ({
       ...result,
       _meta: {
-        title: args.title,
-        description: args.description,
-        fields: args.fields,
+        title: args.title as string,
+        description: args.description as string | undefined,
+        fields: args.fields as FormField[],
       },
     }),
   });

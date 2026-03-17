@@ -90,19 +90,29 @@ export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
       required: ["title", "options"],
     },
     interactionType: "choice",
-    validate: (args: any) =>
-      args.title &&
-      typeof args.title === "string" &&
-      Array.isArray(args.options) &&
-      args.options.length >= 2 &&
-      args.options.every((o: any) => o.value && o.label),
-    mapResult: (result: any, args: any) => ({
+    validate: (args: Record<string, unknown>) => {
+      const { title, options } = args as {
+        title?: unknown;
+        options?: { value: unknown; label: unknown }[];
+      };
+      return (
+        !!title &&
+        typeof title === "string" &&
+        Array.isArray(options) &&
+        options.length >= 2 &&
+        options.every((o) => o.value && o.label)
+      );
+    },
+    mapResult: (
+      result: Record<string, unknown>,
+      args: Record<string, unknown>
+    ) => ({
       ...result,
       _meta: {
-        title: args.title,
-        description: args.description,
-        options: args.options,
-        allowMultiple: args.allowMultiple,
+        title: args.title as string,
+        description: args.description as string | undefined,
+        options: args.options as ChoiceOption[],
+        allowMultiple: args.allowMultiple as boolean | undefined,
       },
     }),
   });
