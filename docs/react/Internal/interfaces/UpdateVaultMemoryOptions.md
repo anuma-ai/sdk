@@ -24,7 +24,7 @@ JSON-stringified embedding vector to persist, or null to clear stale embedding
 
 ### folderId?
 
-> `optional` **folderId**: `string`
+> `optional` **folderId**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/types.ts:34](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#34)
 
