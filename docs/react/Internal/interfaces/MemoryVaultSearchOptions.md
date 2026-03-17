@@ -6,6 +6,16 @@ Options for the vault search tool.
 
 ## Properties
 
+### folderId?
+
+> `optional` **folderId**: `string` | `null`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#33)
+
+When provided, only search memories in this folder (null for unfiled)
+
+***
+
 ### limit?
 
 > `optional` **limit**: `number`
