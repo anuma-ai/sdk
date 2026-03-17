@@ -43,7 +43,14 @@ export type FormField = {
   step?: number;
 };
 
-const VALID_FIELD_TYPES: FormFieldType[] = ["text", "textarea", "select", "toggle", "date", "slider"];
+const VALID_FIELD_TYPES: FormFieldType[] = [
+  "text",
+  "textarea",
+  "select",
+  "toggle",
+  "date",
+  "slider",
+];
 
 // ---------------------------------------------------------------------------
 // Tool factory
@@ -152,7 +159,10 @@ export function createFormTool(options: CreateUIToolsOptions): ToolConfig {
       for (const field of args.fields) {
         if (!field.name || !field.label || !field.type) return false;
         if (!VALID_FIELD_TYPES.includes(field.type)) return false;
-        if (field.type === "select" && (!Array.isArray(field.options) || field.options.length === 0))
+        if (
+          field.type === "select" &&
+          (!Array.isArray(field.options) || field.options.length === 0)
+        )
           return false;
       }
       return true;

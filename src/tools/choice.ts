@@ -79,13 +79,11 @@ export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
             },
             required: ["value", "label"],
           },
-          description:
-            "Array of options to present (minimum 2, maximum 10 recommended)",
+          description: "Array of options to present (minimum 2, maximum 10 recommended)",
         },
         allowMultiple: {
           type: "boolean",
-          description:
-            "Allow user to select multiple options (default: false)",
+          description: "Allow user to select multiple options (default: false)",
           default: false,
         },
       },
