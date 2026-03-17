@@ -485,7 +485,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           });
           if (apiTools.length === 0) {
             apiTools = undefined;
-            toolChoice = "auto";
+            toolChoice = undefined;
           } else if (typeof toolChoice === "string" && isConnectorTool(toolChoice)) {
             toolChoice = "auto";
           }
@@ -526,7 +526,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             });
             if (apiTools.length === 0) {
               apiTools = undefined;
-              toolChoice = "auto";
+              toolChoice = undefined;
             } else if (typeof toolChoice === "string" && toolsToRemove.has(toolChoice)) {
               toolChoice = "auto";
             }
