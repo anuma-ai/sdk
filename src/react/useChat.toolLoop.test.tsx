@@ -378,6 +378,46 @@ describe("useChat multi-turn tool loop", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  // ── executorTimeout ─────────────────────────────────
+
+  it("times out a tool with a short executorTimeout", async () => {
+    const slowTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "slow_tool",
+        description: "Slow tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        await new Promise((r) => setTimeout(r, 5000));
+        return "done";
+      },
+      executorTimeout: 50, // 50ms timeout
+    };
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("slow_tool", {})) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Tool timed out.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Go" }] }],
+        model: "test-model",
+        tools: [slowTool],
+      });
+    });
+
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+
+    // The continuation should contain the timeout error
+    const continuationBody = getRequestBody(1);
+    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    expect(toolResultMsg).toBeDefined();
+    expect(toolResultMsg.content[0].text).toContain("timed out");
+  });
+
   // ── removeAfterExecution ─────────────────────────────────
 
   it("removes tool from continuation request after successful execution when removeAfterExecution is true", async () => {

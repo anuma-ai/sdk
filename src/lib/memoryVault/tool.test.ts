@@ -43,6 +43,12 @@ describe("createMemoryVaultTool", () => {
     vi.clearAllMocks();
   });
 
+  it("has no executor when created without onSave", () => {
+    const tool = createMemoryVaultTool(mockVaultCtx);
+    expect(tool.executor).toBeUndefined();
+    expect(tool.function.name).toBe("memory_vault_save");
+  });
+
   it("creates a new memory with default scope 'private'", async () => {
     const created = makeStoredMemory({ uniqueId: "new-1" });
     vi.mocked(createVaultMemoryOp).mockResolvedValue(created);

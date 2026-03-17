@@ -490,6 +490,14 @@ export function createToolExecutorMap(
 /** Default timeout for tool executor calls (30 seconds). */
 const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
 
+/** Sentinel error for tool execution timeouts. */
+class ToolTimeoutError extends Error {
+  constructor() {
+    super("Tool execution timed out");
+    this.name = "ToolTimeoutError";
+  }
+}
+
 /**
  * Safely serializes a value to JSON, returning a fallback string on failure
  * (e.g. circular references, BigInt, or non-serializable types).
@@ -545,7 +553,7 @@ export async function executeToolCall(
       const result = await Promise.race([
         executor(args),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("Tool execution timed out")), timeoutMs);
+          timer = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
         }),
       ]);
       return { result };
@@ -554,10 +562,9 @@ export async function executeToolCall(
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    const isTimeout = message === "Tool execution timed out";
     return {
       error: `Tool execution failed: ${message}`,
-      errorType: isTimeout ? "timeout" : "execution",
+      errorType: e instanceof ToolTimeoutError ? "timeout" : "execution",
     };
   }
 }
