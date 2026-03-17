@@ -91,6 +91,18 @@ export { createChartTool } from "./chart";
 export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
 export { createPhoneCallOfferTool } from "./phoneCallOffer";
 
+// Choice interaction tool
+export type { ChoiceOption } from "./choice";
+export { createChoiceTool } from "./choice";
+
+// Form interaction tool
+export type { FormField, FormFieldOption, FormFieldType } from "./form";
+export { createFormTool } from "./form";
+
+// Weather display tool
+export type { DisplayWeatherResult, ForecastDay } from "./weather";
+export { createWeatherTool } from "./weather";
+
 // Google Drive exports
 export type {
   DriveFile,

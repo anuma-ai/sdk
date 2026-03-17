@@ -67,20 +67,22 @@ describe("createPhoneCallOfferTool", () => {
     });
   });
 
-  it("rejects more than three suggested questions", async () => {
+  it("truncates suggested questions to three", async () => {
+    const createDisplayInteraction = vi.fn();
     const tool = createPhoneCallOfferTool({
-      getContext: () => null,
+      getContext: () => ({
+        createInteraction: vi.fn(),
+        createDisplayInteraction,
+      }),
     });
 
-    const result = await tool.executor?.({
+    const result = (await tool.executor?.({
       recipientName: "Acme Bistro",
       phoneNumber: "+17208228269",
       objective: "Make a reservation",
       suggestedQuestions: ["1", "2", "3", "4"],
-    });
+    })) as Record<string, unknown>;
 
-    expect(result).toEqual({
-      error: "Phone call offers support at most 3 suggested questions",
-    });
+    expect(result.suggestedQuestions).toEqual(["1", "2", "3"]);
   });
 });
