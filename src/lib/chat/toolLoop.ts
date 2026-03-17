@@ -564,10 +564,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
-      // Build tool result messages
-      const continueResults = executionResults.filter(
-        (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
-      );
+      // Build tool result messages — exclude tools with skipContinuation
+      const continueResults = executionResults.filter((r) => {
+        if (!r.name) return false;
+        return executorMap.get(r.name)?.skipContinuation !== true;
+      });
 
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
