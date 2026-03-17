@@ -39,9 +39,9 @@ export interface MemoryVaultToolOptions {
    * Callback invoked before each save operation.
    * Return `true` to confirm the save, `false` to cancel it.
    *
-   * When provided, the tool uses autoExecute with the confirmation
-   * built into the executor. When not provided, the tool uses
-   * autoExecute: false so the host app can handle it via onToolCall.
+   * When provided, the confirmation is built into the executor.
+   * When not provided, the tool has no executor and is emitted
+   * via onToolCall so the host app can handle it.
    */
   onSave?: (operation: VaultSaveOperation) => Promise<boolean>;
 
@@ -130,7 +130,10 @@ export function createMemoryVaultTool(
         required: ["content"],
       },
     },
-    executor: async (args: Record<string, unknown>): Promise<string> => {
+    // When onSave is provided, the executor runs with confirmation built in.
+    // Without onSave, omit the executor so the tool is emitted via onToolCall
+    // and the host app can handle it.
+    executor: hasOnSave ? async (args: Record<string, unknown>): Promise<string> => {
       const content = args.content as string;
       const id = args.id as string | undefined;
       const folderName = args.folderName as string | undefined;
@@ -209,8 +212,7 @@ export function createMemoryVaultTool(
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error saving memory: ${message}`;
       }
-    },
-    autoExecute: hasOnSave,
+    } : undefined,
     removeAfterExecution: hasOnSave,
   };
 }

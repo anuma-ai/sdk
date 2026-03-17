@@ -456,11 +456,8 @@ export function isDoneMarker(chunk: unknown): boolean {
  */
 export function createToolExecutorMap(
   tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
-): Map<string, { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }> {
-  const map = new Map<
-    string,
-    { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }
-  >();
+): Map<string, { executor: ToolExecutor; skipContinuation: boolean }> {
+  const map = new Map<string, { executor: ToolExecutor; skipContinuation: boolean }>();
 
   if (!tools) {
     return map;
@@ -468,7 +465,7 @@ export function createToolExecutorMap(
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
-    const toolName = (tool as any).function?.name || (tool as any).name;
+    const toolName: string | undefined = (tool as any).function?.name || (tool as any).name;
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
@@ -476,7 +473,6 @@ export function createToolExecutorMap(
     if (toolWithExecutor.executor) {
       map.set(toolName, {
         executor: toolWithExecutor.executor,
-        autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
         skipContinuation: toolWithExecutor.skipContinuation === true, // Default to false
       });
     }
@@ -560,7 +556,6 @@ export function toolsToApiFormat(
     // Strip client-side-only properties before sending to API
     const {
       executor: _executor,
-      autoExecute: _autoExecute,
       skipContinuation: _skipContinuation,
       removeAfterExecution: _removeAfterExecution,
       ...apiTool

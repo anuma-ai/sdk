@@ -76,6 +76,5 @@ export function createIpGeolocationTool(): ToolConfig {
         return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
       }
     },
-    autoExecute: true,
   };
 }

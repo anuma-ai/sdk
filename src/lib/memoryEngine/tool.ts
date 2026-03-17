@@ -293,7 +293,6 @@ export function createMemoryEngineTool(
         return `Error searching conversations: ${message}`;
       }
     },
-    autoExecute: true,
     removeAfterExecution: true,
   };
 }

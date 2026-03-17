@@ -314,6 +314,5 @@ export function createMemoryVaultSearchTool(
         return `Error searching vault: ${message}`;
       }
     },
-    autoExecute: true,
   };
 }

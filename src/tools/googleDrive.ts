@@ -167,7 +167,6 @@ export function createGoogleDriveSearchTool(
 
       return searchDriveFiles(token, typedArgs);
     },
-    autoExecute: true,
   };
 }
 
@@ -296,7 +295,6 @@ export function createGoogleDriveListRecentTool(
 
       return listRecentDriveFiles(token, typedArgs);
     },
-    autoExecute: true,
   };
 }
 
@@ -605,7 +603,6 @@ export function createGoogleDriveGetContentTool(
       );
       return result;
     },
-    autoExecute: true,
   };
 }
 

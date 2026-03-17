@@ -434,11 +434,10 @@ describe("Notion MCP Tools", () => {
 
     for (const { name, fn, toolName, args, errorPrefix } of toolFactories) {
       describe(name, () => {
-        it(`creates tool with name "${toolName}" and autoExecute true`, () => {
+        it(`creates tool with name "${toolName}" and executor`, () => {
           const tool = fn(mockGetAccessToken, mockRequestNotionAccess);
 
           expect(tool.function.name).toBe(toolName);
-          expect(tool.autoExecute).toBe(true);
           expect(tool.type).toBe("function");
           expect(tool.executor).toBeTypeOf("function");
         });
@@ -508,12 +507,11 @@ describe("Notion MCP Tools", () => {
       ]);
     });
 
-    it("all tools have executors and autoExecute", () => {
+    it("all tools have executors", () => {
       const tools = createNotionTools(mockGetAccessToken, mockRequestNotionAccess);
 
       for (const tool of tools) {
         expect(tool.executor).toBeTypeOf("function");
-        expect(tool.autoExecute).toBe(true);
         expect(tool.type).toBe("function");
       }
     });
