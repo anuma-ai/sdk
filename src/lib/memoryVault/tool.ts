@@ -202,7 +202,13 @@ export function createMemoryVaultTool(
               const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
               // Eagerly embed the new memory so it's searchable immediately
               if (embeddingOptions && cache) {
-                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
+                eagerEmbedContent(
+                  content,
+                  embeddingOptions,
+                  cache,
+                  vaultCtx,
+                  created.uniqueId
+                ).catch(
                   // Silently swallow – SDK must not use console.*; embedding will be retried on next search
                   () => {}
                 );
