@@ -153,14 +153,14 @@ export function UIInteractionProvider({
     ) => {
       setPendingInteractions((prev) => {
         const next = new Map(prev);
-        if (replacesInteractionId) {
-          next.delete(replacesInteractionId);
-        } else {
+        if (!replacesInteractionId || !next.has(replacesInteractionId)) {
           for (const [key, value] of next.entries()) {
             if (value.type === "display" && value.data?.displayType === displayType) {
               next.delete(key);
             }
           }
+        } else {
+          next.delete(replacesInteractionId);
         }
         next.set(id, {
           id,
