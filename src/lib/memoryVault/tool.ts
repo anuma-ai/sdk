@@ -130,7 +130,11 @@ export function createMemoryVaultTool(
         required: ["content"],
       },
     },
-    executor: async (args: Record<string, unknown>): Promise<string> => {
+    // When onSave is provided, the executor runs with confirmation built in.
+    // Without onSave, omit the executor so the tool is emitted via onToolCall
+    // and the host app can handle it.
+    executor: hasOnSave
+      ? async (args: Record<string, unknown>): Promise<string> => {
       const content = args.content as string;
       const id = args.id as string | undefined;
       const folderName = args.folderName as string | undefined;
@@ -209,7 +213,8 @@ export function createMemoryVaultTool(
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error saving memory: ${message}`;
       }
-    },
+        }
+      : undefined,
     removeAfterExecution: hasOnSave,
   };
 }

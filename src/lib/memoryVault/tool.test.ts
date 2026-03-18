@@ -46,9 +46,9 @@ describe("createMemoryVaultTool", () => {
     vi.clearAllMocks();
   });
 
-  it("has executor even when created without onSave", () => {
+  it("has no executor when created without onSave", () => {
     const tool = createMemoryVaultTool(mockVaultCtx);
-    expect(tool.executor).toBeDefined();
+    expect(tool.executor).toBeUndefined();
     expect(tool.function.name).toBe("memory_vault_save");
   });
 
@@ -154,11 +154,13 @@ describe("createMemoryVaultTool", () => {
   // ── folderName handling ─────────────────────────────────────
 
   describe("folderName handling", () => {
+    const autoConfirm = async () => true;
+
     it("resolves folderName to folderId via folderMap when creating a new memory", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
       const folderMap = new Map([["Work", "folder_1"]]);
-      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap, onSave: autoConfirm });
       await tool.executor!({ content: "remember this", folderName: "Work" });
 
       expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
@@ -175,7 +177,7 @@ describe("createMemoryVaultTool", () => {
       vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
 
       const folderMap = new Map([["Work", "folder_1"]]);
-      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap, onSave: autoConfirm });
       await tool.executor!({ content: "new", id: "mem-1", folderName: "Work" });
 
       expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
@@ -188,7 +190,7 @@ describe("createMemoryVaultTool", () => {
     it("creates memory without folderId when folderName is not provided", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
-      const tool = createMemoryVaultTool(mockVaultCtx);
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave: autoConfirm });
       await tool.executor!({ content: "test" });
 
       expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
