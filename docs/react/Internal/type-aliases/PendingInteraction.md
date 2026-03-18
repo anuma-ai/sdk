@@ -106,6 +106,16 @@ Defined in: [src/react/useUIInteraction.ts:26](https://github.com/anuma-ai/sdk/b
 
 ***
 
+### replacesInteractionId?
+
+> `optional` **replacesInteractionId**: `string`
+
+Defined in: [src/react/useUIInteraction.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#33)
+
+If set, this interaction replaces a previous one (e.g. an updated app)
+
+***
+
 ### resolve()
 
 > **resolve**: (`result`: `TResult`) => `void`
