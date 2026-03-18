@@ -135,84 +135,90 @@ export function createMemoryVaultTool(
     // and the host app can handle it.
     executor: hasOnSave
       ? async (args: Record<string, unknown>): Promise<string> => {
-      const content = args.content as string;
-      const id = args.id as string | undefined;
-      const folderName = args.folderName as string | undefined;
+          const content = args.content as string;
+          const id = args.id as string | undefined;
+          const folderName = args.folderName as string | undefined;
 
-      if (!content || typeof content !== "string") {
-        return "Error: content is required and must be a string.";
-      }
-
-      try {
-        const isUpdate = !!id;
-        let previousContent: string | undefined;
-
-        // For updates, fetch the existing memory to get previous content
-        if (isUpdate) {
-          const existing = await getVaultMemoryOp(vaultCtx, id);
-          if (!existing) {
-            return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
+          if (!content || typeof content !== "string") {
+            return "Error: content is required and must be a string.";
           }
-          previousContent = existing.content;
-        }
 
-        // Build the operation descriptor for the confirmation callback
-        const scope = options?.scope ?? "private";
-        const operation: VaultSaveOperation = {
-          action: isUpdate ? "update" : "add",
-          content,
-          ...(!isUpdate && { scope }),
-          ...(isUpdate && { id, previousContent }),
-        };
+          try {
+            const isUpdate = !!id;
+            let previousContent: string | undefined;
 
-        // If onSave callback is provided, ask for confirmation
-        if (options?.onSave) {
-          const confirmed = await options.onSave(operation);
-          if (!confirmed) {
-            return isUpdate
-              ? `Memory update was cancelled by the user. The memory "${id}" was not modified.`
-              : "Memory save was cancelled by the user. No memory was created.";
-          }
-        }
-
-        // Execute the save
-        if (isUpdate) {
-          const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
-          const updated = await updateVaultMemoryOp(vaultCtx, id, {
-            content,
-            embedding: null,
-            folderId,
-          });
-          if (!updated) {
-            return `Error: Failed to update memory "${id}".`;
-          }
-          // Sync embedding cache: evict stale entry, embed new content
-          if (embeddingOptions && cache) {
-            if (previousContent) {
-              cache.delete(previousContent);
+            // For updates, fetch the existing memory to get previous content
+            if (isUpdate) {
+              const existing = await getVaultMemoryOp(vaultCtx, id);
+              if (!existing) {
+                return `Error: Memory with ID "${id}" not found. Creating a new memory instead would require a separate call without an ID.`;
+              }
+              previousContent = existing.content;
             }
-            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
-              // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-              () => {}
-            );
+
+            // Build the operation descriptor for the confirmation callback
+            const scope = options?.scope ?? "private";
+            const operation: VaultSaveOperation = {
+              action: isUpdate ? "update" : "add",
+              content,
+              ...(!isUpdate && { scope }),
+              ...(isUpdate && { id, previousContent }),
+            };
+
+            // If onSave callback is provided, ask for confirmation
+            if (options?.onSave) {
+              const confirmed = await options.onSave(operation);
+              if (!confirmed) {
+                return isUpdate
+                  ? `Memory update was cancelled by the user. The memory "${id}" was not modified.`
+                  : "Memory save was cancelled by the user. No memory was created.";
+              }
+            }
+
+            // Execute the save
+            if (isUpdate) {
+              const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+              const updated = await updateVaultMemoryOp(vaultCtx, id, {
+                content,
+                embedding: null,
+                folderId,
+              });
+              if (!updated) {
+                return `Error: Failed to update memory "${id}".`;
+              }
+              // Sync embedding cache: evict stale entry, embed new content
+              if (embeddingOptions && cache) {
+                if (previousContent) {
+                  cache.delete(previousContent);
+                }
+                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
+                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+                  () => {}
+                );
+              }
+              return `Memory updated successfully (ID: ${updated.uniqueId}).`;
+            } else {
+              const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
+              const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
+              // Eagerly embed the new memory so it's searchable immediately
+              if (embeddingOptions && cache) {
+                eagerEmbedContent(
+                  content,
+                  embeddingOptions,
+                  cache,
+                  vaultCtx,
+                  created.uniqueId
+                ).catch(
+                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+                  () => {}
+                );
+              }
+              return `Memory saved successfully (ID: ${created.uniqueId}).`;
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown error";
+            return `Error saving memory: ${message}`;
           }
-          return `Memory updated successfully (ID: ${updated.uniqueId}).`;
-        } else {
-          const folderId = folderName ? options?.folderMap?.get(folderName) : undefined;
-          const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
-          // Eagerly embed the new memory so it's searchable immediately
-          if (embeddingOptions && cache) {
-            eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
-              // Silently swallow – SDK must not use console.*; embedding will be retried on next search
-              () => {}
-            );
-          }
-          return `Memory saved successfully (ID: ${created.uniqueId}).`;
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        return `Error saving memory: ${message}`;
-      }
         }
       : undefined,
     removeAfterExecution: hasOnSave,
