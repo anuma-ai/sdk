@@ -29,6 +29,8 @@ export interface MemoryVaultSearchOptions {
   minSimilarity?: number;
   /** When provided, only search memories with these scopes */
   scopes?: string[];
+  /** When provided, only search memories in this folder (null for unfiled) */
+  folderId?: string | null;
 }
 
 /**
@@ -106,9 +108,10 @@ export async function eagerEmbedContent(
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
   if (vaultCtx && memoryId) {
-    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch((err) => {
-      console.warn("[anuma/sdk] Failed to persist embedding:", err);
-    });
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch(
+      // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+      () => {}
+    );
   }
 }
 
@@ -139,7 +142,16 @@ async function searchVaultMemoriesWithSize(
     return { results: [], vaultSize: 0 };
   }
 
-  const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
+  const folderId = searchOptions?.folderId;
+
+  const queryOpts: { scopes?: string[]; folderId?: string | null } = {};
+  if (scopes?.length) queryOpts.scopes = scopes;
+  if (folderId !== undefined) queryOpts.folderId = folderId;
+
+  const memories = await getAllVaultMemoriesOp(
+    vaultCtx,
+    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+  );
   if (memories.length === 0) {
     return { results: [], vaultSize: 0 };
   }
@@ -175,9 +187,10 @@ async function searchVaultMemoriesWithSize(
         vaultCtx,
         memories[uncachedIndices[j]].uniqueId,
         JSON.stringify(newEmbeddings[j])
-      ).catch((err) => {
-        console.warn("[anuma/sdk] Failed to persist embedding:", err);
-      });
+      ).catch(
+        // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+        () => {}
+      );
     }
   }
 
@@ -268,6 +281,13 @@ export function createMemoryVaultSearchTool(
             type: "integer",
             description: `Maximum number of results to return. Default: ${limit}.`,
           },
+          folder_id: {
+            type: ["string", "null"],
+            description:
+              "Optional folder ID to scope the search to a specific folder. " +
+              "Pass null to search only unfiled memories. " +
+              "Omit to search all folders.",
+          },
         },
         required: ["query"],
       },
@@ -275,6 +295,7 @@ export function createMemoryVaultSearchTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
       const requestLimit = (args.limit as number) ?? limit;
+      const argFolderId = args.folder_id as string | null | undefined;
 
       if (!query || typeof query !== "string") {
         return "Error: A search query is required.";
@@ -290,10 +311,19 @@ export function createMemoryVaultSearchTool(
             ...searchOptions,
             limit: requestLimit,
             minSimilarity,
+            // Only use LLM's folder_id when the host app hasn't set one
+            ...(searchOptions?.folderId === undefined &&
+              argFolderId !== undefined && { folderId: argFolderId }),
           }
         );
 
         if (vaultSize === 0) {
+          // Distinguish between a truly empty vault and an empty folder-scoped query
+          const hasFolderFilter =
+            searchOptions?.folderId !== undefined || argFolderId !== undefined;
+          if (hasFolderFilter) {
+            return "No memories found in this folder.";
+          }
           return "The memory vault is empty. No memories have been saved yet.";
         }
 

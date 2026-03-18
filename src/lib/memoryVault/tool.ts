@@ -191,9 +191,10 @@ export function createMemoryVaultTool(
                 if (previousContent) {
                   cache.delete(previousContent);
                 }
-                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch((err) => {
-                  console.warn("[anuma/sdk] Failed to embed updated memory:", err);
-                });
+                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, id).catch(
+                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+                  () => {}
+                );
               }
               return `Memory updated successfully (ID: ${updated.uniqueId}).`;
             } else {
@@ -201,15 +202,10 @@ export function createMemoryVaultTool(
               const created = await createVaultMemoryOp(vaultCtx, { content, scope, folderId });
               // Eagerly embed the new memory so it's searchable immediately
               if (embeddingOptions && cache) {
-                eagerEmbedContent(
-                  content,
-                  embeddingOptions,
-                  cache,
-                  vaultCtx,
-                  created.uniqueId
-                ).catch((err) => {
-                  console.warn("[anuma/sdk] Failed to embed new memory:", err);
-                });
+                eagerEmbedContent(content, embeddingOptions, cache, vaultCtx, created.uniqueId).catch(
+                  // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+                  () => {}
+                );
               }
               return `Memory saved successfully (ID: ${created.uniqueId}).`;
             }

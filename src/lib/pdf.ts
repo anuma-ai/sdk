@@ -15,61 +15,53 @@ async function getPdfjs() {
 }
 
 export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
-  try {
-    const pdfjs = await getPdfjs();
-    const loadingTask = pdfjs.getDocument(pdfDataUrl);
-    const pdf = await loadingTask.promise;
+  const pdfjs = await getPdfjs();
+  const loadingTask = pdfjs.getDocument(pdfDataUrl);
+  const pdf = await loadingTask.promise;
 
-    const textParts: string[] = [];
+  const textParts: string[] = [];
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
 
-      const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    const pageText = textContent.items
+      .map((item) => ("str" in item ? (item as { str: string }).str : ""))
+      .join(" ");
 
-      if (pageText.trim()) {
-        textParts.push(pageText);
-      }
+    if (pageText.trim()) {
+      textParts.push(pageText);
     }
-
-    return textParts.join("\n\n");
-  } catch (error) {
-    console.error("Error extracting text from PDF:", error);
-    throw error;
   }
+
+  return textParts.join("\n\n");
 }
 
 export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> {
   const images: string[] = [];
 
-  try {
-    const pdfjs = await getPdfjs();
-    const loadingTask = pdfjs.getDocument(pdfDataUrl);
-    const pdf = await loadingTask.promise;
+  const pdfjs = await getPdfjs();
+  const loadingTask = pdfjs.getDocument(pdfDataUrl);
+  const pdf = await loadingTask.promise;
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.5 });
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
 
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
 
-      if (!context) continue;
+    if (!context) continue;
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
 
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-      }).promise;
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
 
-      images.push(canvas.toDataURL("image/png"));
-    }
-  } catch (error) {
-    console.error("Error converting PDF to images:", error);
-    throw error;
+    images.push(canvas.toDataURL("image/png"));
   }
 
   return images;

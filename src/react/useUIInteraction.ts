@@ -29,6 +29,8 @@ export type PendingInteraction<TData = any, TResult = any> = {
   result?: TResult;
   /** Version of the display tool that produced this interaction (for migration on restore) */
   toolVersion?: number;
+  /** If set, this interaction replaces a previous one (e.g. an updated app) */
+  replacesInteractionId?: string;
 };
 
 /**
@@ -42,7 +44,8 @@ export type UIInteractionContextValue = {
     displayType: string,
     data: any,
     result: any,
-    toolVersion?: number
+    toolVersion?: number,
+    replacesInteractionId?: string
   ) => void;
   resolveInteraction: (id: string, result: any) => void;
   cancelInteraction: (id: string) => void;
@@ -132,9 +135,25 @@ export function UIInteractionProvider({
    * Used for rendering rich components (e.g. weather cards) without blocking the tool call.
    */
   const createDisplayInteraction = useCallback(
-    (id: string, displayType: string, data: any, result: any, toolVersion?: number) => {
+    (
+      id: string,
+      displayType: string,
+      data: any,
+      result: any,
+      toolVersion?: number,
+      replacesInteractionId?: string
+    ) => {
       setPendingInteractions((prev) => {
         const next = new Map(prev);
+        if (!replacesInteractionId || !next.has(replacesInteractionId)) {
+          for (const [key, value] of next.entries()) {
+            if (value.type === "display" && value.data?.displayType === displayType) {
+              next.delete(key);
+            }
+          }
+        } else {
+          next.delete(replacesInteractionId);
+        }
         next.set(id, {
           id,
           type: "display",
@@ -145,6 +164,7 @@ export function UIInteractionProvider({
           resolved: true,
           result,
           toolVersion,
+          replacesInteractionId,
         });
         return next;
       });

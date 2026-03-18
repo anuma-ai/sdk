@@ -2,7 +2,7 @@
 
 > **preEmbedVaultMemories**(`vaultCtx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `embeddingOptions`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `cache`: [`VaultEmbeddingCache`](../type-aliases/VaultEmbeddingCache.md), `options?`: `object`): `Promise`<`void`>
 
-Defined in: [src/lib/memoryVault/searchTool.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#55)
+Defined in: [src/lib/memoryVault/searchTool.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#57)
 
 Pre-embed all vault memories that are not yet in the cache.
 Call this at init time so searches are instant.

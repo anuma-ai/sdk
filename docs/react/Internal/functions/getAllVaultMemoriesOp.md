@@ -41,6 +41,18 @@ Defined in: [src/lib/db/memoryVault/operations.ts:169](https://github.com/anuma-
 <tr>
 <td>
 
+`options.folderId?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.limit?`
 
 </td>

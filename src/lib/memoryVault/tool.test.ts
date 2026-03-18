@@ -31,6 +31,9 @@ function makeStoredMemory(overrides: Partial<StoredVaultMemory> = {}): StoredVau
     uniqueId: "mem-1",
     content: "User likes cats",
     scope: "private",
+    folderId: null,
+    userId: null,
+    embedding: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
@@ -146,6 +149,54 @@ describe("createMemoryVaultTool", () => {
     const result = await tool.executor!({ content: "test" });
 
     expect(result).toBe("Error saving memory: DB write failed");
+  });
+
+  // ── folderName handling ─────────────────────────────────────
+
+  describe("folderName handling", () => {
+    it("resolves folderName to folderId via folderMap when creating a new memory", async () => {
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+
+      const folderMap = new Map([["Work", "folder_1"]]);
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      await tool.executor!({ content: "remember this", folderName: "Work" });
+
+      expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+        content: "remember this",
+        scope: "private",
+        folderId: "folder_1",
+      });
+    });
+
+    it("resolves folderName to folderId via folderMap when updating a memory", async () => {
+      const existing = makeStoredMemory({ uniqueId: "mem-1", content: "old" });
+      const updated = makeStoredMemory({ uniqueId: "mem-1", content: "new" });
+      vi.mocked(getVaultMemoryOp).mockResolvedValue(existing);
+      vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
+
+      const folderMap = new Map([["Work", "folder_1"]]);
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      await tool.executor!({ content: "new", id: "mem-1", folderName: "Work" });
+
+      expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
+        content: "new",
+        embedding: null,
+        folderId: "folder_1",
+      });
+    });
+
+    it("creates memory without folderId when folderName is not provided", async () => {
+      vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
+
+      const tool = createMemoryVaultTool(mockVaultCtx);
+      await tool.executor!({ content: "test" });
+
+      expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
+        content: "test",
+        scope: "private",
+        folderId: undefined,
+      });
+    });
   });
 
   // ── onSave confirmation flow ───────────────────────────────

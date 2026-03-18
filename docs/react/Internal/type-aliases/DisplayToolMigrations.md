@@ -2,7 +2,7 @@
 
 > **DisplayToolMigrations** = `object`
 
-Defined in: [src/tools/uiInteraction.ts:70](https://github.com/anuma-ai/sdk/blob/main/src/tools/uiInteraction.ts#70)
+Defined in: [src/tools/uiInteraction.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/tools/uiInteraction.ts#71)
 
 Migration map for a display tool.
 Keys are "fromVersion->toVersion" strings (e.g. "1->2").

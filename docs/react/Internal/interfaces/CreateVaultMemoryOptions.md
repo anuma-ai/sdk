@@ -24,11 +24,11 @@ JSON-stringified embedding vector to persist
 
 ### folderId?
 
-> `optional` **folderId**: `string`
+> `optional` **folderId**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/types.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#24)
 
-Folder ID to file the memory into.
+Folder ID for organization, null or omitted if unfiled
 
 ***
 
