@@ -1,5 +1,7 @@
 "use client";
 
+import { getLogger } from "../lib/logger";
+
 export const SIGN_MESSAGE =
   "The app is asking you to sign this message to generate a key, which will be used to encrypt data.";
 /**
@@ -762,7 +764,7 @@ export async function requestEncryptionKey(
     } catch (error) {
       // If embedded wallet signer fails, fall back to standard signMessage
       if (embeddedWalletSigner && error instanceof Error) {
-        console.warn(
+        getLogger().warn(
           "Embedded wallet signing failed, falling back to standard signMessage:",
           error.message
         );
@@ -957,7 +959,7 @@ async function loadPersistedKeyPair(address: string): Promise<CryptoKeyPair | nu
   } catch (error) {
     // If decryption fails, remove corrupted data and return null
     localStorage.removeItem(storageKey);
-    console.warn(
+    getLogger().warn(
       `Failed to load persisted keypair for ${address}: ${error instanceof Error ? error.message : String(error)}`
     );
     return null;
@@ -1043,7 +1045,7 @@ export async function requestKeyPair(
     }
   } catch (error) {
     // If loading fails, continue to generate new keypair
-    console.warn(
+    getLogger().warn(
       `Failed to load persisted keypair, generating new one: ${error instanceof Error ? error.message : String(error)}`
     );
   }
@@ -1061,7 +1063,7 @@ export async function requestKeyPair(
   } catch (error) {
     // If embedded wallet signer fails, fall back to standard signMessage
     if (embeddedWalletSigner && error instanceof Error) {
-      console.warn(
+      getLogger().warn(
         "Embedded wallet signing failed, falling back to standard signMessage:",
         error.message
       );
@@ -1086,7 +1088,7 @@ export async function requestKeyPair(
     }
   } catch (error) {
     // Persistence is optional - log warning but don't fail
-    console.warn(
+    getLogger().warn(
       `Failed to persist keypair (will regenerate on next session): ${error instanceof Error ? error.message : String(error)}`
     );
   }

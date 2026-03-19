@@ -4,6 +4,7 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { getLogger } from "../lib/logger";
 
 export interface SearchFilesArgs {
   query: string;
@@ -374,16 +375,14 @@ async function resolveFileId(
   }
 
   if (fileName) {
-    // eslint-disable-next-line no-console
-    console.log("[google_drive_get_content] Searching for file by name:", fileName);
+    getLogger().debug("[google_drive_get_content] Searching for file by name:", fileName);
     const foundId = await findFileByName(accessToken, fileName);
     if (!foundId) {
       return {
         error: `Error: Could not find a file matching "${fileName}". Please check the file name and try again.`,
       };
     }
-    // eslint-disable-next-line no-console
-    console.log("[google_drive_get_content] Found file ID:", foundId);
+    getLogger().debug("[google_drive_get_content] Found file ID:", foundId);
     return { fileId: foundId };
   }
 
@@ -497,8 +496,7 @@ async function fetchAndFormatContent(
  * Supports Google Docs, Sheets, Slides (exported as text), and text-based files
  */
 async function getDriveFileContent(accessToken: string, args: GetFileContentArgs): Promise<string> {
-  // eslint-disable-next-line no-console
-  console.log("[google_drive_get_content] Starting with:", args);
+  getLogger().debug("[google_drive_get_content] Starting with:", args);
 
   // Resolve file identifier
   const fileIdResult = await resolveFileId(accessToken, args.fileId, args.fileName);
@@ -515,8 +513,7 @@ async function getDriveFileContent(accessToken: string, args: GetFileContentArgs
     }
     const { metadata } = metadataResult;
 
-    // eslint-disable-next-line no-console
-    console.log("[google_drive_get_content] File metadata:", metadata);
+    getLogger().debug("[google_drive_get_content] File metadata:", metadata);
 
     // Determine content URL based on mime type
     const contentUrlResult = getContentUrl(fileId, metadata.mimeType);
@@ -567,16 +564,14 @@ export function createGoogleDriveGetContentTool(
       },
     },
     executor: async (args: Record<string, unknown>): Promise<string> => {
-      // eslint-disable-next-line no-console
-      console.log("[google_drive_get_content] Executor called with args:", args);
+      getLogger().debug("[google_drive_get_content] Executor called with args:", args);
 
       // Try to get existing token first
       let token = getAccessToken();
 
       // If no token, request Drive access
       if (!token) {
-        // eslint-disable-next-line no-console
-        console.log("[google_drive_get_content] No token, requesting access...");
+        getLogger().debug("[google_drive_get_content] No token, requesting access...");
         try {
           token = await requestDriveAccess();
         } catch {
@@ -594,8 +589,7 @@ export function createGoogleDriveGetContentTool(
       };
 
       const result = await getDriveFileContent(token, typedArgs);
-      // eslint-disable-next-line no-console
-      console.log(
+      getLogger().debug(
         "[google_drive_get_content] Result length:",
         result.length,
         "First 200 chars:",

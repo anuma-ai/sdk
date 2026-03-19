@@ -58,6 +58,12 @@
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
 export { useChat } from "./useChat";
 
+// Pluggable logger
+export type { Logger } from "../lib/logger";
+export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
+export type { LoggerProviderProps } from "./LoggerProvider";
+export { LoggerProvider } from "./LoggerProvider";
+
 // Chart display components
 export type { ChartCardProps, ChartConfig } from "./chart";
 export {

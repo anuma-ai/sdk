@@ -1,5 +1,6 @@
 import type ExcelJS from "exceljs";
 
+import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
@@ -75,7 +76,7 @@ export class ExcelProcessor implements FileProcessor {
         },
       };
     } catch (error) {
-      console.error("Error processing Excel file:", error);
+      getLogger().error("Error processing Excel file:", error);
       throw error;
     }
   }

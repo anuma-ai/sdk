@@ -1,6 +1,6 @@
 # ZipProcessorOptions
 
-Defined in: [src/lib/processors/ZipProcessor.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#11)
+Defined in: [src/lib/processors/ZipProcessor.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#12)
 
 Options for configuring ZipProcessor behavior
 
@@ -10,7 +10,7 @@ Options for configuring ZipProcessor behavior
 
 > `optional` **includeHidden**: `boolean`
 
-Defined in: [src/lib/processors/ZipProcessor.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#16)
+Defined in: [src/lib/processors/ZipProcessor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#17)
 
 Whether to include hidden files and directories (default: false)
 
@@ -20,6 +20,6 @@ Whether to include hidden files and directories (default: false)
 
 > `optional` **maxFileSize**: `number`
 
-Defined in: [src/lib/processors/ZipProcessor.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#13)
+Defined in: [src/lib/processors/ZipProcessor.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#14)
 
 Maximum size (in bytes) for processing individual files (default: 10MB)

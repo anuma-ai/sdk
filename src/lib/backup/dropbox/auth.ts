@@ -9,6 +9,7 @@
  */
 
 import type { Client } from "../../../client/client";
+import { getLogger } from "../../logger";
 import {
   postAuthOauthByProviderExchange,
   postAuthOauthByProviderRefresh,
@@ -178,8 +179,8 @@ export async function handleDropboxCallback(
     const errorDetails = error instanceof Error ? `${error.name}: ${errorMessage}` : errorMessage;
 
     // Log error with details
-    console.error(`OAuth callback error: ${errorDetails}`, error);
-    console.warn(`Failed to complete OAuth flow: ${errorMessage}`);
+    getLogger().error(`OAuth callback error: ${errorDetails}`, error);
+    getLogger().warn(`Failed to complete OAuth flow: ${errorMessage}`);
 
     // Determine error code based on error type
     let errorCode: OAuthError["code"] = "unknown";

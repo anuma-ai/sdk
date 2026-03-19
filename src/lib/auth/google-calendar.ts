@@ -26,6 +26,7 @@ import {
   getEncryptionKey,
   hasEncryptionKey,
 } from "../../react/useEncryption";
+import { getLogger } from "../logger";
 
 // Use google-drive provider for backend API calls (same Google OAuth client)
 // but store tokens separately and request Calendar-specific scopes
@@ -127,7 +128,7 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
         cachedWalletAddress = walletAddress ?? null;
         return data;
       } catch (error) {
-        console.error("Failed to decrypt Calendar OAuth token:", error);
+        getLogger().error("Failed to decrypt Calendar OAuth token:", error);
         // Fall through to legacy/session storage
       }
     }
@@ -202,7 +203,7 @@ async function storeTokenData(data: StoredTokenData, walletAddress?: string): Pr
       const encrypted = await encryptDataWithKey(json, cryptoKey);
       localStorage.setItem(getTokenStorageKey(walletAddress), ENCRYPTED_PREFIX + encrypted);
     } catch (error) {
-      console.warn("Failed to encrypt Calendar OAuth token:", error);
+      getLogger().warn("Failed to encrypt Calendar OAuth token:", error);
     }
   }
 }
@@ -366,7 +367,7 @@ export async function handleCalendarCallback(
     return response.data.access_token;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`Calendar OAuth callback error: ${errorMessage}`, error);
+    getLogger().error(`Calendar OAuth callback error: ${errorMessage}`, error);
     throw error;
   }
 }
@@ -406,7 +407,7 @@ export async function refreshCalendarToken(
   } catch (error) {
     // Don't clear token on transient errors (network, server) — only return null
     // so the caller can retry later. The token + refresh token stay in storage.
-    console.error("Calendar token refresh failed", error);
+    getLogger().error("Calendar token refresh failed", error);
     return null;
   }
 }

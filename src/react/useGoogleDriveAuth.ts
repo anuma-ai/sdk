@@ -23,6 +23,7 @@ import {
   startGoogleDriveAuth,
 } from "../lib/backup/google/auth";
 import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
+import { getLogger } from "../lib/logger";
 
 /**
  * Props for GoogleDriveAuthProvider
@@ -130,7 +131,7 @@ export function GoogleDriveAuthProvider({
         if (result.ok) {
           setAccessToken(result.data);
         } else {
-          console.error(
+          getLogger().error(
             `Google Drive OAuth failed: ${result.error.code} - ${result.error.message}`
           );
         }

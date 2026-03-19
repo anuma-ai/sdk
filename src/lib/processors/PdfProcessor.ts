@@ -1,3 +1,4 @@
+import { getLogger } from "../logger";
 import { extractTextFromPdf } from "../pdf";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
@@ -25,7 +26,7 @@ export class PdfProcessor implements FileProcessor {
         },
       };
     } catch (error) {
-      console.error("Error processing PDF:", error);
+      getLogger().error("Error processing PDF:", error);
       throw error;
     }
   }

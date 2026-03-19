@@ -91,3 +91,7 @@
  */
 export * from "./client";
 export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
+
+// Pluggable logger
+export type { Logger } from "./lib/logger";
+export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";

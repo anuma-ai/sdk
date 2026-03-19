@@ -13,6 +13,8 @@
 
 import { v7 as uuidv7 } from "uuid";
 
+import { getLogger } from "../../logger";
+
 import type {
   FlushResult,
   OperationExecutor,
@@ -141,7 +143,7 @@ export class QueueManager {
     }
 
     if (walletQueue.size >= MAX_OPERATIONS_PER_WALLET) {
-      console.warn(
+      getLogger().warn(
         `[QueueManager] Queue full for ${walletAddress} (${MAX_OPERATIONS_PER_WALLET} ops). Rejecting new operation.`
       );
       return null;

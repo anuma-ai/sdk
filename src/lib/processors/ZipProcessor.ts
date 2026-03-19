@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
 import type { FileMetadata } from "../db/chat/types";
+import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ProcessorRegistry } from "./registry";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
@@ -147,7 +148,7 @@ export class ZipProcessor implements FileProcessor {
         },
       };
     } catch (error) {
-      console.error("Error processing ZIP file:", error);
+      getLogger().error("Error processing ZIP file:", error);
       throw error;
     }
   }

@@ -7,6 +7,7 @@
  */
 
 import { decryptData, encryptData } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 
 type OAuthProvider = "google-drive" | "dropbox";
 
@@ -68,7 +69,9 @@ export async function getStoredTokenData(
     if (stored.startsWith(ENCRYPTED_PREFIX)) {
       if (!walletAddress) {
         // Encrypted token but no wallet address - cannot decrypt
-        console.warn(`Encrypted OAuth token found for ${provider} but no wallet address provided`);
+        getLogger().warn(
+          `Encrypted OAuth token found for ${provider} but no wallet address provided`
+        );
         return null;
       }
 
@@ -89,7 +92,7 @@ export async function getStoredTokenData(
 
         return data;
       } catch (error) {
-        console.error(`Failed to decrypt OAuth token for ${provider}:`, error);
+        getLogger().error(`Failed to decrypt OAuth token for ${provider}:`, error);
         return null;
       }
     }
@@ -127,7 +130,10 @@ export async function storeTokenData(
       localStorage.setItem(key, `${ENCRYPTED_PREFIX}${encrypted}`);
     } catch (error) {
       // If encryption fails, store temporarily in sessionStorage as fallback
-      console.warn(`Failed to encrypt OAuth token for ${provider}, storing temporarily:`, error);
+      getLogger().warn(
+        `Failed to encrypt OAuth token for ${provider}, storing temporarily:`,
+        error
+      );
       sessionStorage.setItem(key, json);
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
@@ -249,7 +255,7 @@ export async function migrateUnencryptedTokens(
 
       return true;
     } catch (error) {
-      console.error(`Failed to migrate unencrypted token for ${provider}:`, error);
+      getLogger().error(`Failed to migrate unencrypted token for ${provider}:`, error);
       return false;
     }
   } catch {

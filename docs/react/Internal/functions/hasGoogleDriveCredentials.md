@@ -2,7 +2,7 @@
 
 > **hasGoogleDriveCredentials**(`walletAddress?`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/backup/google/auth.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/auth.ts#350)
+Defined in: [src/lib/backup/google/auth.ts:351](https://github.com/anuma-ai/sdk/blob/main/src/lib/backup/google/auth.ts#351)
 
 Check if we have any stored credentials (including refresh token)
 

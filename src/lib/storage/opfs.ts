@@ -5,6 +5,8 @@
  * and wallet-based encryption keys.
  */
 
+import { getLogger } from "../logger";
+
 // Internal placeholder format - never shown to clients
 // Uses a format that won't be interpreted as markdown
 export const FILE_PLACEHOLDER_PREFIX = "__SDKFILE__";
@@ -389,10 +391,10 @@ export async function resolveFilePlaceholders(
         if (result) {
           url = blobManager.createUrl(fileId, result.blob);
         } else {
-          console.warn(`[resolveFilePlaceholders] File not found: ${fileId}`);
+          getLogger().warn(`[resolveFilePlaceholders] File not found: ${fileId}`);
         }
       } else {
-        console.log(`[resolveFilePlaceholders] Using cached URL for ${fileId}`);
+        getLogger().debug(`[resolveFilePlaceholders] Using cached URL for ${fileId}`);
       }
 
       return { fileId, url, wasCached };
