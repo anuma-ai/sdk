@@ -566,7 +566,9 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
             });
           } catch (error) {
             // If encrypted read fails, fall back to legacy storage
-            getLogger().warn(`[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`);
+            getLogger().warn(
+              `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`
+            );
           }
         }
       }

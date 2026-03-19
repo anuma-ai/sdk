@@ -1,6 +1,6 @@
 # ZipProcessor
 
-Defined in: [src/lib/processors/ZipProcessor.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#23)
+Defined in: [src/lib/processors/ZipProcessor.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#24)
 
 Processor for ZIP archive files that extracts contents and delegates
 to other processors for supported file types
@@ -15,7 +15,7 @@ to other processors for supported file types
 
 > **new ZipProcessor**(`options`: [`ZipProcessorOptions`](../interfaces/ZipProcessorOptions.md)): `ZipProcessor`
 
-Defined in: [src/lib/processors/ZipProcessor.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#41)
+Defined in: [src/lib/processors/ZipProcessor.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#42)
 
 **Parameters**
 
@@ -52,7 +52,7 @@ Defined in: [src/lib/processors/ZipProcessor.ts:41](https://github.com/anuma-ai/
 
 > `readonly` **name**: `"zip"` = `"zip"`
 
-Defined in: [src/lib/processors/ZipProcessor.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#24)
+Defined in: [src/lib/processors/ZipProcessor.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#25)
 
 Unique identifier for this processor
 
@@ -66,7 +66,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/ZipProcessor.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#30)
+Defined in: [src/lib/processors/ZipProcessor.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#31)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -80,7 +80,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/ZipProcessor.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#25)
+Defined in: [src/lib/processors/ZipProcessor.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#26)
 
 MIME types this processor can handle
 
@@ -94,7 +94,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/ZipProcessor.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#54)
+Defined in: [src/lib/processors/ZipProcessor.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#55)
 
 Process a file and extract text content
 
@@ -145,7 +145,7 @@ Extracted text content and metadata, or null if processing fails/not applicable
 
 > **setRegistry**(`registry`: [`ProcessorRegistry`](ProcessorRegistry.md)): `void`
 
-Defined in: [src/lib/processors/ZipProcessor.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#50)
+Defined in: [src/lib/processors/ZipProcessor.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ZipProcessor.ts#51)
 
 Set the processor registry for handling nested files
 This must be called before processing if you want nested file support

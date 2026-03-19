@@ -612,7 +612,9 @@ async function doSummarizeHistory(
         // Compaction failed — proceed with the oversized summary. It still works,
         // just less efficient. Will retry after cooldown.
         lastCompactionTime.set(conversationId, Date.now());
-        getLogger().warn("[summarize] Summary compaction failed, proceeding with oversized summary");
+        getLogger().warn(
+          "[summarize] Summary compaction failed, proceeding with oversized summary"
+        );
       }
     }
 
