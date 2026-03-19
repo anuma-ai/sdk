@@ -71,37 +71,44 @@ export class ResponsesStrategy implements ApiStrategy {
         credits_used: u.credits_used ?? 0,
       };
 
-      // Extract content from output array
-      const output = resp.output as
-        | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
-        | undefined;
-      if (output) {
-        for (const item of output) {
-          if (item.type === "message" && item.content) {
-            for (const part of item.content) {
-              if (part.type === "output_text" && part.text) {
-                const parseResult = parseReasoningTags(
-                  part.text,
-                  accumulator.partialReasoningTag || "",
-                  accumulator.insideReasoning || false,
-                  undefined,
-                  accumulator.implicitReasoningStart
-                );
-                accumulator.content += parseResult.messageContent;
-                accumulator.thinking += parseResult.reasoningContent;
-                accumulator.partialReasoningTag = parseResult.partialTag;
-                accumulator.insideReasoning = parseResult.insideReasoning;
-                if (parseResult.implicitReasoningStart !== undefined) {
-                  accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
-                }
-                if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
-                  result.content = (result.content || "") + parseResult.messageContent;
-                }
-                if (
-                  parseResult.reasoningContent &&
-                  parseResult.reasoningContent.trim().length > 0
-                ) {
-                  result.thinking = (result.thinking || "") + parseResult.reasoningContent;
+      // Extract content from output array — but only if no content was already
+      // accumulated from streaming delta events. The backend sends this "response"
+      // event after all deltas have been streamed; extracting content here would
+      // duplicate everything that was already delivered via response.output_text.delta.
+      // This branch is only needed for the non-streaming completions fallback where
+      // no delta events are sent.
+      if (!accumulator.content) {
+        const output = resp.output as
+          | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
+          | undefined;
+        if (output) {
+          for (const item of output) {
+            if (item.type === "message" && item.content) {
+              for (const part of item.content) {
+                if (part.type === "output_text" && part.text) {
+                  const parseResult = parseReasoningTags(
+                    part.text,
+                    accumulator.partialReasoningTag || "",
+                    accumulator.insideReasoning || false,
+                    undefined,
+                    accumulator.implicitReasoningStart
+                  );
+                  accumulator.content += parseResult.messageContent;
+                  accumulator.thinking += parseResult.reasoningContent;
+                  accumulator.partialReasoningTag = parseResult.partialTag;
+                  accumulator.insideReasoning = parseResult.insideReasoning;
+                  if (parseResult.implicitReasoningStart !== undefined) {
+                    accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+                  }
+                  if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+                    result.content = (result.content || "") + parseResult.messageContent;
+                  }
+                  if (
+                    parseResult.reasoningContent &&
+                    parseResult.reasoningContent.trim().length > 0
+                  ) {
+                    result.thinking = (result.thinking || "") + parseResult.reasoningContent;
+                  }
                 }
               }
             }
