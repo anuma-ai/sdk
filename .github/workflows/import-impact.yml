@@ -1,0 +1,109 @@
+name: Import Impact
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure packageManager field
+        run: |
+          if ! grep -q '"packageManager"' package.json; then
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.packageManager = 'pnpm@10.23.0';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+          fi
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Get changed files
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only \
+            | grep -E '\.(ts|tsx)$' \
+            | grep -E '^src/' \
+            || true)
+          echo "files=$(echo "$FILES" | tr '\n' ',' | sed 's/,$//')" >> "$GITHUB_OUTPUT"
+          echo "has_changes=$( [ -n "$FILES" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
+      - name: Clone consumer apps
+        if: steps.changed.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli"
+          for REPO in $REPOS; do
+            gh repo clone anuma-ai/$REPO /tmp/$REPO -- --depth 1 &
+          done
+          wait
+
+      - name: Run import impact analysis
+        if: steps.changed.outputs.has_changes == 'true'
+        run: |
+          APPS=$(echo "starter-next starter-mini starter-telegram starter-agent dashboard text cli" \
+            | tr ' ' '\n' | sed 's|^|/tmp/|' | tr '\n' ',' | sed 's/,$//')
+
+          node scripts/import-impact.mjs \
+            --changed "${{ steps.changed.outputs.files }}" \
+            --apps "$APPS" \
+            --output /tmp/import-impact.md
+
+      - name: Post, update, or delete comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${PR}/comments" \
+            --jq '.[] | select(.body | contains("<!-- import-impact -->")) | .id' \
+            | head -1)
+
+          if [ "${{ steps.changed.outputs.has_changes }}" != "true" ] || [ ! -s /tmp/import-impact.md ]; then
+            # No SDK source changes — clean up stale comment
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" -X DELETE
+            fi
+            exit 0
+          fi
+
+          {
+            echo "<!-- import-impact -->"
+            echo "### Import Impact"
+            echo ""
+            cat /tmp/import-impact.md
+          } > /tmp/import-impact-comment.md
+
+          if [ -n "$EXISTING" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" \
+              -X PATCH -F body=@/tmp/import-impact-comment.md
+          else
+            gh api "repos/${{ github.repository }}/issues/${PR}/comments" \
+              -X POST -F body=@/tmp/import-impact-comment.md
+          fi
