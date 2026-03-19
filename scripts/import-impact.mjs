@@ -72,10 +72,11 @@ function getEntryPoints() {
 // ---------------------------------------------------------------------------
 
 function buildDependencyGraph() {
-  const raw = execSync(
-    "pnpm depcruise src --config .dependency-cruiser.cjs --output-type json",
-    { cwd: SDK_ROOT, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 }
-  );
+  const raw = execSync("pnpm depcruise src --config .dependency-cruiser.cjs --output-type json", {
+    cwd: SDK_ROOT,
+    encoding: "utf8",
+    maxBuffer: 50 * 1024 * 1024,
+  });
 
   const { modules } = JSON.parse(raw);
 
@@ -128,7 +129,9 @@ function buildSymbolMap(entryPoints) {
   for (const [subpath, srcPath] of Object.entries(entryPoints)) {
     const sourceFile = program.getSourceFile(resolve(SDK_ROOT, srcPath));
     if (!sourceFile) {
-      console.warn(`[import-impact] Could not resolve source for entry point "${subpath}" (looked for ${srcPath}) — skipping`);
+      console.warn(
+        `[import-impact] Could not resolve source for entry point "${subpath}" (looked for ${srcPath}) — skipping`
+      );
       continue;
     }
 
