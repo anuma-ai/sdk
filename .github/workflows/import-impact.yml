@@ -16,6 +16,8 @@ jobs:
   analyze:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-24.04
+    env:
+      REPOS: "starter-next starter-mini starter-telegram starter-agent dashboard text cli"
     steps:
       - uses: actions/checkout@v4
 
@@ -58,7 +60,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli"
           for REPO in $REPOS; do
             gh repo clone anuma-ai/$REPO /tmp/$REPO -- --depth 1 &
           done
@@ -67,7 +68,7 @@ jobs:
       - name: Run import impact analysis
         if: steps.changed.outputs.has_changes == 'true'
         run: |
-          APPS=$(echo "starter-next starter-mini starter-telegram starter-agent dashboard text cli" \
+          APPS=$(echo "$REPOS" \
             | tr ' ' '\n' | sed 's|^|/tmp/|' | tr '\n' ',' | sed 's/,$//')
 
           node scripts/import-impact.mjs \
@@ -76,6 +77,7 @@ jobs:
             --output /tmp/import-impact.md
 
       - name: Post, update, or delete comment
+        if: always() && github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

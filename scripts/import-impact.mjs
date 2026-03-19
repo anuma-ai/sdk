@@ -73,7 +73,7 @@ function getEntryPoints() {
 
 function buildDependencyGraph() {
   const raw = execSync(
-    "pnpm depcruise src --config .dependency-cruiser.cjs --output-type json 2>/dev/null",
+    "pnpm depcruise src --config .dependency-cruiser.cjs --output-type json",
     { cwd: SDK_ROOT, encoding: "utf8", maxBuffer: 50 * 1024 * 1024 }
   );
 
