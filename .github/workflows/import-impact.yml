@@ -82,6 +82,7 @@ jobs:
         if: always() && github.actor != 'dependabot[bot]'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HAS_CHANGES: ${{ steps.changed.outputs.has_changes || 'false' }}
         run: |
           PR=${{ github.event.pull_request.number }}
 
@@ -89,7 +90,7 @@ jobs:
             --jq '.[] | select(.body | contains("<!-- import-impact -->")) | .id' \
             | head -1)
 
-          if [ "${{ steps.changed.outputs.has_changes }}" != "true" ] || [ ! -s /tmp/import-impact.md ]; then
+          if [ "$HAS_CHANGES" != "true" ] || [ ! -s /tmp/import-impact.md ]; then
             # No SDK source changes — clean up stale comment
             if [ -n "$EXISTING" ]; then
               gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" -X DELETE

@@ -204,8 +204,12 @@ function parseConsumerImports(appPath) {
         continue;
       }
 
-      // Named destructured imports: import { useChat, useSettings } from '@anuma/sdk/react'
-      const namedRegex = /import\s+(?:type\s+)?{([^}]+)}\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
+      // Named destructured imports (with optional leading default):
+      //   import { useChat } from '@anuma/sdk/react'
+      //   import type { useChat } from '@anuma/sdk/react'
+      //   import Sdk, { useChat } from '@anuma/sdk/react'
+      const namedRegex =
+        /import\s+(?:type\s+)?(?:\w+\s*,\s*)?{([^}]+)}\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       let match;
 
       while ((match = namedRegex.exec(content)) !== null) {
@@ -227,11 +231,22 @@ function parseConsumerImports(appPath) {
       }
 
       // Namespace imports: import * as Sdk from '@anuma/sdk/react'
-      // Default imports: import Sdk from '@anuma/sdk/react'
+      // Type namespace imports: import type * as Sdk from '@anuma/sdk/react'
       // These use all exports from the entry point, so mark with '*'.
-      const wildcardRegex = /import\s+(?:\*\s+as\s+\w+|\w+)\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
+      const wildcardRegex =
+        /import\s+(?:type\s+)?\*\s+as\s+\w+\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       while ((match = wildcardRegex.exec(content)) !== null) {
         const subpath = match[1] ? `.${match[1]}` : ".";
+        if (!imports[subpath]) imports[subpath] = new Set();
+        imports[subpath].add("*");
+      }
+
+      // Default imports (non-namespace): import Sdk from '@anuma/sdk/react'
+      // Excludes combined forms (already handled above) and type-only namespace imports.
+      const defaultImportRegex =
+        /import\s+(?!type\s+\*|type\s+{|\*|{)(\w+)\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
+      while ((match = defaultImportRegex.exec(content)) !== null) {
+        const subpath = match[2] ? `.${match[2]}` : ".";
         if (!imports[subpath]) imports[subpath] = new Set();
         imports[subpath].add("*");
       }
@@ -374,10 +389,12 @@ function main() {
     const appName = appPath.split("/").pop();
     const consumerImports = parseConsumerImports(appPath);
 
-    // Count totals
+    // Count totals (exclude the synthetic '*' wildcard placeholder)
     let totalSymbols = 0;
     for (const syms of Object.values(consumerImports)) {
-      totalSymbols += syms.size;
+      for (const sym of syms) {
+        if (sym !== "*") totalSymbols++;
+      }
     }
 
     // Find impacted symbols the app actually uses
