@@ -71,13 +71,15 @@ export class ResponsesStrategy implements ApiStrategy {
         credits_used: u.credits_used ?? 0,
       };
 
-      // Extract content from output array — but only if no content was already
-      // accumulated from streaming delta events. The backend sends this "response"
-      // event after all deltas have been streamed; extracting content here would
-      // duplicate everything that was already delivered via response.output_text.delta.
-      // This branch is only needed for the non-streaming completions fallback where
-      // no delta events are sent.
-      if (!accumulator.content) {
+      // Extract content from output array — but only if no content or thinking was
+      // already accumulated from streaming delta events. The backend sends this
+      // "response" event after all deltas have been streamed; extracting here would
+      // duplicate everything already delivered via response.output_text.delta /
+      // response.thinking.delta. This branch is only needed for the non-streaming
+      // completions fallback where no delta events are sent.
+      // Note: empty string "" is falsy in JS, so this correctly treats "no deltas
+      // received" (initial value "") as needing extraction.
+      if (!accumulator.content && !accumulator.thinking) {
         const output = resp.output as
           | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
           | undefined;
