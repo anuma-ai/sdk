@@ -28,6 +28,7 @@ import {
   updateProjectOp,
   type UpdateProjectOptions,
 } from "../lib/db/project";
+import { getLogger } from "../lib/logger";
 
 /**
  * Options for useProjects hook.
@@ -145,29 +146,33 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
   // Initialize collections asynchronously to handle database initialization race conditions
   useEffect(() => {
     const initCollections = async () => {
-      console.log("[useProjects] Initializing collections...");
+      getLogger().debug("[useProjects] Initializing collections...");
       try {
         // Get collections - these are synchronous but we wrap in async to handle any issues
         const projColl = database.get<Project>("projects");
         const convColl = database.get<Conversation>("conversations");
 
-        console.log("[useProjects] Got collections:", {
+        getLogger().debug("[useProjects] Got collections:", {
           projects: projColl?.table,
           conversations: convColl?.table,
         });
 
         // Test query to ensure database is initialized and tables exist
-        console.log("[useProjects] Running test query on projects table...");
+        getLogger().debug("[useProjects] Running test query on projects table...");
         const testResult = await projColl.query(Q.take(1)).fetch();
-        console.log("[useProjects] Test query succeeded, found", testResult.length, "projects");
+        getLogger().debug(
+          "[useProjects] Test query succeeded, found",
+          testResult.length,
+          "projects"
+        );
 
         setProjectsCollection(projColl);
         setConversationsCollection(convColl);
         setIsReady(true);
-        console.log("[useProjects] Collections initialized successfully, isReady=true");
+        getLogger().debug("[useProjects] Collections initialized successfully, isReady=true");
       } catch (error) {
-        console.error("[useProjects] Failed to initialize collections:", error);
-        console.warn(
+        getLogger().error("[useProjects] Failed to initialize collections:", error);
+        getLogger().warn(
           "[useProjects] This usually means the database schema needs to be updated.",
           "Try clearing IndexedDB storage and reloading the page."
         );
@@ -219,7 +224,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       const storedProjects = await getProjectsOp(projectCtx);
       setProjects(storedProjects);
     } catch (error) {
-      console.error("Failed to refresh projects:", error);
+      getLogger().error("Failed to refresh projects:", error);
     } finally {
       setIsLoading(false);
     }
@@ -250,7 +255,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
           setInboxProjectId(inbox.projectId);
         }
       } catch (error) {
-        console.error("[useProjects] Failed to ensure Inbox project:", error);
+        getLogger().error("[useProjects] Failed to ensure Inbox project:", error);
       }
     };
 

@@ -1,6 +1,6 @@
 # ServerTool
 
-Defined in: [src/lib/tools/serverTools.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#64)
+Defined in: [src/lib/tools/serverTools.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#65)
 
 Server tool definition with parameters field.
 This is the neutral format stored in cache.
@@ -12,7 +12,7 @@ Strategies transform this to the correct API format.
 
 > **description**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#67)
+Defined in: [src/lib/tools/serverTools.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#68)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/tools/serverTools.ts:67](https://github.com/anuma-ai/sdk/bl
 
 > `optional` **embedding**: `number`\[]
 
-Defined in: [src/lib/tools/serverTools.ts:74](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#74)
+Defined in: [src/lib/tools/serverTools.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#75)
 
 Optional embedding vector for semantic matching
 
@@ -30,7 +30,7 @@ Optional embedding vector for semantic matching
 
 > **name**: `string`
 
-Defined in: [src/lib/tools/serverTools.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#66)
+Defined in: [src/lib/tools/serverTools.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#67)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/lib/tools/serverTools.ts:66](https://github.com/anuma-ai/sdk/bl
 
 > **parameters**: `object`
 
-Defined in: [src/lib/tools/serverTools.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#68)
+Defined in: [src/lib/tools/serverTools.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#69)
 
 **properties**
 
@@ -58,4 +58,4 @@ Defined in: [src/lib/tools/serverTools.ts:68](https://github.com/anuma-ai/sdk/bl
 
 > **type**: `"function"`
 
-Defined in: [src/lib/tools/serverTools.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#65)
+Defined in: [src/lib/tools/serverTools.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#66)

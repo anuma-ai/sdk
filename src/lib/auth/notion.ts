@@ -26,6 +26,7 @@ import {
   getEncryptionKey,
   hasEncryptionKey,
 } from "../../react/useEncryption";
+import { getLogger } from "../logger";
 
 // Storage keys
 const TOKEN_STORAGE_KEY = "oauth_token_notion";
@@ -888,7 +889,7 @@ export async function refreshNotionToken(
 
     return tokenData.access_token;
   } catch (error) {
-    console.error("Token refresh failed", error);
+    getLogger().error("Token refresh failed", error);
     // Refresh failed — do NOT clear stored token here.
     // Only invalid_grant (handled above) should clear credentials.
     // Transient errors (network, server) should preserve the token
