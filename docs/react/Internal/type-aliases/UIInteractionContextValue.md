@@ -2,7 +2,7 @@
 
 > **UIInteractionContextValue** = `object`
 
-Defined in: [src/react/useUIInteraction.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#36)
+Defined in: [src/react/useUIInteraction.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#39)
 
 Context value for UI interactions
 
@@ -12,7 +12,7 @@ Context value for UI interactions
 
 > **cancelInteraction**: (`id`: `string`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#47)
+Defined in: [src/react/useUIInteraction.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#51)
 
 **Parameters**
 
@@ -49,7 +49,7 @@ Defined in: [src/react/useUIInteraction.ts:47](https://github.com/anuma-ai/sdk/b
 
 > **clearInteractions**: () => `void`
 
-Defined in: [src/react/useUIInteraction.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#48)
+Defined in: [src/react/useUIInteraction.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#52)
 
 **Returns**
 
@@ -59,9 +59,9 @@ Defined in: [src/react/useUIInteraction.ts:48](https://github.com/anuma-ai/sdk/b
 
 ### createDisplayInteraction()
 
-> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`, `toolVersion?`: `number`) => `void`
+> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`, `toolVersion?`: `number`, `replacesInteractionId?`: `string`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#39)
+Defined in: [src/react/useUIInteraction.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#42)
 
 **Parameters**
 
@@ -133,6 +133,18 @@ Defined in: [src/react/useUIInteraction.ts:39](https://github.com/anuma-ai/sdk/b
 
 </td>
 </tr>
+<tr>
+<td>
+
+`replacesInteractionId?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -146,7 +158,7 @@ Defined in: [src/react/useUIInteraction.ts:39](https://github.com/anuma-ai/sdk/b
 
 > **createInteraction**: (`id`: `string`, `type`: [`InteractionType`](InteractionType.md), `data`: `any`) => `Promise`<`any`>
 
-Defined in: [src/react/useUIInteraction.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#38)
+Defined in: [src/react/useUIInteraction.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#41)
 
 **Parameters**
 
@@ -207,7 +219,7 @@ Defined in: [src/react/useUIInteraction.ts:38](https://github.com/anuma-ai/sdk/b
 
 > **getInteraction**: (`id`: `string`) => [`PendingInteraction`](PendingInteraction.md) | `undefined`
 
-Defined in: [src/react/useUIInteraction.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#49)
+Defined in: [src/react/useUIInteraction.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#53)
 
 **Parameters**
 
@@ -244,7 +256,7 @@ Defined in: [src/react/useUIInteraction.ts:49](https://github.com/anuma-ai/sdk/b
 
 > **pendingInteractions**: `Map`<`string`, [`PendingInteraction`](PendingInteraction.md)>
 
-Defined in: [src/react/useUIInteraction.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#37)
+Defined in: [src/react/useUIInteraction.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#40)
 
 ***
 
@@ -252,7 +264,7 @@ Defined in: [src/react/useUIInteraction.ts:37](https://github.com/anuma-ai/sdk/b
 
 > **resolveInteraction**: (`id`: `string`, `result`: `any`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#46)
+Defined in: [src/react/useUIInteraction.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#50)
 
 **Parameters**
 

@@ -1,18 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "./useChat";
-import { client } from "../client/client.gen";
-import type { ServerSentEventsResult } from "../client/core/serverSentEvents.gen";
+import * as sseModule from "../client/core/serverSentEvents.gen";
 
 type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
 
-vi.mock("../client/client.gen", () => ({
-  client: {
-    sse: {
-      post: vi.fn(),
-    },
-  },
-}));
+vi.mock("../client/core/serverSentEvents.gen", async (importOriginal) => {
+  const orig = await importOriginal<typeof sseModule>();
+  return {
+    ...orig,
+    createSseClient: vi.fn(),
+  };
+});
+
+const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 
 describe("useChat", () => {
   beforeEach(() => {
@@ -20,38 +21,34 @@ describe("useChat", () => {
   });
 
   it("should send message and handle stream response", async () => {
-    const mockStream = (async function* () {
-      yield {
-        type: "response.created",
-        response: {
-          id: "resp-123",
-          model: "gpt-3.5-turbo",
-        },
-      };
-      yield {
-        type: "response.output_text.delta",
-        delta: { OfString: "Hello" },
-      };
-      yield {
-        type: "response.output_text.delta",
-        delta: { OfString: " world" },
-      };
-      yield {
-        type: "response.completed",
-        response: {
-          usage: {
-            input_tokens: 10,
-            output_tokens: 5,
+    mockCreateSseClient.mockReturnValue({
+      stream: (async function* () {
+        yield {
+          type: "response.created",
+          response: {
+            id: "resp-123",
+            model: "gpt-3.5-turbo",
           },
-        },
-      };
-    })();
-
-    const mockSseResult: ServerSentEventsResult<unknown> = {
-      stream: mockStream,
-    };
-
-    vi.mocked(client.sse.post).mockResolvedValue(mockSseResult);
+        };
+        yield {
+          type: "response.output_text.delta",
+          delta: { OfString: "Hello" },
+        };
+        yield {
+          type: "response.output_text.delta",
+          delta: { OfString: " world" },
+        };
+        yield {
+          type: "response.completed",
+          response: {
+            usage: {
+              input_tokens: 10,
+              output_tokens: 5,
+            },
+          },
+        };
+      })(),
+    } as any);
 
     const { result } = renderHook(() =>
       useChat({
@@ -68,13 +65,15 @@ describe("useChat", () => {
       });
     });
 
-    expect(client.sse.post).toHaveBeenCalledWith(
+    // Verify createSseClient was called with correct request body
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
+    const callOpts = mockCreateSseClient.mock.calls[0][0] as any;
+    const body = JSON.parse(callOpts.serializedBody);
+    expect(body).toEqual(
       expect.objectContaining({
-        body: expect.objectContaining({
-          input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
-          stream: true,
-        }),
+        input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        model: "gpt-3.5-turbo",
+        stream: true,
       })
     );
 
@@ -95,7 +94,12 @@ describe("useChat", () => {
       const serverError = new Error("Internal Server Error");
       (serverError as any).status = 500;
 
-      vi.mocked(client.sse.post).mockRejectedValue(serverError);
+      // createSseClient returns a stream that throws on iteration
+      mockCreateSseClient.mockReturnValue({
+        stream: (async function* () {
+          throw serverError;
+        })(),
+      } as any);
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -127,7 +131,11 @@ describe("useChat", () => {
     it("should reset isLoading to false when network error occurs", async () => {
       const networkError = new Error("Network request failed");
 
-      vi.mocked(client.sse.post).mockRejectedValue(networkError);
+      mockCreateSseClient.mockReturnValue({
+        stream: (async function* () {
+          throw networkError;
+        })(),
+      } as any);
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -152,27 +160,23 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when SSE stream throws error mid-stream", async () => {
-      const mockStream = (async function* () {
-        yield {
-          type: "response.created",
-          response: {
-            id: "resp-123",
-            model: "gpt-3.5-turbo",
-          },
-        };
-        yield {
-          type: "response.output_text.delta",
-          delta: { OfString: "Hello" },
-        };
-        // Simulate error during streaming
-        throw new Error("Stream interrupted: 500 Internal Server Error");
-      })();
-
-      const mockSseResult: ServerSentEventsResult<unknown> = {
-        stream: mockStream,
-      };
-
-      vi.mocked(client.sse.post).mockResolvedValue(mockSseResult);
+      mockCreateSseClient.mockReturnValue({
+        stream: (async function* () {
+          yield {
+            type: "response.created",
+            response: {
+              id: "resp-123",
+              model: "gpt-3.5-turbo",
+            },
+          };
+          yield {
+            type: "response.output_text.delta",
+            delta: { OfString: "Hello" },
+          };
+          // Simulate error during streaming
+          throw new Error("Stream interrupted: 500 Internal Server Error");
+        })(),
+      } as any);
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -198,27 +202,23 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when request is aborted", async () => {
-      const mockStream = (async function* () {
-        yield {
-          type: "response.created",
-          response: {
-            id: "resp-123",
-            model: "gpt-3.5-turbo",
-          },
-        };
-        // Keep yielding to simulate long-running request
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        yield {
-          type: "response.output_text.delta",
-          delta: { OfString: "Hello" },
-        };
-      })();
-
-      const mockSseResult: ServerSentEventsResult<unknown> = {
-        stream: mockStream,
-      };
-
-      vi.mocked(client.sse.post).mockResolvedValue(mockSseResult);
+      mockCreateSseClient.mockReturnValue({
+        stream: (async function* () {
+          yield {
+            type: "response.created",
+            response: {
+              id: "resp-123",
+              model: "gpt-3.5-turbo",
+            },
+          };
+          // Keep yielding to simulate long-running request
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          yield {
+            type: "response.output_text.delta",
+            delta: { OfString: "Hello" },
+          };
+        })(),
+      } as any);
 
       const { result } = renderHook(() =>
         useChat({
@@ -296,33 +296,27 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when SSE onSseError callback fires", async () => {
-      let capturedOnSseError: ((error: unknown) => void) | undefined;
-
-      const mockStream = (async function* () {
-        yield {
-          type: "response.created",
-          response: {
-            id: "resp-123",
-            model: "gpt-3.5-turbo",
-          },
-        };
-        // Wait for SSE error callback to fire
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      })();
-
-      const mockSseResult: ServerSentEventsResult<unknown> = {
-        stream: mockStream,
-      };
-
-      vi.mocked(client.sse.post).mockImplementation((options: any) => {
-        capturedOnSseError = options.onSseError;
-        // Trigger SSE error during streaming
+      mockCreateSseClient.mockImplementation((options: any) => {
+        // Trigger SSE error during streaming via the callback
         setTimeout(() => {
-          if (capturedOnSseError) {
-            capturedOnSseError(new Error("SSE connection failed: 500"));
+          if (options.onSseError) {
+            options.onSseError(new Error("SSE connection failed: 500"));
           }
         }, 5);
-        return Promise.resolve(mockSseResult);
+
+        return {
+          stream: (async function* () {
+            yield {
+              type: "response.created",
+              response: {
+                id: "resp-123",
+                model: "gpt-3.5-turbo",
+              },
+            };
+            // Wait for SSE error callback to fire
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          })(),
+        } as any;
       });
 
       const onErrorSpy = vi.fn();

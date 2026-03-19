@@ -2,7 +2,7 @@
 
 > **hasEncryptionKey**(`address`: `string`): `boolean`
 
-Defined in: [src/react/useEncryption.ts:549](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#549)
+Defined in: [src/react/useEncryption.ts:548](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#548)
 
 Checks if an encryption key exists in memory for the given wallet address
 

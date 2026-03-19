@@ -1,12 +1,13 @@
 # Database Schema
 
-Current version: **v16**
+Current version: **v23**
 
 ```mermaid
 graph LR
     history -- "belongs to" --> conversations
     history -- "has many" --> media
     conversations -- "belongs to" --> projects
+    conversation_summaries -- "belongs to" --> conversations
     media -- "belongs to" --> conversations
 ```
 
@@ -18,6 +19,8 @@ graph LR
 - [modelPreferences](#modelPreferences)
 - [userPreferences](#userPreferences)
 - [memory_vault](#memory_vault)
+- [vault_folders](#vault_folders)
+- [conversation_summaries](#conversation_summaries)
 - [media](#media)
 
 ## history
@@ -29,6 +32,7 @@ graph LR
 | `role` | string | ✓ |  |
 | `content` | string |  |  |
 | `model` | string |  | ✓ |
+| `image_model` | string |  | ✓ |
 | `files` | string |  | ✓ |
 | `file_ids` | string |  | ✓ |
 | `created_at` | number | ✓ |  |
@@ -93,9 +97,34 @@ graph LR
 |--------|------|---------|----------|
 | `content` | string |  |  |
 | `scope` | string | ✓ |  |
+| `folder_id` | string | ✓ | ✓ |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number | ✓ |  |
+| `is_deleted` | boolean | ✓ |  |
+| `user_id` | string | ✓ | ✓ |
+| `embedding` | string |  | ✓ |
+
+## vault_folders
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `name` | string |  |  |
+| `scope` | string |  |  |
 | `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
+| `is_system` | boolean |  | ✓ |
+
+## conversation_summaries
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `conversation_id` | string | ✓ |  |
+| `summary` | string |  |  |
+| `summarized_up_to` | string |  |  |
+| `token_count` | number |  |  |
+| `created_at` | number |  |  |
+| `updated_at` | number |  |  |
 
 ## media
 
@@ -123,6 +152,13 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v23 | Added `conversation_summaries` table |
+| v22 | Added `is_system` to `vault_folders` |
+| v21 | Added `embedding` to `memory_vault` |
+| v20 | `CREATE INDEX IF NOT EXISTS memory_vault_updated_at ON memory_vault (updated_at);` |
+| v19 | Added `user_id` to `memory_vault` |
+| v18 | Added `vault_folders` table; Added `folder_id` to `memory_vault` |
+| v17 | Added `image_model` to `history` |
 | v16 | Added `scope` to `memory_vault`; `UPDATE memory_vault SET scope = 'private' WHERE scope IS NULL OR scope = '';` |
 | v15 | `DROP TABLE IF EXISTS memories;`; Added `memory_vault` table |
 | v14 | Added `feedback` to `history` |

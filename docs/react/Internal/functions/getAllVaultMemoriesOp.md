@@ -2,7 +2,7 @@
 
 > **getAllVaultMemoriesOp**(`ctx`: [`VaultMemoryOperationsContext`](../interfaces/VaultMemoryOperationsContext.md), `options?`: `object`): `Promise`<[`StoredVaultMemory`](../interfaces/StoredVaultMemory.md)\[]>
 
-Defined in: [src/lib/db/memoryVault/operations.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#130)
+Defined in: [src/lib/db/memoryVault/operations.ts:169](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#169)
 
 ## Parameters
 
@@ -41,12 +41,48 @@ Defined in: [src/lib/db/memoryVault/operations.ts:130](https://github.com/anuma-
 <tr>
 <td>
 
+`options.folderId?`
+
+</td>
+<td>
+
+`string` | `null`
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.limit?`
+
+</td>
+<td>
+
+`number`
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.scopes?`
 
 </td>
 <td>
 
 `string`\[]
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.since?`
+
+</td>
+<td>
+
+`Date`
 
 </td>
 </tr>

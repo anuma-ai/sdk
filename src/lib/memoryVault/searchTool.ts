@@ -7,7 +7,7 @@
 
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
-import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
+import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 
@@ -29,6 +29,8 @@ export interface MemoryVaultSearchOptions {
   minSimilarity?: number;
   /** When provided, only search memories with these scopes */
   scopes?: string[];
+  /** When provided, only search memories in this folder (null for unfiled) */
+  folderId?: string | null;
 }
 
 /**
@@ -61,17 +63,33 @@ export async function preEmbedVaultMemories(
   const memories = await getAllVaultMemoriesOp(vaultCtx, options);
   const uncachedTexts: string[] = [];
   const uncachedKeys: string[] = [];
+  const uncachedIds: string[] = [];
   for (const m of memories) {
     const key = m.content;
     if (!cache.has(key)) {
+      // Check for persisted embedding in DB first
+      if (m.embedding) {
+        try {
+          const parsed = JSON.parse(m.embedding) as number[];
+          cache.set(key, parsed);
+          continue;
+        } catch {
+          // Invalid JSON, re-embed
+        }
+      }
       uncachedTexts.push(m.content);
       uncachedKeys.push(key);
+      uncachedIds.push(m.uniqueId);
     }
   }
   if (uncachedTexts.length > 0) {
     const embeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let i = 0; i < uncachedKeys.length; i++) {
       cache.set(uncachedKeys[i], embeddings[i]);
+      // Persist embedding to DB (fire-and-forget)
+      updateVaultMemoryEmbeddingOp(vaultCtx, uncachedIds[i], JSON.stringify(embeddings[i])).catch(
+        () => {}
+      );
     }
   }
 }
@@ -83,10 +101,18 @@ export async function preEmbedVaultMemories(
 export async function eagerEmbedContent(
   content: string,
   embeddingOptions: EmbeddingOptions,
-  cache: VaultEmbeddingCache
+  cache: VaultEmbeddingCache,
+  vaultCtx?: VaultMemoryOperationsContext,
+  memoryId?: string
 ): Promise<void> {
   const embedding = await generateEmbedding(content, embeddingOptions);
   cache.set(content, embedding);
+  if (vaultCtx && memoryId) {
+    updateVaultMemoryEmbeddingOp(vaultCtx, memoryId, JSON.stringify(embedding)).catch(
+      // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+      () => {}
+    );
+  }
 }
 
 /**
@@ -116,7 +142,16 @@ async function searchVaultMemoriesWithSize(
     return { results: [], vaultSize: 0 };
   }
 
-  const memories = await getAllVaultMemoriesOp(vaultCtx, scopes?.length ? { scopes } : undefined);
+  const folderId = searchOptions?.folderId;
+
+  const queryOpts: { scopes?: string[]; folderId?: string | null } = {};
+  if (scopes?.length) queryOpts.scopes = scopes;
+  if (folderId !== undefined) queryOpts.folderId = folderId;
+
+  const memories = await getAllVaultMemoriesOp(
+    vaultCtx,
+    Object.keys(queryOpts).length > 0 ? queryOpts : undefined
+  );
   if (memories.length === 0) {
     return { results: [], vaultSize: 0 };
   }
@@ -129,6 +164,16 @@ async function searchVaultMemoriesWithSize(
   const uncachedIndices: number[] = [];
   for (let i = 0; i < memories.length; i++) {
     if (!cache.has(memories[i].content)) {
+      // Check for persisted embedding in DB first
+      if (memories[i].embedding) {
+        try {
+          const parsed = JSON.parse(memories[i].embedding!) as number[];
+          cache.set(memories[i].content, parsed);
+          continue;
+        } catch {
+          // Invalid JSON, re-embed
+        }
+      }
       uncachedTexts.push(memories[i].content);
       uncachedIndices.push(i);
     }
@@ -137,6 +182,15 @@ async function searchVaultMemoriesWithSize(
     const newEmbeddings = await generateEmbeddings(uncachedTexts, embeddingOptions);
     for (let j = 0; j < uncachedTexts.length; j++) {
       cache.set(memories[uncachedIndices[j]].content, newEmbeddings[j]);
+      // Persist embedding to DB (fire-and-forget)
+      updateVaultMemoryEmbeddingOp(
+        vaultCtx,
+        memories[uncachedIndices[j]].uniqueId,
+        JSON.stringify(newEmbeddings[j])
+      ).catch(
+        // Silently swallow – SDK must not use console.*; embedding will be retried on next search
+        () => {}
+      );
     }
   }
 
@@ -227,6 +281,13 @@ export function createMemoryVaultSearchTool(
             type: "integer",
             description: `Maximum number of results to return. Default: ${limit}.`,
           },
+          folder_id: {
+            type: ["string", "null"],
+            description:
+              "Optional folder ID to scope the search to a specific folder. " +
+              "Pass null to search only unfiled memories. " +
+              "Omit to search all folders.",
+          },
         },
         required: ["query"],
       },
@@ -234,6 +295,7 @@ export function createMemoryVaultSearchTool(
     executor: async (args: Record<string, unknown>): Promise<string> => {
       const query = args.query as string;
       const requestLimit = (args.limit as number) ?? limit;
+      const argFolderId = args.folder_id as string | null | undefined;
 
       if (!query || typeof query !== "string") {
         return "Error: A search query is required.";
@@ -249,10 +311,19 @@ export function createMemoryVaultSearchTool(
             ...searchOptions,
             limit: requestLimit,
             minSimilarity,
+            // Only use LLM's folder_id when the host app hasn't set one
+            ...(searchOptions?.folderId === undefined &&
+              argFolderId !== undefined && { folderId: argFolderId }),
           }
         );
 
         if (vaultSize === 0) {
+          // Distinguish between a truly empty vault and an empty folder-scoped query
+          const hasFolderFilter =
+            searchOptions?.folderId !== undefined || argFolderId !== undefined;
+          if (hasFolderFilter) {
+            return "No memories found in this folder.";
+          }
           return "The memory vault is empty. No memories have been saved yet.";
         }
 

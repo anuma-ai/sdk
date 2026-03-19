@@ -519,6 +519,98 @@ describe("Notion MCP Tools", () => {
     });
   });
 
+  // ── Response truncation ──
+
+  describe("response truncation", () => {
+    it("returns result unchanged when under 50,000 characters", async () => {
+      const token = uniqueToken();
+      mockGetAccessToken.mockReturnValue(token);
+
+      const smallResult = { content: [{ type: "text", text: "x".repeat(1000) }] };
+      mockSuccessfulMCPFlow(smallResult);
+
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ query: "test" });
+
+      expect(result).toEqual(smallResult);
+    });
+
+    it("truncates result exceeding 50,000 characters", async () => {
+      const token = uniqueToken();
+      mockGetAccessToken.mockReturnValue(token);
+
+      const largeText = "a".repeat(100_000);
+      const largeResult = { content: [{ type: "text", text: largeText }] };
+      mockSuccessfulMCPFlow(largeResult);
+
+      const tool = createNotionFetchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ id: "page-123" });
+
+      expect(typeof result).toBe("string");
+      const resultStr = result as string;
+      expect(resultStr.length).toBeLessThanOrEqual(50_000 + 200); // 50K + footer
+      expect(resultStr).toContain("content truncated, showing first 50000 characters of");
+    });
+
+    it("truncates on the session-retry path (401 recovery)", async () => {
+      const token = uniqueToken();
+      mockGetAccessToken.mockReturnValue(token);
+
+      const sessionId = `trunc-session-${tokenCounter}`;
+      const newSessionId = `trunc-new-session-${tokenCounter}`;
+
+      // Init session
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse(
+          { jsonrpc: "2.0", id: 1, result: { protocolVersion: "2024-11-05" } },
+          { headers: { "Mcp-Session-Id": sessionId } }
+        )
+      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+
+      // Tool call returns 401
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        headers: new Headers(),
+        text: async () => "Unauthorized",
+      });
+
+      // Re-init session
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse(
+          { jsonrpc: "2.0", id: 4, result: { protocolVersion: "2024-11-05" } },
+          { headers: { "Mcp-Session-Id": newSessionId } }
+        )
+      );
+      mockFetch.mockResolvedValueOnce(jsonResponse({})); // notifications
+
+      // Retry returns large result
+      const largeResult = { content: [{ type: "text", text: "b".repeat(80_000) }] };
+      mockFetch.mockResolvedValueOnce(jsonResponse({ jsonrpc: "2.0", id: 5, result: largeResult }));
+
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ query: "test" });
+
+      expect(typeof result).toBe("string");
+      expect(result as string).toContain("content truncated");
+    });
+
+    it("preserves string results under the limit", async () => {
+      const token = uniqueToken();
+      mockGetAccessToken.mockReturnValue(token);
+
+      const stringResult = "Just a plain string result";
+      mockSuccessfulMCPFlow(stringResult);
+
+      const tool = createNotionSearchTool(mockGetAccessToken, mockRequestNotionAccess);
+      const result = await tool.executor!({ query: "test" });
+
+      expect(result).toBe(stringResult);
+    });
+  });
+
   // ── Utility exports ──
 
   describe("getMCPEndpoints", () => {

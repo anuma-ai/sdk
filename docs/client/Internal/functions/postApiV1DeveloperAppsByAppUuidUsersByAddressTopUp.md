@@ -2,7 +2,7 @@
 
 > **postApiV1DeveloperAppsByAppUuidUsersByAddressTopUp**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData`](../type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses`](../type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses.md), [`PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors`](../type-aliases/PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#518)
+Defined in: [src/client/sdk.gen.ts:558](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#558)
 
 Top up user credits
 

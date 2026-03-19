@@ -28,6 +28,16 @@ Defined in: [src/lib/db/memoryVault/operations.ts:17](https://github.com/anuma-a
 
 ***
 
+### userId?
+
+> `optional` **userId**: `string`
+
+Defined in: [src/lib/db/memoryVault/operations.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/operations.ts#20)
+
+When set, operations scope to this user (server-side multi-user).
+
+***
+
 ### vaultMemoryCollection
 
 > **vaultMemoryCollection**: `Collection`<[`StoredVaultMemoryModel`](../classes/StoredVaultMemoryModel.md)>

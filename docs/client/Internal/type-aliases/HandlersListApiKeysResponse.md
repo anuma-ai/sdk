@@ -2,12 +2,20 @@
 
 > **HandlersListApiKeysResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#403)
+Defined in: [src/client/types.gen.ts:545](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#545)
 
 ## Properties
 
-### api\_keys?
+### api\_keys
 
-> `optional` **api\_keys**: [`HandlersApiKeyResponse`](HandlersApiKeyResponse.md)\[]
+> **api\_keys**: [`HandlersApiKeyResponse`](HandlersApiKeyResponse.md)\[]
 
-Defined in: [src/client/types.gen.ts:404](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#404)
+Defined in: [src/client/types.gen.ts:546](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#546)
+
+***
+
+### pagination
+
+> **pagination**: [`HandlersPaginationResponse`](HandlersPaginationResponse.md)
+
+Defined in: [src/client/types.gen.ts:547](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#547)

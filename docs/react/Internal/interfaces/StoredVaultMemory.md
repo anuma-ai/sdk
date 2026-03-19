@@ -18,7 +18,27 @@ Plain text memory content
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#8)
+Defined in: [src/lib/db/memoryVault/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#14)
+
+***
+
+### embedding
+
+> **embedding**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#13)
+
+JSON-stringified embedding vector, null if not yet computed
+
+***
+
+### folderId
+
+> **folderId**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#9)
+
+Folder ID for organization, null if unfiled
 
 ***
 
@@ -26,7 +46,7 @@ Defined in: [src/lib/db/memoryVault/types.ts:8](https://github.com/anuma-ai/sdk/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/types.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#10)
+Defined in: [src/lib/db/memoryVault/types.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#16)
 
 ***
 
@@ -54,4 +74,14 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/types.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#9)
+Defined in: [src/lib/db/memoryVault/types.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#15)
+
+***
+
+### userId
+
+> **userId**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/types.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#11)
+
+User ID for multi-user server-side scoping, null on client

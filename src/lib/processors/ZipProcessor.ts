@@ -2,6 +2,7 @@ import JSZip from "jszip";
 
 import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
+import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ProcessorRegistry } from "./registry";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
@@ -53,7 +54,7 @@ export class ZipProcessor implements FileProcessor {
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
-      const arrayBuffer = await this.dataUrlToArrayBuffer(file.dataUrl);
+      const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
       const zip = await JSZip.loadAsync(arrayBuffer);
 
       const entries: ZipEntry[] = [];
@@ -109,7 +110,7 @@ export class ZipProcessor implements FileProcessor {
           if (data.length > this.maxFileSize) continue;
 
           // Convert to data URL
-          const base64 = this.uint8ArrayToBase64(data);
+          const base64 = uint8ArrayToBase64(data);
           const dataUrl = `data:${mimeType};base64,${base64}`;
 
           const fileWithData: FileWithData = {
@@ -128,7 +129,7 @@ export class ZipProcessor implements FileProcessor {
               result,
             });
           }
-        } catch (error) {
+        } catch {
           // Silently skip files that fail to process
           // Errors are expected for corrupted or unsupported files within archives
         }
@@ -232,7 +233,6 @@ export class ZipProcessor implements FileProcessor {
     const mimeTypes: Record<string, string> = {
       ".pdf": "application/pdf",
       ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      ".xls": "application/vnd.ms-excel",
       ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ".doc": "application/msword",
       ".txt": "text/plain",
@@ -244,42 +244,6 @@ export class ZipProcessor implements FileProcessor {
       ".zip": "application/zip",
     };
     return mimeTypes[extension] || "application/octet-stream";
-  }
-
-  /**
-   * Convert Uint8Array to base64 string
-   */
-  private uint8ArrayToBase64(data: Uint8Array): string {
-    let binary = "";
-    for (let i = 0; i < data.length; i++) {
-      binary += String.fromCharCode(data[i]);
-    }
-    return btoa(binary);
-  }
-
-  /**
-   * Convert data URL to ArrayBuffer
-   */
-  private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    // Handle blob URLs and HTTPS URLs via fetch
-    if (
-      dataUrl.startsWith("blob:") ||
-      dataUrl.startsWith("http://") ||
-      dataUrl.startsWith("https://")
-    ) {
-      const response = await fetch(dataUrl);
-      return response.arrayBuffer();
-    }
-
-    // Data URL format: data:[<mediatype>][;base64],<data>
-    const base64 = dataUrl.split(",")[1];
-    const binary = atob(base64);
-    const buffer = new ArrayBuffer(binary.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binary.length; i++) {
-      view[i] = binary.charCodeAt(i);
-    }
-    return buffer;
   }
 }
 

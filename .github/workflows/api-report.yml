@@ -1,6 +1,7 @@
 name: Detect API Changes
 
 on:
+  merge_group:
   pull_request:
     branches: [main]
 
@@ -16,10 +17,10 @@ jobs:
   api-report:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout PR branch
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.sha }}
           fetch-depth: 0
 
       - name: Find merge base
@@ -43,7 +44,7 @@ jobs:
           cp -r etc/ /tmp/old-api-reports/
 
       - name: Checkout PR branch
-        run: git checkout ${{ github.head_ref }}
+        run: git checkout ${{ github.head_ref || github.sha }}
 
       - name: Install dependencies
         run: pnpm install
@@ -65,6 +66,7 @@ jobs:
           fi
 
       - name: Update PR label
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -76,7 +78,7 @@ jobs:
           fi
 
       - name: Comment API changes
-        if: steps.diff.outputs.api_changed == 'true'
+        if: github.event_name == 'pull_request' && steps.diff.outputs.api_changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -97,7 +99,7 @@ jobs:
           fi
 
       - name: Remove API changes comment
-        if: steps.diff.outputs.api_changed == 'false'
+        if: github.event_name == 'pull_request' && steps.diff.outputs.api_changed == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

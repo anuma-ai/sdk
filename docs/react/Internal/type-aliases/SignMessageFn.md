@@ -2,7 +2,7 @@
 
 > **SignMessageFn** = (`message`: `string`, `options?`: [`SignMessageOptions`](../interfaces/SignMessageOptions.md)) => `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:703](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#703)
+Defined in: [src/react/useEncryption.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#702)
 
 Type for the signMessage function that client must provide.
 This is typically from Privy's useSignMessage hook.

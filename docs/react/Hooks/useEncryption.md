@@ -2,7 +2,7 @@
 
 > **useEncryption**(`signMessage`: [`SignMessageFn`](../Internal/type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../Internal/type-aliases/EmbeddedWalletSignerFn.md)): [`UseEncryptionResult`](UseEncryptionResult.md)
 
-Defined in: [src/react/useEncryption.ts:1272](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1272)
+Defined in: [src/react/useEncryption.ts:1287](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1287)
 
 Hook that provides encryption key management for securing local data.
 

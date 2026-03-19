@@ -52,7 +52,14 @@ export default defineConfig([
     format: ["esm", "cjs"],
     dts: true,
     outDir: "dist/react",
-    external: ["react", "@privy-io/react-auth", "@huggingface/transformers", "recharts"],
+    external: [
+      "react",
+      "@privy-io/react-auth",
+      "@huggingface/transformers",
+      "recharts",
+      // Processor heavy deps — only loaded dynamically when processing files
+      "exceljs",
+    ],
     outExtension({ format }) {
       return {
         js: format === "esm" ? ".mjs" : ".cjs",
@@ -92,6 +99,17 @@ export default defineConfig([
     },
   },
   {
+    entry: ["src/client/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/client",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  {
     entry: ["src/tools/index.ts"],
     format: ["esm", "cjs"],
     dts: true,
@@ -101,5 +119,63 @@ export default defineConfig([
         js: format === "esm" ? ".mjs" : ".cjs",
       };
     },
+  },
+  // OpenAPI spec — re-exported so clients can import it from the SDK
+  {
+    entry: ["src/api/spec.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/api",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  // Utils — build-time utilities (doc generation, etc.)
+  {
+    entry: ["src/utils/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/utils",
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+  },
+  // Server entry - no React, no browser APIs
+  // Use this for Node.js servers: import { ... } from "@anuma/sdk/server"
+  {
+    entry: ["src/server/index.ts"],
+    format: ["esm", "cjs"],
+    dts: true,
+    outDir: "dist/server",
+    external: [
+      "@huggingface/transformers",
+      // Processor heavy deps — only loaded when consumers use file processors
+      "pdfjs-dist",
+      "exceljs",
+      "mammoth",
+      "jszip",
+    ],
+    // watermelondb is a peerDep (auto-externalized by tsup) but is CJS-only
+    // with no ESM exports — must be bundled to avoid ERR_UNSUPPORTED_DIR_IMPORT
+    noExternal: ["@nozbe/watermelondb"],
+    outExtension({ format }) {
+      return {
+        js: format === "esm" ? ".mjs" : ".cjs",
+      };
+    },
+    esbuildPlugins: [
+      {
+        name: "rewrite-client-import",
+        setup(build) {
+          build.onResolve({ filter: /^\.\.\/client$/ }, () => {
+            return { path: "@anuma/sdk", external: true };
+          });
+        },
+      },
+    ],
   },
 ]);

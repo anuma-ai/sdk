@@ -2,60 +2,60 @@
 
 > **HandlersAppUsageResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#89)
+Defined in: [src/client/types.gen.ts:194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#194)
 
 ## Properties
 
-### app\_uuid?
+### app\_uuid
 
-> `optional` **app\_uuid**: `string`
+> **app\_uuid**: `string`
 
-Defined in: [src/client/types.gen.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#90)
-
-***
-
-### period?
-
-> `optional` **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
-
-Defined in: [src/client/types.gen.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#91)
+Defined in: [src/client/types.gen.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#195)
 
 ***
 
-### timeseries?
+### period
 
-> `optional` **timeseries**: [`HandlersUsageTimeseriesPoint`](HandlersUsageTimeseriesPoint.md)\[]
+> **period**: [`HandlersUsagePeriod`](HandlersUsagePeriod.md)
 
-Defined in: [src/client/types.gen.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#92)
-
-***
-
-### total\_cost\_credits?
-
-> `optional` **total\_cost\_credits**: `number`
-
-Defined in: [src/client/types.gen.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#93)
+Defined in: [src/client/types.gen.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#196)
 
 ***
 
-### total\_request\_tokens?
+### timeseries
 
-> `optional` **total\_request\_tokens**: `number`
+> **timeseries**: [`HandlersUsageTimeseriesPoint`](HandlersUsageTimeseriesPoint.md)\[]
 
-Defined in: [src/client/types.gen.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#94)
-
-***
-
-### total\_requests?
-
-> `optional` **total\_requests**: `number`
-
-Defined in: [src/client/types.gen.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#95)
+Defined in: [src/client/types.gen.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#197)
 
 ***
 
-### total\_response\_tokens?
+### total\_cost\_credits
 
-> `optional` **total\_response\_tokens**: `number`
+> **total\_cost\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#96)
+Defined in: [src/client/types.gen.ts:198](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#198)
+
+***
+
+### total\_request\_tokens
+
+> **total\_request\_tokens**: `number`
+
+Defined in: [src/client/types.gen.ts:199](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#199)
+
+***
+
+### total\_requests
+
+> **total\_requests**: `number`
+
+Defined in: [src/client/types.gen.ts:200](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#200)
+
+***
+
+### total\_response\_tokens
+
+> **total\_response\_tokens**: `number`
+
+Defined in: [src/client/types.gen.ts:201](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#201)

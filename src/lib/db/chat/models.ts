@@ -25,6 +25,7 @@ export class Message extends Model {
   @text("role") role!: ChatRole;
   @text("content") content!: string;
   @text("model") model?: string;
+  @text("image_model") imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
   @json("files", (json) => json) files?: FileMetadata[];
   /** Array of media_id references for direct lookup */
@@ -59,4 +60,23 @@ export class Conversation extends Model {
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
+}
+
+/**
+ * WatermelonDB model for cached conversation summaries.
+ * One summary per conversation. Updated progressively as the conversation grows.
+ */
+export class ConversationSummary extends Model {
+  static table = "conversation_summaries";
+
+  static associations: Associations = {
+    conversations: { type: "belongs_to", key: "conversation_id" },
+  };
+
+  @text("conversation_id") conversationId!: string;
+  @text("summary") summary!: string;
+  @text("summarized_up_to") summarizedUpTo!: string;
+  @field("token_count") tokenCount!: number;
+  @date("created_at") createdAt!: Date;
+  @date("updated_at") updatedAt!: Date;
 }

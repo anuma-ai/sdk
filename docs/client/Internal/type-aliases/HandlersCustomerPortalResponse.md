@@ -2,12 +2,12 @@
 
 > **HandlersCustomerPortalResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#269)
+Defined in: [src/client/types.gen.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#406)
 
 ## Properties
 
-### url?
+### url
 
-> `optional` **url**: `string`
+> **url**: `string`
 
-Defined in: [src/client/types.gen.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#270)
+Defined in: [src/client/types.gen.ts:407](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#407)

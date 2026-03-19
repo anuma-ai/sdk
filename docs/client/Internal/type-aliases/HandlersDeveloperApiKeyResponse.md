@@ -2,36 +2,36 @@
 
 > **HandlersDeveloperApiKeyResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:278](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#278)
+Defined in: [src/client/types.gen.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#415)
 
 ## Properties
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
-
-***
-
-### id?
-
-> `optional` **id**: `number`
-
-Defined in: [src/client/types.gen.ts:280](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#280)
+Defined in: [src/client/types.gen.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#416)
 
 ***
 
-### is\_active?
+### id
 
-> `optional` **is\_active**: `boolean`
+> **id**: `number`
 
-Defined in: [src/client/types.gen.ts:281](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#281)
+Defined in: [src/client/types.gen.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#417)
 
 ***
 
-### name?
+### is\_active
 
-> `optional` **name**: `string`
+> **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:282](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#282)
+Defined in: [src/client/types.gen.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#418)
+
+***
+
+### name
+
+> **name**: `string`
+
+Defined in: [src/client/types.gen.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#419)

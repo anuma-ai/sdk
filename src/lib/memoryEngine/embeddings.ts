@@ -42,7 +42,13 @@ export async function generateEmbedding(
   text: string,
   options: EmbeddingOptions
 ): Promise<number[]> {
-  const { baseUrl = BASE_URL, getToken, apiKey, model } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, cache } = options;
+
+  // Check cache first
+  if (cache) {
+    const cached = cache.get(text);
+    if (cached) return cached;
+  }
 
   // Build auth headers - prefer apiKey if provided
   let headers: Record<string, string>;
@@ -79,7 +85,22 @@ export async function generateEmbedding(
     throw new Error("No embedding returned from API");
   }
 
-  return response.data.data[0].embedding;
+  const embedding = response.data.data[0].embedding;
+
+  // Report usage if callback provided
+  if (options.onUsage && response.data.usage) {
+    options.onUsage({
+      promptTokens: response.data.usage.prompt_tokens ?? 0,
+      totalTokens: response.data.usage.total_tokens ?? 0,
+    });
+  }
+
+  // Store in cache
+  if (cache) {
+    cache.set(text, embedding);
+  }
+
+  return embedding;
 }
 
 const DEFAULT_EMBEDDING_BATCH_SIZE = 100;
@@ -92,7 +113,8 @@ async function generateEmbeddingsBatch(
   texts: string[],
   headers: Record<string, string>,
   baseUrl: string,
-  model: string
+  model: string,
+  onUsage?: EmbeddingOptions["onUsage"]
 ): Promise<number[][]> {
   const response = await postApiV1Embeddings({
     baseUrl,
@@ -110,6 +132,13 @@ async function generateEmbeddingsBatch(
 
   if (!response.data?.data) {
     throw new Error("No embeddings returned from API");
+  }
+
+  if (onUsage && response.data.usage) {
+    onUsage({
+      promptTokens: response.data.usage.prompt_tokens ?? 0,
+      totalTokens: response.data.usage.total_tokens ?? 0,
+    });
   }
 
   return response.data.data.map((item) => item.embedding ?? []);
@@ -133,8 +162,30 @@ export async function generateEmbeddings(
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize } = options;
+  const { baseUrl = BASE_URL, getToken, apiKey, model, batchSize, cache } = options;
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
+
+  // Separate cached and uncached texts
+  const results: (number[] | null)[] = new Array(texts.length).fill(null);
+  const uncachedIndices: number[] = [];
+  const uncachedTexts: string[] = [];
+
+  for (let i = 0; i < texts.length; i++) {
+    if (cache) {
+      const cached = cache.get(texts[i]);
+      if (cached) {
+        results[i] = cached;
+        continue;
+      }
+    }
+    uncachedIndices.push(i);
+    uncachedTexts.push(texts[i]);
+  }
+
+  // If everything was cached, return immediately
+  if (uncachedTexts.length === 0) {
+    return results as number[][];
+  }
 
   // Build auth headers - prefer apiKey if provided
   let headers: Record<string, string>;
@@ -152,34 +203,58 @@ export async function generateEmbeddings(
 
   const embeddingModel = model ?? DEFAULT_API_EMBEDDING_MODEL;
 
+  let newEmbeddings: number[][];
+
   // Small inputs: single API call (preserves existing behavior)
-  if (texts.length <= chunkSize) {
-    return generateEmbeddingsBatch(texts, headers, baseUrl, embeddingModel);
-  }
-
-  // Large inputs: chunk and process with bounded concurrency
-  const chunks: string[][] = [];
-  for (let i = 0; i < texts.length; i += chunkSize) {
-    chunks.push(texts.slice(i, i + chunkSize));
-  }
-
-  const allEmbeddings: number[][][] = new Array(chunks.length);
-  let nextIndex = 0;
-
-  const worker = async () => {
-    while (nextIndex < chunks.length) {
-      const i = nextIndex++;
-      allEmbeddings[i] = await generateEmbeddingsBatch(chunks[i], headers, baseUrl, embeddingModel);
+  if (uncachedTexts.length <= chunkSize) {
+    newEmbeddings = await generateEmbeddingsBatch(
+      uncachedTexts,
+      headers,
+      baseUrl,
+      embeddingModel,
+      options.onUsage
+    );
+  } else {
+    // Large inputs: chunk and process with bounded concurrency
+    const chunks: string[][] = [];
+    for (let i = 0; i < uncachedTexts.length; i += chunkSize) {
+      chunks.push(uncachedTexts.slice(i, i + chunkSize));
     }
-  };
 
-  const workers = Array.from(
-    { length: Math.min(DEFAULT_EMBEDDING_BATCH_CONCURRENCY, chunks.length) },
-    () => worker()
-  );
-  await Promise.all(workers);
+    const allEmbeddings: number[][][] = new Array(chunks.length);
+    let nextIndex = 0;
 
-  return allEmbeddings.flat();
+    const worker = async () => {
+      while (nextIndex < chunks.length) {
+        const idx = nextIndex++;
+        allEmbeddings[idx] = await generateEmbeddingsBatch(
+          chunks[idx],
+          headers,
+          baseUrl,
+          embeddingModel,
+          options.onUsage
+        );
+      }
+    };
+
+    const workers = Array.from(
+      { length: Math.min(DEFAULT_EMBEDDING_BATCH_CONCURRENCY, chunks.length) },
+      () => worker()
+    );
+    await Promise.all(workers);
+
+    newEmbeddings = allEmbeddings.flat();
+  }
+
+  // Merge new embeddings into results and populate cache
+  for (let i = 0; i < uncachedIndices.length; i++) {
+    results[uncachedIndices[i]] = newEmbeddings[i];
+    if (cache) {
+      cache.set(uncachedTexts[i], newEmbeddings[i]);
+    }
+  }
+
+  return results as number[][];
 }
 
 /**

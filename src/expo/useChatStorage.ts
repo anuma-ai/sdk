@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  LlmapiChatCompletionResponse,
-  LlmapiMessage,
-  LlmapiResponseResponse,
-} from "../client";
-import type { ApiResponse, ApiType } from "../lib/chat/useChat";
+import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  maybeSummarizeHistory,
+} from "../lib/chat/summarize";
+import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type BaseSendMessageWithStorageArgs,
@@ -23,7 +26,6 @@ import {
   type CreateMessageOptions,
   deleteConversationOp,
   extractUserMessageFromMessages,
-  type FileMetadata,
   finalizeThoughtProcess,
   getConversationOp,
   getConversationsOp,
@@ -72,6 +74,37 @@ import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
+
+/** Image tool names recognized by the MCP image pipeline. */
+const IMAGE_TOOL_NAMES = new Set([
+  "AnumaImageMCP_generate_cloud_image",
+  "AnumaImageMCP_edit_cloud_image",
+  "AnumaImageMCP-generate_cloud_image",
+  "AnumaImageMCP-edit_cloud_image",
+  "generate_cloud_image",
+  "edit_cloud_image",
+]);
+
+/**
+ * Extract the image generation model name from tool_call_events.
+ * The MCP image tool returns `{ model, url }` in its JSON output.
+ */
+function extractImageModelFromToolEvents(
+  toolCallEvents: Array<{ name?: string; output?: string }> | undefined
+): string | undefined {
+  if (!toolCallEvents) return undefined;
+  for (const event of toolCallEvents) {
+    if (event.name && IMAGE_TOOL_NAMES.has(event.name) && event.output) {
+      try {
+        const output = JSON.parse(event.output);
+        if (output.model) return output.model as string;
+      } catch {
+        // Malformed JSON — skip
+      }
+    }
+  }
+  return undefined;
+}
 
 /**
  * Convert StoredMessage to LlmapiMessage format.
@@ -662,6 +695,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           { database: storageCtx.database, walletAddress, signMessage, embeddedWalletSigner },
           id
         );
+        // Cascade delete conversation summary cache
+        await cleanupConversationSummary(storageCtx.database, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
@@ -841,6 +876,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
+        summarizeHistory = false,
+        summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+        summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+        summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         onData: perRequestOnData,
         onThinking: perRequestOnThinking,
@@ -857,6 +896,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
         parentMessageId,
       } = args;
 
@@ -871,7 +911,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
-        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+        const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
         // Fetch server tools if needed
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -935,7 +975,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           toolChoice,
           reasoning,
           thinking,
+          imageModel,
           apiType: effectiveApiType,
+          conversationId: currentConversationId ?? undefined,
         });
 
         if (result.error || !result.data) {
@@ -984,7 +1026,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
-        messagesToSend = [...limitedMessages.map(storedToLlmapiMessage), ...messages];
+
+        // Determine which messages to send: summarized + window or all verbatim.
+        // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
+        // corrupting isLoading state and abortController during summarization.
+        if (summarizeHistory && !getToken) {
+          console.warn(
+            "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
+          );
+        }
+        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
+          database,
+          conversationId: convId,
+          messages: limitedMessages,
+          summarizeHistory,
+          summaryTokenThreshold,
+          summaryMinWindowMessages,
+          summaryModel,
+          token: summaryToken ?? "",
+          baseUrl,
+        });
+
+        messagesToSend = [
+          ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...messagesToConvert.map(storedToLlmapiMessage),
+          ...messages,
+        ];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
@@ -1032,7 +1100,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const startTime = Date.now();
 
       // Determine effective API type for this request
-      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
       // Fetch and merge server-side tools with client tools
       let mergedTools = clientTools;
@@ -1118,6 +1186,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         toolChoice,
         reasoning,
         thinking,
+        imageModel,
+        conversationId: convId,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -1132,15 +1202,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (abortedResult.error === "Request aborted") {
           // Extract content if we have partial data, otherwise empty string
           // Find the message output item (type: "message") for main content
-          const messageOutput = abortedResult.data?.output?.find((item) => item.type === "message");
+          const abortOutput = (abortedResult.data?.output ?? []).filter(Boolean);
+          const messageOutput = abortOutput.find((item) => item?.type === "message");
           const assistantContent =
             messageOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
             "";
 
           // Find the reasoning output item (type: "reasoning") for thinking content
-          const reasoningOutput = abortedResult.data?.output?.find(
-            (item) => item.type === "reasoning"
-          );
+          const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
           const abortedThinkingContent =
             reasoningOutput?.content?.map((part: { text?: string }) => part.text || "").join("") ||
             undefined;
@@ -1155,6 +1224,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
+              imageModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
@@ -1233,17 +1303,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let assistantContent = "";
       let thinkingContent: string | undefined;
 
-      if ("output" in responseData && responseData.output) {
+      if ("output" in responseData && Array.isArray(responseData.output)) {
         // Responses API format
         type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-        const messageOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "message"
-        );
+        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
+        const messageOutput = outputItems.find((item) => item?.type === "message");
         assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
-        const reasoningOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "reasoning"
-        );
+        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
         thinkingContent =
           reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
       } else if ("choices" in responseData && responseData.choices) {
@@ -1278,12 +1345,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
+      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      const resolvedImageModel =
+        imageModel || extractImageModelFromToolEvents(responseData.tool_call_events);
+
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
         conversationId: convId,
         role: "assistant",
         content: cleanedContent,
         model: responseData.model || model,
+        imageModel: resolvedImageModel,
         usage: convertUsageToStored(responseData.usage),
         responseDuration,
         sources: combinedSources,

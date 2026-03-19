@@ -1,44 +1,78 @@
-import * as XLSX from "xlsx";
+import type ExcelJS from "exceljs";
 
 import { getLogger } from "../logger";
+import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
+// Polyfill process.umask for edge runtimes (Cloudflare Workers) where unenv
+// throws "process.umask is not implemented yet!".  fstream (a transitive dep
+// of exceljs via unzipper) calls process.umask() at module-init time, so the
+// polyfill must be in place before the first `import("exceljs")` resolves.
+if (typeof process !== "undefined" && typeof process.umask !== "function") {
+  // 0o22 is the default umask on POSIX systems.  The value is only used by
+  // fstream for file-permission calculations which are irrelevant in Workers.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  (process as any).umask = (_mask?: number) => 0o22;
+}
+
 /**
- * Processor for Excel files (.xlsx, .xls) that converts to JSON structure
+ * Processor for Excel files (.xlsx) that converts to JSON structure.
+ *
+ * Uses a dynamic import for exceljs so the heavy dependency tree is only
+ * loaded when actually processing an Excel file.
  */
 export class ExcelProcessor implements FileProcessor {
   readonly name = "excel";
   readonly supportedMimeTypes = [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-    "application/vnd.ms-excel", // .xls
   ];
-  readonly supportedExtensions = [".xlsx", ".xls"];
+  readonly supportedExtensions = [".xlsx"];
+
+  private async loadExcelJS(): Promise<typeof ExcelJS> {
+    const mod = await import("exceljs");
+    return mod.default || mod;
+  }
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
-      // Convert data URL to array buffer
-      const arrayBuffer = await this.dataUrlToArrayBuffer(file.dataUrl);
+      const ExcelJSLib = await this.loadExcelJS();
+      const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);
 
-      // Parse with xlsx
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const workbook = new ExcelJSLib.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
 
-      if (workbook.SheetNames.length === 0) {
+      if (workbook.worksheets.length === 0) {
         return null;
       }
 
-      // Convert to JSON structure preserving sheet names
-      const jsonData: Record<string, any[]> = {};
-      workbook.SheetNames.forEach((sheetName) => {
-        const sheet = workbook.Sheets[sheetName];
-        jsonData[sheetName] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-      });
+      const jsonData: Record<string, Record<string, unknown>[]> = {};
+      for (const worksheet of workbook.worksheets) {
+        const rows: Record<string, unknown>[] = [];
+        const headerRow = worksheet.getRow(1);
+        const headers: string[] = [];
+        headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          headers[colNumber] = cell.text || `Column${colNumber}`;
+        });
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return; // skip header
+          const rowData: Record<string, unknown> = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const key = headers[colNumber] || `Column${colNumber}`;
+            rowData[key] = this.resolveCellValue(cell.value);
+          });
+          rows.push(rowData);
+        });
+
+        jsonData[worksheet.name] = rows;
+      }
 
       return {
         extractedText: JSON.stringify(jsonData, null, 2),
         format: "json",
         metadata: {
-          sheetCount: workbook.SheetNames.length,
-          sheetNames: workbook.SheetNames,
+          sheetCount: workbook.worksheets.length,
+          sheetNames: workbook.worksheets.map((ws) => ws.name),
         },
       };
     } catch (error) {
@@ -47,28 +81,17 @@ export class ExcelProcessor implements FileProcessor {
     }
   }
 
-  /**
-   * Convert data URL to ArrayBuffer
-   */
-  private async dataUrlToArrayBuffer(dataUrl: string): Promise<ArrayBuffer> {
-    // Handle blob URLs and HTTPS URLs via fetch
-    if (
-      dataUrl.startsWith("blob:") ||
-      dataUrl.startsWith("http://") ||
-      dataUrl.startsWith("https://")
-    ) {
-      const response = await fetch(dataUrl);
-      return response.arrayBuffer();
+  private resolveCellValue(value: ExcelJS.CellValue): string | number | boolean {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+      return value;
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === "object") {
+      if ("richText" in value) return value.richText.map((rt) => rt.text).join("");
+      if ("result" in value) return this.resolveCellValue(value.result);
+      if ("error" in value) return value.error;
+      if ("text" in value) return (value as { text: string }).text;
     }
-
-    // Data URL format: data:[<mediatype>][;base64],<data>
-    const base64 = dataUrl.split(",")[1];
-    const binary = atob(base64);
-    const buffer = new ArrayBuffer(binary.length);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < binary.length; i++) {
-      view[i] = binary.charCodeAt(i);
-    }
-    return buffer;
+    return JSON.stringify(value);
   }
 }

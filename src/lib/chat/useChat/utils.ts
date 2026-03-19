@@ -1,12 +1,6 @@
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import { getLogger } from "../../logger";
-import type {
-  AccumulatedToolCall,
-  StreamAccumulator,
-  StreamingChunk,
-  ToolConfig,
-  ToolExecutor,
-} from "./types";
+import type { AccumulatedToolCall, StreamAccumulator, ToolConfig, ToolExecutor } from "./types";
 
 /**
  * Validation error types
@@ -427,162 +421,6 @@ export type ProcessChunkResult = {
 };
 
 /**
- * Processes a streaming chunk and updates the accumulator
- * Returns the content and thinking deltas if present
- */
-export function processStreamingChunk(
-  chunk: StreamingChunk,
-  accumulator: StreamAccumulator
-): ProcessChunkResult {
-  const result: ProcessChunkResult = { content: null, thinking: null };
-
-  // Handle response.created event - extract ID and model from response object
-  if (chunk.type === "response.created" && chunk.response) {
-    if (chunk.response.id && !accumulator.responseId) {
-      accumulator.responseId = chunk.response.id;
-    }
-    if (chunk.response.model && !accumulator.responseModel) {
-      accumulator.responseModel = chunk.response.model;
-    }
-    return result;
-  }
-
-  // Handle response.completed event - extract usage from response object
-  if (chunk.type === "response.completed") {
-    if (chunk.response?.usage) {
-      const u = chunk.response.usage;
-      accumulator.usage = {
-        ...accumulator.usage,
-        prompt_tokens: u.input_tokens,
-        completion_tokens: u.output_tokens,
-        total_tokens: (u.input_tokens || 0) + (u.output_tokens || 0),
-        ...(u.cost_micro_usd != null && { cost_micro_usd: u.cost_micro_usd }),
-        ...(u.credits_used != null && { credits_used: u.credits_used }),
-      };
-    }
-
-    // Mark all pending tool calls as completed and emit completion event
-    for (const toolCall of accumulator.toolCalls.values()) {
-      if (toolCall.status === "pending") {
-        toolCall.status = "completed";
-        result.serverToolCall = {
-          name: toolCall.name,
-          status: "completed",
-        };
-      }
-    }
-
-    return result;
-  }
-
-  // Legacy: Extract response ID and model from top-level fields
-  if (chunk.id && !accumulator.responseId) {
-    accumulator.responseId = chunk.id;
-  }
-  if (chunk.model && !accumulator.responseModel) {
-    accumulator.responseModel = chunk.model;
-  }
-
-  // Accumulate usage data - merge instead of replace
-  // This ensures we capture both token counts and cost_micro_usd
-  if (chunk.usage) {
-    accumulator.usage = {
-      ...accumulator.usage,
-      ...chunk.usage,
-    };
-  }
-
-  // Handle thinking/reasoning content deltas
-  // These event types are used by various providers for thinking content
-  if (
-    chunk.type === "response.reasoning.delta" ||
-    chunk.type === "response.reasoning_summary_text.delta" ||
-    chunk.type === "response.thinking.delta"
-  ) {
-    const delta = chunk.delta;
-    if (delta) {
-      // Handle both string and object delta formats
-      const deltaText =
-        typeof delta === "string"
-          ? delta
-          : delta.OfString || delta.OfResponseReasoningSummaryDeltaEventDelta;
-      if (deltaText) {
-        accumulator.thinking += deltaText;
-        result.thinking = deltaText;
-      }
-    }
-    return result;
-  }
-
-  // Extract content delta from responses API format
-  if (chunk.type === "response.output_text.delta") {
-    const delta = chunk.delta;
-    if (delta) {
-      // Handle both string and object delta formats
-      // The API may return delta as either a string or an object with OfString property
-      const deltaText = typeof delta === "string" ? delta : delta.OfString;
-      if (deltaText) {
-        accumulator.content += deltaText;
-        result.content = deltaText;
-      }
-    }
-  }
-
-  // Handle tool call events
-  // Event: response.output_item.added with type "function_call"
-  if (chunk.type === "response.output_item.added" && chunk.item) {
-    if (chunk.item.type === "function_call") {
-      // Use item.id (fc_...) as the primary key since that's what arguments events use
-      const itemId = chunk.item.id || "";
-      const callId = chunk.item.call_id || "";
-
-      if (itemId && chunk.item.name) {
-        accumulator.toolCalls.set(itemId, {
-          id: callId || itemId, // Use call_id for the tool call ID
-          type: "function",
-          name: chunk.item.name,
-          arguments: chunk.item.arguments || "",
-          status: "pending",
-        });
-
-        // Emit server tool call started event
-        result.serverToolCall = {
-          name: chunk.item.name,
-          status: "started",
-          arguments: chunk.item.arguments,
-        };
-      }
-    }
-  }
-
-  // Event: response.function_call_arguments.delta - streaming arguments (note: underscore, not dot)
-  if (chunk.type === "response.function_call_arguments.delta") {
-    // Use item_id (fc_...) to look up the tool call
-    const itemId = chunk.item_id || chunk.call_id || "";
-    if (itemId && chunk.arguments) {
-      const existing = accumulator.toolCalls.get(itemId);
-      if (existing) {
-        existing.arguments += chunk.arguments;
-      }
-    }
-  }
-
-  // Event: response.function_call_arguments.done - arguments complete (note: underscore, not dot)
-  if (chunk.type === "response.function_call_arguments.done") {
-    // Use item_id (fc_...) to look up the tool call
-    const itemId = chunk.item_id || chunk.call_id || "";
-    if (itemId && chunk.arguments) {
-      const existing = accumulator.toolCalls.get(itemId);
-      if (existing) {
-        existing.arguments = chunk.arguments;
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
  * Creates a validation error result
  */
 export function createErrorResult<T extends { data: null; error: string }>(
@@ -593,22 +431,6 @@ export function createErrorResult<T extends { data: null; error: string }>(
     onError(new Error(message));
   }
   return { data: null, error: message } as T;
-}
-
-/**
- * Handles an error and returns an error result
- */
-export function handleError<T extends { data: null; error: string }>(
-  err: unknown,
-  onError?: (error: Error) => void
-): T {
-  const errorMsg = err instanceof Error ? err.message : "Failed to send message.";
-  const errorObj = err instanceof Error ? err : new Error(errorMsg);
-
-  if (onError) {
-    onError(errorObj);
-  }
-  return { data: null, error: errorMsg } as T;
 }
 
 /**
@@ -627,26 +449,6 @@ export function isDoneMarker(chunk: unknown): boolean {
     return trimmed === "[DONE]" || trimmed.includes("[DONE]");
   }
   return false;
-}
-
-/**
- * Parses an SSE data line and returns the chunk if valid
- */
-export function parseSSEDataLine(line: string): StreamingChunk | null {
-  if (!line.startsWith("data: ")) {
-    return null;
-  }
-
-  const data = line.substring(6).trim();
-  if (data === "[DONE]") {
-    return null;
-  }
-
-  try {
-    return JSON.parse(data) as StreamingChunk;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -684,8 +486,24 @@ export function createToolExecutorMap(
   return map;
 }
 
+/** Default timeout for tool executor calls (30 seconds). */
+const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
+
 /**
- * Executes a tool call with the provided executor
+ * Safely serializes a value to JSON, returning a fallback string on failure
+ * (e.g. circular references, BigInt, or non-serializable types).
+ */
+export function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "null";
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Executes a tool call with the provided executor.
+ * Applies a 30-second timeout to prevent hanging executors from blocking the loop.
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
@@ -704,9 +522,22 @@ export async function executeToolCall(
       }
     }
 
-    // Execute the tool
-    const result = await executor(args);
-    return { result };
+    // Execute the tool with a timeout
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([
+        executor(args),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Tool execution timed out")),
+            TOOL_EXECUTOR_TIMEOUT_MS
+          );
+        }),
+      ]);
+      return { result };
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (e) {
     return {
       error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -719,7 +550,8 @@ export async function executeToolCall(
  * Handles both Completions format (function.name) and Responses format (name at top level)
  */
 export function toolsToApiFormat(
-  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
+  tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>,
+  apiType?: string
 ): Array<Record<string, unknown>> | undefined {
   if (!tools || tools.length === 0) {
     return undefined;
@@ -727,8 +559,58 @@ export function toolsToApiFormat(
 
   return tools.map((tool) => {
     // Strip client-side-only properties before sending to API
-    const { executor, autoExecute, skipContinuation, removeAfterExecution, ...apiTool } =
-      tool as ToolConfig & Record<string, unknown>;
+    const {
+      executor: _executor,
+      autoExecute: _autoExecute,
+      skipContinuation: _skipContinuation,
+      removeAfterExecution: _removeAfterExecution,
+      ...apiTool
+    } = tool as ToolConfig & Record<string, unknown>;
+
+    const func = (apiTool as Record<string, unknown>).function as
+      | Record<string, unknown>
+      | undefined;
+
+    // Detect flat-format tools (name at top level, no function wrapper)
+    const flatName = !func && (apiTool as any).name;
+
+    // Normalize tool format based on API type
+    if (apiType === "responses") {
+      if (func) {
+        // Nested → flat for Responses API
+        const { name, description, parameters, arguments: args, ...restFunc } = func;
+        return {
+          type: "function",
+          name: name as string,
+          description: description as string,
+          parameters: (parameters || args) as Record<string, unknown>,
+          ...restFunc,
+        };
+      }
+      // Already flat — pass through
+      return apiTool;
+    }
+
+    if (apiType === "completions") {
+      if (flatName) {
+        // Flat → nested for Completions API
+        const { type: _type, name, description, parameters, ...rest } = apiTool as any;
+        return {
+          type: "function",
+          ...rest,
+          function: { name, description, parameters },
+        };
+      }
+      if (func && !func.parameters && func.arguments) {
+        // Completions API expects function.parameters, convert from arguments
+        const { arguments: args, ...restFunc } = func;
+        return {
+          ...apiTool,
+          function: { ...restFunc, parameters: args },
+        };
+      }
+    }
+
     return apiTool;
   });
 }

@@ -2,7 +2,7 @@
 
 > **PendingInteraction**<`TData`, `TResult`> = `object`
 
-Defined in: [src/react/useUIInteraction.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#20)
+Defined in: [src/react/useUIInteraction.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#21)
 
 Represents a pending user interaction that needs to be resolved
 
@@ -49,7 +49,7 @@ Represents a pending user interaction that needs to be resolved
 
 > **createdAt**: `number`
 
-Defined in: [src/react/useUIInteraction.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#26)
+Defined in: [src/react/useUIInteraction.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#27)
 
 ***
 
@@ -57,7 +57,7 @@ Defined in: [src/react/useUIInteraction.ts:26](https://github.com/anuma-ai/sdk/b
 
 > **data**: `TData`
 
-Defined in: [src/react/useUIInteraction.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#23)
+Defined in: [src/react/useUIInteraction.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#24)
 
 ***
 
@@ -65,7 +65,7 @@ Defined in: [src/react/useUIInteraction.ts:23](https://github.com/anuma-ai/sdk/b
 
 > **id**: `string`
 
-Defined in: [src/react/useUIInteraction.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#21)
+Defined in: [src/react/useUIInteraction.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#22)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: [src/react/useUIInteraction.ts:21](https://github.com/anuma-ai/sdk/b
 
 > **reject**: (`error`: `Error`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#25)
+Defined in: [src/react/useUIInteraction.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#26)
 
 **Parameters**
 
@@ -106,11 +106,21 @@ Defined in: [src/react/useUIInteraction.ts:25](https://github.com/anuma-ai/sdk/b
 
 ***
 
+### replacesInteractionId?
+
+> `optional` **replacesInteractionId**: `string`
+
+Defined in: [src/react/useUIInteraction.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#33)
+
+If set, this interaction replaces a previous one (e.g. an updated app)
+
+***
+
 ### resolve()
 
 > **resolve**: (`result`: `TResult`) => `void`
 
-Defined in: [src/react/useUIInteraction.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#24)
+Defined in: [src/react/useUIInteraction.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#25)
 
 **Parameters**
 
@@ -147,7 +157,7 @@ Defined in: [src/react/useUIInteraction.ts:24](https://github.com/anuma-ai/sdk/b
 
 > `optional` **resolved**: `boolean`
 
-Defined in: [src/react/useUIInteraction.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#27)
+Defined in: [src/react/useUIInteraction.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#28)
 
 ***
 
@@ -155,7 +165,7 @@ Defined in: [src/react/useUIInteraction.ts:27](https://github.com/anuma-ai/sdk/b
 
 > `optional` **result**: `TResult`
 
-Defined in: [src/react/useUIInteraction.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#28)
+Defined in: [src/react/useUIInteraction.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#29)
 
 ***
 
@@ -163,7 +173,7 @@ Defined in: [src/react/useUIInteraction.ts:28](https://github.com/anuma-ai/sdk/b
 
 > `optional` **toolVersion**: `number`
 
-Defined in: [src/react/useUIInteraction.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#30)
+Defined in: [src/react/useUIInteraction.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#31)
 
 Version of the display tool that produced this interaction (for migration on restore)
 
@@ -173,4 +183,4 @@ Version of the display tool that produced this interaction (for migration on res
 
 > **type**: [`InteractionType`](InteractionType.md)
 
-Defined in: [src/react/useUIInteraction.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#22)
+Defined in: [src/react/useUIInteraction.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#23)

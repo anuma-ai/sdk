@@ -12,11 +12,30 @@
  * @see https://modelcontextprotocol.io
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 // MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
 const MCP_SSE_ENDPOINT = "https://mcp.notion.com/sse";
+
+/** Maximum content length for Notion tool results to avoid overwhelming LLM context */
+const MAX_CONTENT_LENGTH = 50000;
+
+/**
+ * Truncate a tool result if it exceeds MAX_CONTENT_LENGTH.
+ * Stringifies objects before checking length.
+ */
+function truncateToolResult(result: unknown): unknown {
+  if (result === undefined || result === null) return result;
+  const stringified = typeof result === "string" ? result : JSON.stringify(result);
+  if (stringified.length <= MAX_CONTENT_LENGTH) {
+    return result;
+  }
+  return (
+    stringified.slice(0, MAX_CONTENT_LENGTH) +
+    `\n\n... (content truncated, showing first ${MAX_CONTENT_LENGTH} characters of ${stringified.length})`
+  );
+}
 
 // ============================================================================
 // MCP CLIENT WITH SESSION MANAGEMENT
@@ -238,7 +257,7 @@ async function callMCPTool<T>(
         throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
       }
 
-      return retryJsonRpcResponse.result as T;
+      return truncateToolResult(retryJsonRpcResponse.result) as T;
     }
 
     // Try to get error details from response
@@ -256,7 +275,7 @@ async function callMCPTool<T>(
     throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
   }
 
-  return jsonRpcResponse.result as T;
+  return truncateToolResult(jsonRpcResponse.result) as T;
 }
 
 // ============================================================================

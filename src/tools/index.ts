@@ -61,11 +61,11 @@
  */
 
 // Google Calendar exports
+export type { ToolConfig } from "../lib/chat/useChat/types.js";
 export type {
   CalendarEvent,
   CreateEventArgs,
   ListEventsArgs,
-  ToolConfig,
   UpdateEventArgs,
 } from "./googleCalendar";
 export {
@@ -88,6 +88,20 @@ export { createDisplayTool, createInteractiveTool, migrateDisplayResult } from "
 // Chart display tool
 export type { ChartDataPoint, DisplayChartResult } from "./chart";
 export { createChartTool } from "./chart";
+export type { DisplayPhoneCallOfferResult } from "./phoneCallOffer";
+export { createPhoneCallOfferTool } from "./phoneCallOffer";
+
+// Choice interaction tool
+export type { ChoiceOption } from "./choice";
+export { createChoiceTool } from "./choice";
+
+// Form interaction tool
+export type { FormField, FormFieldOption, FormFieldType } from "./form";
+export { createFormTool } from "./form";
+
+// Weather display tool
+export type { DisplayWeatherResult, ForecastDay } from "./weather";
+export { createWeatherTool } from "./weather";
 
 // Google Drive exports
 export type {

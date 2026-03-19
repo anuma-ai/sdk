@@ -33,6 +33,20 @@ export interface LongMemEvalEntry {
 
 export type LongMemEvalDataset = LongMemEvalEntry[];
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  embeddingTokens: number;
+}
+
+export interface ModelPricing {
+  /** Cost per token for prompt/input */
+  prompt: number;
+  /** Cost per token for completion/output */
+  completion: number;
+}
+
 export interface LongMemEvalResult {
   questionId: string;
   questionType: LongMemEvalQuestionType;
@@ -45,6 +59,7 @@ export interface LongMemEvalResult {
   retrievalPrecision: number;
   retrievalRecall: number;
   latencyMs: number;
+  tokenUsage: TokenUsage;
   strategy: "memory-engine" | "memory-vault";
   details?: Record<string, unknown>;
 }
@@ -74,6 +89,14 @@ export interface LongMemEvalSummary {
     p99: number;
     mean: number;
   };
+  tokenUsage: TokenUsage;
+  cost?: {
+    llmCost: number;
+    embeddingCost: number;
+    totalCost: number;
+    llmModel: string;
+    embeddingModel: string;
+  };
   results: LongMemEvalResult[];
 }
 
@@ -96,6 +119,7 @@ export interface LongMemEvalOptions {
   verbose?: boolean;
   output?: string;
   skipUnsupported?: boolean;
+  concurrency?: number;
 }
 
 /** API configuration for LLM and embedding calls */

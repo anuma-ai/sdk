@@ -6,6 +6,7 @@ import type {
   LlmapiThinkingOptions,
   LlmapiToolCall,
 } from "../../../client";
+import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
 import type { ServerToolCallEvent } from "./utils";
@@ -163,18 +164,9 @@ export type BaseSendMessageArgs = ResponsesApiOptions & {
    * @param chunk - The content delta from the current chunk
    */
   onData?: (chunk: string) => void;
+  /** Groups requests belonging to the same conversation for observability. Pass-through only — not forwarded to the LLM provider. */
+  conversationId?: string;
 };
-
-/**
- * Base result type for sendMessage.
- * Returns raw API response - either Responses API or Completions API format.
- */
-export type BaseSendMessageResult =
-  | {
-      data: ApiResponse;
-      error: null;
-    }
-  | { data: null; error: string };
 
 /**
  * Base options for useChat hook
@@ -238,6 +230,12 @@ export type BaseUseChatOptions = {
    * @default true
    */
   smoothing?: StreamSmoothingConfig | boolean;
+  /**
+   * Called after each tool execution round completes.
+   * Receives the round index, model content, tool calls, results, and token usage.
+   * Useful for progress indicators, cost tracking, and custom early-exit logic.
+   */
+  onStepFinish?: (event: StepFinishEvent) => void;
 };
 
 /**

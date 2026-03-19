@@ -5,17 +5,17 @@ export type ClientOptions = {
 };
 
 export type HandlersApiKeyResponse = {
-    app_id?: number;
-    created_at?: string;
+    app_id: number;
+    created_at: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
-    has_key?: boolean;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
-    wallet_address?: string;
+    has_key: boolean;
+    id: number;
+    is_active: boolean;
+    name: string;
+    updated_at: string;
+    wallet_address: string;
     wallet_details?: HandlersWalletDetails;
 };
 
@@ -23,14 +23,14 @@ export type HandlersApiKeyWithKeyResponse = {
     /**
      * Only included in create response
      */
-    api_key?: string;
-    app_id?: number;
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
-    wallet_address?: string;
+    api_key: string;
+    app_id: number;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
+    updated_at: string;
+    wallet_address: string;
 };
 
 export type HandlersAddCreditsRequest = {
@@ -46,73 +46,193 @@ export type HandlersAddCreditsRequest = {
 };
 
 export type HandlersAddCreditsResponse = {
-    credits_added?: number;
+    credits_added: number;
     /**
      * Escrow contract used for the operation
      */
     escrow_contract?: string;
     message?: string;
-    success?: boolean;
-    user_address?: string;
+    success: boolean;
+    user_address: string;
+};
+
+export type HandlersAgentListItem = {
+    /**
+     * Category groups agents by use case.
+     */
+    category: string;
+    /**
+     * CreatedAt is when the agent was created.
+     */
+    created_at: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * ID is the unique identifier.
+     */
+    id: number;
+    /**
+     * Name is the human-readable name.
+     */
+    name: string;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status: string;
+    /**
+     * UpdatedAt is when the agent was last updated.
+     */
+    updated_at: string;
+};
+
+export type HandlersAgentListResponse = {
+    /**
+     * Agents is the list of active agents.
+     */
+    agents: Array<HandlersAgentListItem>;
+};
+
+export type HandlersAgentResponse = {
+    /**
+     * Category groups agents by use case.
+     */
+    category: string;
+    /**
+     * CreatedAt is when the agent was created.
+     */
+    created_at: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * ID is the unique identifier.
+     */
+    id: number;
+    /**
+     * Name is the human-readable name.
+     */
+    name: string;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status: string;
+    /**
+     * SystemPrompt is the curated system prompt.
+     */
+    system_prompt?: string;
+    /**
+     * UpdatedAt is when the agent was last updated.
+     */
+    updated_at: string;
 };
 
 export type HandlersAppConfig = {
     /**
      * EscrowContract is the escrow contract address for this app
      */
-    escrow_contract?: string;
+    escrow_contract: string;
     /**
      * Name is the human-readable name of the app
      */
-    name?: string;
+    name: string;
 };
 
 export type HandlersAppResponse = {
-    app_balance_usd?: number;
-    app_uuid?: string;
-    created_at?: string;
-    credit_reset_enabled?: boolean;
-    default_user_cost_limit_usd?: number;
+    app_balance_usd: number;
+    app_uuid: string;
+    created_at: string;
+    credit_reset_enabled: boolean;
+    default_user_cost_limit_usd: number;
     developer_account_id?: number;
-    escrow_contract?: string;
+    escrow_contract: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
-    has_privy_verification_key?: boolean;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    has_privy_verification_key: boolean;
+    id: number;
+    is_active: boolean;
+    name: string;
     privy_app_id?: string;
-    updated_at?: string;
+    updated_at: string;
 };
 
 export type HandlersAppUsageResponse = {
-    app_uuid?: string;
-    period?: HandlersUsagePeriod;
-    timeseries?: Array<HandlersUsageTimeseriesPoint>;
-    total_cost_credits?: number;
-    total_request_tokens?: number;
-    total_requests?: number;
-    total_response_tokens?: number;
+    app_uuid: string;
+    period: HandlersUsagePeriod;
+    timeseries: Array<HandlersUsageTimeseriesPoint>;
+    total_cost_credits: number;
+    total_request_tokens: number;
+    total_requests: number;
+    total_response_tokens: number;
 };
 
 export type HandlersAppUserUsageResponse = {
-    pagination?: HandlersPaginationResponse;
-    users?: Array<HandlersUserUsageResponse>;
+    pagination: HandlersPaginationResponse;
+    users: Array<HandlersUserUsageResponse>;
+};
+
+export type HandlersBillingHistoryResponse = {
+    pagination: HandlersPaginationResponse;
+    payments: Array<HandlersBillingRecordResponse>;
+};
+
+export type HandlersBillingRecordResponse = {
+    amount_cents: number;
+    app_uuid: string;
+    created_at: string;
+    credits: number;
+    currency: string;
+    id: number;
+    status: string;
 };
 
 export type HandlersCancelScheduledDowngradeResponse = {
-    message?: string;
+    message: string;
 };
 
 export type HandlersCancelSubscriptionResponse = {
     cancel_at?: number;
     current_period_end?: number;
-    message?: string;
+    message: string;
 };
 
 export type HandlersCheckoutSessionResponse = {
-    url?: string;
+    url: string;
 };
 
 export type HandlersClaimDailyCreditsResponse = {
@@ -120,12 +240,12 @@ export type HandlersClaimDailyCreditsResponse = {
      * Credits awarded (1 credit = $0.01)
      */
     credits_awarded?: number;
-    message?: string;
+    message: string;
     /**
      * ISO8601 timestamp when next claim is available
      */
     next_claim_at?: string;
-    success?: boolean;
+    success: boolean;
 };
 
 export type HandlersClaimTaskRewardRequest = {
@@ -134,10 +254,10 @@ export type HandlersClaimTaskRewardRequest = {
 };
 
 export type HandlersClaimTaskRewardResponse = {
-    already_claimed?: boolean;
+    already_claimed: boolean;
     credits_awarded?: number;
-    message?: string;
-    success?: boolean;
+    message: string;
+    success: boolean;
 };
 
 export type HandlersConfigResponse = {
@@ -153,6 +273,10 @@ export type HandlersConfigResponse = {
      * OperatorAddress is the operator wallet address
      */
     operator_address?: string;
+    /**
+     * PhoneCallsEnabled indicates whether Bland phone calling is available
+     */
+    phone_calls_enabled?: boolean;
     /**
      * SettlementRecipient is the address that receives settlement payments
      */
@@ -217,6 +341,10 @@ export type HandlersCreateCustomerPortalRequest = {
 
 export type HandlersCreateDeveloperAppRequest = {
     /**
+     * allowed CORS origins for API key requests
+     */
+    allowed_origins?: Array<string>;
+    /**
      * "standard" (default) or "pooled_api"
      */
     app_type?: string;
@@ -227,47 +355,56 @@ export type HandlersCreateDeveloperAppRequest = {
     name?: string;
 };
 
+export type HandlersCreatePhoneCallRequest = {
+    caller_name?: string;
+    context?: string;
+    objective: string;
+    phone_number: string;
+    questions?: Array<string>;
+    recipient_name?: string;
+};
+
 export type HandlersCreditBalanceResponse = {
     /**
      * Available credits (1 credit = $0.01)
      */
-    available_credits?: number;
-    can_claim_daily?: boolean;
+    available_credits: number;
+    can_claim_daily: boolean;
     /**
      * Which import providers have been claimed
      */
-    claimed_import_rewards?: Array<string>;
+    claimed_import_rewards: Array<string>;
     /**
      * Whether enrolled on-chain
      */
-    is_enrolled?: boolean;
+    is_enrolled: boolean;
     last_claim_at?: string;
     /**
      * Total credits ever received (1 credit = $0.01)
      */
-    lifetime_credits?: number;
+    lifetime_credits: number;
     next_claim_at?: string;
     /**
      * "basic" or "pro"
      */
-    subscription_tier?: string;
-    wallet_address?: string;
+    subscription_tier: string;
+    wallet_address: string;
 };
 
 export type HandlersCreditPack = {
-    bonus_percent?: number;
-    credits?: number;
-    currency?: string;
-    pro_credits?: number;
-    unit_amount?: number;
+    bonus_percent: number;
+    credits: number;
+    currency: string;
+    pro_credits: number;
+    unit_amount: number;
 };
 
 export type HandlersCreditPacksResponse = {
-    packs?: Array<HandlersCreditPack>;
+    packs: Array<HandlersCreditPack>;
 };
 
 export type HandlersCustomerPortalResponse = {
-    url?: string;
+    url: string;
 };
 
 export type HandlersDeveloperApiKeyRequest = {
@@ -276,71 +413,76 @@ export type HandlersDeveloperApiKeyRequest = {
 };
 
 export type HandlersDeveloperApiKeyResponse = {
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
 };
 
 export type HandlersDeveloperApiKeyWithSecretResponse = {
     /**
      * Full key, only shown once
      */
-    api_key?: string;
-    created_at?: string;
-    id?: number;
-    is_active?: boolean;
-    name?: string;
+    api_key: string;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
 };
 
 export type HandlersDeveloperAppResponse = {
     /**
+     * allowed CORS origins (empty = unrestricted)
+     */
+    allowed_origins: Array<string>;
+    /**
      * "standard" or "pooled_api"
      */
-    app_type?: string;
-    app_uuid?: string;
+    app_type: string;
+    app_uuid: string;
     /**
      * available credits in app pool
      */
-    balance?: number;
-    created_at?: string;
+    balance: number;
+    created_at: string;
     /**
      * credits per new user (1 credit = $0.01)
      */
-    default_user_credits?: number;
+    default_user_credits: number;
     /**
      * on-chain escrow contract address
      */
     escrow_contract?: string;
-    has_privy_config?: boolean;
-    is_active?: boolean;
-    name?: string;
-    updated_at?: string;
+    has_privy_config: boolean;
+    is_active: boolean;
+    name: string;
+    privy_app_id?: string;
+    updated_at: string;
 };
 
 export type HandlersDeveloperUserResponse = {
-    address?: string;
-    created_at?: string;
+    address: string;
+    created_at: string;
     /**
      * available credits (1 credit = $0.01)
      */
-    credits?: number;
+    credits: number;
     /**
      * on-chain enrollment status
      */
-    is_enrolled_onchain?: boolean;
+    is_enrolled_onchain: boolean;
     /**
      * total credits ever received
      */
-    lifetime_credits?: number;
+    lifetime_credits: number;
     /**
      * basic/pro
      */
-    subscription_tier?: string;
+    subscription_tier: string;
     /**
      * credits used/pending
      */
-    used_credits?: number;
+    used_credits: number;
 };
 
 export type HandlersExchangeRequest = {
@@ -374,13 +516,13 @@ export type HandlersGeneratedApiKey = {
     /**
      * Full HMAC key (anuma_live_<key_id>.<secret> or anuma_test_<key_id>.<secret>)
      */
-    api_key?: string;
-    name?: string;
+    api_key: string;
+    name: string;
 };
 
 export type HandlersGetToolsResponse = {
-    checksum?: string;
-    tools?: {
+    checksum: string;
+    tools: {
         [key: string]: HandlersTool;
     };
 };
@@ -389,58 +531,99 @@ export type HandlersHealthResponse = {
     /**
      * Status indicates the service health status
      */
-    status?: string;
+    status: string;
     /**
      * Timestamp is the Unix timestamp of the response
      */
-    timestamp?: number;
+    timestamp: number;
     /**
      * Version is the current API version
      */
-    version?: string;
+    version: string;
 };
 
 export type HandlersListApiKeysResponse = {
-    api_keys?: Array<HandlersApiKeyResponse>;
+    api_keys: Array<HandlersApiKeyResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListAppsResponse = {
-    apps?: Array<HandlersAppResponse>;
+    apps: Array<HandlersAppResponse>;
+    pagination: HandlersPaginationResponse;
+};
+
+export type HandlersListDeveloperApiKeysResponse = {
+    api_keys: Array<HandlersDeveloperApiKeyResponse>;
+    pagination: HandlersPaginationResponse;
+};
+
+export type HandlersListDeveloperAppsResponse = {
+    apps: Array<HandlersDeveloperAppResponse>;
+    pagination: HandlersPaginationResponse;
 };
 
 export type HandlersListUsersResponse = {
-    pagination?: HandlersPaginationResponse;
-    users?: Array<HandlersDeveloperUserResponse>;
+    pagination: HandlersPaginationResponse;
+    users: Array<HandlersDeveloperUserResponse>;
 };
 
 export type HandlersModelToolUsageItem = {
-    call_count?: number;
-    cost_usd?: number;
-    model?: string;
-    tools?: Array<HandlersToolCallDetailItem>;
+    call_count: number;
+    cost_usd: number;
+    model: string;
+    tools: Array<HandlersToolCallDetailItem>;
 };
 
 export type HandlersModelUsageItem = {
-    cost_usd?: number;
-    model?: string;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
+    cost_usd: number;
+    model: string;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
 };
 
 export type HandlersPaginationResponse = {
-    limit?: number;
-    offset?: number;
-    total?: number;
+    limit: number;
+    offset: number;
+    total: number;
+};
+
+export type HandlersPhoneCallResponse = {
+    answered_by?: string;
+    call_ended_by?: string;
+    call_id: string;
+    completed?: boolean;
+    concatenated_transcript?: string;
+    created_at?: string;
+    end_reason?: string;
+    ended_at?: string;
+    error_message?: string;
+    phone_number?: string;
+    queue_status?: string;
+    recipient_name?: string;
+    started_at?: string;
+    status?: string;
+    summary?: string;
+    transcripts?: Array<HandlersPhoneCallTranscriptEntry>;
+};
+
+export type HandlersPhoneCallTranscriptEntry = {
+    created_at?: string;
+    speaker?: string;
+    text?: string;
 };
 
 export type HandlersRefreshRequest = {
     refresh_token: string;
 };
 
+export type HandlersRegisterTextResponse = {
+    status: string;
+};
+
 export type HandlersRenewSubscriptionResponse = {
     current_period_end?: number;
-    message?: string;
+    message: string;
 };
 
 export type HandlersRevokeRequest = {
@@ -460,12 +643,12 @@ export type HandlersScheduleDowngradeRequest = {
 
 export type HandlersScheduleDowngradeResponse = {
     current_period_end?: number;
-    message?: string;
+    message: string;
     /**
      * "month" or "year"
      */
     scheduled_interval?: string;
-    scheduled_plan?: string;
+    scheduled_plan: string;
 };
 
 export type HandlersSeedApiKeyInput = {
@@ -509,16 +692,16 @@ export type HandlersSeedAppsRequest = {
 };
 
 export type HandlersSeedAppsResponse = {
-    apps_seeded?: number;
+    apps_seeded: number;
     /**
      * Map of app name to generated keys
      */
     generated_keys?: {
         [key: string]: Array<HandlersGeneratedApiKey>;
     };
-    keys_seeded?: number;
+    keys_seeded: number;
     message?: string;
-    success?: boolean;
+    success: boolean;
 };
 
 export type HandlersSetSubscriptionTierRequest = {
@@ -535,29 +718,29 @@ export type HandlersSetSubscriptionTierRequest = {
 
 export type HandlersSetSubscriptionTierResponse = {
     message?: string;
-    success?: boolean;
-    tier?: string;
-    user_address?: string;
+    success: boolean;
+    tier: string;
+    user_address: string;
 };
 
 export type HandlersSubscriptionPlan = {
-    annual_credits?: number;
-    annual_price?: number;
-    currency?: string;
-    monthly_credits?: number;
-    monthly_price?: number;
-    tier?: string;
+    annual_credits: number;
+    annual_price: number;
+    currency: string;
+    monthly_credits: number;
+    monthly_price: number;
+    tier: string;
 };
 
 export type HandlersSubscriptionPlansResponse = {
-    plans?: Array<HandlersSubscriptionPlan>;
+    plans: Array<HandlersSubscriptionPlan>;
 };
 
 export type HandlersSubscriptionStatusResponse = {
     /**
      * true if scheduled to cancel
      */
-    cancel_at_period_end?: boolean;
+    cancel_at_period_end: boolean;
     /**
      * Unix timestamp, only present if subscribed
      */
@@ -569,7 +752,7 @@ export type HandlersSubscriptionStatusResponse = {
     /**
      * "free" | "starter" | "pro"
      */
-    plan?: string;
+    plan: string;
     /**
      * billing interval of the scheduled plan
      */
@@ -581,14 +764,14 @@ export type HandlersSubscriptionStatusResponse = {
     /**
      * "none" | "active" | "canceling" | "past_due" | "canceled"
      */
-    status?: string;
+    status: string;
 };
 
 export type HandlersSyncSnagResponse = {
     credits_awarded?: number;
-    message?: string;
+    message: string;
     next_sync_at?: string;
-    success?: boolean;
+    success: boolean;
     total_converted?: number;
 };
 
@@ -596,21 +779,21 @@ export type HandlersTaskResponse = {
     /**
      * 1 credit = $0.01
      */
-    amount_credits?: number;
+    amount_credits: number;
     /**
      * null for one-time tasks
      */
     cooldown_secs?: number;
-    description?: string;
-    type?: string;
+    description: string;
+    type: string;
 };
 
 export type HandlersTokenResponse = {
-    access_token?: string;
+    access_token: string;
     /**
      * Seconds until expiration
      */
-    expires_in?: number;
+    expires_in: number;
     /**
      * May not be present on refresh
      */
@@ -622,20 +805,20 @@ export type HandlersTokenResponse = {
     /**
      * Usually "Bearer"
      */
-    token_type?: string;
+    token_type: string;
 };
 
 export type HandlersTool = {
-    cost?: number;
-    embedding?: Array<number>;
-    name?: string;
-    schema?: McpToolSchema;
+    cost: number;
+    embedding: Array<number>;
+    name: string;
+    schema: McpToolSchema;
 };
 
 export type HandlersToolCallDetailItem = {
-    call_count?: number;
-    cost_usd?: number;
-    tool?: string;
+    call_count: number;
+    cost_usd: number;
+    tool: string;
 };
 
 export type HandlersTopUpUserRequest = {
@@ -643,6 +826,10 @@ export type HandlersTopUpUserRequest = {
      * credits to add (1 credit = $0.01)
      */
     credits?: number;
+};
+
+export type HandlersUnregisterTextResponse = {
+    status: string;
 };
 
 export type HandlersUpdateApiKeyRequest = {
@@ -665,6 +852,10 @@ export type HandlersUpdateAppRequest = {
 
 export type HandlersUpdateDeveloperAppRequest = {
     /**
+     * nil=skip, []=clear, populated=set
+     */
+    allowed_origins?: Array<string>;
+    /**
      * credits per new user (1 credit = $0.01)
      */
     default_user_credits?: number;
@@ -678,48 +869,65 @@ export type HandlersUpdateUserLimitRequest = {
     credits?: number;
 };
 
+export type HandlersUpgradeSubscriptionRequest = {
+    /**
+     * Optional: "month" or "year" (defaults to current)
+     */
+    interval?: string;
+    /**
+     * Required: "starter" or "pro"
+     */
+    tier?: string;
+};
+
+export type HandlersUpgradeSubscriptionResponse = {
+    message: string;
+    new_interval: string;
+    new_plan: string;
+};
+
 export type HandlersUsageByModelResponse = {
-    models?: Array<HandlersModelUsageItem>;
-    period?: HandlersUsagePeriod;
-    tool_usage?: Array<HandlersModelToolUsageItem>;
-    totals?: HandlersUsageTotals;
+    models: Array<HandlersModelUsageItem>;
+    period: HandlersUsagePeriod;
+    tool_usage: Array<HandlersModelToolUsageItem>;
+    totals: HandlersUsageTotals;
 };
 
 export type HandlersUsagePeriod = {
-    end?: string;
-    start?: string;
+    end: string;
+    start: string;
 };
 
 export type HandlersUsageTimeseriesPoint = {
-    cost_credits?: number;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
-    timestamp?: string;
+    cost_credits: number;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
+    timestamp: string;
 };
 
 export type HandlersUsageTotals = {
-    cost_usd?: number;
-    request_count?: number;
-    tool_call_count?: number;
-    tool_cost_usd?: number;
-    total_tokens?: number;
+    cost_usd: number;
+    request_count: number;
+    tool_call_count: number;
+    tool_cost_usd: number;
+    total_tokens: number;
 };
 
 export type HandlersUserUsageResponse = {
-    address?: string;
-    cost_credits?: number;
+    address: string;
+    cost_credits: number;
     /**
      * available credits (remaining balance)
      */
-    credits?: number;
-    request_count?: number;
-    request_tokens?: number;
-    response_tokens?: number;
+    credits: number;
+    request_count: number;
+    request_tokens: number;
+    response_tokens: number;
     /**
      * credits pending/in-flight
      */
-    used_credits?: number;
+    used_credits: number;
 };
 
 /**
@@ -738,7 +946,7 @@ export type HandlersWalletDetails = {
     /**
      * Balance in micro-dollars (USD * 1,000,000)
      */
-    cached_balance_usd?: number;
+    cached_balance_usd: number;
     /**
      * App ID for enrollment (0 if not enrolled)
      */
@@ -746,11 +954,11 @@ export type HandlersWalletDetails = {
     /**
      * Whether enrolled in cost-limit model
      */
-    is_enrolled?: boolean;
+    is_enrolled: boolean;
     /**
      * In-flight request holds in micro-dollars
      */
-    pending_cost_usd?: number;
+    pending_cost_usd: number;
     /**
      * When user became Pro subscriber
      */
@@ -758,7 +966,7 @@ export type HandlersWalletDetails = {
     /**
      * "basic" or "pro"
      */
-    subscription_tier?: string;
+    subscription_tier: string;
 };
 
 /**
@@ -1253,16 +1461,7 @@ export type LlmapiResponseExtraFields = {
  * Input can be a simple text string or an array of messages for multi-turn conversations.
  * When continuing after client tool calls, pass the messages array from the previous response.
  */
-export type LlmapiResponseInput = {
-    /**
-     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
-     */
-    messages?: Array<LlmapiMessage>;
-    /**
-     * Text is set when input is a simple string
-     */
-    text?: string;
-};
+export type LlmapiResponseInput = string | Array<LlmapiMessage>;
 
 export type LlmapiResponseOutputContent = {
     /**
@@ -1528,9 +1727,36 @@ export type McpToolSchema = {
     parameters?: unknown;
 };
 
+export type ModelsRegisterTextRequest = {
+    identifier: string;
+    preferred_model?: string;
+};
+
+export type ModelsTextChannel = string;
+
+export type ModelsTextLookupResult = {
+    account_id?: number;
+    app_id?: number;
+    channel?: string;
+    credits?: number;
+    identifier?: string;
+    linq_chat_id?: string;
+    preferred_model?: string;
+    wallet_address?: string;
+};
+
+export type ModelsTextStatusResponse = {
+    channel?: ModelsTextChannel;
+    created_at?: string;
+    identifier?: string;
+    preferred_model?: string;
+    registered: boolean;
+    verified?: boolean;
+};
+
 export type ResponseErrorResponse = {
     code?: string;
-    error?: string;
+    error: string;
     request_id?: string;
     trace_id?: string;
     type?: string;
@@ -1591,11 +1817,24 @@ export type GetApiV1AdminAppsData = {
         'X-Admin-API-Key': string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of apps to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of apps to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/admin/apps';
 };
 
 export type GetApiV1AdminAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -1673,11 +1912,24 @@ export type GetApiV1AdminAppsByAppIdApiKeysData = {
          */
         app_id: number;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of API keys to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of API keys to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/admin/apps/{app_id}/api-keys';
 };
 
 export type GetApiV1AdminAppsByAppIdApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2136,6 +2388,69 @@ export type PostApiV1AdminSubscriptionTierResponses = {
 
 export type PostApiV1AdminSubscriptionTierResponse = PostApiV1AdminSubscriptionTierResponses[keyof PostApiV1AdminSubscriptionTierResponses];
 
+export type GetApiV1AgentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents';
+};
+
+export type GetApiV1AgentsErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AgentsError = GetApiV1AgentsErrors[keyof GetApiV1AgentsErrors];
+
+export type GetApiV1AgentsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAgentListResponse;
+};
+
+export type GetApiV1AgentsResponse = GetApiV1AgentsResponses[keyof GetApiV1AgentsResponses];
+
+export type GetApiV1AgentsByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/agents/{id}';
+};
+
+export type GetApiV1AgentsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AgentsByIdError = GetApiV1AgentsByIdErrors[keyof GetApiV1AgentsByIdErrors];
+
+export type GetApiV1AgentsByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAgentResponse;
+};
+
+export type GetApiV1AgentsByIdResponse = GetApiV1AgentsByIdResponses[keyof GetApiV1AgentsByIdResponses];
+
 export type PostApiV1ChatCompletionsData = {
     /**
      * Chat completion request
@@ -2432,11 +2747,24 @@ export type PostApiV1CreditsSyncSnagResponse = PostApiV1CreditsSyncSnagResponses
 export type GetApiV1DeveloperAppsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of apps to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of apps to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/developer/apps';
 };
 
 export type GetApiV1DeveloperAppsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2453,7 +2781,7 @@ export type GetApiV1DeveloperAppsResponses = {
     /**
      * OK
      */
-    200: Array<HandlersDeveloperAppResponse>;
+    200: HandlersListDeveloperAppsResponse;
 };
 
 export type GetApiV1DeveloperAppsResponse = GetApiV1DeveloperAppsResponses[keyof GetApiV1DeveloperAppsResponses];
@@ -2637,11 +2965,24 @@ export type GetApiV1DeveloperAppsByAppUuidApiKeysData = {
          */
         app_uuid: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Maximum number of API keys to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of API keys to skip (default 0)
+         */
+        offset?: number;
+    };
     url: '/api/v1/developer/apps/{app_uuid}/api-keys';
 };
 
 export type GetApiV1DeveloperAppsByAppUuidApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
     /**
      * Unauthorized
      */
@@ -2666,7 +3007,7 @@ export type GetApiV1DeveloperAppsByAppUuidApiKeysResponses = {
     /**
      * OK
      */
-    200: Array<HandlersDeveloperApiKeyResponse>;
+    200: HandlersListDeveloperApiKeysResponse;
 };
 
 export type GetApiV1DeveloperAppsByAppUuidApiKeysResponse = GetApiV1DeveloperAppsByAppUuidApiKeysResponses[keyof GetApiV1DeveloperAppsByAppUuidApiKeysResponses];
@@ -2767,6 +3108,55 @@ export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses = {
 };
 
 export type DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponse = DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses[keyof DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses];
+
+export type PostApiV1DeveloperAppsByAppUuidFundData = {
+    /**
+     * Fund request
+     */
+    body: HandlersFundDeveloperAppRequest;
+    path: {
+        /**
+         * App UUID
+         */
+        app_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/developer/apps/{app_uuid}/fund';
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundError = PostApiV1DeveloperAppsByAppUuidFundErrors[keyof PostApiV1DeveloperAppsByAppUuidFundErrors];
+
+export type PostApiV1DeveloperAppsByAppUuidFundResponses = {
+    /**
+     * OK
+     */
+    200: HandlersCheckoutSessionResponse;
+};
+
+export type PostApiV1DeveloperAppsByAppUuidFundResponse = PostApiV1DeveloperAppsByAppUuidFundResponses[keyof PostApiV1DeveloperAppsByAppUuidFundResponses];
 
 export type DeleteApiV1DeveloperAppsByAppUuidPrivyData = {
     body?: never;
@@ -3184,6 +3574,48 @@ export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses = {
 
 export type PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponse = PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses[keyof PostApiV1DeveloperAppsByAppUuidUsersByAddressTopUpResponses];
 
+export type GetApiV1DeveloperBillingData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Maximum number of records to return (default 50, max 100)
+         */
+        limit?: number;
+        /**
+         * Number of records to skip (default 0)
+         */
+        offset?: number;
+    };
+    url: '/api/v1/developer/billing';
+};
+
+export type GetApiV1DeveloperBillingErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1DeveloperBillingError = GetApiV1DeveloperBillingErrors[keyof GetApiV1DeveloperBillingErrors];
+
+export type GetApiV1DeveloperBillingResponses = {
+    /**
+     * OK
+     */
+    200: HandlersBillingHistoryResponse;
+};
+
+export type GetApiV1DeveloperBillingResponse = GetApiV1DeveloperBillingResponses[keyof GetApiV1DeveloperBillingResponses];
+
 export type GetApiV1DocsSwaggerJsonData = {
     body?: never;
     path?: never;
@@ -3283,6 +3715,92 @@ export type GetApiV1ModelsResponses = {
 };
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
+
+export type PostApiV1PhoneCallsData = {
+    /**
+     * Phone call request
+     */
+    body: HandlersCreatePhoneCallRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/phone-calls';
+};
+
+export type PostApiV1PhoneCallsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type PostApiV1PhoneCallsError = PostApiV1PhoneCallsErrors[keyof PostApiV1PhoneCallsErrors];
+
+export type PostApiV1PhoneCallsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type PostApiV1PhoneCallsResponse = PostApiV1PhoneCallsResponses[keyof PostApiV1PhoneCallsResponses];
+
+export type GetApiV1PhoneCallsByCallIdData = {
+    body?: never;
+    path: {
+        /**
+         * Bland call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/api/v1/phone-calls/{call_id}';
+};
+
+export type GetApiV1PhoneCallsByCallIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Bad Gateway
+     */
+    502: ResponseErrorResponse;
+    /**
+     * Service Unavailable
+     */
+    503: ResponseErrorResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdError = GetApiV1PhoneCallsByCallIdErrors[keyof GetApiV1PhoneCallsByCallIdErrors];
+
+export type GetApiV1PhoneCallsByCallIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPhoneCallResponse;
+};
+
+export type GetApiV1PhoneCallsByCallIdResponse = GetApiV1PhoneCallsByCallIdResponses[keyof GetApiV1PhoneCallsByCallIdResponses];
 
 export type PostApiV1ResponsesData = {
     /**
@@ -3597,6 +4115,54 @@ export type GetApiV1SubscriptionsStatusResponses = {
 
 export type GetApiV1SubscriptionsStatusResponse = GetApiV1SubscriptionsStatusResponses[keyof GetApiV1SubscriptionsStatusResponses];
 
+export type PostApiV1SubscriptionsUpgradeData = {
+    /**
+     * Upgrade request with target tier and optional interval
+     */
+    body: HandlersUpgradeSubscriptionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/subscriptions/upgrade';
+};
+
+export type PostApiV1SubscriptionsUpgradeErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Too Many Requests
+     */
+    429: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1SubscriptionsUpgradeError = PostApiV1SubscriptionsUpgradeErrors[keyof PostApiV1SubscriptionsUpgradeErrors];
+
+export type PostApiV1SubscriptionsUpgradeResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUpgradeSubscriptionResponse;
+};
+
+export type PostApiV1SubscriptionsUpgradeResponse = PostApiV1SubscriptionsUpgradeResponses[keyof PostApiV1SubscriptionsUpgradeResponses];
+
 export type PostApiV1SubscriptionsWebhookData = {
     body?: {
         [key: string]: unknown;
@@ -3657,6 +4223,170 @@ export type GetApiV1TasksResponses = {
 
 export type GetApiV1TasksResponse = GetApiV1TasksResponses[keyof GetApiV1TasksResponses];
 
+export type GetApiV1TextByChannelLookupData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query: {
+        /**
+         * Channel identifier (e.g., E.164 phone number for SMS)
+         */
+        identifier: string;
+    };
+    url: '/api/v1/text/{channel}/lookup';
+};
+
+export type GetApiV1TextByChannelLookupErrors = {
+    /**
+     * Invalid channel or identifier format
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * No registration found
+     */
+    404: ResponseErrorResponse;
+};
+
+export type GetApiV1TextByChannelLookupError = GetApiV1TextByChannelLookupErrors[keyof GetApiV1TextByChannelLookupErrors];
+
+export type GetApiV1TextByChannelLookupResponses = {
+    /**
+     * OK
+     */
+    200: ModelsTextLookupResult;
+};
+
+export type GetApiV1TextByChannelLookupResponse = GetApiV1TextByChannelLookupResponses[keyof GetApiV1TextByChannelLookupResponses];
+
+export type PostApiV1TextByChannelRegisterData = {
+    /**
+     * Registration data
+     */
+    body: ModelsRegisterTextRequest;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/register';
+};
+
+export type PostApiV1TextByChannelRegisterErrors = {
+    /**
+     * Invalid channel, identifier, or identifier not in linked accounts
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Identifier registered to another account
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1TextByChannelRegisterError = PostApiV1TextByChannelRegisterErrors[keyof PostApiV1TextByChannelRegisterErrors];
+
+export type PostApiV1TextByChannelRegisterResponses = {
+    /**
+     * OK
+     */
+    200: HandlersRegisterTextResponse;
+};
+
+export type PostApiV1TextByChannelRegisterResponse = PostApiV1TextByChannelRegisterResponses[keyof PostApiV1TextByChannelRegisterResponses];
+
+export type GetApiV1TextByChannelStatusData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/status';
+};
+
+export type GetApiV1TextByChannelStatusErrors = {
+    /**
+     * Invalid channel
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1TextByChannelStatusError = GetApiV1TextByChannelStatusErrors[keyof GetApiV1TextByChannelStatusErrors];
+
+export type GetApiV1TextByChannelStatusResponses = {
+    /**
+     * OK
+     */
+    200: ModelsTextStatusResponse;
+};
+
+export type GetApiV1TextByChannelStatusResponse = GetApiV1TextByChannelStatusResponses[keyof GetApiV1TextByChannelStatusResponses];
+
+export type DeleteApiV1TextByChannelUnregisterData = {
+    body?: never;
+    path: {
+        /**
+         * Text channel (sms, telegram)
+         */
+        channel: string;
+    };
+    query?: never;
+    url: '/api/v1/text/{channel}/unregister';
+};
+
+export type DeleteApiV1TextByChannelUnregisterErrors = {
+    /**
+     * Invalid channel
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1TextByChannelUnregisterError = DeleteApiV1TextByChannelUnregisterErrors[keyof DeleteApiV1TextByChannelUnregisterErrors];
+
+export type DeleteApiV1TextByChannelUnregisterResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUnregisterTextResponse;
+};
+
+export type DeleteApiV1TextByChannelUnregisterResponse = DeleteApiV1TextByChannelUnregisterResponses[keyof DeleteApiV1TextByChannelUnregisterResponses];
+
 export type GetApiV1ToolsData = {
     body?: never;
     path?: never;
@@ -3687,7 +4417,15 @@ export type GetApiV1UsageModelsData = {
     path?: never;
     query?: {
         /**
-         * Time period. Day aliases: 7d, 30d, 90d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 90d.
+         * Start of date range in RFC 3339 format (e.g. 2024-01-01T00:00:00Z). Must be used with end. Takes precedence over period.
+         */
+        start?: string;
+        /**
+         * End of date range in RFC 3339 format (e.g. 2024-01-31T23:59:59Z). Must be used with start. Takes precedence over period.
+         */
+        end?: string;
+        /**
+         * Time period. Day aliases: 7d, 30d, 90d, 180d, 365d. Durations: 10m, 30m, 1h, 6h, 12h, 24h, 72h. Default: 30d. Max: 365d.
          */
         period?: string;
     };
@@ -3832,55 +4570,6 @@ export type PostAuthOauthByProviderRevokeResponses = {
 };
 
 export type PostAuthOauthByProviderRevokeResponse = PostAuthOauthByProviderRevokeResponses[keyof PostAuthOauthByProviderRevokeResponses];
-
-export type PostDeveloperAppsByAppUuidFundData = {
-    /**
-     * Fund request
-     */
-    body: HandlersFundDeveloperAppRequest;
-    path: {
-        /**
-         * App UUID
-         */
-        app_uuid: string;
-    };
-    query?: never;
-    url: '/developer/apps/{app_uuid}/fund';
-};
-
-export type PostDeveloperAppsByAppUuidFundErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Forbidden
-     */
-    403: ResponseErrorResponse;
-    /**
-     * Not Found
-     */
-    404: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostDeveloperAppsByAppUuidFundError = PostDeveloperAppsByAppUuidFundErrors[keyof PostDeveloperAppsByAppUuidFundErrors];
-
-export type PostDeveloperAppsByAppUuidFundResponses = {
-    /**
-     * OK
-     */
-    200: HandlersCheckoutSessionResponse;
-};
-
-export type PostDeveloperAppsByAppUuidFundResponse = PostDeveloperAppsByAppUuidFundResponses[keyof PostDeveloperAppsByAppUuidFundResponses];
 
 export type GetHealthData = {
     body?: never;

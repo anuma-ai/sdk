@@ -3,7 +3,7 @@
  * This tool allows the LLM to search files in the user's Google Drive.
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { getLogger } from "../lib/logger";
 
 export interface SearchFilesArgs {
@@ -63,6 +63,9 @@ async function searchDriveFiles(
     pageSize: String(maxResults),
     fields: "files(id,name,mimeType,webViewLink,modifiedTime,size,owners)",
     orderBy: "modifiedTime desc",
+    corpora: "allDrives",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
   });
 
   try {
@@ -119,7 +122,7 @@ export function createGoogleDriveSearchTool(
       name: "google_drive_search",
       description:
         "Searches for files in the user's Google Drive. Returns matching files with their names, types, and links. Use this to help users find documents, spreadsheets, presentations, PDFs, and other files stored in their Drive.",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           query: {
@@ -196,6 +199,9 @@ async function listRecentDriveFiles(
     pageSize: String(maxResults),
     fields: "files(id,name,mimeType,webViewLink,modifiedTime,size,owners)",
     orderBy: "modifiedTime desc",
+    corpora: "allDrives",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
   });
 
   try {
@@ -251,7 +257,7 @@ export function createGoogleDriveListRecentTool(
       name: "google_drive_list_recent",
       description:
         "Lists recent files from the user's Google Drive, ordered by last modified date. Use this when the user wants to see their recent files without a specific search query.",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           maxResults: {
@@ -317,6 +323,9 @@ async function findFileByName(accessToken: string, fileName: string): Promise<st
     pageSize: "1",
     fields: "files(id,name)",
     orderBy: "modifiedTime desc",
+    corpora: "allDrives",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
   });
 
   const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
@@ -390,7 +399,7 @@ async function fetchFileMetadata(
   fileId: string
 ): Promise<{ metadata: FileMetadata } | { error: string }> {
   const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,name,mimeType,webViewLink&supportsAllDrives=true`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
@@ -414,7 +423,7 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
   if (GOOGLE_DOCS_EXPORT_TYPES[mimeType]) {
     const exportMimeType = GOOGLE_DOCS_EXPORT_TYPES[mimeType];
     return {
-      url: `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}`,
+      url: `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}&supportsAllDrives=true`,
       isExport: true,
     };
   }
@@ -425,7 +434,7 @@ function getContentUrl(fileId: string, mimeType: string): ContentUrlResult | nul
     mimeType === "application/xml"
   ) {
     return {
-      url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
       isExport: false,
     };
   }
@@ -539,7 +548,7 @@ export function createGoogleDriveGetContentTool(
       name: "google_drive_get_content",
       description:
         "Gets the text content of a file from the user's Google Drive. Works with Google Docs, Sheets, Slides (exported as text/CSV), and text-based files. You can provide either a fileId (from a previous search) or a fileName to search for.",
-      arguments: {
+      parameters: {
         type: "object",
         properties: {
           fileId: {

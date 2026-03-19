@@ -2,7 +2,7 @@
 
 > **embedAllMessages**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `options`: [`MemoryEngineEmbeddingOptions`](../interfaces/MemoryEngineEmbeddingOptions.md), `filter?`: `object`): `Promise`<`number`>
 
-Defined in: [src/lib/memoryEngine/embeddings.ts:233](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#233)
+Defined in: [src/lib/memoryEngine/embeddings.ts:307](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/embeddings.ts#307)
 
 Embed all messages without embeddings in the database
 
@@ -110,7 +110,7 @@ Minimum content length to embed (default: 30). Shorter messages are skipped.
 </td>
 <td>
 
-(`"user"` | `"assistant"`)\[]
+(`"assistant"` | `"user"`)\[]
 
 </td>
 <td>

@@ -6,3 +6,4 @@ docs/
 .claude/
 *.md
 pnpm-lock.yaml
+openapi/

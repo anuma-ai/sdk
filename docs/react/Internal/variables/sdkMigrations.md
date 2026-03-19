@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:219](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#219)
+Defined in: [src/lib/db/schema.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#261)
 
 Combined migrations for all SDK storage modules.
 
@@ -29,3 +29,10 @@ Migration history:
 * v13 → v14: Added `feedback` column to history table for like/dislike on responses
 * v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
 * v15 → v16: Added `scope` column to memory\_vault table for memory partitioning
+* v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
+* v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory\_vault for folder organization
+* v18 → v19: Added `user_id` column to memory\_vault for multi-user server-side scoping
+* v19 → v20: Added index on `updated_at` column of memory\_vault for efficient since-based filtering
+* v20 → v21: Added `embedding` column to memory\_vault for persisted embedding vectors
+* v21 → v22: Added `is_system` column to vault\_folders for default system folders
+* v22 → v23: Added `conversation_summaries` table for progressive history summarization

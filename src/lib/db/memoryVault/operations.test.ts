@@ -2,10 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
   createVaultMemoryOp,
+  createVaultMemoriesBatchOp,
   getVaultMemoryOp,
   getAllVaultMemoriesOp,
+  getAllVaultMemoryContentsOp,
   updateVaultMemoryOp,
+  updateVaultMemoryEmbeddingOp,
   deleteVaultMemoryOp,
+  deleteAllVaultMemoriesForUserOp,
   vaultMemoryToStored,
 } from "./operations";
 
@@ -25,6 +29,8 @@ function mockRecord(overrides: Record<string, any> = {}) {
   const raw: Record<string, any> = {
     content: "test content",
     scope: "private",
+    user_id: null,
+    folder_id: null,
     is_deleted: false,
     created_at: new Date("2025-01-01"),
     updated_at: new Date("2025-01-01"),
@@ -46,6 +52,12 @@ function mockRecord(overrides: Record<string, any> = {}) {
     get isDeleted() {
       return raw.is_deleted;
     },
+    get userId() {
+      return raw.user_id;
+    },
+    get folderId() {
+      return raw.folder_id ?? null;
+    },
     _setRaw(key: string, value: any) {
       raw[key] = value;
     },
@@ -55,6 +67,14 @@ function mockRecord(overrides: Record<string, any> = {}) {
           raw[k] = v;
         },
       });
+    }),
+    prepareUpdate: vi.fn((updater: (r: any) => void) => {
+      return {
+        _setRaw: (k: string, v: any) => {
+          raw[k] = v;
+        },
+        updater,
+      };
     }),
     ...overrides,
   };
@@ -251,6 +271,120 @@ describe("getAllVaultMemoriesOp", () => {
     const callArgs = queryFn.mock.calls[0];
     expect(callArgs.length).toBe(2);
   });
+
+  it("adds since condition when options.since is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + since + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds limit condition when options.limit is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { limit: 5 });
+
+    // is_deleted + sortBy + take = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds both since and limit conditions together", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { since: new Date("2025-06-01"), limit: 10 });
+
+    // is_deleted + since + sortBy + take = 4 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(4);
+  });
+
+  it("combines since with scopes and userId", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { scopes: ["shared"], since: new Date("2025-06-01") });
+
+    // is_deleted + scope + user_id + since + sortBy = 5 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(5);
+  });
+
+  it("returns empty array when since is in the future", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const results = await getAllVaultMemoriesOp(ctx, { since: new Date("2099-01-01") });
+    expect(results).toHaveLength(0);
+  });
+
+  it("returns all memories when since is omitted (backward compat)", async () => {
+    const ctx = makeCtx();
+    const results = await getAllVaultMemoriesOp(ctx);
+    expect(results).toHaveLength(2);
+  });
+});
+
+describe("getAllVaultMemoryContentsOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns all contents when since is omitted", async () => {
+    const ctx = makeCtx();
+    const results = await getAllVaultMemoryContentsOp(ctx);
+    expect(results).toHaveLength(2);
+    expect(typeof results[0]).toBe("string");
+  });
+
+  it("adds since condition when options.since is provided", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + since = 2 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
+  });
+
+  it("adds both userId and since conditions together", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoryContentsOp(ctx, { since: new Date("2025-06-01") });
+
+    // is_deleted + user_id + since = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
 });
 
 describe("updateVaultMemoryOp", () => {
@@ -397,5 +531,340 @@ describe("vaultMemoryToStored", () => {
     const result = await vaultMemoryToStored(record as any, "0xabc", vi.fn() as any);
     // The mock decryptVaultMemoryFields removes "encrypted:" prefix
     expect(result.content).toBe("secret");
+  });
+});
+
+describe("userId scoping", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets user_id on create when ctx.userId is defined", async () => {
+    const ctx = makeCtx({ userId: "user_123" });
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("user_id", "user_123");
+  });
+
+  it("sets user_id to null on create when ctx.userId is undefined", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("user_id", null);
+  });
+
+  it("filters by user_id in getAllVaultMemoriesOp when ctx.userId is set", async () => {
+    const fetchFn = vi.fn(async () => [mockRecord()]);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      userId: "user_123",
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + user_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("does NOT filter by user_id in getAllVaultMemoriesOp when ctx.userId is undefined", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + sortBy = 2 conditions (no user_id filter)
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
+  });
+});
+
+describe("updateVaultMemoryEmbeddingOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns true and writes the embedding string to the record", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+
+    expect(result).toBe(true);
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
+  });
+
+  it("returns false for soft-deleted records", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => mockRecord({ isDeleted: true })),
+      } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when find throws (record not found)", async () => {
+    const ctx = makeCtx({
+      vaultMemoryCollection: {
+        find: vi.fn(async () => {
+          throw new Error("not found");
+        }),
+      } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+
+  it("returns false when database.write throws", async () => {
+    const record = mockRecord({
+      update: vi.fn(async () => {
+        throw new Error("write failed");
+      }),
+    });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    expect(result).toBe(false);
+  });
+});
+
+describe("updateVaultMemoryOp — embedding field handling", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets embedding to null when opts.embedding is null (clears stale embedding)", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", { content: "new content", embedding: null });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", null);
+  });
+
+  it("sets embedding to the provided string when opts.embedding is a string", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", {
+      content: "new content",
+      embedding: "[0.5,0.5]",
+    });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[0.5,0.5]");
+  });
+
+  it("does NOT set embedding when opts.embedding is undefined (preserves existing embedding)", async () => {
+    const updateFn = vi.fn(async (updater: (r: any) => void) => {
+      updater({ _setRaw: vi.fn() });
+    });
+    const record = mockRecord({ update: updateFn });
+    const ctx = makeCtx({
+      vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
+    });
+
+    await updateVaultMemoryOp(ctx, "mem_1", { content: "new content" });
+
+    const updater = updateFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    updater({ _setRaw: setRawSpy });
+    expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
+  });
+});
+
+describe("createVaultMemoryOp — embedding field", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets embedding when opts.embedding is provided", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello", embedding: "[1,2,3]" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,2,3]");
+  });
+
+  it("does NOT set embedding when opts.embedding is omitted", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).not.toHaveBeenCalledWith("embedding", expect.anything());
+  });
+});
+
+describe("deleteAllVaultMemoriesForUserOp", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("soft-deletes all non-deleted memories for a given userId", async () => {
+    const records = [mockRecord({ id: "mem_1" }), mockRecord({ id: "mem_2" })];
+    const fetchFn = vi.fn(async () => records);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const batchFn = vi.fn(async () => {});
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: batchFn,
+      } as any,
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const count = await deleteAllVaultMemoriesForUserOp(ctx, "user_123");
+    expect(count).toBe(2);
+    expect(batchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 0 when no memories exist for the user", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    const count = await deleteAllVaultMemoriesForUserOp(ctx, "no_such_user");
+    expect(count).toBe(0);
+  });
+});
+
+describe("createVaultMemoryOp — folderId field", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets folder_id when folderId is provided", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello", folderId: "folder_1" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("folder_id", "folder_1");
+  });
+
+  it("sets folder_id to null when folderId is omitted", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("folder_id", null);
+  });
+});
+
+describe("createVaultMemoriesBatchOp — folderId propagation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("propagates per-item folderId to each record", async () => {
+    const setRawSpies: ReturnType<typeof vi.fn>[] = [];
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      vaultMemoryCollection: {
+        prepareCreate: vi.fn((builder: (r: any) => void) => {
+          const spy = vi.fn();
+          setRawSpies.push(spy);
+          builder({ _setRaw: spy });
+          // Return a mock record for vaultMemoryToStored
+          return mockRecord();
+        }),
+      } as any,
+    });
+
+    await createVaultMemoriesBatchOp(ctx, [
+      { content: "mem a", folderId: "folder_x" },
+      { content: "mem b" },
+    ]);
+
+    expect(setRawSpies[0]).toHaveBeenCalledWith("folder_id", "folder_x");
+    expect(setRawSpies[1]).toHaveBeenCalledWith("folder_id", null);
+  });
+});
+
+describe("getAllVaultMemoriesOp — folderId filtering", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("adds folderId WHERE clause when folderId is a string", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { folderId: "folder_1" });
+
+    // is_deleted + folder_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { folderId: null });
+
+    // is_deleted + folder_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("does NOT add folderId clause when folderId is undefined", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + sortBy = 2 conditions (no folder_id)
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
   });
 });

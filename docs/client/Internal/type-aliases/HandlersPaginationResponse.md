@@ -2,28 +2,28 @@
 
 > **HandlersPaginationResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:431](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#431)
+Defined in: [src/client/types.gen.ts:585](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#585)
 
 ## Properties
 
-### limit?
+### limit
 
-> `optional` **limit**: `number`
+> **limit**: `number`
 
-Defined in: [src/client/types.gen.ts:432](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#432)
-
-***
-
-### offset?
-
-> `optional` **offset**: `number`
-
-Defined in: [src/client/types.gen.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#433)
+Defined in: [src/client/types.gen.ts:586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#586)
 
 ***
 
-### total?
+### offset
 
-> `optional` **total**: `number`
+> **offset**: `number`
 
-Defined in: [src/client/types.gen.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#434)
+Defined in: [src/client/types.gen.ts:587](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#587)
+
+***
+
+### total
+
+> **total**: `number`
+
+Defined in: [src/client/types.gen.ts:588](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#588)

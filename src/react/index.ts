@@ -55,6 +55,7 @@
  *
  * @module react
  */
+export type { StepFinishEvent } from "../lib/chat/toolLoop";
 export { useChat } from "./useChat";
 
 // Pluggable logger
@@ -221,16 +222,20 @@ export {
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
+  deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+// Vault folders
 export {
   type CreateModelPreferenceOptions,
   /** @deprecated Use sdkSchema instead */
@@ -239,6 +244,20 @@ export {
   ModelPreference as StoredModelPreferenceModel,
   type UpdateModelPreferenceOptions,
 } from "../lib/db/settings";
+export {
+  createVaultFolderOp,
+  type CreateVaultFolderOptions,
+  deleteVaultFolderOp,
+  ensureDefaultFoldersOp,
+  getAllVaultFoldersOp,
+  getVaultFolderMemoryCountOp,
+  moveMemoriesToFolderOp,
+  type StoredVaultFolder,
+  VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderOp,
+  type UpdateVaultFolderOptions,
+  type VaultFolderOperationsContext,
+} from "../lib/db/vaultFolders";
 export {
   createMemoryVaultSearchTool,
   createMemoryVaultTool,
@@ -356,6 +375,12 @@ export type { UseCreditsOptions, UseCreditsResult } from "./useCredits";
 export { useCredits } from "./useCredits";
 export type { UseModelsResult } from "./useModels";
 export { useModels } from "./useModels";
+export type {
+  PhoneCallPollingOptions,
+  UsePhoneCallsOptions,
+  UsePhoneCallsResult,
+} from "./usePhoneCalls";
+export { usePhoneCalls } from "./usePhoneCalls";
 export type { UseSubscriptionOptions, UseSubscriptionResult } from "./useSubscription";
 export { useSubscription } from "./useSubscription";
 

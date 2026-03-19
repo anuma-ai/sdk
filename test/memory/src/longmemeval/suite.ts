@@ -8,7 +8,8 @@
 import { Database } from "@nozbe/watermelondb";
 import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import { join } from "node:path";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { sdkSchema, sdkMigrations, sdkModelClasses } from "../../../../src/lib/db/schema.js";
 import type {
   LongMemEvalEntry,
@@ -22,6 +23,7 @@ import type {
 } from "./types.js";
 import { calculatePercentiles } from "../metrics.js";
 import { getCacheDirectory } from "./dataset.js";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../../../../src/lib/memoryEngine/constants.js";
 import { processEntryMemoryEngine } from "./memoryEngineStrategy.js";
 import { processEntryMemoryVault } from "./memoryVaultStrategy.js";
 
@@ -52,6 +54,43 @@ export interface ExtractedMemory {
   rawEvidence: string;
   confidence: number;
   embedding?: number[];
+}
+
+// ── Embedding cache persistence ──
+
+async function loadEmbeddingCache(path: string): Promise<Map<string, number[]>> {
+  try {
+    await access(path);
+    const data = await readFile(path, "utf-8");
+    const entries: [string, number[]][] = JSON.parse(data);
+    console.log(`Loaded ${entries.length} cached embeddings from disk`);
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+async function saveEmbeddingCache(path: string, cache: Map<string, number[]>): Promise<void> {
+  try {
+    await mkdir(join(path, ".."), { recursive: true });
+    // Stream entries one-by-one to avoid building a huge JSON string in memory.
+    const stream = createWriteStream(path);
+    stream.write("[");
+    let first = true;
+    for (const [key, value] of cache) {
+      if (!first) stream.write(",");
+      first = false;
+      stream.write(JSON.stringify([key, value]));
+    }
+    stream.write("]");
+    await new Promise<void>((resolve, reject) => {
+      stream.end(() => resolve());
+      stream.on("error", reject);
+    });
+    console.log(`Saved ${cache.size} embeddings to cache`);
+  } catch (error) {
+    console.error("Failed to save embedding cache:", error);
+  }
 }
 
 // ── Database setup ──
@@ -150,6 +189,7 @@ export async function callChatCompletion(
 ): Promise<{
   content: string;
   toolCalls?: Array<{ id: string; function: { name: string; arguments: string } }>;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }> {
   const maxAttempts = 3;
   let lastStatus: number | null = null;
@@ -206,6 +246,7 @@ export async function callChatCompletion(
             }>;
           };
         }>;
+        usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
       };
 
       const message = data.choices[0]?.message;
@@ -219,7 +260,7 @@ export async function callChatCompletion(
         continue;
       }
 
-      return { content, toolCalls };
+      return { content, toolCalls, usage: data.usage };
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
@@ -240,7 +281,10 @@ export async function evaluateAnswer(
   expectedAnswer: string,
   generatedAnswer: string,
   api: ApiConfig
-): Promise<boolean> {
+): Promise<{
+  isCorrect: boolean;
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+}> {
   const prompt = `You are an answer evaluator. Determine if the generated answer correctly answers the question, matching the expected answer's meaning.
 
 Question: ${question}
@@ -267,16 +311,18 @@ Respond with ONLY "CORRECT" or "INCORRECT".`;
       }),
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) return { isCorrect: false };
 
     const data = (await response.json()) as {
       choices: Array<{ message: { content: string } }>;
+      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
     };
     const result = data.choices[0]?.message?.content?.trim().toUpperCase() || "";
-    return result.includes("CORRECT") && !result.includes("INCORRECT");
+    const isCorrect = result.includes("CORRECT") && !result.includes("INCORRECT");
+    return { isCorrect, usage: data.usage };
   } catch (error) {
     console.error("Error evaluating answer:", error);
-    return false;
+    return { isCorrect: false };
   }
 }
 
@@ -439,6 +485,16 @@ function aggregateSummary(
   const latencyStats = calculatePercentiles(latencies);
   const correctCount = results.filter((r) => r.isCorrect).length;
 
+  const totalTokenUsage = results.reduce(
+    (acc, r) => ({
+      promptTokens: acc.promptTokens + r.tokenUsage.promptTokens,
+      completionTokens: acc.completionTokens + r.tokenUsage.completionTokens,
+      totalTokens: acc.totalTokens + r.tokenUsage.totalTokens,
+      embeddingTokens: acc.embeddingTokens + r.tokenUsage.embeddingTokens,
+    }),
+    { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 }
+  );
+
   return {
     timestamp: new Date().toISOString(),
     datasetName: `longmemeval_${options.variant}_${strategy}`,
@@ -463,6 +519,7 @@ function aggregateSummary(
       p99: latencyStats.p99,
       mean: latencyStats.mean,
     },
+    tokenUsage: totalTokenUsage,
     results: options.verbose ? results : [],
   };
 }
@@ -502,13 +559,23 @@ export async function runLongMemEval(
       ? ["memory-engine", "memory-vault"]
       : [strategy as "memory-engine" | "memory-vault"];
 
+  const concurrency = options.concurrency ?? 1;
+
   console.log(`\nRunning LongMemEval benchmark (${options.variant} variant, ${strategy} strategy)`);
   if (options.llmModel) console.log(`LLM model: ${llmModel}`);
   console.log(`Total questions: ${entries.length}`);
+  if (concurrency > 1) console.log(`Concurrency: ${concurrency}`);
   if (options.maxSessions) console.log(`Max sessions per question: ${options.maxSessions}`);
   console.log("");
 
   const summaries: Record<string, LongMemEvalSummary> = {};
+
+  // Shared embedding cache across all questions — avoids re-embedding
+  // the same haystack texts that appear in multiple questions.
+  // Persisted to disk so subsequent runs skip the embedding API entirely.
+  const modelSlug = DEFAULT_API_EMBEDDING_MODEL.replace(/[^a-zA-Z0-9-]/g, "-");
+  const embeddingCachePath = join(getCacheDirectory(), `embedding-cache-${modelSlug}.json`);
+  const embeddingCache = await loadEmbeddingCache(embeddingCachePath);
 
   for (const strat of strategies) {
     const results: LongMemEvalResult[] = [];
@@ -518,16 +585,21 @@ export async function runLongMemEval(
       console.log(`\n── Strategy: ${strat} ──\n`);
     }
 
-    for (let i = 0; i < entries.length; i++) {
+    // Process entries with configurable concurrency.
+    // Results are collected in entry order regardless of completion order.
+    const orderedResults: (LongMemEvalResult | null)[] = new Array(entries.length).fill(null);
+    let completed = 0;
+
+    async function processEntry(i: number): Promise<void> {
       const entry = entries[i];
-      console.log(`[${i + 1}/${entries.length}] ${entry.question_id}`);
 
       try {
         if (options.skipExisting) {
           const hasTranscript = await transcriptMatchesModel(entry.question_id, llmModel);
           if (hasTranscript) {
-            console.log("  ↷ Skipping (existing transcript for same model)");
-            continue;
+            completed++;
+            console.log(`[${completed}/${entries.length}] ${entry.question_id} ↷ Skipping`);
+            return;
           }
         }
 
@@ -537,7 +609,8 @@ export async function runLongMemEval(
             entry,
             { ...api, llmModel },
             options.verbose || false,
-            options.maxSessions
+            options.maxSessions,
+            embeddingCache
           );
         } else {
           result = await processEntryMemoryVault(
@@ -548,15 +621,13 @@ export async function runLongMemEval(
           );
         }
 
-        results.push(result);
-        latencies.push(result.latencyMs);
-
+        orderedResults[i] = result;
+        completed++;
         console.log(
-          `  ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
+          `[${completed}/${entries.length}] ${entry.question_id} ${result.isCorrect ? "✓" : "✗"} ${result.questionType} (${result.latencyMs.toFixed(0)}ms)`
         );
       } catch (error) {
-        console.error(`  ✗ Error processing ${entry.question_id}:`, error);
-        results.push({
+        orderedResults[i] = {
           questionId: entry.question_id,
           questionType: entry.question_type,
           question: entry.question,
@@ -568,13 +639,39 @@ export async function runLongMemEval(
           retrievalPrecision: 0,
           retrievalRecall: 0,
           latencyMs: 0,
+          tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, embeddingTokens: 0 },
           strategy: strat,
           details: { error: String(error) },
-        });
+        };
+        completed++;
+        console.error(`[${completed}/${entries.length}] ${entry.question_id} ✗ Error:`, error);
+      }
+    }
+
+    // Concurrency-limited executor
+    const pending = new Set<Promise<void>>();
+    for (let i = 0; i < entries.length; i++) {
+      const p = processEntry(i).then(() => {
+        pending.delete(p);
+      });
+      pending.add(p);
+      if (pending.size >= concurrency) {
+        await Promise.race(pending);
+      }
+    }
+    await Promise.all(pending);
+
+    for (const result of orderedResults) {
+      if (result) {
+        results.push(result);
+        latencies.push(result.latencyMs);
       }
     }
 
     summaries[strat] = aggregateSummary(results, latencies, options, strat);
+
+    // Persist embedding cache to disk after each strategy completes
+    await saveEmbeddingCache(embeddingCachePath, embeddingCache);
   }
 
   if (strategy === "both") {

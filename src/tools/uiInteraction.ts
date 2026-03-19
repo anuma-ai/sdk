@@ -6,7 +6,7 @@
  * promise resolution). Apps provide the tool schema and any custom logic.
  */
 
-import type { ToolConfig } from "./googleCalendar";
+import type { ToolConfig } from "../lib/chat/useChat/types.js";
 
 /**
  * Minimal context interface required by tool factories.
@@ -19,7 +19,8 @@ export type UIInteractionContext = {
     displayType: string,
     data: any,
     result: any,
-    toolVersion?: number
+    toolVersion?: number,
+    replacesInteractionId?: string
   ) => void;
 };
 
@@ -95,6 +96,12 @@ export type DisplayToolConfig<TArgs = any, TResult = any> = {
    * Used to upgrade stored results to the current version on restore.
    */
   migrations?: DisplayToolMigrations;
+  /**
+   * Optional callback that returns the interaction ID this display should replace.
+   * When set, only the specified interaction is removed instead of all interactions
+   * of the same displayType. Useful for updating a specific app instance.
+   */
+  getReplacesInteractionId?: (args: TArgs) => string | undefined;
 };
 
 /**
@@ -240,12 +247,14 @@ export function createDisplayTool<TArgs = any, TResult = any>(
       const context = options.getContext();
       if (context) {
         const interactionId = generateInteractionId(config.displayType);
+        const replacesInteractionId = config.getReplacesInteractionId?.(args as unknown as TArgs);
         context.createDisplayInteraction(
           interactionId,
           config.displayType,
           { afterMessageId: options.getLastMessageId?.() },
           result,
-          config.version ?? 1
+          config.version ?? 1,
+          replacesInteractionId
         );
       }
 

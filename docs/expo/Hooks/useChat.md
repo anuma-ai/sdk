@@ -2,13 +2,13 @@
 
 > **useChat**(`options?`: `object`): `UseChatResult`
 
-Defined in: [src/expo/useChat.ts:147](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#147)
+Defined in: [src/expo/useChat.ts:120](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChat.ts#120)
 
 A React hook for managing chat completions with authentication.
 
-**React Native version** - This is a lightweight version that only supports
-API-based chat completions. Local chat and client-side tools are not available
-in React Native.
+**React Native version** — Uses XMLHttpRequest for streaming since
+`fetch` response body streaming isn't available in React Native.
+Delegates all tool loop logic to the shared `runToolLoop`.
 
 ## Parameters
 
@@ -51,8 +51,9 @@ Optional configuration object
 </td>
 <td>
 
-Which API endpoint to use. Default: "responses"
+Which API endpoint to use. Default: "auto"
 
+* "auto": automatically selects the best API based on model support
 * "responses": OpenAI Responses API (supports thinking, reasoning, conversations)
 * "completions": OpenAI Chat Completions API (wider model compatibility)
 
@@ -164,6 +165,25 @@ Receives raw API response - either Responses API or Completions API format.
 
 Callback function to be called when a server-side tool (MCP) is invoked during streaming.
 Use this to show activity indicators like "Searching..." in the UI.
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onStepFinish?`
+
+</td>
+<td>
+
+(`event`: [`StepFinishEvent`](../../react/Internal/type-aliases/StepFinishEvent.md)) => `void`
+
+</td>
+<td>
+
+Called after each tool execution round completes.
+Receives the round index, model content, tool calls, results, and token usage.
+Useful for progress indicators, cost tracking, and custom early-exit logic.
 
 </td>
 </tr>

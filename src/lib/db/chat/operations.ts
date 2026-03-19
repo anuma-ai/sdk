@@ -55,6 +55,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
     role: message.role,
     content: message.content,
     model: message.model,
+    imageModel: message.imageModel,
     files: message.files,
     fileIds: message.fileIds,
     createdAt: message.createdAt,
@@ -417,6 +418,7 @@ export async function createMessageOp(
       msg._setRaw("role", encryptedOpts.role);
       msg._setRaw("content", encryptedOpts.content);
       if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.imageModel) msg._setRaw("image_model", encryptedOpts.imageModel);
       if (encryptedOpts.files) msg._setRaw("files", JSON.stringify(encryptedOpts.files));
       if (encryptedOpts.fileIds) msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
       if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
@@ -591,6 +593,8 @@ async function updateMessageOp(
     await message.update((msg) => {
       if (encryptedOpts.content !== undefined) msg._setRaw("content", encryptedOpts.content);
       if (encryptedOpts.model !== undefined) msg._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.imageModel !== undefined)
+        msg._setRaw("image_model", encryptedOpts.imageModel);
       if (encryptedOpts.files !== undefined)
         msg._setRaw("files", JSON.stringify(encryptedOpts.files));
       if (encryptedOpts.fileIds !== undefined)

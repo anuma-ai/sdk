@@ -2,7 +2,7 @@
 
 > **postApiV1DeveloperAppsByAppUuidPrivy**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1DeveloperAppsByAppUuidPrivyData`](../type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1DeveloperAppsByAppUuidPrivyResponses`](../type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyResponses.md), [`PostApiV1DeveloperAppsByAppUuidPrivyErrors`](../type-aliases/PostApiV1DeveloperAppsByAppUuidPrivyErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#438)
+Defined in: [src/client/sdk.gen.ts:478](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#478)
 
 Configure Privy
 

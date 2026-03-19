@@ -8,12 +8,13 @@ import {
 } from "@nozbe/watermelondb/Schema/migrations";
 import type { Class } from "@nozbe/watermelondb/types";
 
-import { Conversation, Message } from "./chat/models";
+import { Conversation, ConversationSummary, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
+import { VaultFolder } from "./vaultFolders/models";
 
 /**
  * Current combined schema version for all SDK storage modules.
@@ -34,8 +35,14 @@ import { UserPreference } from "./userPreferences/models";
  * - v14: Added feedback column to history table for like/dislike on responses
  * - v15: Replaced memories table with memory_vault table for persistent memory vault
  * - v16: Added scope column to memory_vault table for memory partitioning
+ * - v17: Added image_model column to history table for AI-generated image model tracking
+ * - v18: Added vault_folders table and folder_id column to memory_vault for folder organization
+ * - v19: Added user_id column to memory_vault for multi-user server-side scoping
+ * - v20: Added index on updated_at column of memory_vault for efficient since-based filtering
+ * - v21: Added embedding column to memory_vault for persisted embedding vectors
+ * - v22: Added is_system column to vault_folders for default system folders
  */
-export const SDK_SCHEMA_VERSION = 16;
+export const SDK_SCHEMA_VERSION = 23;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -79,6 +86,7 @@ export const sdkSchema = appSchema({
         { name: "role", type: "string", isIndexed: true },
         { name: "content", type: "string" },
         { name: "model", type: "string", isOptional: true },
+        { name: "image_model", type: "string", isOptional: true }, // AI model used for image generation
         { name: "files", type: "string", isOptional: true }, // Deprecated: use file_ids with media table
         { name: "file_ids", type: "string", isOptional: true }, // JSON array of media_id references
         { name: "created_at", type: "number", isIndexed: true },
@@ -152,9 +160,36 @@ export const sdkSchema = appSchema({
       columns: [
         { name: "content", type: "string" },
         { name: "scope", type: "string", isIndexed: true },
+        { name: "folder_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number", isIndexed: true },
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+        { name: "user_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "embedding", type: "string", isOptional: true },
+      ],
+    }),
+    // Vault folder organization
+    tableSchema({
+      name: "vault_folders",
+      columns: [
+        { name: "name", type: "string" },
+        { name: "scope", type: "string" },
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
+        { name: "is_system", type: "boolean", isOptional: true },
+      ],
+    }),
+    // Conversation summary cache for progressive history summarization
+    tableSchema({
+      name: "conversation_summaries",
+      columns: [
+        { name: "conversation_id", type: "string", isIndexed: true },
+        { name: "summary", type: "string" },
+        { name: "summarized_up_to", type: "string" }, // uniqueId of last summarized message
+        { name: "token_count", type: "number" },
+        { name: "created_at", type: "number" },
+        { name: "updated_at", type: "number" },
       ],
     }),
     // Media library storage (images, videos, audio, documents)
@@ -215,6 +250,13 @@ export const sdkSchema = appSchema({
  * - v13 → v14: Added `feedback` column to history table for like/dislike on responses
  * - v14 → v15: Replaced `memories` table with `memory_vault` table for persistent memory vault
  * - v15 → v16: Added `scope` column to memory_vault table for memory partitioning
+ * - v16 → v17: Added `image_model` column to history table for AI-generated image model tracking
+ * - v17 → v18: Added `vault_folders` table (with scope) and `folder_id` column to memory_vault for folder organization
+ * - v18 → v19: Added `user_id` column to memory_vault for multi-user server-side scoping
+ * - v19 → v20: Added index on `updated_at` column of memory_vault for efficient since-based filtering
+ * - v20 → v21: Added `embedding` column to memory_vault for persisted embedding vectors
+ * - v21 → v22: Added `is_system` column to vault_folders for default system folders
+ * - v22 → v23: Added `conversation_summaries` table for progressive history summarization
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -420,6 +462,92 @@ export const sdkMigrations = schemaMigrations({
         ),
       ],
     },
+    // v16 -> v17: Added image_model column to history for AI-generated image model tracking
+    {
+      toVersion: 17,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "image_model", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v17 -> v18: Added vault_folders table and folder_id to memory_vault
+    {
+      toVersion: 18,
+      steps: [
+        createTable({
+          name: "vault_folders",
+          columns: [
+            { name: "name", type: "string" },
+            { name: "scope", type: "string" },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "folder_id", type: "string", isOptional: true, isIndexed: true }],
+        }),
+      ],
+    },
+    // v18 -> v19: Added user_id column to memory_vault for multi-user server-side scoping
+    {
+      toVersion: 19,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "user_id", type: "string", isOptional: true, isIndexed: true }],
+        }),
+      ],
+    },
+    // v19 -> v20: Added index on updated_at for efficient since-based filtering
+    {
+      toVersion: 20,
+      steps: [
+        unsafeExecuteSql(
+          "CREATE INDEX IF NOT EXISTS memory_vault_updated_at ON memory_vault (updated_at);"
+        ),
+      ],
+    },
+    // v20 -> v21: Added embedding column to memory_vault for persisted embedding vectors
+    {
+      toVersion: 21,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "embedding", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v21 -> v22: Added is_system column to vault_folders for default system folders
+    {
+      toVersion: 22,
+      steps: [
+        addColumns({
+          table: "vault_folders",
+          columns: [{ name: "is_system", type: "boolean", isOptional: true }],
+        }),
+      ],
+    },
+    // v22 -> v23: Added conversation_summaries table for progressive history summarization
+    {
+      toVersion: 23,
+      steps: [
+        createTable({
+          name: "conversation_summaries",
+          columns: [
+            { name: "conversation_id", type: "string", isIndexed: true },
+            { name: "summary", type: "string" },
+            { name: "summarized_up_to", type: "string" },
+            { name: "token_count", type: "number" },
+            { name: "created_at", type: "number" },
+            { name: "updated_at", type: "number" },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -443,8 +571,10 @@ export const sdkMigrations = schemaMigrations({
 export const sdkModelClasses: Class<Model>[] = [
   Message,
   Conversation,
+  ConversationSummary,
   Project,
   VaultMemory,
+  VaultFolder,
   Media,
   ModelPreference,
   UserPreference,

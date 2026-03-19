@@ -2,15 +2,15 @@
 
 > **HandlersSeedAppsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:511](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#511)
+Defined in: [src/client/types.gen.ts:694](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#694)
 
 ## Properties
 
-### apps\_seeded?
+### apps\_seeded
 
-> `optional` **apps\_seeded**: `number`
+> **apps\_seeded**: `number`
 
-Defined in: [src/client/types.gen.ts:512](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#512)
+Defined in: [src/client/types.gen.ts:695](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#695)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:512](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **generated\_keys**: `object`
 
-Defined in: [src/client/types.gen.ts:516](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#516)
+Defined in: [src/client/types.gen.ts:699](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#699)
 
 Map of app name to generated keys
 
@@ -28,11 +28,11 @@ Map of app name to generated keys
 
 ***
 
-### keys\_seeded?
+### keys\_seeded
 
-> `optional` **keys\_seeded**: `number`
+> **keys\_seeded**: `number`
 
-Defined in: [src/client/types.gen.ts:519](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#519)
+Defined in: [src/client/types.gen.ts:702](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#702)
 
 ***
 
@@ -40,12 +40,12 @@ Defined in: [src/client/types.gen.ts:519](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **message**: `string`
 
-Defined in: [src/client/types.gen.ts:520](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#520)
+Defined in: [src/client/types.gen.ts:703](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#703)
 
 ***
 
-### success?
+### success
 
-> `optional` **success**: `boolean`
+> **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:521](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#521)
+Defined in: [src/client/types.gen.ts:704](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#704)

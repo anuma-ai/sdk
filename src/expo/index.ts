@@ -92,6 +92,7 @@ export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { useModels } from "../react/useModels";
 export { useChat } from "./useChat";
+export { xhrTransport } from "../lib/chat/xhrTransport";
 export type {
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
@@ -149,16 +150,34 @@ export {
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
+  deleteAllVaultMemoriesForUserOp,
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
+  updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
 } from "../lib/db/memoryVault";
+// Vault folders
+export {
+  createVaultFolderOp,
+  type CreateVaultFolderOptions,
+  deleteVaultFolderOp,
+  ensureDefaultFoldersOp,
+  getAllVaultFoldersOp,
+  getVaultFolderMemoryCountOp,
+  moveMemoriesToFolderOp,
+  type StoredVaultFolder,
+  VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderOp,
+  type UpdateVaultFolderOptions,
+  type VaultFolderOperationsContext,
+} from "../lib/db/vaultFolders";
 export {
   createMemoryVaultTool,
   type MemoryVaultToolOptions,

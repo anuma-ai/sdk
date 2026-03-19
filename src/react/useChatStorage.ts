@@ -9,7 +9,14 @@ import type {
   LlmapiToolCallEvent,
 } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
-import type { ApiType } from "../lib/chat/useChat";
+import {
+  cleanupConversationSummary,
+  DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+  DEFAULT_SUMMARY_MODEL,
+  DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+  maybeSummarizeHistory,
+} from "../lib/chat/summarize";
+import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
 import {
   type ActivityPhase,
@@ -1116,7 +1123,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          result.uniqueId
         ).catch(() => {});
       }
       return result;
@@ -1130,7 +1139,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const updateVaultMemory = useCallback(
     async (id: string, content: string, scope?: string): Promise<StoredVaultMemory | null> => {
       const existing = await getVaultMemoryOp(vaultCtx, id);
-      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope });
+      const result = await updateVaultMemoryOp(vaultCtx, id, { content, scope, embedding: null });
       if (result && getToken) {
         if (existing) {
           vaultEmbeddingCacheRef.current.delete(existing.content);
@@ -1138,7 +1147,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         eagerEmbedContent(
           content,
           { getToken, baseUrl, model: embeddingModel },
-          vaultEmbeddingCacheRef.current
+          vaultEmbeddingCacheRef.current,
+          vaultCtx,
+          id
         ).catch(() => {});
       }
       return result;
@@ -1315,13 +1326,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         await clearMessagesOp(storageCtx, id);
         // Cascade delete media for this conversation
         await deleteMediaByConversationOp(mediaCtx, id);
+        // Cascade delete conversation summary cache
+        await cleanupConversationSummary(database, id);
         if (currentConversationId === id) {
           setCurrentConversationId(null);
         }
       }
       return deleted;
     },
-    [storageCtx, mediaCtx, currentConversationId]
+    [storageCtx, mediaCtx, database, currentConversationId]
   );
 
   /**
@@ -1898,6 +1911,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         skipStorage = false,
         includeHistory = true,
         maxHistoryMessages = 50,
+        summarizeHistory = false,
+        summaryTokenThreshold = DEFAULT_SUMMARY_TOKEN_THRESHOLD,
+        summaryMinWindowMessages = DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
+        summaryModel = DEFAULT_SUMMARY_MODEL,
         files,
         onData: perRequestOnData,
         headers,
@@ -1938,7 +1955,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Fast path for skipStorage - bypass all storage operations
       if (skipStorage) {
-        const effectiveApiType = requestApiType ?? apiType ?? "responses";
+        const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
         // Fetch server tools if needed (still useful for one-off requests)
         let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -2038,6 +2055,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           thinking,
           imageModel,
           apiType: effectiveApiType,
+          conversationId: explicitConversationId ?? currentConversationId ?? undefined,
         });
 
         if (result.error || !result.data) {
@@ -2150,8 +2168,30 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             // Failed to get encryption key for history
           }
         }
+
+        // Determine which messages to send: summarized + window or all verbatim.
+        // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
+        // corrupting isLoading state and abortController during summarization.
+        if (summarizeHistory && !getToken) {
+          console.warn(
+            "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
+          );
+        }
+        const summaryToken = summarizeHistory && getToken ? await getToken() : null;
+        const { messagesToConvert, summarySystemMessage } = await maybeSummarizeHistory({
+          database,
+          conversationId: convId,
+          messages: limitedMessages,
+          summarizeHistory,
+          summaryTokenThreshold,
+          summaryMinWindowMessages,
+          summaryModel,
+          token: summaryToken ?? "",
+          baseUrl,
+        });
+
         // Batch: collect all fileIds across all messages, resolve once
-        const allFileIds = limitedMessages.flatMap((msg) => msg.fileIds ?? []);
+        const allFileIds = messagesToConvert.flatMap((msg) => msg.fileIds ?? []);
         let allMedia: StoredMedia[] = [];
         try {
           allMedia = allFileIds.length ? await getMediaByIdsOp(mediaCtx, allFileIds) : [];
@@ -2165,9 +2205,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
         const historyMessages = await Promise.all(
-          limitedMessages.map((msg) => storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds))
+          messagesToConvert.map((msg) =>
+            storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+          )
         );
-        messagesToSend = [...historyMessages, ...messages];
+
+        // Assemble: [summary (if exists), window messages, new messages]
+        messagesToSend = [
+          ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...historyMessages,
+          ...messages,
+        ];
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
@@ -2285,7 +2333,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       const startTime = Date.now();
 
       // Determine effective API type for this request
-      const effectiveApiType = requestApiType ?? apiType ?? "responses";
+      const effectiveApiType = resolveApiType(requestApiType ?? apiType ?? "auto", model);
 
       // Fetch and merge server-side tools with client tools
       let mergedTools: ReturnType<typeof mergeTools> | undefined = undefined;
@@ -2425,6 +2473,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         imageModel,
         onThinking,
         apiType: requestApiType,
+        conversationId: convId,
       });
 
       const responseDuration = (Date.now() - startTime) / 1000;
@@ -2443,17 +2492,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
           if (abortedResult.data && "output" in abortedResult.data && abortedResult.data.output) {
             type OutputItem = { type?: string; content?: Array<{ text?: string }> };
+            const abortOutput = (abortedResult.data.output as OutputItem[]).filter(Boolean);
             // Find the message output item (type: "message") for main content
-            const messageOutput = (abortedResult.data.output as OutputItem[]).find(
-              (item) => item.type === "message"
-            );
+            const messageOutput = abortOutput.find((item) => item?.type === "message");
             assistantContent =
               messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
             // Find the reasoning output item (type: "reasoning") for thinking content
-            const reasoningOutput = (abortedResult.data.output as OutputItem[]).find(
-              (item) => item.type === "reasoning"
-            );
+            const reasoningOutput = abortOutput.find((item) => item?.type === "reasoning");
             abortedThinkingContent =
               reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
           }
@@ -2468,6 +2514,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               role: "assistant",
               content: assistantContent,
               model: responseModel,
+              imageModel,
               usage: convertUsageToStored(abortedResult.data?.usage),
               responseDuration,
               wasStopped: true,
@@ -2545,17 +2592,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let assistantContent = "";
       let thinkingContent: string | undefined;
 
-      if ("output" in responseData && responseData.output) {
+      if ("output" in responseData && Array.isArray(responseData.output)) {
         // Responses API format
         type OutputItem = { type?: string; content?: Array<{ text?: string }> };
-        const messageOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "message"
-        );
+        const outputItems = (responseData.output as OutputItem[]).filter(Boolean);
+        const messageOutput = outputItems.find((item) => item?.type === "message");
         assistantContent = messageOutput?.content?.map((part) => part.text || "").join("") || "";
 
-        const reasoningOutput = (responseData.output as OutputItem[]).find(
-          (item) => item.type === "reasoning"
-        );
+        const reasoningOutput = outputItems.find((item) => item?.type === "reasoning");
         thinkingContent =
           reasoningOutput?.content?.map((part) => part.text || "").join("") || undefined;
       } else if ("choices" in responseData && responseData.choices) {
@@ -2602,48 +2646,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // They remain valid for 3 days (presigned) and let the LLM
       // reference images for editing. No permanent data loss.
 
-      // Store auto-executed tool results (e.g. display_chart) as a user message
-      // so they persist across page refreshes and can be rendered by the app.
-      const autoToolResults = (result as any).autoExecutedToolResults as
-        | { name: string; result: any }[]
-        | undefined;
-      if (autoToolResults && autoToolResults.length > 0) {
-        const toolSummary = autoToolResults
-          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
-          .join("\n\n");
-        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
-        try {
-          await writeOrQueue(
-            "createMessage",
-            {
-              conversationId: convId,
-              role: "user",
-              content: toolResultContent,
-              model: "",
-              parentMessageId: storedUserMessage.uniqueId,
-            },
-            () =>
-              createMessageOp(storageCtx, {
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedUserMessage.uniqueId,
-              }),
-            () =>
-              makeSyntheticStoredMessage({
-                conversationId: convId,
-                role: "user",
-                content: toolResultContent,
-                model: "",
-                parentMessageId: storedUserMessage.uniqueId,
-              }),
-            userMsgQueueId ? [userMsgQueueId] : []
-          );
-        } catch {
-          // Non-critical — the tool result will still be available in memory
-        }
-      }
+      // Resolve image model: prefer user-provided, fall back to MCP tool response
+      const resolvedImageModel =
+        imageModel || extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -2651,6 +2656,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         role: "assistant",
         content: cleanedContent,
         model: responseData.model || model,
+        imageModel: resolvedImageModel,
         fileIds: assistantFileIds.length > 0 ? assistantFileIds : undefined,
         usage: convertUsageToStored(responseData.usage),
         responseDuration,
@@ -2664,6 +2670,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       };
 
       let storedAssistantMessage: StoredMessage;
+      let assistantMsgQueueId: string | undefined;
       try {
         const assistantMsgResult = await writeOrQueue(
           "createMessage",
@@ -2673,6 +2680,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           userMsgQueueId ? [userMsgQueueId] : []
         );
         storedAssistantMessage = assistantMsgResult.result;
+        assistantMsgQueueId = assistantMsgResult.queueId;
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
@@ -2707,6 +2715,51 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           );
         } catch {
           // Non-fatal - continue without updating messageId
+        }
+      }
+
+      // Store auto-executed tool results (e.g. display_chart, display_weather) as a
+      // synthetic user message so they persist across page refreshes and can be
+      // rendered by the app. Parented to the assistant message so they appear as
+      // a continuation in the conversation tree, not as a sibling branch.
+      const autoToolResults = (result as any).autoExecutedToolResults as
+        | { name: string; result: any }[]
+        | undefined;
+      if (autoToolResults && autoToolResults.length > 0) {
+        const toolSummary = autoToolResults
+          .map((r) => `Tool "${r.name}" returned: ${JSON.stringify(r.result)}`)
+          .join("\n\n");
+        const toolResultContent = `[Tool Execution Results]\n\n${toolSummary}\n\nBased on these results, continue with the task.`;
+        try {
+          await writeOrQueue(
+            "createMessage",
+            {
+              conversationId: convId,
+              role: "user",
+              content: toolResultContent,
+              model: "",
+              parentMessageId: storedAssistantMessage.uniqueId,
+            },
+            () =>
+              createMessageOp(storageCtx, {
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedAssistantMessage.uniqueId,
+              }),
+            () =>
+              makeSyntheticStoredMessage({
+                conversationId: convId,
+                role: "user",
+                content: toolResultContent,
+                model: "",
+                parentMessageId: storedAssistantMessage.uniqueId,
+              }),
+            assistantMsgQueueId ? [assistantMsgQueueId] : []
+          );
+        } catch {
+          // Non-critical — the tool result will still be available in memory
         }
       }
 

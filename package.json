@@ -47,11 +47,35 @@
       "require": "./dist/next/index.cjs",
       "default": "./dist/next/index.cjs"
     },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.mjs",
+      "require": "./dist/client/index.cjs",
+      "default": "./dist/client/index.cjs"
+    },
     "./tools": {
       "types": "./dist/tools/index.d.ts",
       "import": "./dist/tools/index.mjs",
       "require": "./dist/tools/index.cjs",
       "default": "./dist/tools/index.cjs"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.mjs",
+      "require": "./dist/server/index.cjs",
+      "default": "./dist/server/index.cjs"
+    },
+    "./api/spec": {
+      "types": "./dist/api/spec.d.ts",
+      "import": "./dist/api/spec.mjs",
+      "require": "./dist/api/spec.cjs",
+      "default": "./dist/api/spec.cjs"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.cjs",
+      "default": "./dist/utils/index.cjs"
     }
   },
   "files": [
@@ -64,10 +88,12 @@
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
+    "e2e:tools": "vitest run --config vitest.e2e.config.mts",
     "eval:engine": "tsx test/memory/longmemeval.ts --strategy engine",
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "update-model-apis": "tsx scripts/update-model-apis.ts",
     "api-report": "node scripts/api-extractor-run.mjs",
     "api-report:update": "node scripts/api-extractor-run.mjs --local",
     "lint": "eslint .",
@@ -92,14 +118,14 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260228183644",
+    "@anuma/portal": "1.0.0-next.20260306183544",
     "ai": "5.0.93",
+    "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
-    "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
@@ -169,7 +195,8 @@
   "pnpm": {
     "overrides": {
       "react": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
-      "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1"
+      "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
+      "tar": ">=7.5.11"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",

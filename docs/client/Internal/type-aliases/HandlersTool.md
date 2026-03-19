@@ -2,36 +2,36 @@
 
 > **HandlersTool** = `object`
 
-Defined in: [src/client/types.gen.ts:628](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#628)
+Defined in: [src/client/types.gen.ts:811](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#811)
 
 ## Properties
 
-### cost?
+### cost
 
-> `optional` **cost**: `number`
+> **cost**: `number`
 
-Defined in: [src/client/types.gen.ts:629](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#629)
-
-***
-
-### embedding?
-
-> `optional` **embedding**: `number`\[]
-
-Defined in: [src/client/types.gen.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#630)
+Defined in: [src/client/types.gen.ts:812](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#812)
 
 ***
 
-### name?
+### embedding
 
-> `optional` **name**: `string`
+> **embedding**: `number`\[]
 
-Defined in: [src/client/types.gen.ts:631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#631)
+Defined in: [src/client/types.gen.ts:813](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#813)
 
 ***
 
-### schema?
+### name
 
-> `optional` **schema**: [`McpToolSchema`](McpToolSchema.md)
+> **name**: `string`
 
-Defined in: [src/client/types.gen.ts:632](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#632)
+Defined in: [src/client/types.gen.ts:814](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#814)
+
+***
+
+### schema
+
+> **schema**: [`McpToolSchema`](McpToolSchema.md)
+
+Defined in: [src/client/types.gen.ts:815](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#815)

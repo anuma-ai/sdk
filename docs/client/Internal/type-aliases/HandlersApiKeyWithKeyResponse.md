@@ -6,9 +6,9 @@ Defined in: [src/client/types.gen.ts:22](https://github.com/anuma-ai/sdk/blob/ma
 
 ## Properties
 
-### api\_key?
+### api\_key
 
-> `optional` **api\_key**: `string`
+> **api\_key**: `string`
 
 Defined in: [src/client/types.gen.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#26)
 
@@ -16,56 +16,56 @@ Only included in create response
 
 ***
 
-### app\_id?
+### app\_id
 
-> `optional` **app\_id**: `number`
+> **app\_id**: `number`
 
 Defined in: [src/client/types.gen.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#27)
 
 ***
 
-### created\_at?
+### created\_at
 
-> `optional` **created\_at**: `string`
+> **created\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#28)
 
 ***
 
-### id?
+### id
 
-> `optional` **id**: `number`
+> **id**: `number`
 
 Defined in: [src/client/types.gen.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#29)
 
 ***
 
-### is\_active?
+### is\_active
 
-> `optional` **is\_active**: `boolean`
+> **is\_active**: `boolean`
 
 Defined in: [src/client/types.gen.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#30)
 
 ***
 
-### name?
+### name
 
-> `optional` **name**: `string`
+> **name**: `string`
 
 Defined in: [src/client/types.gen.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#31)
 
 ***
 
-### updated\_at?
+### updated\_at
 
-> `optional` **updated\_at**: `string`
+> **updated\_at**: `string`
 
 Defined in: [src/client/types.gen.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#32)
 
 ***
 
-### wallet\_address?
+### wallet\_address
 
-> `optional` **wallet\_address**: `string`
+> **wallet\_address**: `string`
 
 Defined in: [src/client/types.gen.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#33)
