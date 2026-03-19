@@ -67,8 +67,10 @@ export class ResponsesStrategy implements ApiStrategy {
         prompt_tokens: promptTokens,
         completion_tokens: completionTokens,
         total_tokens: u.total_tokens ?? promptTokens + completionTokens,
-        cost_micro_usd: u.cost_micro_usd ?? 0,
-        credits_used: u.credits_used ?? 0,
+        ...(u.cost_micro_usd !== null &&
+          u.cost_micro_usd !== undefined && { cost_micro_usd: u.cost_micro_usd }),
+        ...(u.credits_used !== null &&
+          u.credits_used !== undefined && { credits_used: u.credits_used }),
       };
 
       // Extract content from output array — but only if no content or thinking was
