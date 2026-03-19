@@ -233,26 +233,37 @@ export async function exportElementToPdf(
     throw new Error("Unable to access iframe document");
   }
 
-  // Copy relevant stylesheets to the iframe so the clone renders correctly
-  const styleSheets = Array.from(document.styleSheets);
-  for (const sheet of styleSheets) {
+  // Copy stylesheets to the iframe. Prefer synchronous cssRules copy; only
+  // fall back to async <link> for cross-origin sheets where cssRules throws.
+  const pendingLinks: Promise<void>[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
     try {
+      // Try synchronous copy first (works for same-origin, including external sheets)
+      const cssText = Array.from(sheet.cssRules)
+        .map((rule) => rule.cssText)
+        .join("\n");
+      const style = iframeDoc.createElement("style");
+      style.textContent = cssText;
+      iframeDoc.head.appendChild(style);
+    } catch {
+      // Cross-origin sheet — fall back to async <link> and track the load promise
       if (sheet.href) {
         const link = iframeDoc.createElement("link");
         link.rel = "stylesheet";
         link.href = sheet.href;
+        pendingLinks.push(
+          new Promise<void>((resolve) => {
+            link.onload = () => resolve();
+            link.onerror = () => resolve(); // don't block on failed loads
+          })
+        );
         iframeDoc.head.appendChild(link);
-      } else if (sheet.ownerNode) {
-        const style = iframeDoc.createElement("style");
-        const cssText = Array.from(sheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join("\n");
-        style.textContent = cssText;
-        iframeDoc.head.appendChild(style);
       }
-    } catch {
-      // Cross-origin stylesheets will throw; skip them
     }
+  }
+  // Wait for any cross-origin stylesheets to load before capturing
+  if (pendingLinks.length > 0) {
+    await Promise.all(pendingLinks);
   }
 
   // Clone element into the iframe body
