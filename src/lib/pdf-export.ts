@@ -217,23 +217,53 @@ export async function exportElementToPdf(
   const opts = resolveOptions(options);
   const [pageW, pageH] = opts.pageSize;
 
-  // Clone element so we can force light-mode styles without affecting the UI
+  // Use an iframe with its own document root to avoid affecting the main page's dark mode
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-9999px";
+  iframe.style.top = "0";
+  iframe.style.width = `${element.offsetWidth}px`;
+  iframe.style.height = `${element.offsetHeight}px`;
+  iframe.style.border = "none";
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    throw new Error("Unable to access iframe document");
+  }
+
+  // Copy relevant stylesheets to the iframe so the clone renders correctly
+  const styleSheets = Array.from(document.styleSheets);
+  for (const sheet of styleSheets) {
+    try {
+      if (sheet.href) {
+        const link = iframeDoc.createElement("link");
+        link.rel = "stylesheet";
+        link.href = sheet.href;
+        iframeDoc.head.appendChild(link);
+      } else if (sheet.ownerNode) {
+        const style = iframeDoc.createElement("style");
+        const cssText = Array.from(sheet.cssRules)
+          .map((rule) => rule.cssText)
+          .join("\n");
+        style.textContent = cssText;
+        iframeDoc.head.appendChild(style);
+      }
+    } catch {
+      // Cross-origin stylesheets will throw; skip them
+    }
+  }
+
+  // Clone element into the iframe body
   const clone = element.cloneNode(true) as HTMLElement;
   clone.style.backgroundColor = "#ffffff";
   clone.style.color = "#1a1a1a";
   clone.classList.remove("dark:prose-invert");
-  // Ensure the clone is in the DOM but invisible (html2canvas needs it attached)
-  clone.style.position = "fixed";
-  clone.style.left = "-9999px";
-  clone.style.top = "0";
-  clone.style.width = `${element.offsetWidth}px`;
+  iframeDoc.body.appendChild(clone);
 
-  // Temporarily remove dark mode so Tailwind dark: utilities resolve to light values
-  const root = document.documentElement;
-  const hadDark = root.classList.contains("dark");
-  if (hadDark) root.classList.remove("dark");
-
-  document.body.appendChild(clone);
+  // Remove dark class from iframe's document root (not the main page)
+  iframeDoc.documentElement.classList.remove("dark");
 
   try {
     const canvas = await html2canvas(clone, {
@@ -289,8 +319,7 @@ export async function exportElementToPdf(
 
     return doc.output("blob");
   } finally {
-    document.body.removeChild(clone);
-    if (hadDark) root.classList.add("dark");
+    document.body.removeChild(iframe);
   }
 }
 
