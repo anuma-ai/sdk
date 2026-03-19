@@ -24,6 +24,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
     isSystem: folder.isSystem ?? false,
+    context: folder.context || null,
   };
 }
 
@@ -197,6 +198,31 @@ export async function moveMemoriesToFolderOp(
   } catch {
     // Move failed (record not found or write error) – return false to caller
     return false;
+  }
+}
+
+/**
+ * Update a vault folder's context summary.
+ */
+export async function updateVaultFolderContextOp(
+  ctx: VaultFolderOperationsContext,
+  id: string,
+  context: string | null
+): Promise<StoredVaultFolder | null> {
+  try {
+    const record = await ctx.vaultFolderCollection.find(id);
+    if (record.isDeleted) return null;
+
+    await ctx.database.write(async () => {
+      await record.update((r) => {
+        r._setRaw("context", context);
+      });
+    });
+
+    const updated = await ctx.vaultFolderCollection.find(id);
+    return folderToStored(updated);
+  } catch {
+    return null;
   }
 }
 
