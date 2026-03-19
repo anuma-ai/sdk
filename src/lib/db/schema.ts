@@ -41,7 +41,8 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v20: Added index on updated_at column of memory_vault for efficient since-based filtering
  * - v21: Added embedding column to memory_vault for persisted embedding vectors
  * - v22: Added is_system column to vault_folders for default system folders
- * - v23: Added context column to vault_folders for LLM-generated folder summaries
+ * - v23: Added conversation_summaries table for progressive history summarization
+ * - v24: Added context column to vault_folders for LLM-generated folder summaries
  */
 export const SDK_SCHEMA_VERSION = 24;
 
