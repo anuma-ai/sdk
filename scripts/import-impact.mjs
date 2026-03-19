@@ -127,7 +127,10 @@ function buildSymbolMap(entryPoints) {
 
   for (const [subpath, srcPath] of Object.entries(entryPoints)) {
     const sourceFile = program.getSourceFile(resolve(SDK_ROOT, srcPath));
-    if (!sourceFile) continue;
+    if (!sourceFile) {
+      console.warn(`[import-impact] Could not resolve source for entry point "${subpath}" (looked for ${srcPath}) — skipping`);
+      continue;
+    }
 
     const fileSymbol = checker.getSymbolAtLocation(sourceFile);
     if (!fileSymbol) continue;
@@ -198,10 +201,11 @@ function parseConsumerImports(appPath) {
         continue;
       }
 
-      const importRegex = /import\s+(?:type\s+)?{([^}]+)}\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
+      // Named destructured imports: import { useChat, useSettings } from '@anuma/sdk/react'
+      const namedRegex = /import\s+(?:type\s+)?{([^}]+)}\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
       let match;
 
-      while ((match = importRegex.exec(content)) !== null) {
+      while ((match = namedRegex.exec(content)) !== null) {
         const symbols = match[1]
           .split(",")
           .map((s) =>
@@ -217,6 +221,16 @@ function parseConsumerImports(appPath) {
         for (const sym of symbols) {
           imports[subpath].add(sym);
         }
+      }
+
+      // Namespace imports: import * as Sdk from '@anuma/sdk/react'
+      // Default imports: import Sdk from '@anuma/sdk/react'
+      // These use all exports from the entry point, so mark with '*'.
+      const wildcardRegex = /import\s+(?:\*\s+as\s+\w+|\w+)\s+from\s+['"]@anuma\/sdk([^'"]*)['"]/g;
+      while ((match = wildcardRegex.exec(content)) !== null) {
+        const subpath = match[1] ? `.${match[1]}` : ".";
+        if (!imports[subpath]) imports[subpath] = new Set();
+        imports[subpath].add("*");
       }
     }
   }
@@ -369,8 +383,10 @@ function main() {
       const appSyms = consumerImports[subpath];
       if (!appSyms) continue;
 
+      // '*' means the app uses a namespace/default import — all symbols count
+      const usesAll = appSyms.has("*");
       for (const sym of affectedSyms) {
-        if (appSyms.has(sym)) {
+        if (usesAll || appSyms.has(sym)) {
           impactedSymbols.push({ subpath, symbol: sym });
         }
       }

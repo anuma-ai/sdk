@@ -67,12 +67,14 @@ jobs:
 
       - name: Run import impact analysis
         if: steps.changed.outputs.has_changes == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
           APPS=$(echo "$REPOS" \
             | tr ' ' '\n' | sed 's|^|/tmp/|' | tr '\n' ',' | sed 's/,$//')
 
           node scripts/import-impact.mjs \
-            --changed "${{ steps.changed.outputs.files }}" \
+            --changed "$CHANGED_FILES" \
             --apps "$APPS" \
             --output /tmp/import-impact.md
 
