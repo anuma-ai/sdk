@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { PdfExportOptions } from "../lib/pdf-export";
 import { exportElementToPdf, exportMarkdownToPdf } from "../lib/pdf-export";
@@ -32,7 +32,8 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Defer revocation so the browser can finish initiating the download
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 function toError(err: unknown): Error {
@@ -54,26 +55,39 @@ export function useExportPdf(): UseExportPdfResult {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Stable ref for the generic wrapper to avoid re-creating callbacks
-  const wrapExport = useRef(
-    <TArgs extends unknown[]>(fn: (...args: TArgs) => Promise<Blob>) =>
-      async (...args: TArgs): Promise<Blob> => {
-        setIsExporting(true);
-        setError(null);
-        try {
-          return await fn(...args);
-        } catch (err) {
-          const processed = toError(err);
-          setError(processed);
-          throw processed;
-        } finally {
-          setIsExporting(false);
-        }
-      },
-  ).current;
+  const wrappedExportElement = useCallback(
+    async (...args: Parameters<typeof exportElementToPdf>): Promise<Blob> => {
+      setIsExporting(true);
+      setError(null);
+      try {
+        return await exportElementToPdf(...args);
+      } catch (err) {
+        const processed = toError(err);
+        setError(processed);
+        throw processed;
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [],
+  );
 
-  const wrappedExportElement = useCallback(wrapExport(exportElementToPdf), []);
-  const wrappedExportMarkdown = useCallback(wrapExport(exportMarkdownToPdf), []);
+  const wrappedExportMarkdown = useCallback(
+    async (...args: Parameters<typeof exportMarkdownToPdf>): Promise<Blob> => {
+      setIsExporting(true);
+      setError(null);
+      try {
+        return await exportMarkdownToPdf(...args);
+      } catch (err) {
+        const processed = toError(err);
+        setError(processed);
+        throw processed;
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [],
+  );
 
   const downloadElementAsPdf = useCallback(
     async (element: HTMLElement, options?: PdfExportOptions): Promise<void> => {

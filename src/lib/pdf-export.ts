@@ -62,6 +62,13 @@ async function getMarked(): Promise<MarkedModule> {
   return markedModule;
 }
 
+/** @internal Reset lazy-loaded module cache. Exposed for testing only. */
+export function _resetModuleCache(): void {
+  jspdfModule = null;
+  html2canvasModule = null;
+  markedModule = null;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -231,6 +238,12 @@ export async function exportElementToPdf(
   clone.style.left = "-9999px";
   clone.style.top = "0";
   clone.style.width = `${element.offsetWidth}px`;
+
+  // Temporarily remove dark mode so Tailwind dark: utilities resolve to light values
+  const root = document.documentElement;
+  const hadDark = root.classList.contains("dark");
+  if (hadDark) root.classList.remove("dark");
+
   document.body.appendChild(clone);
 
   try {
@@ -256,12 +269,15 @@ export async function exportElementToPdf(
     const sliceCanvas = document.createElement("canvas");
     sliceCanvas.width = imgWidthPx;
     const sliceCtx = sliceCanvas.getContext("2d");
+    if (!sliceCtx) {
+      throw new Error("Unable to obtain 2D canvas context for PDF slicing");
+    }
 
     let remainingH = imgHeightMm;
     let srcYPx = 0;
     let page = 0;
 
-    while (remainingH > 0 && sliceCtx) {
+    while (remainingH > 0) {
       if (page > 0) doc.addPage();
 
       const sliceHMm = Math.min(remainingH, usablePageH);
@@ -285,6 +301,7 @@ export async function exportElementToPdf(
     return doc.output("blob");
   } finally {
     document.body.removeChild(clone);
+    if (hadDark) root.classList.add("dark");
   }
 }
 
@@ -499,37 +516,64 @@ export async function exportMarkdownToPdf(
         const { header, rows } = token as Tokens.Table;
         const numCols = header.length;
         const colW = cw / numCols;
-        const lh = lineHeightMm(opts.fontSize - 1);
+        const tableFontSize = opts.fontSize - 1;
+        const lh = lineHeightMm(tableFontSize);
+        const cellContentW = colW - SPACING.TABLE_CELL_PAD * 2;
 
-        ensureSpace(lh + SPACING.LG);
-        doc.setFont("Helvetica", "bold");
-        doc.setFontSize(opts.fontSize - 1);
-        doc.setFillColor(240, 240, 240);
-        doc.rect(opts.margins.left, cursorY - lh + 1, cw, lh + SPACING.SM, "F");
-        for (let c = 0; c < numCols; c++) {
-          const text = tokensToPlainText(header[c].tokens);
-          const cellX = opts.margins.left + c * colW + SPACING.TABLE_CELL_PAD;
-          const truncated =
-            doc.splitTextToSize(text, colW - SPACING.TABLE_CELL_PAD * 2)[0] ?? "";
-          doc.text(truncated, cellX, cursorY);
+        /** Render a table row, returning the number of lines in the tallest cell */
+        function renderRow(
+          cells: Tokens.TableCell[],
+          fontStyle: "bold" | "normal",
+        ): number {
+          doc.setFont("Helvetica", fontStyle);
+          doc.setFontSize(tableFontSize);
+
+          // Pre-compute wrapped lines for each cell to determine row height
+          const cellLines: string[][] = cells.map((cell) => {
+            const text = tokensToPlainText(cell.tokens);
+            return doc.splitTextToSize(text, cellContentW) as string[];
+          });
+          const maxLines = Math.max(1, ...cellLines.map((l) => l.length));
+
+          ensureSpace(maxLines * lh + SPACING.SM);
+          for (let c = 0; c < numCols; c++) {
+            const lines = cellLines[c];
+            const cellX = opts.margins.left + c * colW + SPACING.TABLE_CELL_PAD;
+            for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+              doc.text(lines[lineIdx], cellX, cursorY + lineIdx * lh);
+            }
+          }
+          cursorY += maxLines * lh + 1;
+          return maxLines;
         }
-        cursorY += lh + SPACING.SM;
 
+        // Header row
+        ensureSpace(lh + SPACING.LG);
+        doc.setFillColor(240, 240, 240);
+        // Draw header background (will be overdrawn if multi-line, but font metrics are stable)
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(tableFontSize);
+        const headerLines = header.map((cell) =>
+          doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW),
+        );
+        const headerMaxLines = Math.max(1, ...headerLines.map((l: string[]) => l.length));
+        doc.rect(
+          opts.margins.left,
+          cursorY - lh + 1,
+          cw,
+          headerMaxLines * lh + SPACING.SM,
+          "F",
+        );
+        renderRow(header, "bold");
+
+        // Header bottom border
         doc.setDrawColor(180, 180, 180);
         doc.setLineWidth(0.3);
         doc.line(opts.margins.left, cursorY - 1, opts.margins.left + cw, cursorY - 1);
 
-        doc.setFont("Helvetica", "normal");
+        // Data rows
         for (const row of rows) {
-          ensureSpace(lh + SPACING.SM);
-          for (let c = 0; c < numCols; c++) {
-            const text = tokensToPlainText(row[c].tokens);
-            const cellX = opts.margins.left + c * colW + SPACING.TABLE_CELL_PAD;
-            const truncated =
-              doc.splitTextToSize(text, colW - SPACING.TABLE_CELL_PAD * 2)[0] ?? "";
-            doc.text(truncated, cellX, cursorY);
-          }
-          cursorY += lh + 1;
+          renderRow(row, "normal");
         }
         cursorY += SPACING.MD;
         break;
