@@ -62,13 +62,6 @@ async function getMarked(): Promise<MarkedModule> {
   return markedModule;
 }
 
-/** @internal Reset lazy-loaded module cache. Exposed for testing only. */
-export function _resetModuleCache(): void {
-  jspdfModule = null;
-  html2canvasModule = null;
-  markedModule = null;
-}
-
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -151,7 +144,7 @@ function resolveJsPDFConstructor(mod: JsPDFModule): typeof JsPDFType {
 function createPdfDoc(
   JsPDF: typeof JsPDFType,
   pageW: number,
-  pageH: number,
+  pageH: number
 ): InstanceType<typeof JsPDFType> {
   return new JsPDF({
     orientation: "portrait",
@@ -160,11 +153,7 @@ function createPdfDoc(
   });
 }
 
-function addPageNumbers(
-  doc: InstanceType<typeof JsPDFType>,
-  pageW: number,
-  pageH: number,
-): void {
+function addPageNumbers(doc: InstanceType<typeof JsPDFType>, pageW: number, pageH: number): void {
   const totalPages = doc.getNumberOfPages();
   if (totalPages <= 1) return;
   for (let i = 1; i <= totalPages; i++) {
@@ -188,7 +177,7 @@ function tokensToPlainText(tokens: Token[]): string {
       case "text":
       case "codespan":
       case "escape":
-        parts.push(token.text);
+        parts.push(token.text as string);
         break;
       case "strong":
       case "em":
@@ -221,7 +210,7 @@ function tokensToPlainText(tokens: Token[]): string {
  */
 export async function exportElementToPdf(
   element: HTMLElement,
-  options?: PdfExportOptions,
+  options?: PdfExportOptions
 ): Promise<Blob> {
   const [jspdfMod, html2canvasMod] = await Promise.all([getJsPDF(), getHtml2Canvas()]);
   const html2canvas = html2canvasMod.default ?? html2canvasMod;
@@ -321,7 +310,7 @@ export async function exportElementToPdf(
  */
 export async function exportMarkdownToPdf(
   markdown: string,
-  options?: PdfExportOptions,
+  options?: PdfExportOptions
 ): Promise<Blob> {
   const [jspdfMod, markedMod] = await Promise.all([getJsPDF(), getMarked()]);
   const { Lexer } = markedMod;
@@ -359,11 +348,11 @@ export async function exportMarkdownToPdf(
     maxW: number,
     fontSizePt: number,
     fontStyle: string = "normal",
-    fontFamily: string = "Helvetica",
+    fontFamily: string = "Helvetica"
   ) {
     doc.setFont(fontFamily, fontStyle);
     doc.setFontSize(fontSizePt);
-    const lines: string[] = doc.splitTextToSize(text, maxW);
+    const lines = doc.splitTextToSize(text, maxW) as string[];
     const lh = lineHeightMm(fontSizePt);
 
     for (const line of lines) {
@@ -378,7 +367,7 @@ export async function exportMarkdownToPdf(
   if (opts.title) {
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(22);
-    const titleLines = doc.splitTextToSize(opts.title, cw);
+    const titleLines = doc.splitTextToSize(opts.title, cw) as string[];
     const titleLh = lineHeightMm(22);
     for (const line of titleLines) {
       ensureSpace(titleLh);
@@ -395,14 +384,14 @@ export async function exportMarkdownToPdf(
   for (const token of tokens) {
     switch (token.type) {
       case "heading": {
-        const size = HEADING_SIZES[token.depth] ?? opts.fontSize;
+        const size = HEADING_SIZES[token.depth as number] ?? opts.fontSize;
         cursorY += SPACING.MD;
         renderWrappedText(
           tokensToPlainText(token.tokens ?? []),
           opts.margins.left,
           cw,
           size,
-          "bold",
+          "bold"
         );
         cursorY += SPACING.SM;
         break;
@@ -413,7 +402,7 @@ export async function exportMarkdownToPdf(
           tokensToPlainText(token.tokens ?? []),
           opts.margins.left,
           cw,
-          opts.fontSize,
+          opts.fontSize
         );
         cursorY += SPACING.SM;
         break;
@@ -423,7 +412,7 @@ export async function exportMarkdownToPdf(
         const codeFontSize = opts.fontSize - 2;
         doc.setFont("Courier", "normal");
         doc.setFontSize(codeFontSize);
-        const lines: string[] = doc.splitTextToSize(token.text, cw - SPACING.CODE_PAD * 2);
+        const lines = doc.splitTextToSize(token.text, cw - SPACING.CODE_PAD * 2);
         const lh = lineHeightMm(codeFontSize);
         const blockH = lines.length * lh + SPACING.LG;
 
@@ -459,7 +448,7 @@ export async function exportMarkdownToPdf(
 
           ensureSpace(lh);
           doc.text(prefix, opts.margins.left, cursorY);
-          const lines: string[] = doc.splitTextToSize(text, itemW);
+          const lines = doc.splitTextToSize(text, itemW);
           for (const line of lines) {
             ensureSpace(lh);
             doc.text(line, indentX, cursorY);
@@ -477,7 +466,7 @@ export async function exportMarkdownToPdf(
 
         doc.setFont("Helvetica", "italic");
         doc.setFontSize(opts.fontSize);
-        const lines: string[] = doc.splitTextToSize(text, quoteW);
+        const lines = doc.splitTextToSize(text, quoteW);
         const lh = lineHeightMm(opts.fontSize);
 
         const blockH = lines.length * lh;
@@ -488,7 +477,7 @@ export async function exportMarkdownToPdf(
           opts.margins.left + SPACING.MD,
           cursorY - SPACING.SM,
           opts.margins.left + SPACING.MD,
-          cursorY + blockH,
+          cursorY + blockH
         );
 
         doc.setTextColor(100);
@@ -521,10 +510,7 @@ export async function exportMarkdownToPdf(
         const cellContentW = colW - SPACING.TABLE_CELL_PAD * 2;
 
         /** Render a table row, returning the number of lines in the tallest cell */
-        function renderRow(
-          cells: Tokens.TableCell[],
-          fontStyle: "bold" | "normal",
-        ): number {
+        function renderRow(cells: Tokens.TableCell[], fontStyle: "bold" | "normal"): number {
           doc.setFont("Helvetica", fontStyle);
           doc.setFontSize(tableFontSize);
 
@@ -554,16 +540,10 @@ export async function exportMarkdownToPdf(
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(tableFontSize);
         const headerLines = header.map((cell) =>
-          doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW),
+          doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW)
         );
         const headerMaxLines = Math.max(1, ...headerLines.map((l: string[]) => l.length));
-        doc.rect(
-          opts.margins.left,
-          cursorY - lh + 1,
-          cw,
-          headerMaxLines * lh + SPACING.SM,
-          "F",
-        );
+        doc.rect(opts.margins.left, cursorY - lh + 1, cw, headerMaxLines * lh + SPACING.SM, "F");
         renderRow(header, "bold");
 
         // Header bottom border

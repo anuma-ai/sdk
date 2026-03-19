@@ -69,7 +69,7 @@ export function useExportPdf(): UseExportPdfResult {
         setIsExporting(false);
       }
     },
-    [],
+    []
   );
 
   const wrappedExportMarkdown = useCallback(
@@ -86,7 +86,7 @@ export function useExportPdf(): UseExportPdfResult {
         setIsExporting(false);
       }
     },
-    [],
+    []
   );
 
   const downloadElementAsPdf = useCallback(
@@ -94,7 +94,7 @@ export function useExportPdf(): UseExportPdfResult {
       const blob = await wrappedExportElement(element, options);
       triggerDownload(blob, options?.filename ?? DEFAULT_FILENAME);
     },
-    [wrappedExportElement],
+    [wrappedExportElement]
   );
 
   const downloadMarkdownAsPdf = useCallback(
@@ -102,7 +102,7 @@ export function useExportPdf(): UseExportPdfResult {
       const blob = await wrappedExportMarkdown(markdown, options);
       triggerDownload(blob, options?.filename ?? DEFAULT_FILENAME);
     },
-    [wrappedExportMarkdown],
+    [wrappedExportMarkdown]
   );
 
   return {
