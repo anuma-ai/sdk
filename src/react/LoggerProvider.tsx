@@ -1,6 +1,6 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useLayoutEffect } from "react";
 
-import { consoleLogger, type Logger, setLogger } from "../lib/logger";
+import { type Logger, getLogger, setLogger } from "../lib/logger";
 
 export interface LoggerProviderProps {
   logger: Logger;
@@ -9,12 +9,8 @@ export interface LoggerProviderProps {
 
 /**
  * Sets the active SDK logger for the lifetime of this component.
- * Restores the default {@link consoleLogger} on unmount.
- *
- * Only one `LoggerProvider` should be mounted at a time. Because the logger
- * is a module-level singleton, mounting multiple providers will cause them
- * to overwrite each other, and the cleanup of one will reset the logger
- * set by another.
+ * Restores the previous logger on unmount, so it can be nested or used
+ * alongside a top-level `setLogger` call without discarding the outer logger.
  *
  * @example
  * ```tsx
@@ -33,9 +29,10 @@ export interface LoggerProviderProps {
  * ```
  */
 export function LoggerProvider({ logger, children }: LoggerProviderProps) {
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const previousLogger = getLogger();
     setLogger(logger);
-    return () => setLogger(consoleLogger);
+    return () => setLogger(previousLogger);
   }, [logger]);
 
   return children;
