@@ -506,14 +506,14 @@ export async function chunkAndEmbedAllMessages(
           );
           embeddedCount++;
         } catch (error) {
-          console.error(
+          getLogger().error(
             `Failed to save embedding for message ${shortMessages[i].uniqueId}:`,
             error
           );
         }
       }
     } catch (error) {
-      console.error("Failed to batch-embed short messages:", error);
+      getLogger().error("Failed to batch-embed short messages:", error);
     }
   }
 
@@ -533,7 +533,7 @@ export async function chunkAndEmbedAllMessages(
       await updateMessageChunksOp(ctx, msg.uniqueId, messageChunks, embeddingModel);
       embeddedCount++;
     } catch (error) {
-      console.error(`Failed to embed message ${msg.uniqueId}:`, error);
+      getLogger().error(`Failed to embed message ${msg.uniqueId}:`, error);
     }
   }
 

@@ -12,6 +12,7 @@ import type { Database } from "@nozbe/watermelondb";
 
 import type { LlmapiMessage } from "../../client";
 import { BASE_URL } from "../../clientConfig";
+import { getLogger } from "../logger";
 import {
   createSummaryContext,
   deleteConversationSummaryOp,
@@ -481,7 +482,7 @@ export async function maybeSummarizeHistory(
 
   // Skip summarization if no auth token — would silently fail with 401
   if (!token) {
-    console.warn("[summarize] No auth token available, skipping summarization");
+    getLogger().warn("[summarize] No auth token available, skipping summarization");
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 
@@ -611,7 +612,7 @@ async function doSummarizeHistory(
         // Compaction failed — proceed with the oversized summary. It still works,
         // just less efficient. Will retry after cooldown.
         lastCompactionTime.set(conversationId, Date.now());
-        console.warn("[summarize] Summary compaction failed, proceeding with oversized summary");
+        getLogger().warn("[summarize] Summary compaction failed, proceeding with oversized summary");
       }
     }
 
@@ -691,7 +692,7 @@ async function doSummarizeHistory(
   } catch (err) {
     // Summarization failed — fall back to sending all messages verbatim.
     // Log the error so developers can diagnose issues (e.g., auth token expiry).
-    console.warn("[summarize] Summarization failed, falling back to verbatim:", err);
+    getLogger().warn("[summarize] Summarization failed, falling back to verbatim:", err);
     return { messagesToConvert: messages, summarySystemMessage: null };
   }
 }
@@ -709,6 +710,6 @@ export async function cleanupConversationSummary(
     await deleteConversationSummaryOp(summaryCtx, conversationId);
     lastCompactionTime.delete(conversationId);
   } catch (err) {
-    console.warn("[summarize] Failed to delete conversation summary cache:", err);
+    getLogger().warn("[summarize] Failed to delete conversation summary cache:", err);
   }
 }

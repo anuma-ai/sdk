@@ -1031,7 +1031,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
         if (summarizeHistory && !getToken) {
-          console.warn(
+          getLogger().warn(
             "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
           );
         }

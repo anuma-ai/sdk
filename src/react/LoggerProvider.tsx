@@ -11,6 +11,11 @@ export interface LoggerProviderProps {
  * Sets the active SDK logger for the lifetime of this component.
  * Restores the default {@link consoleLogger} on unmount.
  *
+ * Only one `LoggerProvider` should be mounted at a time. Because the logger
+ * is a module-level singleton, mounting multiple providers will cause them
+ * to overwrite each other, and the cleanup of one will reset the logger
+ * set by another.
+ *
  * @example
  * ```tsx
  * import { LoggerProvider, type Logger } from "@anuma/sdk/react";
