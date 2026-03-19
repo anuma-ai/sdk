@@ -121,8 +121,11 @@
     "@anuma/portal": "1.0.0-next.20260306183544",
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",
+    "marked": "^15.0.0",
     "pdfjs-dist": "^4.10.38",
     "tesseract.js": "^6.0.1",
     "uuid": "^13.0.0"
