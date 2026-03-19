@@ -50,6 +50,81 @@ export class ResponsesStrategy implements ApiStrategy {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
 
+    // Handle full "response" event — sent by the portal's chat/completions fallback
+    // when it uses non-streaming internally and sends the entire result as one chunk.
+    if (typedChunk.type === "response" && typedChunk.response) {
+      const resp = typedChunk.response as Record<string, unknown>;
+      if (resp.id) accumulator.responseId = String(resp.id);
+      if (resp.model) accumulator.responseModel = String(resp.model);
+      if (resp.tools_checksum) accumulator.toolsChecksum = String(resp.tools_checksum);
+
+      // Extract usage
+      const u = (resp.usage as Record<string, number | undefined>) || {};
+      const promptTokens = u.input_tokens ?? u.prompt_tokens ?? 0;
+      const completionTokens = u.output_tokens ?? u.completion_tokens ?? 0;
+      accumulator.usage = {
+        ...accumulator.usage,
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: u.total_tokens ?? promptTokens + completionTokens,
+        cost_micro_usd: u.cost_micro_usd ?? 0,
+        credits_used: u.credits_used ?? 0,
+      };
+
+      // Extract content from output array
+      const output = resp.output as
+        | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
+        | undefined;
+      if (output) {
+        for (const item of output) {
+          if (item.type === "message" && item.content) {
+            for (const part of item.content) {
+              if (part.type === "output_text" && part.text) {
+                const parseResult = parseReasoningTags(
+                  part.text,
+                  accumulator.partialReasoningTag || "",
+                  accumulator.insideReasoning || false,
+                  undefined,
+                  accumulator.implicitReasoningStart
+                );
+                accumulator.content += parseResult.messageContent;
+                accumulator.thinking += parseResult.reasoningContent;
+                accumulator.partialReasoningTag = parseResult.partialTag;
+                accumulator.insideReasoning = parseResult.insideReasoning;
+                if (parseResult.implicitReasoningStart !== undefined) {
+                  accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+                }
+                if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+                  result.content = (result.content || "") + parseResult.messageContent;
+                }
+                if (
+                  parseResult.reasoningContent &&
+                  parseResult.reasoningContent.trim().length > 0
+                ) {
+                  result.thinking = (result.thinking || "") + parseResult.reasoningContent;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Extract tool call events
+      const toolCallEvents = resp.tool_call_events as
+        | Array<{ id?: string; name?: string; arguments?: string; output?: string }>
+        | undefined;
+      if (toolCallEvents) {
+        accumulator.toolCallEvents = toolCallEvents.map((e) => ({
+          id: e.id || "",
+          name: e.name || "",
+          arguments: e.arguments || "",
+          output: e.output || "",
+        }));
+      }
+
+      return result;
+    }
+
     // Handle response.created event - extract ID and model from response object
     if (typedChunk.type === "response.created" && typedChunk.response) {
       if (typedChunk.response.id && !accumulator.responseId) {
@@ -290,6 +365,50 @@ export class ResponsesStrategy implements ApiStrategy {
         const existing = accumulator.toolCalls.get(itemId);
         if (existing) {
           existing.arguments = typedChunk.arguments;
+        }
+      }
+    }
+
+    // Fallback: handle chat/completions format (choices[].delta.content)
+    // Some models (e.g. MiniMax) are routed through a server-side chat/completions
+    // fallback, which streams in completions format instead of responses format.
+    const completionsChunk = typedChunk as Record<string, unknown>;
+    const choices = completionsChunk.choices as
+      | Array<{ delta?: { content?: string }; message?: { content?: string } }>
+      | undefined;
+    if (choices && choices.length > 0) {
+      // Extract id and model from completions-format chunks
+      if (completionsChunk.id && !accumulator.responseId) {
+        accumulator.responseId = String(completionsChunk.id);
+      }
+      if (completionsChunk.model && !accumulator.responseModel) {
+        accumulator.responseModel = String(completionsChunk.model);
+      }
+
+      const choice = choices[0];
+      const deltaContent = choice?.delta?.content || choice?.message?.content;
+      if (deltaContent) {
+        const parseResult = parseReasoningTags(
+          deltaContent,
+          accumulator.partialReasoningTag || "",
+          accumulator.insideReasoning || false,
+          undefined,
+          accumulator.implicitReasoningStart
+        );
+
+        accumulator.content += parseResult.messageContent;
+        accumulator.thinking += parseResult.reasoningContent;
+        accumulator.partialReasoningTag = parseResult.partialTag;
+        accumulator.insideReasoning = parseResult.insideReasoning;
+        if (parseResult.implicitReasoningStart !== undefined) {
+          accumulator.implicitReasoningStart = parseResult.implicitReasoningStart;
+        }
+
+        if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+          result.content = parseResult.messageContent;
+        }
+        if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
+          result.thinking = parseResult.reasoningContent;
         }
       }
     }
