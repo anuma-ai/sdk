@@ -1,6 +1,6 @@
 # LoggerProviderProps
 
-Defined in: [src/react/LoggerProvider.tsx:5](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#5)
+Defined in: [src/react/LoggerProvider.tsx:7](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#7)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/react/LoggerProvider.tsx:5](https://github.com/anuma-ai/sdk/blo
 
 > **children**: `ReactNode`
 
-Defined in: [src/react/LoggerProvider.tsx:7](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#7)
+Defined in: [src/react/LoggerProvider.tsx:9](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#9)
 
 ***
 
@@ -16,4 +16,4 @@ Defined in: [src/react/LoggerProvider.tsx:7](https://github.com/anuma-ai/sdk/blo
 
 > **logger**: [`Logger`](Logger.md)
 
-Defined in: [src/react/LoggerProvider.tsx:6](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#6)
+Defined in: [src/react/LoggerProvider.tsx:8](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#8)

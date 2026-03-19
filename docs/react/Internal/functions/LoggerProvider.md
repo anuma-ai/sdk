@@ -2,7 +2,7 @@
 
 > **LoggerProvider**(`__namedParameters`: [`LoggerProviderProps`](../interfaces/LoggerProviderProps.md)): `ReactNode`
 
-Defined in: [src/react/LoggerProvider.tsx:31](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#31)
+Defined in: [src/react/LoggerProvider.tsx:33](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#33)
 
 Sets the active SDK logger for the lifetime of this component.
 Restores the previous logger on unmount, so it can be nested or used
