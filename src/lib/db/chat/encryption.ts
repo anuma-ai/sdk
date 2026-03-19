@@ -1,5 +1,6 @@
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import {
   decryptField,
   decryptJsonField,
@@ -79,7 +80,7 @@ export async function encryptMessageFields(
       ...(encryptedThoughtProcess !== undefined && { thoughtProcess: encryptedThoughtProcess }),
     };
   } catch (error) {
-    console.warn("Failed to encrypt message fields:", error);
+    getLogger().warn("Failed to encrypt message fields:", error);
     throw error;
   }
 }
@@ -101,7 +102,7 @@ export async function decryptMessageFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn("Failed to request encryption key for decryption:", error);
+      getLogger().warn("Failed to request encryption key for decryption:", error);
     }
   }
 

@@ -2,7 +2,7 @@
 
 > **startCalendarAuth**(`clientId`: `string`, `callbackPath`: `string`): `Promise`<`never`>
 
-Defined in: [src/lib/auth/google-calendar.ts:511](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#511)
+Defined in: [src/lib/auth/google-calendar.ts:512](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#512)
 
 Start the OAuth flow - redirects to Google
 

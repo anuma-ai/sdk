@@ -67,6 +67,7 @@ function ChatComponent() {
 | Name | Description |
 | ------ | ------ |
 | [UseEncryptionResult](Hooks/UseEncryptionResult.md) | Result returned by the useEncryption hook. |
+| [UseExportPdfResult](Hooks/UseExportPdfResult.md) | Result returned by the useExportPdf hook. |
 | [UseOCRResult](Hooks/UseOCRResult.md) | Result returned by the useOCR hook. |
 | [UsePdfResult](Hooks/UsePdfResult.md) | Result returned by the usePdf hook. |
 | [UseVoiceOptions](Hooks/UseVoiceOptions.md) | Options for the useVoice hook. |
@@ -79,6 +80,7 @@ function ChatComponent() {
 | [useDropboxAuth](Hooks/useDropboxAuth.md) | Hook to access Dropbox authentication state and methods. |
 | [useDropboxBackup](Hooks/useDropboxBackup.md) | React hook for Dropbox backup and restore functionality. |
 | [useEncryption](Hooks/useEncryption.md) | Hook that provides encryption key management for securing local data. |
+| [useExportPdf](Hooks/useExportPdf.md) | React hook for exporting content as PDF. |
 | [useFiles](Hooks/useFiles.md) | A React hook for managing files (images, videos, audio, documents). |
 | [useGoogleDriveAuth](Hooks/useGoogleDriveAuth.md) | Hook to access Google Drive authentication state and methods. |
 | [useGoogleDriveBackup](Hooks/useGoogleDriveBackup.md) | React hook for Google Drive backup and restore functionality. |
@@ -117,3 +119,11 @@ Renames and re-exports [DEFAULT\_ICLOUD\_BACKUP\_FOLDER](Internal/variables/DEFA
 ### DEFAULT\_DROPBOX\_FOLDER
 
 Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](Internal/variables/DEFAULT_BACKUP_FOLDER.md)
+
+## PDF Export
+
+| Name | Description |
+| ------ | ------ |
+| [PdfExportOptions](PDF-Export/PdfExportOptions.md) | Options for PDF export. |
+| [exportElementToPdf](PDF-Export/exportElementToPdf.md) | Capture a rendered HTML element as a high-fidelity PDF. |
+| [exportMarkdownToPdf](PDF-Export/exportMarkdownToPdf.md) | Convert a markdown string to a PDF. No DOM required. |

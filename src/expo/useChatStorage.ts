@@ -69,6 +69,7 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
+import { getLogger } from "../lib/logger";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
@@ -413,7 +414,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
           break;
         default:
-          console.warn(`[QueueManager] Unknown operation type: ${operation.type}`);
+          getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
       }
     },
     [storageCtx]
@@ -458,7 +459,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     if (!walletAddress || !enableQueue || !autoFlushOnKeyAvailable || !signMessage) return;
     return onKeyAvailable(walletAddress, () => {
       flushQueue().catch((err) => {
-        console.warn("[useChatStorage] Auto-flush failed:", err);
+        getLogger().warn("[useChatStorage] Auto-flush failed:", err);
       });
     });
   }, [walletAddress, enableQueue, autoFlushOnKeyAvailable, signMessage, flushQueue]);
@@ -526,7 +527,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       if (walletAddress) {
         const queueId = queueManager.queueOperation(walletAddress, opType, payload, dependencies);
         if (queueId === null) {
-          console.warn("[useChatStorage] Queue full, falling back to direct write");
+          getLogger().warn("[useChatStorage] Queue full, falling back to direct write");
           const result = await directWrite();
           return { result, queued: false };
         }
@@ -557,7 +558,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         await updateMessageEmbeddingOp(storageCtx, message.uniqueId, embedding, embeddingModel);
       } catch (err) {
         // Log but don't block - embedding is optional
-        console.warn("[useChatStorage] Failed to embed message:", err);
+        getLogger().warn("[useChatStorage] Failed to embed message:", err);
       }
     },
     [autoEmbedMessages, getToken, baseUrl, embeddingModel, storageCtx, minContentLength]
@@ -1030,7 +1031,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // Uses a direct fetch for the LLM call (not baseSendMessage) to avoid
         // corrupting isLoading state and abortController during summarization.
         if (summarizeHistory && !getToken) {
-          console.warn(
+          getLogger().warn(
             "[summarize] summarizeHistory is enabled but getToken is not provided — summarization will be skipped"
           );
         }
@@ -1146,7 +1147,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } catch (error) {
           // Log but don't block - server tools are optional
 
-          console.warn("[useChatStorage] Failed to fetch server tools:", error);
+          getLogger().warn("[useChatStorage] Failed to fetch server tools:", error);
         }
       }
 

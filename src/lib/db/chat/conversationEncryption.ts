@@ -1,5 +1,6 @@
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
 import { requestEncryptionKey } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import { decryptField, encryptField } from "../encryption-utils";
 import type { CreateConversationOptions, StoredConversation } from "./types";
 
@@ -35,7 +36,7 @@ export async function encryptConversationFields(
       title: encryptedTitle,
     };
   } catch (error) {
-    console.warn("Failed to encrypt conversation fields:", error);
+    getLogger().warn("Failed to encrypt conversation fields:", error);
     throw error;
   }
 }
@@ -57,7 +58,7 @@ export async function decryptConversationFields(
     try {
       await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
     } catch (error) {
-      console.warn("Failed to request encryption key for decryption:", error);
+      getLogger().warn("Failed to request encryption key for decryption:", error);
     }
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { extractTextFromPdf } from "../lib/pdf";
+import { getLogger } from "../lib/logger";
 
 const PDF_MIME_TYPE = "application/pdf";
 
@@ -50,13 +51,13 @@ export function usePdf(): UsePdfResult {
             const text = await extractTextFromPdf(file.url);
 
             if (!text.trim()) {
-              console.warn(`No text found in PDF ${file.filename}`);
+              getLogger().warn(`No text found in PDF ${file.filename}`);
               return null;
             }
 
             return `[Context from PDF attachment ${file.filename}]:\n${text}`;
           } catch (err) {
-            console.error(`Failed to process PDF ${file.filename}:`, err);
+            getLogger().error(`Failed to process PDF ${file.filename}:`, err);
             return null;
           }
         })

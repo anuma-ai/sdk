@@ -2,7 +2,7 @@
 
 > **deleteEncryptedFile**(`fileId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/opfs.ts:270](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#270)
+Defined in: [src/lib/storage/opfs.ts:272](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#272)
 
 Deletes a file from OPFS.
 

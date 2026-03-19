@@ -1,6 +1,6 @@
 # DropboxAuthProviderProps
 
-Defined in: [src/react/useDropboxAuth.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#28)
+Defined in: [src/react/useDropboxAuth.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#29)
 
 Props for DropboxAuthProvider
 
@@ -10,7 +10,7 @@ Props for DropboxAuthProvider
 
 > `optional` **apiClient**: `Client`
 
-Defined in: [src/react/useDropboxAuth.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#37)
+Defined in: [src/react/useDropboxAuth.ts:38](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#38)
 
 API client for backend OAuth requests. Optional - uses the default SDK client if not provided.
 Only needed if you have a custom client configuration (e.g., different baseUrl).
@@ -21,7 +21,7 @@ Only needed if you have a custom client configuration (e.g., different baseUrl).
 
 > **appKey**: `string` | `undefined`
 
-Defined in: [src/react/useDropboxAuth.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#30)
+Defined in: [src/react/useDropboxAuth.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#31)
 
 Dropbox App Key (from Dropbox Developer Console)
 
@@ -31,7 +31,7 @@ Dropbox App Key (from Dropbox Developer Console)
 
 > `optional` **callbackPath**: `string`
 
-Defined in: [src/react/useDropboxAuth.ts:32](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#32)
+Defined in: [src/react/useDropboxAuth.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#33)
 
 OAuth callback path (default: "/auth/dropbox/callback")
 
@@ -41,7 +41,7 @@ OAuth callback path (default: "/auth/dropbox/callback")
 
 > **children**: `ReactNode`
 
-Defined in: [src/react/useDropboxAuth.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#45)
+Defined in: [src/react/useDropboxAuth.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#46)
 
 Children to render
 
@@ -51,7 +51,7 @@ Children to render
 
 > `optional` **walletAddress**: `string`
 
-Defined in: [src/react/useDropboxAuth.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#43)
+Defined in: [src/react/useDropboxAuth.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#44)
 
 Wallet address for encrypting OAuth tokens at rest.
 If provided, tokens will be encrypted before storing in localStorage.

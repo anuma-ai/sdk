@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import Tesseract from "tesseract.js";
 
 import { convertPdfToImages } from "../lib/pdf";
+import { getLogger } from "../lib/logger";
 
 export interface OCRFile {
   url: string | File | Blob;
@@ -74,7 +75,7 @@ export function useOCR(): UseOCRResult {
                 const pdfImages = await convertPdfToImages(pdfUrl);
                 imagesToProcess = pdfImages;
               } catch (e) {
-                console.error("Failed to convert PDF to images", e);
+                getLogger().error("Failed to convert PDF to images", e);
                 throw e;
               } finally {
                 if (shouldRevoke) {
@@ -95,13 +96,13 @@ export function useOCR(): UseOCRResult {
             const text = pageTexts.join("\n\n");
 
             if (!text.trim()) {
-              console.warn(`No text found in OCR source ${filename || "unknown"}`);
+              getLogger().warn(`No text found in OCR source ${filename || "unknown"}`);
               return null;
             }
 
             return `[Context from OCR attachment ${filename || "unknown"}]:\n${text}`;
           } catch (err) {
-            console.error(`Failed to process OCR for ${file.filename || "unknown"}:`, err);
+            getLogger().error(`Failed to process OCR for ${file.filename || "unknown"}:`, err);
             return null;
           }
         })

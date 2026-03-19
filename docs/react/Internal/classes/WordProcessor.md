@@ -1,6 +1,6 @@
 # WordProcessor
 
-Defined in: [src/lib/processors/WordProcessor.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#9)
+Defined in: [src/lib/processors/WordProcessor.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#10)
 
 Processor for Word documents (.docx) that converts to markdown
 
@@ -24,7 +24,7 @@ Processor for Word documents (.docx) that converts to markdown
 
 > `readonly` **name**: `"word"` = `"word"`
 
-Defined in: [src/lib/processors/WordProcessor.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#10)
+Defined in: [src/lib/processors/WordProcessor.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#11)
 
 Unique identifier for this processor
 
@@ -38,7 +38,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/WordProcessor.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#14)
+Defined in: [src/lib/processors/WordProcessor.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#15)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -52,7 +52,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/WordProcessor.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#11)
+Defined in: [src/lib/processors/WordProcessor.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#12)
 
 MIME types this processor can handle
 
@@ -66,7 +66,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/WordProcessor.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#16)
+Defined in: [src/lib/processors/WordProcessor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/WordProcessor.ts#17)
 
 Process a file and extract text content
 
