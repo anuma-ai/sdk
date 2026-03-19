@@ -30,7 +30,7 @@ export interface Logger {
 /** Default logger that delegates to the global `console` object. */
 /* eslint-disable no-console */
 export const consoleLogger: Logger = {
-  debug: console.debug.bind(console),
+  debug: console.log.bind(console),
   info: console.info.bind(console),
   warn: console.warn.bind(console),
   error: console.error.bind(console),

@@ -1,3 +1,5 @@
+"use client";
+
 import { type ReactNode, useLayoutEffect } from "react";
 
 import { type Logger, getLogger, setLogger } from "../lib/logger";
