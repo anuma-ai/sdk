@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       REPOS: "starter-next starter-mini starter-telegram starter-agent dashboard text cli"
+      ZETACHAIN_REPOS: "ai-memoryless-client"
     steps:
       - uses: actions/checkout@v4
 
@@ -59,9 +60,13 @@ jobs:
         if: steps.changed.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN_ZETACHAIN: ${{ secrets.PAT_TOKEN_ZETACHAIN }}
         run: |
           for REPO in $REPOS; do
             gh repo clone anuma-ai/$REPO /tmp/$REPO -- --depth 1 &
+          done
+          for REPO in $ZETACHAIN_REPOS; do
+            GH_TOKEN=$GH_TOKEN_ZETACHAIN gh repo clone zeta-chain/$REPO /tmp/$REPO -- --depth 1 &
           done
           wait
 
@@ -70,8 +75,9 @@ jobs:
         env:
           CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
-          APPS=$(echo "$REPOS" \
-            | tr ' ' '\n' | sed 's|^|/tmp/|' | tr '\n' ',' | sed 's/,$//')
+          ALL_REPOS="$REPOS $ZETACHAIN_REPOS"
+          APPS=$(echo "$ALL_REPOS" \
+            | tr ' ' '\n' | sed '/^$/d' | sed 's|^|/tmp/|' | tr '\n' ',' | sed 's/,$//')
 
           node scripts/import-impact.mjs \
             --changed "$CHANGED_FILES" \
