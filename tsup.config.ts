@@ -59,6 +59,10 @@ export default defineConfig([
       "recharts",
       // Processor heavy deps — only loaded dynamically when processing files
       "exceljs",
+      // PDF export — lazy-loaded when consumers call exportElementToPdf/exportMarkdownToPdf
+      "jspdf",
+      "html2canvas",
+      "marked",
     ],
     outExtension({ format }) {
       return {
@@ -158,6 +162,9 @@ export default defineConfig([
       "exceljs",
       "mammoth",
       "jszip",
+      // PDF export — lazy-loaded
+      "jspdf",
+      "marked",
     ],
     // watermelondb is a peerDep (auto-externalized by tsup) but is CJS-only
     // with no ESM exports — must be bundled to avoid ERR_UNSUPPORTED_DIR_IMPORT
