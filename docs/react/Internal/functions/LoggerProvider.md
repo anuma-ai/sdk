@@ -2,11 +2,14 @@
 
 > **LoggerProvider**(`__namedParameters`: [`LoggerProviderProps`](../interfaces/LoggerProviderProps.md)): `ReactNode`
 
-Defined in: [src/react/LoggerProvider.tsx:33](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#33)
+Defined in: [src/react/LoggerProvider.tsx:37](https://github.com/anuma-ai/sdk/blob/main/src/react/LoggerProvider.tsx#37)
 
 Sets the active SDK logger for the lifetime of this component.
 Restores the previous logger on unmount, so it can be nested or used
 alongside a top-level `setLogger` call without discarding the outer logger.
+
+The `logger` prop is compared by reference — memoize it to avoid
+unnecessary effect re-runs on every parent render.
 
 ## Parameters
 
@@ -40,14 +43,15 @@ alongside a top-level `setLogger` call without discarding the outer logger.
 ## Example
 
 ```tsx
+import { useMemo } from "react";
 import { LoggerProvider, type Logger } from "@anuma/sdk/react";
 
-const myLogger: Logger = {
+const myLogger = useMemo<Logger>(() => ({
   debug: () => {},
   info: (...args) => posthog.capture("sdk_info", { message: args }),
   warn: (...args) => console.warn("[SDK]", ...args),
   error: (...args) => Sentry.captureMessage(args.join(" ")),
-};
+}), []);
 
 <LoggerProvider logger={myLogger}>
   <App />

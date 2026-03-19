@@ -14,16 +14,20 @@ export interface LoggerProviderProps {
  * Restores the previous logger on unmount, so it can be nested or used
  * alongside a top-level `setLogger` call without discarding the outer logger.
  *
+ * The `logger` prop is compared by reference — memoize it to avoid
+ * unnecessary effect re-runs on every parent render.
+ *
  * @example
  * ```tsx
+ * import { useMemo } from "react";
  * import { LoggerProvider, type Logger } from "@anuma/sdk/react";
  *
- * const myLogger: Logger = {
+ * const myLogger = useMemo<Logger>(() => ({
  *   debug: () => {},
  *   info: (...args) => posthog.capture("sdk_info", { message: args }),
  *   warn: (...args) => console.warn("[SDK]", ...args),
  *   error: (...args) => Sentry.captureMessage(args.join(" ")),
- * };
+ * }), []);
  *
  * <LoggerProvider logger={myLogger}>
  *   <App />

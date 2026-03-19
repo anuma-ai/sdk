@@ -128,6 +128,9 @@ import { useChat } from "./useChat";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import { onKeyAvailable } from "./useEncryption";
+import type { ToolConfig } from "../lib/chat/useChat/types";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
+import { getLogger } from "../lib/logger";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
@@ -135,9 +138,6 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 // Minimum similarity for client tool semantic matching
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
-import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
-import { getLogger } from "../lib/logger";
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {

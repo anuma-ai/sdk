@@ -22,6 +22,7 @@
 
 export interface Logger {
   debug: (...args: unknown[]) => void;
+  /** Not used internally by the SDK today, but included so custom loggers can receive all standard levels. */
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
