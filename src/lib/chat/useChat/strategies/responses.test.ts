@@ -102,3 +102,65 @@ describe("ResponsesStrategy.processStreamChunk - tool_call_events", () => {
     expect(event.output).toBe('{"url":"https://example.com/cat.png","model":"flux-1"}');
   });
 });
+
+describe("ResponsesStrategy.processStreamChunk - no duplicate content", () => {
+  const strategy = new ResponsesStrategy();
+
+  it("does not double-count content when deltas precede final response event", () => {
+    const acc = createAccumulator();
+
+    // Simulate streaming deltas arriving first
+    strategy.processStreamChunk({ type: "response.output_text.delta", delta: "Hello " }, acc);
+    strategy.processStreamChunk({ type: "response.output_text.delta", delta: "world" }, acc);
+    expect(acc.content).toBe("Hello world");
+
+    // Then the final response event arrives with the same text
+    strategy.processStreamChunk(
+      {
+        type: "response",
+        response: {
+          id: "resp_123",
+          output: [
+            {
+              type: "message",
+              content: [{ type: "output_text", text: "Hello world" }],
+            },
+          ],
+          usage: { input_tokens: 10, output_tokens: 5 },
+        },
+      },
+      acc
+    );
+
+    // Content should NOT be doubled
+    expect(acc.content).toBe("Hello world");
+    // But usage should still be extracted
+    expect(acc.usage.prompt_tokens).toBe(10);
+    expect(acc.usage.completion_tokens).toBe(5);
+  });
+
+  it("extracts content from response event when no deltas preceded it", () => {
+    const acc = createAccumulator();
+
+    // Non-streaming fallback: only the final response event, no deltas
+    strategy.processStreamChunk(
+      {
+        type: "response",
+        response: {
+          id: "resp_456",
+          output: [
+            {
+              type: "message",
+              content: [{ type: "output_text", text: "Non-streamed response" }],
+            },
+          ],
+          usage: { input_tokens: 8, output_tokens: 3 },
+        },
+      },
+      acc
+    );
+
+    expect(acc.content).toBe("Non-streamed response");
+    expect(acc.usage.prompt_tokens).toBe(8);
+  });
+});

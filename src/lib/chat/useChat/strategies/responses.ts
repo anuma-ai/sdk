@@ -50,8 +50,10 @@ export class ResponsesStrategy implements ApiStrategy {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
 
-    // Handle full "response" event — sent by the portal's chat/completions fallback
-    // when it uses non-streaming internally and sends the entire result as one chunk.
+    // Handle full "response" event — sent by the portal after streaming completes.
+    // For non-streaming fallback models (e.g. MiniMax) this is the only content source.
+    // For streaming models, content was already accumulated from response.output_text.delta
+    // events, so we skip content extraction to avoid duplication.
     if (typedChunk.type === "response" && typedChunk.response) {
       const resp = typedChunk.response as Record<string, unknown>;
       if (resp.id) accumulator.responseId = String(resp.id);
@@ -71,11 +73,15 @@ export class ResponsesStrategy implements ApiStrategy {
         credits_used: u.credits_used ?? 0,
       };
 
-      // Extract content from output array
+      // Only extract content from the response if streaming deltas haven't already
+      // populated the accumulator. This prevents double-counting when the portal sends
+      // both real-time deltas AND a final response event with the same text.
+      const hasStreamedContent = accumulator.content.length > 0 || accumulator.thinking.length > 0;
+
       const output = resp.output as
         | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
         | undefined;
-      if (output) {
+      if (output && !hasStreamedContent) {
         for (const item of output) {
           if (item.type === "message" && item.content) {
             for (const part of item.content) {
