@@ -20,7 +20,17 @@ jobs:
       fail-fast: false
       matrix:
         ref: [pr, main]
-        repo: [starter-next, starter-mini, starter-telegram, starter-agent, dashboard, text, cli]
+        repo:
+          [
+            starter-next,
+            starter-mini,
+            starter-telegram,
+            starter-agent,
+            dashboard,
+            text,
+            cli,
+            ai-memoryless-client,
+          ]
         include:
           - repo: starter-next
             e2e: true
@@ -35,6 +45,8 @@ jobs:
           - repo: starter-agent
             e2e: false
           - repo: cli
+            e2e: false
+          - repo: ai-memoryless-client
             e2e: false
     env:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
@@ -78,8 +90,10 @@ jobs:
 
       - name: Clone ${{ matrix.repo }}
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: gh repo clone anuma-ai/${{ matrix.repo }} /tmp/${{ matrix.repo }} -- --depth 1
+          GH_TOKEN: ${{ matrix.repo == 'ai-memoryless-client' && secrets.PAT_TOKEN_ZETACHAIN || secrets.PAT_TOKEN }}
+        run: |
+          ORG=${{ matrix.repo == 'ai-memoryless-client' && 'zeta-chain' || 'anuma-ai' }}
+          gh repo clone $ORG/${{ matrix.repo }} /tmp/${{ matrix.repo }} -- --depth 1
 
       - name: Detect package manager
         id: pm
@@ -96,7 +110,11 @@ jobs:
         run: |
           ${{ steps.pm.outputs.cmd }} install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
-          ${{ steps.pm.outputs.cmd }} add "$SDK_TARBALL"
+          WORKSPACE_FLAG=""
+          if [ "${{ steps.pm.outputs.cmd }}" == "pnpm" ] && [ -f pnpm-workspace.yaml ]; then
+            WORKSPACE_FLAG="-w"
+          fi
+          ${{ steps.pm.outputs.cmd }} add $WORKSPACE_FLAG "$SDK_TARBALL"
 
       - name: Build ${{ matrix.repo }}
         id: build
@@ -146,7 +164,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli"
+          REPOS="starter-next starter-mini starter-telegram starter-agent dashboard text cli ai-memoryless-client"
           E2E_REPOS="starter-next"
 
           icon() { [ "$1" == "success" ] && echo "✅" || echo "❌"; }
