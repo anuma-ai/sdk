@@ -514,6 +514,12 @@ Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryM
 
 ***
 
+### updateVaultFolderContextOp
+
+Re-exports [updateVaultFolderContextOp](../react/Internal/functions/updateVaultFolderContextOp.md)
+
+***
+
 ### updateVaultFolderOp
 
 Re-exports [updateVaultFolderOp](../react/Internal/functions/updateVaultFolderOp.md)

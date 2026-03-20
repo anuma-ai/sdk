@@ -10,6 +10,8 @@ export interface StoredVaultFolder {
   isDeleted: boolean;
   /** Whether this is a system-created default folder */
   isSystem: boolean;
+  /** LLM-generated context summary for the folder */
+  context: string | null;
 }
 
 export interface CreateVaultFolderOptions {

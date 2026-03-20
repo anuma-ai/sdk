@@ -133,6 +133,14 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 ***
 
+### context
+
+> **context**: `string` | `null`
+
+Defined in: [src/lib/db/vaultFolders/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/models.ts#13)
+
+***
+
 ### createdAt
 
 > **createdAt**: `Date`

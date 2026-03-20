@@ -41,8 +41,10 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v20: Added index on updated_at column of memory_vault for efficient since-based filtering
  * - v21: Added embedding column to memory_vault for persisted embedding vectors
  * - v22: Added is_system column to vault_folders for default system folders
+ * - v23: Added conversation_summaries table for progressive history summarization
+ * - v24: Added context column to vault_folders for LLM-generated folder summaries
  */
-export const SDK_SCHEMA_VERSION = 23;
+export const SDK_SCHEMA_VERSION = 24;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -178,6 +180,7 @@ export const sdkSchema = appSchema({
         { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "is_system", type: "boolean", isOptional: true },
+        { name: "context", type: "string", isOptional: true },
       ],
     }),
     // Conversation summary cache for progressive history summarization
@@ -257,6 +260,7 @@ export const sdkSchema = appSchema({
  * - v20 → v21: Added `embedding` column to memory_vault for persisted embedding vectors
  * - v21 → v22: Added `is_system` column to vault_folders for default system folders
  * - v22 → v23: Added `conversation_summaries` table for progressive history summarization
+ * - v23 → v24: Added `context` column to vault_folders for LLM-generated folder summaries
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -545,6 +549,16 @@ export const sdkMigrations = schemaMigrations({
             { name: "created_at", type: "number" },
             { name: "updated_at", type: "number" },
           ],
+        }),
+      ],
+    },
+    // v23 -> v24: Added context column to vault_folders for LLM-generated folder summaries
+    {
+      toVersion: 24,
+      steps: [
+        addColumns({
+          table: "vault_folders",
+          columns: [{ name: "context", type: "string", isOptional: true }],
         }),
       ],
     },

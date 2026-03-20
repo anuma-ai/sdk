@@ -174,6 +174,7 @@ export {
   moveMemoriesToFolderOp,
   type StoredVaultFolder,
   VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderContextOp,
   updateVaultFolderOp,
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,

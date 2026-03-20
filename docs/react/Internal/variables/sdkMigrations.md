@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:261](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#261)
+Defined in: [src/lib/db/schema.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#265)
 
 Combined migrations for all SDK storage modules.
 
@@ -36,3 +36,4 @@ Migration history:
 * v20 → v21: Added `embedding` column to memory\_vault for persisted embedding vectors
 * v21 → v22: Added `is_system` column to vault\_folders for default system folders
 * v22 → v23: Added `conversation_summaries` table for progressive history summarization
+* v23 → v24: Added `context` column to vault\_folders for LLM-generated folder summaries

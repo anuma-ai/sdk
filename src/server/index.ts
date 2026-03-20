@@ -150,6 +150,7 @@ export {
   moveMemoriesToFolderOp,
   type StoredVaultFolder,
   VaultFolder,
+  updateVaultFolderContextOp,
   updateVaultFolderOp,
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
