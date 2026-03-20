@@ -28,7 +28,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-export interface WebSearchClassification {
+interface WebSearchClassification {
   /** Whether the prompt likely needs a web search. */
   needsWebSearch: boolean;
   /** Cosine similarity to the "needs search" centroid. */
@@ -37,7 +37,7 @@ export interface WebSearchClassification {
   noSearchScore: number;
 }
 
-export interface WebSearchClassifierOptions extends EmbeddingOptions {
+interface WebSearchClassifierOptions extends EmbeddingOptions {
   /**
    * Score margin: the search score must exceed the no-search score
    * by at least this amount to classify as "needs web search".
