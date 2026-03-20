@@ -57,13 +57,27 @@ function makeMockCreate(prefix = "created_") {
     // folder.isSystem, folder.context, folder.createdAt, folder.updatedAt
     return {
       id,
-      get name() { return raw.name as string; },
-      get scope() { return raw.scope as string; },
-      get isDeleted() { return raw.is_deleted as boolean; },
-      get isSystem() { return raw.is_system as boolean; },
-      get context() { return raw.context as string | null; },
-      get createdAt() { return raw.created_at as Date; },
-      get updatedAt() { return raw.updated_at as Date; },
+      get name() {
+        return raw.name as string;
+      },
+      get scope() {
+        return raw.scope as string;
+      },
+      get isDeleted() {
+        return raw.is_deleted as boolean;
+      },
+      get isSystem() {
+        return raw.is_system as boolean;
+      },
+      get context() {
+        return raw.context as string | null;
+      },
+      get createdAt() {
+        return raw.created_at as Date;
+      },
+      get updatedAt() {
+        return raw.updated_at as Date;
+      },
     };
   });
 }
@@ -205,26 +219,28 @@ describe("ensureDefaultFoldersOp — concurrency lock", () => {
     // Each time create is called, record it to verify no duplicate creates
     const createCalls: string[] = [];
     let counter = 0;
-    const createFn = vi.fn(async (builder: (r: { _setRaw: (k: string, v: unknown) => void }) => void) => {
-      counter += 1;
-      let name = `created_${counter}`;
-      builder({
-        _setRaw: (k: string, v: unknown) => {
-          if (k === "name") name = v as string;
-        },
-      });
-      createCalls.push(name);
-      return {
-        uniqueId: `id_${counter}`,
-        name,
-        scope: "private",
-        isDeleted: false,
-        isSystem: true,
-        context: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-    });
+    const createFn = vi.fn(
+      async (builder: (r: { _setRaw: (k: string, v: unknown) => void }) => void) => {
+        counter += 1;
+        let name = `created_${counter}`;
+        builder({
+          _setRaw: (k: string, v: unknown) => {
+            if (k === "name") name = v as string;
+          },
+        });
+        createCalls.push(name);
+        return {
+          uniqueId: `id_${counter}`,
+          name,
+          scope: "private",
+          isDeleted: false,
+          isSystem: true,
+          context: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      }
+    );
 
     // Simulate a fetch that returns no folders
     const fetchFn = vi.fn(async () => []);

@@ -93,7 +93,10 @@ function makeCtx(
       }),
       find: vi.fn(async (id: string) => mockFolderRecord({ id })),
       query: vi.fn((..._conditions: unknown[]) => ({
-        fetch: vi.fn(async () => [mockFolderRecord({ id: "folder_1" }), mockFolderRecord({ id: "folder_2" })]),
+        fetch: vi.fn(async () => [
+          mockFolderRecord({ id: "folder_1" }),
+          mockFolderRecord({ id: "folder_2" }),
+        ]),
       })),
     } as unknown as VaultFolderOperationsContext["vaultFolderCollection"],
     vaultMemoryCollection: {
@@ -262,12 +265,18 @@ describe("updateVaultFolderContextOp", () => {
     };
 
     // Re-fetch returns a simple stored-like shape
-    const resFetch = { id: "folder_7", name: "Test", scope: "private", isDeleted: false, isSystem: false, context: "ctx value", createdAt: new Date(), updatedAt: new Date() };
+    const resFetch = {
+      id: "folder_7",
+      name: "Test",
+      scope: "private",
+      isDeleted: false,
+      isSystem: false,
+      context: "ctx value",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    const findFn = vi
-      .fn()
-      .mockResolvedValueOnce(record)
-      .mockResolvedValueOnce(resFetch);
+    const findFn = vi.fn().mockResolvedValueOnce(record).mockResolvedValueOnce(resFetch);
 
     const ctx = makeCtx({
       database: {
