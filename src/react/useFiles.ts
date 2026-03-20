@@ -580,7 +580,8 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const fileHandle = await filesDir.getFileHandle(mediaId);
         return await fileHandle.getFile();
       } catch (error) {
-        throw new Error(`File could not be found: ${mediaId}`, { cause: error });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(`File could not be found: ${mediaId}`);
       }
     },
     [walletAddress]

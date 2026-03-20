@@ -870,9 +870,9 @@ async function persistKeyPair(address: string): Promise<void> {
     const encryptedHex = bytesToHex(combined);
     localStorage.setItem(storageKey, encryptedHex);
   } catch (error) {
+    // eslint-disable-next-line preserve-caught-error
     throw new Error(
-      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error }
+      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

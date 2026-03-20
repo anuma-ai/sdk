@@ -149,9 +149,8 @@ export function ICloudAuthProvider({
       setIsAuthenticated(true);
       setUserRecordName(userIdentity.userRecordName);
     } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud", {
-        cause: err,
-      });
+      // eslint-disable-next-line preserve-caught-error
+      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [isAuthenticated, isConfigured]);
 

@@ -161,9 +161,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getModelPreferenceOp(legacyStorageCtx, address);
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx]
@@ -184,9 +183,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx, walletAddress]
@@ -207,9 +205,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [legacyStorageCtx, walletAddress]
@@ -227,9 +224,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getUserPreferenceOp(storageCtx, address);
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx]
@@ -249,9 +245,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -271,9 +266,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -296,9 +290,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -318,9 +311,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
@@ -340,9 +332,8 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "An unknown error occurred", {
-          cause: error,
-        });
+        // eslint-disable-next-line preserve-caught-error
+        throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
     [storageCtx, walletAddress]
