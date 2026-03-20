@@ -110,7 +110,11 @@ jobs:
         run: |
           ${{ steps.pm.outputs.cmd }} install
           SDK_TARBALL=$(ls /tmp/sdk-pack/*.tgz)
-          ${{ steps.pm.outputs.cmd }} add "$SDK_TARBALL"
+          WORKSPACE_FLAG=""
+          if [ "${{ steps.pm.outputs.cmd }}" == "pnpm" ] && [ -f pnpm-workspace.yaml ]; then
+            WORKSPACE_FLAG="-w"
+          fi
+          ${{ steps.pm.outputs.cmd }} add $WORKSPACE_FLAG "$SDK_TARBALL"
 
       - name: Build ${{ matrix.repo }}
         id: build
