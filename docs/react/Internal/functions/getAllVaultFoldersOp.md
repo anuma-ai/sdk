@@ -2,7 +2,7 @@
 
 > **getAllVaultFoldersOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md)): `Promise`<[`StoredVaultFolder`](../interfaces/StoredVaultFolder.md)\[]>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#52)
+Defined in: [src/lib/db/vaultFolders/operations.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#53)
 
 Get all non-deleted vault folders, sorted by creation date (newest first).
 

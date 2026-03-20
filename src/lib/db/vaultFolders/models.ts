@@ -10,5 +10,5 @@ export class VaultFolder extends Model {
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
   @field("is_system") isSystem!: boolean;
-  @text("context") context!: string;
+  @text("context") context!: string | null;
 }

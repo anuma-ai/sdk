@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v23**
+Current version: **v24**
 
 ```mermaid
 graph LR
@@ -114,6 +114,7 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 | `is_system` | boolean |  | ✓ |
+| `context` | string |  | ✓ |
 
 ## conversation_summaries
 
@@ -152,6 +153,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v24 | Added `context` to `vault_folders` |
 | v23 | Added `conversation_summaries` table |
 | v22 | Added `is_system` to `vault_folders` |
 | v21 | Added `embedding` to `memory_vault` |

@@ -24,7 +24,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
     isSystem: folder.isSystem ?? false,
-    context: folder.context || null,
+    context: folder.context ?? null,
   };
 }
 
@@ -213,13 +213,15 @@ export async function updateVaultFolderContextOp(
     const record = await ctx.vaultFolderCollection.find(id);
     if (record.isDeleted) return null;
 
-    await ctx.database.write(async () => {
-      await record.update((r) => {
-        r._setRaw("context", context);
-      });
+    const updated = await ctx.database.write(async () => {
+      await ctx.database.batch(
+        record.prepareUpdate((r) => {
+          r._setRaw("context", context);
+        })
+      );
+      return ctx.vaultFolderCollection.find(id);
     });
 
-    const updated = await ctx.vaultFolderCollection.find(id);
     return folderToStored(updated);
   } catch {
     return null;
