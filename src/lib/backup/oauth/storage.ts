@@ -136,7 +136,8 @@ export async function storeTokenData(
       );
       sessionStorage.setItem(key, json);
       throw new Error(
-        `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
+        `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   } else {

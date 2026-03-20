@@ -130,7 +130,7 @@ export function ICloudAuthProvider({
       }
     };
 
-    initCloudKit();
+    void initCloudKit();
   }, [apiToken, containerIdentifier, environment]);
 
   const requestAccess = useCallback(async (): Promise<void> => {
@@ -149,7 +149,9 @@ export function ICloudAuthProvider({
       setIsAuthenticated(true);
       setUserRecordName(userIdentity.userRecordName);
     } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
+      throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud", {
+        cause: err,
+      });
     }
   }, [isAuthenticated, isConfigured]);
 
