@@ -2,7 +2,7 @@
 
 > **UIInteractionProvider**(`__namedParameters`: [`UIInteractionProviderProps`](../type-aliases/UIInteractionProviderProps.md)): `ReactElement`
 
-Defined in: [src/react/useUIInteraction.ts:80](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#80)
+Defined in: [src/react/useUIInteraction.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#83)
 
 Provider for managing UI interactions between LLM tools and user.
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VaultMemoryOperationsContext } from "./operations";
 import {
   createVaultMemoryOp,
+  createVaultMemoriesBatchOp,
   getVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
@@ -29,6 +30,7 @@ function mockRecord(overrides: Record<string, any> = {}) {
     content: "test content",
     scope: "private",
     user_id: null,
+    folder_id: null,
     is_deleted: false,
     created_at: new Date("2025-01-01"),
     updated_at: new Date("2025-01-01"),
@@ -52,6 +54,9 @@ function mockRecord(overrides: Record<string, any> = {}) {
     },
     get userId() {
       return raw.user_id;
+    },
+    get folderId() {
+      return raw.folder_id ?? null;
     },
     _setRaw(key: string, value: any) {
       raw[key] = value;
@@ -758,5 +763,108 @@ describe("deleteAllVaultMemoriesForUserOp", () => {
 
     const count = await deleteAllVaultMemoriesForUserOp(ctx, "no_such_user");
     expect(count).toBe(0);
+  });
+});
+
+describe("createVaultMemoryOp — folderId field", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("sets folder_id when folderId is provided", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello", folderId: "folder_1" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("folder_id", "folder_1");
+  });
+
+  it("sets folder_id to null when folderId is omitted", async () => {
+    const ctx = makeCtx();
+    await createVaultMemoryOp(ctx, { content: "hello" });
+
+    const createFn = ctx.vaultMemoryCollection.create as ReturnType<typeof vi.fn>;
+    const builder = createFn.mock.calls[0][0];
+    const setRawSpy = vi.fn();
+    builder({ _setRaw: setRawSpy });
+    expect(setRawSpy).toHaveBeenCalledWith("folder_id", null);
+  });
+});
+
+describe("createVaultMemoriesBatchOp — folderId propagation", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("propagates per-item folderId to each record", async () => {
+    const setRawSpies: ReturnType<typeof vi.fn>[] = [];
+    const ctx = makeCtx({
+      database: {
+        write: vi.fn(async (cb: () => any) => cb()),
+        batch: vi.fn(async () => {}),
+      } as any,
+      vaultMemoryCollection: {
+        prepareCreate: vi.fn((builder: (r: any) => void) => {
+          const spy = vi.fn();
+          setRawSpies.push(spy);
+          builder({ _setRaw: spy });
+          // Return a mock record for vaultMemoryToStored
+          return mockRecord();
+        }),
+      } as any,
+    });
+
+    await createVaultMemoriesBatchOp(ctx, [
+      { content: "mem a", folderId: "folder_x" },
+      { content: "mem b" },
+    ]);
+
+    expect(setRawSpies[0]).toHaveBeenCalledWith("folder_id", "folder_x");
+    expect(setRawSpies[1]).toHaveBeenCalledWith("folder_id", null);
+  });
+});
+
+describe("getAllVaultMemoriesOp — folderId filtering", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("adds folderId WHERE clause when folderId is a string", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { folderId: "folder_1" });
+
+    // is_deleted + folder_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("adds folderId WHERE clause when folderId is null (unfiled)", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx, { folderId: null });
+
+    // is_deleted + folder_id + sortBy = 3 conditions
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(3);
+  });
+
+  it("does NOT add folderId clause when folderId is undefined", async () => {
+    const fetchFn = vi.fn(async () => []);
+    const queryFn = vi.fn((..._conditions: any[]) => ({ fetch: fetchFn }));
+    const ctx = makeCtx({
+      vaultMemoryCollection: { query: queryFn } as any,
+    });
+
+    await getAllVaultMemoriesOp(ctx);
+
+    // is_deleted + sortBy = 2 conditions (no folder_id)
+    const callArgs = queryFn.mock.calls[0];
+    expect(callArgs.length).toBe(2);
   });
 });

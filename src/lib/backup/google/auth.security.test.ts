@@ -12,6 +12,7 @@ declare const global: typeof globalThis;
 import { handleGoogleDriveCallback } from "./auth";
 import type { Client } from "../../../client/client";
 import { postAuthOauthByProviderExchange } from "../../../client/sdk.gen";
+import { setLogger, consoleLogger, type Logger } from "../../logger";
 
 // Mock the SDK function
 vi.mock("../../../client/sdk.gen", () => ({
@@ -65,8 +66,12 @@ const mockWindow = {
 };
 
 describe("SECURITY: Google Drive OAuth Error Handling", () => {
+  let mockLogger: Logger;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    setLogger(mockLogger);
     sessionStorageMock.clear();
     localStorageMock.clear();
 
@@ -91,6 +96,10 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     }
   });
 
+  afterEach(() => {
+    setLogger(consoleLogger);
+  });
+
   /**
    * SECURITY ISSUE: Errors in OAuth callbacks are silently caught and return null
    *
@@ -100,9 +109,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
    * FIXED: Errors now return OAuthResult with error details.
    */
   it("should log or throw errors in OAuth callbacks instead of silently returning null", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
     // Mock API call to throw an error
     vi.mocked(postAuthOauthByProviderExchange).mockRejectedValue(
       new Error("Encryption failed: Key not available")
@@ -115,11 +121,8 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     expect(result.error).toBeDefined();
     expect(result.error.code).toBeDefined();
     expect(result.error.message).toBeDefined();
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalled();
-
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    expect(mockLogger.error).toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalled();
   });
 
   /**
@@ -131,9 +134,6 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
    * FIXED: Encryption failures now return error result with encryption error code.
    */
   it("should handle encryption failures explicitly and distinguish them from other errors", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
     // Mock successful API response
     vi.mocked(postAuthOauthByProviderExchange).mockResolvedValue({
       data: {
@@ -160,7 +160,5 @@ describe("SECURITY: Google Drive OAuth Error Handling", () => {
     expect(result.error.message).toContain("encryption");
 
     storeSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
   });
 });

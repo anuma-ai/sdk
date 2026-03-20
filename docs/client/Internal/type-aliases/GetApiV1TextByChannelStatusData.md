@@ -2,7 +2,7 @@
 
 > **GetApiV1TextByChannelStatusData** = `object`
 
-Defined in: [src/client/types.gen.ts:4323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4323)
+Defined in: [src/client/types.gen.ts:4314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4314)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4323](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4324](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4324)
+Defined in: [src/client/types.gen.ts:4315](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4315)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4324](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4325)
+Defined in: [src/client/types.gen.ts:4316](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4316)
 
 **channel**
 
@@ -32,7 +32,7 @@ Text channel (sms, telegram)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4331)
+Defined in: [src/client/types.gen.ts:4322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4322)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:4331](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/text/{channel}/status"`
 
-Defined in: [src/client/types.gen.ts:4332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4332)
+Defined in: [src/client/types.gen.ts:4323](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4323)

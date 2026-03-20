@@ -168,11 +168,12 @@ export async function getVaultMemoryOp(
 
 export async function getAllVaultMemoriesOp(
   ctx: VaultMemoryOperationsContext,
-  options?: { scopes?: string[]; since?: Date; limit?: number }
+  options?: { scopes?: string[]; since?: Date; limit?: number; folderId?: string | null }
 ): Promise<StoredVaultMemory[]> {
   const conditions = [
     ...baseVaultConditions(ctx, options),
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
+    ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
     ...(options?.limit != null && options.limit > 0 ? [Q.take(options.limit)] : []),
   ];

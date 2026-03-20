@@ -2,7 +2,7 @@
 
 > **DropboxAuthProvider**(`__namedParameters`: [`DropboxAuthProviderProps`](../interfaces/DropboxAuthProviderProps.md)): `Element`
 
-Defined in: [src/react/useDropboxAuth.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#91)
+Defined in: [src/react/useDropboxAuth.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/react/useDropboxAuth.ts#92)
 
 Provider component for Dropbox OAuth authentication.
 

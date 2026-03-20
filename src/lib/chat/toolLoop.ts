@@ -435,6 +435,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
       toolIteration++;
+      sseError = null;
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
@@ -570,19 +571,26 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         }
       }
 
-      // Output tool results to thinking stream
+      // Output tool results to thinking stream (skip tools that won't continue
+      // to the LLM, as they can return very large results like 35K+ HTML that
+      // would block drain() for minutes at the smoother's character rate)
       if (onThinking) {
-        const resultsText = executionResults
-          .map((r) => {
-            if (r.error) {
-              return `${r.name}: Error - ${r.error}`;
-            }
-            const resultStr =
-              typeof r.result === "object" ? safeJsonStringify(r.result) : String(r.result);
-            return `${r.name}: ${resultStr}`;
-          })
-          .join("\n");
-        thinkingSmoother.push(`${resultsText}\n`);
+        const thinkingResults = executionResults.filter(
+          (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
+        );
+        if (thinkingResults.length > 0) {
+          const resultsText = thinkingResults
+            .map((r) => {
+              if (r.error) {
+                return `${r.name}: Error - ${r.error}`;
+              }
+              const resultStr =
+                typeof r.result === "object" ? safeJsonStringify(r.result) : String(r.result);
+              return `${r.name}: ${resultStr}`;
+            })
+            .join("\n");
+          thinkingSmoother.push(`${resultsText}\n`);
+        }
       }
 
       // Fire onStepFinish callback

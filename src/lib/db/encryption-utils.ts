@@ -4,6 +4,7 @@ import type {
   SignMessageFn,
 } from "../../react/useEncryption";
 import { decryptData, encryptData, requestEncryptionKey } from "../../react/useEncryption";
+import { getLogger } from "../logger";
 
 export type { EmbeddedWalletSignerFn, SignMessageFn };
 
@@ -90,7 +91,7 @@ export async function decryptField(value: string, address: string): Promise<stri
   try {
     return await decryptData(detected.encryptedData, address, detected.version);
   } catch (error) {
-    console.warn("Failed to decrypt field, returning as-is:", error);
+    getLogger().warn("Failed to decrypt field, returning as-is:", error);
     return value;
   }
 }
@@ -134,7 +135,7 @@ export async function decryptJsonField<T>(
   try {
     return JSON.parse(decrypted) as T;
   } catch (error) {
-    console.warn("Failed to parse decrypted JSON field:", error);
+    getLogger().warn("Failed to parse decrypted JSON field:", error);
     return undefined;
   }
 }

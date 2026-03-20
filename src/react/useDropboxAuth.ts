@@ -21,6 +21,7 @@ import {
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
 import { migrateUnencryptedTokens } from "../lib/backup/oauth/storage";
+import { getLogger } from "../lib/logger";
 
 /**
  * Props for DropboxAuthProvider
@@ -128,7 +129,7 @@ export function DropboxAuthProvider({
         if (result.ok) {
           setAccessToken(result.data);
         } else {
-          console.error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
+          getLogger().error(`Dropbox OAuth failed: ${result.error.code} - ${result.error.message}`);
         }
       }
     };

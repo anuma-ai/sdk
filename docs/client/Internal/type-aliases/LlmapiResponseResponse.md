@@ -2,7 +2,7 @@
 
 > **LlmapiResponseResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1591)
+Defined in: [src/client/types.gen.ts:1582](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1582)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1591](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **client\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1595)
+Defined in: [src/client/types.gen.ts:1586](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1586)
 
 ClientInjectedTools are tool names the client provided in the original request.
 
@@ -20,7 +20,7 @@ ClientInjectedTools are tool names the client provided in the original request.
 
 > `optional` **created\_at**: `number`
 
-Defined in: [src/client/types.gen.ts:1599](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1599)
+Defined in: [src/client/types.gen.ts:1590](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1590)
 
 Created is the Unix timestamp of creation (created\_at in OpenAI format)
 
@@ -30,7 +30,7 @@ Created is the Unix timestamp of creation (created\_at in OpenAI format)
 
 > `optional` **extra\_fields**: [`LlmapiResponseExtraFields`](LlmapiResponseExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:1600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1600)
+Defined in: [src/client/types.gen.ts:1591](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1591)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/client/types.gen.ts:1600](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1604)
+Defined in: [src/client/types.gen.ts:1595](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1595)
 
 ID is the unique response identifier
 
@@ -48,7 +48,7 @@ ID is the unique response identifier
 
 > `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:1611](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1611)
+Defined in: [src/client/types.gen.ts:1602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1602)
 
 Messages contains the full conversation history when local tools need execution.
 This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -61,7 +61,7 @@ plus the tool results appended.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:1615](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1615)
+Defined in: [src/client/types.gen.ts:1606](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1606)
 
 Model is the model used for generation
 
@@ -71,7 +71,7 @@ Model is the model used for generation
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:1619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1619)
+Defined in: [src/client/types.gen.ts:1610](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1610)
 
 Object is the response type (e.g., "response")
 
@@ -81,7 +81,7 @@ Object is the response type (e.g., "response")
 
 > `optional` **output**: [`LlmapiResponseOutputItem`](LlmapiResponseOutputItem.md)\[]
 
-Defined in: [src/client/types.gen.ts:1623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1623)
+Defined in: [src/client/types.gen.ts:1614](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1614)
 
 Output is the array of output items (OpenAI Responses API format)
 
@@ -91,7 +91,7 @@ Output is the array of output items (OpenAI Responses API format)
 
 > `optional` **portal\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1627)
+Defined in: [src/client/types.gen.ts:1618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1618)
 
 PortalInjectedTools are tool names the portal's classifier added to the request.
 
@@ -101,7 +101,7 @@ PortalInjectedTools are tool names the portal's classifier added to the request.
 
 > `optional` **tool\_call\_events**: [`LlmapiToolCallEvent`](LlmapiToolCallEvent.md)\[]
 
-Defined in: [src/client/types.gen.ts:1631](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1631)
+Defined in: [src/client/types.gen.ts:1622](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1622)
 
 ToolCallEvents is an array of tool call events.
 
@@ -111,7 +111,7 @@ ToolCallEvents is an array of tool call events.
 
 > `optional` **tools\_checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:1635](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1635)
+Defined in: [src/client/types.gen.ts:1626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1626)
 
 ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
@@ -121,4 +121,4 @@ ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
 > `optional` **usage**: [`LlmapiResponseUsage`](LlmapiResponseUsage.md)
 
-Defined in: [src/client/types.gen.ts:1636](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1636)
+Defined in: [src/client/types.gen.ts:1627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1627)

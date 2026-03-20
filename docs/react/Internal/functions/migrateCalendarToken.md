@@ -2,7 +2,7 @@
 
 > **migrateCalendarToken**(`walletAddress`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/google-calendar.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#572)
+Defined in: [src/lib/auth/google-calendar.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#573)
 
 Migrate unencrypted Calendar tokens to encrypted wallet-scoped storage.
 Call this when a wallet address and encryption key become available

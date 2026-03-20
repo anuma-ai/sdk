@@ -2,7 +2,7 @@
 
 > **ModelsRegisterTextRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1739](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1739)
+Defined in: [src/client/types.gen.ts:1730](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1730)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1739](https://github.com/anuma-ai/sdk/blob/
 
 > **identifier**: `string`
 
-Defined in: [src/client/types.gen.ts:1740](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1740)
+Defined in: [src/client/types.gen.ts:1731](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1731)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:1740](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **preferred\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:1741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1741)
+Defined in: [src/client/types.gen.ts:1732](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1732)

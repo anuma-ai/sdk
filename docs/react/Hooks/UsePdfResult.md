@@ -1,6 +1,6 @@
 # UsePdfResult
 
-Defined in: [src/react/usePdf.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#17)
+Defined in: [src/react/usePdf.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#18)
 
 Result returned by the usePdf hook.
 
@@ -10,7 +10,7 @@ Result returned by the usePdf hook.
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/usePdf.ts:23](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#23)
+Defined in: [src/react/usePdf.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#24)
 
 Error from the last PDF extraction attempt
 
@@ -20,7 +20,7 @@ Error from the last PDF extraction attempt
 
 > **extractPdfContext**: (`files`: [`PdfFile`](../Internal/interfaces/PdfFile.md)\[]) => `Promise`<`string` | `null`>
 
-Defined in: [src/react/usePdf.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#19)
+Defined in: [src/react/usePdf.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#20)
 
 Extract text from PDF files
 
@@ -59,6 +59,6 @@ Extract text from PDF files
 
 > **isProcessing**: `boolean`
 
-Defined in: [src/react/usePdf.ts:21](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#21)
+Defined in: [src/react/usePdf.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/usePdf.ts#22)
 
 Whether PDF processing is in progress

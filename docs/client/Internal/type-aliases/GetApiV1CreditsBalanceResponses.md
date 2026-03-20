@@ -2,7 +2,7 @@
 
 > **GetApiV1CreditsBalanceResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:2558](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2558)
+Defined in: [src/client/types.gen.ts:2549](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2549)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:2558](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCreditBalanceResponse`](HandlersCreditBalanceResponse.md)
 
-Defined in: [src/client/types.gen.ts:2562](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2562)
+Defined in: [src/client/types.gen.ts:2553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2553)
 
 OK

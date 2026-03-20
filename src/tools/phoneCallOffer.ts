@@ -93,6 +93,7 @@ export function createPhoneCallOfferTool(options: CreateUIToolsOptions): ToolCon
             .filter((question): question is string => typeof question === "string")
             .map((question) => question.trim())
             .filter(Boolean)
+            .slice(0, MAX_SUGGESTED_QUESTIONS)
         : undefined;
       const contextSummary =
         typeof args.contextSummary === "string" ? args.contextSummary.trim() : undefined;
@@ -108,11 +109,6 @@ export function createPhoneCallOfferTool(options: CreateUIToolsOptions): ToolCon
       }
       if (!canNormalizePhoneNumber(phoneNumber)) {
         return { error: `Invalid phone number for phone call offer: ${phoneNumber}` };
-      }
-      if (suggestedQuestions && suggestedQuestions.length > MAX_SUGGESTED_QUESTIONS) {
-        return {
-          error: `Phone call offers support at most ${MAX_SUGGESTED_QUESTIONS} suggested questions`,
-        };
       }
 
       return {

@@ -1,4 +1,4 @@
-export { Conversation, Message } from "./models";
+export { Conversation, ConversationSummary, Message } from "./models";
 export {
   clearMessagesOp,
   createConversationOp,
@@ -23,6 +23,12 @@ export {
 } from "./operations";
 export { chatStorageMigrations, chatStorageSchema } from "./schema";
 export {
+  createSummaryContext,
+  deleteConversationSummaryOp,
+  getConversationSummaryOp,
+  upsertConversationSummaryOp,
+} from "./summaryOperations";
+export {
   type ActivityPhase,
   type BaseSendMessageWithStorageArgs,
   type BaseSendMessageWithStorageResult,
@@ -45,6 +51,7 @@ export {
   type ServerToolsFilter,
   type ServerToolsFilterFn,
   type StoredConversation,
+  type StoredConversationSummary,
   type StoredFileWithContext,
   type StoredMessage,
   type StoredMessageWithSimilarity,

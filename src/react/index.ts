@@ -58,6 +58,12 @@
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
 export { useChat } from "./useChat";
 
+// Pluggable logger
+export type { Logger } from "../lib/logger";
+export { consoleLogger, getLogger, noopLogger, setLogger } from "../lib/logger";
+export type { LoggerProviderProps } from "./LoggerProvider";
+export { LoggerProvider } from "./LoggerProvider";
+
 // Chart display components
 export type { ChartCardProps, ChartConfig } from "./chart";
 export {
@@ -345,6 +351,10 @@ export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useOCR } from "./useOCR";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { usePdf } from "./usePdf";
+export type { PdfExportOptions } from "../lib/pdf-export";
+export { exportElementToPdf, exportMarkdownToPdf } from "../lib/pdf-export";
+export type { UseExportPdfResult } from "./useExportPdf";
+export { useExportPdf } from "./useExportPdf";
 export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
 export { useVoice } from "./useVoice";
 

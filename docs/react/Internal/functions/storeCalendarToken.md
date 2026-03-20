@@ -2,7 +2,7 @@
 
 > **storeCalendarToken**(`accessToken`: `string`, `expiresIn?`: `number`, `refreshToken?`: `string`, `scope?`: `string`, `walletAddress?`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/auth/google-calendar.ts:546](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#546)
+Defined in: [src/lib/auth/google-calendar.ts:547](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/google-calendar.ts#547)
 
 Store Calendar token data (for external use)
 
