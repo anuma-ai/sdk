@@ -76,7 +76,7 @@ export class ResponsesStrategy implements ApiStrategy {
       // Only extract content from the response if streaming deltas haven't already
       // populated the accumulator. This prevents double-counting when the portal sends
       // both real-time deltas AND a final response event with the same text.
-      const hasStreamedContent = accumulator.content.length > 0 || accumulator.thinking.length > 0;
+      const hasStreamedContent = accumulator.content.length > 0;
 
       const output = resp.output as
         | Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
