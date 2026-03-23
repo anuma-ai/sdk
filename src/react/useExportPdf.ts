@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
-import type { PdfExportOptions } from "../lib/pdf-export";
-import { exportElementToPdf, exportMarkdownToPdf } from "../lib/pdf-export";
+import type { PdfExportOptions, PdfExportProgress } from "../lib/pdf-export";
+import { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
 
 /**
  * Result returned by the useExportPdf hook.
@@ -16,8 +16,12 @@ export interface UseExportPdfResult {
   downloadElementAsPdf: (element: HTMLElement, options?: PdfExportOptions) => Promise<void>;
   /** Convenience: export markdown and trigger browser download */
   downloadMarkdownAsPdf: (markdown: string, options?: PdfExportOptions) => Promise<void>;
+  /** Render an element to canvas for preview (first half of DOM capture pipeline) */
+  renderElementToCanvas: (element: HTMLElement) => Promise<HTMLCanvasElement>;
   /** Whether a PDF export is currently in progress */
   isExporting: boolean;
+  /** Current export progress, or null when idle */
+  progress: PdfExportProgress | null;
   /** Error from the last export attempt */
   error: Error | null;
 }
@@ -49,18 +53,26 @@ function toError(err: unknown): Error {
  * - **Headless** (`exportMarkdownToPdf` / `downloadMarkdownAsPdf`): converts raw
  *   markdown to a formatted PDF without requiring a DOM.
  *
+ * Exposes `progress` state that updates in real-time during export, and
+ * `renderElementToCanvas` for producing a preview before building the PDF.
+ *
  * @category Hooks
  */
 export function useExportPdf(): UseExportPdfResult {
   const [isExporting, setIsExporting] = useState(false);
+  const [progress, setProgress] = useState<PdfExportProgress | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   const wrappedExportElement = useCallback(
-    async (...args: Parameters<typeof exportElementToPdf>): Promise<Blob> => {
+    async (element: HTMLElement, options?: PdfExportOptions): Promise<Blob> => {
       setIsExporting(true);
       setError(null);
+      setProgress({ stage: "preparing", percent: 0 });
       try {
-        return await exportElementToPdf(...args);
+        return await exportElementToPdf(element, {
+          ...options,
+          onProgress: setProgress,
+        });
       } catch (err) {
         const processed = toError(err);
         setError(processed);
@@ -73,11 +85,15 @@ export function useExportPdf(): UseExportPdfResult {
   );
 
   const wrappedExportMarkdown = useCallback(
-    async (...args: Parameters<typeof exportMarkdownToPdf>): Promise<Blob> => {
+    async (markdown: string, options?: PdfExportOptions): Promise<Blob> => {
       setIsExporting(true);
       setError(null);
+      setProgress({ stage: "preparing", percent: 0 });
       try {
-        return await exportMarkdownToPdf(...args);
+        return await exportMarkdownToPdf(markdown, {
+          ...options,
+          onProgress: setProgress,
+        });
       } catch (err) {
         const processed = toError(err);
         setError(processed);
@@ -105,12 +121,33 @@ export function useExportPdf(): UseExportPdfResult {
     [wrappedExportMarkdown]
   );
 
+  const wrappedRenderToCanvas = useCallback(
+    async (element: HTMLElement): Promise<HTMLCanvasElement> => {
+      setIsExporting(true);
+      setError(null);
+      setProgress({ stage: "preparing", percent: 0 });
+      try {
+        const canvas = await renderElementToCanvas(element, { onProgress: setProgress });
+        return canvas;
+      } catch (err) {
+        const processed = toError(err);
+        setError(processed);
+        throw processed;
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    []
+  );
+
   return {
     exportElementToPdf: wrappedExportElement,
     exportMarkdownToPdf: wrappedExportMarkdown,
     downloadElementAsPdf,
     downloadMarkdownAsPdf,
+    renderElementToCanvas: wrappedRenderToCanvas,
     isExporting,
+    progress,
     error,
   };
 }
