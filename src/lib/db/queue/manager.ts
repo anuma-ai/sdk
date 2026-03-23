@@ -14,7 +14,6 @@
 import { v7 as uuidv7 } from "uuid";
 
 import { getLogger } from "../../logger";
-
 import type {
   FlushResult,
   OperationExecutor,

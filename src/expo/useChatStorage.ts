@@ -58,6 +58,7 @@ import {
   type QueueStatus,
   WalletPoller,
 } from "../lib/db/queue";
+import { getLogger } from "../lib/logger";
 import {
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
@@ -69,7 +70,6 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
-import { getLogger } from "../lib/logger";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";

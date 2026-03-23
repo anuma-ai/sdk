@@ -18,6 +18,7 @@ import {
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type ActivityPhase,
   type BaseSendMessageWithStorageArgs,
@@ -82,6 +83,7 @@ import {
   type QueueStatus,
   WalletPoller,
 } from "../lib/db/queue";
+import { getLogger } from "../lib/logger";
 import {
   chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
@@ -92,6 +94,7 @@ import {
   type MemoryEngineSearchOptions,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
@@ -128,9 +131,6 @@ import { useChat } from "./useChat";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import { onKeyAvailable } from "./useEncryption";
-import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
-import { getLogger } from "../lib/logger";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;

@@ -41,13 +41,13 @@ import {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
+import { getLogger } from "../lib/logger";
 import {
   BlobUrlManager,
   isOPFSSupported,
   readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
-import { getLogger } from "../lib/logger";
 import { getEncryptionKey, hasEncryptionKey, onKeyAvailable } from "./useEncryption";
 
 /**

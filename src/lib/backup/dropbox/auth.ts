@@ -9,12 +9,12 @@
  */
 
 import type { Client } from "../../../client/client";
-import { getLogger } from "../../logger";
 import {
   postAuthOauthByProviderExchange,
   postAuthOauthByProviderRefresh,
   postAuthOauthByProviderRevoke,
 } from "../../../client/sdk.gen";
+import { getLogger } from "../../logger";
 import {
   clearTokenData,
   getRefreshToken,

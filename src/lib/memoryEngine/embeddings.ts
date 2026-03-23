@@ -5,7 +5,6 @@
  */
 
 import { postApiV1Embeddings } from "../../client";
-import { getLogger } from "../logger";
 import { BASE_URL } from "../../clientConfig";
 import {
   getConversationsOp,
@@ -15,6 +14,7 @@ import {
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
 import type { MessageChunk, StoredMessage } from "../db/chat/types";
+import { getLogger } from "../logger";
 import {
   type ChunkingOptions,
   chunkText,

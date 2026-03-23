@@ -95,3 +95,31 @@ export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/
 // Pluggable logger
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";
+
+// Persona (prompt building + style analysis)
+export type {
+  AnalyzeStyleOptions,
+  AnalyzeStyleResult,
+  BuildPromptOptions,
+  BuildPromptResult,
+  PromptContext,
+  PromptSection,
+  PromptTemplates,
+  StyleAnalysisSchedule,
+} from "./lib/persona";
+export {
+  analyzeStyle,
+  buildSystemPrompt,
+  DEFAULT_ANALYSIS_PROMPT,
+  DEFAULT_ANALYZE_AFTER_MESSAGES,
+  DEFAULT_DOCUMENT_PATTERN,
+  DEFAULT_MAX_INPUT_MESSAGES,
+  DEFAULT_MAX_PROFILE_LENGTH,
+  DEFAULT_MIN_MESSAGES,
+  DEFAULT_PROMPT_TEMPLATES,
+  DEFAULT_REFRESH_EVERY_MESSAGES,
+  LANGUAGE_NAMES,
+  renderTemplate,
+  sanitizeQuotes,
+  shouldAnalyzeStyle,
+} from "./lib/persona";

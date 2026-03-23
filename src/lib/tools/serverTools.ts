@@ -7,9 +7,9 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
+import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
-import { getLogger } from "../logger";
 
 /** Tool parameters schema */
 interface ToolParameters {
