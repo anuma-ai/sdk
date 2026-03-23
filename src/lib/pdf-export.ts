@@ -214,6 +214,35 @@ function tokensToPlainText(tokens: Token[]): string {
 }
 
 // ---------------------------------------------------------------------------
+// CSS sanitization for html2canvas compatibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace CSS color functions unsupported by html2canvas (oklch, lab, lch,
+ * oklab, color()) with a neutral fallback. html2canvas has its own CSS
+ * parser that throws on these modern color functions (Tailwind CSS v4 uses
+ * oklch extensively). We replace with a context-appropriate fallback rather
+ * than stripping colors entirely.
+ *
+ * The regex handles nested parentheses (e.g. `oklch(0.5 0.1 200 / 0.8)`)
+ * by matching balanced parens up to one level deep.
+ */
+const UNSUPPORTED_COLOR_FN_RE = /\b(?:oklch|lab|lch|oklab|color)\((?:[^()]*|\([^()]*\))*\)/g;
+
+function sanitizeCssForHtml2Canvas(cssText: string): string {
+  return cssText.replace(UNSUPPORTED_COLOR_FN_RE, (match) => {
+    // Preserve alpha channel if present (e.g. oklch(... / 0.5) → rgba(0,0,0,0.5))
+    const alphaMatch = match.match(/\/\s*([\d.]+)\s*\)$/);
+    if (alphaMatch?.[1]) {
+      return `rgba(0, 0, 0, ${alphaMatch[1]})`;
+    }
+    // Default: opaque black (safe for text) — backgrounds are forced to white
+    // on the clone anyway, so this primarily affects text/border colors
+    return "#000000";
+  });
+}
+
+// ---------------------------------------------------------------------------
 // DOM capture path — renderElementToCanvas + exportElementToPdf
 // ---------------------------------------------------------------------------
 
@@ -261,7 +290,7 @@ export async function renderElementToCanvas(
         .map((rule) => rule.cssText)
         .join("\n");
       const style = iframeDoc.createElement("style");
-      style.textContent = cssText;
+      style.textContent = sanitizeCssForHtml2Canvas(cssText);
       iframeDoc.head.appendChild(style);
     } catch {
       // Cross-origin sheet — fall back to async <link> and track the load promise

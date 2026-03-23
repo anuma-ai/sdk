@@ -2,7 +2,7 @@
 
 > **exportElementToPdf**(`element`: `HTMLElement`, `options?`: [`PdfExportOptions`](PdfExportOptions.md)): `Promise`<`Blob`>
 
-Defined in: [src/lib/pdf-export.ts:325](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#325)
+Defined in: [src/lib/pdf-export.ts:354](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#354)
 
 Capture a rendered HTML element as a high-fidelity PDF.
 

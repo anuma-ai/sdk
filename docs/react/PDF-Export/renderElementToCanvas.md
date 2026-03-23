@@ -2,7 +2,7 @@
 
 > **renderElementToCanvas**(`element`: `HTMLElement`, `options?`: `Pick`<[`PdfExportOptions`](PdfExportOptions.md), `"onProgress"`>): `Promise`<`HTMLCanvasElement`>
 
-Defined in: [src/lib/pdf-export.ts:230](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#230)
+Defined in: [src/lib/pdf-export.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#259)
 
 Render a DOM element to a canvas using iframe isolation.
 
