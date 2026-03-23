@@ -232,9 +232,10 @@ const UNSUPPORTED_COLOR_FN_RE = /\b(?:oklch|lab|lch|oklab|color)\((?:[^()]*|\([^
 function sanitizeCssForHtml2Canvas(cssText: string): string {
   return cssText.replace(UNSUPPORTED_COLOR_FN_RE, (match) => {
     // Preserve alpha channel if present (e.g. oklch(... / 0.5) → rgba(0,0,0,0.5))
-    const alphaMatch = match.match(/\/\s*([\d.]+)\s*\)$/);
+    const alphaMatch = match.match(/\/\s*([\d.]+)%?\s*\)$/);
     if (alphaMatch?.[1]) {
-      return `rgba(0, 0, 0, ${alphaMatch[1]})`;
+      const alpha = alphaMatch[0].includes("%") ? parseFloat(alphaMatch[1]) / 100 : alphaMatch[1];
+      return `rgba(0, 0, 0, ${alpha})`;
     }
     // Default: opaque black (safe for text) — backgrounds are forced to white
     // on the clone anyway, so this primarily affects text/border colors
