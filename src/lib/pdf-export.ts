@@ -214,6 +214,65 @@ function tokensToPlainText(tokens: Token[]): string {
 }
 
 // ---------------------------------------------------------------------------
+// Computed color inlining for html2canvas compatibility
+// ---------------------------------------------------------------------------
+
+/**
+ * CSS properties whose values may contain color functions that html2canvas
+ * cannot parse (oklch, lab, lch, oklab, color). We inline these from the
+ * browser's computed styles (already resolved to rgb/rgba) so html2canvas
+ * never encounters the raw modern syntax.
+ */
+const COLOR_PROPS = [
+  "color",
+  "background-color",
+  "border-color",
+  "border-top-color",
+  "border-right-color",
+  "border-bottom-color",
+  "border-left-color",
+  "outline-color",
+  "text-decoration-color",
+] as const;
+
+/**
+ * Walk the source element tree and inline computed color values onto the
+ * corresponding clone nodes. The browser resolves modern color functions
+ * (oklch, lab, etc.) to rgb/rgba in computed styles, which html2canvas
+ * can parse without error.
+ */
+function inlineComputedColors(source: Element, clone: Element): void {
+  if (source instanceof HTMLElement && clone instanceof HTMLElement) {
+    const computed = getComputedStyle(source);
+    for (const prop of COLOR_PROPS) {
+      const value = computed.getPropertyValue(prop);
+      if (value) {
+        clone.style.setProperty(prop, value);
+      }
+    }
+  }
+
+  const srcChildren = source.children;
+  const clnChildren = clone.children;
+  const len = Math.min(srcChildren.length, clnChildren.length);
+  for (let i = 0; i < len; i++) {
+    inlineComputedColors(srcChildren[i], clnChildren[i]);
+  }
+}
+
+/**
+ * Strip CSS color functions that html2canvas cannot parse from raw CSS text.
+ * Used as a safety net for stylesheet rules — even though we inline computed
+ * colors on elements, html2canvas may still read raw rules for pseudo-elements
+ * or cascading. Replaces with transparent to avoid parse errors.
+ */
+const UNSUPPORTED_COLOR_FN_RE = /\b(?:oklch|lab|lch|oklab|color)\((?:[^()]*|\([^()]*\))*\)/g;
+
+function sanitizeCssForHtml2Canvas(cssText: string): string {
+  return cssText.replace(UNSUPPORTED_COLOR_FN_RE, "transparent");
+}
+
+// ---------------------------------------------------------------------------
 // DOM capture path — renderElementToCanvas + exportElementToPdf
 // ---------------------------------------------------------------------------
 
@@ -261,7 +320,7 @@ export async function renderElementToCanvas(
         .map((rule) => rule.cssText)
         .join("\n");
       const style = iframeDoc.createElement("style");
-      style.textContent = cssText;
+      style.textContent = sanitizeCssForHtml2Canvas(cssText);
       iframeDoc.head.appendChild(style);
     } catch {
       // Cross-origin sheet — fall back to async <link> and track the load promise
@@ -292,6 +351,13 @@ export async function renderElementToCanvas(
   clone.style.color = "#1a1a1a";
   clone.classList.remove("dark:prose-invert");
   iframeDoc.body.appendChild(clone);
+
+  // Inline browser-computed colors (rgb/rgba) onto clone nodes so html2canvas
+  // doesn't encounter raw oklch/lab values. Must happen after appending to
+  // iframe so the clone inherits the stylesheet context for computed style
+  // resolution — but we read from the *source* element (on the main page)
+  // which already has correct computed values.
+  inlineComputedColors(element, clone);
 
   // Remove dark class from iframe's document root (not the main page)
   iframeDoc.documentElement.classList.remove("dark");
