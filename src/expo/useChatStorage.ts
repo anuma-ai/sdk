@@ -73,17 +73,8 @@ import { getLogger } from "../lib/logger";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
+import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { useChat } from "./useChat";
-
-/** Image tool names recognized by the MCP image pipeline. */
-const IMAGE_TOOL_NAMES = new Set([
-  "AnumaImageMCP_generate_cloud_image",
-  "AnumaImageMCP_edit_cloud_image",
-  "AnumaImageMCP-generate_cloud_image",
-  "AnumaImageMCP-edit_cloud_image",
-  "generate_cloud_image",
-  "edit_cloud_image",
-]);
 
 /**
  * Extract the image generation model name from tool_call_events.

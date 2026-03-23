@@ -18,9 +18,9 @@ interface ExtractedImageUrl {
 }
 
 /** Image tool names recognized by the MCP image pipeline. */
-const IMAGE_TOOL_NAMES = new Set([
-  "AnumaImageMCP_generate_cloud_image",
-  "AnumaImageMCP_edit_cloud_image",
+export const IMAGE_TOOL_NAMES = new Set([
+  "AnumaImageMCP-generate_cloud_image",
+  "AnumaImageMCP-edit_cloud_image",
   "generate_cloud_image",
   "edit_cloud_image",
 ]);
