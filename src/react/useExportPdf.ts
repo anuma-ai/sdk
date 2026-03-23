@@ -71,7 +71,10 @@ export function useExportPdf(): UseExportPdfResult {
       try {
         return await exportElementToPdf(element, {
           ...options,
-          onProgress: setProgress,
+          onProgress: (p) => {
+            setProgress(p);
+            options?.onProgress?.(p);
+          },
         });
       } catch (err) {
         const processed = toError(err);
@@ -79,6 +82,7 @@ export function useExportPdf(): UseExportPdfResult {
         throw processed;
       } finally {
         setIsExporting(false);
+        setProgress(null);
       }
     },
     []
@@ -92,7 +96,10 @@ export function useExportPdf(): UseExportPdfResult {
       try {
         return await exportMarkdownToPdf(markdown, {
           ...options,
-          onProgress: setProgress,
+          onProgress: (p) => {
+            setProgress(p);
+            options?.onProgress?.(p);
+          },
         });
       } catch (err) {
         const processed = toError(err);
@@ -100,6 +107,7 @@ export function useExportPdf(): UseExportPdfResult {
         throw processed;
       } finally {
         setIsExporting(false);
+        setProgress(null);
       }
     },
     []
@@ -135,6 +143,7 @@ export function useExportPdf(): UseExportPdfResult {
         throw processed;
       } finally {
         setIsExporting(false);
+        setProgress(null);
       }
     },
     []
