@@ -135,7 +135,7 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
     (responseChecksum: string | undefined): boolean => {
       if (shouldRefreshTools(responseChecksum)) {
         // Trigger refresh in background (don't await)
-        refresh(true);
+        void refresh(true);
         return true;
       }
       return false;
@@ -155,7 +155,7 @@ export function useTools(options: UseToolsOptions): UseToolsResult {
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      fetchTools();
+      void fetchTools();
     }
     if (!autoFetch) {
       hasFetchedRef.current = false;

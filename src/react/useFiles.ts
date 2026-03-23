@@ -222,7 +222,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
       }
     };
 
-    initCollection();
+    void initCollection();
   }, [database]);
 
   // Media operations context - only valid when isReady is true
@@ -580,6 +580,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const fileHandle = await filesDir.getFileHandle(mediaId);
         return await fileHandle.getFile();
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error
         throw new Error(`File could not be found: ${mediaId}`);
       }
     },

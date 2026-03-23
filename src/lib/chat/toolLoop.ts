@@ -142,6 +142,18 @@ export type RunToolLoopOptions = {
    * `fetch` response body streaming isn't available in RN.
    */
   transport?: StreamingTransport;
+  /**
+   * Called before the first LLM request with the last user message text.
+   * If the callback resolves to `true`, the caller should inject web
+   * search results into the conversation (e.g. via a search context message).
+   * The tool loop itself does not perform the search — it only invokes
+   * the classifier and reports the result through this callback.
+   */
+  onWebSearchClassification?: (result: {
+    needsWebSearch: boolean;
+    searchScore: number;
+    noSearchScore: number;
+  }) => void | Promise<void>;
 };
 
 export type RunToolLoopResult =
@@ -259,6 +271,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
+    onWebSearchClassification,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
@@ -285,6 +298,38 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   if (signal?.aborted) {
     return { data: null, error: "Request aborted" };
+  }
+
+  // Run web search classifier if callback provided
+  if (onWebSearchClassification) {
+    try {
+      // Extract the last user message text
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+      if (lastUserMsg) {
+        const text =
+          typeof lastUserMsg.content === "string"
+            ? lastUserMsg.content
+            : Array.isArray(lastUserMsg.content)
+              ? lastUserMsg.content
+                  .filter((c: any) => c.type === "text")
+                  .map((c: any) => c.text)
+                  .join(" ")
+              : "";
+
+        if (text.length > 0) {
+          const { classifyWebSearch } = await import("./webSearchClassifier");
+          const classification = await classifyWebSearch(text, {
+            apiKey: headers?.["X-API-Key"],
+            getToken: token ? async () => token : undefined,
+            baseUrl,
+          });
+          await onWebSearchClassification(classification);
+        }
+      }
+    } catch (err) {
+      // Classifier failure is non-fatal — proceed without classification
+      console.warn("[runToolLoop] Web search classification failed:", err);
+    }
   }
 
   try {

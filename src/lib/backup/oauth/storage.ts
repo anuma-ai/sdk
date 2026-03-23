@@ -135,6 +135,7 @@ export async function storeTokenData(
         error
       );
       sessionStorage.setItem(key, json);
+      // eslint-disable-next-line preserve-caught-error
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
       );
