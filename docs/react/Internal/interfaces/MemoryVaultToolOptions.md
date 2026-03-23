@@ -26,9 +26,9 @@ Defined in: [src/lib/memoryVault/tool.ts:46](https://github.com/anuma-ai/sdk/blo
 Callback invoked before each save operation.
 Return `true` to confirm the save, `false` to cancel it.
 
-When provided, the tool uses autoExecute with the confirmation
-built into the executor. When not provided, the tool uses
-autoExecute: false so the host app can handle it via onToolCall.
+When provided, the confirmation is built into the executor.
+When not provided, the tool has no executor and is emitted
+via onToolCall so the host app can handle it.
 
 **Parameters**
 

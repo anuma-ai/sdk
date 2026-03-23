@@ -41,7 +41,7 @@ import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
-import type { ServerToolCallEvent } from "./useChat/utils";
+import type { ServerToolCallEvent, ToolExecutionErrorType } from "./useChat/utils";
 import {
   createStreamAccumulator,
   createToolExecutorMap,
@@ -72,7 +72,12 @@ export type StepFinishEvent = {
   /** Tool calls the model made in this round. */
   toolCalls: Array<{ name: string; arguments: string }>;
   /** Results from auto-executed tools in this round. */
-  toolResults: Array<{ name: string; result: unknown; error?: string }>;
+  toolResults: Array<{
+    name: string;
+    result: unknown;
+    error?: string;
+    errorType?: ToolExecutionErrorType;
+  }>;
   /** Token usage for this round, if available. */
   usage: { inputTokens?: number; outputTokens?: number };
 };
@@ -127,7 +132,7 @@ export type RunToolLoopOptions = {
   onFinish?: (response: ApiResponse) => void;
   /** Called when an unexpected error occurs (not called for aborts). */
   onError?: (error: Error) => void;
-  /** Called for tool calls that don't have an executor or have autoExecute=false. */
+  /** Called for tool calls that don't have an executor (e.g. server-side tools). */
   onToolCall?: (toolCall: LlmapiToolCall) => void;
   /** Called when a server-side tool (MCP) is invoked during streaming. */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
@@ -142,6 +147,13 @@ export type RunToolLoopOptions = {
    * `fetch` response body streaming isn't available in RN.
    */
   transport?: StreamingTransport;
+  /**
+   * Maximum number of connector tool calls (notion, google calendar, google drive)
+   * before they are removed from subsequent rounds. Set to `Infinity` to disable.
+   * Only applies to fast models (cerebras) by default.
+   * @default 2
+   */
+  maxConnectorCalls?: number;
 };
 
 export type RunToolLoopResult =
@@ -259,6 +271,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onServerToolCall,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
+    maxConnectorCalls = 2,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
@@ -394,11 +407,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-      // Determine which tools to execute vs emit as events
+      // Execute tools that have an executor; emit onToolCall for the rest
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
 
-        if (executorConfig && executorConfig.autoExecute) {
+        if (executorConfig) {
           toolCallsToExecute.push(toolCall);
         } else {
           if (onToolCall) {
@@ -447,27 +460,32 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             };
           }
 
-          const { result, error } = await executeToolCall(toolCall, executorConfig.executor);
+          const { result, error, errorType } = await executeToolCall(
+            toolCall,
+            executorConfig.executor,
+            executorConfig.executorTimeout
+          );
 
           return {
             id: toolCall.id,
             name: toolCall.name,
             result,
             error,
+            errorType,
           };
         })
       );
 
-      // Remove connector tools after 2 total calls (fast models only)
+      // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
-      if (isFastModel && apiTools) {
+      if (isFastModel && apiTools && isFinite(maxConnectorCalls)) {
         for (const tc of toolCallsToExecute) {
           if (isConnectorTool(tc.name)) {
             connectorCallCount.total++;
           }
         }
 
-        if (connectorCallCount.total >= 2) {
+        if (connectorCallCount.total >= maxConnectorCalls) {
           apiTools = apiTools.filter((t) => {
             const name = (t as any).function?.name || (t as any).name;
             return !name || !isConnectorTool(name);
@@ -476,7 +494,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             apiTools = undefined;
             toolChoice = undefined;
           } else if (typeof toolChoice === "string" && isConnectorTool(toolChoice)) {
-            toolChoice = undefined;
+            toolChoice = "auto";
           }
           for (const [name] of executorMap) {
             if (isConnectorTool(name)) executorMap.delete(name);
@@ -517,7 +535,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               apiTools = undefined;
               toolChoice = undefined;
             } else if (typeof toolChoice === "string" && toolsToRemove.has(toolChoice)) {
-              toolChoice = undefined;
+              toolChoice = "auto";
             }
             for (const name of toolsToRemove) {
               executorMap.delete(name);
@@ -561,6 +579,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             name: r.name ?? "",
             result: r.result,
             ...(r.error ? { error: r.error } : undefined),
+            ...(r.errorType ? { errorType: r.errorType } : undefined),
           })),
           usage: {
             inputTokens: currentAccumulator.usage.prompt_tokens,
@@ -572,10 +591,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
-      // Build tool result messages
-      const continueResults = executionResults.filter(
-        (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
-      );
+      // Build tool result messages — exclude tools with skipContinuation
+      const continueResults = executionResults.filter((r) => {
+        if (!r.name) return false;
+        return executorMap.get(r.name)?.skipContinuation !== true;
+      });
 
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {

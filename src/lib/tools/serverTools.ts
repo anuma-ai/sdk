@@ -456,7 +456,7 @@ export function filterServerTools(
 
 /**
  * Convert client tool to Responses API format.
- * Preserves executor and autoExecute for client-side execution.
+ * Preserves executor for client-side execution.
  */
 function clientToolToResponsesFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -477,14 +477,14 @@ function clientToolToResponsesFormat(
     parameters: func.parameters || func.arguments,
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
-    ...(toolConfig.autoExecute !== undefined && {
-      autoExecute: toolConfig.autoExecute,
-    }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
     }),
     ...(toolConfig.removeAfterExecution !== undefined && {
       removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
+    ...(toolConfig.executorTimeout !== undefined && {
+      executorTimeout: toolConfig.executorTimeout,
     }),
   };
 }
@@ -492,7 +492,7 @@ function clientToolToResponsesFormat(
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
+ * Preserves executor, skipContinuation, removeAfterExecution, and executorTimeout for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
@@ -521,14 +521,14 @@ function clientToolToCompletionsFormat(
     },
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
-    ...(toolConfig.autoExecute !== undefined && {
-      autoExecute: toolConfig.autoExecute,
-    }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
     }),
     ...(toolConfig.removeAfterExecution !== undefined && {
       removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
+    ...(toolConfig.executorTimeout !== undefined && {
+      executorTimeout: toolConfig.executorTimeout,
     }),
   };
 }

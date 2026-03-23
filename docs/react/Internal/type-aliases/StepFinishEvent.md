@@ -58,6 +58,10 @@ Results from auto-executed tools in this round.
 
 > `optional` **error**: `string`
 
+**errorType?**
+
+> `optional` **errorType**: `ToolExecutionErrorType`
+
 **name**
 
 > **name**: `string`
@@ -72,7 +76,7 @@ Results from auto-executed tools in this round.
 
 > **usage**: `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#77)
+Defined in: [src/lib/chat/toolLoop.ts:82](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#82)
 
 Token usage for this round, if available.
 

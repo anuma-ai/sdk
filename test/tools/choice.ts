@@ -4,28 +4,29 @@
  * Verifies that the model calls prompt_user_choice with a valid title
  * and options array when asked to present choices to the user.
  *
- * Interactive tools have autoExecute: false, so the tool loop emits them
- * via onToolCall rather than executing them directly. We capture the call
- * and validate the LLM-provided arguments.
+ * The tool uses an auto-resolving mock context so the executor returns
+ * immediately with the simulated user selection.
  */
 
 import { describe, it, expect } from "vitest";
 import { runToolLoop } from "../../src/lib/chat/toolLoop.js";
 import { createChoiceTool } from "../../src/tools/choice.js";
-import { config, printResult } from "./setup.js";
+import { config, extractText, printResult, wrapTool, type ToolCallLog } from "./setup.js";
 
-const toolOpts = {
-  getContext: () => ({
-    createInteraction: async () => ({ selected: "italian" }),
-    createDisplayInteraction: () => {},
-  }),
-  getLastMessageId: () => undefined,
-};
+function makeAutoResolveContext(resolveWith: unknown) {
+  return {
+    getContext: () => ({
+      createInteraction: async (_id: string, _type: string, _data: any) => resolveWith,
+      createDisplayInteraction: () => {},
+    }),
+    getLastMessageId: () => undefined,
+  };
+}
 
 describe("prompt_user_choice", () => {
-  it("presents choices with valid title and options", async () => {
-    const tool = createChoiceTool(toolOpts);
-    const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  it("presents choices and processes the user selection", async () => {
+    const log: ToolCallLog[] = [];
+    const tool = wrapTool(createChoiceTool(makeAutoResolveContext({ selected: "italian" })), log);
 
     const result = await runToolLoop({
       messages: [
@@ -46,21 +47,16 @@ describe("prompt_user_choice", () => {
       tools: [tool],
       toolChoice: "auto",
       maxToolRounds: 3,
-      onToolCall: (tc) => {
-        toolCalls.push({
-          name: tc.function.name,
-          args: JSON.parse(tc.function.arguments),
-        });
-      },
     });
 
     printResult(result);
 
     expect(result.error).toBeNull();
-    expect(toolCalls.length).toBeGreaterThanOrEqual(1);
-    expect(toolCalls[0].name).toBe("prompt_user_choice");
+    expect(log.length).toBeGreaterThanOrEqual(1);
+    expect(log[0].name).toBe("prompt_user_choice");
 
-    const args = toolCalls[0].args;
+    // Verify the LLM provided valid arguments
+    const args = log[0].args;
     expect(args.title).toBeTruthy();
     expect(Array.isArray(args.options)).toBe(true);
     expect((args.options as any[]).length).toBeGreaterThanOrEqual(2);
@@ -69,5 +65,17 @@ describe("prompt_user_choice", () => {
       expect(opt.value).toBeTruthy();
       expect(opt.label).toBeTruthy();
     }
+
+    // Verify the executor returned the user selection with _meta
+    const raw = log[0].result;
+    const toolResult = typeof raw === "string" ? JSON.parse(raw) : raw;
+    expect(toolResult.selected).toBe("italian");
+    expect(toolResult._meta).toBeDefined();
+    expect(toolResult._meta.title).toBeTruthy();
+    expect(toolResult._meta.options.length).toBeGreaterThanOrEqual(2);
+
+    // Verify the model used the selection in its response
+    const responseText = extractText(result).toLowerCase();
+    expect(responseText).toContain("italian");
   });
 });

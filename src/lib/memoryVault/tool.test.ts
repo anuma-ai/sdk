@@ -23,6 +23,9 @@ import { eagerEmbedContent } from "./searchTool";
 
 const mockVaultCtx = {} as VaultMemoryOperationsContext;
 
+/** Auto-confirming onSave so the tool gets an executor */
+const autoConfirm = { onSave: async () => true as const };
+
 function makeStoredMemory(overrides: Partial<StoredVaultMemory> = {}): StoredVaultMemory {
   return {
     uniqueId: "mem-1",
@@ -43,11 +46,17 @@ describe("createMemoryVaultTool", () => {
     vi.clearAllMocks();
   });
 
+  it("has no executor when created without onSave", () => {
+    const tool = createMemoryVaultTool(mockVaultCtx);
+    expect(tool.executor).toBeUndefined();
+    expect(tool.function.name).toBe("memory_vault_save");
+  });
+
   it("creates a new memory with default scope 'private'", async () => {
     const created = makeStoredMemory({ uniqueId: "new-1" });
     vi.mocked(createVaultMemoryOp).mockResolvedValue(created);
 
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
     const result = await tool.executor!({ content: "User likes dogs" });
 
     expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
@@ -60,7 +69,7 @@ describe("createMemoryVaultTool", () => {
   it("passes explicit scope to createVaultMemoryOp", async () => {
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory());
 
-    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "shared" });
+    const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, scope: "shared" });
     await tool.executor!({ content: "shared fact" });
 
     expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
@@ -82,7 +91,7 @@ describe("createMemoryVaultTool", () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(existing);
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
 
-    const tool = createMemoryVaultTool(mockVaultCtx, { scope: "shared" });
+    const tool = createMemoryVaultTool(mockVaultCtx, { ...autoConfirm, scope: "shared" });
     const result = await tool.executor!({
       content: "new content",
       id: "mem-1",
@@ -98,7 +107,7 @@ describe("createMemoryVaultTool", () => {
   it("returns an error when updating a non-existent memory", async () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(null);
 
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
     const result = await tool.executor!({
       content: "new content",
       id: "missing-id",
@@ -112,7 +121,7 @@ describe("createMemoryVaultTool", () => {
     vi.mocked(getVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "mem-1" }));
     vi.mocked(updateVaultMemoryOp).mockResolvedValue(null);
 
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
     const result = await tool.executor!({
       content: "new content",
       id: "mem-1",
@@ -122,7 +131,7 @@ describe("createMemoryVaultTool", () => {
   });
 
   it("returns an error when content is missing or invalid", async () => {
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
 
     expect(await tool.executor!({})).toBe("Error: content is required and must be a string.");
     expect(await tool.executor!({ content: "" })).toBe(
@@ -136,7 +145,7 @@ describe("createMemoryVaultTool", () => {
   it("catches errors thrown by database operations", async () => {
     vi.mocked(createVaultMemoryOp).mockRejectedValue(new Error("DB write failed"));
 
-    const tool = createMemoryVaultTool(mockVaultCtx);
+    const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm);
     const result = await tool.executor!({ content: "test" });
 
     expect(result).toBe("Error saving memory: DB write failed");
@@ -145,11 +154,13 @@ describe("createMemoryVaultTool", () => {
   // ── folderName handling ─────────────────────────────────────
 
   describe("folderName handling", () => {
+    const autoConfirm = async () => true;
+
     it("resolves folderName to folderId via folderMap when creating a new memory", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
       const folderMap = new Map([["Work", "folder_1"]]);
-      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap, onSave: autoConfirm });
       await tool.executor!({ content: "remember this", folderName: "Work" });
 
       expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
@@ -166,7 +177,7 @@ describe("createMemoryVaultTool", () => {
       vi.mocked(updateVaultMemoryOp).mockResolvedValue(updated);
 
       const folderMap = new Map([["Work", "folder_1"]]);
-      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap });
+      const tool = createMemoryVaultTool(mockVaultCtx, { folderMap, onSave: autoConfirm });
       await tool.executor!({ content: "new", id: "mem-1", folderName: "Work" });
 
       expect(updateVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, "mem-1", {
@@ -179,7 +190,7 @@ describe("createMemoryVaultTool", () => {
     it("creates memory without folderId when folderName is not provided", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
-      const tool = createMemoryVaultTool(mockVaultCtx);
+      const tool = createMemoryVaultTool(mockVaultCtx, { onSave: autoConfirm });
       await tool.executor!({ content: "test" });
 
       expect(createVaultMemoryOp).toHaveBeenCalledWith(mockVaultCtx, {
@@ -269,7 +280,7 @@ describe("createMemoryVaultTool", () => {
     it("eagerly embeds content after creating a new memory", async () => {
       vi.mocked(createVaultMemoryOp).mockResolvedValue(makeStoredMemory({ uniqueId: "new-1" }));
 
-      const tool = createMemoryVaultTool(mockVaultCtx, undefined, embeddingOptions, cache);
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       await tool.executor!({ content: "embed this" });
 
       expect(eagerEmbedContent).toHaveBeenCalledWith(
@@ -290,7 +301,7 @@ describe("createMemoryVaultTool", () => {
       );
       cache.set("old content", [1, 2, 3]);
 
-      const tool = createMemoryVaultTool(mockVaultCtx, undefined, embeddingOptions, cache);
+      const tool = createMemoryVaultTool(mockVaultCtx, autoConfirm, embeddingOptions, cache);
       await tool.executor!({ content: "new content", id: "mem-1" });
 
       expect(cache.has("old content")).toBe(false);

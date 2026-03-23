@@ -83,7 +83,6 @@ function makeAutoTool(
       arguments: { type: "object", properties: {} },
     },
     executor,
-    autoExecute: true,
   };
 }
 
@@ -128,20 +127,18 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolResultMsg.content[0].text).toContain("result for hello");
   });
 
-  it("terminates when only non-autoExecute tools remain (emits onToolCall)", async () => {
-    const manualTool: ToolConfig = {
+  it("emits onToolCall for tools without an executor", async () => {
+    const noExecutorTool: ToolConfig = {
       type: "function",
       function: {
-        name: "manual_tool",
-        description: "Manual tool",
+        name: "server_tool",
+        description: "Server-side tool",
         arguments: { type: "object", properties: {} },
       },
-      executor: async () => "manual result",
-      autoExecute: false,
     };
 
     mockCreateSseClient.mockReturnValue(
-      makeMockStream(makeToolCallStream("manual_tool", { input: "test" })) as any
+      makeMockStream(makeToolCallStream("server_tool", { input: "test" })) as any
     );
 
     const onToolCall = vi.fn();
@@ -151,13 +148,13 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Do something" }] }],
         model: "test-model",
-        tools: [manualTool],
+        tools: [noExecutorTool],
       });
     });
 
     expect(onToolCall).toHaveBeenCalledWith(
       expect.objectContaining({
-        function: expect.objectContaining({ name: "manual_tool" }),
+        function: expect.objectContaining({ name: "server_tool" }),
       })
     );
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1); // no continuation
@@ -186,18 +183,9 @@ describe("useChat multi-turn tool loop", () => {
     expect(mockCreateSseClient).toHaveBeenCalledTimes(3);
   });
 
-  it("auto-executes auto tools and emits events for manual tools in same response", async () => {
-    const autoTool = makeAutoTool("auto_tool", async () => "auto result");
-    const manualTool: ToolConfig = {
-      type: "function",
-      function: {
-        name: "manual_tool",
-        description: "Manual tool",
-        arguments: { type: "object", properties: {} },
-      },
-      executor: async () => "manual result",
-      autoExecute: false,
-    };
+  it("executes multiple tools with executors in same response", async () => {
+    const toolA = makeAutoTool("tool_a", async () => "result a");
+    const toolB = makeAutoTool("tool_b", async () => "result b");
 
     const bothToolsStream = [
       {
@@ -209,7 +197,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-1",
           type: "function_call",
-          name: "auto_tool",
+          name: "tool_a",
           call_id: "call-1",
           arguments: "",
         },
@@ -224,7 +212,7 @@ describe("useChat multi-turn tool loop", () => {
         item: {
           id: "fc-2",
           type: "function_call",
-          name: "manual_tool",
+          name: "tool_b",
           call_id: "call-2",
           arguments: "",
         },
@@ -232,7 +220,7 @@ describe("useChat multi-turn tool loop", () => {
       {
         type: "response.function_call_arguments.done",
         item_id: "fc-2",
-        arguments: '{"key":"val"}',
+        arguments: "{}",
       },
       {
         type: "response.completed",
@@ -242,7 +230,7 @@ describe("useChat multi-turn tool loop", () => {
 
     mockCreateSseClient
       .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done with auto tool.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done with both tools.")) as any);
 
     const onToolCall = vi.fn();
     const { result } = renderHook(() => useChat({ getToken: async () => "token", onToolCall }));
@@ -251,16 +239,18 @@ describe("useChat multi-turn tool loop", () => {
       await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Do both" }] }],
         model: "test-model",
-        tools: [autoTool, manualTool],
+        tools: [toolA, toolB],
       });
     });
 
-    expect(onToolCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        function: expect.objectContaining({ name: "manual_tool" }),
-      })
-    );
+    // Both tools have executors, so onToolCall should NOT fire
+    expect(onToolCall).not.toHaveBeenCalled();
+    // Both results sent in one continuation
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+    // Verify continuation includes both tool results
+    const continuationBody = getRequestBody(1);
+    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    expect(toolResults).toHaveLength(2);
   });
 
   it("calls onFinish with the final response after tool loop completes", async () => {
@@ -388,6 +378,46 @@ describe("useChat multi-turn tool loop", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  // ── executorTimeout ─────────────────────────────────
+
+  it("times out a tool with a short executorTimeout", async () => {
+    const slowTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "slow_tool",
+        description: "Slow tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        await new Promise((r) => setTimeout(r, 5000));
+        return "done";
+      },
+      executorTimeout: 50, // 50ms timeout
+    };
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("slow_tool", {})) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Tool timed out.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Go" }] }],
+        model: "test-model",
+        tools: [slowTool],
+      });
+    });
+
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+
+    // The continuation should contain the timeout error
+    const continuationBody = getRequestBody(1);
+    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    expect(toolResultMsg).toBeDefined();
+    expect(toolResultMsg.content[0].text).toContain("timed out");
+  });
+
   // ── removeAfterExecution ─────────────────────────────────
 
   it("removes tool from continuation request after successful execution when removeAfterExecution is true", async () => {
@@ -399,7 +429,6 @@ describe("useChat multi-turn tool loop", () => {
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "saved",
-      autoExecute: true,
       removeAfterExecution: true,
     };
 
@@ -435,7 +464,6 @@ describe("useChat multi-turn tool loop", () => {
       executor: async () => {
         throw new Error("Network error");
       },
-      autoExecute: true,
       removeAfterExecution: true,
     };
 
@@ -470,7 +498,6 @@ describe("useChat multi-turn tool loop", () => {
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "saved",
-      autoExecute: true,
       removeAfterExecution: true,
     };
 
@@ -516,7 +543,6 @@ describe("useChat multi-turn tool loop", () => {
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "saved",
-      autoExecute: true,
       removeAfterExecution: true,
     };
 
@@ -528,7 +554,6 @@ describe("useChat multi-turn tool loop", () => {
         arguments: { type: "object", properties: {} },
       },
       executor: async () => "results",
-      autoExecute: true,
       // No removeAfterExecution — should persist
     };
 

@@ -201,11 +201,9 @@ export function createInteractiveTool(
         return { cancelled: true };
       }
     },
-    // Interactive tools block until the user responds (e.g. fills a form,
-    // picks a choice).  They must NOT be auto-executed by the SDK's internal
-    // tool loop — instead the app's own onToolCall handler should drive them
-    // so the result is persisted as a "[Tool Execution Results]" message.
-    autoExecute: false,
+    // Interactive tools wait for user input and should not be subject
+    // to the default 30-second executor timeout.
+    executorTimeout: Infinity,
   };
 }
 
@@ -260,7 +258,6 @@ export function createDisplayTool<TArgs = any, TResult = any>(
 
       return result;
     },
-    autoExecute: true,
     skipContinuation: true,
   };
 }

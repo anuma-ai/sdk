@@ -457,10 +457,10 @@ export function isDoneMarker(chunk: unknown): boolean {
  */
 export function createToolExecutorMap(
   tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
-): Map<string, { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }> {
+): Map<string, { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }> {
   const map = new Map<
     string,
-    { executor: ToolExecutor; autoExecute: boolean; skipContinuation: boolean }
+    { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }
   >();
 
   if (!tools) {
@@ -469,7 +469,7 @@ export function createToolExecutorMap(
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
-    const toolName = (tool as any).function?.name || (tool as any).name;
+    const toolName: string | undefined = (tool as any).function?.name || (tool as any).name;
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
@@ -477,8 +477,10 @@ export function createToolExecutorMap(
     if (toolWithExecutor.executor) {
       map.set(toolName, {
         executor: toolWithExecutor.executor,
-        autoExecute: toolWithExecutor.autoExecute !== false, // Default to true
         skipContinuation: toolWithExecutor.skipContinuation === true, // Default to false
+        ...(toolWithExecutor.executorTimeout !== undefined && {
+          executorTimeout: toolWithExecutor.executorTimeout,
+        }),
       });
     }
   }
@@ -488,6 +490,14 @@ export function createToolExecutorMap(
 
 /** Default timeout for tool executor calls (30 seconds). */
 const TOOL_EXECUTOR_TIMEOUT_MS = 30_000;
+
+/** Sentinel error for tool execution timeouts. */
+class ToolTimeoutError extends Error {
+  constructor() {
+    super("Tool execution timed out");
+    this.name = "ToolTimeoutError";
+  }
+}
 
 /**
  * Safely serializes a value to JSON, returning a fallback string on failure
@@ -501,37 +511,50 @@ export function safeJsonStringify(value: unknown): string {
   }
 }
 
+export type ToolExecutionErrorType = "parse" | "timeout" | "execution";
+
+export type ToolExecutionResult = {
+  result?: unknown;
+  error?: string;
+  /** Distinguishes parse errors, timeouts, and execution failures. */
+  errorType?: ToolExecutionErrorType;
+};
+
 /**
  * Executes a tool call with the provided executor.
- * Applies a 30-second timeout to prevent hanging executors from blocking the loop.
+ * Applies a timeout (default 30s) to prevent hanging executors from blocking the loop.
+ * Pass `Infinity` as timeoutMs to disable the timeout (e.g. for interactive tools).
  */
 export async function executeToolCall(
   toolCall: AccumulatedToolCall,
-  executor: ToolExecutor
-): Promise<{ result?: unknown; error?: string }> {
+  executor: ToolExecutor,
+  timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS
+): Promise<ToolExecutionResult> {
+  // Parse arguments
+  let args: Record<string, unknown> = {};
+  if (toolCall.arguments) {
+    try {
+      args = JSON.parse(toolCall.arguments);
+    } catch (e) {
+      return {
+        error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
+        errorType: "parse",
+      };
+    }
+  }
+
   try {
-    // Parse arguments
-    let args: Record<string, unknown> = {};
-    if (toolCall.arguments) {
-      try {
-        args = JSON.parse(toolCall.arguments);
-      } catch (e) {
-        return {
-          error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
-        };
-      }
+    // Execute the tool, optionally with a timeout
+    if (!isFinite(timeoutMs)) {
+      return { result: await executor(args) };
     }
 
-    // Execute the tool with a timeout
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
         executor(args),
         new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () => reject(new Error("Tool execution timed out")),
-            TOOL_EXECUTOR_TIMEOUT_MS
-          );
+          timer = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
         }),
       ]);
       return { result };
@@ -539,8 +562,10 @@ export async function executeToolCall(
       clearTimeout(timer);
     }
   } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
     return {
-      error: `Tool execution failed: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Tool execution failed: ${message}`,
+      errorType: e instanceof ToolTimeoutError ? "timeout" : "execution",
     };
   }
 }
@@ -561,9 +586,9 @@ export function toolsToApiFormat(
     // Strip client-side-only properties before sending to API
     const {
       executor: _executor,
-      autoExecute: _autoExecute,
       skipContinuation: _skipContinuation,
       removeAfterExecution: _removeAfterExecution,
+      executorTimeout: _executorTimeout,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 

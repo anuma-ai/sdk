@@ -84,11 +84,6 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    */
   executor?: ToolExecutor;
   /**
-   * Whether to execute this tool automatically when called by the LLM.
-   * Default: true if executor is provided, false otherwise.
-   */
-  autoExecute?: boolean;
-  /**
    * Whether to skip sending the tool result back to the model as a continuation.
    * When true, the tool is executed but its result is not fed back to the model.
    * Useful for display-only tools (charts, weather cards) that render client-side
@@ -97,14 +92,21 @@ export type ToolConfig = LlmapiChatCompletionTool & {
   skipContinuation?: boolean;
   /**
    * Whether to remove this tool from the tools list after it has been
-   * successfully auto-executed. This prevents smaller models from calling
+   * successfully executed. This prevents smaller models from calling
    * the same tool repeatedly in continuation requests.
    *
-   * Only applies when the tool is auto-executed (has an executor and
-   * autoExecute is not false). The tool is kept if execution fails,
-   * allowing the model to retry.
+   * Only applies when the tool has an executor. The tool is kept if
+   * execution fails, allowing the model to retry.
    */
   removeAfterExecution?: boolean;
+  /**
+   * Timeout in milliseconds for this tool's executor.
+   * Overrides the default 30-second timeout.
+   * Set to `Infinity` to disable the timeout (e.g. for interactive tools
+   * that wait for user input).
+   * @default 30000
+   */
+  executorTimeout?: number;
 };
 
 /**
@@ -201,9 +203,8 @@ export type BaseUseChatOptions = {
    */
   onError?: (error: Error) => void;
   /**
-   * Callback function to be called when a tool call is requested by the LLM.
-   * This is called for tools that don't have an executor or have autoExecute=false.
-   * The app should execute the tool and send the result back.
+   * Callback function to be called when a tool call is requested by the LLM
+   * but no executor is registered for it (e.g. server-side tools).
    *
    * @param toolCall - The tool call requested by the LLM
    */

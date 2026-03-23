@@ -388,7 +388,6 @@ export function createNotionSearchTool(
         return `Error searching Notion: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -442,7 +441,6 @@ export function createNotionFetchTool(
         return `Error fetching Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -511,7 +509,6 @@ export function createNotionCreatePagesTool(
         return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -595,7 +592,6 @@ export function createNotionUpdatePageTool(
         return `Error updating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -646,7 +642,6 @@ export function createNotionMovePagesTool(
         return `Error moving Notion pages: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -690,7 +685,6 @@ export function createNotionDuplicatePageTool(
         return `Error duplicating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -753,7 +747,6 @@ export function createNotionCreateDatabaseTool(
         return `Error creating Notion database: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -823,7 +816,6 @@ export function createNotionUpdateDataSourceTool(
         return `Error updating Notion data source: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -896,7 +888,6 @@ export function createNotionCreateCommentTool(
         return `Error creating Notion comment: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -954,7 +945,6 @@ export function createNotionGetCommentsTool(
         return `Error retrieving Notion comments: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -1013,7 +1003,6 @@ export function createNotionGetUsersTool(
         return `Error listing Notion users: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -1057,7 +1046,6 @@ export function createNotionGetTeamsTool(
         return `Error retrieving Notion teams: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 

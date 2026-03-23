@@ -62,6 +62,7 @@
 
 // Google Calendar exports
 export type { ToolConfig } from "../lib/chat/useChat/types.js";
+export type { ToolExecutionErrorType, ToolExecutionResult } from "../lib/chat/useChat/utils.js";
 export type {
   CalendarEvent,
   CreateEventArgs,

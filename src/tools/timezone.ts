@@ -60,6 +60,5 @@ export function createTimezoneTool(): ToolConfig {
         return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
       }
     },
-    autoExecute: true,
   };
 }

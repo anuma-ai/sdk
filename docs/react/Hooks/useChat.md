@@ -220,9 +220,8 @@ This is called with delta chunks as the model "thinks" through a problem.
 </td>
 <td>
 
-Callback function to be called when a tool call is requested by the LLM.
-This is called for tools that don't have an executor or have autoExecute=false.
-The app should execute the tool and send the result back.
+Callback function to be called when a tool call is requested by the LLM
+but no executor is registered for it (e.g. server-side tools).
 
 </td>
 </tr>
