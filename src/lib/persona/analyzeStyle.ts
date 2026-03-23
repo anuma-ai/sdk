@@ -27,7 +27,7 @@ export function shouldAnalyzeStyle(schedule: StyleAnalysisSchedule): boolean {
 
   // Refresh: has a profile, periodic re-analysis
   if (schedule.hasProfile) {
-    return schedule.messageCount % refresh === 0;
+    return schedule.messageCount > 0 && schedule.messageCount % refresh === 0;
   }
 
   return false;
@@ -45,6 +45,7 @@ function extractUserMessages(
     const msg = messages[i];
     if (msg.role !== "user") continue;
     if (!msg.content) continue;
+    documentPattern.lastIndex = 0;
     if (documentPattern.test(msg.content)) continue;
     result.push(msg.content);
   }
@@ -72,10 +73,15 @@ export async function analyzeStyle(options: AnalyzeStyleOptions): Promise<Analyz
 
   const numbered = userMessages.map((m, i) => `${i + 1}. ${m}`).join("\n");
 
-  const result = await options.callLlm([
-    { role: "system", content: analysisPrompt },
-    { role: "user", content: numbered },
-  ]);
+  let result: string | null;
+  try {
+    result = await options.callLlm([
+      { role: "system", content: analysisPrompt },
+      { role: "user", content: numbered },
+    ]);
+  } catch {
+    return { profile: null };
+  }
 
   if (!result) return { profile: null };
 

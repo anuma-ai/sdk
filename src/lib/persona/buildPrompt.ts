@@ -49,7 +49,7 @@ export function sanitizeQuotes(s: string): string {
 /** Replace {content} in a template with sanitized value. Returns null if value is falsy. */
 export function renderTemplate(value: string | null | undefined, template: string): string | null {
   if (!value) return null;
-  return template.replace("{content}", () => sanitizeQuotes(value));
+  return template.replace(/\{content\}/g, () => sanitizeQuotes(value));
 }
 
 // ── Default section renderers ──
@@ -92,7 +92,7 @@ function renderLanguage(ctx: PromptContext, templates: PromptTemplates): string 
   if (ctx.preferredLanguage === "en") return null;
   if (ctx.preferredLanguage === "other") return templates.languageGeneric;
   const name = LANGUAGE_NAMES[ctx.preferredLanguage] ?? ctx.preferredLanguage;
-  return templates.language.replace(/\{language\}/g, name);
+  return templates.language.replace(/\{language\}/g, () => name);
 }
 
 function renderPlatformFormatting(ctx: PromptContext, templates: PromptTemplates): string | null {

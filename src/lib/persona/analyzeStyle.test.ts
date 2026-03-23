@@ -93,6 +93,17 @@ describe("shouldAnalyzeStyle", () => {
     ).toBe(false);
   });
 
+  it("returns false at messageCount 0 even with profile (0 % N === 0 guard)", () => {
+    expect(
+      shouldAnalyzeStyle({
+        messageCount: 0,
+        hasProfile: true,
+        hasBeenAnalyzed: true,
+        optedOut: false,
+      })
+    ).toBe(false);
+  });
+
   it("respects custom thresholds", () => {
     expect(
       shouldAnalyzeStyle({
@@ -201,6 +212,21 @@ describe("analyzeStyle", () => {
 
   it("returns null on LLM failure", async () => {
     const callLlm = vi.fn().mockResolvedValue(null);
+
+    const result = await analyzeStyle({
+      messages: [
+        { role: "user", content: "msg1" },
+        { role: "user", content: "msg2" },
+        { role: "user", content: "msg3" },
+      ],
+      callLlm,
+    });
+
+    expect(result.profile).toBeNull();
+  });
+
+  it("returns null when callLlm throws an exception", async () => {
+    const callLlm = vi.fn().mockRejectedValue(new Error("network error"));
 
     const result = await analyzeStyle({
       messages: [
