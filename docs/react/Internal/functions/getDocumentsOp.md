@@ -2,7 +2,7 @@
 
 > **getDocumentsOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:485](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#485)
+Defined in: [src/lib/db/media/operations.ts:484](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#484)
 
 Get all documents for a user.
 

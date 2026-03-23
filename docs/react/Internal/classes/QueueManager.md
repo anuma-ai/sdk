@@ -1,6 +1,6 @@
 # QueueManager
 
-Defined in: [src/lib/db/queue/manager.ts:115](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#115)
+Defined in: [src/lib/db/queue/manager.ts:114](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#114)
 
 ## Constructors
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/db/queue/manager.ts:115](https://github.com/anuma-ai/sdk/bl
 
 > **clear**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:318](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#318)
+Defined in: [src/lib/db/queue/manager.ts:317](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#317)
 
 Clear all queued operations for a wallet.
 
@@ -57,7 +57,7 @@ Clear all queued operations for a wallet.
 
 > **flush**(`encryptionContext`: [`QueueEncryptionContext`](../interfaces/QueueEncryptionContext.md), `executor`: [`OperationExecutor`](../type-aliases/OperationExecutor.md)): `Promise`<[`FlushResult`](../interfaces/FlushResult.md)>
 
-Defined in: [src/lib/db/queue/manager.ts:216](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#216)
+Defined in: [src/lib/db/queue/manager.ts:215](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#215)
 
 Flush all queued operations for a wallet by executing them with encryption.
 
@@ -121,7 +121,7 @@ Result with succeeded/failed operation IDs
 
 > **getOperations**(`walletAddress`: `string`): [`QueuedOperation`](../interfaces/QueuedOperation.md)\[]
 
-Defined in: [src/lib/db/queue/manager.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#174)
+Defined in: [src/lib/db/queue/manager.ts:173](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#173)
 
 Get all pending operations for a wallet, sorted by dependency order.
 
@@ -160,7 +160,7 @@ Get all pending operations for a wallet, sorted by dependency order.
 
 > **getStatus**(`walletAddress`: `string`): [`QueueStatus`](../interfaces/QueueStatus.md)
 
-Defined in: [src/lib/db/queue/manager.ts:197](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#197)
+Defined in: [src/lib/db/queue/manager.ts:196](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#196)
 
 Get the status of a wallet's queue.
 
@@ -199,7 +199,7 @@ Get the status of a wallet's queue.
 
 > **hasPending**(`walletAddress`: `string`): `boolean`
 
-Defined in: [src/lib/db/queue/manager.ts:361](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#361)
+Defined in: [src/lib/db/queue/manager.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#360)
 
 Check if a wallet has any pending operations.
 
@@ -238,7 +238,7 @@ Check if a wallet has any pending operations.
 
 > **onQueueChange**(`walletAddress`: `string`, `callback`: () => `void`): () => `void`
 
-Defined in: [src/lib/db/queue/manager.ts:342](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#342)
+Defined in: [src/lib/db/queue/manager.ts:341](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#341)
 
 Register a listener for queue changes on a wallet.
 
@@ -295,7 +295,7 @@ Unsubscribe function
 
 > **pause**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:327](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#327)
+Defined in: [src/lib/db/queue/manager.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#326)
 
 Pause the queue for a wallet (stops flush mid-way).
 
@@ -334,7 +334,7 @@ Pause the queue for a wallet (stops flush mid-way).
 
 > **queueOperation**(`walletAddress`: `string`, `type`: [`QueuedOperationType`](../type-aliases/QueuedOperationType.md), `payload`: `Record`<`string`, `any`>, `dependencies`: `string`\[], `maxRetries`: `number`): `string` | `null`
 
-Defined in: [src/lib/db/queue/manager.ts:131](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#131)
+Defined in: [src/lib/db/queue/manager.ts:130](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#130)
 
 Queue a new operation for a wallet.
 
@@ -449,7 +449,7 @@ The operation ID, or null if queue is full.
 
 > **removeOperation**(`walletAddress`: `string`, `operationId`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:183](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#183)
+Defined in: [src/lib/db/queue/manager.ts:182](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#182)
 
 Remove a specific operation from the queue.
 
@@ -500,7 +500,7 @@ Remove a specific operation from the queue.
 
 > **resume**(`walletAddress`: `string`): `void`
 
-Defined in: [src/lib/db/queue/manager.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#334)
+Defined in: [src/lib/db/queue/manager.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/manager.ts#333)
 
 Resume the queue for a wallet.
 

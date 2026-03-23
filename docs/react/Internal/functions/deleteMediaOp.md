@@ -2,7 +2,7 @@
 
 > **deleteMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/media/operations.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#329)
+Defined in: [src/lib/db/media/operations.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#328)
 
 Soft delete a media record.
 Clears source\_url, removes file from OPFS, but keeps all metadata.

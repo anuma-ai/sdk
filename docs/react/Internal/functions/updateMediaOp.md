@@ -2,7 +2,7 @@
 
 > **updateMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`, `options`: [`UpdateMediaOptions`](../interfaces/UpdateMediaOptions.md)): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md) | `null`>
 
-Defined in: [src/lib/db/media/operations.ts:248](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#248)
+Defined in: [src/lib/db/media/operations.ts:247](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#247)
 
 Update a media record.
 
