@@ -112,7 +112,7 @@ Convenience: export markdown and trigger browser download
 
 > **error**: `Error` | `null`
 
-Defined in: [src/react/useExportPdf.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#22)
+Defined in: [src/react/useExportPdf.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#26)
 
 Error from the last export attempt
 
@@ -224,6 +224,55 @@ Headless: export a raw markdown string as PDF (no DOM required)
 
 > **isExporting**: `boolean`
 
-Defined in: [src/react/useExportPdf.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#20)
+Defined in: [src/react/useExportPdf.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#22)
 
 Whether a PDF export is currently in progress
+
+***
+
+### progress
+
+> **progress**: [`PdfExportProgress`](../PDF-Export/PdfExportProgress.md) | `null`
+
+Defined in: [src/react/useExportPdf.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#24)
+
+Current export progress, or null when idle
+
+***
+
+### renderElementToCanvas()
+
+> **renderElementToCanvas**: (`element`: `HTMLElement`) => `Promise`<`HTMLCanvasElement`>
+
+Defined in: [src/react/useExportPdf.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/react/useExportPdf.ts#20)
+
+Render an element to canvas for preview (first half of DOM capture pipeline)
+
+**Parameters**
+
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`element`
+
+</td>
+<td>
+
+`HTMLElement`
+
+</td>
+</tr>
+</tbody>
+</table>
+
+**Returns**
+
+`Promise`<`HTMLCanvasElement`>

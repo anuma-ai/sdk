@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import type { PdfExportProgress } from "./pdf-export";
 import { exportMarkdownToPdf } from "./pdf-export";
 
 describe("exportMarkdownToPdf", () => {
@@ -102,5 +103,38 @@ describe("exportMarkdownToPdf", () => {
 
     expect(blob).toBeInstanceOf(Blob);
     expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it("fires onProgress callbacks with correct stages", async () => {
+    const events: PdfExportProgress[] = [];
+    const onProgress = vi.fn((p: PdfExportProgress) => events.push({ ...p }));
+
+    await exportMarkdownToPdf("# Hello\n\nWorld\n\n- One\n- Two", { onProgress });
+
+    expect(onProgress).toHaveBeenCalled();
+    // Should start with "preparing" stage
+    expect(events[0].stage).toBe("preparing");
+    // Should end with "complete" at 100%
+    const last = events[events.length - 1];
+    expect(last.stage).toBe("complete");
+    expect(last.percent).toBe(100);
+    // Should have "building" stages in between
+    const buildingEvents = events.filter((e) => e.stage === "building");
+    expect(buildingEvents.length).toBeGreaterThan(0);
+    // Percent should be monotonically non-decreasing
+    for (let i = 1; i < events.length; i++) {
+      expect(events[i].percent).toBeGreaterThanOrEqual(events[i - 1].percent);
+    }
+  });
+
+  it("fires onProgress for empty markdown", async () => {
+    const events: PdfExportProgress[] = [];
+    await exportMarkdownToPdf("", {
+      onProgress: (p) => events.push({ ...p }),
+    });
+
+    expect(events.length).toBeGreaterThanOrEqual(2);
+    expect(events[0].stage).toBe("preparing");
+    expect(events[events.length - 1].stage).toBe("complete");
   });
 });

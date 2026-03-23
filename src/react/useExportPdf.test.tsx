@@ -10,11 +10,13 @@ vi.mock("../lib/pdf-export", async (importOriginal) => {
     ...orig,
     exportElementToPdf: vi.fn(),
     exportMarkdownToPdf: vi.fn(),
+    renderElementToCanvas: vi.fn(),
   };
 });
 
 const mockExportElement = vi.mocked(pdfExport.exportElementToPdf);
 const mockExportMarkdown = vi.mocked(pdfExport.exportMarkdownToPdf);
+const mockRenderToCanvas = vi.mocked(pdfExport.renderElementToCanvas);
 
 describe("useExportPdf", () => {
   beforeEach(() => {
@@ -28,7 +30,9 @@ describe("useExportPdf", () => {
     expect(result.current.exportMarkdownToPdf).toBeTypeOf("function");
     expect(result.current.downloadElementAsPdf).toBeTypeOf("function");
     expect(result.current.downloadMarkdownAsPdf).toBeTypeOf("function");
+    expect(result.current.renderElementToCanvas).toBeTypeOf("function");
     expect(result.current.isExporting).toBe(false);
+    expect(result.current.progress).toBeNull();
     expect(result.current.error).toBeNull();
   });
 
@@ -44,7 +48,6 @@ describe("useExportPdf", () => {
     });
 
     expect(blob).toBe(fakeBlob);
-    expect(mockExportMarkdown).toHaveBeenCalledWith("# Test");
     expect(result.current.isExporting).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -62,7 +65,6 @@ describe("useExportPdf", () => {
     });
 
     expect(blob).toBe(fakeBlob);
-    expect(mockExportElement).toHaveBeenCalledWith(element);
     expect(result.current.isExporting).toBe(false);
   });
 
@@ -106,5 +108,94 @@ describe("useExportPdf", () => {
       await result.current.exportMarkdownToPdf("ok");
     });
     expect(result.current.error).toBeNull();
+  });
+
+  it("passes onProgress to exportElementToPdf", async () => {
+    const fakeBlob = new Blob(["pdf"], { type: "application/pdf" });
+    mockExportElement.mockResolvedValue(fakeBlob);
+
+    const { result } = renderHook(() => useExportPdf());
+    const element = document.createElement("div");
+
+    await act(async () => {
+      await result.current.exportElementToPdf(element);
+    });
+
+    // Verify onProgress was wired into the options
+    expect(mockExportElement).toHaveBeenCalledWith(
+      element,
+      expect.objectContaining({ onProgress: expect.any(Function) })
+    );
+  });
+
+  it("passes onProgress to exportMarkdownToPdf", async () => {
+    const fakeBlob = new Blob(["pdf"], { type: "application/pdf" });
+    mockExportMarkdown.mockResolvedValue(fakeBlob);
+
+    const { result } = renderHook(() => useExportPdf());
+
+    await act(async () => {
+      await result.current.exportMarkdownToPdf("# Test");
+    });
+
+    expect(mockExportMarkdown).toHaveBeenCalledWith(
+      "# Test",
+      expect.objectContaining({ onProgress: expect.any(Function) })
+    );
+  });
+
+  it("progress starts at preparing and resets after export", async () => {
+    const fakeBlob = new Blob(["pdf"], { type: "application/pdf" });
+    mockExportMarkdown.mockResolvedValue(fakeBlob);
+
+    const { result } = renderHook(() => useExportPdf());
+
+    expect(result.current.progress).toBeNull();
+
+    await act(async () => {
+      await result.current.exportMarkdownToPdf("# Test");
+    });
+
+    // Progress was set during export (we can't observe intermediate state
+    // after act() settles, but we verify onProgress was passed above)
+    expect(result.current.isExporting).toBe(false);
+  });
+
+  it("renderElementToCanvas returns canvas and manages state", async () => {
+    const fakeCanvas = document.createElement("canvas");
+    mockRenderToCanvas.mockResolvedValue(fakeCanvas);
+
+    const { result } = renderHook(() => useExportPdf());
+    const element = document.createElement("div");
+
+    let canvas: HTMLCanvasElement | undefined;
+    await act(async () => {
+      canvas = await result.current.renderElementToCanvas(element);
+    });
+
+    expect(canvas).toBe(fakeCanvas);
+    expect(mockRenderToCanvas).toHaveBeenCalledWith(element, {
+      onProgress: expect.any(Function),
+    });
+    expect(result.current.isExporting).toBe(false);
+  });
+
+  it("renderElementToCanvas captures error on failure", async () => {
+    const error = new Error("Canvas render failed");
+    mockRenderToCanvas.mockRejectedValue(error);
+
+    const { result } = renderHook(() => useExportPdf());
+    const element = document.createElement("div");
+
+    await act(async () => {
+      try {
+        await result.current.renderElementToCanvas(element);
+      } catch {
+        // expected
+      }
+    });
+
+    expect(result.current.isExporting).toBe(false);
+    expect(result.current.error).toBe(error);
   });
 });

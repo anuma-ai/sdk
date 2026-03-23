@@ -125,5 +125,8 @@ Renames and re-exports [DEFAULT\_BACKUP\_FOLDER](Internal/variables/DEFAULT_BACK
 | Name | Description |
 | ------ | ------ |
 | [PdfExportOptions](PDF-Export/PdfExportOptions.md) | Options for PDF export. |
+| [PdfExportProgress](PDF-Export/PdfExportProgress.md) | Progress event emitted during PDF export. |
+| [PdfExportStage](PDF-Export/PdfExportStage.md) | Stages of the PDF export pipeline. |
 | [exportElementToPdf](PDF-Export/exportElementToPdf.md) | Capture a rendered HTML element as a high-fidelity PDF. |
 | [exportMarkdownToPdf](PDF-Export/exportMarkdownToPdf.md) | Convert a markdown string to a PDF. No DOM required. |
+| [renderElementToCanvas](PDF-Export/renderElementToCanvas.md) | Render a DOM element to a canvas using iframe isolation. |
