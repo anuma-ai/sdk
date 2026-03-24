@@ -86,11 +86,14 @@ function findSupersessionSwaps(
   candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
 ): Array<[string, string]> {
   const swaps: Array<[string, string]> = [];
+  const claimed = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     for (let j = i + 1; j < candidates.length; j++) {
       const a = candidates[i];
       const b = candidates[j];
       if (!a.updatedAt || !b.updatedAt) continue;
+      // Each ID may only participate in one swap to avoid conflicting overwrites
+      if (claimed.has(a.id) || claimed.has(b.id)) continue;
 
       const sim = cosineSimilarity(a.embedding, b.embedding);
       if (sim < SUPERSESSION_SIMILARITY_THRESHOLD) continue;
@@ -105,6 +108,8 @@ function findSupersessionSwaps(
       // Only swap if the older item outranks the newer one
       if (older.similarity > newer.similarity) {
         swaps.push([older.id, newer.id]);
+        claimed.add(older.id);
+        claimed.add(newer.id);
       }
     }
   }
