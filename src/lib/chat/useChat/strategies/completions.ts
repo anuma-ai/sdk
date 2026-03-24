@@ -244,6 +244,12 @@ export class CompletionsStrategy implements ApiStrategy {
               }
               if (toolCallDelta.function?.arguments) {
                 toolCall.arguments += toolCallDelta.function.arguments;
+                result.toolCallArgumentsDelta = {
+                  toolCallId: toolCall.id,
+                  toolName: toolCall.name,
+                  argumentsDelta: toolCallDelta.function.arguments,
+                  accumulatedArguments: toolCall.arguments,
+                };
               }
             }
           }

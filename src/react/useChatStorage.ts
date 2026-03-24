@@ -736,6 +736,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
     walletAddress,
     signMessage,
@@ -1255,6 +1256,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
   });
 
