@@ -9,6 +9,7 @@
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { getLogger } from "../lib/logger";
+import { uint8ArrayToBase64 } from "../lib/processors/encoding.js";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -1008,8 +1009,26 @@ function createBranchTool(
               `/repos/${owner}/${repo}/git/ref/tags/${from_ref}`
             );
             if (tagResp.ok) {
-              const tagData = (await tagResp.json()) as { object: { sha: string } };
-              sha = tagData.object.sha;
+              const tagData = (await tagResp.json()) as { object: { sha: string; type: string } };
+              if (tagData.object.type === "tag") {
+                const annotatedTagResp = await githubFetch(
+                  token,
+                  `/repos/${owner}/${repo}/git/tags/${tagData.object.sha}`
+                );
+                if (!annotatedTagResp.ok) {
+                  return handleApiError(
+                    annotatedTagResp.status,
+                    await annotatedTagResp.text(),
+                    `dereference tag ${from_ref}`
+                  );
+                }
+                const annotatedTagData = (await annotatedTagResp.json()) as {
+                  object: { sha: string };
+                };
+                sha = annotatedTagData.object.sha;
+              } else {
+                sha = tagData.object.sha;
+              }
             } else {
               return `Error: Ref '${from_ref}' not found as a branch or tag in ${owner}/${repo}.`;
             }
@@ -1088,7 +1107,7 @@ function createOrUpdateFileTool(
       try {
         const body: Record<string, unknown> = {
           message,
-          content: btoa(String.fromCharCode(...new TextEncoder().encode(content))),
+          content: uint8ArrayToBase64(new TextEncoder().encode(content)),
           branch,
         };
         if (sha) body.sha = sha;
