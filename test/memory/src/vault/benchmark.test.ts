@@ -181,7 +181,12 @@ async function main() {
     }
   }
   if (args.max) {
-    queries = queries.slice(0, parseInt(args.max, 10));
+    const maxVal = parseInt(args.max, 10);
+    if (isNaN(maxVal) || maxVal <= 0) {
+      console.error(`Invalid --max value: "${args.max}"`);
+      process.exit(1);
+    }
+    queries = queries.slice(0, maxVal);
   }
 
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);

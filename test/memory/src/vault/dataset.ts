@@ -158,7 +158,7 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-11-15T10:00:00Z",
   },
 
-  // ── Work (35) ──────────────────────────────────────────────────────────
+  // ── Work (36) ──────────────────────────────────────────────────────────
   {
     id: "w01",
     content: "Senior backend engineer at Nimbus Labs, joined in 2023",
