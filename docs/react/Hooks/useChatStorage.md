@@ -532,6 +532,24 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 <tr>
 <td>
 
+`options.onToolCallArgumentsDelta?`
+
+</td>
+<td>
+
+(`event`: [`ToolCallArgumentsDeltaEvent`](../Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+
+</td>
+<td>
+
+Called with partial tool call arguments as they stream in.
+Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.serverTools?`
 
 </td>

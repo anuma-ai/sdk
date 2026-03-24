@@ -41,7 +41,11 @@ import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
-import type { ServerToolCallEvent, ToolExecutionErrorType } from "./useChat/utils";
+import type {
+  ServerToolCallEvent,
+  ToolCallArgumentsDeltaEvent,
+  ToolExecutionErrorType,
+} from "./useChat/utils";
 import {
   createStreamAccumulator,
   createToolExecutorMap,
@@ -141,6 +145,11 @@ export type RunToolLoopOptions = {
    * Receives the round index, model content, tool calls, results, and usage.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
    * Custom streaming transport. Defaults to a fetch-based SSE client.
    * React Native environments can supply an XHR-based transport since
@@ -269,6 +278,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onError,
     onToolCall,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
     maxConnectorCalls = 2,
@@ -350,10 +360,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             content: contentDelta,
             thinking: thinkingDelta,
             serverToolCall,
+            toolCallArgumentsDelta,
           } = strategy.processStreamChunk(chunk, accumulator);
           if (contentDelta) contentSmoother.push(contentDelta);
           if (thinkingDelta) thinkingSmoother.push(thinkingDelta);
           if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+          if (toolCallArgumentsDelta && onToolCallArgumentsDelta)
+            onToolCallArgumentsDelta(toolCallArgumentsDelta);
         }
       }
     } catch (streamErr) {
@@ -689,10 +702,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               content: contentDelta,
               thinking: thinkingDelta,
               serverToolCall,
+              toolCallArgumentsDelta: contToolCallArgsDelta,
             } = strategy.processStreamChunk(chunk, currentAccumulator);
             if (contentDelta) contContentSmoother.push(contentDelta);
             if (thinkingDelta) contThinkingSmoother.push(thinkingDelta);
             if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+            if (contToolCallArgsDelta && onToolCallArgumentsDelta)
+              onToolCallArgumentsDelta(contToolCallArgsDelta);
           }
         }
       } catch (streamErr) {

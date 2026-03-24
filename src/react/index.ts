@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
 // Pluggable logger

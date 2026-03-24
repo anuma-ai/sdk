@@ -148,6 +148,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     onStepFinish,
     apiType: defaultApiType = "auto",
     smoothing,
@@ -290,6 +291,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError,
           onToolCall,
           onServerToolCall,
+          onToolCallArgumentsDelta,
           onStepFinish,
         });
 

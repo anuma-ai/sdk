@@ -411,6 +411,14 @@ export type ServerToolCallEvent = {
 /**
  * Result from processing a streaming chunk
  */
+/** Event emitted when tool call arguments are being streamed. */
+export type ToolCallArgumentsDeltaEvent = {
+  toolCallId: string;
+  toolName: string;
+  argumentsDelta: string;
+  accumulatedArguments: string;
+};
+
 export type ProcessChunkResult = {
   /** Content delta (regular assistant response) */
   content: string | null;
@@ -418,6 +426,8 @@ export type ProcessChunkResult = {
   thinking: string | null;
   /** Server tool call event (for activity indicators) */
   serverToolCall?: ServerToolCallEvent;
+  /** Tool call arguments delta (for streaming artifact preview) */
+  toolCallArgumentsDelta?: ToolCallArgumentsDeltaEvent;
 };
 
 /**

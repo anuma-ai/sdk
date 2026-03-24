@@ -9,7 +9,7 @@ import type {
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
 } from "../../../client";
-import type { ServerToolCallEvent } from "../../chat/useChat/utils";
+import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { ServerTool } from "../../tools";
 
 /**
@@ -312,6 +312,11 @@ export interface BaseUseChatStorageOptions {
    * Use this to show activity indicators like "Searching..." in the UI.
    */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
+  /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
    * File preprocessors to use for automatic text extraction.
    * - undefined (default): Use all built-in processors (PDF, Excel, Word)
