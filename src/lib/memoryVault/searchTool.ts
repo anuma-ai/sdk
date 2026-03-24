@@ -75,24 +75,41 @@ const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
 const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
+ * How much of the score gap to transfer from the older memory to the newer
+ * one. At 1.0 this is equivalent to a full swap; at 0.0 no adjustment
+ * happens. A value around 0.5–0.8 boosts the newer memory while keeping
+ * the older one in contention for recall.
+ */
+const SUPERSESSION_BOOST_FACTOR = 0.6;
+
+/**
+ * Supersession adjustment for a single pair. Returns the score delta to
+ * add to the newer item (and subtract from the older item).
+ */
+function supersessionDelta(olderScore: number, newerScore: number): number {
+  const gap = olderScore - newerScore;
+  return gap * SUPERSESSION_BOOST_FACTOR;
+}
+
+/**
  * Find supersession pairs among scored candidates. When two items have
  * pairwise embedding similarity above the threshold and the older one
  * outranks the newer one, they form a supersession pair whose scores
- * should be swapped.
+ * should be adjusted via boost/penalty.
  *
- * Returns an array of [oldId, newId] pairs to swap.
+ * Returns an array of [oldId, newId] pairs to adjust.
  */
-function findSupersessionSwaps(
+function findSupersessionPairs(
   candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
 ): Array<[string, string]> {
-  const swaps: Array<[string, string]> = [];
+  const pairs: Array<[string, string]> = [];
   const claimed = new Set<string>();
   for (let i = 0; i < candidates.length; i++) {
     for (let j = i + 1; j < candidates.length; j++) {
       const a = candidates[i];
       const b = candidates[j];
       if (!a.updatedAt || !b.updatedAt) continue;
-      // Each ID may only participate in one swap to avoid conflicting overwrites
+      // Each ID may only participate in one pair to avoid conflicting adjustments
       if (claimed.has(a.id) || claimed.has(b.id)) continue;
 
       const sim = cosineSimilarity(a.embedding, b.embedding);
@@ -105,22 +122,23 @@ function findSupersessionSwaps(
 
       // Determine which is older and which has higher rank (lower index = higher rank)
       const [older, newer] = a.updatedAt < b.updatedAt ? [a, b] : [b, a];
-      // Only swap if the older item outranks the newer one
+      // Only adjust if the older item outranks the newer one
       if (older.similarity > newer.similarity) {
-        swaps.push([older.id, newer.id]);
+        pairs.push([older.id, newer.id]);
         claimed.add(older.id);
         claimed.add(newer.id);
       }
     }
   }
-  return swaps;
+  return pairs;
 }
 
 /**
  * Pure ranking function: scores, filters, and ranks items using cosine
  * similarity with supersession detection. When items include `updatedAt`
  * timestamps, pairs of highly similar items are checked for supersession —
- * the older item in each pair is penalized to prefer newer information.
+ * a fraction of the score gap is transferred from the older item to the
+ * newer one, boosting the replacement without fully evicting the original.
  *
  * @param queryEmbedding - Pre-computed embedding for the query
  * @param items - Items with pre-computed embeddings to rank
@@ -150,10 +168,10 @@ export function rankVaultMemories(
   const filtered = scored.filter((r) => r.similarity >= minSimilarity);
   filtered.sort((a, b) => b.similarity - a.similarity);
 
-  // Check top candidates for supersession — swap scores when an older item
-  // outranks its newer, highly similar counterpart
+  // Check top candidates for supersession — boost newer items and penalize
+  // older ones when they are highly similar and the older one outranks
   const window = filtered.slice(0, limit * 3);
-  const swaps = findSupersessionSwaps(
+  const pairs = findSupersessionPairs(
     window.map((r) => ({
       id: r.uniqueId,
       embedding: r.embedding,
@@ -162,27 +180,24 @@ export function rankVaultMemories(
     }))
   );
 
-  if (swaps.length > 0) {
+  if (pairs.length > 0) {
     const scoreMap = new Map(filtered.map((r) => [r.uniqueId, r.similarity]));
-    for (const [oldId, newId] of swaps) {
+    for (const [oldId, newId] of pairs) {
       const oldScore = scoreMap.get(oldId)!;
       const newScore = scoreMap.get(newId)!;
+      const delta = supersessionDelta(oldScore, newScore);
       const oldItem = filtered.find((r) => r.uniqueId === oldId);
       const newItem = filtered.find((r) => r.uniqueId === newId);
       if (oldItem && newItem) {
-        oldItem.similarity = newScore;
-        newItem.similarity = oldScore;
-        scoreMap.set(oldId, newScore);
-        scoreMap.set(newId, oldScore);
+        oldItem.similarity = oldScore - delta;
+        newItem.similarity = newScore + delta;
+        scoreMap.set(oldId, oldItem.similarity);
+        scoreMap.set(newId, newItem.similarity);
       }
     }
     filtered.sort((a, b) => b.similarity - a.similarity);
   }
 
-  // Note: after supersession swaps, similarity may reflect the swapped
-  // partner's cosine score rather than the raw query–item cosine value.
-  // The distortion is bounded because swaps only occur between items
-  // with pairwise similarity > SUPERSESSION_SIMILARITY_THRESHOLD.
   return filtered.slice(0, limit).map((r) => ({
     uniqueId: r.uniqueId,
     content: r.content,
