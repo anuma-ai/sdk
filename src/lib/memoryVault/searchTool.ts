@@ -97,7 +97,7 @@ export function rankVaultMemories(
     .filter((r) => r.similarity >= minSimilarity)
     .sort((a, b) => b.similarity - a.similarity);
 
-  const keywordRanked = keywordSearch(query, scored, (r) => r.content);
+  const keywordRanked = keywordSearch(query, semanticRanked, (r) => r.content);
 
   return mergeWithRRF(
     semanticRanked,
