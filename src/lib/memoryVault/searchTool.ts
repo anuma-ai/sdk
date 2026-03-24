@@ -33,7 +33,7 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
-  /** Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword. */
+  /** Weights for semantic vs keyword ranking. Default: 0.85 semantic, 0.15 keyword. */
   hybridWeights?: HybridSearchWeights;
 }
 
@@ -97,7 +97,7 @@ export function rankVaultMemories(
     .filter((r) => r.similarity >= minSimilarity)
     .sort((a, b) => b.similarity - a.similarity);
 
-  const keywordRanked = keywordSearch(query, semanticRanked, (r) => r.content);
+  const keywordRanked = keywordSearch(query, scored, (r) => r.content);
 
   return mergeWithRRF(
     semanticRanked,

@@ -22,7 +22,7 @@ When provided, only search memories in this folder (null for unfiled)
 
 Defined in: [src/lib/memoryVault/searchTool.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#37)
 
-Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword.
+Weights for semantic vs keyword ranking. Default: 0.85 semantic, 0.15 keyword.
 
 ***
 
