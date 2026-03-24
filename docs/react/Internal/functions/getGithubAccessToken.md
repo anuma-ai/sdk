@@ -2,7 +2,7 @@
 
 > **getGithubAccessToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/github.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#442)
+Defined in: [src/lib/auth/github.ts:443](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#443)
 
 Get a valid access token, refreshing if necessary.
 GitHub tokens may not expire — if no expiry is set, the stored token

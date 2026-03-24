@@ -2,7 +2,7 @@
 
 > **clearGithubToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/github.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#212)
+Defined in: [src/lib/auth/github.ts:213](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#213)
 
 Clear stored token data
 

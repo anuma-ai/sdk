@@ -140,6 +140,7 @@ async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenDa
           cachedAccessToken = data.accessToken;
           cachedExpiresAt = data.expiresAt ?? null;
           cachedRefreshToken = data.refreshToken ?? null;
+          cachedScope = data.scope ?? null;
           cachedWalletAddress = walletAddress ?? null;
           return data;
         }
@@ -295,9 +296,9 @@ function getAndClearOAuthState(): string | null {
 
   // Handle both JSON format and plain string format
   try {
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
-      return parsed.state;
+      return (parsed as { state: string }).state;
     }
   } catch {
     // Not JSON, return as-is
@@ -449,22 +450,22 @@ export async function getGithubAccessToken(
     return null;
   }
 
-  // If token is not expired, use it
+  // Non-expiring tokens (standard GitHub OAuth) — return directly, no refresh needed
+  if (storedData.accessToken && !storedData.expiresAt) {
+    return storedData.accessToken;
+  }
+
+  // Expiring token that's still valid — use it
   if (storedData.expiresAt && !isTokenExpired(storedData)) {
     return storedData.accessToken;
   }
 
-  // Try to refresh
+  // Expired — try to refresh
   if (storedData.refreshToken) {
     const refreshedToken = await refreshGithubToken(apiClient, walletAddress);
     if (refreshedToken) {
       return refreshedToken;
     }
-  }
-
-  // Fallback: return token if no expiry info (GitHub non-expiring tokens)
-  if (storedData.accessToken && !storedData.expiresAt) {
-    return storedData.accessToken;
   }
 
   return null;
@@ -510,6 +511,10 @@ export function getAndClearGithubPendingMessage(): string | null {
  * Start the OAuth flow - redirects to GitHub
  */
 export async function startGithubAuth(clientId: string, callbackPath: string): Promise<never> {
+  if (typeof window === "undefined") {
+    return new Promise(() => {});
+  }
+
   const state = generateState();
   storeOAuthState(state);
   storeGithubReturnUrl();
