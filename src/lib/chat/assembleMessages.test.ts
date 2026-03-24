@@ -17,10 +17,10 @@ describe("assembleMessagesWithHistory", () => {
     const result = assembleMessagesWithHistory(history, caller);
 
     expect(result.map((m) => m.role)).toEqual([
-      "system",    // hoisted from caller
-      "user",      // history
+      "system", // hoisted from caller
+      "user", // history
       "assistant", // history
-      "user",      // caller (non-system)
+      "user", // caller (non-system)
     ]);
     expect(result[0]).toEqual(msg("system", "You are helpful"));
   });
@@ -42,11 +42,11 @@ describe("assembleMessagesWithHistory", () => {
     const result = assembleMessagesWithHistory(history, caller, summary);
 
     expect(result.map((m) => m.role)).toEqual([
-      "system",    // summary
-      "system",    // caller system
-      "user",      // history
+      "system", // summary
+      "system", // caller system
+      "user", // history
       "assistant", // history
-      "user",      // caller non-system
+      "user", // caller non-system
     ]);
     expect(result[0]).toEqual(summary);
     expect(result[1]).toEqual(msg("system", "You are helpful"));
