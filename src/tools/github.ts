@@ -192,7 +192,9 @@ function createReadFileTool(
         if (!data.content)
           return `Error: File ${path} has no content (may be too large for the Contents API).`;
 
-        const bytes = Uint8Array.from(atob(data.content.replace(/\n/g, "")), (c) => c.charCodeAt(0));
+        const bytes = Uint8Array.from(atob(data.content.replace(/\n/g, "")), (c) =>
+          c.charCodeAt(0)
+        );
         const content = new TextDecoder().decode(bytes);
         return {
           path: data.path,
