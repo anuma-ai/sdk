@@ -1046,8 +1046,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           summarySystemMessage
         );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // Store the user message

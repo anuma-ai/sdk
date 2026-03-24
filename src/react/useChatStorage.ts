@@ -2217,8 +2217,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           summarySystemMessage
         );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
