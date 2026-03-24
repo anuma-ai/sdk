@@ -317,6 +317,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       onServerToolCall,
+      onToolCallArgumentsDelta,
       onStepFinish,
       defaultApiType,
       smoothing,
