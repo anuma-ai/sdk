@@ -469,7 +469,8 @@ function createCreateIssueTool(
     type: "function",
     function: {
       name: "github_create_issue",
-      description: "Create a new issue in a GitHub repository.",
+      description:
+        "Create a new issue in a GitHub repository. IMPORTANT: Always confirm with the user before executing this action.",
       parameters: {
         type: "object",
         properties: {
@@ -997,7 +998,8 @@ function createBranchTool(
     type: "function",
     function: {
       name: "github_create_branch",
-      description: "Create a new branch in a repository from a given ref (branch, tag, or SHA).",
+      description:
+        "Create a new branch in a repository from a given ref (branch, tag, or SHA). IMPORTANT: Always confirm with the user before executing this action.",
       parameters: {
         type: "object",
         properties: {
