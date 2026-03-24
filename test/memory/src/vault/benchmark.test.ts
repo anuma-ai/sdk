@@ -86,6 +86,8 @@ interface QueryResult {
   query: BenchmarkQuery;
   resultIds: string[];
   similarities: { id: string; similarity: number }[];
+  /** Full similarity map for all memories (used for target similarity stats). */
+  allSimilarityMap: Map<string, number>;
   recall: number;
   precision: number;
   reciprocalRank: number;
@@ -192,8 +194,8 @@ function aggregateByCategory(results: QueryResult[]): CategoryMetrics[] {
       for (const r of group) {
         if (r.similarities.length > 0) top1Sims.push(r.similarities[0].similarity);
         for (const id of r.query.expectedIds) {
-          const found = r.similarities.find((s) => s.id === id);
-          if (found) targetSims.push(found.similarity);
+          const sim = r.allSimilarityMap.get(id);
+          if (sim !== undefined) targetSims.push(sim);
         }
       }
 
@@ -249,7 +251,7 @@ function compareWithBaseline(
     const curCat = currentByCategory.find((c) => c.category === baseCat.category);
     if (!curCat) continue;
     for (const metric of REGRESSION_METRICS) {
-      const baseVal = baseCat[metric];
+      const baseVal = baseCat[metric] ?? 0;
       const curVal = curCat[metric];
       if (baseVal - curVal > threshold) {
         regressions.push({ metric, category: baseCat.category, baseline: baseVal, current: curVal, delta: curVal - baseVal });
@@ -338,6 +340,7 @@ async function main() {
     });
 
     const allScored = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
+    const allSimilarityMap = new Map(allScored.map((s) => [s.id, s.similarity]));
     const topK = allScored.slice(0, query.k);
     const resultIds = topK.map((s) => s.id);
     const relevant = new Set(query.expectedIds);
@@ -351,6 +354,7 @@ async function main() {
       query,
       resultIds,
       similarities: topK,
+      allSimilarityMap,
       recall: recallAtK(resultIds, relevant, query.k),
       precision: precisionAtK(resultIds, relevant, query.k),
       reciprocalRank: reciprocalRank(resultIds, relevant),
@@ -394,6 +398,12 @@ async function main() {
   // ---------------------------------------------------------------------------
 
   if (args.json) {
+    // Save baseline without verbose details to keep the file small
+    if (args["save-baseline"]) {
+      await writeFile(DEFAULT_BASELINE_PATH, JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2));
+      console.error(`Baseline saved to ${DEFAULT_BASELINE_PATH}`);
+    }
+
     const output = {
       ...buildBaselinePayload(overall, byCategory, elapsed),
       ...(args.verbose && {
@@ -414,10 +424,9 @@ async function main() {
     };
     const jsonStr = JSON.stringify(output, null, 2);
 
-    if (args["save-baseline"] || args.output) {
-      const path = args.output || DEFAULT_BASELINE_PATH;
-      await writeFile(path, jsonStr);
-      console.log(`Results written to ${path}`);
+    if (args.output) {
+      await writeFile(args.output, jsonStr);
+      console.error(`Results written to ${args.output}`);
     } else {
       console.log(jsonStr);
     }
