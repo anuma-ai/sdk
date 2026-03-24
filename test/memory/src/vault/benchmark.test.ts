@@ -194,6 +194,7 @@ async function main() {
     id: m.id,
     content: m.content,
     embedding: embeddingMap.get(m.id)!,
+    updatedAt: new Date(m.createdAt),
   }));
 
   // Run each query using the production ranking pipeline

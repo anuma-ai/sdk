@@ -57,18 +57,70 @@ interface EmbeddedItem {
   id: string;
   content: string;
   embedding: number[];
+  /** Last update timestamp — used for supersession detection. */
+  updatedAt?: Date;
+}
+
+/**
+ * Minimum pairwise cosine similarity between two memories for the older
+ * one to be considered superseded by the newer one.
+ */
+const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
+
+/**
+ * Minimum time gap (in milliseconds) between two memories for supersession
+ * to apply. Memories created close together are likely complementary, not
+ * superseding. Default: 30 days.
+ */
+const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Find supersession pairs among scored candidates. When two items have
+ * pairwise embedding similarity above the threshold and the older one
+ * outranks the newer one, they form a supersession pair whose scores
+ * should be swapped.
+ *
+ * Returns an array of [oldId, newId] pairs to swap.
+ */
+function findSupersessionSwaps(
+  candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
+): Array<[string, string]> {
+  const swaps: Array<[string, string]> = [];
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i];
+      const b = candidates[j];
+      if (!a.updatedAt || !b.updatedAt) continue;
+
+      const sim = cosineSimilarity(a.embedding, b.embedding);
+      if (sim < SUPERSESSION_SIMILARITY_THRESHOLD) continue;
+
+      // Require a meaningful time gap — memories created close together
+      // are likely complementary, not superseding
+      const gap = Math.abs(a.updatedAt.getTime() - b.updatedAt.getTime());
+      if (gap < SUPERSESSION_MIN_AGE_GAP_MS) continue;
+
+      // Determine which is older and which has higher rank (lower index = higher rank)
+      const [older, newer] = a.updatedAt < b.updatedAt ? [a, b] : [b, a];
+      // Only swap if the older item outranks the newer one
+      if (older.similarity > newer.similarity) {
+        swaps.push([older.id, newer.id]);
+      }
+    }
+  }
+  return swaps;
 }
 
 /**
  * Pure ranking function: scores, filters, and ranks items using cosine
- * similarity. This contains no database or I/O dependencies, making it
- * testable and usable in benchmarks.
+ * similarity with supersession detection. When items include `updatedAt`
+ * timestamps, pairs of highly similar items are checked for supersession —
+ * the older item in each pair is penalized to prefer newer information.
  *
- * @param query - The search query text (unused in semantic-only mode, reserved for future hybrid search)
  * @param queryEmbedding - Pre-computed embedding for the query
  * @param items - Items with pre-computed embeddings to rank
  * @param options - Ranking options (limit, minSimilarity)
- * @returns Ranked results sorted by descending cosine similarity
+ * @returns Ranked results sorted by descending similarity
  */
 export function rankVaultMemories(
   _query: string,
@@ -85,13 +137,46 @@ export function rankVaultMemories(
   const scored = items.map((item) => ({
     uniqueId: item.id,
     content: item.content,
+    embedding: item.embedding,
+    updatedAt: item.updatedAt,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
-  return scored
-    .filter((r) => r.similarity >= minSimilarity)
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  const filtered = scored.filter((r) => r.similarity >= minSimilarity);
+  filtered.sort((a, b) => b.similarity - a.similarity);
+
+  // Check top candidates for supersession — swap scores when an older item
+  // outranks its newer, highly similar counterpart
+  const window = filtered.slice(0, limit * 3);
+  const swaps = findSupersessionSwaps(
+    window.map((r) => ({
+      id: r.uniqueId,
+      embedding: r.embedding,
+      updatedAt: r.updatedAt,
+      similarity: r.similarity,
+    }))
+  );
+
+  if (swaps.length > 0) {
+    const scoreMap = new Map(filtered.map((r) => [r.uniqueId, r.similarity]));
+    for (const [oldId, newId] of swaps) {
+      const oldScore = scoreMap.get(oldId)!;
+      const newScore = scoreMap.get(newId)!;
+      const oldItem = filtered.find((r) => r.uniqueId === oldId);
+      const newItem = filtered.find((r) => r.uniqueId === newId);
+      if (oldItem && newItem) {
+        oldItem.similarity = newScore;
+        newItem.similarity = oldScore;
+      }
+    }
+    filtered.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  return filtered.slice(0, limit).map((r) => ({
+    uniqueId: r.uniqueId,
+    content: r.content,
+    similarity: r.similarity,
+  }));
 }
 
 /**
@@ -243,7 +328,7 @@ async function searchVaultMemoriesWithSize(
   for (const m of memories) {
     const embedding = cache.get(m.content);
     if (embedding) {
-      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding });
+      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
     }
   }
 
