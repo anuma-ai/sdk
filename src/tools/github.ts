@@ -31,15 +31,18 @@ async function resolveToken(
   if (!token) {
     try {
       token = await requestGitHubAccess();
-    } catch {
+    } catch (err) {
+      getLogger().error("Failed to resolve GitHub token", err);
       return null;
     }
   }
   return token;
 }
 
+const FETCH_TIMEOUT_MS = 30_000;
+
 /**
- * Make an authenticated GitHub API request.
+ * Make an authenticated GitHub API request with timeout and SSRF protection.
  */
 async function githubFetch(
   token: string,
@@ -47,15 +50,47 @@ async function githubFetch(
   options: RequestInit = {}
 ): Promise<Response> {
   const url = path.startsWith("http") ? path : `${GITHUB_API}${path}`;
-  return fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+
+  // SSRF protection: only allow GitHub API URLs
+  if (path.startsWith("http") && !path.startsWith(GITHUB_API)) {
+    throw new Error("githubFetch: URL must target GitHub API");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...options.headers,
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Encode a GitHub API path, encoding each segment individually.
+ * Handles owner, repo, and file paths with special characters.
+ */
+function encodePath(segments: string[]): string {
+  return segments.map((s) => encodeURIComponent(s)).join("/");
+}
+
+/**
+ * Encode a file path (may contain /) by encoding each segment.
+ */
+function encodeFilePath(filePath: string): string {
+  return filePath
+    .split("/")
+    .map((s) => encodeURIComponent(s))
+    .join("/");
 }
 
 /**
@@ -183,7 +218,10 @@ function createReadFileTool(
       const params = ref ? `?ref=${encodeURIComponent(ref)}` : "";
 
       try {
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/contents/${path}${params}`);
+        const resp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/contents/${encodeFilePath(path)}${params}`
+        );
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `file ${owner}/${repo}/${path}`);
 
@@ -311,7 +349,7 @@ function createDirectoryTreeTool(
       try {
         const resp = await githubFetch(
           token,
-          `/repos/${owner}/${repo}/git/trees/${sha}?recursive=1`
+          `/repos/${encodePath([owner, repo])}/git/trees/${encodeURIComponent(sha)}?recursive=1`
         );
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `tree for ${owner}/${repo}`);
@@ -390,7 +428,10 @@ function createListIssuesTool(
       if (args.assignee) params.set("assignee", args.assignee as string);
 
       try {
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/issues?${params}`);
+        const resp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/issues?${params}`
+        );
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `issues for ${owner}/${repo}`);
 
@@ -460,7 +501,7 @@ function createCreateIssueTool(
       };
 
       try {
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/issues`, {
+        const resp = await githubFetch(token, `/repos/${encodePath([owner, repo])}/issues`, {
           method: "POST",
           body: JSON.stringify({ title, body, labels, assignees }),
         });
@@ -522,7 +563,10 @@ function createListPullRequestsTool(
       if (args.base) params.set("base", args.base as string);
 
       try {
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/pulls?${params}`);
+        const resp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/pulls?${params}`
+        );
         if (!resp.ok)
           return handleApiError(
             resp.status,
@@ -592,7 +636,10 @@ function createGetPullRequestTool(
 
       try {
         // Fetch PR metadata
-        const prResp = await githubFetch(token, `/repos/${owner}/${repo}/pulls/${pull_number}`);
+        const prResp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/pulls/${pull_number}`
+        );
         if (!prResp.ok)
           return handleApiError(prResp.status, await prResp.text(), `PR #${pull_number}`);
 
@@ -620,12 +667,12 @@ function createGetPullRequestTool(
         if (includeDiff) {
           const filesResp = await githubFetch(
             token,
-            `/repos/${owner}/${repo}/pulls/${pull_number}/files?per_page=100`
+            `/repos/${encodePath([owner, repo])}/pulls/${pull_number}/files?per_page=100`
           );
           if (filesResp.ok) {
-            const files = await filesResp.json();
+            const files = (await filesResp.json()) as Record<string, unknown>[];
             let totalDiffSize = 0;
-            result.files = (files as Record<string, unknown>[]).map((f) => {
+            result.files = files.map((f) => {
               const patch = (f.patch as string) || "";
               const wouldExceed = totalDiffSize + patch.length > MAX_DIFF_SIZE;
               if (!wouldExceed) totalDiffSize += patch.length;
@@ -637,6 +684,12 @@ function createGetPullRequestTool(
                 patch: wouldExceed ? "(diff too large, omitted)" : patch,
               };
             });
+
+            // Warn if GitHub truncated the files list (max 100 per page)
+            const totalChanged = pr.changed_files as number;
+            if (totalChanged && files.length < totalChanged) {
+              result.files_warning = `Only ${files.length} of ${totalChanged} changed files shown. GitHub limits to 100 files per page.`;
+            }
           }
         }
 
@@ -659,7 +712,8 @@ function createCreatePullRequestTool(
     type: "function",
     function: {
       name: "github_create_pull_request",
-      description: "Create a new pull request.",
+      description:
+        "Create a new pull request. IMPORTANT: Always confirm with the user before executing this action.",
       parameters: {
         type: "object",
         properties: {
@@ -689,7 +743,7 @@ function createCreatePullRequestTool(
       };
 
       try {
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/pulls`, {
+        const resp = await githubFetch(token, `/repos/${encodePath([owner, repo])}/pulls`, {
           method: "POST",
           body: JSON.stringify({ title, body, head, base, draft: draft || false }),
         });
@@ -721,7 +775,8 @@ function createMergePullRequestTool(
     type: "function",
     function: {
       name: "github_merge_pull_request",
-      description: "Merge a pull request.",
+      description:
+        "Merge a pull request. IMPORTANT: Always confirm with the user before executing this action. This is irreversible.",
       parameters: {
         type: "object",
         properties: {
@@ -755,7 +810,7 @@ function createMergePullRequestTool(
       try {
         const resp = await githubFetch(
           token,
-          `/repos/${owner}/${repo}/pulls/${pull_number}/merge`,
+          `/repos/${encodePath([owner, repo])}/pulls/${pull_number}/merge`,
           {
             method: "PUT",
             body: JSON.stringify({
@@ -812,7 +867,7 @@ function createListPRCommentsTool(
       try {
         const resp = await githubFetch(
           token,
-          `/repos/${owner}/${repo}/pulls/${pull_number}/comments?per_page=100`
+          `/repos/${encodePath([owner, repo])}/pulls/${pull_number}/comments?per_page=100`
         );
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `comments on PR #${pull_number}`);
@@ -853,7 +908,7 @@ function createPRReviewTool(
     function: {
       name: "github_create_pr_review",
       description:
-        "Submit a review on a pull request. Can approve, request changes, or leave comments with optional inline comments on specific lines.",
+        "Submit a review on a pull request. Can approve, request changes, or leave comments with optional inline comments on specific lines. IMPORTANT: Always confirm with the user before submitting APPROVE or REQUEST_CHANGES reviews.",
       parameters: {
         type: "object",
         properties: {
@@ -904,7 +959,7 @@ function createPRReviewTool(
       try {
         const resp = await githubFetch(
           token,
-          `/repos/${owner}/${repo}/pulls/${pull_number}/reviews`,
+          `/repos/${encodePath([owner, repo])}/pulls/${pull_number}/reviews`,
           {
             method: "POST",
             body: JSON.stringify({
@@ -974,14 +1029,14 @@ function createBranchTool(
 
         if (!from_ref) {
           // No ref specified — use the repo's default branch
-          const repoResp = await githubFetch(token, `/repos/${owner}/${repo}`);
+          const repoResp = await githubFetch(token, `/repos/${encodePath([owner, repo])}`);
           if (!repoResp.ok)
             return handleApiError(repoResp.status, await repoResp.text(), `repo ${owner}/${repo}`);
           const repoData = (await repoResp.json()) as { default_branch: string };
 
           const defaultRefResp = await githubFetch(
             token,
-            `/repos/${owner}/${repo}/git/ref/heads/${repoData.default_branch}`
+            `/repos/${encodePath([owner, repo])}/git/ref/heads/${repoData.default_branch}`
           );
           if (!defaultRefResp.ok)
             return handleApiError(
@@ -998,7 +1053,7 @@ function createBranchTool(
           // Try as branch first, then tag
           const branchResp = await githubFetch(
             token,
-            `/repos/${owner}/${repo}/git/ref/heads/${from_ref}`
+            `/repos/${encodePath([owner, repo])}/git/ref/heads/${from_ref}`
           );
           if (branchResp.ok) {
             const branchData = (await branchResp.json()) as { object: { sha: string } };
@@ -1006,7 +1061,7 @@ function createBranchTool(
           } else {
             const tagResp = await githubFetch(
               token,
-              `/repos/${owner}/${repo}/git/ref/tags/${from_ref}`
+              `/repos/${encodePath([owner, repo])}/git/ref/tags/${from_ref}`
             );
             if (tagResp.ok) {
               const tagData = (await tagResp.json()) as {
@@ -1016,7 +1071,7 @@ function createBranchTool(
               if (tagData.object.type === "tag") {
                 const derefResp = await githubFetch(
                   token,
-                  `/repos/${owner}/${repo}/git/tags/${tagData.object.sha}`
+                  `/repos/${encodePath([owner, repo])}/git/tags/${tagData.object.sha}`
                 );
                 if (derefResp.ok) {
                   const derefData = (await derefResp.json()) as { object: { sha: string } };
@@ -1034,10 +1089,14 @@ function createBranchTool(
         }
 
         // Create the new branch
-        const createResp = await githubFetch(token, `/repos/${owner}/${repo}/git/refs`, {
-          method: "POST",
-          body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
-        });
+        const createResp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/git/refs`,
+          {
+            method: "POST",
+            body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }),
+          }
+        );
         if (!createResp.ok)
           return handleApiError(
             createResp.status,
@@ -1066,7 +1125,7 @@ function createOrUpdateFileTool(
     function: {
       name: "github_create_or_update_file",
       description:
-        "Create or update a file in a GitHub repository. This creates a commit on the specified branch.",
+        "Create or update a file in a GitHub repository. This creates a commit on the specified branch. IMPORTANT: Always confirm with the user before executing this action.",
       parameters: {
         type: "object",
         properties: {
@@ -1110,10 +1169,14 @@ function createOrUpdateFileTool(
         };
         if (sha) body.sha = sha;
 
-        const resp = await githubFetch(token, `/repos/${owner}/${repo}/contents/${path}`, {
-          method: "PUT",
-          body: JSON.stringify(body),
-        });
+        const resp = await githubFetch(
+          token,
+          `/repos/${encodePath([owner, repo])}/contents/${encodeFilePath(path)}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(body),
+          }
+        );
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), `commit file ${path}`);
 
         const data = await resp.json();
