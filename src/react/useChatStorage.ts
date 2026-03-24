@@ -2210,11 +2210,19 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           )
         );
 
-        // Assemble: [summary (if exists), window messages, new messages]
+        // Hoist system messages from `messages` to the front so they precede
+        // history. Callers (e.g. web frontend) prepend a system message to the
+        // messages array, but the Responses API requires system messages before
+        // any user/assistant messages.
+        const systemMessages = messages.filter((m) => m.role === "system");
+        const nonSystemMessages = messages.filter((m) => m.role !== "system");
+
+        // Assemble: [summary (if exists), caller system msgs, window messages, new messages]
         messagesToSend = [
           ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...systemMessages,
           ...historyMessages,
-          ...messages,
+          ...nonSystemMessages,
         ];
       } else {
         // Use provided messages directly

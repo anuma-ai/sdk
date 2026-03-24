@@ -1039,10 +1039,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           baseUrl,
         });
 
+        // Hoist system messages from `messages` to the front so they precede
+        // history. Callers prepend a system message to the messages array, but
+        // the Responses API requires system messages before user/assistant messages.
+        const systemMessages = messages.filter((m) => m.role === "system");
+        const nonSystemMessages = messages.filter((m) => m.role !== "system");
+
         messagesToSend = [
           ...(summarySystemMessage ? [summarySystemMessage] : []),
+          ...systemMessages,
           ...messagesToConvert.map(storedToLlmapiMessage),
-          ...messages,
+          ...nonSystemMessages,
         ];
       } else {
         // Use provided messages directly
