@@ -8,10 +8,10 @@
  * composite.
  *
  * Metrics:
- *   - Recall@k: fraction of queries where ALL expected memories appear in top-k
+ *   - Recall@k: fraction of expected memories that appear in top-k results
  *   - MRR: mean reciprocal rank of the first expected memory
- *   - mustNotRankAbove: fraction of queries where a superseded/wrong memory
- *     did not outrank the correct one
+ *   - rankingViolationRate: fraction of queries where a superseded/wrong memory
+ *     outranked the correct one (lower is better)
  *
  * Run:
  *   pnpm eval:vault-search
@@ -22,10 +22,7 @@
 import "dotenv/config";
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
-import {
-  generateEmbedding,
-  generateEmbeddings,
-} from "../../../../src/lib/memoryEngine/embeddings.js";
+import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import { VAULT_MEMORIES, BENCHMARK_QUERIES, type BenchmarkQuery } from "./dataset.js";
 
@@ -181,12 +178,12 @@ async function main() {
     }
   }
   if (args.max) {
-    const maxVal = parseInt(args.max, 10);
-    if (isNaN(maxVal) || maxVal <= 0) {
-      console.error(`Invalid --max value: "${args.max}"`);
+    const maxCount = parseInt(args.max, 10);
+    if (isNaN(maxCount) || maxCount <= 0) {
+      console.error(`Invalid value for --max: "${args.max}". Must be a positive integer.`);
       process.exit(1);
     }
-    queries = queries.slice(0, maxVal);
+    queries = queries.slice(0, maxCount);
   }
 
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
@@ -199,12 +196,20 @@ async function main() {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
+  const queryTexts = queries.map((q) => q.query);
+  console.log(`Embedding ${queryTexts.length} queries...`);
+  const queryEmbeddingsList = await generateEmbeddings(queryTexts, embeddingOptions);
+  const queryEmbeddingMap = new Map<string, number[]>();
+  for (let i = 0; i < queries.length; i++) {
+    queryEmbeddingMap.set(queries[i].query, queryEmbeddingsList[i]);
+  }
+
   console.log(`Running ${queries.length} queries...\n`);
 
   // Run each query
   const results: QueryResult[] = [];
   for (const query of queries) {
-    const queryEmbedding = await generateEmbedding(query.query, embeddingOptions);
+    const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
     // Score all memories by similarity
     const scored = VAULT_MEMORIES.map((m) => ({
