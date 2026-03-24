@@ -9,6 +9,7 @@ import type {
   LlmapiToolCallEvent,
 } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -2210,15 +2211,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           )
         );
 
-        // Assemble: [summary (if exists), window messages, new messages]
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...historyMessages,
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          historyMessages,
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
