@@ -53,7 +53,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 /**
  * An item with a pre-computed embedding, ready for ranking.
  */
-export interface EmbeddedItem {
+interface EmbeddedItem {
   id: string;
   content: string;
   embedding: number[];
