@@ -194,7 +194,7 @@ async function main() {
     id: m.id,
     content: m.content,
     embedding: embeddingMap.get(m.id)!,
-    updatedAt: new Date(m.createdAt),
+    updatedAt: new Date(m.createdAt), // no explicit updatedAt in benchmark data; createdAt encodes recency for temporal tests
   }));
 
   // Run each query using the production ranking pipeline

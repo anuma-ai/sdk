@@ -172,11 +172,17 @@ export function rankVaultMemories(
       if (oldItem && newItem) {
         oldItem.similarity = newScore;
         newItem.similarity = oldScore;
+        scoreMap.set(oldId, newScore);
+        scoreMap.set(newId, oldScore);
       }
     }
     filtered.sort((a, b) => b.similarity - a.similarity);
   }
 
+  // Note: after supersession swaps, similarity may reflect the swapped
+  // partner's cosine score rather than the raw query–item cosine value.
+  // The distortion is bounded because swaps only occur between items
+  // with pairwise similarity > SUPERSESSION_SIMILARITY_THRESHOLD.
   return filtered.slice(0, limit).map((r) => ({
     uniqueId: r.uniqueId,
     content: r.content,
