@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -1039,18 +1040,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           baseUrl,
         });
 
-        // Hoist system messages from `messages` to the front so they precede
-        // history. Callers prepend a system message to the messages array, but
-        // the Responses API requires system messages before user/assistant messages.
-        const systemMessages = messages.filter((m) => m.role === "system");
-        const nonSystemMessages = messages.filter((m) => m.role !== "system");
-
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...systemMessages,
-          ...messagesToConvert.map(storedToLlmapiMessage),
-          ...nonSystemMessages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          messagesToConvert.map(storedToLlmapiMessage),
+          messages,
+          summarySystemMessage
+        );
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];

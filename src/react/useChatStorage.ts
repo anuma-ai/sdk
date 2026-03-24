@@ -9,6 +9,7 @@ import type {
   LlmapiToolCallEvent,
 } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -2210,20 +2211,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           )
         );
 
-        // Hoist system messages from `messages` to the front so they precede
-        // history. Callers (e.g. web frontend) prepend a system message to the
-        // messages array, but the Responses API requires system messages before
-        // any user/assistant messages.
-        const systemMessages = messages.filter((m) => m.role === "system");
-        const nonSystemMessages = messages.filter((m) => m.role !== "system");
-
-        // Assemble: [summary (if exists), caller system msgs, window messages, new messages]
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...systemMessages,
-          ...historyMessages,
-          ...nonSystemMessages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          historyMessages,
+          messages,
+          summarySystemMessage
+        );
       } else {
         // Use provided messages directly
         messagesToSend = [...messages];
