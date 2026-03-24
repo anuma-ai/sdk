@@ -22,8 +22,6 @@ export interface PromptContext {
   sentiment?: "frustrated" | "positive" | "neutral" | null;
   /** ISO 639-1 language code, 'other', or null for English/undetected. */
   preferredLanguage?: string | null;
-  /** Platform hint (e.g. 'sms', 'telegram', 'web', 'mobile'). */
-  platform?: string | null;
   /** Platform-specific formatting instructions from PersonaConfig. */
   platformFormatting?: string | null;
   /** Available tools. */
