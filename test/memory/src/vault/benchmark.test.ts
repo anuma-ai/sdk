@@ -203,6 +203,7 @@ async function main() {
 
     const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
       limit: query.k,
+      minSimilarity: 0,
     });
 
     const resultIds = ranked.map((r) => r.uniqueId);
