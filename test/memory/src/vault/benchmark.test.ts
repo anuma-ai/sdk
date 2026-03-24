@@ -29,13 +29,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import { rankVaultMemories } from "../../../../src/lib/memoryVault/searchTool.js";
+import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
 import {
-  precisionAtK,
-  recallAtK,
-  reciprocalRank,
-  ndcgAtK,
-} from "../metrics.js";
-import { VAULT_MEMORIES, BENCHMARK_QUERIES, CATEGORIES, type BenchmarkQuery, type Category } from "./dataset.js";
+  VAULT_MEMORIES,
+  BENCHMARK_QUERIES,
+  CATEGORIES,
+  type BenchmarkQuery,
+  type Category,
+} from "./dataset.js";
 
 const DEFAULT_BASELINE_PATH = "test/memory/src/vault/baseline.json";
 const REGRESSION_METRICS = ["recallAtK", "precisionAtK", "mrr", "ndcg"] as const;
@@ -184,39 +185,37 @@ function computeOverall(results: QueryResult[]): OverallMetrics {
 }
 
 function aggregateByCategory(results: QueryResult[]): CategoryMetrics[] {
-  return CATEGORIES
-    .map((category) => {
-      const group = results.filter((r) => r.query.category === category);
-      if (group.length === 0) return null;
+  return CATEGORIES.map((category) => {
+    const group = results.filter((r) => r.query.category === category);
+    if (group.length === 0) return null;
 
-      const targetSims: number[] = [];
-      const top1Sims: number[] = [];
-      for (const r of group) {
-        if (r.similarities.length > 0) top1Sims.push(r.similarities[0].similarity);
-        for (const id of r.query.expectedIds) {
-          const sim = r.allSimilarityMap.get(id);
-          if (sim !== undefined) targetSims.push(sim);
-        }
+    const targetSims: number[] = [];
+    const top1Sims: number[] = [];
+    for (const r of group) {
+      if (r.similarities.length > 0) top1Sims.push(r.similarities[0].similarity);
+      for (const id of r.query.expectedIds) {
+        const sim = r.allSimilarityMap.get(id);
+        if (sim !== undefined) targetSims.push(sim);
       }
+    }
 
-      const temporalMargins = group
-        .filter((r) => r.temporalMargin !== undefined)
-        .map((r) => r.temporalMargin!);
+    const temporalMargins = group
+      .filter((r) => r.temporalMargin !== undefined)
+      .map((r) => r.temporalMargin!);
 
-      return {
-        category,
-        count: group.length,
-        recallAtK: mean(group.map((r) => r.recall)),
-        precisionAtK: mean(group.map((r) => r.precision)),
-        mrr: mean(group.map((r) => r.reciprocalRank)),
-        ndcg: mean(group.map((r) => r.ndcg)),
-        rankingViolationRate: group.filter((r) => r.rankingViolation).length / group.length,
-        avgTargetSim: mean(targetSims),
-        avgTop1Sim: mean(top1Sims),
-        ...(temporalMargins.length > 0 && { avgTemporalMargin: mean(temporalMargins) }),
-      };
-    })
-    .filter((cat) => cat !== null) as CategoryMetrics[];
+    return {
+      category,
+      count: group.length,
+      recallAtK: mean(group.map((r) => r.recall)),
+      precisionAtK: mean(group.map((r) => r.precision)),
+      mrr: mean(group.map((r) => r.reciprocalRank)),
+      ndcg: mean(group.map((r) => r.ndcg)),
+      rankingViolationRate: group.filter((r) => r.rankingViolation).length / group.length,
+      avgTargetSim: mean(targetSims),
+      avgTop1Sim: mean(top1Sims),
+      ...(temporalMargins.length > 0 && { avgTemporalMargin: mean(temporalMargins) }),
+    };
+  }).filter((cat) => cat !== null) as CategoryMetrics[];
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +242,13 @@ function compareWithBaseline(
     const baseVal = baselineData.overall[metric] ?? 0;
     const curVal = currentOverall[metric];
     if (baseVal - curVal > threshold) {
-      regressions.push({ metric, category: "OVERALL", baseline: baseVal, current: curVal, delta: curVal - baseVal });
+      regressions.push({
+        metric,
+        category: "OVERALL",
+        baseline: baseVal,
+        current: curVal,
+        delta: curVal - baseVal,
+      });
     }
   }
 
@@ -254,7 +259,13 @@ function compareWithBaseline(
       const baseVal = baseCat[metric] ?? 0;
       const curVal = curCat[metric];
       if (baseVal - curVal > threshold) {
-        regressions.push({ metric, category: baseCat.category, baseline: baseVal, current: curVal, delta: curVal - baseVal });
+        regressions.push({
+          metric,
+          category: baseCat.category,
+          baseline: baseVal,
+          current: curVal,
+          delta: curVal - baseVal,
+        });
       }
     }
   }
@@ -266,13 +277,27 @@ function compareWithBaseline(
 // Output helpers
 // ---------------------------------------------------------------------------
 
-function formatRow(label: string, m: { count?: number; recallAtK: number; precisionAtK: number; mrr: number; ndcg: number; rankingViolationRate: number }): string {
+function formatRow(
+  label: string,
+  m: {
+    count?: number;
+    recallAtK: number;
+    precisionAtK: number;
+    mrr: number;
+    ndcg: number;
+    rankingViolationRate: number;
+  }
+): string {
   const name = label.padEnd(14);
   const count = String(m.count ?? "").padStart(5);
   return `║ ${name} ║ ${count} ║ ${formatPct(m.recallAtK, 7)} ║ ${formatPct(m.precisionAtK, 5)} ║ ${formatPct(m.mrr, 5)} ║ ${formatPct(m.ndcg, 5)} ║ ${formatPct(m.rankingViolationRate, 9)} ║`;
 }
 
-function buildBaselinePayload(overall: OverallMetrics, byCategory: CategoryMetrics[], elapsed: string) {
+function buildBaselinePayload(
+  overall: OverallMetrics,
+  byCategory: CategoryMetrics[],
+  elapsed: string
+) {
   return {
     timestamp: new Date().toISOString(),
     elapsedSeconds: parseFloat(elapsed),
@@ -308,14 +333,20 @@ async function main() {
   }
 
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
-  const memoryEmbeddings = await generateEmbeddings(VAULT_MEMORIES.map((m) => m.content), embeddingOptions);
+  const memoryEmbeddings = await generateEmbeddings(
+    VAULT_MEMORIES.map((m) => m.content),
+    embeddingOptions
+  );
   const embeddingMap = new Map<string, number[]>();
   for (let i = 0; i < VAULT_MEMORIES.length; i++) {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
   console.log(`Embedding ${queries.length} queries...`);
-  const queryEmbeddingsList = await generateEmbeddings(queries.map((q) => q.query), embeddingOptions);
+  const queryEmbeddingsList = await generateEmbeddings(
+    queries.map((q) => q.query),
+    embeddingOptions
+  );
   const queryEmbeddingMap = new Map<string, number[]>();
   for (let i = 0; i < queries.length; i++) {
     queryEmbeddingMap.set(queries[i].query, queryEmbeddingsList[i]);
@@ -382,7 +413,9 @@ async function main() {
         console.error("  Metric          Category        Baseline  Current   Delta");
         console.error("  ──────────────  ──────────────  ────────  ────────  ──────");
         for (const r of regressions) {
-          console.error(`  ${r.metric.padEnd(14)}  ${r.category.padEnd(14)}  ${formatPct(r.baseline, 7)}  ${formatPct(r.current, 7)}  ${formatPct(r.delta, 5)}`);
+          console.error(
+            `  ${r.metric.padEnd(14)}  ${r.category.padEnd(14)}  ${formatPct(r.baseline, 7)}  ${formatPct(r.current, 7)}  ${formatPct(r.delta, 5)}`
+          );
         }
         process.exit(1);
       }
@@ -400,7 +433,10 @@ async function main() {
   if (args.json) {
     // Save baseline without verbose details to keep the file small
     if (args["save-baseline"]) {
-      await writeFile(DEFAULT_BASELINE_PATH, JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2));
+      await writeFile(
+        DEFAULT_BASELINE_PATH,
+        JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2)
+      );
       console.error(`Baseline saved to ${DEFAULT_BASELINE_PATH}`);
     }
 
@@ -438,7 +474,10 @@ async function main() {
   // ---------------------------------------------------------------------------
 
   if (args["save-baseline"]) {
-    await writeFile(DEFAULT_BASELINE_PATH, JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2));
+    await writeFile(
+      DEFAULT_BASELINE_PATH,
+      JSON.stringify(buildBaselinePayload(overall, byCategory, elapsed), null, 2)
+    );
     console.log(`Baseline saved to ${DEFAULT_BASELINE_PATH}`);
   }
 
@@ -484,7 +523,8 @@ async function main() {
         issues.push(`missing: [${missing.join(", ")}]`);
       }
       if (f.rankingViolation) {
-        const margin = f.temporalMargin !== undefined ? ` (margin: ${f.temporalMargin.toFixed(4)})` : "";
+        const margin =
+          f.temporalMargin !== undefined ? ` (margin: ${f.temporalMargin.toFixed(4)})` : "";
         issues.push(`ranking violation${margin}`);
       }
       console.log(
