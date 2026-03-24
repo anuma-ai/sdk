@@ -558,3 +558,22 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
+
+// GitHub Auth (with repo scope for full repository access)
+export {
+  clearGithubToken,
+  getAndClearGithubPendingMessage,
+  getAndClearGithubReturnUrl,
+  getGithubAccessToken,
+  getValidGithubToken,
+  handleGithubCallback,
+  hasGithubCredentials,
+  isGithubCallback,
+  migrateGithubToken,
+  refreshGithubToken,
+  revokeGithubToken,
+  startGithubAuth,
+  storeGithubPendingMessage,
+  storeGithubReturnUrl,
+  storeGithubToken,
+} from "../lib/auth/github";
