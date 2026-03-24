@@ -182,12 +182,13 @@ export function rankVaultMemories(
 
   if (pairs.length > 0) {
     const scoreMap = new Map(filtered.map((r) => [r.uniqueId, r.similarity]));
+    const itemMap = new Map(filtered.map((r) => [r.uniqueId, r]));
     for (const [oldId, newId] of pairs) {
       const oldScore = scoreMap.get(oldId)!;
       const newScore = scoreMap.get(newId)!;
       const delta = supersessionDelta(oldScore, newScore);
-      const oldItem = filtered.find((r) => r.uniqueId === oldId);
-      const newItem = filtered.find((r) => r.uniqueId === newId);
+      const oldItem = itemMap.get(oldId);
+      const newItem = itemMap.get(newId);
       if (oldItem && newItem) {
         oldItem.similarity = oldScore - delta;
         newItem.similarity = newScore + delta;
