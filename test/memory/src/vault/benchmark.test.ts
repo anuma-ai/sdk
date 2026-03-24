@@ -24,6 +24,7 @@ import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
+import { rankVaultMemories } from "../../../../src/lib/memoryVault/searchTool.js";
 import { VAULT_MEMORIES, BENCHMARK_QUERIES, type BenchmarkQuery } from "./dataset.js";
 
 // ---------------------------------------------------------------------------
@@ -61,24 +62,6 @@ const embeddingOptions: EmbeddingOptions = {
   baseUrl: BASE_URL,
   cache: new Map<string, number[]>(),
 };
-
-// ---------------------------------------------------------------------------
-// Cosine similarity (mirrors searchTool.ts implementation)
-// ---------------------------------------------------------------------------
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,25 +189,30 @@ async function main() {
 
   console.log(`Running ${queries.length} queries...\n`);
 
-  // Run each query
+  // Build embedded items for rankVaultMemories (production ranking function)
+  const embeddedItems = VAULT_MEMORIES.map((m) => ({
+    id: m.id,
+    content: m.content,
+    embedding: embeddingMap.get(m.id)!,
+  }));
+
+  // Run each query using the production ranking pipeline
   const results: QueryResult[] = [];
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
-    // Score all memories by similarity
-    const scored = VAULT_MEMORIES.map((m) => ({
-      id: m.id,
-      similarity: cosineSimilarity(queryEmbedding, embeddingMap.get(m.id)!),
-    }));
-    scored.sort((a, b) => b.similarity - a.similarity);
+    const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
+      limit: query.k,
+      minSimilarity: 0,
+    });
 
-    const topK = scored.slice(0, query.k);
-    const resultIds = topK.map((s) => s.id);
+    const resultIds = ranked.map((r) => r.uniqueId);
+    const similarities = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
 
     results.push({
       query,
       resultIds,
-      similarities: topK,
+      similarities,
       recall: computeRecall(resultIds, query.expectedIds),
       reciprocalRank: computeReciprocalRank(resultIds, query.expectedIds),
       rankingViolation: checkRankingViolation(resultIds, query.expectedIds, query.mustNotRankAbove),
