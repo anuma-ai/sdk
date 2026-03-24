@@ -22,7 +22,7 @@ export interface VaultMemoryEntry {
 
 export interface BenchmarkQuery {
   query: string;
-  category: "direct" | "paraphrase" | "specificity" | "temporal" | "composite";
+  category: "direct" | "paraphrase" | "specificity" | "temporal" | "composite" | "hard_negatives";
   /** Memory IDs that MUST appear in the top-k results */
   expectedIds: string[];
   /** Memory IDs that must NOT rank above any expectedIds entry */
@@ -916,5 +916,57 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     category: "composite",
     expectedIds: ["w12", "w13", "w36"],
     k: 5,
+  },
+
+  // ── Hard negatives (8) ───────────────────────────────────────────────
+  {
+    query: "What technology does the team explicitly NOT use?",
+    category: "hard_negatives",
+    expectedIds: ["w28"],
+    k: 3,
+  },
+  {
+    query: "What foods should the user avoid?",
+    category: "hard_negatives",
+    expectedIds: ["p08"],
+    mustNotRankAbove: ["p12"], // coffee preference is not a food restriction
+    k: 3,
+  },
+  {
+    query: "Can the user safely eat lobster?",
+    category: "hard_negatives",
+    expectedIds: ["p08"], // shellfish allergy — lobster is shellfish
+    k: 5,
+  },
+  {
+    query: "What makes the user most productive?",
+    category: "hard_negatives",
+    expectedIds: ["p06", "p14"], // morning person + standing desk/walks
+    k: 5,
+  },
+  {
+    query: "Would the user prefer a video call or a Slack thread?",
+    category: "hard_negatives",
+    expectedIds: ["p11"], // prefers async communication / Slack threads
+    k: 3,
+  },
+  {
+    query: "What data store is NOT used for real-time transactional queries?",
+    category: "hard_negatives",
+    expectedIds: ["w18"], // BigQuery is analytics, not OLTP
+    mustNotRankAbove: ["w03"], // Postgres IS used for OLTP
+    k: 3,
+  },
+  {
+    query: "Is the user available during Tokyo business hours?",
+    category: "hard_negatives",
+    expectedIds: ["u03"], // timezone is US Pacific — inference required
+    k: 5,
+  },
+  {
+    query: "Does the user prefer writing long-form documentation?",
+    category: "hard_negatives",
+    expectedIds: ["u02"], // prefers bullet-point summaries over long paragraphs
+    k: 3,
   },
 ];

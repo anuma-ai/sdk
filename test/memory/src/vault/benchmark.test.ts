@@ -3,13 +3,15 @@
  * Vault Search Benchmark
  *
  * Measures retrieval quality of the vault search system using real embeddings.
- * Runs against a curated dataset of ~80 memories and ~60 queries across five
- * challenge categories: direct recall, paraphrase, specificity, temporal, and
- * composite.
+ * Runs against a curated dataset of ~80 memories and ~68 queries across six
+ * challenge categories: direct recall, paraphrase, specificity, temporal,
+ * composite, and hard negatives.
  *
  * Metrics:
  *   - Recall@k: fraction of expected memories that appear in top-k results
+ *   - Precision@k: fraction of top-k results that are expected memories
  *   - MRR: mean reciprocal rank of the first expected memory
+ *   - NDCG@k: normalized discounted cumulative gain (ranking quality)
  *   - rankingViolationRate: fraction of queries where a superseded/wrong memory
  *     outranked the correct one (lower is better)
  *
@@ -17,14 +19,22 @@
  *   pnpm eval:vault-search
  *   pnpm eval:vault-search --json
  *   pnpm eval:vault-search --verbose
+ *   pnpm eval:vault-search --save-baseline
+ *   pnpm eval:vault-search --baseline test/memory/src/vault/baseline.json
  */
 
 import "dotenv/config";
 import { parseArgs } from "node:util";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
 import { rankVaultMemories } from "../../../../src/lib/memoryVault/searchTool.js";
+import {
+  precisionAtK,
+  recallAtK,
+  reciprocalRank,
+  ndcgAtK,
+} from "../metrics.js";
 import { VAULT_MEMORIES, BENCHMARK_QUERIES, type BenchmarkQuery } from "./dataset.js";
 
 // ---------------------------------------------------------------------------
@@ -38,6 +48,8 @@ const { values: args } = parseArgs({
     output: { type: "string", short: "o" },
     category: { type: "string", short: "c" },
     max: { type: "string", short: "m" },
+    baseline: { type: "string", short: "b" },
+    "save-baseline": { type: "boolean", default: false },
   },
 });
 
@@ -72,8 +84,12 @@ interface QueryResult {
   resultIds: string[];
   similarities: { id: string; similarity: number }[];
   recall: number;
+  precision: number;
   reciprocalRank: number;
+  ndcg: number;
   rankingViolation: boolean;
+  /** For temporal queries: similarity(correct) - similarity(superseded). Positive = correct order. */
+  temporalMargin?: number;
 }
 
 type Category = BenchmarkQuery["category"];
@@ -82,27 +98,18 @@ interface CategoryMetrics {
   category: Category;
   count: number;
   recallAtK: number;
+  precisionAtK: number;
   mrr: number;
+  ndcg: number;
   rankingViolationRate: number;
+  avgTargetSim: number;
+  avgTop1Sim: number;
+  avgTemporalMargin?: number;
 }
 
 // ---------------------------------------------------------------------------
-// Metric helpers
+// Metric helpers (ranking violation is benchmark-specific, not in metrics.ts)
 // ---------------------------------------------------------------------------
-
-function computeRecall(resultIds: string[], expectedIds: string[]): number {
-  const found = expectedIds.filter((id) => resultIds.includes(id));
-  return found.length / expectedIds.length;
-}
-
-function computeReciprocalRank(resultIds: string[], expectedIds: string[]): number {
-  for (let i = 0; i < resultIds.length; i++) {
-    if (expectedIds.includes(resultIds[i])) {
-      return 1 / (i + 1);
-    }
-  }
-  return 0;
-}
 
 function checkRankingViolation(
   resultIds: string[],
@@ -127,21 +134,109 @@ function checkRankingViolation(
   return false;
 }
 
+/** Compute similarity margin between expected and superseded memories. */
+function computeTemporalMargin(
+  allScored: { id: string; similarity: number }[],
+  expectedIds: string[],
+  mustNotRankAbove: string[]
+): number {
+  const bestExpectedSim = Math.max(
+    ...expectedIds.map((id) => allScored.find((s) => s.id === id)?.similarity ?? 0)
+  );
+  const worstViolatorSim = Math.max(
+    ...mustNotRankAbove.map((id) => allScored.find((s) => s.id === id)?.similarity ?? 0)
+  );
+  return bestExpectedSim - worstViolatorSim;
+}
+
 function aggregateByCategory(results: QueryResult[]): CategoryMetrics[] {
-  const categories: Category[] = ["direct", "paraphrase", "specificity", "temporal", "composite"];
-  return categories.map((category) => {
-    const group = results.filter((r) => r.query.category === category);
-    if (group.length === 0) {
-      return { category, count: 0, recallAtK: 0, mrr: 0, rankingViolationRate: 0 };
+  const categories: Category[] = [
+    "direct",
+    "paraphrase",
+    "specificity",
+    "temporal",
+    "composite",
+    "hard_negatives",
+  ];
+  return categories
+    .map((category) => {
+      const group = results.filter((r) => r.query.category === category);
+      if (group.length === 0) return null;
+
+      // Similarity of expected memories (target) and top-1 result
+      const targetSims: number[] = [];
+      const top1Sims: number[] = [];
+      for (const r of group) {
+        if (r.similarities.length > 0) top1Sims.push(r.similarities[0].similarity);
+        for (const id of r.query.expectedIds) {
+          const found = r.similarities.find((s) => s.id === id);
+          if (found) targetSims.push(found.similarity);
+        }
+      }
+
+      const temporalMargins = group
+        .filter((r) => r.temporalMargin !== undefined)
+        .map((r) => r.temporalMargin!);
+
+      return {
+        category,
+        count: group.length,
+        recallAtK: group.reduce((sum, r) => sum + r.recall, 0) / group.length,
+        precisionAtK: group.reduce((sum, r) => sum + r.precision, 0) / group.length,
+        mrr: group.reduce((sum, r) => sum + r.reciprocalRank, 0) / group.length,
+        ndcg: group.reduce((sum, r) => sum + r.ndcg, 0) / group.length,
+        rankingViolationRate: group.filter((r) => r.rankingViolation).length / group.length,
+        avgTargetSim: targetSims.length > 0 ? targetSims.reduce((a, b) => a + b, 0) / targetSims.length : 0,
+        avgTop1Sim: top1Sims.length > 0 ? top1Sims.reduce((a, b) => a + b, 0) / top1Sims.length : 0,
+        ...(temporalMargins.length > 0 && {
+          avgTemporalMargin: temporalMargins.reduce((a, b) => a + b, 0) / temporalMargins.length,
+        }),
+      };
+    })
+    .filter((cat) => cat !== null) as CategoryMetrics[];
+}
+
+// ---------------------------------------------------------------------------
+// Baseline comparison
+// ---------------------------------------------------------------------------
+
+interface RegressionResult {
+  metric: string;
+  category: string;
+  baseline: number;
+  current: number;
+  delta: number;
+}
+
+function compareWithBaseline(
+  currentByCategory: CategoryMetrics[],
+  currentOverall: { recallAtK: number; precisionAtK: number; mrr: number; ndcg: number },
+  baselineData: { overall: Record<string, number>; byCategory: CategoryMetrics[] },
+  threshold: number = 0.01
+): RegressionResult[] {
+  const regressions: RegressionResult[] = [];
+
+  for (const metric of ["recallAtK", "precisionAtK", "mrr", "ndcg"] as const) {
+    const baseVal = baselineData.overall[metric] ?? 0;
+    const curVal = currentOverall[metric];
+    if (baseVal - curVal > threshold) {
+      regressions.push({ metric, category: "OVERALL", baseline: baseVal, current: curVal, delta: curVal - baseVal });
     }
-    return {
-      category,
-      count: group.length,
-      recallAtK: group.reduce((sum, r) => sum + r.recall, 0) / group.length,
-      mrr: group.reduce((sum, r) => sum + r.reciprocalRank, 0) / group.length,
-      rankingViolationRate: group.filter((r) => r.rankingViolation).length / group.length,
-    };
-  });
+  }
+
+  for (const baseCat of baselineData.byCategory) {
+    const curCat = currentByCategory.find((c) => c.category === baseCat.category);
+    if (!curCat) continue;
+    for (const metric of ["recallAtK", "mrr", "ndcg"] as const) {
+      const baseVal = baseCat[metric];
+      const curVal = curCat[metric];
+      if (baseVal - curVal > threshold) {
+        regressions.push({ metric, category: baseCat.category, baseline: baseVal, current: curVal, delta: curVal - baseVal });
+      }
+    }
+  }
+
+  return regressions;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +266,7 @@ async function main() {
 
   console.log(`\nEmbedding ${VAULT_MEMORIES.length} vault memories...`);
 
-  // Embed all memories
+  // Embed all memories in batch
   const memoryTexts = VAULT_MEMORIES.map((m) => m.content);
   const memoryEmbeddings = await generateEmbeddings(memoryTexts, embeddingOptions);
   const embeddingMap = new Map<string, number[]>();
@@ -179,6 +274,7 @@ async function main() {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
+  // Embed all queries in batch
   const queryTexts = queries.map((q) => q.query);
   console.log(`Embedding ${queryTexts.length} queries...`);
   const queryEmbeddingsList = await generateEmbeddings(queryTexts, embeddingOptions);
@@ -201,21 +297,34 @@ async function main() {
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
+    // Get a wider window than k for temporal margin analysis
+    const maxResults = Math.max(query.k, 20);
     const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
-      limit: query.k,
+      limit: maxResults,
       minSimilarity: 0,
     });
 
-    const resultIds = ranked.map((r) => r.uniqueId);
-    const similarities = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
+    const allScored = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
+    const topK = allScored.slice(0, query.k);
+    const resultIds = topK.map((s) => s.id);
+    const relevant = new Set(query.expectedIds);
+
+    // Compute temporal margin for queries with mustNotRankAbove
+    let temporalMargin: number | undefined;
+    if (query.mustNotRankAbove && query.mustNotRankAbove.length > 0) {
+      temporalMargin = computeTemporalMargin(allScored, query.expectedIds, query.mustNotRankAbove);
+    }
 
     results.push({
       query,
       resultIds,
-      similarities,
-      recall: computeRecall(resultIds, query.expectedIds),
-      reciprocalRank: computeReciprocalRank(resultIds, query.expectedIds),
+      similarities: topK,
+      recall: recallAtK(resultIds, relevant, query.k),
+      precision: precisionAtK(resultIds, relevant, query.k),
+      reciprocalRank: reciprocalRank(resultIds, relevant),
+      ndcg: ndcgAtK(resultIds, relevant, query.k),
       rankingViolation: checkRankingViolation(resultIds, query.expectedIds, query.mustNotRankAbove),
+      temporalMargin,
     });
   }
 
@@ -224,13 +333,48 @@ async function main() {
   const overall = {
     count: results.length,
     recallAtK: results.reduce((sum, r) => sum + r.recall, 0) / results.length,
+    precisionAtK: results.reduce((sum, r) => sum + r.precision, 0) / results.length,
     mrr: results.reduce((sum, r) => sum + r.reciprocalRank, 0) / results.length,
+    ndcg: results.reduce((sum, r) => sum + r.ndcg, 0) / results.length,
     rankingViolationRate: results.filter((r) => r.rankingViolation).length / results.length,
   };
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
+  // ---------------------------------------------------------------------------
+  // Baseline comparison
+  // ---------------------------------------------------------------------------
+
+  if (args.baseline) {
+    try {
+      const baselineRaw = await readFile(args.baseline, "utf-8");
+      const baselineData = JSON.parse(baselineRaw);
+      const regressions = compareWithBaseline(byCategory, overall, baselineData);
+      if (regressions.length > 0) {
+        console.error("\n  REGRESSION DETECTED\n");
+        console.error("  Metric          Category        Baseline  Current   Delta");
+        console.error("  ──────────────  ──────────────  ────────  ────────  ──────");
+        for (const r of regressions) {
+          const metric = r.metric.padEnd(14);
+          const cat = r.category.padEnd(14);
+          const base = (r.baseline * 100).toFixed(1).padStart(7) + "%";
+          const cur = (r.current * 100).toFixed(1).padStart(7) + "%";
+          const delta = (r.delta * 100).toFixed(1).padStart(5) + "%";
+          console.error(`  ${metric}  ${cat}  ${base}  ${cur}  ${delta}`);
+        }
+        process.exit(1);
+      }
+      console.log("  Baseline comparison: no regressions detected.\n");
+    } catch (err) {
+      console.error(`Failed to load baseline from ${args.baseline}: ${err}`);
+      process.exit(1);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // JSON output
+  // ---------------------------------------------------------------------------
+
   if (args.json) {
     const output = {
       timestamp: new Date().toISOString(),
@@ -246,45 +390,95 @@ async function main() {
           expectedIds: r.query.expectedIds,
           resultIds: r.resultIds,
           recall: r.recall,
+          precision: r.precision,
           reciprocalRank: r.reciprocalRank,
+          ndcg: r.ndcg,
           rankingViolation: r.rankingViolation,
+          temporalMargin: r.temporalMargin,
+          similarities: r.similarities,
         })),
       }),
     };
     const jsonStr = JSON.stringify(output, null, 2);
-    if (args.output) {
-      await writeFile(args.output, jsonStr);
-      console.log(`Results written to ${args.output}`);
+
+    if (args["save-baseline"] || args.output) {
+      const path = args.output || "test/memory/src/vault/baseline.json";
+      await writeFile(path, jsonStr);
+      console.log(`Results written to ${path}`);
     } else {
       console.log(jsonStr);
     }
     return;
   }
 
+  // ---------------------------------------------------------------------------
+  // Save baseline (non-JSON mode)
+  // ---------------------------------------------------------------------------
+
+  if (args["save-baseline"]) {
+    const baselinePath = "test/memory/src/vault/baseline.json";
+    const baselineData = {
+      timestamp: new Date().toISOString(),
+      elapsedSeconds: parseFloat(elapsed),
+      memories: VAULT_MEMORIES.length,
+      queries: results.length,
+      overall,
+      byCategory,
+    };
+    await writeFile(baselinePath, JSON.stringify(baselineData, null, 2));
+    console.log(`Baseline saved to ${baselinePath}`);
+  }
+
+  // ---------------------------------------------------------------------------
   // Table output
-  console.log("╔══════════════════════════════════════════════════════════════╗");
-  console.log("║              VAULT SEARCH BENCHMARK RESULTS                ║");
-  console.log("╠══════════════╦═══════╦══════════╦═══════╦═════════════════╣");
-  console.log("║ Category     ║ Count ║ Recall@k ║  MRR  ║ Rank Violations ║");
-  console.log("╠══════════════╬═══════╬══════════╬═══════╬═════════════════╣");
+  // ---------------------------------------------------------------------------
+
+  const hdr = "║ Category       ║ Count ║ Recall@k ║  P@k  ║  MRR  ║  NDCG ║ Violations ║";
+  const sep = "╠════════════════╬═══════╬══════════╬═══════╬═══════╬═══════╬════════════╣";
+  const topBorder = "╔══════════════════════════════════════════════════════════════════════════╗";
+  const botBorder = "╚════════════════╩═══════╩══════════╩═══════╩═══════╩═══════╩════════════╝";
+
+  console.log(topBorder);
+  console.log("║                    VAULT SEARCH BENCHMARK RESULTS                     ║");
+  console.log(sep);
+  console.log(hdr);
+  console.log(sep);
   for (const cat of byCategory) {
-    const name = cat.category.padEnd(12);
+    const name = cat.category.padEnd(14);
     const count = String(cat.count).padStart(5);
     const recall = (cat.recallAtK * 100).toFixed(1).padStart(7) + "%";
+    const pk = (cat.precisionAtK * 100).toFixed(1).padStart(5) + "%";
     const mrr = (cat.mrr * 100).toFixed(1).padStart(5) + "%";
-    const violations = (cat.rankingViolationRate * 100).toFixed(1).padStart(14) + "%";
-    console.log(`║ ${name} ║ ${count} ║ ${recall} ║ ${mrr} ║ ${violations} ║`);
+    const ndcg = (cat.ndcg * 100).toFixed(1).padStart(5) + "%";
+    const violations = (cat.rankingViolationRate * 100).toFixed(1).padStart(9) + "%";
+    console.log(`║ ${name} ║ ${count} ║ ${recall} ║ ${pk} ║ ${mrr} ║ ${ndcg} ║ ${violations} ║`);
   }
-  console.log("╠══════════════╬═══════╬══════════╬═══════╬═════════════════╣");
-  const totalCount = String(overall.count).padStart(5);
-  const totalRecall = (overall.recallAtK * 100).toFixed(1).padStart(7) + "%";
-  const totalMrr = (overall.mrr * 100).toFixed(1).padStart(5) + "%";
-  const totalViolations = (overall.rankingViolationRate * 100).toFixed(1).padStart(14) + "%";
+  console.log(sep);
+  const ov = overall;
+  const totalCount = String(ov.count).padStart(5);
+  const totalRecall = (ov.recallAtK * 100).toFixed(1).padStart(7) + "%";
+  const totalPk = (ov.precisionAtK * 100).toFixed(1).padStart(5) + "%";
+  const totalMrr = (ov.mrr * 100).toFixed(1).padStart(5) + "%";
+  const totalNdcg = (ov.ndcg * 100).toFixed(1).padStart(5) + "%";
+  const totalViolations = (ov.rankingViolationRate * 100).toFixed(1).padStart(9) + "%";
   console.log(
-    `║ OVERALL      ║ ${totalCount} ║ ${totalRecall} ║ ${totalMrr} ║ ${totalViolations} ║`
+    `║ OVERALL        ║ ${totalCount} ║ ${totalRecall} ║ ${totalPk} ║ ${totalMrr} ║ ${totalNdcg} ║ ${totalViolations} ║`
   );
-  console.log("╚══════════════╩═══════╩══════════╩═══════╩═════════════════╝");
+  console.log(botBorder);
   console.log(`\nCompleted in ${elapsed}s`);
+
+  // Similarity distribution (verbose)
+  if (args.verbose) {
+    console.log("\n── Similarity Distribution ──\n");
+    for (const cat of byCategory) {
+      let line = `  ${cat.category.padEnd(16)} target_avg=${cat.avgTargetSim.toFixed(3)}  top1_avg=${cat.avgTop1Sim.toFixed(3)}`;
+      if (cat.avgTemporalMargin !== undefined) {
+        const sign = cat.avgTemporalMargin >= 0 ? "+" : "";
+        line += `  margin_avg=${sign}${cat.avgTemporalMargin.toFixed(4)}`;
+      }
+      console.log(line);
+    }
+  }
 
   // Print failures
   const failures = results.filter((r) => r.recall < 1 || r.rankingViolation);
@@ -297,7 +491,8 @@ async function main() {
         issues.push(`missing: [${missing.join(", ")}]`);
       }
       if (f.rankingViolation) {
-        issues.push("ranking violation");
+        const margin = f.temporalMargin !== undefined ? ` (margin: ${f.temporalMargin.toFixed(4)})` : "";
+        issues.push(`ranking violation${margin}`);
       }
       console.log(
         `  [${f.query.category}] "${f.query.query}"\n` +
