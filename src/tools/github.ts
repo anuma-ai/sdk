@@ -192,7 +192,8 @@ function createReadFileTool(
         if (!data.content)
           return `Error: File ${path} has no content (may be too large for the Contents API).`;
 
-        const content = atob(data.content.replace(/\n/g, ""));
+        const bytes = Uint8Array.from(atob(data.content.replace(/\n/g, "")), (c) => c.charCodeAt(0));
+        const content = new TextDecoder().decode(bytes);
         return {
           path: data.path,
           size: data.size,
@@ -623,13 +624,14 @@ function createGetPullRequestTool(
             let totalDiffSize = 0;
             result.files = (files as Record<string, unknown>[]).map((f) => {
               const patch = (f.patch as string) || "";
-              totalDiffSize += patch.length;
+              const wouldExceed = totalDiffSize + patch.length > MAX_DIFF_SIZE;
+              if (!wouldExceed) totalDiffSize += patch.length;
               return {
                 filename: f.filename,
                 status: f.status,
                 additions: f.additions,
                 deletions: f.deletions,
-                patch: totalDiffSize <= MAX_DIFF_SIZE ? patch : "(diff too large, omitted)",
+                patch: wouldExceed ? "(diff too large, omitted)" : patch,
               };
             });
           }
@@ -965,37 +967,51 @@ function createBranchTool(
       };
 
       try {
-        // Resolve the source SHA
-        const ref = from_ref || "HEAD";
-        const refResp = await githubFetch(
-          token,
-          `/repos/${owner}/${repo}/git/ref/heads/${ref === "HEAD" ? "" : ref}`
-        );
-
         let sha: string;
-        if (ref === "HEAD" || !refResp.ok) {
-          // Fall back to getting the default branch
+
+        if (!from_ref) {
+          // No ref specified — use the repo's default branch
           const repoResp = await githubFetch(token, `/repos/${owner}/${repo}`);
           if (!repoResp.ok)
             return handleApiError(repoResp.status, await repoResp.text(), `repo ${owner}/${repo}`);
-          const repoData = await repoResp.json();
-          const defaultBranch = repoData.default_branch;
+          const repoData = (await repoResp.json()) as { default_branch: string };
 
           const defaultRefResp = await githubFetch(
             token,
-            `/repos/${owner}/${repo}/git/ref/heads/${defaultBranch}`
+            `/repos/${owner}/${repo}/git/ref/heads/${repoData.default_branch}`
           );
           if (!defaultRefResp.ok)
             return handleApiError(
               defaultRefResp.status,
               await defaultRefResp.text(),
-              `ref ${defaultBranch}`
+              `ref ${repoData.default_branch}`
             );
-          const defaultRefData = await defaultRefResp.json();
+          const defaultRefData = (await defaultRefResp.json()) as { object: { sha: string } };
           sha = defaultRefData.object.sha;
+        } else if (/^[0-9a-f]{40}$/i.test(from_ref)) {
+          // Full commit SHA — use directly
+          sha = from_ref;
         } else {
-          const refData = await refResp.json();
-          sha = refData.object.sha;
+          // Try as branch first, then tag
+          const branchResp = await githubFetch(
+            token,
+            `/repos/${owner}/${repo}/git/ref/heads/${from_ref}`
+          );
+          if (branchResp.ok) {
+            const branchData = (await branchResp.json()) as { object: { sha: string } };
+            sha = branchData.object.sha;
+          } else {
+            const tagResp = await githubFetch(
+              token,
+              `/repos/${owner}/${repo}/git/ref/tags/${from_ref}`
+            );
+            if (tagResp.ok) {
+              const tagData = (await tagResp.json()) as { object: { sha: string } };
+              sha = tagData.object.sha;
+            } else {
+              return `Error: Ref '${from_ref}' not found as a branch or tag in ${owner}/${repo}.`;
+            }
+          }
         }
 
         // Create the new branch
@@ -1070,7 +1086,7 @@ function createOrUpdateFileTool(
       try {
         const body: Record<string, unknown> = {
           message,
-          content: btoa(unescape(encodeURIComponent(content))),
+          content: btoa(String.fromCharCode(...new TextEncoder().encode(content))),
           branch,
         };
         if (sha) body.sha = sha;
