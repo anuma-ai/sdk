@@ -125,6 +125,26 @@ describe("shouldAnalyzeStyle", () => {
       })
     ).toBe(true);
   });
+
+  it("retries failed analysis on refresh cadence", () => {
+    expect(
+      shouldAnalyzeStyle({
+        messageCount: 20,
+        hasProfile: false,
+        hasBeenAnalyzed: true,
+        optedOut: false,
+      })
+    ).toBe(true);
+
+    expect(
+      shouldAnalyzeStyle({
+        messageCount: 21,
+        hasProfile: false,
+        hasBeenAnalyzed: true,
+        optedOut: false,
+      })
+    ).toBe(false);
+  });
 });
 
 // ── analyzeStyle ──

@@ -25,6 +25,11 @@ export function shouldAnalyzeStyle(schedule: StyleAnalysisSchedule): boolean {
     return schedule.messageCount >= threshold;
   }
 
+  // Retry after failed analysis: analyzed before but still no profile
+  if (!schedule.hasProfile && schedule.hasBeenAnalyzed) {
+    return schedule.messageCount > 0 && schedule.messageCount % refresh === 0;
+  }
+
   // Refresh: has a profile, periodic re-analysis
   if (schedule.hasProfile) {
     return schedule.messageCount > 0 && schedule.messageCount % refresh === 0;
