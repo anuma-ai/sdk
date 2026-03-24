@@ -9,7 +9,7 @@
  *
  * Metrics:
  *   - Recall@k: fraction of expected memories that appear in top-k results
- *   - MRR: mean reciwprocal rank of the first expected memory
+ *   - MRR: mean reciprocal rank of the first expected memory
  *   - rankingViolationRate: fraction of queries where a superseded/wrong memory
  *     outranked the correct one (lower is better)
  *
@@ -203,6 +203,7 @@ async function main() {
 
     const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
       limit: query.k,
+      minSimilarity: 0,
     });
 
     const resultIds = ranked.map((r) => r.uniqueId);
