@@ -2,7 +2,7 @@
 
 > **getNotionAccessToken**(`walletAddress`: `string` | `undefined`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/notion.ts:904](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#904)
+Defined in: [src/lib/auth/notion.ts:919](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#919)
 
 Get a valid access token, refreshing if necessary
 

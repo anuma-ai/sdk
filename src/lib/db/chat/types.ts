@@ -10,6 +10,7 @@ import type {
   LlmapiThinkingOptions,
 } from "../../../client";
 import type { ServerToolCallEvent } from "../../chat/useChat/utils";
+import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
 /**
@@ -43,7 +44,7 @@ export type ServerToolsFilter = string[] | ServerToolsFilterFn;
  */
 export type ClientToolsFilterFn = (
   embeddings: number[] | number[][] | null,
-  tools: any[]
+  tools: LlmapiChatCompletionTool[]
 ) => string[];
 
 // Core types
@@ -318,7 +319,7 @@ export interface BaseUseChatStorageOptions {
    * - null or []: Disable preprocessing
    * - FileProcessor[]: Use specific processors
    */
-  fileProcessors?: any[] | null;
+  fileProcessors?: FileProcessor[] | null;
   /**
    * Options for file preprocessing behavior
    */

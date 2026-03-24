@@ -2,7 +2,7 @@
 
 > **updateVaultFolderContextOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `id`: `string`, `context`: `string` | `null`): `Promise`<[`StoredVaultFolder`](../interfaces/StoredVaultFolder.md) | `null`>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#207)
+Defined in: [src/lib/db/vaultFolders/operations.ts:206](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#206)
 
 Update a vault folder's context summary.
 

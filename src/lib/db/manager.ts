@@ -93,7 +93,8 @@ export const webPlatformStorage: PlatformStorage = {
     new Promise<void>((resolve, reject) => {
       const request = indexedDB.deleteDatabase(name);
       request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
+      request.onerror = () =>
+        reject(request.error ?? new Error(`Failed to delete database: ${name}`));
       request.onblocked = () => {
         // Resolve after timeout to prevent indefinite blocking
         setTimeout(resolve, 1000);

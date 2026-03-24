@@ -329,7 +329,7 @@ export function useSubscription(options: UseSubscriptionOptions = {}): UseSubscr
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      fetchStatus();
+      void fetchStatus();
     }
     // Reset flag when autoFetch becomes false to allow re-fetching when it becomes true again
     if (!autoFetch) {

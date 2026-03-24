@@ -59,7 +59,7 @@ Defined in: [src/react/useUIInteraction.ts:52](https://github.com/anuma-ai/sdk/b
 
 ### createDisplayInteraction()
 
-> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `any`, `result`: `any`, `toolVersion?`: `number`, `replacesInteractionId?`: `string`) => `void`
+> **createDisplayInteraction**: (`id`: `string`, `displayType`: `string`, `data`: `unknown`, `result`: `unknown`, `toolVersion?`: `number`, `replacesInteractionId?`: `string`) => `void`
 
 Defined in: [src/react/useUIInteraction.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#42)
 
@@ -105,7 +105,7 @@ Defined in: [src/react/useUIInteraction.ts:42](https://github.com/anuma-ai/sdk/b
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>
@@ -117,7 +117,7 @@ Defined in: [src/react/useUIInteraction.ts:42](https://github.com/anuma-ai/sdk/b
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>
@@ -156,7 +156,7 @@ Defined in: [src/react/useUIInteraction.ts:42](https://github.com/anuma-ai/sdk/b
 
 ### createInteraction()
 
-> **createInteraction**: (`id`: `string`, `type`: [`InteractionType`](InteractionType.md), `data`: `any`) => `Promise`<`any`>
+> **createInteraction**: (`id`: `string`, `type`: [`InteractionType`](InteractionType.md), `data`: `unknown`) => `Promise`<`unknown`>
 
 Defined in: [src/react/useUIInteraction.ts:41](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#41)
 
@@ -202,7 +202,7 @@ Defined in: [src/react/useUIInteraction.ts:41](https://github.com/anuma-ai/sdk/b
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>
@@ -211,7 +211,7 @@ Defined in: [src/react/useUIInteraction.ts:41](https://github.com/anuma-ai/sdk/b
 
 **Returns**
 
-`Promise`<`any`>
+`Promise`<`unknown`>
 
 ***
 
@@ -262,7 +262,7 @@ Defined in: [src/react/useUIInteraction.ts:40](https://github.com/anuma-ai/sdk/b
 
 ### resolveInteraction()
 
-> **resolveInteraction**: (`id`: `string`, `result`: `any`) => `void`
+> **resolveInteraction**: (`id`: `string`, `result`: `unknown`) => `void`
 
 Defined in: [src/react/useUIInteraction.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/react/useUIInteraction.ts#50)
 
@@ -296,7 +296,7 @@ Defined in: [src/react/useUIInteraction.ts:50](https://github.com/anuma-ai/sdk/b
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>

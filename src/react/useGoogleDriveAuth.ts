@@ -13,9 +13,7 @@ import {
 
 import type { Client } from "../client/client";
 import {
-  clearGoogleDriveToken,
   getGoogleDriveAccessToken,
-  getGoogleDriveStoredToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
   isGoogleDriveCallback,
@@ -118,7 +116,7 @@ export function GoogleDriveAuthProvider({
         }
       }
     };
-    checkStoredToken();
+    void checkStoredToken();
   }, [apiClient, walletAddress]);
 
   // Handle OAuth callback
@@ -138,7 +136,7 @@ export function GoogleDriveAuthProvider({
       }
     };
 
-    handleCallback();
+    void handleCallback();
   }, [callbackPath, isConfigured, apiClient, walletAddress]);
 
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {

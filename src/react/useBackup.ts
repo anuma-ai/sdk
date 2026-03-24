@@ -233,7 +233,7 @@ export function useBackup(options: UseBackupOptions): UseBackupResult {
       exportConversation,
       importConversation,
     }),
-    [icloudAuth.requestAccess, requestEncryptionKey, exportConversation, importConversation]
+    [icloudAuth, requestEncryptionKey, exportConversation, importConversation]
   );
 
   // Dropbox backup

@@ -18,19 +18,41 @@
  *
  * @module
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const withAnuma = (nextConfig: Record<string, any> = {}) => {
+/** Minimal Webpack configuration shape used by the SDK plugin. */
+interface WebpackConfig {
+  resolve: {
+    alias: Record<string, unknown>;
+    fallback: Record<string, unknown>;
+  };
+  module: {
+    rules: Array<Record<string, unknown>>;
+  };
+}
+
+/** Webpack compiler options passed by Next.js. */
+interface WebpackOptions {
+  isServer: boolean;
+}
+
+/** Next.js configuration object shape used by the SDK plugin. */
+interface NextConfig {
+  serverExternalPackages?: string[];
+  webpack?: (config: WebpackConfig, options: WebpackOptions) => WebpackConfig;
+  [key: string]: unknown;
+}
+
+export const withAnuma = (nextConfig: NextConfig = {}) => {
   return {
     ...nextConfig,
     serverExternalPackages: [
-      ...(nextConfig.serverExternalPackages || []),
+      ...(nextConfig.serverExternalPackages ?? []),
       "sharp",
       // exceljs pulls in unzipper → fstream which calls process.umask() at
       // module init time, crashing Cloudflare Workers and other edge runtimes.
       // Externalizing prevents the server bundler from including it in SSR.
       "exceljs",
     ],
-    webpack: (config: any, options: any) => {
+    webpack: (config: WebpackConfig, options: WebpackOptions) => {
       const { isServer } = options;
 
       // Client-side: Mock node-only packages to avoid bundling errors

@@ -342,20 +342,20 @@ export {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
+export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
+export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
 export type {
   ModelLoadProgress,
   TranscriptionResult,
   VoiceRecording,
   WhisperModel,
 } from "../lib/voice";
+export type { UseExportPdfResult } from "./useExportPdf";
+export { useExportPdf } from "./useExportPdf";
 export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useOCR } from "./useOCR";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { usePdf } from "./usePdf";
-export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
-export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
-export type { UseExportPdfResult } from "./useExportPdf";
-export { useExportPdf } from "./useExportPdf";
 export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
 export { useVoice } from "./useVoice";
 

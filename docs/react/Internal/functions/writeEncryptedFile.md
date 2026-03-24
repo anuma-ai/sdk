@@ -2,7 +2,7 @@
 
 > **writeEncryptedFile**(`fileId`: `string`, `blob`: `Blob`, `encryptionKey`: `CryptoKey`, `metadata?`: `object`): `Promise`<`void`>
 
-Defined in: [src/lib/storage/opfs.ts:184](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#184)
+Defined in: [src/lib/storage/opfs.ts:186](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#186)
 
 Writes an encrypted file to OPFS.
 

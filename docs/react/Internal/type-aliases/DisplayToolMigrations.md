@@ -11,7 +11,7 @@ result upgraded to toVersion.
 
 ## Index Signature
 
-\[`key`: `` `${number}->${number}` ``]: (`data`: `any`) => `any`
+\[`key`: `` `${number}->${number}` ``]: (`data`: `unknown`) => `unknown`
 
 ## Example
 

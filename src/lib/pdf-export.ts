@@ -512,10 +512,11 @@ export async function exportMarkdownToPdf(
       }
 
       case "code": {
+        const codeToken = token as Tokens.Code;
         const codeFontSize = opts.fontSize - 2;
         doc.setFont("Courier", "normal");
         doc.setFontSize(codeFontSize);
-        const lines = doc.splitTextToSize(token.text, cw - SPACING.CODE_PAD * 2);
+        const lines = doc.splitTextToSize(codeToken.text, cw - SPACING.CODE_PAD * 2) as string[];
         const lh = lineHeightMm(codeFontSize);
         const blockH = lines.length * lh + SPACING.LG;
 
@@ -526,9 +527,9 @@ export async function exportMarkdownToPdf(
 
         cursorY += SPACING.SM;
         doc.setTextColor(40);
-        for (const line of lines) {
+        for (const codeLine of lines) {
           ensureSpace(lh);
-          doc.text(line, opts.margins.left + SPACING.CODE_PAD, cursorY);
+          doc.text(codeLine, opts.margins.left + SPACING.CODE_PAD, cursorY);
           cursorY += lh;
         }
         doc.setTextColor(0);
@@ -537,7 +538,8 @@ export async function exportMarkdownToPdf(
       }
 
       case "list": {
-        const { items, ordered } = token;
+        const listToken = token as Tokens.List;
+        const { items, ordered } = listToken;
         const indentX = opts.margins.left + SPACING.LIST_INDENT;
         const itemW = cw - SPACING.LIST_INDENT;
 
@@ -546,13 +548,13 @@ export async function exportMarkdownToPdf(
         const lh = lineHeightMm(opts.fontSize);
 
         for (let i = 0; i < items.length; i++) {
-          const prefix = ordered ? `${(token.start || 1) + i}. ` : "\u2022 ";
+          const prefix = ordered ? `${(listToken.start || 1) + i}. ` : "\u2022 ";
           const text = tokensToPlainText(items[i].tokens);
 
           ensureSpace(lh);
           doc.text(prefix, opts.margins.left, cursorY);
-          const lines = doc.splitTextToSize(text, itemW);
-          for (const line of lines) {
+          const listLines = doc.splitTextToSize(text, itemW) as string[];
+          for (const line of listLines) {
             ensureSpace(lh);
             doc.text(line, indentX, cursorY);
             cursorY += lh;
@@ -563,16 +565,17 @@ export async function exportMarkdownToPdf(
       }
 
       case "blockquote": {
-        const text = tokensToPlainText(token.tokens ?? []);
+        const bqToken = token as Tokens.Blockquote;
+        const text = tokensToPlainText(bqToken.tokens ?? []);
         const indentX = opts.margins.left + SPACING.QUOTE_INDENT;
         const quoteW = cw - SPACING.QUOTE_INSET;
 
         doc.setFont("Helvetica", "italic");
         doc.setFontSize(opts.fontSize);
-        const lines = doc.splitTextToSize(text, quoteW);
+        const bqLines = doc.splitTextToSize(text, quoteW) as string[];
         const lh = lineHeightMm(opts.fontSize);
 
-        const blockH = lines.length * lh;
+        const blockH = bqLines.length * lh;
         ensureSpace(Math.min(blockH, 20));
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.8);
@@ -584,9 +587,9 @@ export async function exportMarkdownToPdf(
         );
 
         doc.setTextColor(100);
-        for (const line of lines) {
+        for (const bqLine of bqLines) {
           ensureSpace(lh);
-          doc.text(line, indentX, cursorY);
+          doc.text(bqLine, indentX, cursorY);
           cursorY += lh;
         }
         doc.setTextColor(0);
@@ -642,10 +645,10 @@ export async function exportMarkdownToPdf(
         // Draw header background (will be overdrawn if multi-line, but font metrics are stable)
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(tableFontSize);
-        const headerLines = header.map((cell) =>
-          doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW)
+        const headerLines = header.map(
+          (cell) => doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW) as string[]
         );
-        const headerMaxLines = Math.max(1, ...headerLines.map((l: string[]) => l.length));
+        const headerMaxLines = Math.max(1, ...headerLines.map((l) => l.length));
         doc.rect(opts.margins.left, cursorY - lh + 1, cw, headerMaxLines * lh + SPACING.SM, "F");
         renderRow(header, "bold");
 

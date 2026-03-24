@@ -54,9 +54,9 @@ export class ResponsesStrategy implements ApiStrategy {
     // when it uses non-streaming internally and sends the entire result as one chunk.
     if (typedChunk.type === "response" && typedChunk.response) {
       const resp = typedChunk.response as Record<string, unknown>;
-      if (resp.id) accumulator.responseId = String(resp.id);
-      if (resp.model) accumulator.responseModel = String(resp.model);
-      if (resp.tools_checksum) accumulator.toolsChecksum = String(resp.tools_checksum);
+      if (typeof resp.id === "string") accumulator.responseId = resp.id;
+      if (typeof resp.model === "string") accumulator.responseModel = resp.model;
+      if (typeof resp.tools_checksum === "string") accumulator.toolsChecksum = resp.tools_checksum;
 
       // Extract usage
       const u = (resp.usage as Record<string, number | undefined>) || {};
@@ -391,11 +391,11 @@ export class ResponsesStrategy implements ApiStrategy {
       | undefined;
     if (choices && choices.length > 0) {
       // Extract id and model from completions-format chunks
-      if (completionsChunk.id && !accumulator.responseId) {
-        accumulator.responseId = String(completionsChunk.id);
+      if (typeof completionsChunk.id === "string" && !accumulator.responseId) {
+        accumulator.responseId = completionsChunk.id;
       }
-      if (completionsChunk.model && !accumulator.responseModel) {
-        accumulator.responseModel = String(completionsChunk.model);
+      if (typeof completionsChunk.model === "string" && !accumulator.responseModel) {
+        accumulator.responseModel = completionsChunk.model;
       }
 
       const choice = choices[0];

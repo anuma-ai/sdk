@@ -116,7 +116,7 @@ export function DropboxAuthProvider({
         }
       }
     };
-    checkStoredToken();
+    void checkStoredToken();
   }, [apiClient, walletAddress]);
 
   // Handle OAuth callback
@@ -134,7 +134,7 @@ export function DropboxAuthProvider({
       }
     };
 
-    handleCallback();
+    void handleCallback();
   }, [callbackPath, isConfigured, apiClient, walletAddress]);
 
   const refreshTokenFn = useCallback(async (): Promise<string | null> => {

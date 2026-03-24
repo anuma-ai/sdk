@@ -84,7 +84,7 @@ export function createPhoneCallOfferTool(options: CreateUIToolsOptions): ToolCon
     },
     displayType: "phone_call_offer",
     version: 1,
-    execute: async (args: Record<string, unknown>): Promise<DisplayPhoneCallOfferResult> => {
+    execute: (args: Record<string, unknown>): DisplayPhoneCallOfferResult => {
       const recipientName = typeof args.recipientName === "string" ? args.recipientName.trim() : "";
       const phoneNumber = typeof args.phoneNumber === "string" ? args.phoneNumber.trim() : "";
       const objective = typeof args.objective === "string" ? args.objective.trim() : "";

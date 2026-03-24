@@ -2,7 +2,7 @@
 
 > **getMediaByRoleOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `role`: [`MediaRole`](../type-aliases/MediaRole.md), `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:573](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#573)
+Defined in: [src/lib/db/media/operations.ts:572](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#572)
 
 Get media by role (user uploads vs AI generated).
 

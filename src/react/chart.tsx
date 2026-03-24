@@ -189,7 +189,8 @@ export function ChartTooltipContent({
           .map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
-            const indicatorColor = color || item.payload.fill || item.color;
+            const payloadObj = item.payload as Record<string, string> | undefined;
+            const indicatorColor = color || payloadObj?.fill || item.color;
 
             return (
               <div
@@ -200,7 +201,7 @@ export function ChartTooltipContent({
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  formatter(item.value, item.name, item, index, item.payload as typeof payload)
                 ) : (
                   <>
                     {itemConfig?.icon ? (
@@ -285,12 +286,12 @@ export function ChartLegendContent({
       {payload
         .filter((item) => item.type !== "none")
         .map((item) => {
-          const key = `${nameKey || item.dataKey || "value"}`;
+          const key = `${nameKey || String(item.dataKey ?? "value")}`;
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
           return (
             <div
-              key={item.value}
+              key={String(item.value)}
               className="[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
             >
               {itemConfig?.icon && !hideIcon ? (

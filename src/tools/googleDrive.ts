@@ -87,7 +87,7 @@ async function searchDriveFiles(
       return `Error: Failed to search Google Drive (${response.status}): ${errorText}`;
     }
 
-    const data: DriveApiResponse = await response.json();
+    const data = (await response.json()) as DriveApiResponse;
     const files: DriveFile[] = (data.files || []).map((file: DriveApiFile) => ({
       id: file.id,
       name: file.name,
@@ -222,7 +222,7 @@ async function listRecentDriveFiles(
       return `Error: Failed to list Google Drive files (${response.status}): ${errorText}`;
     }
 
-    const data: DriveApiResponse = await response.json();
+    const data = (await response.json()) as DriveApiResponse;
     const files: DriveFile[] = (data.files || []).map((file: DriveApiFile) => ({
       id: file.id,
       name: file.name,
@@ -337,7 +337,7 @@ async function findFileByName(accessToken: string, fileName: string): Promise<st
     return null;
   }
 
-  const data: DriveApiResponse = await response.json();
+  const data = (await response.json()) as DriveApiResponse;
   return data.files?.[0]?.id || null;
 }
 
@@ -408,7 +408,7 @@ async function fetchFileMetadata(
     return { error: `Error: Failed to get file metadata (${response.status})` };
   }
 
-  const data: FileMetadataResponse & { webViewLink?: string } = await response.json();
+  const data = (await response.json()) as FileMetadataResponse & { webViewLink?: string };
   return {
     metadata: { name: data.name, mimeType: data.mimeType, webViewLink: data.webViewLink },
   };

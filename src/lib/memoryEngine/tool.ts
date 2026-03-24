@@ -246,7 +246,7 @@ export function createMemoryEngineTool(
 
           let selected: typeof allMessages;
 
-          if (contextWindow == null) {
+          if (contextWindow === undefined || contextWindow === null) {
             // No cap — return the full conversation
             selected = allMessages;
           } else if (contextWindow === 0) {

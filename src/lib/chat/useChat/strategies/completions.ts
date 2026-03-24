@@ -350,8 +350,6 @@ export class CompletionsStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiChatCompletionResponse {
     // Final cleanup: handle any remaining partial tag
     let finalContent = accumulator.content;
-    let finalThinking = accumulator.thinking;
-
     if (accumulator.partialReasoningTag) {
       // Final cleanup: if we have a partial tag, try to parse it one more time
       const finalParse = parseReasoningTags(
@@ -362,19 +360,14 @@ export class CompletionsStrategy implements ApiStrategy {
         accumulator.implicitReasoningStart
       );
       finalContent += finalParse.messageContent;
-      if (finalParse.reasoningContent) {
-        finalThinking += finalParse.reasoningContent;
-      }
       // Handle any remaining partial tag content that couldn't be parsed
       // (e.g., stream ended with incomplete tag like "<" or "<thi")
       if (finalParse.partialTag) {
-        if (finalParse.insideReasoning) {
-          // If we're inside reasoning, the partial belongs to thinking
-          finalThinking += finalParse.partialTag;
-        } else {
-          // Otherwise, it's regular content
+        if (!finalParse.insideReasoning) {
+          // If we're not inside reasoning, the partial is regular content
           finalContent += finalParse.partialTag;
         }
+        // If inside reasoning, the partial belongs to thinking (not used in Completions format)
       }
     }
 

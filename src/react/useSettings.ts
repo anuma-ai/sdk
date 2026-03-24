@@ -33,7 +33,7 @@ import {
  * Options for useSettings hook (React version)
  * @inline
  */
-export interface UseSettingsOptions extends BaseUseSettingsOptions {}
+export type UseSettingsOptions = BaseUseSettingsOptions;
 
 /**
  * Extended result returned by useSettings hook (React version)
@@ -161,6 +161,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getModelPreferenceOp(legacyStorageCtx, address);
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -182,6 +183,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -203,6 +205,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -221,6 +224,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         const result = await getUserPreferenceOp(storageCtx, address);
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -241,6 +245,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -261,6 +266,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -284,6 +290,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -304,6 +311,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return result;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -324,6 +332,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
         }
         return deleted;
       } catch (error) {
+        // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
         throw new Error(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
@@ -367,7 +376,7 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
       }
     };
 
-    loadPreference();
+    void loadPreference();
 
     return () => {
       cancelled = true;

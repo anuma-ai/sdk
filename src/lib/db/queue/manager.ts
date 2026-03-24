@@ -14,7 +14,6 @@
 import { v7 as uuidv7 } from "uuid";
 
 import { getLogger } from "../../logger";
-
 import type {
   FlushResult,
   OperationExecutor,
@@ -293,7 +292,11 @@ export class QueueManager {
           walletQueue.delete(op.id);
         } else {
           const errorMsg =
-            lastError instanceof Error ? lastError.message : String(lastError ?? "Unknown error");
+            lastError instanceof Error
+              ? lastError.message
+              : typeof lastError === "string"
+                ? lastError
+                : "Unknown error";
           failed.push({ id: op.id, error: errorMsg });
           this.moveToFailed(walletAddress, op);
           walletQueue.delete(op.id);
