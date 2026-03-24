@@ -2,7 +2,7 @@
 
 > **refreshGithubToken**(`apiClient?`: `Client`, `walletAddress?`: `string`): `Promise`<`string` | `null`>
 
-Defined in: src/lib/auth/github.ts:379
+Defined in: [src/lib/auth/github.ts:379](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/github.ts#379)
 
 Refresh the access token using the stored refresh token.
 Note: GitHub OAuth tokens may not have refresh tokens (non-expiring tokens).
