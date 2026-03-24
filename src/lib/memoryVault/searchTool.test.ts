@@ -4,6 +4,7 @@ import {
   searchVaultMemories,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  rankVaultMemories,
 } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
@@ -214,6 +215,46 @@ describe("searchVaultMemories", () => {
 
     expect(cache.has("uncached")).toBe(true);
     expect(generateEmbeddings).toHaveBeenCalledWith(["uncached"], mockEmbeddingOptions);
+  });
+
+  it("applies overlapping supersession swaps without score corruption", () => {
+    const queryEmbedding = [1, 0];
+    const makeUnitEmbedding = (x: number): number[] => [x, Math.sqrt(1 - x * x)];
+
+    const results = rankVaultMemories(
+      "test",
+      queryEmbedding,
+      [
+        {
+          id: "old",
+          content: "lives in sf",
+          embedding: makeUnitEmbedding(0.9),
+          updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        },
+        {
+          id: "newer-a",
+          content: "lives in portland",
+          embedding: makeUnitEmbedding(0.85),
+          updatedAt: new Date("2025-05-01T00:00:00.000Z"),
+        },
+        {
+          id: "newer-b",
+          content: "relocated to sf",
+          embedding: makeUnitEmbedding(0.8),
+          updatedAt: new Date("2025-05-20T00:00:00.000Z"),
+        },
+      ],
+      { limit: 3, minSimilarity: 0 }
+    );
+
+    const old = results.find((r) => r.uniqueId === "old");
+    const newerA = results.find((r) => r.uniqueId === "newer-a");
+    const newerB = results.find((r) => r.uniqueId === "newer-b");
+
+    expect(old?.similarity).toBeCloseTo(0.8);
+    expect(newerA?.similarity).toBeCloseTo(0.9);
+    expect(newerB?.similarity).toBeCloseTo(0.85);
+    expect(newerA!.similarity).toBeGreaterThan(newerB!.similarity);
   });
 });
 

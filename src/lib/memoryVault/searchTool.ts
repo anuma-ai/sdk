@@ -167,6 +167,8 @@ export function rankVaultMemories(
       if (oldItem && newItem) {
         oldItem.similarity = newScore;
         newItem.similarity = oldScore;
+        scoreMap.set(oldId, newScore);
+        scoreMap.set(newId, oldScore);
       }
     }
     filtered.sort((a, b) => b.similarity - a.similarity);
