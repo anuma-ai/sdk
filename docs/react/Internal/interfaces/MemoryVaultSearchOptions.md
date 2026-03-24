@@ -1,6 +1,6 @@
 # MemoryVaultSearchOptions
 
-Defined in: [src/lib/memoryVault/searchTool.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#25)
+Defined in: [src/lib/memoryVault/searchTool.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#27)
 
 Options for the vault search tool.
 
@@ -10,9 +10,19 @@ Options for the vault search tool.
 
 > `optional` **folderId**: `string` | `null`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#33)
+Defined in: [src/lib/memoryVault/searchTool.ts:35](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#35)
 
 When provided, only search memories in this folder (null for unfiled)
+
+***
+
+### hybridWeights?
+
+> `optional` **hybridWeights**: `HybridSearchWeights`
+
+Defined in: [src/lib/memoryVault/searchTool.ts:37](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#37)
+
+Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword.
 
 ***
 
@@ -20,7 +30,7 @@ When provided, only search memories in this folder (null for unfiled)
 
 > `optional` **limit**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:27](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#27)
+Defined in: [src/lib/memoryVault/searchTool.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#29)
 
 Maximum number of results to return (default: 5)
 
@@ -30,7 +40,7 @@ Maximum number of results to return (default: 5)
 
 > `optional` **minSimilarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#29)
+Defined in: [src/lib/memoryVault/searchTool.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#31)
 
 Minimum similarity threshold below which results are discarded (default: 0.1)
 
@@ -40,6 +50,6 @@ Minimum similarity threshold below which results are discarded (default: 0.1)
 
 > `optional` **scopes**: `string`\[]
 
-Defined in: [src/lib/memoryVault/searchTool.ts:31](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#31)
+Defined in: [src/lib/memoryVault/searchTool.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#33)
 
 When provided, only search memories with these scopes

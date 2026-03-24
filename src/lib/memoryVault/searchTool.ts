@@ -9,6 +9,8 @@ import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
+import type { HybridSearchWeights } from "../memoryEngine/hybridSearch";
+import { keywordSearch, mergeWithRRF } from "../memoryEngine/hybridSearch";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
@@ -31,6 +33,8 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
+  /** Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword. */
+  hybridWeights?: HybridSearchWeights;
 }
 
 /**
@@ -48,6 +52,59 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;
+}
+
+/**
+ * An item with a pre-computed embedding, ready for ranking.
+ */
+interface EmbeddedItem {
+  id: string;
+  content: string;
+  embedding: number[];
+}
+
+/**
+ * Pure ranking function: scores, filters, and ranks items using hybrid search
+ * (cosine similarity + BM25 keyword search merged via RRF). This contains no
+ * database or I/O dependencies, making it testable and usable in benchmarks.
+ *
+ * @param query - The search query text
+ * @param queryEmbedding - Pre-computed embedding for the query
+ * @param items - Items with pre-computed embeddings to rank
+ * @param options - Ranking options (limit, minSimilarity, hybridWeights)
+ * @returns Ranked results sorted by hybrid RRF score
+ */
+export function rankVaultMemories(
+  query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    hybridWeights?: HybridSearchWeights;
+  }
+): VaultSearchResult[] {
+  const limit = options?.limit ?? 5;
+  const minSimilarity = options?.minSimilarity ?? 0.1;
+
+  const scored = items.map((item) => ({
+    uniqueId: item.id,
+    content: item.content,
+    similarity: cosineSimilarity(queryEmbedding, item.embedding),
+  }));
+
+  const semanticRanked = scored
+    .filter((r) => r.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity);
+
+  const keywordRanked = keywordSearch(query, semanticRanked, (r) => r.content);
+
+  return mergeWithRRF(
+    semanticRanked,
+    keywordRanked,
+    (r) => r.uniqueId,
+    options?.hybridWeights
+  ).slice(0, limit);
 }
 
 /**
@@ -194,21 +251,21 @@ async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Score each memory by cosine similarity
-  const scored = memories
-    .map((m) => {
-      const embedding = cache.get(m.content);
-      if (!embedding) return null;
-      return {
-        uniqueId: m.uniqueId,
-        content: m.content,
-        similarity: cosineSimilarity(queryEmbedding, embedding),
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+  // Build embedded items for the pure ranking function
+  const embeddedItems: EmbeddedItem[] = [];
+  for (const m of memories) {
+    const embedding = cache.get(m.content);
+    if (embedding) {
+      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding });
+    }
+  }
 
-  scored.sort((a, b) => b.similarity - a.similarity);
-  const results = scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
+  const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
+    limit,
+    minSimilarity,
+    hybridWeights: searchOptions?.hybridWeights,
+  });
+
   return { results, vaultSize: memories.length };
 }
 

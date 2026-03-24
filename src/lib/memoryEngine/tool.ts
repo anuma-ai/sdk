@@ -165,6 +165,7 @@ export function createMemoryEngineTool(
           limit: fetchLimit,
           minSimilarity: defaultOpts.minSimilarity,
           conversationId: defaultOpts.conversationId,
+          queryText: query,
         });
 
         // Filter out excluded conversation

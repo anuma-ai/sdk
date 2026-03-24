@@ -3,6 +3,8 @@ import { Q } from "@nozbe/watermelondb";
 import { v7 as uuidv7 } from "uuid";
 
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import type { HybridSearchWeights } from "../../memoryEngine/hybridSearch";
+import { keywordSearch, mergeWithRRF } from "../../memoryEngine/hybridSearch";
 import { decryptJsonField } from "../encryption-utils";
 import { decryptConversationFields, encryptConversationFields } from "./conversationEncryption";
 import { decryptMessageFields, encryptMessageFields, isEncrypted } from "./encryption";
@@ -687,9 +689,19 @@ export async function searchMessagesOp(
     limit?: number;
     minSimilarity?: number;
     conversationId?: string;
+    /** Original query text for hybrid keyword search. When omitted, only semantic search runs. */
+    queryText?: string;
+    /** Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword. */
+    hybridWeights?: HybridSearchWeights;
   }
 ): Promise<StoredMessageWithSimilarity[]> {
-  const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
+  const {
+    limit = 10,
+    minSimilarity = 0.5,
+    conversationId,
+    queryText,
+    hybridWeights,
+  } = options || {};
 
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
@@ -703,8 +715,6 @@ export async function searchMessagesOp(
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
-
-  const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
 
   const matchPromises: Promise<StoredMessageWithSimilarity | null>[] = [];
 
@@ -728,9 +738,22 @@ export async function searchMessagesOp(
   }
 
   const resolvedResults = await Promise.all(matchPromises);
-  const validResults = resolvedResults.filter((r): r is StoredMessageWithSimilarity => r !== null);
+  const semanticResults = resolvedResults.filter(
+    (r): r is StoredMessageWithSimilarity => r !== null
+  );
+  semanticResults.sort((a, b) => b.similarity - a.similarity);
 
-  return validResults.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  // When query text is provided, run keyword search and merge via RRF
+  if (queryText) {
+    const keywordRanked = keywordSearch(queryText, semanticResults, (r) => r.content);
+
+    return mergeWithRRF(semanticResults, keywordRanked, (r) => r.uniqueId, hybridWeights).slice(
+      0,
+      limit
+    );
+  }
+
+  return semanticResults.slice(0, limit);
 }
 
 /**
@@ -744,9 +767,19 @@ export async function searchChunksOp(
     limit?: number;
     minSimilarity?: number;
     conversationId?: string;
+    /** Original query text for hybrid keyword search. When omitted, only semantic search runs. */
+    queryText?: string;
+    /** Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword. */
+    hybridWeights?: HybridSearchWeights;
   }
 ): Promise<ChunkSearchResult[]> {
-  const { limit = 10, minSimilarity = 0.5, conversationId } = options || {};
+  const {
+    limit = 10,
+    minSimilarity = 0.5,
+    conversationId,
+    queryText,
+    hybridWeights,
+  } = options || {};
 
   const activeConversations = await ctx.conversationsCollection
     .query(Q.where("is_deleted", false))
@@ -808,9 +841,23 @@ export async function searchChunksOp(
     }
   }
 
-  const results = await Promise.all(chunkMatchPromises);
+  const semanticResults = (await Promise.all(chunkMatchPromises)).sort(
+    (a, b) => b.similarity - a.similarity
+  );
 
-  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  // When query text is provided, run keyword search and merge via RRF
+  if (queryText) {
+    const keywordRanked = keywordSearch(queryText, semanticResults, (r) => r.chunkText);
+
+    return mergeWithRRF(
+      semanticResults,
+      keywordRanked,
+      (r) => `${r.message.uniqueId}:${r.chunkText.slice(0, 64)}`,
+      hybridWeights
+    ).slice(0, limit);
+  }
+
+  return semanticResults.slice(0, limit);
 }
 
 async function getMessagesWithEmbeddingsOp(

@@ -2,7 +2,7 @@
 
 > **searchMessagesOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`StoredMessageWithSimilarity`](../interfaces/StoredMessageWithSimilarity.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#683)
+Defined in: [src/lib/db/chat/operations.ts:685](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#685)
 
 ## Parameters
 
@@ -11,6 +11,7 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -25,6 +26,11 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -35,6 +41,11 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 <td>
 
 `number`\[]
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -49,6 +60,11 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 `object`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -59,6 +75,28 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 <td>
 
 `string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.hybridWeights?`
+
+</td>
+<td>
+
+`HybridSearchWeights`
+
+</td>
+<td>
+
+Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword.
 
 </td>
 </tr>
@@ -73,6 +111,11 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 `number`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -83,6 +126,28 @@ Defined in: [src/lib/db/chat/operations.ts:683](https://github.com/anuma-ai/sdk/
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.queryText?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Original query text for hybrid keyword search. When omitted, only semantic search runs.
 
 </td>
 </tr>

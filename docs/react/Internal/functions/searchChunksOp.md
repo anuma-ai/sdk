@@ -2,7 +2,7 @@
 
 > **searchChunksOp**(`ctx`: [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md), `queryVector`: `number`\[], `options?`: `object`): `Promise`<[`ChunkSearchResult`](../interfaces/ChunkSearchResult.md)\[]>
 
-Defined in: [src/lib/db/chat/operations.ts:740](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#740)
+Defined in: [src/lib/db/chat/operations.ts:763](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/operations.ts#763)
 
 Search through message chunks for fine-grained semantic search.
 Returns the matching chunk text along with the parent message.
@@ -14,6 +14,7 @@ Returns the matching chunk text along with the parent message.
 <tr>
 <th>Parameter</th>
 <th>Type</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
@@ -28,6 +29,11 @@ Returns the matching chunk text along with the parent message.
 [`StorageOperationsContext`](../interfaces/StorageOperationsContext.md)
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -38,6 +44,11 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `number`\[]
+
+</td>
+<td>
+
+‐
 
 </td>
 </tr>
@@ -52,6 +63,11 @@ Returns the matching chunk text along with the parent message.
 `object`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -62,6 +78,28 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `string`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.hybridWeights?`
+
+</td>
+<td>
+
+`HybridSearchWeights`
+
+</td>
+<td>
+
+Weights for semantic vs keyword ranking. Default: 0.7 semantic, 0.3 keyword.
 
 </td>
 </tr>
@@ -76,6 +114,11 @@ Returns the matching chunk text along with the parent message.
 `number`
 
 </td>
+<td>
+
+‐
+
+</td>
 </tr>
 <tr>
 <td>
@@ -86,6 +129,28 @@ Returns the matching chunk text along with the parent message.
 <td>
 
 `number`
+
+</td>
+<td>
+
+‐
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.queryText?`
+
+</td>
+<td>
+
+`string`
+
+</td>
+<td>
+
+Original query text for hybrid keyword search. When omitted, only semantic search runs.
 
 </td>
 </tr>
