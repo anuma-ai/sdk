@@ -20,9 +20,20 @@ export interface VaultMemoryEntry {
   createdAt: string;
 }
 
+export const CATEGORIES = [
+  "direct",
+  "paraphrase",
+  "specificity",
+  "temporal",
+  "composite",
+  "hard_negatives",
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
+
 export interface BenchmarkQuery {
   query: string;
-  category: "direct" | "paraphrase" | "specificity" | "temporal" | "composite" | "hard_negatives";
+  category: Category;
   /** Memory IDs that MUST appear in the top-k results */
   expectedIds: string[];
   /** Memory IDs that must NOT rank above any expectedIds entry */
