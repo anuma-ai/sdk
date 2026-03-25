@@ -71,7 +71,7 @@ export type StreamingChunk = {
 /**
  * Tool executor function type
  */
-export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown>;
+export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> | unknown;
 
 /**
  * Tool configuration with optional executor
