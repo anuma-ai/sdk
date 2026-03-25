@@ -21,43 +21,6 @@ const MCP_SSE_ENDPOINT = "https://mcp.notion.com/sse";
 /** Maximum content length for Notion tool results to avoid overwhelming LLM context */
 const MAX_CONTENT_LENGTH = 50000;
 
-/** Default timeout for MCP requests (ms). Notion page fetches can be slow. */
-const MCP_REQUEST_TIMEOUT_MS = 180_000;
-
-/**
- * Run an async operation with an AbortController timeout.
- *
- * The timeout covers the ENTIRE operation — including body reads. This is
- * critical because `fetch()` resolves when headers arrive, but `response.text()`
- * on an SSE stream can hang indefinitely if the server doesn't close the
- * connection. By passing the AbortSignal into fetch AND keeping the timer alive
- * until the full operation completes, we guarantee a hard upper bound.
- *
- * Works across browser, React Native (Hermes/JSC), and Node.js.
- */
-async function withTimeout<T>(
-  operation: (signal: AbortSignal) => Promise<T>,
-  timeoutMs = MCP_REQUEST_TIMEOUT_MS,
-  label = "MCP request"
-): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await operation(controller.signal);
-  } catch (error: unknown) {
-    // AbortError detection — varies across environments (browser DOMException,
-    // React Native plain Error, Node.js AbortError). Check signal as fallback.
-    const name = error instanceof Error ? error.name : "";
-    if (name === "AbortError" || controller.signal.aborted) {
-      throw new Error(`${label} timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 /**
  * Truncate a tool result if it exceeds MAX_CONTENT_LENGTH.
  * Stringifies objects before checking length.
@@ -145,74 +108,71 @@ async function parseResponseBody(response: Response): Promise<unknown> {
  * Initialize an MCP session and get a session ID
  */
 async function initializeMCPSession(accessToken: string): Promise<string> {
-  return withTimeout(async (signal) => {
-    const requestId = generateRequestId();
+  const requestId = generateRequestId();
 
-    const initRequest = {
+  const initRequest = {
+    jsonrpc: "2.0",
+    id: requestId,
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: {
+        name: "Anuma",
+        version: "1.0.0",
+      },
+    },
+  };
+
+  const response = await fetch(MCP_HTTP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(initRequest),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    );
+  }
+
+  // Get session ID from response header
+  const sessionId = response.headers.get("Mcp-Session-Id");
+  if (!sessionId) {
+    throw new Error("No Mcp-Session-Id returned from initialization");
+  }
+
+  // Parse and validate response before caching (handles both JSON and SSE)
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
+  if (jsonRpcResponse.error) {
+    const err = jsonRpcResponse.error as Record<string, unknown>;
+    const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+    throw new Error(`MCP initialization error: ${errMsg}`);
+  }
+
+  // Send required notifications/initialized to complete the MCP handshake
+  await fetch(MCP_HTTP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "Mcp-Session-Id": sessionId,
+    },
+    body: JSON.stringify({
       jsonrpc: "2.0",
-      id: requestId,
-      method: "initialize",
-      params: {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: {
-          name: "Anuma",
-          version: "1.0.0",
-        },
-      },
-    };
+      method: "notifications/initialized",
+    }),
+  });
 
-    const response = await fetch(MCP_HTTP_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(initRequest),
-      signal,
-    });
+  // Cache only after successful validation
+  sessionCache.set(accessToken, sessionId);
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "");
-      throw new Error(
-        `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
-      );
-    }
-
-    // Get session ID from response header
-    const sessionId = response.headers.get("Mcp-Session-Id");
-    if (!sessionId) {
-      throw new Error("No Mcp-Session-Id returned from initialization");
-    }
-
-    // Parse and validate response before caching (handles both JSON and SSE)
-    const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
-    if (jsonRpcResponse.error) {
-      const err = jsonRpcResponse.error as Record<string, unknown>;
-      throw new Error(`MCP initialization error: ${typeof err.message === "string" ? err.message : JSON.stringify(err)}`);
-    }
-
-    // Send required notifications/initialized to complete the MCP handshake
-    await fetch(MCP_HTTP_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        "Mcp-Session-Id": sessionId,
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-      }),
-      signal,
-    });
-
-    // Cache only after successful validation
-    sessionCache.set(accessToken, sessionId);
-
-    return sessionId;
-  }, MCP_REQUEST_TIMEOUT_MS, "MCP session initialization");
+  return sessionId;
 }
 
 /**
@@ -238,91 +198,87 @@ async function callMCPTool<T>(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<T> {
-  // Ensure we have a session (has its own timeout)
+  // Ensure we have a session
   const sessionId = await ensureMCPSession(accessToken);
 
-  // Wrap the tool call + body read in a single timeout so SSE body
-  // streaming can't hang indefinitely.
-  return withTimeout(async (signal) => {
-    const requestId = generateRequestId();
+  const requestId = generateRequestId();
 
-    const jsonRpcRequest = {
-      jsonrpc: "2.0",
-      id: requestId,
-      method: "tools/call",
-      params: {
-        name: toolName,
-        arguments: args,
-      },
-    };
+  const jsonRpcRequest = {
+    jsonrpc: "2.0",
+    id: requestId,
+    method: "tools/call",
+    params: {
+      name: toolName,
+      arguments: args,
+    },
+  };
 
-    const response = await fetch(MCP_HTTP_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
-        Authorization: `Bearer ${accessToken}`,
-        "Mcp-Session-Id": sessionId,
-      },
-      body: JSON.stringify(jsonRpcRequest),
-      signal,
-    });
+  const response = await fetch(MCP_HTTP_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${accessToken}`,
+      "Mcp-Session-Id": sessionId,
+    },
+    body: JSON.stringify(jsonRpcRequest),
+  });
 
-    if (!response.ok) {
-      // If session expired, try to re-initialize
-      if (response.status === 400 || response.status === 401) {
-        sessionCache.delete(accessToken);
-        // Retry with new session (has its own timeout)
-        const newSessionId = await initializeMCPSession(accessToken);
+  if (!response.ok) {
+    // If session expired, try to re-initialize
+    if (response.status === 400 || response.status === 401) {
+      sessionCache.delete(accessToken);
+      // Retry with new session
+      const newSessionId = await initializeMCPSession(accessToken);
 
-        const retryResponse = await fetch(MCP_HTTP_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-            Authorization: `Bearer ${accessToken}`,
-            "Mcp-Session-Id": newSessionId,
-          },
-          body: JSON.stringify(jsonRpcRequest),
-          signal,
-        });
+      const retryResponse = await fetch(MCP_HTTP_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          Authorization: `Bearer ${accessToken}`,
+          "Mcp-Session-Id": newSessionId,
+        },
+        body: JSON.stringify(jsonRpcRequest),
+      });
 
-        if (!retryResponse.ok) {
-          const errorBody = await retryResponse.text().catch(() => "");
-          throw new Error(
-            `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`
-          );
-        }
-
-        const retryJsonRpcResponse = (await parseResponseBody(retryResponse)) as Record<
-          string,
-          unknown
-        >;
-        if (retryJsonRpcResponse.error) {
-          const err = retryJsonRpcResponse.error as Record<string, unknown>;
-          throw new Error(`MCP tool error: ${typeof err.message === "string" ? err.message : JSON.stringify(err)}`);
-        }
-
-        return truncateToolResult(retryJsonRpcResponse.result) as T;
+      if (!retryResponse.ok) {
+        const errorBody = await retryResponse.text().catch(() => "");
+        throw new Error(
+          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+        );
       }
 
-      // Try to get error details from response
-      const errorBody = await response.text().catch(() => "");
-      throw new Error(
-        `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
-      );
+      const retryJsonRpcResponse = (await parseResponseBody(retryResponse)) as Record<
+        string,
+        unknown
+      >;
+      if (retryJsonRpcResponse.error) {
+        const err = retryJsonRpcResponse.error as Record<string, unknown>;
+        const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+        throw new Error(`MCP tool error: ${errMsg}`);
+      }
+
+      return truncateToolResult(retryJsonRpcResponse.result) as T;
     }
 
-    const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
+    // Try to get error details from response
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    );
+  }
 
-    // Check for JSON-RPC error
-    if (jsonRpcResponse.error) {
-      const err = jsonRpcResponse.error as Record<string, unknown>;
-      throw new Error(`MCP tool error: ${typeof err.message === "string" ? err.message : JSON.stringify(err)}`);
-    }
+  const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
 
-    return truncateToolResult(jsonRpcResponse.result) as T;
-  }, MCP_REQUEST_TIMEOUT_MS, `Notion ${toolName}`);
+  // Check for JSON-RPC error
+  if (jsonRpcResponse.error) {
+    const err = jsonRpcResponse.error as Record<string, unknown>;
+    const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+    throw new Error(`MCP tool error: ${errMsg}`);
+  }
+
+  return truncateToolResult(jsonRpcResponse.result) as T;
 }
 
 // ============================================================================
