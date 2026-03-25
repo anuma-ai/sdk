@@ -344,6 +344,20 @@ export {
   type UpdateMediaOptions,
 } from "../lib/db/media";
 
+// App files storage (LLM-generated app source files)
+export {
+  AppFile as AppFileModel,
+  type AppFileOperationsContext,
+  appFileToStored,
+  deleteAllAppFilesOp,
+  deleteAppFileOp,
+  getAppFileMapOp,
+  getAppFileOp,
+  getAppFilesOp,
+  putAppFileOp,
+  type StoredAppFile,
+} from "../lib/db/appFiles";
+
 // Saved tools storage
 export {
   createSavedToolOp,
