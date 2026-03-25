@@ -149,6 +149,14 @@ Defined in: [src/lib/db/appFiles/models.ts:10](https://github.com/anuma-ai/sdk/b
 
 ***
 
+### createdAt
+
+> **createdAt**: `Date`
+
+Defined in: [src/lib/db/appFiles/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/models.ts#13)
+
+***
+
 ### path
 
 > **path**: `string`
@@ -161,7 +169,7 @@ Defined in: [src/lib/db/appFiles/models.ts:11](https://github.com/anuma-ai/sdk/b
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/appFiles/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/models.ts#13)
+Defined in: [src/lib/db/appFiles/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/models.ts#14)
 
 ***
 

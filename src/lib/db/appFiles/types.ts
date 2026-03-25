@@ -15,5 +15,6 @@ export interface StoredAppFile {
   path: string;
   /** File content (UTF-8 text) */
   content: string;
+  createdAt: Date;
   updatedAt: Date;
 }

@@ -88,6 +88,8 @@ export async function updateSavedToolOp(
     return false;
   }
 
+  if (tool.isDeleted) return false;
+
   const now = Date.now();
 
   await ctx.database.write(async () => {

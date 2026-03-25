@@ -2,7 +2,7 @@
 
 > **putAppFileOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`, `path`: `string`, `content`: `string`): `Promise`<[`StoredAppFile`](../interfaces/StoredAppFile.md)>
 
-Defined in: [src/lib/db/appFiles/operations.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#33)
+Defined in: [src/lib/db/appFiles/operations.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#43)
 
 Create or overwrite a file. If a file with the same conversationId + path
 already exists, it is updated in place.

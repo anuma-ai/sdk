@@ -158,6 +158,7 @@ graph LR
 | `conversation_id` | string | ✓ |  |
 | `path` | string |  |  |
 | `content` | string |  |  |
+| `created_at` | number | ✓ |  |
 | `updated_at` | number |  |  |
 
 ## saved_tools

@@ -2,7 +2,7 @@
 
 > **appFileToStored**(`file`: [`AppFileModel`](../classes/AppFileModel.md)): [`StoredAppFile`](../interfaces/StoredAppFile.md)
 
-Defined in: [src/lib/db/appFiles/operations.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#19)
+Defined in: [src/lib/db/appFiles/operations.ts:28](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#28)
 
 Convert a WatermelonDB AppFile model to a plain StoredAppFile object.
 

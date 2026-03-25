@@ -26,6 +26,14 @@ The conversation this file belongs to
 
 ***
 
+### createdAt
+
+> **createdAt**: `Date`
+
+Defined in: [src/lib/db/appFiles/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/types.ts#18)
+
+***
+
 ### path
 
 > **path**: `string`
@@ -50,4 +58,4 @@ WatermelonDB internal ID
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/appFiles/types.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/types.ts#18)
+Defined in: [src/lib/db/appFiles/types.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/types.ts#19)

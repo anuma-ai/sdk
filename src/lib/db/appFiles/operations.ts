@@ -12,7 +12,16 @@ export interface AppFileOperationsContext {
 
 /** Normalize a file path: strip leading slashes, collapse double slashes. */
 function normalizePath(path: string): string {
-  return path.replace(/^\/+/, "").replace(/\/\/+/g, "/");
+  return path
+    .replace(/^\/+/, "")
+    .replace(/\/\/+/g, "/")
+    .split("/")
+    .reduce<string[]>((acc, seg) => {
+      if (seg === "..") acc.pop();
+      else if (seg !== ".") acc.push(seg);
+      return acc;
+    }, [])
+    .join("/");
 }
 
 /** Convert a WatermelonDB AppFile model to a plain StoredAppFile object. */
@@ -22,6 +31,7 @@ export function appFileToStored(file: AppFile): StoredAppFile {
     conversationId: file.conversationId,
     path: file.path,
     content: file.content,
+    createdAt: file.createdAt,
     updatedAt: file.updatedAt,
   };
 }
@@ -56,6 +66,7 @@ export async function putAppFileOp(
       f._setRaw("conversation_id", conversationId);
       f._setRaw("path", normalized);
       f._setRaw("content", content);
+      f._setRaw("created_at", now);
       f._setRaw("updated_at", now);
     });
   });
