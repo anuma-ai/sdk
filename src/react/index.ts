@@ -343,6 +343,23 @@ export {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
+
+// Saved tools storage
+export {
+  createSavedToolOp,
+  type CreateSavedToolOptions,
+  deleteSavedToolOp,
+  getAllSavedToolsOp,
+  getSavedToolByIdOp,
+  type SavedToolOperationsContext,
+  type SavedToolParameter,
+  savedToolToStored,
+  SavedTool as SavedToolModel,
+  type StoredSavedTool,
+  updateSavedToolOp,
+  type UpdateSavedToolOptions,
+} from "../lib/db/savedTools";
+
 export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
 export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
 export type {

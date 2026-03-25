@@ -14,6 +14,7 @@ import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
+import { SavedTool } from "./savedTools/models";
 import { VaultFolder } from "./vaultFolders/models";
 
 /**
@@ -43,8 +44,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v22: Added is_system column to vault_folders for default system folders
  * - v23: Added conversation_summaries table for progressive history summarization
  * - v24: Added context column to vault_folders for LLM-generated folder summaries
+ * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  */
-export const SDK_SCHEMA_VERSION = 24;
+export const SDK_SCHEMA_VERSION = 25;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -222,6 +224,21 @@ export const sdkSchema = appSchema({
         { name: "created_at", type: "number", isIndexed: true },
         { name: "updated_at", type: "number" },
         // Soft delete
+        { name: "is_deleted", type: "boolean", isIndexed: true },
+      ],
+    }),
+    // ── Saved tools ──────────────────────────────────────────────────────
+    tableSchema({
+      name: "saved_tools",
+      columns: [
+        { name: "name", type: "string" },
+        { name: "display_name", type: "string" },
+        { name: "description", type: "string" },
+        { name: "parameters", type: "string" }, // JSON: Record<string, SavedToolParameter>
+        { name: "html", type: "string" },
+        { name: "conversation_id", type: "string", isOptional: true },
+        { name: "created_at", type: "number", isIndexed: true },
+        { name: "updated_at", type: "number" },
         { name: "is_deleted", type: "boolean", isIndexed: true },
       ],
     }),
@@ -562,6 +579,26 @@ export const sdkMigrations = schemaMigrations({
         }),
       ],
     },
+    // v24 -> v25: Added saved_tools table for user-saved display apps exposed as LLM tools
+    {
+      toVersion: 25,
+      steps: [
+        createTable({
+          name: "saved_tools",
+          columns: [
+            { name: "name", type: "string" },
+            { name: "display_name", type: "string" },
+            { name: "description", type: "string" },
+            { name: "parameters", type: "string" },
+            { name: "html", type: "string" },
+            { name: "conversation_id", type: "string", isOptional: true },
+            { name: "created_at", type: "number", isIndexed: true },
+            { name: "updated_at", type: "number" },
+            { name: "is_deleted", type: "boolean", isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });
 
@@ -592,4 +629,5 @@ export const sdkModelClasses: Class<Model>[] = [
   Media,
   ModelPreference,
   UserPreference,
+  SavedTool,
 ];
