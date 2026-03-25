@@ -161,8 +161,8 @@ function createSearchReposTool(
         const resp = await githubFetch(token, `/search/repositories?${params}`);
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), "repository search");
 
-        const data = await resp.json();
-        return (data.items || []).map((r: Record<string, unknown>) => ({
+        const data = (await resp.json()) as { items?: Record<string, unknown>[] };
+        return (data.items || []).map((r) => ({
           full_name: r.full_name,
           description: r.description,
           language: r.language,
@@ -225,7 +225,13 @@ function createReadFileTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `file ${owner}/${repo}/${path}`);
 
-        const data = await resp.json();
+        const data = (await resp.json()) as {
+          type: string;
+          content?: string;
+          path: string;
+          size: number;
+          sha: string;
+        };
         if (data.type !== "file")
           return `Error: ${path} is a ${data.type}, not a file. Use github_get_directory_tree for directories.`;
         if (!data.content)
@@ -285,8 +291,8 @@ function createSearchCodeTool(
         const resp = await githubFetch(token, `/search/code?${params}`);
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), "code search");
 
-        const data = await resp.json();
-        return (data.items || []).map((item: Record<string, unknown>) => ({
+        const data = (await resp.json()) as { items?: Record<string, unknown>[] };
+        return (data.items || []).map((item) => ({
           path: item.path,
           repository: (item.repository as Record<string, unknown>)?.full_name,
           html_url: item.html_url,
@@ -354,8 +360,10 @@ function createDirectoryTreeTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `tree for ${owner}/${repo}`);
 
-        const data = await resp.json();
-        let tree = (data.tree || []) as { path: string; type: string; size?: number }[];
+        const data = (await resp.json()) as {
+          tree?: { path: string; type: string; size?: number }[];
+        };
+        let tree = data.tree || [];
 
         // Filter to subdirectory if specified
         if (subPath) {
@@ -435,9 +443,9 @@ function createListIssuesTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `issues for ${owner}/${repo}`);
 
-        const data = await resp.json();
+        const data = (await resp.json()) as Record<string, unknown>[];
         // GitHub's issues endpoint also returns PRs — filter them out
-        return (data as Record<string, unknown>[])
+        return data
           .filter((issue) => !issue.pull_request)
           .map((issue) => ({
             number: issue.number,
@@ -508,7 +516,7 @@ function createCreateIssueTool(
         });
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), "create issue");
 
-        const data = await resp.json();
+        const data = (await resp.json()) as Record<string, unknown>;
         return {
           number: data.number,
           title: data.title,
@@ -575,8 +583,8 @@ function createListPullRequestsTool(
             `pull requests for ${owner}/${repo}`
           );
 
-        const data = await resp.json();
-        return (data as Record<string, unknown>[]).map((pr) => ({
+        const data = (await resp.json()) as Record<string, unknown>[];
+        return data.map((pr) => ({
           number: pr.number,
           title: pr.title,
           state: pr.state,
@@ -644,15 +652,15 @@ function createGetPullRequestTool(
         if (!prResp.ok)
           return handleApiError(prResp.status, await prResp.text(), `PR #${pull_number}`);
 
-        const pr = await prResp.json();
+        const pr = (await prResp.json()) as Record<string, unknown>;
         const result: Record<string, unknown> = {
           number: pr.number,
           title: pr.title,
           state: pr.state,
-          author: pr.user?.login,
-          head: pr.head?.ref,
-          base: pr.base?.ref,
-          body: pr.body ? truncate(pr.body, 5000) : null,
+          author: (pr.user as Record<string, unknown> | undefined)?.login,
+          head: (pr.head as Record<string, unknown> | undefined)?.ref,
+          base: (pr.base as Record<string, unknown> | undefined)?.ref,
+          body: pr.body ? truncate(pr.body as string, 5000) : null,
           draft: pr.draft,
           mergeable: pr.mergeable,
           mergeable_state: pr.mergeable_state,
@@ -687,7 +695,7 @@ function createGetPullRequestTool(
             });
 
             // Warn if GitHub truncated the files list (max 100 per page)
-            const totalChanged = pr.changed_files as number;
+            const totalChanged = pr.changed_files as number | undefined;
             if (totalChanged && files.length < totalChanged) {
               result.files_warning = `Only ${files.length} of ${totalChanged} changed files shown. GitHub limits to 100 files per page.`;
             }
@@ -750,7 +758,7 @@ function createCreatePullRequestTool(
         });
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), "create pull request");
 
-        const data = await resp.json();
+        const data = (await resp.json()) as Record<string, unknown>;
         return {
           number: data.number,
           title: data.title,
@@ -824,7 +832,7 @@ function createMergePullRequestTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `merge PR #${pull_number}`);
 
-        const data = await resp.json();
+        const data = (await resp.json()) as { merged: boolean; message: string; sha: string };
         return { merged: data.merged, message: data.message, sha: data.sha };
       } catch (err) {
         getLogger().error("github_merge_pull_request error", err);
@@ -873,8 +881,8 @@ function createListPRCommentsTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `comments on PR #${pull_number}`);
 
-        const data = await resp.json();
-        return (data as Record<string, unknown>[]).map((c) => ({
+        const data = (await resp.json()) as Record<string, unknown>[];
+        return data.map((c) => ({
           id: c.id,
           path: c.path,
           line: c.line,
@@ -978,7 +986,7 @@ function createPRReviewTool(
         if (!resp.ok)
           return handleApiError(resp.status, await resp.text(), `review on PR #${pull_number}`);
 
-        const data = await resp.json();
+        const data = (await resp.json()) as Record<string, unknown>;
         return { id: data.id, state: data.state, html_url: data.html_url };
       } catch (err) {
         getLogger().error("github_create_pr_review error", err);
@@ -1106,7 +1114,7 @@ function createBranchTool(
             `create branch ${branch}`
           );
 
-        const data = await createResp.json();
+        const data = (await createResp.json()) as { ref: string; object: { sha: string } };
         return { ref: data.ref, sha: data.object.sha };
       } catch (err) {
         getLogger().error("github_create_branch error", err);
@@ -1181,7 +1189,10 @@ function createOrUpdateFileTool(
         );
         if (!resp.ok) return handleApiError(resp.status, await resp.text(), `commit file ${path}`);
 
-        const data = await resp.json();
+        const data = (await resp.json()) as {
+          content?: { path: string; sha: string };
+          commit?: { sha: string; html_url: string };
+        };
         return {
           path: data.content?.path,
           sha: data.content?.sha,
