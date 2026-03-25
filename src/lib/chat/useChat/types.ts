@@ -71,6 +71,7 @@ export type StreamingChunk = {
 /**
  * Tool executor function type
  */
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors
 export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> | unknown;
 
 /**

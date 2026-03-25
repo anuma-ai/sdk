@@ -12,7 +12,6 @@ import type { Database } from "@nozbe/watermelondb";
 
 import type { LlmapiMessage } from "../../client";
 import { BASE_URL } from "../../clientConfig";
-import { getLogger } from "../logger";
 import {
   createSummaryContext,
   deleteConversationSummaryOp,
@@ -20,6 +19,7 @@ import {
   upsertConversationSummaryOp,
 } from "../db/chat/summaryOperations";
 import type { StoredConversationSummary, StoredMessage } from "../db/chat/types";
+import { getLogger } from "../logger";
 
 /** Default token threshold before summarization triggers */
 export const DEFAULT_SUMMARY_TOKEN_THRESHOLD = 4000;

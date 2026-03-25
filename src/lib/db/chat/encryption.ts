@@ -32,27 +32,38 @@ export async function encryptMessageFields(
   address: string,
   signMessage?: SignMessageFn,
   embeddedWalletSigner?: EmbeddedWalletSignerFn
-): Promise<Record<string, any>> {
+): Promise<Record<string, unknown>> {
   if (!address || !signMessage) {
-    return message;
+    return message as unknown as Record<string, unknown>;
   }
 
   try {
     // Request encryption key once for all fields
     await requestEncryptionKey(address, signMessage, embeddedWalletSigner);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msg = message as any;
+    const msg = message as Record<string, unknown>;
 
     const encryptedContent =
       msg.content !== undefined
-        ? await encryptField(msg.content, address, signMessage, embeddedWalletSigner, true)
+        ? await encryptField(
+            msg.content as string,
+            address,
+            signMessage,
+            embeddedWalletSigner,
+            true
+          )
         : undefined;
 
     const encryptedThinking =
       msg.thinking !== undefined && msg.thinking !== null
-        ? await encryptField(msg.thinking, address, signMessage, embeddedWalletSigner, true)
-        : msg.thinking;
+        ? await encryptField(
+            msg.thinking as string,
+            address,
+            signMessage,
+            embeddedWalletSigner,
+            true
+          )
+        : (msg.thinking as string | undefined);
 
     const encryptedVector = msg.vector
       ? await encryptJsonField(msg.vector, address, signMessage, embeddedWalletSigner, true)

@@ -36,7 +36,7 @@ Optional metadata about the extraction
 
 **Index Signature**
 
-\[`key`: `string`]: `any`
+\[`key`: `string`]: `unknown`
 
 **pageCount?**
 

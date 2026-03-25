@@ -13,12 +13,12 @@ import type { ToolConfig } from "../lib/chat/useChat/types.js";
  * Matches the methods provided by UIInteractionProvider.
  */
 export type UIInteractionContext = {
-  createInteraction: (id: string, type: string, data: any) => Promise<any>;
+  createInteraction: (id: string, type: string, data: unknown) => Promise<unknown>;
   createDisplayInteraction: (
     id: string,
     displayType: string,
-    data: any,
-    result: any,
+    data: unknown,
+    result: unknown,
     toolVersion?: number,
     replacesInteractionId?: string
   ) => void;
@@ -48,11 +48,11 @@ export type InteractiveToolConfig = {
   /** Interaction type string used by the provider (e.g. "choice", "form") */
   interactionType: string;
   /** Optional validation of LLM-provided args. Return false to cancel. */
-  validate?: (args: any) => boolean;
+  validate?: (args: Record<string, unknown>) => boolean;
   /** Transform args before storing as interaction data */
-  mapArgs?: (args: any) => any;
+  mapArgs?: (args: Record<string, unknown>) => Record<string, unknown>;
   /** Transform the user's result before returning to the LLM */
-  mapResult?: (result: any, args: any) => any;
+  mapResult?: (result: Record<string, unknown>, args: Record<string, unknown>) => unknown;
 };
 
 /**
@@ -69,13 +69,13 @@ export type InteractiveToolConfig = {
  * ```
  */
 export type DisplayToolMigrations = {
-  [key: `${number}->${number}`]: (data: any) => any;
+  [key: `${number}->${number}`]: (data: unknown) => unknown;
 };
 
 /**
  * Configuration for a display-only tool that renders data without blocking.
  */
-export type DisplayToolConfig<TArgs = any, TResult = any> = {
+export type DisplayToolConfig<TArgs = Record<string, unknown>, TResult = unknown> = {
   /** Tool name as called by the LLM (e.g. "display_weather") */
   name: string;
   /** Tool description shown to the LLM */
@@ -85,7 +85,7 @@ export type DisplayToolConfig<TArgs = any, TResult = any> = {
   /** Display type string used to dispatch rendering (e.g. "weather") */
   displayType: string;
   /** Execute function that fetches/computes the display data */
-  execute: (args: TArgs) => Promise<TResult>;
+  execute: (args: TArgs) => Promise<TResult> | TResult;
   /**
    * Schema version for the result format. Increment when the result shape
    * changes in a backward-incompatible way. Default: 1.
@@ -120,11 +120,11 @@ export type DisplayToolConfig<TArgs = any, TResult = any> = {
  * ```
  */
 export function migrateDisplayResult(
-  result: any,
+  result: unknown,
   fromVersion: number,
   toVersion: number,
   migrations: DisplayToolMigrations
-): any {
+): unknown {
   if (fromVersion >= toVersion) return result;
   let current = result;
   for (let v = fromVersion; v < toVersion; v++) {
@@ -193,7 +193,7 @@ export function createInteractiveTool(
         });
 
         if (config.mapResult) {
-          return config.mapResult(result, args);
+          return config.mapResult(result as Record<string, unknown>, args);
         }
 
         return result;
@@ -228,7 +228,7 @@ export function createInteractiveTool(
  * );
  * ```
  */
-export function createDisplayTool<TArgs = any, TResult = any>(
+export function createDisplayTool<TArgs = Record<string, unknown>, TResult = unknown>(
   options: CreateUIToolsOptions,
   config: DisplayToolConfig<TArgs, TResult>
 ): ToolConfig {
@@ -240,7 +240,7 @@ export function createDisplayTool<TArgs = any, TResult = any>(
       arguments: config.parameters,
     },
     executor: async (args: Record<string, unknown>): Promise<unknown> => {
-      const result = await config.execute(args as unknown as TArgs);
+      const result = await Promise.resolve(config.execute(args as unknown as TArgs));
 
       const context = options.getContext();
       if (context) {

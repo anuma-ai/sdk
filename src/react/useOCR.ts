@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import Tesseract from "tesseract.js";
 
-import { convertPdfToImages } from "../lib/pdf";
 import { getLogger } from "../lib/logger";
+import { convertPdfToImages } from "../lib/pdf";
 
 export interface OCRFile {
   url: string | File | Blob;

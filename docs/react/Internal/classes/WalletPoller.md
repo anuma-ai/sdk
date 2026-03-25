@@ -141,7 +141,7 @@ Stop function to cancel polling
 
 > **stop**(): `void`
 
-Defined in: [src/lib/db/queue/walletPoller.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#62)
+Defined in: [src/lib/db/queue/walletPoller.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/queue/walletPoller.ts#64)
 
 Stop polling.
 

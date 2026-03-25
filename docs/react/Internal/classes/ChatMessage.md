@@ -185,7 +185,7 @@ Defined in: [src/lib/db/chat/models.ts:42](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **feedback**: [`MessageFeedback`](../type-aliases/MessageFeedback.md)
 
-Defined in: [src/lib/db/chat/models.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#46)
+Defined in: [src/lib/db/chat/models.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#47)
 
 ***
 
@@ -239,7 +239,7 @@ Defined in: [src/lib/db/chat/models.ts:27](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **parentMessageId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#45)
+Defined in: [src/lib/db/chat/models.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#46)
 
 ***
 
@@ -271,7 +271,7 @@ Defined in: [src/lib/db/chat/models.ts:39](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **thinking**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#44)
+Defined in: [src/lib/db/chat/models.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#45)
 
 ***
 
@@ -279,7 +279,7 @@ Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **thoughtProcess**: `ActivityPhase`\[]
 
-Defined in: [src/lib/db/chat/models.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#43)
+Defined in: [src/lib/db/chat/models.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#44)
 
 ***
 

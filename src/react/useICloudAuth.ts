@@ -88,7 +88,7 @@ export function ICloudAuthProvider({
   const [userRecordName, setUserRecordName] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
 
   // Initialize CloudKit on mount - load dynamically
   useEffect(() => {
@@ -130,7 +130,7 @@ export function ICloudAuthProvider({
       }
     };
 
-    initCloudKit();
+    void initCloudKit();
   }, [apiToken, containerIdentifier, environment]);
 
   const requestAccess = useCallback(async (): Promise<void> => {
@@ -149,6 +149,7 @@ export function ICloudAuthProvider({
       setIsAuthenticated(true);
       setUserRecordName(userIdentity.userRecordName);
     } catch (err) {
+      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [isAuthenticated, isConfigured]);

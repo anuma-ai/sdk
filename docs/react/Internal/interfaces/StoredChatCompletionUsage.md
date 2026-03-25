@@ -1,6 +1,6 @@
 # StoredChatCompletionUsage
 
-Defined in: [src/lib/db/chat/types.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#95)
+Defined in: [src/lib/db/chat/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#96)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [src/lib/db/chat/types.ts:95](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **completionTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#97)
+Defined in: [src/lib/db/chat/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#98)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [src/lib/db/chat/types.ts:97](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **costMicroUsd**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#99)
+Defined in: [src/lib/db/chat/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#100)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [src/lib/db/chat/types.ts:99](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **creditsUsed**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:100](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#100)
+Defined in: [src/lib/db/chat/types.ts:101](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#101)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/db/chat/types.ts:100](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **promptTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:96](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#96)
+Defined in: [src/lib/db/chat/types.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#97)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/lib/db/chat/types.ts:96](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **totalTokens**: `number`
 
-Defined in: [src/lib/db/chat/types.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#98)
+Defined in: [src/lib/db/chat/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#99)

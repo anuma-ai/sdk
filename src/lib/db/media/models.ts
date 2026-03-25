@@ -36,9 +36,9 @@ export class Media extends Model {
   @text("source_url") sourceUrl?: string;
 
   // Media-specific metadata
-  @json("dimensions", (json) => json) dimensions?: MediaDimensions;
+  @json("dimensions", (raw: unknown) => raw as MediaDimensions) dimensions?: MediaDimensions;
   @field("duration") duration?: number;
-  @json("metadata", (json) => json) metadata?: MediaMetadata;
+  @json("metadata", (raw: unknown) => raw as MediaMetadata) metadata?: MediaMetadata;
 
   // Timestamps
   @readonly @date("created_at") createdAt!: Date;

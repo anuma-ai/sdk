@@ -93,7 +93,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
       required: ["chartType", "data", "dataKeys"],
     },
     displayType: "chart",
-    execute: async (args: Record<string, unknown>): Promise<DisplayChartResult> => {
+    execute: (args: Record<string, unknown>): DisplayChartResult => {
       const chartType = args.chartType as string;
       const data = args.data as ChartDataPoint[];
       const dataKeys = args.dataKeys as string[];

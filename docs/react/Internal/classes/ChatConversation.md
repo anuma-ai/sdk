@@ -1,6 +1,6 @@
 # ChatConversation
 
-Defined in: [src/lib/db/chat/models.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#49)
+Defined in: [src/lib/db/chat/models.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#50)
 
 ## Extends
 
@@ -137,7 +137,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > **conversationId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:57](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#57)
+Defined in: [src/lib/db/chat/models.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#58)
 
 ***
 
@@ -145,7 +145,7 @@ Defined in: [src/lib/db/chat/models.ts:57](https://github.com/anuma-ai/sdk/blob/
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#60)
+Defined in: [src/lib/db/chat/models.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#61)
 
 ***
 
@@ -153,7 +153,7 @@ Defined in: [src/lib/db/chat/models.ts:60](https://github.com/anuma-ai/sdk/blob/
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/chat/models.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#62)
+Defined in: [src/lib/db/chat/models.ts:63](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#63)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [src/lib/db/chat/models.ts:62](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **projectId**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#59)
+Defined in: [src/lib/db/chat/models.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#60)
 
 ***
 
@@ -169,7 +169,7 @@ Defined in: [src/lib/db/chat/models.ts:59](https://github.com/anuma-ai/sdk/blob/
 
 > **title**: `string`
 
-Defined in: [src/lib/db/chat/models.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#58)
+Defined in: [src/lib/db/chat/models.ts:59](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#59)
 
 ***
 
@@ -177,7 +177,7 @@ Defined in: [src/lib/db/chat/models.ts:58](https://github.com/anuma-ai/sdk/blob/
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/chat/models.ts:61](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#61)
+Defined in: [src/lib/db/chat/models.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#62)
 
 ***
 
@@ -197,7 +197,7 @@ Defined in: node\_modules/.pnpm/@nozbe+watermelondb@0.28.0/node\_modules/@nozbe/
 
 > `static` **associations**: `Associations`
 
-Defined in: [src/lib/db/chat/models.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#52)
+Defined in: [src/lib/db/chat/models.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#53)
 
 **Overrides**
 
@@ -209,7 +209,7 @@ Defined in: [src/lib/db/chat/models.ts:52](https://github.com/anuma-ai/sdk/blob/
 
 > `static` **table**: `string` = `"conversations"`
 
-Defined in: [src/lib/db/chat/models.ts:50](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#50)
+Defined in: [src/lib/db/chat/models.ts:51](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/models.ts#51)
 
 **Overrides**
 

@@ -289,7 +289,7 @@ async function deriveKeyPairFromSignature(
   // 6. Import as ECDH private key using PKCS#8 format
   const privateKey = await crypto.subtle.importKey(
     "pkcs8",
-    await createPKCS8PrivateKey(privateKeyBytes),
+    createPKCS8PrivateKey(privateKeyBytes),
     {
       name: "ECDH",
       namedCurve: "P-256",
@@ -333,7 +333,7 @@ async function deriveKeyPairFromSignature(
  * Creates a minimal PKCS#8 structure for an ECDH P-256 private key
  * PKCS#8 format: SEQUENCE { version, AlgorithmIdentifier, OCTET STRING (ECPrivateKey) }
  */
-async function createPKCS8PrivateKey(privateKeyBytes: Uint8Array): Promise<ArrayBuffer> {
+function createPKCS8PrivateKey(privateKeyBytes: Uint8Array): ArrayBuffer {
   // OIDs for ECDH P-256
   // ecPublicKey: 1.2.840.10045.2.1
   const ecPublicKeyOID = new Uint8Array([0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01]);
@@ -869,9 +869,10 @@ async function persistKeyPair(address: string): Promise<void> {
     const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
     const encryptedHex = bytesToHex(combined);
     localStorage.setItem(storageKey, encryptedHex);
-  } catch (error) {
+  } catch (err) {
+    // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
     throw new Error(
-      `Failed to persist keypair: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to persist keypair: ${err instanceof Error ? err.message : String(err)}`
     );
   }
 }

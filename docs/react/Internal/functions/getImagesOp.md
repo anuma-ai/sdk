@@ -2,7 +2,7 @@
 
 > **getImagesOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:452](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#452)
+Defined in: [src/lib/db/media/operations.ts:451](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#451)
 
 Get all images for a user.
 

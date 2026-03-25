@@ -111,8 +111,8 @@ export {
   DEFAULT_SUMMARY_TOKEN_THRESHOLD,
   estimateMessagesTokens,
   estimateTokens,
-  maybeSummarizeHistory,
   MAX_MESSAGES_PER_SUMMARIZATION,
+  maybeSummarizeHistory,
   progressiveSummarize,
   splitMessagesAtThreshold,
   summaryToSystemMessage,
@@ -149,10 +149,10 @@ export {
   getVaultFolderMemoryCountOp,
   moveMemoriesToFolderOp,
   type StoredVaultFolder,
-  VaultFolder,
   updateVaultFolderContextOp,
   updateVaultFolderOp,
   type UpdateVaultFolderOptions,
+  VaultFolder,
   type VaultFolderOperationsContext,
 } from "../lib/db/vaultFolders";
 

@@ -13,7 +13,6 @@ import {
 
 import type { Client } from "../client/client";
 import {
-  clearToken as clearDropboxToken,
   getDropboxAccessToken,
   handleDropboxCallback,
   hasDropboxCredentials,
@@ -22,7 +21,6 @@ import {
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
 import {
-  clearGoogleDriveToken,
   getGoogleDriveAccessToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
@@ -197,7 +195,7 @@ export function BackupAuthProvider({
         }
       }
     };
-    checkStoredTokens();
+    void checkStoredTokens();
   }, [apiClient, walletAddress]);
 
   // Initialize iCloud on mount - load dynamically
@@ -236,7 +234,7 @@ export function BackupAuthProvider({
       }
     };
 
-    initCloudKit();
+    void initCloudKit();
   }, [icloudApiToken, icloudContainerIdentifier, icloudEnvironment]);
 
   // Handle Dropbox OAuth callback
@@ -254,7 +252,7 @@ export function BackupAuthProvider({
       }
     };
 
-    handleCallback();
+    void handleCallback();
   }, [dropboxCallbackPath, isDropboxConfigured, apiClient, walletAddress]);
 
   // Handle Google OAuth callback
@@ -278,7 +276,7 @@ export function BackupAuthProvider({
       }
     };
 
-    handleCallback();
+    void handleCallback();
   }, [googleCallbackPath, isGoogleConfigured, apiClient, walletAddress]);
 
   // Dropbox methods
@@ -376,10 +374,12 @@ export function BackupAuthProvider({
       setIcloudUserRecordName(userIdentity.userRecordName);
       return userIdentity.userRecordName;
     } catch (err) {
+      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- must return Promise<void> per interface
   const logoutIcloud = useCallback(async () => {
     setIcloudAuthenticated(false);
     setIcloudUserRecordName(null);

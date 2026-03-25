@@ -48,7 +48,7 @@ async function ensureFolder(accessToken: string, name: string, parentId?: string
     throw new Error(`Failed to search for folder ${name}: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { files?: Array<{ id: string }> };
   if (data.files && data.files.length > 0) {
     return data.files[0].id;
   }
@@ -76,7 +76,7 @@ async function ensureFolder(accessToken: string, name: string, parentId?: string
     throw new Error(`Failed to create folder ${name}: ${createResponse.status}`);
   }
 
-  const folderData = await createResponse.json();
+  const folderData = (await createResponse.json()) as { id: string };
   return folderData.id;
 }
 
@@ -122,7 +122,7 @@ export async function uploadFileToDrive(
     throw new Error(`Drive upload failed: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<{ id: string; name: string }>;
 }
 
 /**
@@ -147,7 +147,7 @@ export async function updateDriveFile(
     throw new Error(`Drive update failed: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<{ id: string; name: string }>;
 }
 
 /**
@@ -168,7 +168,7 @@ export async function listDriveFiles(accessToken: string, folderId: string): Pro
     throw new Error(`Failed to list files: ${response.status}`);
   }
 
-  const data: { files?: DriveFile[] } = await response.json();
+  const data = (await response.json()) as { files?: DriveFile[] };
   return data.files ?? [];
 }
 
@@ -209,6 +209,6 @@ export async function findDriveFile(
     throw new Error(`Failed to find file: ${response.status}`);
   }
 
-  const data: { files?: DriveFile[] } = await response.json();
+  const data = (await response.json()) as { files?: DriveFile[] };
   return data.files?.[0] ?? null;
 }

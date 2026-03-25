@@ -48,7 +48,7 @@ jobs:
         run: pnpm install
 
       - name: Lint
-        run: pnpm lint --max-warnings 599
+        run: pnpm lint --max-warnings 0
 
   typecheck:
     name: Type Check

@@ -23,12 +23,10 @@ import {
 
 function messageToStoredRaw(message: Message): StoredMessage {
   // Use _getRaw for fields that may be encrypted - the @json decorator fails on encrypted strings
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = message as any;
-  const convId = raw._getRaw("conversation_id") as string;
+  const convId = String(message._getRaw("conversation_id"));
 
   // For JSON fields that may be encrypted, get raw value and parse if not encrypted
-  const parseJsonField = <T>(rawValue: unknown): T | undefined => {
+  const parseJsonField = <T>(rawValue: string | number | boolean | null): T | undefined => {
     if (!rawValue) return undefined;
     if (typeof rawValue === "string") {
       // If encrypted, return the string for later decryption
@@ -43,10 +41,10 @@ function messageToStoredRaw(message: Message): StoredMessage {
     return rawValue as T;
   };
 
-  const sourcesRaw = raw._getRaw("sources");
-  const vectorRaw = raw._getRaw("vector");
-  const chunksRaw = raw._getRaw("chunks");
-  const thoughtProcessRaw = raw._getRaw("thought_process");
+  const sourcesRaw = message._getRaw("sources");
+  const vectorRaw = message._getRaw("vector");
+  const chunksRaw = message._getRaw("chunks");
+  const thoughtProcessRaw = message._getRaw("thought_process");
 
   return {
     uniqueId: message.id,
@@ -369,7 +367,7 @@ export async function clearMessagesOp(
  * Clears file_ids before deletion and returns the unique ID.
  * Note: Callers should use deleteMediaByMessageOp to cascade delete media.
  */
-async function deleteMessageOp(
+async function _deleteMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string
 ): Promise<string | null> {
@@ -399,9 +397,10 @@ export async function createMessageOp(
   const existingCount = await getMessageCountOp(ctx, opts.conversationId);
   const messageId = existingCount + 1;
 
-  // Encrypt message fields if encryption context is available
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const encryptedOpts: any =
+  // Encrypt message fields if encryption context is available.
+  // encryptMessageFields returns Record<string, unknown> with the same keys as opts,
+  // but string fields may now be encrypted strings.
+  const encryptedOpts: Record<string, unknown> =
     ctx.walletAddress && ctx.signMessage
       ? await encryptMessageFields(
           opts,
@@ -409,16 +408,16 @@ export async function createMessageOp(
           ctx.signMessage,
           ctx.embeddedWalletSigner
         )
-      : opts;
+      : (opts as unknown as Record<string, unknown>);
 
   const created = await ctx.database.write(async () => {
     return await ctx.messagesCollection.create((msg) => {
       msg._setRaw("message_id", messageId);
-      msg._setRaw("conversation_id", encryptedOpts.conversationId);
-      msg._setRaw("role", encryptedOpts.role);
-      msg._setRaw("content", encryptedOpts.content);
-      if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model);
-      if (encryptedOpts.imageModel) msg._setRaw("image_model", encryptedOpts.imageModel);
+      msg._setRaw("conversation_id", encryptedOpts.conversationId as string);
+      msg._setRaw("role", encryptedOpts.role as string);
+      msg._setRaw("content", encryptedOpts.content as string);
+      if (encryptedOpts.model) msg._setRaw("model", encryptedOpts.model as string);
+      if (encryptedOpts.imageModel) msg._setRaw("image_model", encryptedOpts.imageModel as string);
       if (encryptedOpts.files) msg._setRaw("files", JSON.stringify(encryptedOpts.files));
       if (encryptedOpts.fileIds) msg._setRaw("file_ids", JSON.stringify(encryptedOpts.fileIds));
       if (encryptedOpts.usage) msg._setRaw("usage", JSON.stringify(encryptedOpts.usage));
@@ -431,7 +430,7 @@ export async function createMessageOp(
         msg._setRaw("sources", sourcesValue);
       }
       if (encryptedOpts.responseDuration !== undefined)
-        msg._setRaw("response_duration", encryptedOpts.responseDuration);
+        msg._setRaw("response_duration", encryptedOpts.responseDuration as number);
       if (encryptedOpts.vector) {
         // Vector may already be encrypted as a string, or may be an array to serialize
         const vectorValue =
@@ -441,9 +440,9 @@ export async function createMessageOp(
         msg._setRaw("vector", vectorValue);
       }
       if (encryptedOpts.embeddingModel)
-        msg._setRaw("embedding_model", encryptedOpts.embeddingModel);
-      if (encryptedOpts.wasStopped) msg._setRaw("was_stopped", encryptedOpts.wasStopped);
-      if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error);
+        msg._setRaw("embedding_model", encryptedOpts.embeddingModel as string);
+      if (encryptedOpts.wasStopped) msg._setRaw("was_stopped", encryptedOpts.wasStopped as boolean);
+      if (encryptedOpts.error) msg._setRaw("error", encryptedOpts.error as string);
       if (encryptedOpts.thoughtProcess) {
         // ThoughtProcess may already be encrypted as a string, or may be an object to serialize
         const tpValue =
@@ -452,9 +451,9 @@ export async function createMessageOp(
             : JSON.stringify(encryptedOpts.thoughtProcess);
         msg._setRaw("thought_process", tpValue);
       }
-      if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking);
+      if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking as string);
       if (encryptedOpts.parentMessageId)
-        msg._setRaw("parent_message_id", encryptedOpts.parentMessageId);
+        msg._setRaw("parent_message_id", encryptedOpts.parentMessageId as string);
     });
   });
 
@@ -565,7 +564,7 @@ export async function updateMessageFeedbackOp(
   return messageToStored(message, ctx.walletAddress, ctx.signMessage, ctx.embeddedWalletSigner);
 }
 
-async function updateMessageOp(
+async function _updateMessageOp(
   ctx: StorageOperationsContext,
   uniqueId: string,
   opts: UpdateMessageOptions
@@ -578,8 +577,7 @@ async function updateMessageOp(
   }
 
   // Encrypt update fields if encryption context is available
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const encryptedOpts: any =
+  const encryptedOpts: Record<string, unknown> =
     ctx.walletAddress && ctx.signMessage
       ? await encryptMessageFields(
           opts,
@@ -587,14 +585,15 @@ async function updateMessageOp(
           ctx.signMessage,
           ctx.embeddedWalletSigner
         )
-      : opts;
+      : (opts as unknown as Record<string, unknown>);
 
   await ctx.database.write(async () => {
     await message.update((msg) => {
-      if (encryptedOpts.content !== undefined) msg._setRaw("content", encryptedOpts.content);
-      if (encryptedOpts.model !== undefined) msg._setRaw("model", encryptedOpts.model);
+      if (encryptedOpts.content !== undefined)
+        msg._setRaw("content", encryptedOpts.content as string);
+      if (encryptedOpts.model !== undefined) msg._setRaw("model", encryptedOpts.model as string);
       if (encryptedOpts.imageModel !== undefined)
-        msg._setRaw("image_model", encryptedOpts.imageModel);
+        msg._setRaw("image_model", encryptedOpts.imageModel as string);
       if (encryptedOpts.files !== undefined)
         msg._setRaw("files", JSON.stringify(encryptedOpts.files));
       if (encryptedOpts.fileIds !== undefined)
@@ -609,7 +608,7 @@ async function updateMessageOp(
         msg._setRaw("sources", sourcesValue);
       }
       if (encryptedOpts.responseDuration !== undefined)
-        msg._setRaw("response_duration", encryptedOpts.responseDuration);
+        msg._setRaw("response_duration", encryptedOpts.responseDuration as number);
       if (encryptedOpts.vector !== undefined) {
         const vectorValue =
           typeof encryptedOpts.vector === "string"
@@ -618,11 +617,11 @@ async function updateMessageOp(
         msg._setRaw("vector", vectorValue);
       }
       if (encryptedOpts.embeddingModel !== undefined)
-        msg._setRaw("embedding_model", encryptedOpts.embeddingModel);
+        msg._setRaw("embedding_model", encryptedOpts.embeddingModel as string);
       if (encryptedOpts.wasStopped !== undefined)
-        msg._setRaw("was_stopped", encryptedOpts.wasStopped);
+        msg._setRaw("was_stopped", encryptedOpts.wasStopped as boolean);
       if (encryptedOpts.error !== undefined)
-        msg._setRaw("error", encryptedOpts.error === null ? "" : encryptedOpts.error);
+        msg._setRaw("error", encryptedOpts.error === null ? "" : (encryptedOpts.error as string));
       if (encryptedOpts.thoughtProcess !== undefined) {
         const tpValue =
           typeof encryptedOpts.thoughtProcess === "string"
@@ -631,8 +630,12 @@ async function updateMessageOp(
         msg._setRaw("thought_process", tpValue);
       }
       if (encryptedOpts.thinking !== undefined)
-        msg._setRaw("thinking", encryptedOpts.thinking === null ? "" : encryptedOpts.thinking);
-      if (encryptedOpts.feedback !== undefined) msg._setRaw("feedback", encryptedOpts.feedback);
+        msg._setRaw(
+          "thinking",
+          encryptedOpts.thinking === null ? "" : (encryptedOpts.thinking as string)
+        );
+      if (encryptedOpts.feedback !== undefined)
+        msg._setRaw("feedback", encryptedOpts.feedback as string | null);
     });
   });
 
@@ -644,8 +647,7 @@ async function updateMessageOp(
  * The @json decorator fails on encrypted strings, so this uses _getRaw + manual parsing.
  */
 async function readJsonField<T>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  model: any,
+  model: Message,
   column: string,
   walletAddress?: string
 ): Promise<T | undefined> {
@@ -696,22 +698,18 @@ export async function searchMessagesOp(
     .fetch();
   const activeConversationIds = new Set(
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
+    activeConversations.map((c) => String(c._getRaw("conversation_id")))
   );
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
 
   const messages = await ctx.messagesCollection.query(...queryConditions).fetch();
 
-  const resultsWithSimilarity: StoredMessageWithSimilarity[] = [];
-
   const matchPromises: Promise<StoredMessageWithSimilarity | null>[] = [];
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    const msgConvId = String(message._getRaw("conversation_id"));
     if (!activeConversationIds.has(msgConvId)) continue;
 
     const messageVector = await readJsonField<number[]>(message, "vector", ctx.walletAddress);
@@ -753,8 +751,7 @@ export async function searchChunksOp(
     .fetch();
   const activeConversationIds = new Set(
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
+    activeConversations.map((c) => String(c._getRaw("conversation_id")))
   );
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
@@ -765,8 +762,7 @@ export async function searchChunksOp(
 
   for (const message of messages) {
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    const msgConvId = String(message._getRaw("conversation_id"));
     if (!activeConversationIds.has(msgConvId)) continue;
 
     // Use _getRaw to read JSON fields that may be encrypted - the @json decorator fails on encrypted strings
@@ -813,7 +809,7 @@ export async function searchChunksOp(
   return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 }
 
-async function getMessagesWithEmbeddingsOp(
+async function _getMessagesWithEmbeddingsOp(
   ctx: StorageOperationsContext,
   conversationId?: string
 ): Promise<StoredMessage[]> {
@@ -822,8 +818,7 @@ async function getMessagesWithEmbeddingsOp(
     .fetch();
   const activeConversationIds = new Set(
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
+    activeConversations.map((c) => String(c._getRaw("conversation_id")))
   );
 
   const queryConditions = conversationId ? [Q.where("conversation_id", conversationId)] : [];
@@ -832,11 +827,14 @@ async function getMessagesWithEmbeddingsOp(
 
   const filtered = messages.filter((m) => {
     // Use _getRaw for reliable raw column access - the @json decorator fails on encrypted strings
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = m as any;
-    const msgConvId = raw._getRaw("conversation_id") as string;
-    const vectorRaw = raw._getRaw("vector") as string | undefined;
-    return vectorRaw && vectorRaw.length > 0 && activeConversationIds.has(msgConvId);
+    const msgConvId = String(m._getRaw("conversation_id"));
+    const vectorRaw = m._getRaw("vector");
+    return (
+      vectorRaw &&
+      typeof vectorRaw === "string" &&
+      vectorRaw.length > 0 &&
+      activeConversationIds.has(msgConvId)
+    );
   });
 
   return Promise.all(
@@ -867,8 +865,7 @@ export async function getAllFilesOp(
     .fetch();
   const activeConversationIds = new Set(
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    activeConversations.map((c) => (c as any)._getRaw("conversation_id") as string)
+    activeConversations.map((c) => String(c._getRaw("conversation_id")))
   );
 
   // Build query conditions
@@ -885,8 +882,7 @@ export async function getAllFilesOp(
   for (const message of messages) {
     // Skip messages from deleted conversations
     // Use _getRaw for reliable raw column access
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const msgConvId = (message as any)._getRaw("conversation_id") as string;
+    const msgConvId = String(message._getRaw("conversation_id"));
     if (!activeConversationIds.has(msgConvId)) continue;
 
     // Skip messages without files

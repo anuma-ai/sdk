@@ -135,6 +135,7 @@ export async function storeTokenData(
         error
       );
       sessionStorage.setItem(key, json);
+      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(
         `OAuth token encryption failed: ${error instanceof Error ? error.message : String(error)}`
       );

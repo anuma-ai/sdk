@@ -281,7 +281,7 @@ export function useCredits(options: UseCreditsOptions = {}): UseCreditsResult {
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      fetchBalance();
+      void fetchBalance();
     }
     if (!autoFetch) {
       hasFetchedRef.current = false;

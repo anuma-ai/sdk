@@ -1,4 +1,4 @@
-import type { Collection, Database } from "@nozbe/watermelondb";
+import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
@@ -76,8 +76,7 @@ export async function updateVaultFolderOp(
     const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
     const updated = await ctx.database.write(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mixed model types in batch
-      const updates: any[] = [];
+      const updates: Model[] = [];
 
       updates.push(
         record.prepareUpdate((r) => {
