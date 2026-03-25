@@ -3,8 +3,8 @@
  *
  * These functions expose the low-level HTTP operations needed to perform
  * the Notion OAuth 2.0 + PKCE + Dynamic Client Registration flow.
- * They depend only on `fetch` and `crypto` (both available in React Native
- * with the polyfills documented in the expo module).
+ * They depend only on `fetch`, `crypto`, and `btoa` (all available in React
+ * Native with the polyfills documented in the expo module).
  *
  * Use these from Expo / React Native where `window`, `localStorage`, and
  * `sessionStorage` are not available.  The web SDK (`notion.ts`) handles
@@ -114,7 +114,11 @@ interface TokenEndpointResponse {
  * Base64url encode (RFC 4648) — URL-safe base64 without padding.
  */
 function base64UrlEncode(bytes: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...bytes));
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
@@ -184,8 +188,11 @@ export async function discoverNotionOAuthEndpoints(): Promise<NotionOAuthEndpoin
     }
 
     return (await metadataResponse.json()) as NotionOAuthEndpoints;
-  } catch {
+  } catch (err) {
     // Discovery failed — return hardcoded fallback endpoints.
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.warn("[notion-primitives] OAuth discovery failed, using fallbacks:", err);
+    }
     return {
       authorization_endpoint: NOTION_OAUTH_CONFIG.authorizationEndpoint,
       token_endpoint: NOTION_OAUTH_CONFIG.tokenEndpoint,
