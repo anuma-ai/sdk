@@ -229,5 +229,5 @@ export {
 } from "../lib/auth/notion-primitives";
 
 // Notion MCP tools (platform-agnostic)
-export type { ToolConfig } from "../tools/googleCalendar";
+export type { ToolConfig } from "../lib/chat/useChat/types";
 export { createNotionTools } from "../tools/notion";
