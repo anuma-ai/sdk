@@ -391,3 +391,30 @@ export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types"
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
+
+// Persona (prompt building + style analysis)
+export type {
+  AnalyzeStyleOptions,
+  AnalyzeStyleResult,
+  BuildPromptOptions,
+  BuildPromptResult,
+  PromptContext,
+  PromptSection,
+  PromptTemplates,
+  StyleAnalysisSchedule,
+} from "../lib/persona";
+export {
+  analyzeStyle,
+  buildSystemPrompt,
+  DEFAULT_ANALYSIS_PROMPT,
+  DEFAULT_ANALYZE_AFTER_MESSAGES,
+  DEFAULT_DOCUMENT_PATTERN,
+  DEFAULT_MAX_INPUT_MESSAGES,
+  DEFAULT_MAX_PROFILE_LENGTH,
+  DEFAULT_MIN_MESSAGES,
+  DEFAULT_PROMPT_TEMPLATES,
+  DEFAULT_REFRESH_EVERY_MESSAGES,
+  renderTemplate,
+  sanitizeQuotes,
+  shouldAnalyzeStyle,
+} from "../lib/persona";
