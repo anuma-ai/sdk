@@ -2,7 +2,7 @@
 
 > **exchangeNotionCode**(`params`: [`NotionExchangeCodeParams`](../interfaces/NotionExchangeCodeParams.md)): `Promise`<[`NotionTokenResponse`](../interfaces/NotionTokenResponse.md)>
 
-Defined in: [src/lib/auth/notion-primitives.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#300)
+Defined in: [src/lib/auth/notion-primitives.ts:323](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#323)
 
 Exchange an authorization code for tokens.
 

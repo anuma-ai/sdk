@@ -2,7 +2,7 @@
 
 > **registerNotionClient**(`registrationEndpoint`: `string`, `redirectUri`: `string`, `clientName`: `string`): `Promise`<[`NotionClientRegistration`](../interfaces/NotionClientRegistration.md)>
 
-Defined in: [src/lib/auth/notion-primitives.ts:212](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#212)
+Defined in: [src/lib/auth/notion-primitives.ts:235](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#235)
 
 Register a new OAuth client dynamically.
 

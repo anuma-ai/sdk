@@ -2,7 +2,7 @@
 
 > **buildNotionAuthUrl**(`params`: [`NotionAuthUrlParams`](../interfaces/NotionAuthUrlParams.md)): `string`
 
-Defined in: [src/lib/auth/notion-primitives.ts:277](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#277)
+Defined in: [src/lib/auth/notion-primitives.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#300)
 
 Build the Notion authorization URL for the OAuth flow.
 

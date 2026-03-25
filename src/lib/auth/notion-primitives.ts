@@ -3,8 +3,8 @@
  *
  * These functions expose the low-level HTTP operations needed to perform
  * the Notion OAuth 2.0 + PKCE + Dynamic Client Registration flow.
- * They depend only on `fetch` and `crypto` (both available in React Native
- * with the polyfills documented in the expo module).
+ * They depend only on `fetch`, `crypto.getRandomValues` (available in React Native
+ * with `react-native-get-random-values`), and `expo-crypto` for SHA-256 hashing.
  *
  * Use these from Expo / React Native where `window`, `localStorage`, and
  * `sessionStorage` are not available.  The web SDK (`notion.ts`) handles
@@ -134,8 +134,31 @@ function generateCodeVerifier(): string {
 async function generateCodeChallenge(verifier: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return base64UrlEncode(new Uint8Array(hash));
+
+  // Use crypto.subtle if available (web/browsers/Node.js test environments)
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const hash = await crypto.subtle.digest("SHA-256", data);
+    return base64UrlEncode(new Uint8Array(hash));
+  }
+
+  // React Native / Expo - use expo-crypto
+  // Dynamic import to avoid bundling expo-crypto in web builds
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const ExpoCrypto = await import("expo-crypto");
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const digest = ExpoCrypto.digest;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const CryptoDigestAlgorithm = ExpoCrypto.CryptoDigestAlgorithm;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const hash = (await digest(CryptoDigestAlgorithm.SHA256, data)) as ArrayBuffer;
+    return base64UrlEncode(new Uint8Array(hash));
+  } catch (error) {
+    throw new Error(
+      "SHA-256 hashing unavailable: crypto.subtle not found and expo-crypto could not be loaded. " +
+        "In React Native, install expo-crypto as a peer dependency."
+    );
+  }
 }
 
 /**
