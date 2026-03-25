@@ -137,7 +137,7 @@ describe("google-calendar", () => {
     expect(createResult.summary).toContain("E2E Test");
   });
 
-  it("chains list → create: checks availability then creates an event", async () => {
+  it("chains list → create: checks availability then creates an event", { retry: 2 }, async () => {
     await auth.ensureToken();
 
     const log: ToolCallLog[] = [];

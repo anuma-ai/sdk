@@ -143,3 +143,6 @@ export {
   createNotionUpdatePageTool,
   getMCPEndpoints,
 } from "./notion";
+
+// GitHub exports
+export { createGitHubTools } from "./github";
