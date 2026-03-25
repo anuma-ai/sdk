@@ -405,7 +405,8 @@ function createListIssuesTool(
     type: "function",
     function: {
       name: "github_list_issues",
-      description: "List issues in a GitHub repository with optional filters.",
+      description:
+        "List issues in a GitHub repository with optional filters. If you don't know the owner, call github_get_authenticated_user first to find the user's login and organizations.",
       parameters: {
         type: "object",
         properties: {
@@ -541,7 +542,8 @@ function createListPullRequestsTool(
     type: "function",
     function: {
       name: "github_list_pull_requests",
-      description: "List pull requests in a GitHub repository with optional filters.",
+      description:
+        "List pull requests in a GitHub repository with optional filters. If you don't know the owner, call github_get_authenticated_user first to find the user's login and organizations.",
       parameters: {
         type: "object",
         properties: {
@@ -1216,6 +1218,59 @@ function createOrUpdateFileTool(
   };
 }
 
+// ─── Tool: Get Authenticated User ────────────────────────────────────────────
+
+function createGetAuthenticatedUserTool(
+  getAccessToken: () => string | null,
+  requestAccess: () => Promise<string>
+): ToolConfig {
+  return {
+    type: "function",
+    function: {
+      name: "github_get_authenticated_user",
+      description:
+        "Get the authenticated GitHub user's profile including username and organizations. Call this first to discover the user's repos and org memberships before using other tools.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+    executor: async () => {
+      const token = await resolveToken(getAccessToken, requestAccess);
+      if (!token) return "Error: GitHub not connected. Please connect your GitHub account first.";
+
+      try {
+        const userResp = await githubFetch(token, "/user");
+        if (!userResp.ok)
+          return handleApiError(userResp.status, await userResp.text(), "authenticated user");
+
+        const user = (await userResp.json()) as Record<string, unknown>;
+
+        // Also fetch orgs
+        const orgsResp = await githubFetch(token, "/user/orgs?per_page=100");
+        let orgs: string[] = [];
+        if (orgsResp.ok) {
+          const orgsData = (await orgsResp.json()) as Record<string, unknown>[];
+          orgs = orgsData.map((o) => o.login as string);
+        }
+
+        return {
+          login: user.login,
+          name: user.name,
+          email: user.email,
+          organizations: orgs,
+          public_repos: user.public_repos,
+          html_url: user.html_url,
+        };
+      } catch (err) {
+        getLogger().error("github_get_authenticated_user error", err);
+        return "Error: Failed to get user profile.";
+      }
+    },
+  };
+}
+
 // ─── Umbrella Factory ────────────────────────────────────────────────────────
 
 /**
@@ -1229,6 +1284,8 @@ export function createGitHubTools(
   requestGitHubAccess: () => Promise<string>
 ): ToolConfig[] {
   return [
+    // User
+    createGetAuthenticatedUserTool(getAccessToken, requestGitHubAccess),
     // Read
     createSearchReposTool(getAccessToken, requestGitHubAccess),
     createReadFileTool(getAccessToken, requestGitHubAccess),
