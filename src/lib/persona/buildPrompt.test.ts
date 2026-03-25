@@ -166,10 +166,10 @@ describe("buildSystemPrompt", () => {
       expect(result.prompt).toContain(DEFAULT_PROMPT_TEMPLATES.languageGeneric);
     });
 
-    it("uses raw code when not in LANGUAGE_NAMES", () => {
+    it("resolves language codes via Intl.DisplayNames", () => {
       const result = buildSystemPrompt(makeCtx({ preferredLanguage: "pt" }));
       expect(result.activeSections).toContain("language");
-      expect(result.prompt).toContain("pt");
+      expect(result.prompt).toContain("Portuguese");
     });
   });
 

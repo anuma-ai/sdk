@@ -12,7 +12,6 @@ export {
 export {
   buildSystemPrompt,
   DEFAULT_PROMPT_TEMPLATES,
-  LANGUAGE_NAMES,
   renderTemplate,
   sanitizeQuotes,
 } from "./buildPrompt";

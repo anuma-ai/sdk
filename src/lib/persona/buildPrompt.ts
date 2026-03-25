@@ -8,16 +8,7 @@ import type {
 
 // ── Language names ──
 
-/** ISO 639-1 code → display name for non-Latin-script languages. */
-export const LANGUAGE_NAMES: Record<string, string> = {
-  zh: "Chinese",
-  ja: "Japanese",
-  ko: "Korean",
-  ru: "Russian",
-  ar: "Arabic",
-  hi: "Hindi",
-  th: "Thai",
-};
+const languageDisplayNames = new Intl.DisplayNames(["en"], { type: "language" });
 
 // ── Default templates (matching text server) ──
 
@@ -91,7 +82,7 @@ function renderLanguage(ctx: PromptContext, templates: PromptTemplates): string 
   if (!ctx.preferredLanguage) return null;
   if (ctx.preferredLanguage === "en") return null;
   if (ctx.preferredLanguage === "other") return templates.languageGeneric;
-  const name = LANGUAGE_NAMES[ctx.preferredLanguage] ?? ctx.preferredLanguage;
+  const name = languageDisplayNames.of(ctx.preferredLanguage) ?? ctx.preferredLanguage;
   return templates.language.replace(/\{language\}/g, () => name);
 }
 

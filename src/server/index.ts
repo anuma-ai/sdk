@@ -414,7 +414,6 @@ export {
   DEFAULT_MIN_MESSAGES,
   DEFAULT_PROMPT_TEMPLATES,
   DEFAULT_REFRESH_EVERY_MESSAGES,
-  LANGUAGE_NAMES,
   renderTemplate,
   sanitizeQuotes,
   shouldAnalyzeStyle,
