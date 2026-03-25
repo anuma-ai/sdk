@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
 // Pluggable logger
@@ -558,3 +559,22 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
+
+// GitHub Auth (with repo scope for full repository access)
+export {
+  clearGithubToken,
+  getAndClearGithubPendingMessage,
+  getAndClearGithubReturnUrl,
+  getGithubAccessToken,
+  getValidGithubToken,
+  handleGithubCallback,
+  hasGithubCredentials,
+  isGithubCallback,
+  migrateGithubToken,
+  refreshGithubToken,
+  revokeGithubToken,
+  startGithubAuth,
+  storeGithubPendingMessage,
+  storeGithubReturnUrl,
+  storeGithubToken,
+} from "../lib/auth/github";

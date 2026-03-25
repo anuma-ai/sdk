@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -1050,14 +1051,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           baseUrl,
         });
 
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...messagesToConvert.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          messagesToConvert.map(storedToLlmapiMessage),
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // Store the user message

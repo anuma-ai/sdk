@@ -367,6 +367,12 @@ export class ResponsesStrategy implements ApiStrategy {
         const existing = accumulator.toolCalls.get(itemId);
         if (existing) {
           existing.arguments += typedChunk.arguments;
+          result.toolCallArgumentsDelta = {
+            toolCallId: existing.id,
+            toolName: existing.name,
+            argumentsDelta: typedChunk.arguments,
+            accumulatedArguments: existing.arguments,
+          };
         }
       }
     }
