@@ -51,8 +51,8 @@ async function githubFetch(
 ): Promise<Response> {
   const url = path.startsWith("http") ? path : `${GITHUB_API}${path}`;
 
-  // SSRF protection: only allow GitHub API URLs
-  if (path.startsWith("http") && !path.startsWith(GITHUB_API)) {
+  // SSRF protection: only allow GitHub API URLs (trailing slash prevents api.github.com.evil.com)
+  if (path.startsWith("http") && !path.startsWith(`${GITHUB_API}/`)) {
     throw new Error("githubFetch: URL must target GitHub API");
   }
 
@@ -1056,9 +1056,18 @@ function createBranchTool(
             );
           const defaultRefData = (await defaultRefResp.json()) as { object: { sha: string } };
           sha = defaultRefData.object.sha;
-        } else if (/^[0-9a-f]{40}$/i.test(from_ref)) {
-          // Full commit SHA — use directly
-          sha = from_ref;
+        } else if (/^[0-9a-f]{7,40}$/i.test(from_ref)) {
+          // Commit SHA (full or abbreviated) — resolve via commits endpoint
+          const commitResp = await githubFetch(
+            token,
+            `/repos/${encodePath([owner, repo])}/commits/${from_ref}`
+          );
+          if (commitResp.ok) {
+            const commitData = (await commitResp.json()) as { sha: string };
+            sha = commitData.sha;
+          } else {
+            return `Error: Commit '${from_ref}' not found in ${owner}/${repo}.`;
+          }
         } else {
           // Try as branch first, then tag
           const branchResp = await githubFetch(
