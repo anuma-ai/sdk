@@ -147,7 +147,7 @@ export function buildSystemPrompt(
 
   for (const section of sections) {
     const text = section.render(ctx);
-    if (text == null) continue;
+    if (text === null) continue;
 
     if (maxLength > 0 && prompt.length + text.length > maxLength) {
       continue;

@@ -85,6 +85,9 @@ export async function analyzeStyle(options: AnalyzeStyleOptions): Promise<Analyz
 
   if (!result) return { profile: null };
 
-  const profile = truncateAtWordBoundary(result.trim(), maxProfileLength);
+  const trimmed = result.trim();
+  if (!trimmed) return { profile: null };
+
+  const profile = truncateAtWordBoundary(trimmed, maxProfileLength);
   return { profile };
 }

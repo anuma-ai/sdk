@@ -240,6 +240,21 @@ describe("analyzeStyle", () => {
     expect(result.profile).toBeNull();
   });
 
+  it("returns null when callLlm returns whitespace-only string", async () => {
+    const callLlm = vi.fn().mockResolvedValue("   \n  ");
+
+    const result = await analyzeStyle({
+      messages: [
+        { role: "user", content: "msg1" },
+        { role: "user", content: "msg2" },
+        { role: "user", content: "msg3" },
+      ],
+      callLlm,
+    });
+
+    expect(result.profile).toBeNull();
+  });
+
   it("uses custom analysisPrompt when provided", async () => {
     const callLlm = vi.fn().mockResolvedValue("result");
 
