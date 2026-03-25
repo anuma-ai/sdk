@@ -42,6 +42,12 @@ async function githubFetch(
     throw new Error("githubFetch: URL must target GitHub API");
   }
 
+  // Validate that the final URL targets api.github.com
+  const parsedUrl = new URL(url);
+  if (parsedUrl.hostname !== "api.github.com") {
+    throw new Error("githubFetch: URL must target api.github.com");
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
