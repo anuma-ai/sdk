@@ -1,6 +1,6 @@
 import { Model } from "@nozbe/watermelondb";
-import type { Associations } from "@nozbe/watermelondb/Model";
 import { date, text } from "@nozbe/watermelondb/decorators";
+import type { Associations } from "@nozbe/watermelondb/Model";
 
 export class AppFile extends Model {
   static table = "app_files";

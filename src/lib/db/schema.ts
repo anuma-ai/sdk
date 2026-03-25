@@ -8,14 +8,14 @@ import {
 } from "@nozbe/watermelondb/Schema/migrations";
 import type { Class } from "@nozbe/watermelondb/types";
 
+import { AppFile } from "./appFiles/models";
 import { Conversation, ConversationSummary, Message } from "./chat/models";
 import { Media } from "./media/models";
 import { VaultMemory } from "./memoryVault/models";
 import { Project } from "./project/models";
+import { SavedTool } from "./savedTools/models";
 import { ModelPreference } from "./settings/models";
 import { UserPreference } from "./userPreferences/models";
-import { AppFile } from "./appFiles/models";
-import { SavedTool } from "./savedTools/models";
 import { VaultFolder } from "./vaultFolders/models";
 
 /**

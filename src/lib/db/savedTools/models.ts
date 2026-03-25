@@ -1,6 +1,6 @@
 import { Model } from "@nozbe/watermelondb";
-import type { Associations } from "@nozbe/watermelondb/Model";
 import { date, field, json, readonly, text } from "@nozbe/watermelondb/decorators";
+import type { Associations } from "@nozbe/watermelondb/Model";
 
 import type { SavedToolParameter } from "./types";
 
