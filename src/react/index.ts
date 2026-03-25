@@ -578,3 +578,6 @@ export {
   storeGithubReturnUrl,
   storeGithubToken,
 } from "../lib/auth/github";
+
+// GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
+export { createGitHubTools } from "../tools/github";
