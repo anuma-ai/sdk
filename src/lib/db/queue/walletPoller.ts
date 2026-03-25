@@ -50,8 +50,10 @@ export class WalletPoller {
     };
 
     // Poll immediately, then at interval
-    poll();
-    this.timerId = setInterval(poll, intervalMs);
+    void poll();
+    this.timerId = setInterval(() => {
+      void poll();
+    }, intervalMs);
 
     return () => this.stop();
   }

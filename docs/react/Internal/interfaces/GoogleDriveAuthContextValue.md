@@ -1,6 +1,6 @@
 # GoogleDriveAuthContextValue
 
-Defined in: [src/react/useGoogleDriveAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#54)
+Defined in: [src/react/useGoogleDriveAuth.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#52)
 
 Context value for Google Drive authentication
 
@@ -10,7 +10,7 @@ Context value for Google Drive authentication
 
 > **accessToken**: `string` | `null`
 
-Defined in: [src/react/useGoogleDriveAuth.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#56)
+Defined in: [src/react/useGoogleDriveAuth.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#54)
 
 Current access token (null if not authenticated)
 
@@ -20,7 +20,7 @@ Current access token (null if not authenticated)
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useGoogleDriveAuth.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#58)
+Defined in: [src/react/useGoogleDriveAuth.ts:56](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#56)
 
 Whether user has authenticated with Google Drive
 
@@ -30,7 +30,7 @@ Whether user has authenticated with Google Drive
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useGoogleDriveAuth.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#60)
+Defined in: [src/react/useGoogleDriveAuth.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#58)
 
 Whether Google Drive is configured (client ID exists)
 
@@ -40,7 +40,7 @@ Whether Google Drive is configured (client ID exists)
 
 > **logout**: () => `Promise`<`void`>
 
-Defined in: [src/react/useGoogleDriveAuth.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#64)
+Defined in: [src/react/useGoogleDriveAuth.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#62)
 
 Clear stored token and log out
 
@@ -54,7 +54,7 @@ Clear stored token and log out
 
 > **refreshToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useGoogleDriveAuth.ts:66](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#66)
+Defined in: [src/react/useGoogleDriveAuth.ts:64](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#64)
 
 Refresh the access token using the refresh token
 
@@ -68,7 +68,7 @@ Refresh the access token using the refresh token
 
 > **requestAccess**: () => `Promise`<`string`>
 
-Defined in: [src/react/useGoogleDriveAuth.ts:62](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#62)
+Defined in: [src/react/useGoogleDriveAuth.ts:60](https://github.com/anuma-ai/sdk/blob/main/src/react/useGoogleDriveAuth.ts#60)
 
 Request Google Drive access - returns token or redirects to OAuth
 

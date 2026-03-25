@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
 // Pluggable logger
@@ -342,8 +343,8 @@ export {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
-export type { PdfExportOptions } from "../lib/pdf-export";
-export { exportElementToPdf, exportMarkdownToPdf } from "../lib/pdf-export";
+export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
+export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
 export type {
   ModelLoadProgress,
   TranscriptionResult,
@@ -558,3 +559,25 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
+
+// GitHub Auth (with repo scope for full repository access)
+export {
+  clearGithubToken,
+  getAndClearGithubPendingMessage,
+  getAndClearGithubReturnUrl,
+  getGithubAccessToken,
+  getValidGithubToken,
+  handleGithubCallback,
+  hasGithubCredentials,
+  isGithubCallback,
+  migrateGithubToken,
+  refreshGithubToken,
+  revokeGithubToken,
+  startGithubAuth,
+  storeGithubPendingMessage,
+  storeGithubReturnUrl,
+  storeGithubToken,
+} from "../lib/auth/github";
+
+// GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
+export { createGitHubTools } from "../tools/github";

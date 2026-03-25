@@ -51,6 +51,50 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
+ * An item with a pre-computed embedding, ready for ranking.
+ */
+interface EmbeddedItem {
+  id: string;
+  content: string;
+  embedding: number[];
+}
+
+/**
+ * Pure ranking function: scores, filters, and ranks items using cosine
+ * similarity. This contains no database or I/O dependencies, making it
+ * testable and usable in benchmarks.
+ *
+ * @param query - The search query text (unused in semantic-only mode, reserved for future hybrid search)
+ * @param queryEmbedding - Pre-computed embedding for the query
+ * @param items - Items with pre-computed embeddings to rank
+ * @param options - Ranking options (limit, minSimilarity)
+ * @returns Ranked results sorted by descending cosine similarity
+ */
+export function rankVaultMemories(
+  _query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+  }
+): VaultSearchResult[] {
+  const limit = options?.limit ?? 5;
+  const minSimilarity = options?.minSimilarity ?? 0.1;
+
+  const scored = items.map((item) => ({
+    uniqueId: item.id,
+    content: item.content,
+    similarity: cosineSimilarity(queryEmbedding, item.embedding),
+  }));
+
+  return scored
+    .filter((r) => r.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+}
+
+/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -194,21 +238,20 @@ async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Score each memory by cosine similarity
-  const scored = memories
-    .map((m) => {
-      const embedding = cache.get(m.content);
-      if (!embedding) return null;
-      return {
-        uniqueId: m.uniqueId,
-        content: m.content,
-        similarity: cosineSimilarity(queryEmbedding, embedding),
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+  // Build embedded items for the pure ranking function
+  const embeddedItems: EmbeddedItem[] = [];
+  for (const m of memories) {
+    const embedding = cache.get(m.content);
+    if (embedding) {
+      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding });
+    }
+  }
 
-  scored.sort((a, b) => b.similarity - a.similarity);
-  const results = scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
+  const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
+    limit,
+    minSimilarity,
+  });
+
   return { results, vaultSize: memories.length };
 }
 

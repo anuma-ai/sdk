@@ -175,7 +175,9 @@ export async function getAllVaultMemoriesOp(
     ...(options?.scopes?.length ? [Q.where("scope", Q.oneOf(options.scopes))] : []),
     ...(options?.folderId !== undefined ? [Q.where("folder_id", options.folderId)] : []),
     Q.sortBy(options?.since ? "updated_at" : "created_at", Q.desc),
-    ...(options?.limit != null && options.limit > 0 ? [Q.take(options.limit)] : []),
+    ...(options?.limit !== null && options?.limit !== undefined && options.limit > 0
+      ? [Q.take(options.limit)]
+      : []),
   ];
   const results = await ctx.vaultMemoryCollection.query(...conditions).fetch();
   return mapInBatches(results, (record) =>

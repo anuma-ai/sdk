@@ -1,0 +1,613 @@
+/**
+ * GitHub OAuth 2.0 Authorization Code Flow
+ *
+ * Uses the portal backend for token exchange.
+ * The backend handles the client secret - client only sends auth code.
+ *
+ * This implementation requests the `repo` scope for full repository access
+ * (read/write to code, issues, pull requests).
+ *
+ * Token storage uses wallet-based encryption when a wallet address is provided.
+ * Encrypted tokens are stored in localStorage with the "enc:oauth:" prefix.
+ * When no wallet is available, tokens are stored temporarily in sessionStorage.
+ *
+ * Note: GitHub OAuth tokens may not expire (no refresh token). When tokens
+ * have no expiry, they are returned directly without refresh attempts.
+ */
+
+import type { Client } from "../../client/client";
+import {
+  postAuthOauthByProviderExchange,
+  postAuthOauthByProviderRefresh,
+  postAuthOauthByProviderRevoke,
+} from "../../client/sdk.gen";
+import {
+  decryptDataWithKey,
+  encryptDataWithKey,
+  getEncryptionKey,
+  hasEncryptionKey,
+} from "../../react/useEncryption";
+import { getLogger } from "../logger";
+
+// Use github provider for backend API calls
+const PROVIDER = "github";
+const CODE_STORAGE_KEY = "github_oauth_state";
+const TOKEN_STORAGE_KEY = "oauth_token_github";
+const RETURN_URL_KEY = "github_return_url";
+const PENDING_MESSAGE_KEY = "github_pending_message";
+
+// Encrypted storage prefix
+const ENCRYPTED_PREFIX = "enc:oauth:";
+
+// In-memory cache for decrypted tokens (avoids decrypting on every call)
+let cachedAccessToken: string | null = null;
+let cachedExpiresAt: number | null = null;
+let cachedRefreshToken: string | null = null;
+let cachedScope: string | null = null;
+let cachedWalletAddress: string | null = null;
+
+// GitHub OAuth endpoints
+const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
+
+// GitHub OAuth scopes - repo for full repository access
+const GITHUB_SCOPES = "repo";
+
+// Token storage types
+interface StoredTokenData {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  scope?: string;
+}
+
+/**
+ * Get wallet-scoped storage key
+ */
+function getTokenStorageKey(walletAddress?: string): string {
+  if (walletAddress) {
+    return `${TOKEN_STORAGE_KEY}:${walletAddress}`;
+  }
+  return TOKEN_STORAGE_KEY;
+}
+
+/**
+ * Get stored token data with encryption support.
+ *
+ * Lookup order:
+ * 1. Encrypted localStorage (wallet-scoped key)
+ * 2. Unencrypted localStorage (legacy unscoped key, pre-encryption users)
+ * 3. Unencrypted sessionStorage (temporary fallback)
+ */
+async function getStoredTokenData(walletAddress?: string): Promise<StoredTokenData | null> {
+  if (typeof window === "undefined") return null;
+
+  // Check in-memory cache first (avoids decryption on every call)
+  if (
+    cachedAccessToken &&
+    cachedWalletAddress === (walletAddress ?? null) &&
+    (!cachedExpiresAt || cachedExpiresAt - 60000 > Date.now())
+  ) {
+    return {
+      accessToken: cachedAccessToken,
+      refreshToken: cachedRefreshToken ?? undefined,
+      expiresAt: cachedExpiresAt ?? undefined,
+      scope: cachedScope ?? undefined,
+    };
+  }
+  // Invalidate stale cache
+  if (cachedAccessToken) {
+    cachedAccessToken = null;
+    cachedExpiresAt = null;
+    cachedRefreshToken = null;
+    cachedScope = null;
+    cachedWalletAddress = null;
+  }
+
+  try {
+    // 1. Try encrypted localStorage first (wallet-scoped key)
+    const scopedStored = localStorage.getItem(getTokenStorageKey(walletAddress));
+    if (
+      scopedStored &&
+      scopedStored.startsWith(ENCRYPTED_PREFIX) &&
+      walletAddress &&
+      hasEncryptionKey(walletAddress)
+    ) {
+      try {
+        const encryptedData = scopedStored.slice(ENCRYPTED_PREFIX.length);
+        const cryptoKey = await getEncryptionKey(walletAddress);
+        const decryptedJson = await decryptDataWithKey(encryptedData, cryptoKey);
+        const data = JSON.parse(decryptedJson) as StoredTokenData;
+        if (!data.accessToken) return null;
+        // Populate cache
+        cachedAccessToken = data.accessToken;
+        cachedExpiresAt = data.expiresAt ?? null;
+        cachedRefreshToken = data.refreshToken ?? null;
+        cachedScope = data.scope ?? null;
+        cachedWalletAddress = walletAddress ?? null;
+        return data;
+      } catch (error) {
+        getLogger().error("Failed to decrypt GitHub OAuth token:", error);
+        // Fall through to legacy lookups
+      }
+    }
+
+    // 2. Try legacy unencrypted localStorage (unscoped key, pre-encryption)
+    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX)) {
+      try {
+        const data = JSON.parse(legacyStored) as StoredTokenData;
+        if (data.accessToken) {
+          cachedAccessToken = data.accessToken;
+          cachedExpiresAt = data.expiresAt ?? null;
+          cachedRefreshToken = data.refreshToken ?? null;
+          cachedScope = data.scope ?? null;
+          cachedWalletAddress = walletAddress ?? null;
+          return data;
+        }
+      } catch {
+        // Not valid JSON
+      }
+    }
+
+    // 3. Fall back to sessionStorage
+    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    if (sessionStored) {
+      try {
+        const data = JSON.parse(sessionStored) as StoredTokenData;
+        if (!data.accessToken) return null;
+        cachedAccessToken = data.accessToken;
+        cachedExpiresAt = data.expiresAt ?? null;
+        cachedRefreshToken = data.refreshToken ?? null;
+        cachedScope = data.scope ?? null;
+        cachedWalletAddress = walletAddress ?? null;
+        return data;
+      } catch {
+        // Not valid JSON
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Store token data using dual-write strategy.
+ * Always writes to sessionStorage so the token survives even if the
+ * encryption key isn't available yet (e.g. right after OAuth redirect).
+ * Additionally encrypts to localStorage when the key is ready.
+ * migrateGithubToken will clean up the sessionStorage copy once
+ * the encrypted localStorage copy is confirmed.
+ */
+async function storeTokenData(data: StoredTokenData, walletAddress?: string): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  // Update in-memory cache
+  cachedAccessToken = data.accessToken;
+  cachedExpiresAt = data.expiresAt ?? null;
+  cachedRefreshToken = data.refreshToken ?? null;
+  cachedScope = data.scope ?? null;
+  cachedWalletAddress = walletAddress ?? null;
+
+  const json = JSON.stringify(data);
+
+  // Always write to sessionStorage as a safety net
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, json);
+
+  // Additionally encrypt to localStorage when possible
+  if (walletAddress && hasEncryptionKey(walletAddress)) {
+    try {
+      const cryptoKey = await getEncryptionKey(walletAddress);
+      const encrypted = await encryptDataWithKey(json, cryptoKey);
+      localStorage.setItem(getTokenStorageKey(walletAddress), `${ENCRYPTED_PREFIX}${encrypted}`);
+    } catch (error) {
+      getLogger().warn("Failed to encrypt GitHub OAuth token:", error);
+    }
+  }
+}
+
+/**
+ * Clear stored token data
+ */
+export function clearGithubToken(walletAddress?: string): void {
+  if (typeof window === "undefined") return;
+  // Clear in-memory cache
+  cachedAccessToken = null;
+  cachedExpiresAt = null;
+  cachedRefreshToken = null;
+  cachedScope = null;
+  cachedWalletAddress = null;
+  localStorage.removeItem(getTokenStorageKey(walletAddress));
+  // Also clear legacy unscoped key if different
+  if (walletAddress) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+/**
+ * Check if the stored access token is expired
+ */
+function isTokenExpired(data: StoredTokenData | null, bufferSeconds = 60): boolean {
+  if (!data) return true;
+  // GitHub tokens may not expire — treat as valid when no expiry set
+  if (!data.expiresAt) return false;
+  const now = Date.now();
+  const bufferMs = bufferSeconds * 1000;
+  return data.expiresAt - bufferMs <= now;
+}
+
+/**
+ * Convert API response to StoredTokenData
+ */
+function tokenResponseToStoredData(
+  accessToken: string,
+  expiresIn?: number,
+  refreshToken?: string,
+  scope?: string
+): StoredTokenData {
+  const data: StoredTokenData = {
+    accessToken,
+    refreshToken,
+    scope,
+  };
+
+  if (expiresIn) {
+    data.expiresAt = Date.now() + expiresIn * 1000;
+  }
+
+  return data;
+}
+
+/**
+ * Get the redirect URI for OAuth callback
+ */
+function getRedirectUri(callbackPath: string): string {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}${callbackPath}`;
+}
+
+/**
+ * Generate a random state for CSRF protection
+ */
+function generateState(): string {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Store OAuth state for validation
+ */
+function storeOAuthState(state: string): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(CODE_STORAGE_KEY, state);
+}
+
+/**
+ * Get and clear stored OAuth state
+ */
+function getAndClearOAuthState(): string | null {
+  if (typeof window === "undefined") return null;
+  const stored = sessionStorage.getItem(CODE_STORAGE_KEY);
+  sessionStorage.removeItem(CODE_STORAGE_KEY);
+  if (!stored) return null;
+
+  // Handle both JSON format and plain string format
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (parsed && typeof parsed === "object" && "state" in parsed) {
+      return (parsed as { state: string }).state;
+    }
+  } catch {
+    // Not JSON, return as-is
+  }
+  return stored;
+}
+
+/**
+ * Check if current URL is a GitHub OAuth callback
+ */
+export function isGithubCallback(callbackPath: string): boolean {
+  if (typeof window === "undefined") return false;
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const storedState = sessionStorage.getItem(CODE_STORAGE_KEY);
+  // Check if this callback is for GitHub (has our state stored)
+  return url.pathname === callbackPath && !!code && !!state && state === storedState;
+}
+
+/**
+ * Handle the OAuth callback - exchange code for tokens via backend
+ */
+export async function handleGithubCallback(
+  callbackPath: string,
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const storedState = getAndClearOAuthState();
+
+  // Validate state to prevent CSRF
+  if (!code || !state || state !== storedState) {
+    throw new Error("Invalid OAuth state");
+  }
+
+  try {
+    const response = await postAuthOauthByProviderExchange({
+      client: apiClient,
+      path: { provider: PROVIDER },
+      body: {
+        code,
+        redirect_uri: getRedirectUri(callbackPath),
+      },
+    });
+
+    if (!response.data?.access_token) {
+      throw new Error("No access token in response");
+    }
+
+    // Store tokens
+    const tokenData = tokenResponseToStoredData(
+      response.data.access_token,
+      response.data.expires_in,
+      response.data.refresh_token,
+      response.data.scope
+    );
+    await storeTokenData(tokenData, walletAddress);
+
+    // Clean up URL
+    window.history.replaceState({}, "", window.location.pathname);
+
+    return response.data.access_token;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    getLogger().error(`GitHub OAuth callback error: ${errorMessage}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Refresh the access token using the stored refresh token.
+ * Note: GitHub OAuth tokens may not have refresh tokens (non-expiring tokens).
+ */
+export async function refreshGithubToken(
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<string | null> {
+  const storedData = await getStoredTokenData(walletAddress);
+  const refreshToken = storedData?.refreshToken;
+  if (!refreshToken) return null;
+
+  try {
+    const response = await postAuthOauthByProviderRefresh({
+      client: apiClient,
+      path: { provider: PROVIDER },
+      body: { refresh_token: refreshToken },
+    });
+
+    if (!response.data?.access_token) {
+      throw new Error("No access token in refresh response");
+    }
+
+    // Update stored tokens
+    const tokenData = tokenResponseToStoredData(
+      response.data.access_token,
+      response.data.expires_in,
+      response.data.refresh_token ?? storedData?.refreshToken,
+      response.data.scope ?? storedData?.scope
+    );
+    await storeTokenData(tokenData, walletAddress);
+
+    return response.data.access_token;
+  } catch (error) {
+    // Don't clear token on transient errors (network, server) — only return null
+    // so the caller can retry later. The token + refresh token stay in storage.
+    getLogger().error("GitHub token refresh failed", error);
+    return null;
+  }
+}
+
+/**
+ * Revoke the OAuth token
+ */
+export async function revokeGithubToken(apiClient?: Client, walletAddress?: string): Promise<void> {
+  const tokenData = await getStoredTokenData(walletAddress);
+  if (!tokenData) return;
+
+  try {
+    const tokenToRevoke = tokenData.refreshToken ?? tokenData.accessToken;
+    await postAuthOauthByProviderRevoke({
+      client: apiClient,
+      path: { provider: PROVIDER },
+      body: { token: tokenToRevoke },
+    });
+  } catch {
+    // Ignore errors on revocation
+  } finally {
+    clearGithubToken(walletAddress);
+  }
+}
+
+/**
+ * Get a valid access token, refreshing if necessary.
+ * GitHub tokens may not expire — if no expiry is set, the stored token
+ * is returned directly without attempting a refresh.
+ */
+export async function getGithubAccessToken(
+  apiClient?: Client,
+  walletAddress?: string
+): Promise<string | null> {
+  const storedData = await getStoredTokenData(walletAddress);
+
+  if (!storedData) {
+    return null;
+  }
+
+  // Non-expiring tokens (standard GitHub OAuth) — return directly, no refresh needed
+  if (storedData.accessToken && !storedData.expiresAt) {
+    return storedData.accessToken;
+  }
+
+  // Expiring token that's still valid — use it
+  if (storedData.expiresAt && !isTokenExpired(storedData)) {
+    return storedData.accessToken;
+  }
+
+  // Expired — try to refresh
+  if (storedData.refreshToken) {
+    const refreshedToken = await refreshGithubToken(apiClient, walletAddress);
+    if (refreshedToken) {
+      return refreshedToken;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Store the return URL for after OAuth completes
+ */
+export function storeGithubReturnUrl(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+}
+
+/**
+ * Get and clear the stored return URL
+ */
+export function getAndClearGithubReturnUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const url = sessionStorage.getItem(RETURN_URL_KEY);
+  sessionStorage.removeItem(RETURN_URL_KEY);
+  return url;
+}
+
+/**
+ * Store a pending message to retry after OAuth completes
+ */
+export function storeGithubPendingMessage(message: string): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(PENDING_MESSAGE_KEY, message);
+}
+
+/**
+ * Get and clear the pending message
+ */
+export function getAndClearGithubPendingMessage(): string | null {
+  if (typeof window === "undefined") return null;
+  const message = sessionStorage.getItem(PENDING_MESSAGE_KEY);
+  sessionStorage.removeItem(PENDING_MESSAGE_KEY);
+  return message;
+}
+
+/**
+ * Start the OAuth flow - redirects to GitHub
+ */
+export async function startGithubAuth(clientId: string, callbackPath: string): Promise<never> {
+  if (typeof window === "undefined") {
+    return new Promise(() => {});
+  }
+
+  const state = generateState();
+  storeOAuthState(state);
+  storeGithubReturnUrl();
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: getRedirectUri(callbackPath),
+    scope: GITHUB_SCOPES,
+    state,
+  });
+
+  window.location.href = `${GITHUB_AUTH_URL}?${params.toString()}`;
+
+  return new Promise(() => {});
+}
+
+/**
+ * Get stored token for GitHub (async, supports encrypted storage)
+ */
+export async function getValidGithubToken(walletAddress?: string): Promise<string | null> {
+  const data = await getStoredTokenData(walletAddress);
+  if (!data) return null;
+  if (data.expiresAt && isTokenExpired(data)) {
+    return null;
+  }
+  return data.accessToken;
+}
+
+/**
+ * Store GitHub token data (for external use)
+ */
+export async function storeGithubToken(
+  accessToken: string,
+  expiresIn?: number,
+  refreshToken?: string,
+  scope?: string,
+  walletAddress?: string
+): Promise<void> {
+  const tokenData = tokenResponseToStoredData(accessToken, expiresIn, refreshToken, scope);
+  await storeTokenData(tokenData, walletAddress);
+}
+
+/**
+ * Check if we have any stored credentials
+ */
+export async function hasGithubCredentials(walletAddress?: string): Promise<boolean> {
+  const data = await getStoredTokenData(walletAddress);
+  return !!(data?.accessToken || data?.refreshToken);
+}
+
+/**
+ * Migrate unencrypted GitHub tokens to encrypted storage.
+ * Call this when a wallet address and encryption key become available
+ * after the initial OAuth flow.
+ *
+ * @returns true if migration occurred, false otherwise
+ */
+export async function migrateGithubToken(walletAddress: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  if (!walletAddress || !hasEncryptionKey(walletAddress)) return false;
+
+  try {
+    // Check for unencrypted token in sessionStorage
+    const sessionStored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    // Also check legacy unencrypted localStorage
+    const legacyStored = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const isLegacyUnencrypted = legacyStored && !legacyStored.startsWith(ENCRYPTED_PREFIX);
+
+    const unencryptedJson = sessionStored || (isLegacyUnencrypted ? legacyStored : null);
+    if (!unencryptedJson) return false;
+
+    // If already have encrypted version, just clean up
+    const scopedKey = getTokenStorageKey(walletAddress);
+    const existingEncrypted = localStorage.getItem(scopedKey);
+    if (existingEncrypted?.startsWith(ENCRYPTED_PREFIX)) {
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+      return true;
+    }
+
+    // Parse and re-store encrypted
+    const data = JSON.parse(unencryptedJson) as StoredTokenData;
+    await storeTokenData(data, walletAddress);
+
+    // Verify
+    const migrated = localStorage.getItem(scopedKey);
+    if (!migrated?.startsWith(ENCRYPTED_PREFIX)) return false;
+
+    // Clean up unencrypted
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    if (isLegacyUnencrypted) localStorage.removeItem(TOKEN_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}

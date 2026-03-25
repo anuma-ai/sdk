@@ -2,7 +2,7 @@
 
 > **deleteVaultFolderOp**(`ctx`: [`VaultFolderOperationsContext`](../interfaces/VaultFolderOperationsContext.md), `id`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/vaultFolders/operations.ts:118](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#118)
+Defined in: [src/lib/db/vaultFolders/operations.ts:117](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/operations.ts#117)
 
 Soft-delete a vault folder and unfile all its memories in a single write.
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -41,7 +42,11 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
-import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
+import {
+  createMediaBatchOp,
+  type CreateMediaOptions,
+  deleteMediaByConversationOp,
+} from "../lib/db/media";
 import {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
@@ -70,20 +75,11 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
+import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
-
-/** Image tool names recognized by the MCP image pipeline. */
-const IMAGE_TOOL_NAMES = new Set([
-  "AnumaImageMCP_generate_cloud_image",
-  "AnumaImageMCP_edit_cloud_image",
-  "AnumaImageMCP-generate_cloud_image",
-  "AnumaImageMCP-edit_cloud_image",
-  "generate_cloud_image",
-  "edit_cloud_image",
-]);
 
 /**
  * Extract the image generation model name from tool_call_events.
@@ -96,8 +92,8 @@ function extractImageModelFromToolEvents(
   for (const event of toolCallEvents) {
     if (event.name && IMAGE_TOOL_NAMES.has(event.name) && event.output) {
       try {
-        const output = JSON.parse(event.output);
-        if (output.model) return output.model as string;
+        const output = JSON.parse(event.output) as { model?: string };
+        if (output.model) return output.model;
       } catch {
         // Malformed JSON — skip
       }
@@ -403,15 +399,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         case "updateConversationTitle":
           await updateConversationTitleOp(
             ctx,
-            operation.payload.conversationId,
-            operation.payload.title
+            operation.payload.conversationId as string,
+            operation.payload.title as string
           );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
           break;
         case "createMediaBatch":
-          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
+          await createMediaBatchOp(mCtx, operation.payload.mediaOptions as CreateMediaOptions[]);
           break;
         default:
           getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
@@ -754,7 +750,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         while ((jsonMatch = jsonBlockRegex.exec(content)) !== null) {
           if (jsonMatch[1]) {
             try {
-              const parsed = JSON.parse(jsonMatch[1]);
+              const parsed = JSON.parse(jsonMatch[1]) as {
+                sources?: Array<{
+                  url?: string;
+                  title?: string;
+                  description?: string;
+                  snippet?: string;
+                }>;
+              };
               if (Array.isArray(parsed.sources)) {
                 foundJsonSources = true;
                 for (const source of parsed.sources) {
@@ -1048,14 +1051,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           baseUrl,
         });
 
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...messagesToConvert.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          messagesToConvert.map(storedToLlmapiMessage),
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // Store the user message
@@ -1166,7 +1169,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage);
         }
       }
 
@@ -1234,7 +1237,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               parentMessageId: storedUserMessage.uniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
-            embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: LlmapiResponseResponse = abortedResult.data || {
@@ -1380,7 +1383,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage);
         }
       } catch (err) {
         return {

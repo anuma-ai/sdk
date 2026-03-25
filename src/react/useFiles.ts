@@ -222,7 +222,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
       }
     };
 
-    initCollection();
+    void initCollection();
   }, [database]);
 
   // Media operations context - only valid when isReady is true
@@ -564,10 +564,11 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
             return new File([result.blob], result.metadata?.name || mediaId, {
               type: result.metadata?.type || "application/octet-stream",
             });
-          } catch (error) {
+          } catch (encryptedError) {
             // If encrypted read fails, fall back to legacy storage
             getLogger().warn(
-              `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`
+              `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`,
+              encryptedError
             );
           }
         }
@@ -579,7 +580,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const filesDir = await root.getDirectoryHandle("files", { create: false });
         const fileHandle = await filesDir.getFileHandle(mediaId);
         return await fileHandle.getFile();
-      } catch (error) {
+      } catch {
         throw new Error(`File could not be found: ${mediaId}`);
       }
     },

@@ -65,7 +65,9 @@ async function migrateOldDirectory(root: FileSystemDirectoryHandle): Promise<voi
 
   const newDir = await root.getDirectoryHandle(NEW_DIR_NAME, { create: true });
 
-  for await (const [name, handle] of oldDir as any) {
+  for await (const [name, handle] of oldDir as unknown as AsyncIterable<
+    [string, FileSystemHandle]
+  >) {
     if (handle.kind !== "file") continue;
 
     // Skip if the file already exists in the new directory
@@ -248,7 +250,7 @@ export async function readEncryptedFile(
     // Read metadata
     const metaHandle = await dir.getFileHandle(`${fileId}.meta.json`);
     const metaFile = await metaHandle.getFile();
-    const metadata: StoredFileMetadata = JSON.parse(await metaFile.text());
+    const metadata = JSON.parse(await metaFile.text()) as StoredFileMetadata;
 
     // Decrypt
     const decryptedBytes = await decryptToBytes(encryptedHex, encryptionKey);

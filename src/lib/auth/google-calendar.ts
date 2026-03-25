@@ -295,9 +295,9 @@ function getAndClearOAuthState(): string | null {
 
   // Handle both JSON format and plain string format
   try {
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (parsed && typeof parsed === "object" && "state" in parsed) {
-      return parsed.state;
+      return (parsed as { state: string }).state;
     }
   } catch {
     // Not JSON, return as-is

@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionTool,
-  LlmapiMessage,
-  LlmapiToolCallEvent,
-} from "../client";
+import type { LlmapiChatCompletionTool, LlmapiMessage, LlmapiToolCallEvent } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -337,7 +333,7 @@ async function storedToLlmapiMessage(
 
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(/__SDKFILE__([a-zA-Z0-9_-]+)__/g, (_match, fileId) => {
+  textContent = textContent.replace(/__SDKFILE__([a-zA-Z0-9_-]+)__/g, (_match, fileId: string) => {
     const sourceUrl = fileUrlMap.get(fileId);
     if (sourceUrl) {
       // Replace with markdown image pointing to sourceUrl
@@ -350,13 +346,16 @@ async function storedToLlmapiMessage(
   // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
   // This supports old messages that may still contain MCP_IMAGE placeholders
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(/!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g, (_match, fileId) => {
-    const sourceUrl = fileUrlMap.get(fileId);
-    if (sourceUrl) {
-      return `![image](${sourceUrl})`;
+  textContent = textContent.replace(
+    /!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g,
+    (_match, fileId: string) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        return `![image](${sourceUrl})`;
+      }
+      return "";
     }
-    return "";
-  });
+  );
 
   // For assistant messages with resolved image URLs that aren't already in the content,
   // append them as markdown images so the LLM can reference them
@@ -490,7 +489,7 @@ export type SendMessageWithStorageResult =
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
       /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
-      autoExecutedToolResults?: { name: string; result: any }[];
+      autoExecutedToolResults?: { name: string; result: unknown }[];
     }
   | {
       data: ApiResponse;
@@ -735,6 +734,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
     walletAddress,
     signMessage,
@@ -864,15 +864,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         case "updateConversationTitle":
           await updateConversationTitleOp(
             ctx,
-            operation.payload.conversationId,
-            operation.payload.title
+            operation.payload.conversationId as string,
+            operation.payload.title as string
           );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
           break;
         case "createMediaBatch":
-          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
+          await createMediaBatchOp(
+            mCtx,
+            operation.payload.mediaOptions as Parameters<typeof createMediaBatchOp>[1]
+          );
           break;
         default:
           getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
@@ -956,7 +959,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const pendingOpsRef = useRef<
     Array<{
       type: QueuedOperationType;
-      payload: Record<string, any>;
+      payload: Record<string, unknown>;
       dependencies: string[];
     }>
   >([]);
@@ -1188,7 +1191,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // Pre-embed vault memories on mount
   useEffect(() => {
     if (!getToken) return;
-    (async () => {
+    void (async () => {
       try {
         await preEmbedVaultMemories(
           vaultCtx,
@@ -1254,6 +1257,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
   });
 
@@ -1482,11 +1486,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
                 while ((match = jsonObjectRegex.exec(outputStr)) !== null) {
                   try {
-                    const result = JSON.parse(match[0]);
-                    if (result.url && !seenUrls.has(result.url)) {
-                      seenUrls.add(result.url);
+                    const result = JSON.parse(match[0]) as Record<string, unknown>;
+                    const resultUrl = typeof result.url === "string" ? result.url : "";
+                    if (resultUrl && !seenUrls.has(resultUrl)) {
+                      seenUrls.add(resultUrl);
                       // Strip HTML tags and decode entities from description
-                      const rawDescription = result.description || "";
+                      const rawDescription =
+                        typeof result.description === "string" ? result.description : "";
                       const cleanDescription = rawDescription
                         .replace(/<[^>]*>/g, "") // Remove HTML tags
                         .replace(/&amp;/g, "&")
@@ -1498,9 +1504,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                         .replace(/&apos;/g, "'")
                         .replace(/&nbsp;/g, " ")
                         .trim();
+                      const resultTitle =
+                        typeof result.title === "string" ? result.title : undefined;
                       extractedSources.push({
-                        title: result.title || undefined,
-                        url: result.url,
+                        title: resultTitle || undefined,
+                        url: resultUrl,
                         snippet: cleanDescription || undefined,
                       });
                     }
@@ -1760,7 +1768,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
-      } catch (err) {
+      } catch {
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
         return { fileIds: [], cleanedContent: content };
@@ -2017,8 +2025,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let filteredClientTools = clientTools;
         if (clientToolsFilter && clientTools?.length) {
           const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
-          filteredClientTools = clientTools.filter((t: any) => {
-            const name = t.function?.name || t.name;
+          filteredClientTools = clientTools.filter((t) => {
+            const fn = t.function as Record<string, unknown> | undefined;
+            const name = (fn?.name as string) || (t.name as string);
             return clientToolNames.includes(name);
           });
         } else if (clientTools?.length && getToken) {
@@ -2135,7 +2144,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       // Build the messages array
-      let messagesToSend: LlmapiMessage[] = [];
+      let messagesToSend: LlmapiMessage[];
 
       // Include history if requested
       if (includeHistory) {
@@ -2210,15 +2219,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           )
         );
 
-        // Assemble: [summary (if exists), window messages, new messages]
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...historyMessages,
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          historyMessages,
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
@@ -2392,8 +2400,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let filteredClientTools = clientTools;
       if (clientToolsFilter && clientTools?.length) {
         const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
-        filteredClientTools = clientTools.filter((t: any) => {
-          const name = t.function?.name || t.name;
+        filteredClientTools = clientTools.filter((t) => {
+          const fn = t.function as Record<string, unknown> | undefined;
+          const name = (fn?.name as string) || (t.name as string);
           return clientToolNames.includes(name);
         });
       } else if (clientTools?.length && getToken) {
@@ -2441,7 +2450,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage);
         }
       }
 
@@ -2524,7 +2533,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             // Embed assistant message (non-blocking)
-            embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: ApiResponse = abortedResult.data || {
@@ -2684,7 +2693,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage);
         }
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed
@@ -2722,8 +2731,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // synthetic user message so they persist across page refreshes and can be
       // rendered by the app. Parented to the assistant message so they appear as
       // a continuation in the conversation tree, not as a sibling branch.
-      const autoToolResults = (result as any).autoExecutedToolResults as
-        | { name: string; result: any }[]
+      const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
+        | { name: string; result: unknown }[]
         | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolSummary = autoToolResults
@@ -2773,9 +2782,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
-        autoExecutedToolResults: (result as any).autoExecutedToolResults,
+        autoExecutedToolResults: (result as Record<string, unknown>).autoExecutedToolResults as
+          | { name: string; result: unknown }[]
+          | undefined,
       };
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting stable refs and config values that don't change identity
     [
       ensureConversation,
       getMessages,

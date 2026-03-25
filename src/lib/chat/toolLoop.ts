@@ -41,7 +41,11 @@ import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
-import type { ServerToolCallEvent, ToolExecutionErrorType } from "./useChat/utils";
+import type {
+  ServerToolCallEvent,
+  ToolCallArgumentsDeltaEvent,
+  ToolExecutionErrorType,
+} from "./useChat/utils";
 import {
   createStreamAccumulator,
   createToolExecutorMap,
@@ -56,6 +60,16 @@ import {
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/** Extract tool name from either nested (function.name) or flat (name) format. */
+function getToolName(tool: Record<string, unknown>): string | undefined {
+  const func = tool.function as Record<string, unknown> | undefined;
+  const nestedName = func?.name;
+  if (typeof nestedName === "string") return nestedName;
+  const flatName = tool.name;
+  if (typeof flatName === "string") return flatName;
+  return undefined;
+}
 
 /** A tool result from an auto-executed tool. */
 export type AutoExecutedToolResult = {
@@ -141,6 +155,11 @@ export type RunToolLoopOptions = {
    * Receives the round index, model content, tool calls, results, and usage.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
    * Custom streaming transport. Defaults to a fetch-based SSE client.
    * React Native environments can supply an XHR-based transport since
@@ -269,6 +288,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onError,
     onToolCall,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
     maxConnectorCalls = 2,
@@ -350,10 +370,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             content: contentDelta,
             thinking: thinkingDelta,
             serverToolCall,
+            toolCallArgumentsDelta,
           } = strategy.processStreamChunk(chunk, accumulator);
           if (contentDelta) contentSmoother.push(contentDelta);
           if (thinkingDelta) thinkingSmoother.push(thinkingDelta);
           if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+          if (toolCallArgumentsDelta && onToolCallArgumentsDelta)
+            onToolCallArgumentsDelta(toolCallArgumentsDelta);
         }
       }
     } catch (streamErr) {
@@ -381,10 +404,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     }
 
-    if (sseError) {
+    if (sseError !== null) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
-      throw sseError;
+      throw sseError as Error;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
@@ -436,9 +459,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         const toolInfo = toolCallsToExecute
           .map((tc) => {
             try {
-              const args = JSON.parse(tc.arguments);
+              const args = JSON.parse(tc.arguments) as Record<string, unknown>;
               const argsStr = Object.entries(args)
-                .map(([k, v]) => `${k}=${v}`)
+                .map(([k, v]) => `${k}=${String(v)}`)
                 .join(", ");
               return `${tc.name}(${argsStr})`;
             } catch {
@@ -487,7 +510,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
         if (connectorCallCount.total >= maxConnectorCalls) {
           apiTools = apiTools.filter((t) => {
-            const name = (t as any).function?.name || (t as any).name;
+            const name = getToolName(t);
             return !name || !isConnectorTool(name);
           });
           if (apiTools.length === 0) {
@@ -515,8 +538,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (successfullyExecutedNames.size > 0) {
           const toolsToRemove = new Set<string>();
           for (const t of tools) {
-            const tc = t as any;
-            const toolName: string | undefined = tc.function?.name || tc.name;
+            const tc = t as ToolConfig & Record<string, unknown>;
+            const func = tc.function as Record<string, unknown> | undefined;
+            const toolName: string | undefined =
+              typeof func?.name === "string"
+                ? func.name
+                : typeof tc.name === "string"
+                  ? tc.name
+                  : undefined;
             if (
               tc.removeAfterExecution === true &&
               toolName &&
@@ -528,8 +557,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
           if (toolsToRemove.size > 0) {
             apiTools = apiTools.filter((t) => {
-              const name = (t as any).function?.name || (t as any).name;
-              return !toolsToRemove.has(name);
+              const name = getToolName(t);
+              return !name || !toolsToRemove.has(name);
             });
             if (apiTools.length === 0) {
               apiTools = undefined;
@@ -558,7 +587,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 return `${r.name}: Error - ${r.error}`;
               }
               const resultStr =
-                typeof r.result === "object" ? safeJsonStringify(r.result) : String(r.result);
+                typeof r.result === "string" ? r.result : safeJsonStringify(r.result);
               return `${r.name}: ${resultStr}`;
             })
             .join("\n");
@@ -689,10 +718,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               content: contentDelta,
               thinking: thinkingDelta,
               serverToolCall,
+              toolCallArgumentsDelta: contToolCallArgsDelta,
             } = strategy.processStreamChunk(chunk, currentAccumulator);
             if (contentDelta) contContentSmoother.push(contentDelta);
             if (thinkingDelta) contThinkingSmoother.push(thinkingDelta);
             if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+            if (contToolCallArgsDelta && onToolCallArgumentsDelta)
+              onToolCallArgumentsDelta(contToolCallArgsDelta);
           }
         }
       } catch (streamErr) {
@@ -720,10 +752,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         };
       }
 
-      if (sseError) {
+      if (sseError !== null) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
-        throw sseError;
+        throw sseError as Error;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);

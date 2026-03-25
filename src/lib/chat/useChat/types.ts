@@ -9,7 +9,7 @@ import type {
 import type { StepFinishEvent } from "../toolLoop";
 import type { ApiResponse } from "./strategies/types";
 import type { StreamSmoothingConfig } from "./StreamSmoother";
-import type { ServerToolCallEvent } from "./utils";
+import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "./utils";
 
 /**
  * Streaming chunk structure received from SSE events (Responses API format)
@@ -71,6 +71,7 @@ export type StreamingChunk = {
 /**
  * Tool executor function type
  */
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values from tool executors
 export type ToolExecutor = (args: Record<string, unknown>) => Promise<unknown> | unknown;
 
 /**
@@ -219,6 +220,11 @@ export type BaseUseChatOptions = {
    * @param toolCall.arguments - The arguments passed to the tool (JSON string)
    */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
+  /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
    * Controls adaptive output smoothing for streaming responses.
    * Fast models can return text faster than is comfortable to read — smoothing

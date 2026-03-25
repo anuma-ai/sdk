@@ -24,7 +24,7 @@ export interface ProcessedFileResult {
     sheetCount?: number;
     sheetNames?: string[];
     wordCount?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

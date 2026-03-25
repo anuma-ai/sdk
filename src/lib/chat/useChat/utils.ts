@@ -411,6 +411,14 @@ export type ServerToolCallEvent = {
 /**
  * Result from processing a streaming chunk
  */
+/** Event emitted when tool call arguments are being streamed. */
+export type ToolCallArgumentsDeltaEvent = {
+  toolCallId: string;
+  toolName: string;
+  argumentsDelta: string;
+  accumulatedArguments: string;
+};
+
 export type ProcessChunkResult = {
   /** Content delta (regular assistant response) */
   content: string | null;
@@ -418,6 +426,8 @@ export type ProcessChunkResult = {
   thinking: string | null;
   /** Server tool call event (for activity indicators) */
   serverToolCall?: ServerToolCallEvent;
+  /** Tool call arguments delta (for streaming artifact preview) */
+  toolCallArgumentsDelta?: ToolCallArgumentsDeltaEvent;
 };
 
 /**
@@ -469,7 +479,13 @@ export function createToolExecutorMap(
 
   for (const tool of tools) {
     // Handle both Completions format (function.name) and Responses format (name at top level)
-    const toolName: string | undefined = (tool as any).function?.name || (tool as any).name;
+    const func = (tool as Record<string, unknown>).function as Record<string, unknown> | undefined;
+    const toolName: string | undefined =
+      typeof func?.name === "string"
+        ? func.name
+        : typeof (tool as Record<string, unknown>).name === "string"
+          ? ((tool as Record<string, unknown>).name as string)
+          : undefined;
     if (!toolName) continue;
 
     // Check if this is a tool with an executor
@@ -534,7 +550,7 @@ export async function executeToolCall(
   let args: Record<string, unknown> = {};
   if (toolCall.arguments) {
     try {
-      args = JSON.parse(toolCall.arguments);
+      args = JSON.parse(toolCall.arguments) as Record<string, unknown>;
     } catch (e) {
       return {
         error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
@@ -582,7 +598,7 @@ export function toolsToApiFormat(
     return undefined;
   }
 
-  return tools.map((tool) => {
+  return tools.map((tool): Record<string, unknown> => {
     // Strip client-side-only properties before sending to API
     const {
       executor: _executor,
@@ -597,7 +613,10 @@ export function toolsToApiFormat(
       | undefined;
 
     // Detect flat-format tools (name at top level, no function wrapper)
-    const flatName = !func && (apiTool as any).name;
+    const flatName =
+      !func && typeof (apiTool as Record<string, unknown>).name === "string"
+        ? ((apiTool as Record<string, unknown>).name as string)
+        : undefined;
 
     // Normalize tool format based on API type
     if (apiType === "responses") {
@@ -619,12 +638,18 @@ export function toolsToApiFormat(
     if (apiType === "completions") {
       if (flatName) {
         // Flat → nested for Completions API
-        const { type: _type, name, description, parameters, ...rest } = apiTool as any;
+        const {
+          type: _type,
+          name,
+          description,
+          parameters,
+          ...rest
+        } = apiTool as Record<string, unknown>;
         return {
           type: "function",
           ...rest,
           function: { name, description, parameters },
-        };
+        } as Record<string, unknown>;
       }
       if (func && !func.parameters && func.arguments) {
         // Completions API expects function.parameters, convert from arguments

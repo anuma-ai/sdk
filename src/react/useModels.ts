@@ -159,7 +159,7 @@ export function useModels(options: UseModelsOptions = {}): UseModelsResult {
   useEffect(() => {
     if (autoFetch && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      fetchModels();
+      void fetchModels();
     }
     // Reset flag when autoFetch becomes false to allow re-fetching when it becomes true again
     if (!autoFetch) {

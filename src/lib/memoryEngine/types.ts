@@ -85,7 +85,7 @@ export interface EmbeddingOptions {
 /**
  * Context required for memory engine operations
  */
-interface MemoryEngineContext {
+interface _MemoryEngineContext {
   /** Storage operations context */
   storageCtx: StorageOperationsContext;
   /** Embedding options */
@@ -95,7 +95,7 @@ interface MemoryEngineContext {
 /**
  * Tool configuration for memory engine
  */
-interface MemoryEngineToolConfig {
+interface _MemoryEngineToolConfig {
   /** Tool name */
   name: string;
   /** Tool description */

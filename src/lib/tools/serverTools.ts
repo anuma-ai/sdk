@@ -454,6 +454,23 @@ export function filterServerTools(
   return serverTools.filter((tool) => includeSet.has(tool.name));
 }
 
+/** Shape of the `function` property on OpenAI-style tool objects. */
+interface ToolFunctionDef {
+  name?: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+  arguments?: Record<string, unknown>;
+}
+
+/** Helper to safely extract the `function` property from a tool-like object. */
+function getToolFunction(tool: LlmapiChatCompletionTool | ToolConfig): ToolFunctionDef | undefined {
+  const fn = (tool as Record<string, unknown>).function;
+  if (fn && typeof fn === "object") {
+    return fn as ToolFunctionDef;
+  }
+  return undefined;
+}
+
 /**
  * Convert client tool to Responses API format.
  * Preserves executor for client-side execution.
@@ -462,7 +479,7 @@ function clientToolToResponsesFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = (tool as any).function;
+  const func = getToolFunction(tool);
 
   if (!func) {
     // Already in responses format or malformed - return as-is
@@ -474,7 +491,7 @@ function clientToolToResponsesFormat(
     name: func.name,
     description: func.description,
     // Handle both 'parameters' and 'arguments' field names
-    parameters: func.parameters || func.arguments,
+    parameters: func.parameters ?? func.arguments,
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
     ...(toolConfig.skipContinuation !== undefined && {
@@ -498,7 +515,7 @@ function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = (tool as any).function;
+  const func = getToolFunction(tool);
 
   if (!func) {
     // Malformed tool - return as-is
@@ -517,7 +534,7 @@ function clientToolToCompletionsFormat(
     type: "function",
     function: {
       ...restFunc,
-      parameters: args || { type: "object", properties: {} },
+      parameters: args ?? { type: "object", properties: {} },
     },
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
@@ -568,14 +585,22 @@ export function mergeTools(
   // Get client tool names for deduplication
   const clientToolNames = new Set(
     clientTools
-      .map((t) => (t as any).function?.name || (t as any).name)
-      .filter((name): name is string => !!name)
+      .map((t) => {
+        const fn = getToolFunction(t);
+        return fn?.name ?? (t as Record<string, unknown>).name;
+      })
+      .filter((name): name is string => typeof name === "string" && !!name)
   );
 
   // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
-    const name = "name" in tool ? (tool.name as string) : (tool as any).function?.name;
-    return !clientToolNames.has(name ?? "");
+    let toolName: string | undefined;
+    if ("name" in tool && typeof tool.name === "string") {
+      toolName = tool.name;
+    } else if ("function" in tool && typeof tool.function === "object" && tool.function !== null) {
+      toolName = (tool.function as ToolFunctionDef).name;
+    }
+    return !clientToolNames.has(toolName ?? "");
   });
 
   // Return merged array: server tools first, then client tools

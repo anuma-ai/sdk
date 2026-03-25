@@ -18,9 +18,9 @@ interface ExtractedImageUrl {
 }
 
 /** Image tool names recognized by the MCP image pipeline. */
-const IMAGE_TOOL_NAMES = new Set([
-  "AnumaImageMCP_generate_cloud_image",
-  "AnumaImageMCP_edit_cloud_image",
+export const IMAGE_TOOL_NAMES = new Set([
+  "AnumaImageMCP-generate_cloud_image",
+  "AnumaImageMCP-edit_cloud_image",
   "generate_cloud_image",
   "edit_cloud_image",
 ]);
@@ -48,7 +48,7 @@ export function extractMCPImageUrls(
     for (const event of toolCallEvents) {
       if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
         try {
-          const output = JSON.parse(event.output || "{}");
+          const output = JSON.parse(event.output || "{}") as { model?: string; url?: string };
           const { model, url } = output;
           if (url) {
             urls.push({ url, model: model || "image" });

@@ -180,7 +180,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       }
     };
 
-    initCollections();
+    void initCollections();
   }, [database]);
 
   // Project operations context - only valid when isReady is true
@@ -233,7 +233,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
   // Load projects on mount
   useEffect(() => {
     if (isReady) {
-      refreshProjects();
+      void refreshProjects();
     }
   }, [isReady, refreshProjects]);
 
@@ -259,7 +259,7 @@ export function useProjects(options: UseProjectsOptions): UseProjectsResult {
       }
     };
 
-    ensureInboxProject();
+    void ensureInboxProject();
   }, [projectCtx, isReady]);
 
   // Subscribe to project changes for real-time updates

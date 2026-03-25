@@ -5,6 +5,19 @@ import type { Token, Tokens } from "marked";
 // Types
 // ---------------------------------------------------------------------------
 
+/** Stages of the PDF export pipeline. @category PDF Export */
+export type PdfExportStage = "preparing" | "rendering" | "building" | "complete";
+
+/** Progress event emitted during PDF export. @category PDF Export */
+export interface PdfExportProgress {
+  /** Current pipeline stage */
+  stage: PdfExportStage;
+  /** Overall progress from 0 to 100 */
+  percent: number;
+  /** Optional human-readable detail, e.g. "Page 2 of 5" */
+  detail?: string;
+}
+
 /**
  * Options for PDF export.
  * @category PDF Export
@@ -27,6 +40,8 @@ export interface PdfExportOptions {
   pageNumbers?: boolean;
   /** Filename used by the download helpers (default: "document.pdf") */
   filename?: string;
+  /** Callback for progress updates during export */
+  onProgress?: (progress: PdfExportProgress) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +133,7 @@ interface ResolvedOptions {
   margins: { top: number; right: number; bottom: number; left: number };
   pageNumbers: boolean;
   filename: string;
+  onProgress: ((progress: PdfExportProgress) => void) | undefined;
 }
 
 function resolveOptions(options?: PdfExportOptions): ResolvedOptions {
@@ -134,6 +150,7 @@ function resolveOptions(options?: PdfExportOptions): ResolvedOptions {
     },
     pageNumbers: options?.pageNumbers ?? true,
     filename: options?.filename ?? DEFAULT_FILENAME,
+    onProgress: options?.onProgress,
   };
 }
 
@@ -197,25 +214,26 @@ function tokensToPlainText(tokens: Token[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// DOM capture path — exportElementToPdf
+// DOM capture path — renderElementToCanvas + exportElementToPdf
 // ---------------------------------------------------------------------------
 
 /**
- * Capture a rendered HTML element as a high-fidelity PDF.
+ * Render a DOM element to a canvas using iframe isolation.
  *
- * Uses html2canvas to snapshot the element, then embeds the canvas image
- * into a jsPDF document. Multi-page content is automatically split.
+ * This is the first half of the DOM capture pipeline: it clones the element
+ * into an isolated iframe (to avoid affecting dark mode), copies stylesheets,
+ * and uses html2canvas to produce a high-fidelity snapshot. The returned
+ * canvas can be displayed as a preview before building the final PDF.
  *
  * @category PDF Export
  */
-export async function exportElementToPdf(
+export async function renderElementToCanvas(
   element: HTMLElement,
-  options?: PdfExportOptions
-): Promise<Blob> {
-  const [jspdfMod, html2canvasMod] = await Promise.all([getJsPDF(), getHtml2Canvas()]);
+  options?: Pick<PdfExportOptions, "onProgress">
+): Promise<HTMLCanvasElement> {
+  const html2canvasMod = await getHtml2Canvas();
   const html2canvas = html2canvasMod.default ?? html2canvasMod;
-  const opts = resolveOptions(options);
-  const [pageW, pageH] = opts.pageSize;
+  options?.onProgress?.({ stage: "preparing", percent: 5, detail: "Cloning element" });
 
   // Use an iframe with its own document root to avoid affecting the main page's dark mode
   const iframe = document.createElement("iframe");
@@ -266,6 +284,8 @@ export async function exportElementToPdf(
     await Promise.all(pendingLinks);
   }
 
+  options?.onProgress?.({ stage: "preparing", percent: 10, detail: "Stylesheets ready" });
+
   // Clone element into the iframe body
   const clone = element.cloneNode(true) as HTMLElement;
   clone.style.backgroundColor = "#ffffff";
@@ -276,6 +296,8 @@ export async function exportElementToPdf(
   // Remove dark class from iframe's document root (not the main page)
   iframeDoc.documentElement.classList.remove("dark");
 
+  options?.onProgress?.({ stage: "rendering", percent: 15, detail: "Capturing content" });
+
   try {
     const canvas = await html2canvas(clone, {
       useCORS: true,
@@ -284,54 +306,88 @@ export async function exportElementToPdf(
       backgroundColor: "#ffffff",
     });
 
-    const imgWidthPx = canvas.width;
-    const imgHeightPx = canvas.height;
-
-    const cw = usableContentWidth(pageW, opts.margins);
-    const scale = cw / imgWidthPx;
-    const imgHeightMm = imgHeightPx * scale;
-    const usablePageH = pageH - opts.margins.top - opts.margins.bottom;
-
-    const JsPDF = resolveJsPDFConstructor(jspdfMod);
-    const doc = createPdfDoc(JsPDF, pageW, pageH);
-
-    // Reuse a single slice canvas to avoid per-page allocation + PNG encode overhead
-    const sliceCanvas = document.createElement("canvas");
-    sliceCanvas.width = imgWidthPx;
-    const sliceCtx = sliceCanvas.getContext("2d");
-    if (!sliceCtx) {
-      throw new Error("Unable to obtain 2D canvas context for PDF slicing");
-    }
-
-    let remainingH = imgHeightMm;
-    let srcYPx = 0;
-    let page = 0;
-
-    while (remainingH > 0) {
-      if (page > 0) doc.addPage();
-
-      const sliceHMm = Math.min(remainingH, usablePageH);
-      const sliceHPx = sliceHMm / scale;
-
-      sliceCanvas.height = Math.ceil(sliceHPx);
-      sliceCtx.clearRect(0, 0, imgWidthPx, sliceCanvas.height);
-      sliceCtx.drawImage(canvas, 0, srcYPx, imgWidthPx, sliceHPx, 0, 0, imgWidthPx, sliceHPx);
-
-      doc.addImage(sliceCanvas, "PNG", opts.margins.left, opts.margins.top, cw, sliceHMm);
-
-      srcYPx += sliceHPx;
-      remainingH -= sliceHMm;
-      page++;
-    }
-
-    if (opts.pageNumbers) {
-      addPageNumbers(doc, pageW, pageH);
-    }
-
-    return doc.output("blob");
+    options?.onProgress?.({ stage: "rendering", percent: 70, detail: "Capture complete" });
+    return canvas;
   } finally {
     document.body.removeChild(iframe);
   }
+}
+
+/**
+ * Capture a rendered HTML element as a high-fidelity PDF.
+ *
+ * Uses {@link renderElementToCanvas} for the DOM snapshot, then embeds the
+ * canvas image into a jsPDF document. Multi-page content is automatically
+ * split.
+ *
+ * @category PDF Export
+ */
+export async function exportElementToPdf(
+  element: HTMLElement,
+  options?: PdfExportOptions
+): Promise<Blob> {
+  const jspdfMod = await getJsPDF();
+  const opts = resolveOptions(options);
+  const [pageW, pageH] = opts.pageSize;
+
+  const canvas = await renderElementToCanvas(element, options);
+
+  opts.onProgress?.({ stage: "building", percent: 72, detail: "Preparing PDF document" });
+
+  const imgWidthPx = canvas.width;
+  const imgHeightPx = canvas.height;
+
+  const cw = usableContentWidth(pageW, opts.margins);
+  const scale = cw / imgWidthPx;
+  const imgHeightMm = imgHeightPx * scale;
+  const usablePageH = pageH - opts.margins.top - opts.margins.bottom;
+
+  const JsPDF = resolveJsPDFConstructor(jspdfMod);
+  const doc = createPdfDoc(JsPDF, pageW, pageH);
+
+  // Reuse a single slice canvas to avoid per-page allocation + PNG encode overhead
+  const sliceCanvas = document.createElement("canvas");
+  sliceCanvas.width = imgWidthPx;
+  const sliceCtx = sliceCanvas.getContext("2d");
+  if (!sliceCtx) {
+    throw new Error("Unable to obtain 2D canvas context for PDF slicing");
+  }
+
+  const totalPages = Math.ceil(imgHeightMm / usablePageH);
+  let remainingH = imgHeightMm;
+  let srcYPx = 0;
+  let page = 0;
+
+  while (remainingH > 0) {
+    if (page > 0) doc.addPage();
+
+    const sliceHMm = Math.min(remainingH, usablePageH);
+    const sliceHPx = sliceHMm / scale;
+
+    sliceCanvas.height = Math.ceil(sliceHPx);
+    sliceCtx.clearRect(0, 0, imgWidthPx, sliceCanvas.height);
+    sliceCtx.drawImage(canvas, 0, srcYPx, imgWidthPx, sliceHPx, 0, 0, imgWidthPx, sliceHPx);
+
+    doc.addImage(sliceCanvas, "PNG", opts.margins.left, opts.margins.top, cw, sliceHMm);
+
+    srcYPx += sliceHPx;
+    remainingH -= sliceHMm;
+    page++;
+
+    const buildPercent = 72 + Math.round((page / totalPages) * 23);
+    opts.onProgress?.({
+      stage: "building",
+      percent: buildPercent,
+      detail: `Page ${page} of ${totalPages}`,
+    });
+  }
+
+  if (opts.pageNumbers) {
+    addPageNumbers(doc, pageW, pageH);
+  }
+
+  opts.onProgress?.({ stage: "complete", percent: 100 });
+  return doc.output("blob");
 }
 
 // ---------------------------------------------------------------------------
@@ -352,9 +408,11 @@ export async function exportMarkdownToPdf(
   markdown: string,
   options?: PdfExportOptions
 ): Promise<Blob> {
+  const opts = resolveOptions(options);
+  opts.onProgress?.({ stage: "preparing", percent: 2, detail: "Loading modules" });
+
   const [jspdfMod, markedMod] = await Promise.all([getJsPDF(), getMarked()]);
   const { Lexer } = markedMod;
-  const opts = resolveOptions(options);
   const [pageW, pageH] = opts.pageSize;
   const cw = usableContentWidth(pageW, opts.margins);
   const lineHeight = 1.4;
@@ -420,8 +478,13 @@ export async function exportMarkdownToPdf(
   // --- Token rendering ---
 
   const tokens = Lexer.lex(markdown);
+  opts.onProgress?.({ stage: "building", percent: 5, detail: "Rendering tokens" });
 
-  for (const token of tokens) {
+  for (let tokenIdx = 0; tokenIdx < tokens.length; tokenIdx++) {
+    const token = tokens[tokenIdx];
+    // Report progress proportional to token position (5–95%)
+    const tokenPercent = 5 + Math.round((tokenIdx / tokens.length) * 90);
+    opts.onProgress?.({ stage: "building", percent: tokenPercent });
     switch (token.type) {
       case "heading": {
         const size = HEADING_SIZES[token.depth as number] ?? opts.fontSize;
@@ -449,10 +512,11 @@ export async function exportMarkdownToPdf(
       }
 
       case "code": {
+        const codeToken = token as Tokens.Code;
         const codeFontSize = opts.fontSize - 2;
         doc.setFont("Courier", "normal");
         doc.setFontSize(codeFontSize);
-        const lines = doc.splitTextToSize(token.text, cw - SPACING.CODE_PAD * 2);
+        const lines = doc.splitTextToSize(codeToken.text, cw - SPACING.CODE_PAD * 2) as string[];
         const lh = lineHeightMm(codeFontSize);
         const blockH = lines.length * lh + SPACING.LG;
 
@@ -463,9 +527,9 @@ export async function exportMarkdownToPdf(
 
         cursorY += SPACING.SM;
         doc.setTextColor(40);
-        for (const line of lines) {
+        for (const codeLine of lines) {
           ensureSpace(lh);
-          doc.text(line, opts.margins.left + SPACING.CODE_PAD, cursorY);
+          doc.text(codeLine, opts.margins.left + SPACING.CODE_PAD, cursorY);
           cursorY += lh;
         }
         doc.setTextColor(0);
@@ -474,7 +538,8 @@ export async function exportMarkdownToPdf(
       }
 
       case "list": {
-        const { items, ordered } = token;
+        const listToken = token as Tokens.List;
+        const { items, ordered } = listToken;
         const indentX = opts.margins.left + SPACING.LIST_INDENT;
         const itemW = cw - SPACING.LIST_INDENT;
 
@@ -483,13 +548,13 @@ export async function exportMarkdownToPdf(
         const lh = lineHeightMm(opts.fontSize);
 
         for (let i = 0; i < items.length; i++) {
-          const prefix = ordered ? `${(token.start || 1) + i}. ` : "\u2022 ";
+          const prefix = ordered ? `${(listToken.start || 1) + i}. ` : "\u2022 ";
           const text = tokensToPlainText(items[i].tokens);
 
           ensureSpace(lh);
           doc.text(prefix, opts.margins.left, cursorY);
-          const lines = doc.splitTextToSize(text, itemW);
-          for (const line of lines) {
+          const listLines = doc.splitTextToSize(text, itemW) as string[];
+          for (const line of listLines) {
             ensureSpace(lh);
             doc.text(line, indentX, cursorY);
             cursorY += lh;
@@ -500,16 +565,17 @@ export async function exportMarkdownToPdf(
       }
 
       case "blockquote": {
-        const text = tokensToPlainText(token.tokens ?? []);
+        const bqToken = token as Tokens.Blockquote;
+        const text = tokensToPlainText(bqToken.tokens ?? []);
         const indentX = opts.margins.left + SPACING.QUOTE_INDENT;
         const quoteW = cw - SPACING.QUOTE_INSET;
 
         doc.setFont("Helvetica", "italic");
         doc.setFontSize(opts.fontSize);
-        const lines = doc.splitTextToSize(text, quoteW);
+        const bqLines = doc.splitTextToSize(text, quoteW) as string[];
         const lh = lineHeightMm(opts.fontSize);
 
-        const blockH = lines.length * lh;
+        const blockH = bqLines.length * lh;
         ensureSpace(Math.min(blockH, 20));
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.8);
@@ -521,9 +587,9 @@ export async function exportMarkdownToPdf(
         );
 
         doc.setTextColor(100);
-        for (const line of lines) {
+        for (const bqLine of bqLines) {
           ensureSpace(lh);
-          doc.text(line, indentX, cursorY);
+          doc.text(bqLine, indentX, cursorY);
           cursorY += lh;
         }
         doc.setTextColor(0);
@@ -579,10 +645,10 @@ export async function exportMarkdownToPdf(
         // Draw header background (will be overdrawn if multi-line, but font metrics are stable)
         doc.setFont("Helvetica", "bold");
         doc.setFontSize(tableFontSize);
-        const headerLines = header.map((cell) =>
-          doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW)
+        const headerLines = header.map(
+          (cell) => doc.splitTextToSize(tokensToPlainText(cell.tokens), cellContentW) as string[]
         );
-        const headerMaxLines = Math.max(1, ...headerLines.map((l: string[]) => l.length));
+        const headerMaxLines = Math.max(1, ...headerLines.map((l) => l.length));
         doc.rect(opts.margins.left, cursorY - lh + 1, cw, headerMaxLines * lh + SPACING.SM, "F");
         renderRow(header, "bold");
 
@@ -617,5 +683,6 @@ export async function exportMarkdownToPdf(
     addPageNumbers(doc, pageW, pageH);
   }
 
+  opts.onProgress?.({ stage: "complete", percent: 100 });
   return doc.output("blob");
 }

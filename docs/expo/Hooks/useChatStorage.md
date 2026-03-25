@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/expo/useChatStorage.ts:293](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#293)
+Defined in: [src/expo/useChatStorage.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/expo/useChatStorage.ts#289)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -345,7 +345,7 @@ Callback for progress updates
 </td>
 <td>
 
-`any`\[] | `null`
+[`FileProcessor`](../../react/Internal/interfaces/FileProcessor.md)\[] | `null`
 
 </td>
 <td>
@@ -518,6 +518,24 @@ Use this to show activity indicators like "Searching..." in the UI.
 <td>
 
 Callback invoked when thinking/reasoning content is received (from `<think>` tags or API reasoning)
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onToolCallArgumentsDelta?`
+
+</td>
+<td>
+
+(`event`: [`ToolCallArgumentsDeltaEvent`](../../react/Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+
+</td>
+<td>
+
+Called with partial tool call arguments as they stream in.
+Use for live preview of artifacts (HTML, slides) being generated.
 
 </td>
 </tr>

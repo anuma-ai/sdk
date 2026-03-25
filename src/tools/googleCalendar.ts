@@ -94,8 +94,17 @@ async function fetchCalendarEvents(
       return `Error: Failed to fetch calendar events (${response.status}): ${errorText}`;
     }
 
-    const data = await response.json();
-    const events: CalendarEvent[] = (data.items || []).map(
+    const data = (await response.json()) as {
+      items?: Array<{
+        id: string;
+        summary?: string;
+        start?: { dateTime?: string; date?: string };
+        end?: { dateTime?: string; date?: string };
+        description?: string;
+        location?: string;
+      }>;
+    };
+    const events: CalendarEvent[] = (data.items ?? []).map(
       (item: {
         id: string;
         summary?: string;
@@ -192,7 +201,14 @@ async function createCalendarEvent(
       return `Error: Failed to create calendar event (${response.status}): ${errorText}`;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      id: string;
+      summary?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+      description?: string;
+      location?: string;
+    };
     return parseEventResponse(data);
   } catch (error) {
     return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;
@@ -261,7 +277,14 @@ async function updateCalendarEvent(
       return `Error: Failed to update calendar event (${response.status}): ${errorText}`;
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+      id: string;
+      summary?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+      description?: string;
+      location?: string;
+    };
     return parseEventResponse(data);
   } catch (error) {
     return `Error: ${error instanceof Error ? error.message : "Unknown error occurred"}`;

@@ -2,7 +2,7 @@
 
 > **ChartLegendContent**(`__namedParameters`: `ClassAttributes`<`HTMLDivElement`> & `HTMLAttributes`<`HTMLDivElement`> & `Pick`<`Props`, `"payload"` | `"verticalAlign"`> & `object`): `Element` | `null`
 
-Defined in: [src/react/chart.tsx:262](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#262)
+Defined in: [src/react/chart.tsx:263](https://github.com/anuma-ai/sdk/blob/main/src/react/chart.tsx#263)
 
 ## Parameters
 
