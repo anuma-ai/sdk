@@ -51,7 +51,9 @@ export async function createSavedToolOp(
 }
 
 /** Fetch all non-deleted saved tools, sorted by creation date (newest first). */
-export async function getAllSavedToolsOp(ctx: SavedToolOperationsContext): Promise<StoredSavedTool[]> {
+export async function getAllSavedToolsOp(
+  ctx: SavedToolOperationsContext
+): Promise<StoredSavedTool[]> {
   const results = await ctx.savedToolsCollection
     .query(Q.where("is_deleted", false), Q.sortBy("created_at", Q.desc))
     .fetch();
