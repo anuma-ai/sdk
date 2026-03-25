@@ -1057,7 +1057,7 @@ function createBranchTool(
           const defaultRefData = (await defaultRefResp.json()) as { object: { sha: string } };
           sha = defaultRefData.object.sha;
         } else if (/^[0-9a-f]{7,40}$/i.test(from_ref)) {
-          // Commit SHA (full or abbreviated) — resolve via commits endpoint
+          // Looks like a commit SHA (full or abbreviated) — try commits endpoint first
           const commitResp = await githubFetch(
             token,
             `/repos/${encodePath([owner, repo])}/commits/${from_ref}`
@@ -1066,7 +1066,42 @@ function createBranchTool(
             const commitData = (await commitResp.json()) as { sha: string };
             sha = commitData.sha;
           } else {
-            return `Error: Commit '${from_ref}' not found in ${owner}/${repo}.`;
+            // Commit not found — fall through to try as branch or tag (hex-only branch names)
+            const branchResp = await githubFetch(
+              token,
+              `/repos/${encodePath([owner, repo])}/git/ref/heads/${from_ref}`
+            );
+            if (branchResp.ok) {
+              const branchData = (await branchResp.json()) as { object: { sha: string } };
+              sha = branchData.object.sha;
+            } else {
+              const tagResp = await githubFetch(
+                token,
+                `/repos/${encodePath([owner, repo])}/git/ref/tags/${from_ref}`
+              );
+              if (tagResp.ok) {
+                const tagData = (await tagResp.json()) as {
+                  object: { sha: string; type: string };
+                };
+                // Annotated tags point to a tag object, not a commit — dereference
+                if (tagData.object.type === "tag") {
+                  const derefResp = await githubFetch(
+                    token,
+                    `/repos/${encodePath([owner, repo])}/git/tags/${tagData.object.sha}`
+                  );
+                  if (derefResp.ok) {
+                    const derefData = (await derefResp.json()) as { object: { sha: string } };
+                    sha = derefData.object.sha;
+                  } else {
+                    return `Error: Failed to dereference annotated tag '${from_ref}'.`;
+                  }
+                } else {
+                  sha = tagData.object.sha;
+                }
+              } else {
+                return `Error: Ref '${from_ref}' not found as a commit, branch, or tag in ${owner}/${repo}.`;
+              }
+            }
           }
         } else {
           // Try as branch first, then tag
