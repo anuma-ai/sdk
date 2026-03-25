@@ -64,9 +64,7 @@ describe("Notion OAuth Primitives", () => {
 
       const endpoints = await discoverNotionOAuthEndpoints();
 
-      expect(endpoints.authorization_endpoint).toBe(
-        "https://api.notion.com/v1/oauth/authorize"
-      );
+      expect(endpoints.authorization_endpoint).toBe("https://api.notion.com/v1/oauth/authorize");
       expect(endpoints.token_endpoint).toBe("https://api.notion.com/v1/oauth/token");
       expect(endpoints.registration_endpoint).toBe("https://api.notion.com/v1/oauth/register");
 
@@ -188,9 +186,9 @@ describe("Notion OAuth Primitives", () => {
         json: async () => ({ error: "invalid_redirect_uri" }),
       });
 
-      await expect(
-        registerNotionClient(registrationEndpoint, redirectUri)
-      ).rejects.toThrow("Client registration failed: 400");
+      await expect(registerNotionClient(registrationEndpoint, redirectUri)).rejects.toThrow(
+        "Client registration failed: 400"
+      );
     });
 
     it("throws when response has no client_id", async () => {
@@ -199,9 +197,9 @@ describe("Notion OAuth Primitives", () => {
         json: async () => ({}),
       });
 
-      await expect(
-        registerNotionClient(registrationEndpoint, redirectUri)
-      ).rejects.toThrow("No client_id in registration response");
+      await expect(registerNotionClient(registrationEndpoint, redirectUri)).rejects.toThrow(
+        "No client_id in registration response"
+      );
     });
   });
 
@@ -250,9 +248,7 @@ describe("Notion OAuth Primitives", () => {
       });
 
       const parsed = new URL(url);
-      expect(parsed.origin + parsed.pathname).toBe(
-        "https://api.notion.com/v1/oauth/authorize"
-      );
+      expect(parsed.origin + parsed.pathname).toBe("https://api.notion.com/v1/oauth/authorize");
       expect(parsed.searchParams.get("client_id")).toBe("client-123");
       expect(parsed.searchParams.get("redirect_uri")).toBe("myapp://callback");
       expect(parsed.searchParams.get("response_type")).toBe("code");
@@ -358,9 +354,7 @@ describe("Notion OAuth Primitives", () => {
         json: async () => ({ error: "invalid_grant" }),
       });
 
-      await expect(exchangeNotionCode(baseParams)).rejects.toThrow(
-        "Token exchange failed: 400"
-      );
+      await expect(exchangeNotionCode(baseParams)).rejects.toThrow("Token exchange failed: 400");
     });
 
     it("throws when no access_token in response", async () => {
@@ -369,9 +363,7 @@ describe("Notion OAuth Primitives", () => {
         json: async () => ({ token_type: "bearer" }),
       });
 
-      await expect(exchangeNotionCode(baseParams)).rejects.toThrow(
-        "No access token in response"
-      );
+      await expect(exchangeNotionCode(baseParams)).rejects.toThrow("No access token in response");
     });
   });
 

@@ -90,6 +90,22 @@ export interface NotionRefreshTokenParams {
   clientId: string;
 }
 
+// ── Raw API response shapes (internal) ──
+
+/** Shape of the registration endpoint JSON response. */
+interface RegistrationResponse {
+  client_id?: string;
+  client_secret?: string;
+}
+
+/** Shape of the token endpoint JSON response. */
+interface TokenEndpointResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+}
+
 // ============================================================================
 // PKCE UTILITIES
 // ============================================================================
@@ -211,13 +227,13 @@ export async function registerNotionClient(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    const errorData: unknown = await response.json().catch(() => ({}));
     throw new Error(
       `Client registration failed: ${response.status} - ${JSON.stringify(errorData)}`
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as RegistrationResponse;
 
   if (!data.client_id) {
     throw new Error("No client_id in registration response");
@@ -299,13 +315,11 @@ export async function exchangeNotionCode(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      `Token exchange failed: ${response.status} - ${JSON.stringify(errorData)}`
-    );
+    const errorData: unknown = await response.json().catch(() => ({}));
+    throw new Error(`Token exchange failed: ${response.status} - ${JSON.stringify(errorData)}`);
   }
 
-  const tokenData = await response.json();
+  const tokenData = (await response.json()) as TokenEndpointResponse;
 
   if (!tokenData.access_token) {
     throw new Error("No access token in response");
@@ -351,13 +365,11 @@ export async function refreshNotionAccessToken(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      `Token refresh failed: ${response.status} - ${JSON.stringify(errorData)}`
-    );
+    const errorData: unknown = await response.json().catch(() => ({}));
+    throw new Error(`Token refresh failed: ${response.status} - ${JSON.stringify(errorData)}`);
   }
 
-  const tokenData = await response.json();
+  const tokenData = (await response.json()) as TokenEndpointResponse;
 
   if (!tokenData.access_token) {
     throw new Error("No access token in refresh response");
