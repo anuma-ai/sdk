@@ -2,9 +2,9 @@
 
 > **createGitHubTools**(`getAccessToken`: () => `string` | `null`, `requestGitHubAccess`: () => `Promise`<`string`>): `ToolConfig`\[]
 
-Defined in: [src/tools/github.ts:1227](https://github.com/anuma-ai/sdk/blob/main/src/tools/github.ts#1227)
+Defined in: [src/tools/github.ts:207](https://github.com/anuma-ai/sdk/blob/main/src/tools/github.ts#207)
 
-Create all GitHub tools for the chat system.
+Create GitHub tools for the chat system.
 
 ## Parameters
 
