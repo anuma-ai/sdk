@@ -2,7 +2,7 @@
 
 > **getAppFileMapOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`): `Promise`<`Record`<`string`, `string`>>
 
-Defined in: [src/lib/db/appFiles/operations.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#95)
+Defined in: [src/lib/db/appFiles/operations.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#93)
 
 Get all files for a conversation as a path → content map (for sending to the runner).
 

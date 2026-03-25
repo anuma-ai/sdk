@@ -81,25 +81,27 @@ export async function updateSavedToolOp(
   uniqueId: string,
   opts: UpdateSavedToolOptions
 ): Promise<boolean> {
+  let tool: SavedTool;
   try {
-    const tool = await ctx.savedToolsCollection.find(uniqueId);
-    const now = Date.now();
-
-    await ctx.database.write(async () => {
-      await tool.update((t) => {
-        if (opts.name !== undefined) t._setRaw("name", opts.name);
-        if (opts.displayName !== undefined) t._setRaw("display_name", opts.displayName);
-        if (opts.description !== undefined) t._setRaw("description", opts.description);
-        if (opts.parameters !== undefined) t._setRaw("parameters", JSON.stringify(opts.parameters));
-        if (opts.html !== undefined) t._setRaw("html", opts.html);
-        t._setRaw("updated_at", now);
-      });
-    });
-
-    return true;
+    tool = await ctx.savedToolsCollection.find(uniqueId);
   } catch {
     return false;
   }
+
+  const now = Date.now();
+
+  await ctx.database.write(async () => {
+    await tool.update((t) => {
+      if (opts.name !== undefined) t._setRaw("name", opts.name);
+      if (opts.displayName !== undefined) t._setRaw("display_name", opts.displayName);
+      if (opts.description !== undefined) t._setRaw("description", opts.description);
+      if (opts.parameters !== undefined) t._setRaw("parameters", JSON.stringify(opts.parameters));
+      if (opts.html !== undefined) t._setRaw("html", opts.html);
+      t._setRaw("updated_at", now);
+    });
+  });
+
+  return true;
 }
 
 /** Soft-delete a saved tool. Returns true if the record was found and deleted. */
@@ -107,19 +109,21 @@ export async function deleteSavedToolOp(
   ctx: SavedToolOperationsContext,
   uniqueId: string
 ): Promise<boolean> {
+  let tool: SavedTool;
   try {
-    const tool = await ctx.savedToolsCollection.find(uniqueId);
-    const now = Date.now();
-
-    await ctx.database.write(async () => {
-      await tool.update((t) => {
-        t._setRaw("is_deleted", true);
-        t._setRaw("updated_at", now);
-      });
-    });
-
-    return true;
+    tool = await ctx.savedToolsCollection.find(uniqueId);
   } catch {
     return false;
   }
+
+  const now = Date.now();
+
+  await ctx.database.write(async () => {
+    await tool.update((t) => {
+      t._setRaw("is_deleted", true);
+      t._setRaw("updated_at", now);
+    });
+  });
+
+  return true;
 }

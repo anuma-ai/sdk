@@ -2,7 +2,7 @@
 
 > **deleteAllAppFilesOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`): `Promise`<`void`>
 
-Defined in: [src/lib/db/appFiles/operations.ts:126](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#126)
+Defined in: [src/lib/db/appFiles/operations.ts:124](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#124)
 
 Delete all files for a conversation.
 

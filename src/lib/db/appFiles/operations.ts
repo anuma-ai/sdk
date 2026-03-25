@@ -39,21 +39,19 @@ export async function putAppFileOp(
   const normalized = normalizePath(path);
   const now = Date.now();
 
-  const existing = await ctx.appFilesCollection
-    .query(Q.where("conversation_id", conversationId), Q.where("path", normalized))
-    .fetch();
+  const result = await ctx.database.write(async () => {
+    const existing = await ctx.appFilesCollection
+      .query(Q.where("conversation_id", conversationId), Q.where("path", normalized))
+      .fetch();
 
-  if (existing.length > 0) {
-    await ctx.database.write(async () => {
+    if (existing.length > 0) {
       await existing[0].update((f) => {
         f._setRaw("content", content);
         f._setRaw("updated_at", now);
       });
-    });
-    return appFileToStored(existing[0]);
-  }
+      return existing[0];
+    }
 
-  const created = await ctx.database.write(async () => {
     return await ctx.appFilesCollection.create((f) => {
       f._setRaw("conversation_id", conversationId);
       f._setRaw("path", normalized);
@@ -62,7 +60,7 @@ export async function putAppFileOp(
     });
   });
 
-  return appFileToStored(created);
+  return appFileToStored(result);
 }
 
 /** Read a single file by conversationId and path. Returns null if not found. */
@@ -134,8 +132,7 @@ export async function deleteAllAppFilesOp(
   if (results.length === 0) return;
 
   await ctx.database.write(async () => {
-    for (const file of results) {
-      await file.destroyPermanently();
-    }
+    const batch = results.map((file) => file.prepareDestroyPermanently());
+    await ctx.database.batch(...batch);
   });
 }

@@ -2,7 +2,7 @@
 
 > **getAppFilesOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`): `Promise`<[`StoredAppFile`](../interfaces/StoredAppFile.md)\[]>
 
-Defined in: [src/lib/db/appFiles/operations.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#83)
+Defined in: [src/lib/db/appFiles/operations.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#81)
 
 List all files for a conversation.
 

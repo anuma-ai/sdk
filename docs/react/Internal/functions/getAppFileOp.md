@@ -2,7 +2,7 @@
 
 > **getAppFileOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`, `path`: `string`): `Promise`<[`StoredAppFile`](../interfaces/StoredAppFile.md) | `null`>
 
-Defined in: [src/lib/db/appFiles/operations.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#69)
+Defined in: [src/lib/db/appFiles/operations.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#67)
 
 Read a single file by conversationId and path. Returns null if not found.
 

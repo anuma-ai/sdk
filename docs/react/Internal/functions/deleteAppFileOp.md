@@ -2,7 +2,7 @@
 
 > **deleteAppFileOp**(`ctx`: [`AppFileOperationsContext`](../interfaces/AppFileOperationsContext.md), `conversationId`: `string`, `path`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/appFiles/operations.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#106)
+Defined in: [src/lib/db/appFiles/operations.ts:104](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#104)
 
 Delete a single file by conversationId and path.
 
