@@ -1,8 +1,8 @@
 /**
  * Vault Benchmark Dataset
  *
- * ~80 realistic vault memories across Personal, Work, and Interests folders,
- * plus ~60 queries spanning five retrieval challenge categories.
+ * ~108 realistic vault memories across Personal, Work, and Interests folders,
+ * plus ~99 queries spanning six retrieval challenge categories.
  *
  * Categories:
  *   1. direct    — straightforward recall, query closely matches stored content
@@ -483,6 +483,191 @@ export const VAULT_MEMORIES: VaultMemoryEntry[] = [
     createdAt: "2025-12-01T10:14:00Z",
   },
 
+  // ── Personal (continued, 10 more) ────────────────────────────────────
+  {
+    id: "p21",
+    content: "Has a mild peanut intolerance — not an allergy, just gets stomach cramps",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:18:00Z",
+  },
+  {
+    id: "p22",
+    content: "Takes melatonin to help with sleep, usually in bed by 11pm",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:19:00Z",
+  },
+  {
+    id: "p23",
+    content: "Has a brother named Ethan who works in finance in New York",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:20:00Z",
+  },
+  {
+    id: "p24",
+    content: "Drives a 2021 Tesla Model 3, mostly for weekend trips",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:21:00Z",
+  },
+  {
+    id: "p25",
+    content: "Vegetarian since 2020, but eats fish occasionally",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:22:00Z",
+  },
+  {
+    id: "p26",
+    content: "Graduated from UC Berkeley with a BS in Computer Science in 2014",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:23:00Z",
+  },
+  {
+    id: "p27",
+    content: "Wears glasses, prescription is -3.5 in both eyes",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:24:00Z",
+  },
+  // Temporal pair: changed coffee habit
+  {
+    id: "p28",
+    content: "Drinks three cups of coffee a day, prefers pour-over",
+    folder: "Personal",
+    createdAt: "2025-04-01T10:00:00Z",
+  },
+  {
+    id: "p29",
+    content: "Switched from coffee to matcha in September 2025 for health reasons",
+    folder: "Personal",
+    createdAt: "2025-09-20T10:00:00Z",
+  },
+  {
+    id: "p30",
+    content: "Birthday tradition is to take the day off and go hiking with Jordan",
+    folder: "Personal",
+    createdAt: "2025-12-01T10:25:00Z",
+  },
+
+  // ── Work (continued, 14 more) ───────────────────────────────────────
+  {
+    id: "w37",
+    content:
+      "Team uses Slack for internal comms, with a #deployments channel for release notifications",
+    folder: "Work",
+    createdAt: "2025-12-01T10:30:00Z",
+  },
+  {
+    id: "w38",
+    content: "OpenTelemetry is being evaluated for distributed tracing but not yet in production",
+    folder: "Work",
+    createdAt: "2025-12-01T10:31:00Z",
+  },
+  {
+    id: "w39",
+    content: "API documentation is auto-generated from OpenAPI specs using Redoc",
+    folder: "Work",
+    createdAt: "2025-12-01T10:32:00Z",
+  },
+  {
+    id: "w40",
+    content: "The team has a strict no-hotfix policy — all changes go through the normal PR flow",
+    folder: "Work",
+    createdAt: "2025-12-01T10:33:00Z",
+  },
+  {
+    id: "w41",
+    content: "Database connection pooling uses PgBouncer with a max of 50 connections per service",
+    folder: "Work",
+    createdAt: "2025-12-01T10:34:00Z",
+  },
+  {
+    id: "w42",
+    content: "Background jobs run on BullMQ backed by the same Redis instance used for caching",
+    folder: "Work",
+    createdAt: "2025-12-01T10:35:00Z",
+  },
+  {
+    id: "w43",
+    content: "Alex is the tech lead for the Ingest team, responsible for the data pipeline",
+    folder: "Work",
+    createdAt: "2025-12-01T10:36:00Z",
+  },
+  {
+    id: "w44",
+    content: "The product has around 50k monthly active users as of December 2025",
+    folder: "Work",
+    createdAt: "2025-12-01T10:37:00Z",
+  },
+  // Temporal pair: changed primary language
+  {
+    id: "w45",
+    content:
+      "The data pipeline was originally written in Python using Celery for task orchestration",
+    folder: "Work",
+    createdAt: "2025-02-01T10:00:00Z",
+  },
+  {
+    id: "w46",
+    content: "Rewrote the data pipeline from Python/Celery to Go in Q3 2025 for better throughput",
+    folder: "Work",
+    createdAt: "2025-09-01T10:00:00Z",
+  },
+  // Temporal pair: changed salary
+  {
+    id: "w47",
+    content: "Base salary is $185,000 with a 15% annual bonus target",
+    folder: "Work",
+    createdAt: "2025-01-15T10:00:00Z",
+  },
+  {
+    id: "w48",
+    content: "Got promoted to Staff Engineer in November 2025, new base salary is $210,000",
+    folder: "Work",
+    createdAt: "2025-11-01T10:00:00Z",
+  },
+  {
+    id: "w49",
+    content: "SLA for the data pipeline is 99.9% uptime with a 5-minute ingestion latency target",
+    folder: "Work",
+    createdAt: "2025-12-01T10:38:00Z",
+  },
+  {
+    id: "w50",
+    content: "The team adopted Conventional Commits in mid-2025 for automated changelog generation",
+    folder: "Work",
+    createdAt: "2025-12-01T10:39:00Z",
+  },
+
+  // ── Interests (continued, 5 more) ──────────────────────────────────
+  {
+    id: "i16",
+    content: "Building a side project: a CLI tool for managing dotfiles across machines",
+    folder: "Interests",
+    createdAt: "2025-12-01T10:15:00Z",
+  },
+  {
+    id: "i17",
+    content: "Completed Advent of Code 2024, all 25 days in Rust",
+    folder: "Interests",
+    createdAt: "2025-12-01T10:16:00Z",
+  },
+  {
+    id: "i18",
+    content: "Volunteers as a mentor at a local coding bootcamp on Saturday mornings",
+    folder: "Interests",
+    createdAt: "2025-12-01T10:17:00Z",
+  },
+  {
+    id: "i19",
+    content: "Recently started learning piano, practicing 30 minutes daily",
+    folder: "Interests",
+    createdAt: "2025-12-01T10:18:00Z",
+  },
+  {
+    id: "i20",
+    content: "Attended Strange Loop 2024 and KubeCon 2025, plans to go to RustConf 2026",
+    folder: "Interests",
+    createdAt: "2025-12-01T10:19:00Z",
+  },
+
   // ── Unfiled (8) ────────────────────────────────────────────────────────
   {
     id: "u01",
@@ -612,6 +797,42 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     expectedIds: ["w25"],
     k: 3,
   },
+  {
+    query: "What car does the user drive?",
+    category: "direct",
+    expectedIds: ["p24"],
+    k: 3,
+  },
+  {
+    query: "Where did the user go to college?",
+    category: "direct",
+    expectedIds: ["p26"],
+    k: 3,
+  },
+  {
+    query: "What is the user's current job title?",
+    category: "direct",
+    expectedIds: ["w48"],
+    k: 3,
+  },
+  {
+    query: "How many monthly active users does the product have?",
+    category: "direct",
+    expectedIds: ["w44"],
+    k: 3,
+  },
+  {
+    query: "What conferences has the user attended?",
+    category: "direct",
+    expectedIds: ["i20"],
+    k: 3,
+  },
+  {
+    query: "What is the data pipeline SLA?",
+    category: "direct",
+    expectedIds: ["w49"],
+    k: 3,
+  },
 
   // ── Paraphrase (12) ────────────────────────────────────────────────────
   {
@@ -685,6 +906,42 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     category: "paraphrase",
     expectedIds: ["i03"],
     k: 5,
+  },
+  {
+    query: "How does the team ensure code changes don't bypass review?",
+    category: "paraphrase",
+    expectedIds: ["w40"],
+    k: 3,
+  },
+  {
+    query: "What does the user do to give back to the community?",
+    category: "paraphrase",
+    expectedIds: ["i18"],
+    k: 5,
+  },
+  {
+    query: "How are background tasks processed?",
+    category: "paraphrase",
+    expectedIds: ["w42"],
+    k: 3,
+  },
+  {
+    query: "What commit message convention does the team follow?",
+    category: "paraphrase",
+    expectedIds: ["w50"],
+    k: 3,
+  },
+  {
+    query: "How is the API documented?",
+    category: "paraphrase",
+    expectedIds: ["w39"],
+    k: 3,
+  },
+  {
+    query: "What musical instrument is the user learning?",
+    category: "paraphrase",
+    expectedIds: ["i19"],
+    k: 3,
   },
 
   // ── Specificity (12) ───────────────────────────────────────────────────
@@ -772,6 +1029,41 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     mustNotRankAbove: ["i04"], // follows TS ecosystem ≠ maintains OSS
     k: 3,
   },
+  {
+    query: "What is the user's food allergy, not intolerance?",
+    category: "specificity",
+    expectedIds: ["p08"],
+    mustNotRankAbove: ["p21"], // peanut intolerance is not the same as shellfish allergy
+    k: 3,
+  },
+  {
+    query: "What database connection pooling does the team use?",
+    category: "specificity",
+    expectedIds: ["w41"],
+    mustNotRankAbove: ["w03"], // Postgres is the DB, not the pooling layer
+    k: 3,
+  },
+  {
+    query: "What is the user's side project?",
+    category: "specificity",
+    expectedIds: ["i16"],
+    mustNotRankAbove: ["i13"], // OSS CLI tool is a maintained project, not the side project
+    k: 3,
+  },
+  {
+    query: "What queue system handles async jobs?",
+    category: "specificity",
+    expectedIds: ["w42"],
+    mustNotRankAbove: ["w04"], // Redis is the backing store, not the queue system itself
+    k: 3,
+  },
+  {
+    query: "What tracing solution is the team evaluating?",
+    category: "specificity",
+    expectedIds: ["w38"],
+    mustNotRankAbove: ["w10"], // Datadog is current monitoring, not the tracing evaluation
+    k: 3,
+  },
 
   // ── Temporal / update (12) ─────────────────────────────────────────────
   {
@@ -854,6 +1146,48 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     expectedIds: ["w36"],
     k: 3,
   },
+  {
+    query: "What does the user drink in the morning?",
+    category: "temporal",
+    expectedIds: ["p29"],
+    mustNotRankAbove: ["p28"], // coffee habit is outdated, switched to matcha
+    k: 3,
+  },
+  {
+    query: "What beverage does the user prefer now?",
+    category: "temporal",
+    expectedIds: ["p29"],
+    mustNotRankAbove: ["p28"],
+    k: 3,
+  },
+  {
+    query: "What is the data pipeline built with?",
+    category: "temporal",
+    expectedIds: ["w46"],
+    mustNotRankAbove: ["w45"], // Python/Celery is outdated
+    k: 3,
+  },
+  {
+    query: "What language is the data pipeline written in?",
+    category: "temporal",
+    expectedIds: ["w46"],
+    mustNotRankAbove: ["w45"],
+    k: 3,
+  },
+  {
+    query: "What is the user's current salary?",
+    category: "temporal",
+    expectedIds: ["w48"],
+    mustNotRankAbove: ["w47"], // old salary before promotion
+    k: 3,
+  },
+  {
+    query: "What is Alex's compensation?",
+    category: "temporal",
+    expectedIds: ["w48"],
+    mustNotRankAbove: ["w47"],
+    k: 3,
+  },
 
   // ── Composite (12) ─────────────────────────────────────────────────────
   {
@@ -928,6 +1262,30 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     expectedIds: ["w12", "w13", "w36"],
     k: 5,
   },
+  {
+    query: "What health-related things should I know about the user?",
+    category: "composite",
+    expectedIds: ["p08", "p25"],
+    k: 5,
+  },
+  {
+    query: "What does the user's data pipeline look like?",
+    category: "composite",
+    expectedIds: ["w46", "w49"],
+    k: 5,
+  },
+  {
+    query: "What is the user's educational and career background?",
+    category: "composite",
+    expectedIds: ["p26", "w01", "w48"],
+    k: 5,
+  },
+  {
+    query: "What side projects and open source work does the user do?",
+    category: "composite",
+    expectedIds: ["i13", "i16"],
+    k: 5,
+  },
 
   // ── Hard negatives (8) ───────────────────────────────────────────────
   {
@@ -978,6 +1336,37 @@ export const BENCHMARK_QUERIES: BenchmarkQuery[] = [
     query: "Does the user prefer writing long-form documentation?",
     category: "hard_negatives",
     expectedIds: ["u02"], // prefers bullet-point summaries over long paragraphs
+    k: 3,
+  },
+  {
+    query: "Can the user eat peanuts?",
+    category: "hard_negatives",
+    expectedIds: ["p21"], // peanut intolerance, not allergy
+    mustNotRankAbove: ["p08"], // shellfish allergy is a different issue
+    k: 3,
+  },
+  {
+    query: "Is the user a manager?",
+    category: "hard_negatives",
+    expectedIds: ["w43", "w48"], // tech lead / staff engineer — not a manager but closest matches
+    k: 5,
+  },
+  {
+    query: "What did the user use before switching to matcha?",
+    category: "hard_negatives",
+    expectedIds: ["p28"], // the old coffee habit, before the switch
+    k: 3,
+  },
+  {
+    query: "Should I schedule a meeting with the user at 3pm PT?",
+    category: "hard_negatives",
+    expectedIds: ["p06", "u03"], // morning person + timezone — inference about availability
+    k: 5,
+  },
+  {
+    query: "Can the user help review a Go service?",
+    category: "hard_negatives",
+    expectedIds: ["w02"], // writes Go for performance-critical services
     k: 3,
   },
 ];

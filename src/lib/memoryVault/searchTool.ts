@@ -80,7 +80,7 @@ const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
  * happens. A value around 0.5–0.8 boosts the newer memory while keeping
  * the older one in contention for recall.
  */
-const SUPERSESSION_BOOST_FACTOR = 0.6;
+const SUPERSESSION_BOOST_FACTOR = 0.8;
 
 /**
  * Supersession adjustment for a single pair. Returns the score delta to
@@ -97,40 +97,52 @@ function supersessionDelta(olderScore: number, newerScore: number): number {
  * outranks the newer one, they form a supersession pair whose scores
  * should be adjusted via boost/penalty.
  *
+ * Candidate pairs are scored by confidence (pairwise similarity * time gap
+ * weight) and assigned greedily highest-confidence-first so that the
+ * strongest supersession signals aren't blocked by weaker pairs that
+ * happen to iterate first.
+ *
  * Returns an array of [oldId, newId] pairs to adjust.
  */
 function findSupersessionPairs(
   candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
 ): Array<[string, string]> {
-  const pairs: Array<[string, string]> = [];
-  const claimed = new Set<string>();
+  // Collect all valid pairs with confidence scores
+  const allPairs: Array<{ oldId: string; newId: string; confidence: number }> = [];
+
   for (let i = 0; i < candidates.length; i++) {
     for (let j = i + 1; j < candidates.length; j++) {
       const a = candidates[i];
       const b = candidates[j];
       if (!a.updatedAt || !b.updatedAt) continue;
-      // Each ID may only participate in one pair to avoid conflicting adjustments
-      if (claimed.has(a.id) || claimed.has(b.id)) continue;
 
       const sim = cosineSimilarity(a.embedding, b.embedding);
       if (sim < SUPERSESSION_SIMILARITY_THRESHOLD) continue;
 
-      // Require a meaningful time gap — memories created close together
-      // are likely complementary, not superseding
       const gap = Math.abs(a.updatedAt.getTime() - b.updatedAt.getTime());
       if (gap < SUPERSESSION_MIN_AGE_GAP_MS) continue;
 
-      // Determine which is older and which has higher rank (lower index = higher rank)
       const [older, newer] = a.updatedAt < b.updatedAt ? [a, b] : [b, a];
-      // Only adjust if the older item outranks the newer one
-      if (older.similarity > newer.similarity) {
-        pairs.push([older.id, newer.id]);
-        claimed.add(older.id);
-        claimed.add(newer.id);
-      }
+      if (older.similarity <= newer.similarity) continue;
+
+      // Higher pairwise similarity + larger time gap = more confident supersession
+      const gapDays = gap / (24 * 60 * 60 * 1000);
+      const confidence = sim * Math.min(gapDays / 30, 3);
+      allPairs.push({ oldId: older.id, newId: newer.id, confidence });
     }
   }
-  return pairs;
+
+  // Greedy assignment: highest confidence first, each ID used at most once
+  allPairs.sort((a, b) => b.confidence - a.confidence);
+  const claimed = new Set<string>();
+  const result: Array<[string, string]> = [];
+  for (const pair of allPairs) {
+    if (claimed.has(pair.oldId) || claimed.has(pair.newId)) continue;
+    result.push([pair.oldId, pair.newId]);
+    claimed.add(pair.oldId);
+    claimed.add(pair.newId);
+  }
+  return result;
 }
 
 /**
