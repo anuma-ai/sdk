@@ -1,15 +1,16 @@
 /**
  * Vault Benchmark Dataset
  *
- * ~108 realistic vault memories across Personal, Work, and Interests folders,
- * plus ~99 queries spanning six retrieval challenge categories.
+ * 108 realistic vault memories across Personal, Work, and Interests folders,
+ * plus 100 queries spanning six retrieval challenge categories.
  *
  * Categories:
- *   1. direct    — straightforward recall, query closely matches stored content
- *   2. paraphrase — query uses completely different wording than the memory
- *   3. specificity — multiple similar memories compete, only one is correct
- *   4. temporal   — an older memory was superseded by a newer one
- *   5. composite  — answer requires surfacing multiple related memories
+ *   1. direct         — straightforward recall, query closely matches stored content
+ *   2. paraphrase     — query uses completely different wording than the memory
+ *   3. specificity    — multiple similar memories compete, only one is correct
+ *   4. temporal       — an older memory was superseded by a newer one
+ *   5. composite      — answer requires surfacing multiple related memories
+ *   6. hard_negatives — plausible distractors that should not outrank the correct answer
  */
 
 export interface VaultMemoryEntry {
