@@ -190,7 +190,7 @@ export async function discoverNotionOAuthEndpoints(): Promise<NotionOAuthEndpoin
     return (await metadataResponse.json()) as NotionOAuthEndpoints;
   } catch (err) {
     // Discovery failed — return hardcoded fallback endpoints.
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
+    if ((globalThis as Record<string, unknown>).__DEV__) {
       console.warn("[notion-primitives] OAuth discovery failed, using fallbacks:", err);
     }
     return {
