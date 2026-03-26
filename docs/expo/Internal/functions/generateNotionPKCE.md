@@ -2,7 +2,7 @@
 
 > **generateNotionPKCE**(): `Promise`<[`NotionPKCEChallenge`](../interfaces/NotionPKCEChallenge.md)>
 
-Defined in: [src/lib/auth/notion-primitives.ts:260](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#260)
+Defined in: [src/lib/auth/notion-primitives.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#267)
 
 Generate a fresh PKCE challenge (code verifier + code challenge + state).
 

@@ -2,7 +2,7 @@
 
 > **refreshNotionAccessToken**(`params`: [`NotionRefreshTokenParams`](../interfaces/NotionRefreshTokenParams.md)): `Promise`<[`NotionTokenResponse`](../interfaces/NotionTokenResponse.md)>
 
-Defined in: [src/lib/auth/notion-primitives.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#352)
+Defined in: [src/lib/auth/notion-primitives.ts:359](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion-primitives.ts#359)
 
 Refresh an access token using a refresh token.
 
