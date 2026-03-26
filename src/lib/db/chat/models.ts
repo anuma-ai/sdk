@@ -46,7 +46,7 @@ export class Message extends Model {
   @text("thinking") thinking?: string;
   @text("parent_message_id") parentMessageId?: string;
   @text("feedback") feedback?: MessageFeedback;
-  @json("tool_call_events", (raw: unknown) => (raw as LlmapiToolCallEvent[]) ?? [])
+  @json("tool_call_events", (raw: unknown) => raw as LlmapiToolCallEvent[])
   toolCallEvents?: LlmapiToolCallEvent[];
 }
 

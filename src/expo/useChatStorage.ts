@@ -132,7 +132,7 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
     // 1. Assistant message that decided to call tools (no text content)
     messages.push({
       role: stored.role,
-      content: [{ type: "text", text: "" }],
+      content: undefined,
       tool_calls: stored.toolCallEvents.map((event) => ({
         id: event.id,
         type: "function",
@@ -1086,20 +1086,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Collect tool call event IDs already stored on earlier messages so we can
       // deduplicate the backend's accumulated tool_call_events later.
+      // This must run unconditionally — even when includeHistory is false, the
+      // backend still returns accumulated events across the entire conversation.
+      const storedMessages = await getMessages(convId);
       const knownToolCallEventIds = new Set<string>();
+      for (const msg of storedMessages) {
+        if (msg.toolCallEvents) {
+          for (const evt of msg.toolCallEvents) {
+            if (evt.id) knownToolCallEventIds.add(evt.id);
+          }
+        }
+      }
 
       // Include history if requested
       if (includeHistory) {
-        const storedMessages = await getMessages(convId);
-
-        // Track tool call event IDs from prior messages
-        for (const msg of storedMessages) {
-          if (msg.toolCallEvents) {
-            for (const evt of msg.toolCallEvents) {
-              if (evt.id) knownToolCallEventIds.add(evt.id);
-            }
-          }
-        }
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
