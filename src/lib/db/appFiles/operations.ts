@@ -18,7 +18,7 @@ function normalizePath(path: string): string {
     .split("/")
     .reduce<string[]>((acc, seg) => {
       if (seg === "..") acc.pop();
-      else if (seg !== ".") acc.push(seg);
+      else if (seg !== "." && seg !== "") acc.push(seg);
       return acc;
     }, [])
     .join("/");
