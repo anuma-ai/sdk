@@ -1426,7 +1426,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
       const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
-        (evt) => evt.id != null && !knownToolCallEventIds.has(evt.id)
+        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
       );
 
       // Resolve image model: prefer user-provided, fall back to MCP tool response
