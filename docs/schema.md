@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v24**
+Current version: **v26**
 
 ```mermaid
 graph LR
@@ -22,6 +22,8 @@ graph LR
 - [vault_folders](#vault_folders)
 - [conversation_summaries](#conversation_summaries)
 - [media](#media)
+- [app_files](#app_files)
+- [saved_tools](#saved_tools)
 
 ## history
 
@@ -149,10 +151,36 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
+## app_files
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `conversation_id` | string | ✓ |  |
+| `path` | string |  |  |
+| `content` | string |  |  |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number |  |  |
+
+## saved_tools
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `name` | string |  |  |
+| `display_name` | string |  |  |
+| `description` | string |  |  |
+| `parameters` | string |  |  |
+| `html` | string |  |  |
+| `conversation_id` | string |  | ✓ |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number |  |  |
+| `is_deleted` | boolean | ✓ |  |
+
 ## Migration History
 
 | Version | Changes |
 |---------|---------|
+| v26 | Added `app_files` table |
+| v25 | Added `saved_tools` table |
 | v24 | Added `context` to `vault_folders` |
 | v23 | Added `conversation_summaries` table |
 | v22 | Added `is_system` to `vault_folders` |
