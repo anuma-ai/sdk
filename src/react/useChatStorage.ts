@@ -424,10 +424,11 @@ async function storedToLlmapiMessage(
     }
 
     // 3. Assistant message with the final text response (post-tool).
-    // Strip image markdown AND plain R2 URLs so the model doesn't echo previous images
-    // in subsequent turns (which causes duplicate images and URL streaming).
+    // Strip R2-hosted image markdown AND plain R2 URLs so the model doesn't echo previous
+    // images in subsequent turns (which causes duplicate images and URL streaming).
+    // Only strips R2 URLs — external image references are preserved.
     const postToolText = textContent
-      .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+      .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
       .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
@@ -2709,7 +2710,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // the entire conversation. Filter to only new events from this turn so we don't
       // re-extract images (or other artifacts) that already belong to earlier messages.
       const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
-        (evt) => !evt.id || !knownToolCallEventIds.has(evt.id)
+        (evt) => evt.id != null && !knownToolCallEventIds.has(evt.id)
       );
 
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
