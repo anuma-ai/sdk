@@ -2301,7 +2301,6 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           messages,
           summarySystemMessage
         );
-
       } else {
         // Hoist system messages to the front even without history
         messagesToSend = assembleMessagesWithHistory([], messages);
@@ -2715,9 +2714,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const extractedSources = extractSourcesFromToolCallEvents(
-        currentTurnToolCallEvents
-      ).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
+      const extractedSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
+        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
+      );
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");

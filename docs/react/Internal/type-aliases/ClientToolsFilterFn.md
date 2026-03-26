@@ -2,7 +2,7 @@
 
 > **ClientToolsFilterFn** = (`embeddings`: `number`\[] | `number`\[]\[] | `null`, `tools`: [`LlmapiChatCompletionTool`](../../../client/Internal/type-aliases/LlmapiChatCompletionTool.md)\[]) => `string`\[]
 
-Defined in: [src/lib/db/chat/types.ts:45](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#45)
+Defined in: [src/lib/db/chat/types.ts:46](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#46)
 
 Function type for dynamic client tools filtering based on prompt embeddings.
 Receives the prompt embedding(s) (or null for short messages where no embedding

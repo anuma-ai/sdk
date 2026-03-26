@@ -1,8 +1,8 @@
 # SDK\_SCHEMA\_VERSION
 
-> `const` **SDK\_SCHEMA\_VERSION**: `24` = `24`
+> `const` **SDK\_SCHEMA\_VERSION**: `25` = `25`
 
-Defined in: [src/lib/db/schema.ts:47](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#47)
+Defined in: [src/lib/db/schema.ts:48](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#48)
 
 Current combined schema version for all SDK storage modules.
 
@@ -31,3 +31,4 @@ Version history:
 * v22: Added is\_system column to vault\_folders for default system folders
 * v23: Added conversation\_summaries table for progressive history summarization
 * v24: Added context column to vault\_folders for LLM-generated folder summaries
+* v25: Added tool\_call\_events column to history for reconstructing tool call history

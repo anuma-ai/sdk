@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v24**
+Current version: **v25**
 
 ```mermaid
 graph LR
@@ -49,6 +49,7 @@ graph LR
 | `thinking` | string |  | ✓ |
 | `parent_message_id` | string |  | ✓ |
 | `feedback` | string |  | ✓ |
+| `tool_call_events` | string |  | ✓ |
 
 ## conversations
 
@@ -153,6 +154,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v25 | Added `tool_call_events` to `history` |
 | v24 | Added `context` to `vault_folders` |
 | v23 | Added `conversation_summaries` table |
 | v22 | Added `is_system` to `vault_folders` |
