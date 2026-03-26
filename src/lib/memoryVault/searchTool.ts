@@ -57,18 +57,93 @@ interface EmbeddedItem {
   id: string;
   content: string;
   embedding: number[];
+  /** Last update timestamp — used for supersession detection. */
+  updatedAt?: Date;
+}
+
+/**
+ * Minimum pairwise cosine similarity between two memories for the older
+ * one to be considered superseded by the newer one.
+ */
+const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
+
+/**
+ * Minimum time gap (in milliseconds) between two memories for supersession
+ * to apply. Memories created close together are likely complementary, not
+ * superseding. Default: 30 days.
+ */
+const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * How much of the score gap to transfer from the older memory to the newer
+ * one. At 1.0 this is equivalent to a full swap; at 0.0 no adjustment
+ * happens. A value around 0.5–0.8 boosts the newer memory while keeping
+ * the older one in contention for recall.
+ */
+const SUPERSESSION_BOOST_FACTOR = 0.6;
+
+/**
+ * Supersession adjustment for a single pair. Returns the score delta to
+ * add to the newer item (and subtract from the older item).
+ */
+function supersessionDelta(olderScore: number, newerScore: number): number {
+  const gap = olderScore - newerScore;
+  return gap * SUPERSESSION_BOOST_FACTOR;
+}
+
+/**
+ * Find supersession pairs among scored candidates. When two items have
+ * pairwise embedding similarity above the threshold and the older one
+ * outranks the newer one, they form a supersession pair whose scores
+ * should be adjusted via boost/penalty.
+ *
+ * Returns an array of [oldId, newId] pairs to adjust.
+ */
+function findSupersessionPairs(
+  candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
+): Array<[string, string]> {
+  const pairs: Array<[string, string]> = [];
+  const claimed = new Set<string>();
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i];
+      const b = candidates[j];
+      if (!a.updatedAt || !b.updatedAt) continue;
+      // Each ID may only participate in one pair to avoid conflicting adjustments
+      if (claimed.has(a.id) || claimed.has(b.id)) continue;
+
+      const sim = cosineSimilarity(a.embedding, b.embedding);
+      if (sim < SUPERSESSION_SIMILARITY_THRESHOLD) continue;
+
+      // Require a meaningful time gap — memories created close together
+      // are likely complementary, not superseding
+      const gap = Math.abs(a.updatedAt.getTime() - b.updatedAt.getTime());
+      if (gap < SUPERSESSION_MIN_AGE_GAP_MS) continue;
+
+      // Determine which is older and which has higher rank (lower index = higher rank)
+      const [older, newer] = a.updatedAt < b.updatedAt ? [a, b] : [b, a];
+      // Only adjust if the older item outranks the newer one
+      if (older.similarity > newer.similarity) {
+        pairs.push([older.id, newer.id]);
+        claimed.add(older.id);
+        claimed.add(newer.id);
+      }
+    }
+  }
+  return pairs;
 }
 
 /**
  * Pure ranking function: scores, filters, and ranks items using cosine
- * similarity. This contains no database or I/O dependencies, making it
- * testable and usable in benchmarks.
+ * similarity with supersession detection. When items include `updatedAt`
+ * timestamps, pairs of highly similar items are checked for supersession —
+ * a fraction of the score gap is transferred from the older item to the
+ * newer one, boosting the replacement without fully evicting the original.
  *
- * @param query - The search query text (unused in semantic-only mode, reserved for future hybrid search)
  * @param queryEmbedding - Pre-computed embedding for the query
  * @param items - Items with pre-computed embeddings to rank
  * @param options - Ranking options (limit, minSimilarity)
- * @returns Ranked results sorted by descending cosine similarity
+ * @returns Ranked results sorted by descending similarity
  */
 export function rankVaultMemories(
   _query: string,
@@ -85,13 +160,50 @@ export function rankVaultMemories(
   const scored = items.map((item) => ({
     uniqueId: item.id,
     content: item.content,
+    embedding: item.embedding,
+    updatedAt: item.updatedAt,
     similarity: cosineSimilarity(queryEmbedding, item.embedding),
   }));
 
-  return scored
-    .filter((r) => r.similarity >= minSimilarity)
-    .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, limit);
+  const filtered = scored.filter((r) => r.similarity >= minSimilarity);
+  filtered.sort((a, b) => b.similarity - a.similarity);
+
+  // Check top candidates for supersession — boost newer items and penalize
+  // older ones when they are highly similar and the older one outranks
+  const window = filtered.slice(0, limit * 3);
+  const pairs = findSupersessionPairs(
+    window.map((r) => ({
+      id: r.uniqueId,
+      embedding: r.embedding,
+      updatedAt: r.updatedAt,
+      similarity: r.similarity,
+    }))
+  );
+
+  if (pairs.length > 0) {
+    const scoreMap = new Map(filtered.map((r) => [r.uniqueId, r.similarity]));
+    const itemMap = new Map(filtered.map((r) => [r.uniqueId, r]));
+    for (const [oldId, newId] of pairs) {
+      const oldScore = scoreMap.get(oldId)!;
+      const newScore = scoreMap.get(newId)!;
+      const delta = supersessionDelta(oldScore, newScore);
+      const oldItem = itemMap.get(oldId);
+      const newItem = itemMap.get(newId);
+      if (oldItem && newItem) {
+        oldItem.similarity = oldScore - delta;
+        newItem.similarity = newScore + delta;
+        scoreMap.set(oldId, oldItem.similarity);
+        scoreMap.set(newId, newItem.similarity);
+      }
+    }
+    filtered.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  return filtered.slice(0, limit).map((r) => ({
+    uniqueId: r.uniqueId,
+    content: r.content,
+    similarity: r.similarity,
+  }));
 }
 
 /**
@@ -243,7 +355,7 @@ async function searchVaultMemoriesWithSize(
   for (const m of memories) {
     const embedding = cache.get(m.content);
     if (embedding) {
-      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding });
+      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
     }
   }
 
