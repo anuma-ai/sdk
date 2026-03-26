@@ -110,6 +110,7 @@ import {
   deleteEncryptedFile,
   extractFileIds,
   extractMCPImageUrls,
+  IMAGE_TOOL_NAMES,
   isOPFSSupported,
   isR2UrlExpired,
   readEncryptedFile,
@@ -255,7 +256,7 @@ async function storedToLlmapiMessage(
   stored: StoredMessage,
   encryptionKey?: CryptoKey,
   resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
-): Promise<LlmapiMessage> {
+): Promise<LlmapiMessage[]> {
   let textContent = stored.content;
 
   // Build a map of fileId -> sourceUrl for replacement
@@ -377,10 +378,71 @@ async function storedToLlmapiMessage(
 
   const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
-  return {
-    role: stored.role,
-    content,
-  };
+  const messages: LlmapiMessage[] = [];
+
+  // For assistant messages with tool call events, reconstruct the tool call chain
+  // so the backend receives proper function_call + function_call_output items.
+  // The chain must be: assistant(tool_calls) → tool(results) → assistant(final text)
+  // because the assistant text is the *post-tool* response that references tool results.
+  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+    // 1. Assistant message that decided to call tools (no text content)
+    messages.push({
+      role: stored.role,
+      content: [{ type: "text", text: "" }],
+      tool_calls: stored.toolCallEvents.map((event) => ({
+        id: event.id,
+        type: "function",
+        function: {
+          name: event.name ?? "",
+          arguments: event.arguments ?? "",
+        },
+      })),
+    });
+
+    // 2. Tool result messages for each event that has output
+    for (const event of stored.toolCallEvents) {
+      if (event.id && event.output !== undefined && event.output !== null) {
+        // For image tools, strip the URL from the output to prevent the model
+        // from echoing previous images and causing duplicate storage in the library.
+        let toolOutput = event.output;
+        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
+          try {
+            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
+            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            toolOutput = JSON.stringify(rest);
+          } catch {
+            // Not JSON — use as-is
+          }
+        }
+
+        messages.push({
+          role: "tool" as LlmapiMessage["role"],
+          tool_call_id: event.id,
+          content: [{ type: "text", text: toolOutput }],
+        });
+      }
+    }
+
+    // 3. Assistant message with the final text response (post-tool).
+    // Strip image markdown AND plain R2 URLs so the model doesn't echo previous images
+    // in subsequent turns (which causes duplicate images and URL streaming).
+    const postToolText = textContent
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+      .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    messages.push({
+      role: stored.role,
+      content: [{ type: "text", text: postToolText }],
+    });
+  } else {
+    messages.push({
+      role: stored.role,
+      content,
+    });
+  }
+
+  return messages;
 }
 
 /**
@@ -2146,11 +2208,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
 
+      // Collect tool call event IDs already stored on earlier messages so we can
+      // deduplicate the backend's accumulated tool_call_events later.
+      const knownToolCallEventIds = new Set<string>();
+
       // Include history if requested
       if (includeHistory) {
         // Get raw messages from database (not transformed for client display)
         // This ensures we have the original placeholders, not blob URLs
         const storedMessages = await getMessagesOp(storageCtx, convId);
+
+        // Track tool call event IDs from prior messages
+        for (const msg of storedMessages) {
+          if (msg.toolCallEvents) {
+            for (const evt of msg.toolCallEvents) {
+              if (evt.id) knownToolCallEventIds.add(evt.id);
+            }
+          }
+        }
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
@@ -2213,17 +2288,20 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
-        const historyMessages = await Promise.all(
-          messagesToConvert.map((msg) =>
-            storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+        const historyMessages = (
+          await Promise.all(
+            messagesToConvert.map((msg) =>
+              storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+            )
           )
-        );
+        ).flat();
 
         messagesToSend = assembleMessagesWithHistory(
           historyMessages,
           messages,
           summarySystemMessage
         );
+
       } else {
         // Hoist system messages to the front even without history
         messagesToSend = assembleMessagesWithHistory([], messages);
@@ -2628,10 +2706,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // Deduplicate tool_call_events: the backend returns accumulated events across
+      // the entire conversation. Filter to only new events from this turn so we don't
+      // re-extract images (or other artifacts) that already belong to earlier messages.
+      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+        (evt) => !evt.id || !knownToolCallEventIds.has(evt.id)
+      );
+
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
       const extractedSources = extractSourcesFromToolCallEvents(
-        responseData.tool_call_events
+        currentTurnToolCallEvents
       ).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
 
       // Clean up extra newlines left after stripping
@@ -2646,7 +2731,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           cleanedContent,
           walletAddress,
           convId,
-          responseData.tool_call_events
+          currentTurnToolCallEvents
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
@@ -2657,7 +2742,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Resolve image model: prefer user-provided, fall back to MCP tool response
       const resolvedImageModel =
-        imageModel || extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
+        imageModel || extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain)[0]?.model;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -2676,6 +2761,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
         // isn't updated. The client-side mergeParentMessageIds handles this on reload.
         parentMessageId: storedUserMessage.uniqueId,
+        toolCallEvents:
+          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
+            ? currentTurnToolCallEvents
+            : undefined,
       };
 
       let storedAssistantMessage: StoredMessage;

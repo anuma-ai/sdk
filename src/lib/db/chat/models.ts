@@ -2,6 +2,7 @@ import { Model } from "@nozbe/watermelondb";
 import { date, field, json, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
 
+import type { LlmapiToolCallEvent } from "../../../client";
 import type {
   ActivityPhase,
   ChatCompletionUsage,
@@ -45,6 +46,8 @@ export class Message extends Model {
   @text("thinking") thinking?: string;
   @text("parent_message_id") parentMessageId?: string;
   @text("feedback") feedback?: MessageFeedback;
+  @json("tool_call_events", (raw: unknown) => (raw as LlmapiToolCallEvent[]) ?? [])
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export class Conversation extends Model {

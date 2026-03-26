@@ -48,10 +48,15 @@ export function extractMCPImageUrls(
     for (const event of toolCallEvents) {
       if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
         try {
-          const output = JSON.parse(event.output || "{}") as { model?: string; url?: string };
-          const { model, url } = output;
-          if (url) {
-            urls.push({ url, model: model || "image" });
+          const output = JSON.parse(event.output || "{}") as {
+            model?: string;
+            imageUrl?: string;
+            url?: string;
+          };
+          // Tool output uses "imageUrl"; also check "url" for backward compatibility
+          const imageUrl = output.imageUrl || output.url;
+          if (imageUrl) {
+            urls.push({ url: imageUrl, model: output.model || "image" });
           }
         } catch {
           // Malformed JSON — skip this event

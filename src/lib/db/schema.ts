@@ -43,8 +43,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v22: Added is_system column to vault_folders for default system folders
  * - v23: Added conversation_summaries table for progressive history summarization
  * - v24: Added context column to vault_folders for LLM-generated folder summaries
+ * - v25: Added tool_call_events column to history for reconstructing tool call history
  */
-export const SDK_SCHEMA_VERSION = 24;
+export const SDK_SCHEMA_VERSION = 25;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -105,6 +106,7 @@ export const sdkSchema = appSchema({
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
         { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
+        { name: "tool_call_events", type: "string", isOptional: true }, // JSON stringified LlmapiToolCallEvent[]
       ],
     }),
     tableSchema({
@@ -261,6 +263,7 @@ export const sdkSchema = appSchema({
  * - v21 → v22: Added `is_system` column to vault_folders for default system folders
  * - v22 → v23: Added `conversation_summaries` table for progressive history summarization
  * - v23 → v24: Added `context` column to vault_folders for LLM-generated folder summaries
+ * - v24 → v25: Added `tool_call_events` column to history for reconstructing tool call history
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -559,6 +562,16 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "vault_folders",
           columns: [{ name: "context", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v24 -> v25: Added tool_call_events column to history for reconstructing tool call history
+    {
+      toVersion: 25,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "tool_call_events", type: "string", isOptional: true }],
         }),
       ],
     },
