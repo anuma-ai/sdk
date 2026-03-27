@@ -1525,10 +1525,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
   /**
-   * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
+   * Extracts SearchSource objects from tool call events (search results from MCP tools).
    *
-   * Note: Currently only handles BraveSearchMCP tool calls. Other search tools
-   * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
+   * Supported tools:
+   * - AnumaSearchMCP (structured JSON with results array — primary search tool)
+   * - BraveSearchMCP (concatenated JSON objects — legacy, kept for backward compat)
+   * - JinaMCP (search_web — JSON with results array)
+   * - PerplexityMCP (markdown-formatted text)
    */
   const extractSourcesFromToolCallEvents = useCallback(
     (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
@@ -1539,9 +1542,43 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (toolCallEvents) {
           for (const toolCallEvent of toolCallEvents) {
             const outputStr = toolCallEvent.output || "";
+            const toolName = toolCallEvent.name || "";
 
-            // BraveSearchMCP returns concatenated JSON objects
-            if (toolCallEvent.name?.includes("BraveSearchMCP")) {
+            // AnumaSearchMCP returns structured JSON:
+            // {"results": [{title, url, snippets: [...]}], "sources": {url: {title, hostname}}, "cost": N}
+            if (toolName.includes("AnumaSearchMCP") && toolName.includes("text_search")) {
+              try {
+                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
+                const results = parsed?.results;
+                if (Array.isArray(results)) {
+                  for (const result of results) {
+                    const r = result as Record<string, unknown>;
+                    const url = typeof r.url === "string" ? r.url : "";
+                    if (url && !seenUrls.has(url)) {
+                      seenUrls.add(url);
+                      const title = typeof r.title === "string" ? r.title : undefined;
+                      const snippets = Array.isArray(r.snippets)
+                        ? (r.snippets as string[]).filter((s) => typeof s === "string")
+                        : [];
+                      let snippet = snippets.join(" ").trim();
+                      if (snippet.length > 250) {
+                        snippet = snippet.slice(0, 250).trim() + "...";
+                      }
+                      extractedSources.push({
+                        title: title || undefined,
+                        url,
+                        snippet: snippet || undefined,
+                      });
+                    }
+                  }
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+
+            // BraveSearchMCP returns concatenated JSON objects (legacy — kept for backward compat)
+            if (toolName.includes("BraveSearchMCP")) {
               try {
                 // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
                 const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
@@ -1584,12 +1621,48 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             }
 
+            // JinaMCP search_web/parallel_search_web — try JSON with results array
+            if (toolName.includes("JinaMCP") && toolName.includes("search")) {
+              try {
+                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
+                const results = Array.isArray(parsed)
+                  ? (parsed as Record<string, unknown>[])
+                  : Array.isArray(parsed?.results)
+                    ? (parsed.results as Record<string, unknown>[])
+                    : Array.isArray(parsed?.data)
+                      ? (parsed.data as Record<string, unknown>[])
+                      : [];
+                for (const r of results) {
+                  const url =
+                    (typeof r.url === "string" ? r.url : "") ||
+                    (typeof r.link === "string" ? r.link : "");
+                  if (url && !seenUrls.has(url)) {
+                    seenUrls.add(url);
+                    const title = typeof r.title === "string" ? r.title : undefined;
+                    let snippet =
+                      (typeof r.snippet === "string" ? r.snippet : "") ||
+                      (typeof r.description === "string" ? r.description : "") ||
+                      (typeof r.content === "string" ? r.content : "");
+                    snippet = snippet.slice(0, 250).trim();
+                    if (snippet.length === 250) snippet += "...";
+                    extractedSources.push({
+                      title: title || undefined,
+                      url,
+                      snippet: snippet || undefined,
+                    });
+                  }
+                }
+              } catch {
+                // Ignore JinaMCP parse errors
+              }
+            }
+
             // PerplexityMCP returns markdown-formatted text:
             // 1. **Title**
             //    URL: https://...
             //    [description]
             //    Date: YYYY-MM-DD
-            if (toolCallEvent.name?.includes("PerplexityMCP")) {
+            if (toolName.includes("PerplexityMCP")) {
               try {
                 // Match each numbered result block
                 // Pattern: digit(s). **title**\n   URL: url
