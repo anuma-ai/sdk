@@ -1643,8 +1643,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                       (typeof r.snippet === "string" ? r.snippet : "") ||
                       (typeof r.description === "string" ? r.description : "") ||
                       (typeof r.content === "string" ? r.content : "");
-                    snippet = snippet.slice(0, 250).trim();
-                    if (snippet.length === 250) snippet += "...";
+                    if (snippet.length > 250) {
+                      snippet = snippet.slice(0, 250).trim() + "...";
+                    }
                     extractedSources.push({
                       title: title || undefined,
                       url,
