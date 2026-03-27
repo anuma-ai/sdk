@@ -2,7 +2,7 @@
 
 > `const` **sdkMigrations**: `Readonly`<{ `maxVersion`: `number`; `minVersion`: `number`; `sortedMigrations`: `Readonly`<{ `steps`: `MigrationStep`\[]; `toVersion`: `number`; }>\[]; `validated`: `true`; }>
 
-Defined in: [src/lib/db/schema.ts:295](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#295)
+Defined in: [src/lib/db/schema.ts:300](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/schema.ts#300)
 
 Combined migrations for all SDK storage modules.
 
@@ -37,3 +37,6 @@ Migration history:
 * v21 → v22: Added `is_system` column to vault\_folders for default system folders
 * v22 → v23: Added `conversation_summaries` table for progressive history summarization
 * v23 → v24: Added `context` column to vault\_folders for LLM-generated folder summaries
+* v24 → v25: Added `saved_tools` table for user-saved display apps exposed as LLM tools
+* v25 → v26: Added `app_files` table for LLM-generated app source files (HTML/CSS/JS)
+* v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history

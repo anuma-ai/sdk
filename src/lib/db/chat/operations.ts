@@ -45,6 +45,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
   const vectorRaw = message._getRaw("vector");
   const chunksRaw = message._getRaw("chunks");
   const thoughtProcessRaw = message._getRaw("thought_process");
+  const toolCallEventsRaw = message._getRaw("tool_call_events");
 
   return {
     uniqueId: message.id,
@@ -70,6 +71,7 @@ function messageToStoredRaw(message: Message): StoredMessage {
     thinking: message.thinking,
     parentMessageId: message.parentMessageId,
     feedback: message.feedback || null,
+    toolCallEvents: parseJsonField(toolCallEventsRaw),
   };
 }
 
@@ -454,6 +456,13 @@ export async function createMessageOp(
       if (encryptedOpts.thinking) msg._setRaw("thinking", encryptedOpts.thinking as string);
       if (encryptedOpts.parentMessageId)
         msg._setRaw("parent_message_id", encryptedOpts.parentMessageId as string);
+      if (encryptedOpts.toolCallEvents) {
+        const tceValue =
+          typeof encryptedOpts.toolCallEvents === "string"
+            ? encryptedOpts.toolCallEvents
+            : JSON.stringify(encryptedOpts.toolCallEvents);
+        msg._setRaw("tool_call_events", tceValue);
+      }
     });
   });
 
@@ -636,6 +645,13 @@ async function _updateMessageOp(
         );
       if (encryptedOpts.feedback !== undefined)
         msg._setRaw("feedback", encryptedOpts.feedback as string | null);
+      if (encryptedOpts.toolCallEvents !== undefined) {
+        const tceValue =
+          typeof encryptedOpts.toolCallEvents === "string"
+            ? encryptedOpts.toolCallEvents
+            : JSON.stringify(encryptedOpts.toolCallEvents);
+        msg._setRaw("tool_call_events", tceValue);
+      }
     });
   });
 
@@ -936,6 +952,7 @@ export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMe
     thoughtProcess: opts.thoughtProcess,
     thinking: opts.thinking,
     parentMessageId: opts.parentMessageId,
+    toolCallEvents: opts.toolCallEvents,
   };
 }
 

@@ -5,6 +5,7 @@
 export {
   // MCP image URL extraction
   extractMCPImageUrls,
+  IMAGE_TOOL_NAMES,
 } from "./mcpImages";
 export {
   // Blob URL management

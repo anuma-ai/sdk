@@ -8,6 +8,7 @@ import type {
   LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
+  LlmapiToolCallEvent,
 } from "../../../client";
 import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
 import type { FileProcessor } from "../../processors/types";
@@ -140,6 +141,8 @@ export interface StoredMessage {
   parentMessageId?: string;
   /** User feedback: 'like', 'dislike', or null for no feedback */
   feedback?: MessageFeedback;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export interface ActivityPhase {
@@ -250,6 +253,8 @@ export interface CreateMessageOptions {
   thinking?: string;
   /** Parent message ID for branching (edit/regenerate). */
   parentMessageId?: string;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export interface CreateConversationOptions {
@@ -280,6 +285,8 @@ export interface UpdateMessageOptions {
   thinking?: string | null;
   /** User feedback: 'like', 'dislike', or null for no feedback */
   feedback?: MessageFeedback | null;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 // Hook types

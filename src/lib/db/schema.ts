@@ -47,8 +47,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v24: Added context column to vault_folders for LLM-generated folder summaries
  * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
+ * - v27: Added tool_call_events column to history for reconstructing tool call history
  */
-export const SDK_SCHEMA_VERSION = 26;
+export const SDK_SCHEMA_VERSION = 27;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -109,6 +110,7 @@ export const sdkSchema = appSchema({
         { name: "thinking", type: "string", isOptional: true }, // Reasoning/thinking content
         { name: "parent_message_id", type: "string", isOptional: true }, // Parent message for branching
         { name: "feedback", type: "string", isOptional: true }, // 'like' | 'dislike' | null
+        { name: "tool_call_events", type: "string", isOptional: true }, // JSON stringified LlmapiToolCallEvent[]
       ],
     }),
     tableSchema({
@@ -291,6 +293,9 @@ export const sdkSchema = appSchema({
  * - v21 → v22: Added `is_system` column to vault_folders for default system folders
  * - v22 → v23: Added `conversation_summaries` table for progressive history summarization
  * - v23 → v24: Added `context` column to vault_folders for LLM-generated folder summaries
+ * - v24 → v25: Added `saved_tools` table for user-saved display apps exposed as LLM tools
+ * - v25 → v26: Added `app_files` table for LLM-generated app source files (HTML/CSS/JS)
+ * - v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -593,8 +598,8 @@ export const sdkMigrations = schemaMigrations({
       ],
     },
     // v24 -> v25: Added saved_tools table for user-saved display apps exposed as LLM tools
-    // NOTE: v25 and v26 are applied together on first migration. They are separate
-    // steps because they were developed sequentially (saved_tools first, then app_files).
+    // NOTE: v25, v26, and v27 are applied together on first migration. They are separate
+    // steps because they were developed sequentially (saved_tools first, then app_files, then tool_call_events).
     {
       toVersion: 25,
       steps: [
@@ -627,6 +632,16 @@ export const sdkMigrations = schemaMigrations({
             { name: "created_at", type: "number", isIndexed: true },
             { name: "updated_at", type: "number" },
           ],
+        }),
+      ],
+    },
+    // v26 -> v27: Added tool_call_events column to history for reconstructing tool call history
+    {
+      toVersion: 27,
+      steps: [
+        addColumns({
+          table: "history",
+          columns: [{ name: "tool_call_events", type: "string", isOptional: true }],
         }),
       ],
     },
