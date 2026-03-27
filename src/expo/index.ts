@@ -207,3 +207,26 @@ export {
   generateEmbedding,
   generateEmbeddings,
 } from "../lib/memoryEngine";
+
+// Notion OAuth primitives (platform-agnostic, no browser globals)
+export type {
+  NotionAuthUrlParams,
+  NotionClientRegistration,
+  NotionExchangeCodeParams,
+  NotionOAuthEndpoints,
+  NotionPKCEChallenge,
+  NotionRefreshTokenParams,
+  NotionTokenResponse,
+} from "../lib/auth/notion-primitives";
+export {
+  buildNotionAuthUrl,
+  discoverNotionOAuthEndpoints,
+  exchangeNotionCode,
+  generateNotionPKCE,
+  NOTION_OAUTH_CONFIG,
+  refreshNotionAccessToken,
+  registerNotionClient,
+} from "../lib/auth/notion-primitives";
+
+// Notion MCP tools (platform-agnostic)
+export { createNotionTools } from "../tools/notion";
