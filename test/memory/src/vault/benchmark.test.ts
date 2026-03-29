@@ -39,7 +39,13 @@ import {
 } from "./dataset.js";
 
 const DEFAULT_BASELINE_PATH = "test/memory/src/vault/baseline.json";
-const REGRESSION_METRICS = ["recallAtK", "precisionAtK", "mrr", "ndcg"] as const;
+const REGRESSION_METRICS = [
+  "recallAtK",
+  "precisionAtK",
+  "mrr",
+  "ndcg",
+  "rankingViolationRate",
+] as const;
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -241,7 +247,13 @@ function compareWithBaseline(
   for (const metric of REGRESSION_METRICS) {
     const baseVal = baselineData.overall[metric] ?? 0;
     const curVal = currentOverall[metric];
-    if (baseVal - curVal > threshold) {
+    // For rankingViolationRate, higher is worse (regression = current > baseline)
+    // For all other metrics, lower is worse (regression = current < baseline)
+    const isRegression =
+      metric === "rankingViolationRate"
+        ? curVal - baseVal > threshold
+        : baseVal - curVal > threshold;
+    if (isRegression) {
       regressions.push({
         metric,
         category: "OVERALL",
@@ -258,7 +270,11 @@ function compareWithBaseline(
     for (const metric of REGRESSION_METRICS) {
       const baseVal = baseCat[metric] ?? 0;
       const curVal = curCat[metric];
-      if (baseVal - curVal > threshold) {
+      const isRegression =
+        metric === "rankingViolationRate"
+          ? curVal - baseVal > threshold
+          : baseVal - curVal > threshold;
+      if (isRegression) {
         regressions.push({
           metric,
           category: baseCat.category,
@@ -361,6 +377,11 @@ async function main() {
     updatedAt: new Date(m.createdAt), // no explicit updatedAt in benchmark data; createdAt encodes recency for temporal tests
   }));
 
+  // Fixed reference time for reproducible time-decay scoring.
+  // Chosen relative to the dataset: non-temporal memories cluster at 2025-12-01,
+  // temporal "correct" memories range from 2025-08-10 to 2025-11-15.
+  const benchmarkNow = new Date("2025-12-15T10:00:00Z");
+
   const results: QueryResult[] = [];
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
@@ -369,6 +390,7 @@ async function main() {
     const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
       limit: embeddedItems.length,
       minSimilarity: 0,
+      now: benchmarkNow,
     });
 
     const allScored = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));

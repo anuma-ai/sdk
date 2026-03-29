@@ -62,6 +62,22 @@ interface EmbeddedItem {
 }
 
 /**
+ * Default weight for the recency signal in the blended scoring function.
+ * At 0, ranking is pure cosine similarity. At 1, ranking is pure recency.
+ * The blended score is: (1 - weight) * cosineSim + weight * recencyScore.
+ */
+const DEFAULT_RECENCY_WEIGHT = 0.03;
+
+/**
+ * Default half-life for the hyperbolic time-decay function, in days.
+ * At the half-life age, a memory's recency score is 0.5.
+ * Lower values create stronger recency bias; higher values are gentler.
+ */
+const DEFAULT_RECENCY_HALF_LIFE_DAYS = 365;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
  * Minimum pairwise cosine similarity between two memories for the older
  * one to be considered superseded by the newer one.
  */
@@ -146,16 +162,20 @@ function findSupersessionPairs(
 }
 
 /**
- * Pure ranking function: scores, filters, and ranks items using cosine
- * similarity with supersession detection. When items include `updatedAt`
- * timestamps, pairs of highly similar items are checked for supersession —
- * a fraction of the score gap is transferred from the older item to the
- * newer one, boosting the replacement without fully evicting the original.
+ * Pure ranking function: scores, filters, and ranks items using a blend of
+ * cosine similarity and time-decay recency. The minSimilarity threshold
+ * applies to raw cosine similarity to prevent semantically irrelevant
+ * results; the blended score is used only for ranking among candidates
+ * that pass the similarity floor.
+ *
+ * When items include `updatedAt` timestamps, pairs of highly similar items
+ * are checked for supersession — a fraction of the score gap is transferred
+ * from the older item to the newer one.
  *
  * @param queryEmbedding - Pre-computed embedding for the query
  * @param items - Items with pre-computed embeddings to rank
- * @param options - Ranking options (limit, minSimilarity)
- * @returns Ranked results sorted by descending similarity
+ * @param options - Ranking options (limit, minSimilarity, recency params)
+ * @returns Ranked results sorted by descending blended similarity
  */
 export function rankVaultMemories(
   _query: string,
@@ -164,27 +184,53 @@ export function rankVaultMemories(
   options?: {
     limit?: number;
     minSimilarity?: number;
+    /** Weight for recency in the blended score (0 = pure cosine, 1 = pure recency) */
+    recencyWeight?: number;
+    /** Half-life for the hyperbolic decay function, in days */
+    recencyHalfLifeDays?: number;
+    /** Reference time for recency computation (defaults to current time) */
+    now?: Date;
   }
 ): VaultSearchResult[] {
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
+  const recencyWeight = options?.recencyWeight ?? DEFAULT_RECENCY_WEIGHT;
+  const halfLifeDays = options?.recencyHalfLifeDays ?? DEFAULT_RECENCY_HALF_LIFE_DAYS;
+  const now = options?.now ?? new Date();
+  const nowMs = now.getTime();
 
-  const scored = items.map((item) => ({
-    uniqueId: item.id,
-    content: item.content,
-    embedding: item.embedding,
-    updatedAt: item.updatedAt,
-    similarity: cosineSimilarity(queryEmbedding, item.embedding),
-  }));
+  const scored = items.map((item) => {
+    const cosineSim = cosineSimilarity(queryEmbedding, item.embedding);
 
-  const filtered = scored.filter((r) => r.similarity >= minSimilarity);
+    // Compute recency score via hyperbolic decay: 1 / (1 + ageDays / halfLife)
+    // Missing updatedAt gets a neutral 0.5; future timestamps are clamped to age 0
+    let recencyScore = 0.5;
+    if (item.updatedAt) {
+      const ageDays = Math.max(0, (nowMs - item.updatedAt.getTime()) / MS_PER_DAY);
+      recencyScore = 1 / (1 + ageDays / halfLifeDays);
+    }
+
+    const blendedSimilarity = (1 - recencyWeight) * cosineSim + recencyWeight * recencyScore;
+
+    return {
+      uniqueId: item.id,
+      content: item.content,
+      embedding: item.embedding,
+      updatedAt: item.updatedAt,
+      rawCosine: cosineSim,
+      similarity: blendedSimilarity,
+    };
+  });
+
+  // Filter on raw cosine similarity (R2: prevent semantically irrelevant results)
+  const filtered = scored.filter((r) => r.rawCosine >= minSimilarity);
   filtered.sort((a, b) => b.similarity - a.similarity);
 
   // Check top candidates for supersession — boost newer items and penalize
   // older ones when they are highly similar and the older one outranks
-  const window = filtered.slice(0, limit * 3);
+  const candidateWindow = filtered.slice(0, limit * 3);
   const pairs = findSupersessionPairs(
-    window.map((r) => ({
+    candidateWindow.map((r) => ({
       id: r.uniqueId,
       embedding: r.embedding,
       updatedAt: r.updatedAt,

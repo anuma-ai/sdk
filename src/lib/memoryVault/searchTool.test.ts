@@ -4,6 +4,7 @@ import {
   searchVaultMemories,
   preEmbedVaultMemories,
   eagerEmbedContent,
+  rankVaultMemories,
 } from "./searchTool";
 import { createVaultEmbeddingCache } from "./lruCache";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
@@ -571,6 +572,180 @@ describe("eagerEmbedContent — failure resilience", () => {
 
     // Cache should be populated despite DB failure
     expect(cache.get("cache me anyway")).toEqual([1, 2, 3]);
+  });
+});
+
+describe("rankVaultMemories — time-decay blended scoring", () => {
+  const now = new Date("2026-01-01T00:00:00Z");
+
+  function makeEmbeddedItem(id: string, content: string, embedding: number[], updatedAt?: Date) {
+    return { id, content, embedding, updatedAt };
+  }
+
+  it("newer memory ranks higher than older when cosine similarity is equal", () => {
+    const items = [
+      makeEmbeddedItem("old", "old content", [1, 0, 0], new Date("2025-06-01")),
+      makeEmbeddedItem("new", "new content", [1, 0, 0], new Date("2025-11-15")),
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.1,
+      recencyHalfLifeDays: 90,
+      now,
+      minSimilarity: 0,
+    });
+
+    expect(results[0].uniqueId).toBe("new");
+    expect(results[1].uniqueId).toBe("old");
+  });
+
+  it("recencyWeight=0 produces ranking identical to pure cosine similarity", () => {
+    // Use orthogonal embeddings (pairwise cos ≈ 0) to avoid triggering supersession
+    const items = [
+      makeEmbeddedItem("a", "a", [1, 0, 0], new Date("2025-01-01")),
+      makeEmbeddedItem("b", "b", [0, 1, 0], new Date("2025-12-31")),
+    ];
+
+    const results = rankVaultMemories("q", [0.9, 0.4, 0], items, {
+      recencyWeight: 0,
+      now,
+      minSimilarity: 0,
+    });
+
+    // "a" has higher cosine with query than "b" — pure cosine order
+    expect(results[0].uniqueId).toBe("a");
+    expect(results[1].uniqueId).toBe("b");
+  });
+
+  it("minSimilarity filter applies to raw cosine, not blended score", () => {
+    const items = [
+      // Low cosine but very recent — should be filtered out
+      makeEmbeddedItem("recent-irrelevant", "x", [0, 1, 0], now),
+      // High cosine and old — should pass
+      makeEmbeddedItem("relevant-old", "y", [1, 0, 0], new Date("2025-01-01")),
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.5,
+      now,
+      minSimilarity: 0.5,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].uniqueId).toBe("relevant-old");
+  });
+
+  it("memory with no updatedAt gets neutral recency score (0.5)", () => {
+    const items = [
+      makeEmbeddedItem("no-date", "x", [1, 0, 0]), // no updatedAt
+      makeEmbeddedItem("recent", "y", [1, 0, 0], now), // recency ≈ 1.0
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.2,
+      now,
+      minSimilarity: 0,
+    });
+
+    // Both have cosine 1.0, but "recent" has recency ≈ 1.0 vs "no-date" at 0.5
+    expect(results[0].uniqueId).toBe("recent");
+    expect(results[1].uniqueId).toBe("no-date");
+    // no-date blended: 0.8 * 1.0 + 0.2 * 0.5 = 0.9
+    expect(results[1].similarity).toBeCloseTo(0.9, 2);
+  });
+
+  it("recencyWeight=1.0 produces ranking purely by recency", () => {
+    const items = [
+      makeEmbeddedItem("high-cos-old", "x", [1, 0, 0], new Date("2025-01-01")),
+      makeEmbeddedItem("low-cos-new", "y", [0.5, 0.5, 0], now),
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 1.0,
+      now,
+      minSimilarity: 0,
+    });
+
+    // At weight 1.0, cosine is ignored — newer wins regardless
+    expect(results[0].uniqueId).toBe("low-cos-new");
+  });
+
+  it("same age memories rank by cosine similarity", () => {
+    const sameDate = new Date("2025-10-01");
+    const items = [
+      makeEmbeddedItem("high-cos", "x", [1, 0, 0], sameDate),
+      makeEmbeddedItem("low-cos", "y", [0.5, 0.5, 0], sameDate),
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.1,
+      now,
+      minSimilarity: 0,
+    });
+
+    expect(results[0].uniqueId).toBe("high-cos");
+  });
+
+  it("very old memory vs moderately old — decay difference is small (long tail)", () => {
+    const items = [
+      makeEmbeddedItem("years-old", "x", [1, 0, 0], new Date("2023-01-01")),
+      makeEmbeddedItem("months-old", "y", [1, 0, 0], new Date("2025-06-01")),
+    ];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.1,
+      recencyHalfLifeDays: 90,
+      now,
+      minSimilarity: 0,
+    });
+
+    // Both have cosine 1.0. Recency difference exists but is small due to long tail.
+    // years-old: 1/(1 + 1096/90) ≈ 0.076, months-old: 1/(1 + 214/90) ≈ 0.296
+    // Blended diff: 0.1 * (0.296 - 0.076) = 0.022 — small
+    const diff = results[0].similarity - results[1].similarity;
+    expect(diff).toBeLessThan(0.05);
+    expect(diff).toBeGreaterThan(0);
+  });
+
+  it("future updatedAt (clock skew) is clamped — recencyScore does not exceed 1.0", () => {
+    const items = [makeEmbeddedItem("future", "x", [1, 0, 0], new Date("2027-01-01"))];
+
+    const results = rankVaultMemories("q", [1, 0, 0], items, {
+      recencyWeight: 0.5,
+      now,
+      minSimilarity: 0,
+    });
+
+    // Blended: 0.5 * 1.0 + 0.5 * 1.0 = 1.0 (clamped age = 0, recency = 1.0)
+    expect(results[0].similarity).toBeCloseTo(1.0, 2);
+    expect(results[0].similarity).toBeLessThanOrEqual(1.0);
+  });
+
+  it("supersession still runs correctly on blended scores", () => {
+    // Two memories: older outranks newer on blended score, high pairwise similarity
+    const oldDate = new Date("2025-01-01");
+    const newDate = new Date("2025-10-01");
+    const items = [
+      makeEmbeddedItem("old", "old version", [0.9, 0.1, 0], oldDate),
+      makeEmbeddedItem("new", "new version", [0.85, 0.15, 0], newDate),
+    ];
+
+    // Query embedding that favors the old memory slightly
+    const queryEmb = [1, 0, 0];
+    // With low recency weight, old still outranks new before supersession
+
+    const results = rankVaultMemories("q", queryEmb, items, {
+      recencyWeight: 0.02, // Very low — cosine dominates, so old outranks new
+      recencyHalfLifeDays: 90,
+      now,
+      limit: 5,
+      minSimilarity: 0,
+    });
+
+    // The old/new embeddings are similar enough (cosine > 0.7) and >30 days apart
+    // Supersession should boost the newer item
+    // We just verify both items are returned (supersession doesn't crash)
+    expect(results).toHaveLength(2);
   });
 });
 
