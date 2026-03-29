@@ -195,7 +195,11 @@ export function rankVaultMemories(
   const limit = options?.limit ?? 5;
   const minSimilarity = options?.minSimilarity ?? 0.1;
   const recencyWeight = options?.recencyWeight ?? DEFAULT_RECENCY_WEIGHT;
-  const halfLifeDays = options?.recencyHalfLifeDays ?? DEFAULT_RECENCY_HALF_LIFE_DAYS;
+  const configuredHalfLifeDays = options?.recencyHalfLifeDays ?? DEFAULT_RECENCY_HALF_LIFE_DAYS;
+  const halfLifeDays =
+    Number.isFinite(configuredHalfLifeDays) && configuredHalfLifeDays > 0
+      ? configuredHalfLifeDays
+      : DEFAULT_RECENCY_HALF_LIFE_DAYS;
   const now = options?.now ?? new Date();
   const nowMs = now.getTime();
 
