@@ -1,6 +1,6 @@
 # VaultSearchResult
 
-Defined in: [src/lib/memoryVault/searchTool.ts:289](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#289)
+Defined in: [src/lib/memoryVault/searchTool.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#335)
 
 A single vault search result with its similarity score.
 
@@ -10,7 +10,7 @@ A single vault search result with its similarity score.
 
 > **content**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:291](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#291)
+Defined in: [src/lib/memoryVault/searchTool.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#337)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/lib/memoryVault/searchTool.ts:291](https://github.com/anuma-ai/
 
 > **similarity**: `number`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:292](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#292)
+Defined in: [src/lib/memoryVault/searchTool.ts:338](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#338)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/lib/memoryVault/searchTool.ts:292](https://github.com/anuma-ai/
 
 > **uniqueId**: `string`
 
-Defined in: [src/lib/memoryVault/searchTool.ts:290](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#290)
+Defined in: [src/lib/memoryVault/searchTool.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryVault/searchTool.ts#336)
