@@ -54,6 +54,7 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    model: { type: "string" },
   },
 });
 
@@ -77,7 +78,12 @@ const embeddingOptions: EmbeddingOptions = {
   apiKey: API_KEY,
   baseUrl: BASE_URL,
   cache: new Map<string, number[]>(),
+  ...(args.model && { model: args.model }),
 };
+
+if (args.model) {
+  console.log(`Using embedding model: ${args.model}`);
+}
 
 // ---------------------------------------------------------------------------
 // Types

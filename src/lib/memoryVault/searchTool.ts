@@ -65,7 +65,7 @@ interface EmbeddedItem {
  * Minimum pairwise cosine similarity between two memories for the older
  * one to be considered superseded by the newer one.
  */
-const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
+const SUPERSESSION_SIMILARITY_THRESHOLD = 0.6;
 
 /**
  * Minimum time gap (in milliseconds) between two memories for supersession

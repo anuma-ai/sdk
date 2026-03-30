@@ -1,85 +1,85 @@
 {
-  "timestamp": "2026-03-26T08:42:13.580Z",
-  "elapsedSeconds": 6.9,
+  "timestamp": "2026-03-30T09:24:07.004Z",
+  "elapsedSeconds": 8.5,
   "memories": 108,
   "queries": 100,
   "overall": {
     "count": 100,
-    "recallAtK": 0.838333333333333,
-    "precisionAtK": 0.28466666666666635,
-    "mrr": 0.8066666666666668,
-    "ndcg": 0.7855132246902428,
-    "rankingViolationRate": 0.05
+    "recallAtK": 0.8783333333333334,
+    "precisionAtK": 0.3013333333333329,
+    "mrr": 0.8366666666666666,
+    "ndcg": 0.8214380461050258,
+    "rankingViolationRate": 0.02
   },
   "byCategory": [
     {
       "category": "direct",
       "count": 18,
-      "recallAtK": 1,
-      "precisionAtK": 0.33333333333333326,
-      "mrr": 0.9444444444444444,
-      "ndcg": 0.9589921948412731,
+      "recallAtK": 0.9444444444444444,
+      "precisionAtK": 0.3148148148148147,
+      "mrr": 0.9166666666666666,
+      "ndcg": 0.923940541865081,
       "rankingViolationRate": 0,
-      "avgTargetSim": 0.7240922805036697,
-      "avgTop1Sim": 0.7284468963226373
+      "avgTargetSim": 0.7632584767637832,
+      "avgTop1Sim": 0.7678274685222265
     },
     {
       "category": "paraphrase",
       "count": 18,
-      "recallAtK": 1,
-      "precisionAtK": 0.30370370370370364,
-      "mrr": 0.9166666666666666,
-      "ndcg": 0.9384882922619097,
+      "recallAtK": 0.9444444444444444,
+      "precisionAtK": 0.28518518518518515,
+      "mrr": 0.8888888888888888,
+      "ndcg": 0.9034366392857175,
       "rankingViolationRate": 0,
-      "avgTargetSim": 0.679371818134737,
-      "avgTop1Sim": 0.6849675797362699
+      "avgTargetSim": 0.7574170339299428,
+      "avgTop1Sim": 0.7633039898672883
     },
     {
       "category": "specificity",
       "count": 17,
-      "recallAtK": 0.9411764705882353,
-      "precisionAtK": 0.31372549019607837,
-      "mrr": 0.9117647058823529,
-      "ndcg": 0.9194664560924387,
+      "recallAtK": 1,
+      "precisionAtK": 0.33333333333333326,
+      "mrr": 0.9411764705882353,
+      "ndcg": 0.9565799710084067,
       "rankingViolationRate": 0,
-      "avgTargetSim": 0.7180262751560191,
-      "avgTop1Sim": 0.7258683713771099,
-      "avgTemporalMargin": 0.1505854927267763
+      "avgTargetSim": 0.7495362844499642,
+      "avgTop1Sim": 0.7518524744907152,
+      "avgTemporalMargin": 0.08195479237701954
     },
     {
       "category": "temporal",
       "count": 18,
-      "recallAtK": 0.7222222222222222,
-      "precisionAtK": 0.24074074074074073,
-      "mrr": 0.5277777777777778,
-      "ndcg": 0.5773771811507985,
-      "rankingViolationRate": 0.2777777777777778,
-      "avgTargetSim": 0.6434407105882027,
-      "avgTop1Sim": 0.683504254715156,
-      "avgTemporalMargin": -0.013026918626775007
+      "recallAtK": 0.8333333333333334,
+      "precisionAtK": 0.27777777777777773,
+      "mrr": 0.6481481481481483,
+      "ndcg": 0.6957621674603239,
+      "rankingViolationRate": 0.1111111111111111,
+      "avgTargetSim": 0.7263922187954069,
+      "avgTop1Sim": 0.751035130023476,
+      "avgTemporalMargin": 0.01579781663205087
     },
     {
       "category": "composite",
       "count": 16,
-      "recallAtK": 0.5208333333333333,
-      "precisionAtK": 0.25000000000000006,
-      "mrr": 0.7239583333333333,
-      "ndcg": 0.5239120111736038,
+      "recallAtK": 0.6145833333333333,
+      "precisionAtK": 0.30000000000000004,
+      "mrr": 0.7916666666666666,
+      "ndcg": 0.5960981856438629,
       "rankingViolationRate": 0,
-      "avgTargetSim": 0.538700400054302,
-      "avgTop1Sim": 0.6268180251573756
+      "avgTargetSim": 0.681057512325766,
+      "avgTop1Sim": 0.7302640397417666
     },
     {
       "category": "hard_negatives",
       "count": 13,
-      "recallAtK": 0.8076923076923077,
-      "precisionAtK": 0.25641025641025644,
-      "mrr": 0.8141025641025641,
-      "ndcg": 0.7684894237002697,
+      "recallAtK": 0.9230769230769231,
+      "precisionAtK": 0.2974358974358975,
+      "mrr": 0.8333333333333334,
+      "ndcg": 0.840605066004438,
       "rankingViolationRate": 0,
-      "avgTargetSim": 0.610977499877952,
-      "avgTop1Sim": 0.6645987188324367,
-      "avgTemporalMargin": 0.05200196555109445
+      "avgTargetSim": 0.7076181058110003,
+      "avgTop1Sim": 0.7394228196109432,
+      "avgTemporalMargin": 0.043523209904768066
     }
   ]
 }
