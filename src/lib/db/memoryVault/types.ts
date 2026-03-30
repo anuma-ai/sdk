@@ -11,6 +11,8 @@ export interface StoredVaultMemory {
   userId: string | null;
   /** JSON-stringified embedding vector, null if not yet computed */
   embedding: string | null;
+  /** Model used to generate the embedding, null if unknown */
+  embeddingModel: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;

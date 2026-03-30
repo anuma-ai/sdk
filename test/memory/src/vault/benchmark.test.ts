@@ -83,6 +83,12 @@ const embeddingOptions: EmbeddingOptions = {
 
 if (args.model) {
   console.log(`Using embedding model: ${args.model}`);
+  if (args["save-baseline"]) {
+    console.warn(
+      `Warning: saving baseline generated with non-default model "${args.model}". ` +
+        `This will override the production baseline.`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

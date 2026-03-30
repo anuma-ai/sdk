@@ -52,6 +52,7 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
     embedding: memory.embedding ?? null,
+    embeddingModel: memory.embeddingModel ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -312,7 +313,8 @@ export async function deleteAllVaultMemoriesForUserOp(
 export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
-  embedding: string
+  embedding: string,
+  embeddingModel?: string
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
@@ -320,6 +322,9 @@ export async function updateVaultMemoryEmbeddingOp(
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("embedding", embedding);
+        if (embeddingModel) {
+          r._setRaw("embedding_model", embeddingModel);
+        }
       });
     });
     return true;

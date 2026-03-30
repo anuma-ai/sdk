@@ -20,6 +20,10 @@ vi.mock("../memoryEngine/embeddings", () => ({
   generateEmbeddings: vi.fn(),
 }));
 
+vi.mock("../memoryEngine/constants", () => ({
+  DEFAULT_API_EMBEDDING_MODEL: "test-model",
+}));
+
 import { getAllVaultMemoriesOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 
@@ -34,6 +38,7 @@ function makeMemory(id: string, content: string, scope = "private"): StoredVault
     folderId: null,
     userId: null,
     embedding: null,
+    embeddingModel: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
@@ -165,6 +170,7 @@ describe("searchVaultMemories", () => {
     const memWithEmbedding = {
       ...makeMemory("m1", "db-persisted"),
       embedding: JSON.stringify([1, 0, 0]),
+      embeddingModel: "test-model",
     };
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithEmbedding]);
     vi.mocked(generateEmbedding).mockResolvedValue([1, 0, 0]);
@@ -195,7 +201,8 @@ describe("searchVaultMemories", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "m1",
-      JSON.stringify([0.9, 0.1, 0])
+      JSON.stringify([0.9, 0.1, 0]),
+      "test-model"
     );
   });
 
@@ -388,6 +395,7 @@ describe("preEmbedVaultMemories", () => {
     const memWithEmbedding = {
       ...makeMemory("m1", "persisted"),
       embedding: JSON.stringify([9, 8, 7]),
+      embeddingModel: "test-model",
     };
     vi.mocked(getAllVaultMemoriesOp).mockResolvedValue([memWithEmbedding]);
 
@@ -427,7 +435,8 @@ describe("preEmbedVaultMemories", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "m1",
-      JSON.stringify([3, 2, 1])
+      JSON.stringify([3, 2, 1]),
+      "test-model"
     );
   });
 
@@ -598,7 +607,8 @@ describe("eagerEmbedContent", () => {
     expect(vi.mocked(updateVaultMemoryEmbeddingOp)).toHaveBeenCalledWith(
       mockVaultCtx,
       "mem-99",
-      JSON.stringify([4, 5, 6])
+      JSON.stringify([4, 5, 6]),
+      "test-model"
     );
   });
 

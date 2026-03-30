@@ -49,7 +49,7 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
  * - v27: Added tool_call_events column to history for reconstructing tool call history
  */
-export const SDK_SCHEMA_VERSION = 27;
+export const SDK_SCHEMA_VERSION = 28;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -174,6 +174,7 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
+        { name: "embedding_model", type: "string", isOptional: true },
       ],
     }),
     // Vault folder organization
@@ -643,6 +644,19 @@ export const sdkMigrations = schemaMigrations({
           table: "history",
           columns: [{ name: "tool_call_events", type: "string", isOptional: true }],
         }),
+      ],
+    },
+    // v27 -> v28: Added embedding_model to memory_vault and cleared stale embeddings
+    // for the qwen3 → gemini model switch
+    {
+      toVersion: 28,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [{ name: "embedding_model", type: "string", isOptional: true }],
+        }),
+        // NULL out all existing embeddings so they are re-generated with the new model
+        unsafeExecuteSql(`UPDATE memory_vault SET embedding = NULL WHERE embedding IS NOT NULL;`),
       ],
     },
   ],

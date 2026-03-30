@@ -145,7 +145,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:7](https://github.com/anuma-ai/sdk
 
 > **createdAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
+Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
 
 ***
 
@@ -154,6 +154,14 @@ Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sd
 > **embedding**: `string` | `null`
 
 Defined in: [src/lib/db/memoryVault/models.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#11)
+
+***
+
+### embeddingModel
+
+> **embeddingModel**: `string` | `null`
+
+Defined in: [src/lib/db/memoryVault/models.ts:12](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#12)
 
 ***
 
@@ -169,7 +177,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:9](https://github.com/anuma-ai/sdk
 
 > **isDeleted**: `boolean`
 
-Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
+Defined in: [src/lib/db/memoryVault/models.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#15)
 
 ***
 
@@ -185,7 +193,7 @@ Defined in: [src/lib/db/memoryVault/models.ts:8](https://github.com/anuma-ai/sdk
 
 > **updatedAt**: `Date`
 
-Defined in: [src/lib/db/memoryVault/models.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#13)
+Defined in: [src/lib/db/memoryVault/models.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/models.ts#14)
 
 ***
 

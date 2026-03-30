@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v27**
+Current version: **v28**
 
 ```mermaid
 graph LR
@@ -106,6 +106,7 @@ graph LR
 | `is_deleted` | boolean | ✓ |  |
 | `user_id` | string | ✓ | ✓ |
 | `embedding` | string |  | ✓ |
+| `embedding_model` | string |  | ✓ |
 
 ## vault_folders
 
@@ -180,6 +181,7 @@ graph LR
 
 | Version | Changes |
 |---------|---------|
+| v28 | Added `embedding_model` to `memory_vault`; `UPDATE memory_vault SET embedding = NULL WHERE embedding IS NOT NULL;` |
 | v27 | Added `tool_call_events` to `history` |
 | v26 | Added `app_files` table |
 | v25 | Added `saved_tools` table |

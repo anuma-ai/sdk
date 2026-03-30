@@ -9,6 +9,7 @@ export class VaultMemory extends Model {
   @field("folder_id") folderId!: string | null;
   @field("user_id") userId!: string | null;
   @field("embedding") embedding!: string | null;
+  @field("embedding_model") embeddingModel!: string | null;
   @readonly @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
   @field("is_deleted") isDeleted!: boolean;
