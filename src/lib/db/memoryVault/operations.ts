@@ -97,6 +97,9 @@ export async function createVaultMemoryOp(
       if (opts.embedding !== undefined) {
         record._setRaw("embedding", opts.embedding);
       }
+      if (opts.embeddingModel !== undefined) {
+        record._setRaw("embedding_model", opts.embeddingModel);
+      }
     });
   });
 
@@ -135,6 +138,9 @@ export async function createVaultMemoriesBatchOp(
         record._setRaw("is_deleted", false);
         if (optionsArray[i].embedding !== undefined) {
           record._setRaw("embedding", optionsArray[i].embedding);
+        }
+        if (optionsArray[i].embeddingModel !== undefined) {
+          record._setRaw("embedding_model", optionsArray[i].embeddingModel);
         }
       })
     );

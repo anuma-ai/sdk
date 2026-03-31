@@ -26,6 +26,8 @@ export interface CreateVaultMemoryOptions {
   folderId?: string | null;
   /** JSON-stringified embedding vector to persist */
   embedding?: string;
+  /** Model used to generate the embedding */
+  embeddingModel?: string;
 }
 
 export interface UpdateVaultMemoryOptions {
