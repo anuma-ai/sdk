@@ -22,6 +22,16 @@ JSON-stringified embedding vector to persist
 
 ***
 
+### embeddingModel?
+
+> `optional` **embeddingModel**: `string`
+
+Defined in: [src/lib/db/memoryVault/types.ts:30](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/memoryVault/types.ts#30)
+
+Model used to generate the embedding
+
+***
+
 ### folderId?
 
 > `optional` **folderId**: `string` | `null`

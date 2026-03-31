@@ -348,7 +348,10 @@ async function searchVaultMemoriesWithSize(
     if (!cache.has(memories[i].content)) {
       // Check for persisted embedding in DB first, but only if same model
       // (null embeddingModel means externally provided — trust it)
-      if (memories[i].embedding && (memories[i].embeddingModel === currentModel || memories[i].embeddingModel === null)) {
+      if (
+        memories[i].embedding &&
+        (memories[i].embeddingModel === currentModel || memories[i].embeddingModel === null)
+      ) {
         try {
           const parsed = JSON.parse(memories[i].embedding!) as number[];
           cache.set(memories[i].content, parsed);
