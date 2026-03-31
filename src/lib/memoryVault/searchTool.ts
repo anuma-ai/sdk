@@ -8,8 +8,8 @@
 import type { ToolConfig } from "../chat/useChat/types";
 import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations";
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
-import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import { DEFAULT_API_EMBEDDING_MODEL } from "../memoryEngine/constants";
+import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
 
 function resolveModel(options: EmbeddingOptions): string {
