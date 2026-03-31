@@ -48,6 +48,7 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
  * - v27: Added tool_call_events column to history for reconstructing tool call history
+ * - v28: Added embedding_model column to memory_vault; cleared stale embeddings for model switch
  */
 export const SDK_SCHEMA_VERSION = 28;
 

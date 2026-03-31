@@ -601,13 +601,14 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-model");
 
     expect(result).toBe(true);
     const updater = updateFn.mock.calls[0][0];
     const setRawSpy = vi.fn();
     updater({ _setRaw: setRawSpy });
     expect(setRawSpy).toHaveBeenCalledWith("embedding", "[1,0,0]");
+    expect(setRawSpy).toHaveBeenCalledWith("embedding_model", "test-model");
   });
 
   it("returns false for soft-deleted records", async () => {
@@ -617,7 +618,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-model");
     expect(result).toBe(false);
   });
 
@@ -630,7 +631,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "nonexistent", "[1,0,0]", "test-model");
     expect(result).toBe(false);
   });
 
@@ -644,7 +645,7 @@ describe("updateVaultMemoryEmbeddingOp", () => {
       vaultMemoryCollection: { find: vi.fn(async () => record) } as any,
     });
 
-    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]");
+    const result = await updateVaultMemoryEmbeddingOp(ctx, "mem_1", "[1,0,0]", "test-model");
     expect(result).toBe(false);
   });
 });
