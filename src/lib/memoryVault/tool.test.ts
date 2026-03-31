@@ -34,6 +34,7 @@ function makeStoredMemory(overrides: Partial<StoredVaultMemory> = {}): StoredVau
     folderId: null,
     userId: null,
     embedding: null,
+    embeddingModel: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,

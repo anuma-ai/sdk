@@ -314,7 +314,7 @@ export async function updateVaultMemoryEmbeddingOp(
   ctx: VaultMemoryOperationsContext,
   id: string,
   embedding: string,
-  embeddingModel?: string
+  embeddingModel: string
 ): Promise<boolean> {
   try {
     const record = await ctx.vaultMemoryCollection.find(id);
@@ -322,9 +322,7 @@ export async function updateVaultMemoryEmbeddingOp(
     await ctx.database.write(async () => {
       await record.update((r) => {
         r._setRaw("embedding", embedding);
-        if (embeddingModel) {
-          r._setRaw("embedding_model", embeddingModel);
-        }
+        r._setRaw("embedding_model", embeddingModel);
       });
     });
     return true;

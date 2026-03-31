@@ -34,6 +34,11 @@ function makeMemory(id: string, content: string): StoredVaultMemory {
   return {
     uniqueId: id,
     content,
+    scope: "private",
+    folderId: null,
+    userId: null,
+    embedding: null,
+    embeddingModel: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     isDeleted: false,
