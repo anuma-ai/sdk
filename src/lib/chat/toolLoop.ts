@@ -102,7 +102,7 @@ export type StepFinishEvent = {
 export type RunToolLoopOptions = {
   /** Messages to send to the model. */
   messages: LlmapiMessage[];
-  /** Model identifier (e.g. "gpt-4o", "anthropic/claude-3-7-sonnet-20250219"). */
+  /** Model identifier (e.g. "fireworks/accounts/fireworks/models/kimi-k2p5"). */
   model: string;
   /** Bearer token for the Portal API. Omit when using API-key auth via `headers`. */
   token?: string;
@@ -128,7 +128,7 @@ export type RunToolLoopOptions = {
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
   reasoning?: LlmapiResponseReasoning;
-  /** Extended thinking configuration for Anthropic models. */
+  /** Extended thinking configuration. */
   thinking?: LlmapiThinkingOptions;
   /** User-selected image generation model. */
   imageModel?: string;
@@ -252,7 +252,7 @@ const defaultTransport: StreamingTransport = (options) => {
  *
  * const result = await runToolLoop({
  *   messages: [{ role: "user", content: [{ type: "text", text: "What's the weather?" }] }],
- *   model: "gpt-4o",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   token: "my-api-token",
  *   tools: [{
  *     type: "function",

@@ -112,7 +112,7 @@ type UseChatResult = BaseUseChatResult & {
  * const handleSend = async () => {
  *   const result = await sendMessage({
  *     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
- *     model: 'gpt-4o-mini'
+ *     model: 'fireworks/accounts/fireworks/models/kimi-k2p5'
  *   });
  * };
  * ```

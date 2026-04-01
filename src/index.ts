@@ -51,7 +51,7 @@
  *
  * await sendMessage({
  *   messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
- *   model: "gpt-4o-mini",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  * });
  * ```
  *
@@ -65,7 +65,7 @@
  * const response = await postApiV1Responses({
  *   body: {
  *     messages: [{ role: "user", content: [{ type: "text", text: "Tell me a joke" }] }],
- *     model: "gpt-4o-mini",
+ *     model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   },
  *   headers: {
  *     Authorization: `Bearer ${identityToken}`,

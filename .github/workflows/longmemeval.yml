@@ -44,6 +44,7 @@ on:
           - anthropic/claude-opus-4-5
           - anthropic/claude-sonnet-4-5
           - anthropic/claude-haiku-4-5-20251001
+          - fireworks/accounts/fireworks/models/kimi-k2p5
           - fireworks/accounts/fireworks/models/minimax-m2p5
       max:
         description: "Max questions (blank = all)"
