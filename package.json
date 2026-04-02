@@ -202,7 +202,7 @@
       "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
       "tar": ">=7.5.11",
       "picomatch": ">=2.3.2 <3.0.0 || >=4.0.4",
-      "@xmldom/xmldom": ">=0.8.12"
+      "@xmldom/xmldom": ">=0.8.12 <0.9.0"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",
