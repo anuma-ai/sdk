@@ -142,18 +142,27 @@ export const createSseClient = <TData = unknown>({
         const response = await _fetch(request);
 
         if (!response.ok) {
-          // Try to read the JSON error body for structured error details
-          let errorMessage = `SSE failed: ${response.status} ${response.statusText}`;
+          // Try to read the JSON error body for structured error details.
+          // Always preserve the "SSE failed: {status}" prefix for downstream
+          // status code parsing (e.g. parseStatusCode in toolLoop.ts).
+          const statusPrefix = `SSE failed: ${response.status} ${response.statusText}`;
+          let errorMessage = statusPrefix;
           try {
             const errorBody = await response.json();
             if (errorBody?.error) {
-              errorMessage = typeof errorBody.error === 'string'
+              const detail = typeof errorBody.error === 'string'
                 ? errorBody.error
-                : errorBody.error.message || errorMessage;
+                : errorBody.error.message;
+              if (detail) {
+                errorMessage = `${statusPrefix} - ${detail}`;
+              }
             }
-            // Attach structured error info to the error message for client detection
-            if (errorBody?.type) {
-              errorMessage = `${errorMessage} [type:${errorBody.type}]`;
+            // Attach structured error type for client detection.
+            // Handle both flat responses ({type: "..."}) and nested ({error: {type: "..."}}).
+            const errType = (typeof errorBody?.error === 'object' && errorBody.error?.type)
+              || errorBody?.type;
+            if (errType) {
+              errorMessage = `${errorMessage} [type:${errType}]`;
             }
           } catch {
             // Response wasn't JSON, use default message
