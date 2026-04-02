@@ -138,7 +138,7 @@ export type ResponsesApiOptions = {
    */
   reasoning?: LlmapiResponseReasoning;
   /**
-   * Extended thinking configuration for Anthropic models (Claude).
+   * Extended thinking configuration.
    * Enables the model to think through complex problems step by step.
    */
   thinking?: LlmapiThinkingOptions;

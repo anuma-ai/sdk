@@ -1111,7 +1111,7 @@ sendMessage({
 </td>
 <td>
 
-The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
+The model identifier to use for this request (e.g., "fireworks/accounts/fireworks/models/kimi-k2p5").
 If not specified, uses the default model configured on the server.
 
 </td>
@@ -1518,7 +1518,7 @@ Controls which tool the model should use:
 ```ts
 const result = await sendMessage({
   content: "Explain quantum computing",
-  model: "gpt-4o",
+  model: "fireworks/accounts/fireworks/models/kimi-k2p5",
   includeHistory: true,
   onData: (chunk) => setStreamingText(prev => prev + chunk),
 });

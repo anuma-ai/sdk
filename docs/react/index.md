@@ -40,7 +40,7 @@ function ChatComponent() {
   const handleSend = async () => {
     await sendMessage({
       messages: [{ role: "user", content: [{ type: "text", text: input }] }],
-      model: "gpt-4o-mini",
+      model: "fireworks/accounts/fireworks/models/kimi-k2p5",
     });
   };
 
