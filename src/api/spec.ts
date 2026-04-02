@@ -1,1 +1,2 @@
-export { default as spec } from "@anuma/portal/swagger.json";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+export const spec = require("@anuma/portal/swagger.json");
