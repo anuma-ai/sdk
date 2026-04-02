@@ -147,9 +147,12 @@ export const createSseClient = <TData = unknown>({
           try {
             const errorBody = await response.json();
             if (errorBody?.error) {
-              errorMessage = typeof errorBody.error === 'string'
+              const errorDetail = typeof errorBody.error === 'string'
                 ? errorBody.error
-                : errorBody.error.message || errorMessage;
+                : errorBody.error.message;
+              if (errorDetail) {
+                errorMessage = `${errorMessage}: ${errorDetail}`;
+              }
             }
             // Attach structured error info to the error message for client detection
             if (errorBody?.type) {
