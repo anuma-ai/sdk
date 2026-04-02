@@ -2,7 +2,7 @@
 
 > **postApiV1DeveloperAppsByAppUuidFund**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1DeveloperAppsByAppUuidFundData`](../type-aliases/PostApiV1DeveloperAppsByAppUuidFundData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1DeveloperAppsByAppUuidFundResponses`](../type-aliases/PostApiV1DeveloperAppsByAppUuidFundResponses.md), [`PostApiV1DeveloperAppsByAppUuidFundErrors`](../type-aliases/PostApiV1DeveloperAppsByAppUuidFundErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:450](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#450)
+Defined in: [src/client/sdk.gen.ts:618](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#618)
 
 Fund developer app balance
 

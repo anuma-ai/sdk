@@ -2,11 +2,12 @@
 
 > **postApiV1PhoneCalls**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1PhoneCallsData`](../type-aliases/PostApiV1PhoneCallsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1PhoneCallsResponses`](../type-aliases/PostApiV1PhoneCallsResponses.md), [`PostApiV1PhoneCallsErrors`](../type-aliases/PostApiV1PhoneCallsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#626)
+Defined in: [src/client/sdk.gen.ts:819](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#819)
 
 Create phone call
 
 Queues an AI phone call on behalf of the authenticated user.
+Phone numbers must be in E.164 format with country code (e.g., +15551234567).
 
 ## Type Parameters
 

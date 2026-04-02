@@ -2,4 +2,4 @@
 
 > **GetApiV1TextByChannelStatusError** = [`GetApiV1TextByChannelStatusErrors`](GetApiV1TextByChannelStatusErrors.md)\[keyof [`GetApiV1TextByChannelStatusErrors`](GetApiV1TextByChannelStatusErrors.md)]
 
-Defined in: [src/client/types.gen.ts:4341](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4341)
+Defined in: [src/client/types.gen.ts:5451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5451)

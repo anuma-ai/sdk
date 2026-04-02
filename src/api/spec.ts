@@ -1,1 +1,1 @@
-export { default as spec } from "../../openapi/portal.swagger.json";
+export { default as spec } from "@anuma/portal/swagger.json";

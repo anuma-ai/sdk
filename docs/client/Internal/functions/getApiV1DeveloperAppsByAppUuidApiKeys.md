@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperAppsByAppUuidApiKeys**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsByAppUuidApiKeysData`](../type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsByAppUuidApiKeysResponses`](../type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysResponses.md), [`GetApiV1DeveloperAppsByAppUuidApiKeysErrors`](../type-aliases/GetApiV1DeveloperAppsByAppUuidApiKeysErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:410](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#410)
+Defined in: [src/client/sdk.gen.ts:578](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#578)
 
 List API keys
 
