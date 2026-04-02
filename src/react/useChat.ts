@@ -118,9 +118,24 @@ type UseChatResult = BaseUseChatResult & {
  * const handleSend = async () => {
  *   const result = await sendMessage({
  *     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
- *     model: 'fireworks/accounts/fireworks/models/kimi-k2p5'
+ *     model: 'your-provider/your-model'
  *   });
  * };
+ *
+ * // Using extended thinking
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
+ *   model: 'your-provider/your-model',
+ *   thinking: { type: 'enabled', budget_tokens: 10000 },
+ *   onThinking: (chunk) => console.log('Thinking:', chunk)
+ * });
+ *
+ * // Using reasoning
+ * const result = await sendMessage({
+ *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
+ *   model: 'your-provider/your-model',
+ *   reasoning: { effort: 'high', summary: 'detailed' }
+ * });
  * ```
  */
 export function useChat(options?: UseChatOptions): UseChatResult {
