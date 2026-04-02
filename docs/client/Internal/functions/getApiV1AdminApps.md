@@ -2,7 +2,7 @@
 
 > **getApiV1AdminApps**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AdminAppsData`](../type-aliases/GetApiV1AdminAppsData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AdminAppsResponses`](../type-aliases/GetApiV1AdminAppsResponses.md), [`GetApiV1AdminAppsErrors`](../type-aliases/GetApiV1AdminAppsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:42](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#42)
+Defined in: [src/client/sdk.gen.ts:98](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#98)
 
 List all apps
 

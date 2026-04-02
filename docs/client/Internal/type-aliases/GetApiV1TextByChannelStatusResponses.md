@@ -2,7 +2,7 @@
 
 > **GetApiV1TextByChannelStatusResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4343](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4343)
+Defined in: [src/client/types.gen.ts:5453](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5453)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4343](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`ModelsTextStatusResponse`](ModelsTextStatusResponse.md)
 
-Defined in: [src/client/types.gen.ts:4347](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4347)
+Defined in: [src/client/types.gen.ts:5457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5457)
 
 OK

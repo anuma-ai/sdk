@@ -2,7 +2,7 @@
 
 > **getApiV1DeveloperAppsByAppUuidUsers**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`GetApiV1DeveloperAppsByAppUuidUsersData`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1DeveloperAppsByAppUuidUsersResponses`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersResponses.md), [`GetApiV1DeveloperAppsByAppUuidUsersErrors`](../type-aliases/GetApiV1DeveloperAppsByAppUuidUsersErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#518)
+Defined in: [src/client/sdk.gen.ts:686](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#686)
 
 List users
 

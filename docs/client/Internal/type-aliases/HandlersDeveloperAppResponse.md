@@ -2,7 +2,7 @@
 
 > **HandlersDeveloperAppResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#433)
+Defined in: [src/client/types.gen.ts:594](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#594)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:433](https://github.com/anuma-ai/sdk/blob/m
 
 > **allowed\_origins**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:437](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#437)
+Defined in: [src/client/types.gen.ts:598](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#598)
 
 allowed CORS origins (empty = unrestricted)
 
@@ -20,7 +20,7 @@ allowed CORS origins (empty = unrestricted)
 
 > **app\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:441](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#441)
+Defined in: [src/client/types.gen.ts:602](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#602)
 
 "standard" or "pooled\_api"
 
@@ -30,7 +30,7 @@ Defined in: [src/client/types.gen.ts:441](https://github.com/anuma-ai/sdk/blob/m
 
 > **app\_uuid**: `string`
 
-Defined in: [src/client/types.gen.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#442)
+Defined in: [src/client/types.gen.ts:603](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#603)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [src/client/types.gen.ts:442](https://github.com/anuma-ai/sdk/blob/m
 
 > **balance**: `number`
 
-Defined in: [src/client/types.gen.ts:446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#446)
+Defined in: [src/client/types.gen.ts:607](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#607)
 
 available credits in app pool
 
@@ -48,7 +48,7 @@ available credits in app pool
 
 > **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:447](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#447)
+Defined in: [src/client/types.gen.ts:608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#608)
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: [src/client/types.gen.ts:447](https://github.com/anuma-ai/sdk/blob/m
 
 > **default\_user\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:451](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#451)
+Defined in: [src/client/types.gen.ts:612](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#612)
 
 credits per new user (1 credit = $0.01)
 
@@ -66,7 +66,7 @@ credits per new user (1 credit = $0.01)
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:455](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#455)
+Defined in: [src/client/types.gen.ts:616](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#616)
 
 on-chain escrow contract address
 
@@ -76,7 +76,7 @@ on-chain escrow contract address
 
 > **has\_privy\_config**: `boolean`
 
-Defined in: [src/client/types.gen.ts:456](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#456)
+Defined in: [src/client/types.gen.ts:617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#617)
 
 ***
 
@@ -84,7 +84,7 @@ Defined in: [src/client/types.gen.ts:456](https://github.com/anuma-ai/sdk/blob/m
 
 > **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#457)
+Defined in: [src/client/types.gen.ts:618](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#618)
 
 ***
 
@@ -92,7 +92,7 @@ Defined in: [src/client/types.gen.ts:457](https://github.com/anuma-ai/sdk/blob/m
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:458](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#458)
+Defined in: [src/client/types.gen.ts:619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#619)
 
 ***
 
@@ -100,7 +100,7 @@ Defined in: [src/client/types.gen.ts:458](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **privy\_app\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#459)
+Defined in: [src/client/types.gen.ts:620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#620)
 
 ***
 
@@ -108,4 +108,4 @@ Defined in: [src/client/types.gen.ts:459](https://github.com/anuma-ai/sdk/blob/m
 
 > **updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:460](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#460)
+Defined in: [src/client/types.gen.ts:621](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#621)

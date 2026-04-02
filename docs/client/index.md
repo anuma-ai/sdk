@@ -5,6 +5,16 @@
 | Type Alias | Description |
 | ------ | ------ |
 | [ClientOptions](Internal/type-aliases/ClientOptions.md) | - |
+| [DeleteApiV1AccountData](Internal/type-aliases/DeleteApiV1AccountData.md) | - |
+| [DeleteApiV1AccountError](Internal/type-aliases/DeleteApiV1AccountError.md) | - |
+| [DeleteApiV1AccountErrors](Internal/type-aliases/DeleteApiV1AccountErrors.md) | - |
+| [DeleteApiV1AccountResponse](Internal/type-aliases/DeleteApiV1AccountResponse.md) | - |
+| [DeleteApiV1AccountResponses](Internal/type-aliases/DeleteApiV1AccountResponses.md) | - |
+| [DeleteApiV1AdminAgentsByIdData](Internal/type-aliases/DeleteApiV1AdminAgentsByIdData.md) | - |
+| [DeleteApiV1AdminAgentsByIdError](Internal/type-aliases/DeleteApiV1AdminAgentsByIdError.md) | - |
+| [DeleteApiV1AdminAgentsByIdErrors](Internal/type-aliases/DeleteApiV1AdminAgentsByIdErrors.md) | - |
+| [DeleteApiV1AdminAgentsByIdResponse](Internal/type-aliases/DeleteApiV1AdminAgentsByIdResponse.md) | - |
+| [DeleteApiV1AdminAgentsByIdResponses](Internal/type-aliases/DeleteApiV1AdminAgentsByIdResponses.md) | - |
 | [DeleteApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [DeleteApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/DeleteApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -15,6 +25,16 @@
 | [DeleteApiV1AdminAppsByIdErrors](Internal/type-aliases/DeleteApiV1AdminAppsByIdErrors.md) | - |
 | [DeleteApiV1AdminAppsByIdResponse](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponse.md) | - |
 | [DeleteApiV1AdminAppsByIdResponses](Internal/type-aliases/DeleteApiV1AdminAppsByIdResponses.md) | - |
+| [DeleteApiV1AdminPersonasByIdData](Internal/type-aliases/DeleteApiV1AdminPersonasByIdData.md) | - |
+| [DeleteApiV1AdminPersonasByIdError](Internal/type-aliases/DeleteApiV1AdminPersonasByIdError.md) | - |
+| [DeleteApiV1AdminPersonasByIdErrors](Internal/type-aliases/DeleteApiV1AdminPersonasByIdErrors.md) | - |
+| [DeleteApiV1AdminPersonasByIdResponse](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponse.md) | - |
+| [DeleteApiV1AdminPersonasByIdResponses](Internal/type-aliases/DeleteApiV1AdminPersonasByIdResponses.md) | - |
+| [DeleteApiV1AdminTextResetData](Internal/type-aliases/DeleteApiV1AdminTextResetData.md) | - |
+| [DeleteApiV1AdminTextResetError](Internal/type-aliases/DeleteApiV1AdminTextResetError.md) | - |
+| [DeleteApiV1AdminTextResetErrors](Internal/type-aliases/DeleteApiV1AdminTextResetErrors.md) | - |
+| [DeleteApiV1AdminTextResetResponse](Internal/type-aliases/DeleteApiV1AdminTextResetResponse.md) | - |
+| [DeleteApiV1AdminTextResetResponses](Internal/type-aliases/DeleteApiV1AdminTextResetResponses.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdError.md) | - |
 | [DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors](Internal/type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors.md) | - |
@@ -35,6 +55,11 @@
 | [DeleteApiV1TextByChannelUnregisterErrors](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterErrors.md) | - |
 | [DeleteApiV1TextByChannelUnregisterResponse](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterResponse.md) | - |
 | [DeleteApiV1TextByChannelUnregisterResponses](Internal/type-aliases/DeleteApiV1TextByChannelUnregisterResponses.md) | - |
+| [DeleteApiV1UserApiKeysByKeyIdData](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdData.md) | - |
+| [DeleteApiV1UserApiKeysByKeyIdError](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdError.md) | - |
+| [DeleteApiV1UserApiKeysByKeyIdErrors](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdErrors.md) | - |
+| [DeleteApiV1UserApiKeysByKeyIdResponse](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdResponse.md) | - |
+| [DeleteApiV1UserApiKeysByKeyIdResponses](Internal/type-aliases/DeleteApiV1UserApiKeysByKeyIdResponses.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [GetApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/GetApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -55,6 +80,16 @@
 | [GetApiV1AdminAppsErrors](Internal/type-aliases/GetApiV1AdminAppsErrors.md) | - |
 | [GetApiV1AdminAppsResponse](Internal/type-aliases/GetApiV1AdminAppsResponse.md) | - |
 | [GetApiV1AdminAppsResponses](Internal/type-aliases/GetApiV1AdminAppsResponses.md) | - |
+| [GetApiV1AdminUsersLookupData](Internal/type-aliases/GetApiV1AdminUsersLookupData.md) | - |
+| [GetApiV1AdminUsersLookupError](Internal/type-aliases/GetApiV1AdminUsersLookupError.md) | - |
+| [GetApiV1AdminUsersLookupErrors](Internal/type-aliases/GetApiV1AdminUsersLookupErrors.md) | - |
+| [GetApiV1AdminUsersLookupResponse](Internal/type-aliases/GetApiV1AdminUsersLookupResponse.md) | - |
+| [GetApiV1AdminUsersLookupResponses](Internal/type-aliases/GetApiV1AdminUsersLookupResponses.md) | - |
+| [GetApiV1AgentPreferencesData](Internal/type-aliases/GetApiV1AgentPreferencesData.md) | - |
+| [GetApiV1AgentPreferencesError](Internal/type-aliases/GetApiV1AgentPreferencesError.md) | - |
+| [GetApiV1AgentPreferencesErrors](Internal/type-aliases/GetApiV1AgentPreferencesErrors.md) | - |
+| [GetApiV1AgentPreferencesResponse](Internal/type-aliases/GetApiV1AgentPreferencesResponse.md) | - |
+| [GetApiV1AgentPreferencesResponses](Internal/type-aliases/GetApiV1AgentPreferencesResponses.md) | - |
 | [GetApiV1AgentsByIdData](Internal/type-aliases/GetApiV1AgentsByIdData.md) | - |
 | [GetApiV1AgentsByIdError](Internal/type-aliases/GetApiV1AgentsByIdError.md) | - |
 | [GetApiV1AgentsByIdErrors](Internal/type-aliases/GetApiV1AgentsByIdErrors.md) | - |
@@ -128,6 +163,16 @@
 | [GetApiV1ModelsErrors](Internal/type-aliases/GetApiV1ModelsErrors.md) | - |
 | [GetApiV1ModelsResponse](Internal/type-aliases/GetApiV1ModelsResponse.md) | - |
 | [GetApiV1ModelsResponses](Internal/type-aliases/GetApiV1ModelsResponses.md) | - |
+| [GetApiV1PersonasByIdData](Internal/type-aliases/GetApiV1PersonasByIdData.md) | - |
+| [GetApiV1PersonasByIdError](Internal/type-aliases/GetApiV1PersonasByIdError.md) | - |
+| [GetApiV1PersonasByIdErrors](Internal/type-aliases/GetApiV1PersonasByIdErrors.md) | - |
+| [GetApiV1PersonasByIdResponse](Internal/type-aliases/GetApiV1PersonasByIdResponse.md) | - |
+| [GetApiV1PersonasByIdResponses](Internal/type-aliases/GetApiV1PersonasByIdResponses.md) | - |
+| [GetApiV1PersonasData](Internal/type-aliases/GetApiV1PersonasData.md) | - |
+| [GetApiV1PersonasError](Internal/type-aliases/GetApiV1PersonasError.md) | - |
+| [GetApiV1PersonasErrors](Internal/type-aliases/GetApiV1PersonasErrors.md) | - |
+| [GetApiV1PersonasResponse](Internal/type-aliases/GetApiV1PersonasResponse.md) | - |
+| [GetApiV1PersonasResponses](Internal/type-aliases/GetApiV1PersonasResponses.md) | - |
 | [GetApiV1PhoneCallsByCallIdData](Internal/type-aliases/GetApiV1PhoneCallsByCallIdData.md) | - |
 | [GetApiV1PhoneCallsByCallIdError](Internal/type-aliases/GetApiV1PhoneCallsByCallIdError.md) | - |
 | [GetApiV1PhoneCallsByCallIdErrors](Internal/type-aliases/GetApiV1PhoneCallsByCallIdErrors.md) | - |
@@ -168,6 +213,11 @@
 | [GetApiV1UsageModelsErrors](Internal/type-aliases/GetApiV1UsageModelsErrors.md) | - |
 | [GetApiV1UsageModelsResponse](Internal/type-aliases/GetApiV1UsageModelsResponse.md) | - |
 | [GetApiV1UsageModelsResponses](Internal/type-aliases/GetApiV1UsageModelsResponses.md) | - |
+| [GetApiV1UserApiKeysData](Internal/type-aliases/GetApiV1UserApiKeysData.md) | - |
+| [GetApiV1UserApiKeysError](Internal/type-aliases/GetApiV1UserApiKeysError.md) | - |
+| [GetApiV1UserApiKeysErrors](Internal/type-aliases/GetApiV1UserApiKeysErrors.md) | - |
+| [GetApiV1UserApiKeysResponse](Internal/type-aliases/GetApiV1UserApiKeysResponse.md) | - |
+| [GetApiV1UserApiKeysResponses](Internal/type-aliases/GetApiV1UserApiKeysResponses.md) | - |
 | [GetHealthData](Internal/type-aliases/GetHealthData.md) | - |
 | [GetHealthError](Internal/type-aliases/GetHealthError.md) | - |
 | [GetHealthErrors](Internal/type-aliases/GetHealthErrors.md) | - |
@@ -194,12 +244,14 @@
 | [HandlersClaimTaskRewardResponse](Internal/type-aliases/HandlersClaimTaskRewardResponse.md) | - |
 | [HandlersConfigResponse](Internal/type-aliases/HandlersConfigResponse.md) | - |
 | [HandlersConfigurePrivyRequest](Internal/type-aliases/HandlersConfigurePrivyRequest.md) | - |
+| [HandlersCreateAgentRequest](Internal/type-aliases/HandlersCreateAgentRequest.md) | - |
 | [HandlersCreateApiKeyRequest](Internal/type-aliases/HandlersCreateApiKeyRequest.md) | - |
 | [HandlersCreateAppRequest](Internal/type-aliases/HandlersCreateAppRequest.md) | - |
 | [HandlersCreateCheckoutSessionRequest](Internal/type-aliases/HandlersCreateCheckoutSessionRequest.md) | - |
 | [HandlersCreateCreditPackCheckoutRequest](Internal/type-aliases/HandlersCreateCreditPackCheckoutRequest.md) | - |
 | [HandlersCreateCustomerPortalRequest](Internal/type-aliases/HandlersCreateCustomerPortalRequest.md) | - |
 | [HandlersCreateDeveloperAppRequest](Internal/type-aliases/HandlersCreateDeveloperAppRequest.md) | - |
+| [HandlersCreatePersonaRequest](Internal/type-aliases/HandlersCreatePersonaRequest.md) | - |
 | [HandlersCreatePhoneCallRequest](Internal/type-aliases/HandlersCreatePhoneCallRequest.md) | - |
 | [HandlersCreditBalanceResponse](Internal/type-aliases/HandlersCreditBalanceResponse.md) | - |
 | [HandlersCreditPack](Internal/type-aliases/HandlersCreditPack.md) | - |
@@ -219,10 +271,16 @@
 | [HandlersListAppsResponse](Internal/type-aliases/HandlersListAppsResponse.md) | - |
 | [HandlersListDeveloperApiKeysResponse](Internal/type-aliases/HandlersListDeveloperApiKeysResponse.md) | - |
 | [HandlersListDeveloperAppsResponse](Internal/type-aliases/HandlersListDeveloperAppsResponse.md) | - |
+| [HandlersListUserApiKeysResponse](Internal/type-aliases/HandlersListUserApiKeysResponse.md) | - |
 | [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
+| [HandlersMigrateCreditsBatchResult](Internal/type-aliases/HandlersMigrateCreditsBatchResult.md) | - |
+| [HandlersMigrateCreditsRequest](Internal/type-aliases/HandlersMigrateCreditsRequest.md) | - |
+| [HandlersMigrateCreditsResponse](Internal/type-aliases/HandlersMigrateCreditsResponse.md) | - |
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
+| [HandlersPersonaListResponse](Internal/type-aliases/HandlersPersonaListResponse.md) | - |
+| [HandlersPersonaResponse](Internal/type-aliases/HandlersPersonaResponse.md) | - |
 | [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
 | [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
@@ -237,6 +295,7 @@
 | [HandlersSeedAppsResponse](Internal/type-aliases/HandlersSeedAppsResponse.md) | - |
 | [HandlersSetSubscriptionTierRequest](Internal/type-aliases/HandlersSetSubscriptionTierRequest.md) | - |
 | [HandlersSetSubscriptionTierResponse](Internal/type-aliases/HandlersSetSubscriptionTierResponse.md) | - |
+| [HandlersSetUserAgentPreferenceRequest](Internal/type-aliases/HandlersSetUserAgentPreferenceRequest.md) | - |
 | [HandlersSubscriptionPlan](Internal/type-aliases/HandlersSubscriptionPlan.md) | - |
 | [HandlersSubscriptionPlansResponse](Internal/type-aliases/HandlersSubscriptionPlansResponse.md) | - |
 | [HandlersSubscriptionStatusResponse](Internal/type-aliases/HandlersSubscriptionStatusResponse.md) | - |
@@ -247,9 +306,11 @@
 | [HandlersToolCallDetailItem](Internal/type-aliases/HandlersToolCallDetailItem.md) | - |
 | [HandlersTopUpUserRequest](Internal/type-aliases/HandlersTopUpUserRequest.md) | - |
 | [HandlersUnregisterTextResponse](Internal/type-aliases/HandlersUnregisterTextResponse.md) | - |
+| [HandlersUpdateAgentRequest](Internal/type-aliases/HandlersUpdateAgentRequest.md) | - |
 | [HandlersUpdateApiKeyRequest](Internal/type-aliases/HandlersUpdateApiKeyRequest.md) | - |
 | [HandlersUpdateAppRequest](Internal/type-aliases/HandlersUpdateAppRequest.md) | - |
 | [HandlersUpdateDeveloperAppRequest](Internal/type-aliases/HandlersUpdateDeveloperAppRequest.md) | - |
+| [HandlersUpdatePersonaRequest](Internal/type-aliases/HandlersUpdatePersonaRequest.md) | - |
 | [HandlersUpdateUserLimitRequest](Internal/type-aliases/HandlersUpdateUserLimitRequest.md) | - |
 | [HandlersUpgradeSubscriptionRequest](Internal/type-aliases/HandlersUpgradeSubscriptionRequest.md) | - |
 | [HandlersUpgradeSubscriptionResponse](Internal/type-aliases/HandlersUpgradeSubscriptionResponse.md) | - |
@@ -257,6 +318,15 @@
 | [HandlersUsagePeriod](Internal/type-aliases/HandlersUsagePeriod.md) | - |
 | [HandlersUsageTimeseriesPoint](Internal/type-aliases/HandlersUsageTimeseriesPoint.md) | - |
 | [HandlersUsageTotals](Internal/type-aliases/HandlersUsageTotals.md) | - |
+| [HandlersUserAgentPreferenceResponse](Internal/type-aliases/HandlersUserAgentPreferenceResponse.md) | - |
+| [HandlersUserAgentPreferencesListResponse](Internal/type-aliases/HandlersUserAgentPreferencesListResponse.md) | - |
+| [HandlersUserApiKeyRequest](Internal/type-aliases/HandlersUserApiKeyRequest.md) | - |
+| [HandlersUserApiKeyResponse](Internal/type-aliases/HandlersUserApiKeyResponse.md) | - |
+| [HandlersUserApiKeyWithSecretResponse](Internal/type-aliases/HandlersUserApiKeyWithSecretResponse.md) | - |
+| [HandlersUserLookupAccount](Internal/type-aliases/HandlersUserLookupAccount.md) | - |
+| [HandlersUserLookupEnrollment](Internal/type-aliases/HandlersUserLookupEnrollment.md) | - |
+| [HandlersUserLookupResponse](Internal/type-aliases/HandlersUserLookupResponse.md) | - |
+| [HandlersUserLookupTextReg](Internal/type-aliases/HandlersUserLookupTextReg.md) | - |
 | [HandlersUserUsageResponse](Internal/type-aliases/HandlersUserUsageResponse.md) | - |
 | [HandlersWalletDetails](Internal/type-aliases/HandlersWalletDetails.md) | Wallet account details |
 | [LlmapiChatCompletionExtraFields](Internal/type-aliases/LlmapiChatCompletionExtraFields.md) | ExtraFields contains additional metadata |
@@ -299,6 +369,8 @@
 | [LlmapiToolCallEvent](Internal/type-aliases/LlmapiToolCallEvent.md) | - |
 | [LlmapiToolCallFunction](Internal/type-aliases/LlmapiToolCallFunction.md) | Function contains the function call details |
 | [McpToolSchema](Internal/type-aliases/McpToolSchema.md) | - |
+| [ModelsReferralRewardRequest](Internal/type-aliases/ModelsReferralRewardRequest.md) | - |
+| [ModelsReferralRewardResponse](Internal/type-aliases/ModelsReferralRewardResponse.md) | - |
 | [ModelsRegisterTextRequest](Internal/type-aliases/ModelsRegisterTextRequest.md) | - |
 | [ModelsTextChannel](Internal/type-aliases/ModelsTextChannel.md) | - |
 | [ModelsTextLookupResult](Internal/type-aliases/ModelsTextLookupResult.md) | - |
@@ -319,6 +391,11 @@
 | [PostApiV1AdminAddCreditsErrors](Internal/type-aliases/PostApiV1AdminAddCreditsErrors.md) | - |
 | [PostApiV1AdminAddCreditsResponse](Internal/type-aliases/PostApiV1AdminAddCreditsResponse.md) | - |
 | [PostApiV1AdminAddCreditsResponses](Internal/type-aliases/PostApiV1AdminAddCreditsResponses.md) | - |
+| [PostApiV1AdminAgentsData](Internal/type-aliases/PostApiV1AdminAgentsData.md) | - |
+| [PostApiV1AdminAgentsError](Internal/type-aliases/PostApiV1AdminAgentsError.md) | - |
+| [PostApiV1AdminAgentsErrors](Internal/type-aliases/PostApiV1AdminAgentsErrors.md) | - |
+| [PostApiV1AdminAgentsResponse](Internal/type-aliases/PostApiV1AdminAgentsResponse.md) | - |
+| [PostApiV1AdminAgentsResponses](Internal/type-aliases/PostApiV1AdminAgentsResponses.md) | - |
 | [PostApiV1AdminAppsByAppIdApiKeysData](Internal/type-aliases/PostApiV1AdminAppsByAppIdApiKeysData.md) | - |
 | [PostApiV1AdminAppsByAppIdApiKeysError](Internal/type-aliases/PostApiV1AdminAppsByAppIdApiKeysError.md) | - |
 | [PostApiV1AdminAppsByAppIdApiKeysErrors](Internal/type-aliases/PostApiV1AdminAppsByAppIdApiKeysErrors.md) | - |
@@ -329,6 +406,16 @@
 | [PostApiV1AdminAppsErrors](Internal/type-aliases/PostApiV1AdminAppsErrors.md) | - |
 | [PostApiV1AdminAppsResponse](Internal/type-aliases/PostApiV1AdminAppsResponse.md) | - |
 | [PostApiV1AdminAppsResponses](Internal/type-aliases/PostApiV1AdminAppsResponses.md) | - |
+| [PostApiV1AdminMigrateCreditsData](Internal/type-aliases/PostApiV1AdminMigrateCreditsData.md) | - |
+| [PostApiV1AdminMigrateCreditsError](Internal/type-aliases/PostApiV1AdminMigrateCreditsError.md) | - |
+| [PostApiV1AdminMigrateCreditsErrors](Internal/type-aliases/PostApiV1AdminMigrateCreditsErrors.md) | - |
+| [PostApiV1AdminMigrateCreditsResponse](Internal/type-aliases/PostApiV1AdminMigrateCreditsResponse.md) | - |
+| [PostApiV1AdminMigrateCreditsResponses](Internal/type-aliases/PostApiV1AdminMigrateCreditsResponses.md) | - |
+| [PostApiV1AdminPersonasData](Internal/type-aliases/PostApiV1AdminPersonasData.md) | - |
+| [PostApiV1AdminPersonasError](Internal/type-aliases/PostApiV1AdminPersonasError.md) | - |
+| [PostApiV1AdminPersonasErrors](Internal/type-aliases/PostApiV1AdminPersonasErrors.md) | - |
+| [PostApiV1AdminPersonasResponse](Internal/type-aliases/PostApiV1AdminPersonasResponse.md) | - |
+| [PostApiV1AdminPersonasResponses](Internal/type-aliases/PostApiV1AdminPersonasResponses.md) | - |
 | [PostApiV1AdminSeedAppsData](Internal/type-aliases/PostApiV1AdminSeedAppsData.md) | - |
 | [PostApiV1AdminSeedAppsError](Internal/type-aliases/PostApiV1AdminSeedAppsError.md) | - |
 | [PostApiV1AdminSeedAppsErrors](Internal/type-aliases/PostApiV1AdminSeedAppsErrors.md) | - |
@@ -449,6 +536,21 @@
 | [PostApiV1TextByChannelRegisterErrors](Internal/type-aliases/PostApiV1TextByChannelRegisterErrors.md) | - |
 | [PostApiV1TextByChannelRegisterResponse](Internal/type-aliases/PostApiV1TextByChannelRegisterResponse.md) | - |
 | [PostApiV1TextByChannelRegisterResponses](Internal/type-aliases/PostApiV1TextByChannelRegisterResponses.md) | - |
+| [PostApiV1TextReferralRewardData](Internal/type-aliases/PostApiV1TextReferralRewardData.md) | - |
+| [PostApiV1TextReferralRewardError](Internal/type-aliases/PostApiV1TextReferralRewardError.md) | - |
+| [PostApiV1TextReferralRewardErrors](Internal/type-aliases/PostApiV1TextReferralRewardErrors.md) | - |
+| [PostApiV1TextReferralRewardResponse](Internal/type-aliases/PostApiV1TextReferralRewardResponse.md) | - |
+| [PostApiV1TextReferralRewardResponses](Internal/type-aliases/PostApiV1TextReferralRewardResponses.md) | - |
+| [PostApiV1UserApiKeysData](Internal/type-aliases/PostApiV1UserApiKeysData.md) | - |
+| [PostApiV1UserApiKeysError](Internal/type-aliases/PostApiV1UserApiKeysError.md) | - |
+| [PostApiV1UserApiKeysErrors](Internal/type-aliases/PostApiV1UserApiKeysErrors.md) | - |
+| [PostApiV1UserApiKeysResponse](Internal/type-aliases/PostApiV1UserApiKeysResponse.md) | - |
+| [PostApiV1UserApiKeysResponses](Internal/type-aliases/PostApiV1UserApiKeysResponses.md) | - |
+| [PostApiV1WebhooksRevenuecatData](Internal/type-aliases/PostApiV1WebhooksRevenuecatData.md) | - |
+| [PostApiV1WebhooksRevenuecatError](Internal/type-aliases/PostApiV1WebhooksRevenuecatError.md) | - |
+| [PostApiV1WebhooksRevenuecatErrors](Internal/type-aliases/PostApiV1WebhooksRevenuecatErrors.md) | - |
+| [PostApiV1WebhooksRevenuecatResponse](Internal/type-aliases/PostApiV1WebhooksRevenuecatResponse.md) | - |
+| [PostApiV1WebhooksRevenuecatResponses](Internal/type-aliases/PostApiV1WebhooksRevenuecatResponses.md) | - |
 | [PostAuthOauthByProviderExchangeData](Internal/type-aliases/PostAuthOauthByProviderExchangeData.md) | - |
 | [PostAuthOauthByProviderExchangeError](Internal/type-aliases/PostAuthOauthByProviderExchangeError.md) | - |
 | [PostAuthOauthByProviderExchangeErrors](Internal/type-aliases/PostAuthOauthByProviderExchangeErrors.md) | - |
@@ -464,6 +566,11 @@
 | [PostAuthOauthByProviderRevokeErrors](Internal/type-aliases/PostAuthOauthByProviderRevokeErrors.md) | - |
 | [PostAuthOauthByProviderRevokeResponse](Internal/type-aliases/PostAuthOauthByProviderRevokeResponse.md) | - |
 | [PostAuthOauthByProviderRevokeResponses](Internal/type-aliases/PostAuthOauthByProviderRevokeResponses.md) | - |
+| [PutApiV1AdminAgentsByIdData](Internal/type-aliases/PutApiV1AdminAgentsByIdData.md) | - |
+| [PutApiV1AdminAgentsByIdError](Internal/type-aliases/PutApiV1AdminAgentsByIdError.md) | - |
+| [PutApiV1AdminAgentsByIdErrors](Internal/type-aliases/PutApiV1AdminAgentsByIdErrors.md) | - |
+| [PutApiV1AdminAgentsByIdResponse](Internal/type-aliases/PutApiV1AdminAgentsByIdResponse.md) | - |
+| [PutApiV1AdminAgentsByIdResponses](Internal/type-aliases/PutApiV1AdminAgentsByIdResponses.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdData](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdData.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdError](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdError.md) | - |
 | [PutApiV1AdminAppsByAppIdApiKeysByIdErrors](Internal/type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdErrors.md) | - |
@@ -474,22 +581,39 @@
 | [PutApiV1AdminAppsByIdErrors](Internal/type-aliases/PutApiV1AdminAppsByIdErrors.md) | - |
 | [PutApiV1AdminAppsByIdResponse](Internal/type-aliases/PutApiV1AdminAppsByIdResponse.md) | - |
 | [PutApiV1AdminAppsByIdResponses](Internal/type-aliases/PutApiV1AdminAppsByIdResponses.md) | - |
+| [PutApiV1AdminPersonasByIdData](Internal/type-aliases/PutApiV1AdminPersonasByIdData.md) | - |
+| [PutApiV1AdminPersonasByIdError](Internal/type-aliases/PutApiV1AdminPersonasByIdError.md) | - |
+| [PutApiV1AdminPersonasByIdErrors](Internal/type-aliases/PutApiV1AdminPersonasByIdErrors.md) | - |
+| [PutApiV1AdminPersonasByIdResponse](Internal/type-aliases/PutApiV1AdminPersonasByIdResponse.md) | - |
+| [PutApiV1AdminPersonasByIdResponses](Internal/type-aliases/PutApiV1AdminPersonasByIdResponses.md) | - |
+| [PutApiV1AgentsByIdPreferenceData](Internal/type-aliases/PutApiV1AgentsByIdPreferenceData.md) | - |
+| [PutApiV1AgentsByIdPreferenceError](Internal/type-aliases/PutApiV1AgentsByIdPreferenceError.md) | - |
+| [PutApiV1AgentsByIdPreferenceErrors](Internal/type-aliases/PutApiV1AgentsByIdPreferenceErrors.md) | - |
+| [PutApiV1AgentsByIdPreferenceResponse](Internal/type-aliases/PutApiV1AgentsByIdPreferenceResponse.md) | - |
+| [PutApiV1AgentsByIdPreferenceResponses](Internal/type-aliases/PutApiV1AgentsByIdPreferenceResponses.md) | - |
 | [ResponseErrorResponse](Internal/type-aliases/ResponseErrorResponse.md) | - |
 
 ## Functions
 
 | Function | Description |
 | ------ | ------ |
+| [deleteApiV1Account](Internal/functions/deleteApiV1Account.md) | Delete the authenticated user's account |
+| [deleteApiV1AdminAgentsById](Internal/functions/deleteApiV1AdminAgentsById.md) | Delete agent |
 | [deleteApiV1AdminAppsByAppIdApiKeysById](Internal/functions/deleteApiV1AdminAppsByAppIdApiKeysById.md) | Delete API key |
 | [deleteApiV1AdminAppsById](Internal/functions/deleteApiV1AdminAppsById.md) | Delete app |
+| [deleteApiV1AdminPersonasById](Internal/functions/deleteApiV1AdminPersonasById.md) | Delete persona |
+| [deleteApiV1AdminTextReset](Internal/functions/deleteApiV1AdminTextReset.md) | Reset text registrations |
 | [deleteApiV1DeveloperAppsByAppUuid](Internal/functions/deleteApiV1DeveloperAppsByAppUuid.md) | Delete app |
 | [deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId](Internal/functions/deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId.md) | Delete API key |
 | [deleteApiV1DeveloperAppsByAppUuidPrivy](Internal/functions/deleteApiV1DeveloperAppsByAppUuidPrivy.md) | Remove Privy |
 | [deleteApiV1TextByChannelUnregister](Internal/functions/deleteApiV1TextByChannelUnregister.md) | Unregister text channel |
+| [deleteApiV1UserApiKeysByKeyId](Internal/functions/deleteApiV1UserApiKeysByKeyId.md) | Delete user API key |
 | [getApiV1AdminApps](Internal/functions/getApiV1AdminApps.md) | List all apps |
 | [getApiV1AdminAppsByAppIdApiKeys](Internal/functions/getApiV1AdminAppsByAppIdApiKeys.md) | List API keys for an app |
 | [getApiV1AdminAppsByAppIdApiKeysById](Internal/functions/getApiV1AdminAppsByAppIdApiKeysById.md) | Get API key by ID |
 | [getApiV1AdminAppsById](Internal/functions/getApiV1AdminAppsById.md) | Get app by ID |
+| [getApiV1AdminUsersLookup](Internal/functions/getApiV1AdminUsersLookup.md) | Lookup user by identifier |
+| [getApiV1AgentPreferences](Internal/functions/getApiV1AgentPreferences.md) | List user agent preferences |
 | [getApiV1Agents](Internal/functions/getApiV1Agents.md) | List agents |
 | [getApiV1AgentsById](Internal/functions/getApiV1AgentsById.md) | Get agent |
 | [getApiV1Config](Internal/functions/getApiV1Config.md) | Get configuration |
@@ -505,6 +629,8 @@
 | [getApiV1DeveloperBilling](Internal/functions/getApiV1DeveloperBilling.md) | Get billing history |
 | [getApiV1DocsSwaggerJson](Internal/functions/getApiV1DocsSwaggerJson.md) | Get OpenAPI specification |
 | [getApiV1Models](Internal/functions/getApiV1Models.md) | List available models |
+| [getApiV1Personas](Internal/functions/getApiV1Personas.md) | List personas |
+| [getApiV1PersonasById](Internal/functions/getApiV1PersonasById.md) | Get persona |
 | [getApiV1PhoneCallsByCallId](Internal/functions/getApiV1PhoneCallsByCallId.md) | Get phone call |
 | [getApiV1SubscriptionsPlans](Internal/functions/getApiV1SubscriptionsPlans.md) | List available subscription plans |
 | [getApiV1SubscriptionsStatus](Internal/functions/getApiV1SubscriptionsStatus.md) | Get subscription status |
@@ -513,12 +639,16 @@
 | [getApiV1TextByChannelStatus](Internal/functions/getApiV1TextByChannelStatus.md) | Get text channel registration status |
 | [getApiV1Tools](Internal/functions/getApiV1Tools.md) | List available tools |
 | [getApiV1UsageModels](Internal/functions/getApiV1UsageModels.md) | Get usage by model |
+| [getApiV1UserApiKeys](Internal/functions/getApiV1UserApiKeys.md) | List user API keys |
 | [getHealth](Internal/functions/getHealth.md) | Health check |
 | [patchApiV1DeveloperAppsByAppUuid](Internal/functions/patchApiV1DeveloperAppsByAppUuid.md) | Update app |
 | [patchApiV1DeveloperAppsByAppUuidUsersByAddress](Internal/functions/patchApiV1DeveloperAppsByAppUuidUsersByAddress.md) | Update user limit |
 | [postApiV1AdminAddCredits](Internal/functions/postApiV1AdminAddCredits.md) | Add credits to user |
+| [postApiV1AdminAgents](Internal/functions/postApiV1AdminAgents.md) | Create agent |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
+| [postApiV1AdminMigrateCredits](Internal/functions/postApiV1AdminMigrateCredits.md) | Migrate enrolled users to credits |
+| [postApiV1AdminPersonas](Internal/functions/postApiV1AdminPersonas.md) | Create persona |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
 | [postApiV1ChatCompletions](Internal/functions/postApiV1ChatCompletions.md) | Create chat completion |
@@ -543,8 +673,14 @@
 | [postApiV1SubscriptionsUpgrade](Internal/functions/postApiV1SubscriptionsUpgrade.md) | Upgrade subscription |
 | [postApiV1SubscriptionsWebhook](Internal/functions/postApiV1SubscriptionsWebhook.md) | Handle Stripe webhook |
 | [postApiV1TextByChannelRegister](Internal/functions/postApiV1TextByChannelRegister.md) | Register identifier for text channel |
+| [postApiV1TextReferralReward](Internal/functions/postApiV1TextReferralReward.md) | Grant referral reward credits |
+| [postApiV1UserApiKeys](Internal/functions/postApiV1UserApiKeys.md) | Create user API key |
+| [postApiV1WebhooksRevenuecat](Internal/functions/postApiV1WebhooksRevenuecat.md) | Handle RevenueCat webhook |
 | [postAuthOauthByProviderExchange](Internal/functions/postAuthOauthByProviderExchange.md) | Exchange authorization code for tokens |
 | [postAuthOauthByProviderRefresh](Internal/functions/postAuthOauthByProviderRefresh.md) | Refresh access token |
 | [postAuthOauthByProviderRevoke](Internal/functions/postAuthOauthByProviderRevoke.md) | Revoke OAuth token |
+| [putApiV1AdminAgentsById](Internal/functions/putApiV1AdminAgentsById.md) | Update agent |
 | [putApiV1AdminAppsByAppIdApiKeysById](Internal/functions/putApiV1AdminAppsByAppIdApiKeysById.md) | Update API key |
 | [putApiV1AdminAppsById](Internal/functions/putApiV1AdminAppsById.md) | Update app |
+| [putApiV1AdminPersonasById](Internal/functions/putApiV1AdminPersonasById.md) | Update persona |
+| [putApiV1AgentsByIdPreference](Internal/functions/putApiV1AgentsByIdPreference.md) | Set user agent preference |
