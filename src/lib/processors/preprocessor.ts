@@ -1,4 +1,5 @@
 import type { FileMetadata } from "../db/chat/types";
+import { getLogger } from "../logger";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { PdfProcessor } from "./PdfProcessor";
 import { ProcessorRegistry } from "./registry";
@@ -44,6 +45,8 @@ export async function preprocessFiles(
     onProgress,
     onError,
   } = options;
+
+  const logger = getLogger();
 
   // Handle opt-out cases
   if (!files || files.length === 0) {
@@ -98,6 +101,7 @@ export async function preprocessFiles(
   }
 
   const extractedTexts: string[] = [];
+  const allImageUrls: string[] = [];
   const preprocessedFileIds: string[] = [];
   let processedCount = 0;
   let skippedCount = 0;
@@ -110,6 +114,9 @@ export async function preprocessFiles(
 
     // Skip files that are too large
     if (file.size > maxFileSizeBytes) {
+      logger.info(
+        `[preprocessFiles] Skipping "${file.name}" — exceeds ${maxFileSizeBytes} byte limit`
+      );
       skippedCount++;
       continue;
     }
@@ -124,6 +131,7 @@ export async function preprocessFiles(
     try {
       // Ensure file has a data URL
       if (!file.url) {
+        logger.info(`[preprocessFiles] Skipping "${file.name}" — no data URL available`);
         skippedCount++;
         continue;
       }
@@ -151,11 +159,17 @@ export async function preprocessFiles(
         extractedTexts.push(formattedContent);
         preprocessedFileIds.push(file.id); // Track which files were preprocessed
         processedCount++;
+
+        // Collect image fallback URLs (e.g. scanned PDF pages rendered as images)
+        if (result.imageDataUrls && result.imageDataUrls.length > 0) {
+          allImageUrls.push(...result.imageDataUrls);
+        }
       } else {
         skippedCount++;
       }
     } catch (error) {
       errorCount++;
+      logger.error(`[preprocessFiles] Error processing "${file.name}":`, error);
       onError?.(file.name, error instanceof Error ? error : new Error(String(error)));
     }
   }
@@ -164,6 +178,7 @@ export async function preprocessFiles(
 
   return {
     extractedContent,
+    imageContentUrls: allImageUrls.length > 0 ? allImageUrls : undefined,
     originalFiles: keepOriginalFiles ? files : undefined,
     preprocessedFileIds,
     metadata: { processedCount, skippedCount, errorCount },
