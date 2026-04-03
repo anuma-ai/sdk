@@ -7,6 +7,9 @@ import type { FileWithData, PreprocessingOptions, PreprocessingResult } from "./
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
 
+/** Maximum total image fallback URLs across all files in a single preprocessing run */
+const MAX_TOTAL_IMAGES = 20;
+
 /**
  * Format extracted content with file context header
  */
@@ -160,9 +163,13 @@ export async function preprocessFiles(
         preprocessedFileIds.push(file.id); // Track which files were preprocessed
         processedCount++;
 
-        // Collect image fallback URLs (e.g. scanned PDF pages rendered as images)
+        // Collect image fallback URLs (e.g. scanned PDF pages rendered as images).
+        // Cap at 20 images total across all files to keep payload size reasonable.
         if (result.imageDataUrls && result.imageDataUrls.length > 0) {
-          allImageUrls.push(...result.imageDataUrls);
+          const remaining = MAX_TOTAL_IMAGES - allImageUrls.length;
+          if (remaining > 0) {
+            allImageUrls.push(...result.imageDataUrls.slice(0, remaining));
+          }
         }
       } else {
         skippedCount++;

@@ -44,7 +44,7 @@ export async function convertPdfToImages(pdfDataUrl: string, maxPages?: number):
   const loadingTask = pdfjs.getDocument(pdfDataUrl);
   const pdf = await loadingTask.promise;
 
-  const pageLimit = maxPages ? Math.min(maxPages, pdf.numPages) : pdf.numPages;
+  const pageLimit = maxPages != null ? Math.min(maxPages, pdf.numPages) : pdf.numPages;
 
   for (let i = 1; i <= pageLimit; i++) {
     const page = await pdf.getPage(i);

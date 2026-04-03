@@ -55,8 +55,10 @@ export class PdfProcessor implements FileProcessor {
       logger.info(`[PdfProcessor] Converted ${images.length} page(s) of "${file.name}" to images`);
 
       return {
-        // Short text summary so the caller knows what happened
-        extractedText: `[${file.name}: ${images.length} page(s) rendered as images — see attached images below]`,
+        // Contextual note for the LLM — keep it self-contained since the
+        // images are only injected in the current request and not persisted
+        // for follow-up turns.
+        extractedText: `[${file.name}: scanned/image-based PDF — ${images.length} page(s) rendered as images and included in this message for visual analysis]`,
         format: "plain",
         imageDataUrls: images,
         metadata: { pageCount: images.length },
