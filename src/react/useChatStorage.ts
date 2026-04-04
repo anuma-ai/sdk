@@ -220,6 +220,7 @@ async function autoFilterClientTools(
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
 
   if (matches.length === 0) {

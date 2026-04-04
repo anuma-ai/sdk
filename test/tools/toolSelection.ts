@@ -82,7 +82,7 @@ const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
 
 // Server tool matching uses selectServerSideTools defaults
-const SERVER_TOOLS_LIMIT = 10;
+const SERVER_TOOLS_LIMIT = 5;
 const SERVER_TOOLS_MIN_SIMILARITY = 0.3;
 
 // ── Shared state ─────────────────────────────────────────────────────────────
@@ -119,6 +119,7 @@ async function selectTools(prompt: string) {
     limit: SERVER_TOOLS_LIMIT,
     minSimilarity: SERVER_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
@@ -128,6 +129,7 @@ async function selectTools(prompt: string) {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
     filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
 
   // Merge (server first, then client — deduped by name)

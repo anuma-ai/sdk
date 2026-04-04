@@ -642,7 +642,7 @@ export interface ToolMatchResult {
  * Options for findMatchingTools
  */
 export interface ToolMatchOptions {
-  /** Maximum number of tools to return (default: 10) */
+  /** Maximum number of tools to return (default: 5) */
   limit?: number;
   /** Minimum similarity threshold 0-1 (default: 0.3) */
   minSimilarity?: number;
@@ -660,14 +660,22 @@ export interface ToolMatchOptions {
   ambiguityThreshold?: number;
   /** Minimum gap between top and runner-up scores (default: 0.025) */
   minLead?: number;
+  /**
+   * Only keep tools scoring at least this fraction of the top match's score.
+   * Filters out the tail of weakly-related tools that fill up the limit.
+   * For example, 0.85 means a tool must score within 85% of the top match.
+   * Set to 0 to disable. Default: 0 (disabled).
+   */
+  relevanceRatio?: number;
 }
 
 const DEFAULT_TOOL_MATCH_OPTIONS: Required<ToolMatchOptions> = {
-  limit: 10,
+  limit: 5,
   minSimilarity: 0.3,
   filterAmbiguous: false,
   ambiguityThreshold: 0.55,
   minLead: 0.025,
+  relevanceRatio: 0,
 };
 
 /**
@@ -695,7 +703,7 @@ export function findMatchingTools(
   tools: ServerTool[],
   options?: ToolMatchOptions
 ): ToolMatchResult[] {
-  const { limit, minSimilarity, filterAmbiguous, ambiguityThreshold, minLead } = {
+  const { limit, minSimilarity, filterAmbiguous, ambiguityThreshold, minLead, relevanceRatio } = {
     ...DEFAULT_TOOL_MATCH_OPTIONS,
     ...options,
   };
@@ -742,7 +750,7 @@ export function findMatchingTools(
   }
 
   // Sort by similarity descending and limit results
-  const sorted = results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  let sorted = results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
 
   // Ambiguity filter: when the top match is weak and clustered with the runner-up,
   // no tool is a genuine match for this prompt — return empty.
@@ -752,6 +760,13 @@ export function findMatchingTools(
     if (topScore < ambiguityThreshold && topScore - runnerUpScore < minLead) {
       return [];
     }
+  }
+
+  // Relevance dropoff: only keep tools scoring within relevanceRatio of the top match.
+  // This trims the tail of loosely-related tools that fill up the limit.
+  if (relevanceRatio > 0 && sorted.length > 1) {
+    const cutoff = sorted[0].similarity * relevanceRatio;
+    sorted = sorted.filter((r) => r.similarity >= cutoff);
   }
 
   return sorted;
@@ -866,7 +881,7 @@ export async function selectServerSideTools(
   }
 
   // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
-  const matchOptions: ToolMatchOptions = { filterAmbiguous: true };
+  const matchOptions: ToolMatchOptions = { filterAmbiguous: true, relevanceRatio: 0.85 };
   if (limit !== undefined) matchOptions.limit = limit;
   if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
   const matches = findMatchingTools(promptEmbeddings, tools, matchOptions);

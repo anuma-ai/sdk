@@ -39,7 +39,7 @@ A match is considered ambiguous when:
 
 Defined in: [src/lib/tools/serverTools.ts:646](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#646)
 
-Maximum number of tools to return (default: 10)
+Maximum number of tools to return (default: 5)
 
 ***
 
@@ -60,3 +60,16 @@ Minimum gap between top and runner-up scores (default: 0.025)
 Defined in: [src/lib/tools/serverTools.ts:648](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#648)
 
 Minimum similarity threshold 0-1 (default: 0.3)
+
+***
+
+### relevanceRatio?
+
+> `optional` **relevanceRatio**: `number`
+
+Defined in: [src/lib/tools/serverTools.ts:669](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#669)
+
+Only keep tools scoring at least this fraction of the top match's score.
+Filters out the tail of weakly-related tools that fill up the limit.
+For example, 0.85 means a tool must score within 85% of the top match.
+Set to 0 to disable. Default: 0 (disabled).
