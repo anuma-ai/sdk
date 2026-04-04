@@ -37,14 +37,16 @@ export async function extractTextFromPdf(pdfDataUrl: string): Promise<string> {
   return textParts.join("\n\n");
 }
 
-export async function convertPdfToImages(pdfDataUrl: string): Promise<string[]> {
+export async function convertPdfToImages(pdfDataUrl: string, maxPages?: number): Promise<string[]> {
   const images: string[] = [];
 
   const pdfjs = await getPdfjs();
   const loadingTask = pdfjs.getDocument(pdfDataUrl);
   const pdf = await loadingTask.promise;
 
-  for (let i = 1; i <= pdf.numPages; i++) {
+  const pageLimit = maxPages !== undefined ? Math.min(maxPages, pdf.numPages) : pdf.numPages;
+
+  for (let i = 1; i <= pageLimit; i++) {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale: 1.5 });
 

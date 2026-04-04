@@ -2238,6 +2238,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
       let preprocessedFileIds: string[] = [];
+      let imageContentUrls: string[] | undefined;
       if (filesForStorage && filesForStorage.length > 0) {
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
@@ -2250,8 +2251,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             fileContextForRequest = preprocessingResult.extractedContent;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
-        } catch {
-          // Non-fatal error - continue without preprocessing
+
+          // Collect image fallback URLs (e.g. scanned PDF pages rendered as images)
+          if (preprocessingResult.imageContentUrls?.length) {
+            imageContentUrls = preprocessingResult.imageContentUrls;
+          }
+        } catch (err) {
+          getLogger().error(
+            "[sendMessage] File preprocessing failed — continuing without file context:",
+            err
+          );
         }
       }
 
@@ -2422,6 +2431,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }),
             };
           }
+        }
+      }
+
+      // Inject image fallback content (e.g. scanned PDF pages rendered as images).
+      // These are appended to the last user message so the vision model can read
+      // the document even when text extraction returned no content.
+      if (imageContentUrls && imageContentUrls.length > 0) {
+        let lastUserIdx = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserIdx = i;
+            break;
+          }
+        }
+        if (lastUserIdx !== -1) {
+          const msg = messagesToSend[lastUserIdx];
+          const existingParts = Array.isArray(msg.content)
+            ? msg.content
+            : [{ type: "text" as const, text: msg.content ?? "" }];
+          const imageParts = imageContentUrls.map((url) => ({
+            type: "image_url" as const,
+            image_url: { url },
+          }));
+          messagesToSend[lastUserIdx] = {
+            ...msg,
+            content: [...existingParts, ...imageParts],
+          };
         }
       }
 
