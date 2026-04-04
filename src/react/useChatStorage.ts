@@ -134,7 +134,11 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 // Max client tools to include after automatic semantic filtering
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
+// When the top match scores below this AND doesn't clearly lead the runner-up,
+// no tool is truly relevant to the prompt — skip them all.
+const CLIENT_TOOLS_AMBIGUITY_THRESHOLD = 0.55;
+const CLIENT_TOOLS_MIN_LEAD = 0.025;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -222,8 +226,19 @@ async function autoFilterClientTools(
   });
 
   if (matches.length === 0) {
-    // No matches above threshold — send all filterable tools + memory
-    return clientTools;
+    // No matches above threshold — return only always-included tools (e.g. memory)
+    return alwaysInclude;
+  }
+
+  // When the top score is low AND tightly clustered with the runner-up, no tool
+  // is a genuine match — the prompt is generic ("hello", "tell me a joke").
+  const topScore = matches[0].similarity;
+  const runnerUpScore = matches.length > 1 ? matches[1].similarity : 0;
+  if (
+    topScore < CLIENT_TOOLS_AMBIGUITY_THRESHOLD &&
+    topScore - runnerUpScore < CLIENT_TOOLS_MIN_LEAD
+  ) {
+    return alwaysInclude;
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
