@@ -80,8 +80,6 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
 // Match the constants from useChatStorage.ts
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
-const CLIENT_TOOLS_AMBIGUITY_THRESHOLD = 0.55;
-const CLIENT_TOOLS_MIN_LEAD = 0.025;
 
 // Server tool matching uses selectServerSideTools defaults
 const SERVER_TOOLS_LIMIT = 10;
@@ -120,28 +118,17 @@ async function selectTools(prompt: string) {
   const serverMatches = findMatchingTools(promptEmbedding, allServerTools, {
     limit: SERVER_TOOLS_LIMIT,
     minSimilarity: SERVER_TOOLS_MIN_SIMILARITY,
+    filterAmbiguous: true,
   });
   const filteredServerTools = serverMatches.map((m) => m.tool);
 
   // Client tool filtering (same as autoFilterClientTools)
   const clientPseudoTools = buildClientPseudoServerTools();
-  let clientMatches = findMatchingTools(promptEmbedding, clientPseudoTools, {
+  const clientMatches = findMatchingTools(promptEmbedding, clientPseudoTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+    filterAmbiguous: true,
   });
-
-  // Ambiguity check: when the top score is low AND tightly clustered with the
-  // runner-up, no tool is a genuine match — skip them all.
-  if (clientMatches.length > 0) {
-    const topScore = clientMatches[0].similarity;
-    const runnerUpScore = clientMatches.length > 1 ? clientMatches[1].similarity : 0;
-    if (
-      topScore < CLIENT_TOOLS_AMBIGUITY_THRESHOLD &&
-      topScore - runnerUpScore < CLIENT_TOOLS_MIN_LEAD
-    ) {
-      clientMatches = [];
-    }
-  }
 
   // Merge (server first, then client — deduped by name)
   const filteredClientToolConfigs = clientMatches.map((m) => ({

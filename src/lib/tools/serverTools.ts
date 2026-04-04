@@ -646,11 +646,28 @@ export interface ToolMatchOptions {
   limit?: number;
   /** Minimum similarity threshold 0-1 (default: 0.3) */
   minSimilarity?: number;
+  /**
+   * When enabled, returns empty results if the top match doesn't clearly
+   * stand out from the runner-up. This filters out generic prompts like
+   * "hello" or "tell me a joke" where all tools score similarly low.
+   *
+   * A match is considered ambiguous when:
+   * - The top score is below `ambiguityThreshold` (default: 0.55), AND
+   * - The gap between the top score and the runner-up is below `minLead` (default: 0.025)
+   */
+  filterAmbiguous?: boolean;
+  /** Top score must be above this to skip the ambiguity check (default: 0.55) */
+  ambiguityThreshold?: number;
+  /** Minimum gap between top and runner-up scores (default: 0.025) */
+  minLead?: number;
 }
 
 const DEFAULT_TOOL_MATCH_OPTIONS: Required<ToolMatchOptions> = {
   limit: 10,
   minSimilarity: 0.3,
+  filterAmbiguous: false,
+  ambiguityThreshold: 0.55,
+  minLead: 0.025,
 };
 
 /**
@@ -678,7 +695,7 @@ export function findMatchingTools(
   tools: ServerTool[],
   options?: ToolMatchOptions
 ): ToolMatchResult[] {
-  const { limit, minSimilarity } = {
+  const { limit, minSimilarity, filterAmbiguous, ambiguityThreshold, minLead } = {
     ...DEFAULT_TOOL_MATCH_OPTIONS,
     ...options,
   };
@@ -725,7 +742,19 @@ export function findMatchingTools(
   }
 
   // Sort by similarity descending and limit results
-  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  const sorted = results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+
+  // Ambiguity filter: when the top match is weak and clustered with the runner-up,
+  // no tool is a genuine match for this prompt — return empty.
+  if (filterAmbiguous && sorted.length > 0) {
+    const topScore = sorted[0].similarity;
+    const runnerUpScore = sorted.length > 1 ? sorted[1].similarity : 0;
+    if (topScore < ambiguityThreshold && topScore - runnerUpScore < minLead) {
+      return [];
+    }
+  }
+
+  return sorted;
 }
 
 /**
@@ -837,7 +866,7 @@ export async function selectServerSideTools(
   }
 
   // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
-  const matchOptions: ToolMatchOptions = {};
+  const matchOptions: ToolMatchOptions = { filterAmbiguous: true };
   if (limit !== undefined) matchOptions.limit = limit;
   if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
   const matches = findMatchingTools(promptEmbeddings, tools, matchOptions);
