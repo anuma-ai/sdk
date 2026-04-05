@@ -26,9 +26,7 @@ function encodeSingleFile(html: string): string {
 
 function decodeHtml(
   rawHtml: string
-):
-  | { isMultiFile: true; files: Record<string, string> }
-  | { isMultiFile: false; html: string } {
+): { isMultiFile: true; files: Record<string, string> } | { isMultiFile: false; html: string } {
   try {
     const parsed = JSON.parse(rawHtml) as {
       _multiFile?: string;
@@ -70,8 +68,7 @@ describe("multi-file persistence", () => {
   it("round-trips a multi-file app through encode/decode", () => {
     const files = {
       "package.json": '{"dependencies":{"react":"^18.2.0"}}',
-      "App.js":
-        'export default function App() { return <div>Hello</div>; }',
+      "App.js": "export default function App() { return <div>Hello</div>; }",
       "App.css": "body { margin: 0; }",
     };
 
@@ -81,11 +78,7 @@ describe("multi-file persistence", () => {
     expect(decoded.isMultiFile).toBe(true);
     if (decoded.isMultiFile) {
       expect(decoded.files).toEqual(files);
-      expect(Object.keys(decoded.files)).toEqual([
-        "package.json",
-        "App.js",
-        "App.css",
-      ]);
+      expect(Object.keys(decoded.files)).toEqual(["package.json", "App.js", "App.css"]);
     }
   });
 
@@ -154,8 +147,7 @@ describe("multi-file persistence", () => {
     // Simulate: create 3 files, patch App.css, re-encode, decode
     const original = {
       "package.json": '{"dependencies":{"react":"^18.2.0"}}',
-      "App.js":
-        'export default function App() { return <div className="app">Hello</div>; }',
+      "App.js": 'export default function App() { return <div className="app">Hello</div>; }',
       "App.css": ".app { background: blue; color: white; }",
     };
 
@@ -169,9 +161,7 @@ describe("multi-file persistence", () => {
 
     expect(decoded.isMultiFile).toBe(true);
     if (decoded.isMultiFile) {
-      expect(decoded.files["App.css"]).toBe(
-        ".app { background: green; color: white; }"
-      );
+      expect(decoded.files["App.css"]).toBe(".app { background: green; color: white; }");
       expect(decoded.files["App.js"]).toBe(original["App.js"]);
       expect(decoded.files["package.json"]).toBe(original["package.json"]);
     }

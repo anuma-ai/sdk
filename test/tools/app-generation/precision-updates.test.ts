@@ -75,9 +75,7 @@ describe("precision-updates", () => {
 
     // Step 1: Generate the initial app
     conversation.push(
-      userMsg(
-        "Build a simple counter app with increment, decrement, and reset buttons."
-      )
+      userMsg("Build a simple counter app with increment, decrement, and reset buttons.")
     );
     const gen = await runTurn(conversation, tools);
     printResult(gen.result);
@@ -88,11 +86,7 @@ describe("precision-updates", () => {
     const logAfterGen = log.length;
 
     // Step 2: Change ONLY the button color
-    conversation.push(
-      userMsg(
-        "Make the increment button green and the decrement button red."
-      )
-    );
+    conversation.push(userMsg("Make the increment button green and the decrement button red."));
     const update = await runTurn(conversation, tools);
     printResult(update.result);
     expect(update.result.error).toBeNull();
@@ -126,9 +120,7 @@ describe("precision-updates", () => {
     const totalChanged = diffs.reduce((sum, d) => sum + d.linesChanged, 0);
     console.log(`  Total lines changed: ${totalChanged}`);
 
-    const jsDiff = diffs.find(
-      (d) => d.path === "App.js" || d.path === "App.jsx"
-    );
+    const jsDiff = diffs.find((d) => d.path === "App.js" || d.path === "App.jsx");
     const cssDiff = diffs.find((d) => d.path === "App.css");
     console.log(
       `  JS: ${jsDiff?.linesChanged ?? 0} lines, CSS: ${cssDiff?.linesChanged ?? 0} lines`
@@ -148,9 +140,7 @@ describe("precision-updates", () => {
     const conversation: Message[] = [systemMsg(SYSTEM_PROMPT)];
 
     // Step 1: Generate
-    conversation.push(
-      userMsg("Build a BMI calculator with height and weight inputs.")
-    );
+    conversation.push(userMsg("Build a BMI calculator with height and weight inputs."));
     const gen = await runTurn(conversation, tools);
     printResult(gen.result);
     expect(gen.result.error).toBeNull();
@@ -159,11 +149,7 @@ describe("precision-updates", () => {
     const snap1 = snapshot(store);
 
     // Step 2: Change only the title
-    conversation.push(
-      userMsg(
-        'Change the title from "BMI Calculator" to "Body Mass Index Tool".'
-      )
-    );
+    conversation.push(userMsg('Change the title from "BMI Calculator" to "Body Mass Index Tool".'));
     const update = await runTurn(conversation, tools);
     printResult(update.result);
     expect(update.result.error).toBeNull();
@@ -184,9 +170,7 @@ describe("precision-updates", () => {
     }
 
     // App.js should change but only 1-2 lines (the title string)
-    const jsDiff = diffs.find(
-      (d) => d.path === "App.js" || d.path === "App.jsx"
-    );
+    const jsDiff = diffs.find((d) => d.path === "App.js" || d.path === "App.jsx");
     expect(jsDiff?.status).toBe("modified");
     console.log(`  JS lines changed: ${jsDiff?.linesChanged}`);
 
@@ -239,9 +223,7 @@ describe("precision-updates", () => {
     const patchCalls = updateLog.filter((l) => l.name === "patch_file");
     const failedPatches = patchCalls.filter((l) => {
       const result =
-        typeof l.result === "string"
-          ? JSON.parse(l.result)
-          : (l.result as Record<string, unknown>);
+        typeof l.result === "string" ? JSON.parse(l.result) : (l.result as Record<string, unknown>);
       return result.failed > 0;
     });
     const retriedAfterFailure =
@@ -266,9 +248,7 @@ describe("precision-updates", () => {
       appCss.includes("#6d28d9") ||
       appJs.includes("purple");
 
-    console.log(
-      `  Button text updated: ${hasNewText}, Purple applied: ${hasPurple}`
-    );
+    console.log(`  Button text updated: ${hasNewText}, Purple applied: ${hasPurple}`);
     expect(hasNewText).toBe(true);
   });
 
@@ -284,9 +264,7 @@ describe("precision-updates", () => {
     }> = [];
 
     // Step 1: Generate a todo app
-    conversation.push(
-      userMsg("Build a todo list app with add and remove functionality.")
-    );
+    conversation.push(userMsg("Build a todo list app with add and remove functionality."));
     const gen = await runTurn(conversation, tools);
     expect(gen.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-1-initial");
@@ -294,9 +272,7 @@ describe("precision-updates", () => {
     snapshots.push({ label: "initial", snap: snapshot(store) });
 
     // Step 2: Change background color
-    conversation.push(
-      userMsg("Change the background color to dark navy blue.")
-    );
+    conversation.push(userMsg("Change the background color to dark navy blue."));
     const s2 = await runTurn(conversation, tools);
     expect(s2.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-2-bg-color");
@@ -310,9 +286,7 @@ describe("precision-updates", () => {
     printDiff("Step 2: bg color", diffs2);
 
     // Step 3: Add a completed count
-    conversation.push(
-      userMsg("Add a counter showing how many tasks are completed.")
-    );
+    conversation.push(userMsg("Add a counter showing how many tasks are completed."));
     const s3 = await runTurn(conversation, tools);
     expect(s3.result.error).toBeNull();
     dumpFiles(store, "precision-multi/step-3-counter");
@@ -340,12 +314,8 @@ describe("precision-updates", () => {
     for (const s of snapshots) {
       if (!s.diffs) continue;
       const total = s.diffs.reduce((sum, d) => sum + d.linesChanged, 0);
-      const modified = s.diffs
-        .filter((d) => d.status === "modified")
-        .map((d) => d.path);
-      console.log(
-        `  ${s.label}: ${total} lines changed in [${modified.join(", ")}]`
-      );
+      const modified = s.diffs.filter((d) => d.status === "modified").map((d) => d.path);
+      console.log(`  ${s.label}: ${total} lines changed in [${modified.join(", ")}]`);
     }
 
     // Each incremental change should modify fewer than 50 lines total.
@@ -354,9 +324,7 @@ describe("precision-updates", () => {
       if (!s.diffs) continue;
       const total = s.diffs.reduce((sum, d) => sum + d.linesChanged, 0);
       if (total > 50) {
-        console.warn(
-          `  WARNING: "${s.label}" changed ${total} lines — likely a full rewrite`
-        );
+        console.warn(`  WARNING: "${s.label}" changed ${total} lines — likely a full rewrite`);
       }
     }
   });

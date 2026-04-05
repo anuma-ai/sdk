@@ -221,6 +221,7 @@ export interface CreateAppGenerationToolsOptions {
   /** Optional error logger. Falls back to console.error. */
   logError?: (message: string, error?: Error) => void;
   /** Optional executor for display_app. When provided, a display_app tool is included in the returned array. */
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
 }
 

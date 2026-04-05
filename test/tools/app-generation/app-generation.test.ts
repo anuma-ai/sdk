@@ -113,9 +113,7 @@ describe("app-generation", () => {
 
     // With batch mode, we expect 1 create_file call (or at most 2).
     // Without batch mode, we'd see 3+ calls (one per file).
-    console.log(
-      `  create_file calls: ${createCalls.length}, files in store: ${store.size}`
-    );
+    console.log(`  create_file calls: ${createCalls.length}, files in store: ${store.size}`);
 
     // Check if at least one call used the files array
     const batchCalls = createCalls.filter((l) => Array.isArray(l.args.files));
@@ -155,9 +153,7 @@ describe("app-generation", () => {
 
     const filesAfterGen = new Map(store);
     const callsAfterGen = log.length;
-    console.log(
-      `  After generation: ${store.size} files, ${callsAfterGen} tool calls`
-    );
+    console.log(`  After generation: ${store.size} files, ${callsAfterGen} tool calls`);
 
     // Step 2: Ask to change only the styles
     const updateMessages = [
@@ -305,8 +301,6 @@ describe("app-generation", () => {
     // Should have used batch mode
     const createCalls = log.filter((l) => l.name === "create_file");
     const batchCalls = createCalls.filter((l) => Array.isArray(l.args.files));
-    console.log(
-      `  create_file calls: ${createCalls.length} (${batchCalls.length} batch)`
-    );
+    console.log(`  create_file calls: ${createCalls.length} (${batchCalls.length} batch)`);
   });
 });

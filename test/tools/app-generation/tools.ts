@@ -5,10 +5,7 @@
  * so tests run without any external dependencies.
  */
 
-import {
-  createAppGenerationTools,
-  type AppFileStorage,
-} from "../../../src/tools/appGeneration.js";
+import { createAppGenerationTools, type AppFileStorage } from "../../../src/tools/appGeneration.js";
 import type { FileStore } from "./setup.js";
 import { normalizePath } from "../../../src/tools/appGeneration.js";
 
@@ -24,10 +21,7 @@ function createMapStorage(store: FileStore): AppFileStorage {
     putFile: async (_cid: string, p: string, content: string) => {
       store.set(normalizePath(p), content);
     },
-    putFiles: async (
-      _cid: string,
-      files: Array<{ path: string; content: string }>
-    ) => {
+    putFiles: async (_cid: string, files: Array<{ path: string; content: string }>) => {
       for (const f of files) store.set(normalizePath(f.path), f.content);
     },
     deleteFile: async (_cid: string, p: string) => {

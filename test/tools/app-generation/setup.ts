@@ -58,11 +58,7 @@ export interface FileDiff {
   changedLineNumbers: number[];
 }
 
-function diffFile(
-  p: string,
-  b: string | undefined,
-  a: string | undefined
-): FileDiff {
+function diffFile(p: string, b: string | undefined, a: string | undefined): FileDiff {
   if (b === undefined && a !== undefined) {
     const lines = a.split("\n");
     return {
@@ -106,10 +102,7 @@ function diffFile(
   };
 }
 
-export function diffSnapshots(
-  before: Map<string, string>,
-  after: Map<string, string>
-): FileDiff[] {
+export function diffSnapshots(before: Map<string, string>, after: Map<string, string>): FileDiff[] {
   const allPaths = new Set([...before.keys(), ...after.keys()]);
   return [...allPaths].map((p) => diffFile(p, before.get(p), after.get(p)));
 }
@@ -137,10 +130,7 @@ const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
 /** Write all files from the store to disk for inspection. */
 export function dumpFiles(store: FileStore, testName: string): string {
-  const dir = path.join(
-    OUTPUT_DIR,
-    testName.replace(/[^a-zA-Z0-9-_/]/g, "_")
-  );
+  const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
   for (const [filePath, content] of store) {
     const fullPath = path.join(dir, filePath);
@@ -157,9 +147,7 @@ export function writeIndex(): void {
   const dirs = fs
     .readdirSync(OUTPUT_DIR)
     .filter((d) => fs.statSync(path.join(OUTPUT_DIR, d)).isDirectory());
-  const links = dirs
-    .map((name) => `      <a href="${name}/">${name}</a>`)
-    .join("\n");
+  const links = dirs.map((name) => `      <a href="${name}/">${name}</a>`).join("\n");
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -178,7 +166,5 @@ ${links}
 </body>
 </html>`;
   fs.writeFileSync(path.join(OUTPUT_DIR, "index.html"), html, "utf-8");
-  console.log(
-    `  Index written to ${path.relative(process.cwd(), OUTPUT_DIR)}/index.html`
-  );
+  console.log(`  Index written to ${path.relative(process.cwd(), OUTPUT_DIR)}/index.html`);
 }
