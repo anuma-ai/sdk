@@ -2258,12 +2258,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           }
 
           // eslint-disable-next-line no-console -- temporary debug logging
-          console.warn("[SDK-DEBUG] preprocessFiles result:", {
+          console.warn("[SDK-DEBUG] preprocessFiles result: " + JSON.stringify({
             hasContent: !!preprocessingResult.extractedContent,
             contentLength: preprocessingResult.extractedContent?.length,
             imageCount: preprocessingResult.imageContentUrls?.length ?? 0,
             metadata: preprocessingResult.metadata,
-          });
+          }));
         } catch (err) {
           // eslint-disable-next-line no-console -- temporary debug logging
           console.error("[SDK-DEBUG] preprocessFiles THREW:", err);
