@@ -653,12 +653,12 @@ export interface ToolMatchOptions {
    *
    * A match is considered ambiguous when:
    * - The top score is below `ambiguityThreshold` (default: 0.55), AND
-   * - The gap between the top score and the runner-up is below `minLead` (default: 0.025)
+   * - The gap between the top score and the runner-up is below `minLead` (default: 0.04)
    */
   filterAmbiguous?: boolean;
   /** Top score must be above this to skip the ambiguity check (default: 0.55) */
   ambiguityThreshold?: number;
-  /** Minimum gap between top and runner-up scores (default: 0.025) */
+  /** Minimum gap between top and runner-up scores (default: 0.04) */
   minLead?: number;
   /**
    * Only keep tools scoring at least this fraction of the top match's score.
@@ -674,7 +674,7 @@ const DEFAULT_TOOL_MATCH_OPTIONS: Required<ToolMatchOptions> = {
   minSimilarity: 0.3,
   filterAmbiguous: false,
   ambiguityThreshold: 0.55,
-  minLead: 0.025,
+  minLead: 0.04,
   relevanceRatio: 0,
 };
 
@@ -754,9 +754,9 @@ export function findMatchingTools(
 
   // Ambiguity filter: when the top match is weak and clustered with the runner-up,
   // no tool is a genuine match for this prompt — return empty.
-  if (filterAmbiguous && sorted.length > 0) {
+  if (filterAmbiguous && sorted.length > 1) {
     const topScore = sorted[0].similarity;
-    const runnerUpScore = sorted.length > 1 ? sorted[1].similarity : 0;
+    const runnerUpScore = sorted[1].similarity;
     if (topScore < ambiguityThreshold && topScore - runnerUpScore < minLead) {
       return [];
     }

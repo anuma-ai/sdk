@@ -136,7 +136,7 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 // is just a safety cap to avoid pathological cases.
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {

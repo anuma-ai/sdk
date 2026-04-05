@@ -29,7 +29,7 @@ stand out from the runner-up. This filters out generic prompts like
 A match is considered ambiguous when:
 
 * The top score is below `ambiguityThreshold` (default: 0.55), AND
-* The gap between the top score and the runner-up is below `minLead` (default: 0.025)
+* The gap between the top score and the runner-up is below `minLead` (default: 0.04)
 
 ***
 
@@ -49,7 +49,7 @@ Maximum number of tools to return (default: 5)
 
 Defined in: [src/lib/tools/serverTools.ts:662](https://github.com/anuma-ai/sdk/blob/main/src/lib/tools/serverTools.ts#662)
 
-Minimum gap between top and runner-up scores (default: 0.025)
+Minimum gap between top and runner-up scores (default: 0.04)
 
 ***
 
