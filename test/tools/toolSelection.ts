@@ -78,7 +78,7 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
 ];
 
 // Match the constants from useChatStorage.ts
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
 
 // Server tool matching uses selectServerSideTools defaults

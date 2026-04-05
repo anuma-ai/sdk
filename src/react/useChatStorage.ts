@@ -131,8 +131,10 @@ import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-// Max client tools to include after automatic semantic filtering
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Max client tools to include after automatic semantic filtering.
+// Set high — the relevanceRatio (0.85) does the real trimming; this
+// is just a safety cap to avoid pathological cases.
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.4;
 
