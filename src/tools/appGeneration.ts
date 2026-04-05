@@ -51,7 +51,7 @@ export interface AppFileStorage {
 
 /** Strip leading slash and collapse traversal segments so paths are always clean relative paths. */
 export function normalizePath(p: string): string {
-  const stripped = p.startsWith("/") ? p.slice(1) : p;
+  const stripped = p.replace(/^\/+/, "").replace(/\/\/+/g, "/");
   return stripped
     .split("/")
     .filter((seg) => seg !== ".." && seg !== ".")
