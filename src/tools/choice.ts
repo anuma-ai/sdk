@@ -47,7 +47,7 @@ export function createChoiceTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
     name: "prompt_user_choice",
     description:
-      "Renders an interactive inline menu the user can click to pick from choices. Use when the user's request naturally involves selecting between specific, concrete options — for example picking a restaurant, choosing a travel destination, or selecting a category. Call this tool FIRST before generating any response text. After the user selects, you receive their choice and can respond based on it.",
+      "Show a clickable choice menu when the user needs to pick between specific options. Examples: choosing a restaurant, selecting a travel destination, picking a category or plan. Only use when the user is deciding between concrete alternatives. Do NOT use for search, media generation, or information lookups.",
     parameters: {
       type: "object",
       properties: {

@@ -131,10 +131,12 @@ import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-// Max client tools to include after automatic semantic filtering
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Max client tools to include after automatic semantic filtering.
+// Set high — the relevanceRatio (0.85) does the real trimming; this
+// is just a safety cap to avoid pathological cases.
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -219,11 +221,13 @@ async function autoFilterClientTools(
   const matches = findMatchingTools(promptEmbeddings, pseudoServerTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+    filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
 
   if (matches.length === 0) {
-    // No matches above threshold — send all filterable tools + memory
-    return clientTools;
+    // No matches above threshold — return only always-included tools (e.g. memory)
+    return alwaysInclude;
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
