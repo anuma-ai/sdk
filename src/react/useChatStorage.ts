@@ -2256,7 +2256,17 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           if (preprocessingResult.imageContentUrls?.length) {
             imageContentUrls = preprocessingResult.imageContentUrls;
           }
+
+          // eslint-disable-next-line no-console -- temporary debug logging
+          console.warn("[SDK-DEBUG] preprocessFiles result:", {
+            hasContent: !!preprocessingResult.extractedContent,
+            contentLength: preprocessingResult.extractedContent?.length,
+            imageCount: preprocessingResult.imageContentUrls?.length ?? 0,
+            metadata: preprocessingResult.metadata,
+          });
         } catch (err) {
+          // eslint-disable-next-line no-console -- temporary debug logging
+          console.error("[SDK-DEBUG] preprocessFiles THREW:", err);
           getLogger().error(
             "[sendMessage] File preprocessing failed — continuing without file context:",
             err
