@@ -38,11 +38,19 @@ Defined in: [src/client/types.gen.ts:255](https://github.com/anuma-ai/sdk/blob/m
 
 ***
 
+### credits\_token\_address?
+
+> `optional` **credits\_token\_address**: `string`
+
+Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#256)
+
+***
+
 ### default\_user\_cost\_limit\_usd
 
 > **default\_user\_cost\_limit\_usd**: `number`
 
-Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#256)
+Defined in: [src/client/types.gen.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#257)
 
 ***
 
@@ -50,7 +58,7 @@ Defined in: [src/client/types.gen.ts:256](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **developer\_account\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:257](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#257)
+Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#258)
 
 ***
 
@@ -58,7 +66,7 @@ Defined in: [src/client/types.gen.ts:257](https://github.com/anuma-ai/sdk/blob/m
 
 > **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#258)
+Defined in: [src/client/types.gen.ts:259](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#259)
 
 ***
 
@@ -66,7 +74,7 @@ Defined in: [src/client/types.gen.ts:258](https://github.com/anuma-ai/sdk/blob/m
 
 > **has\_privy\_verification\_key**: `boolean`
 
-Defined in: [src/client/types.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#262)
+Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#263)
 
 Indicates if key is set, but doesn't expose it
 
@@ -76,7 +84,7 @@ Indicates if key is set, but doesn't expose it
 
 > **id**: `number`
 
-Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#263)
+Defined in: [src/client/types.gen.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#264)
 
 ***
 
@@ -84,7 +92,7 @@ Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/m
 
 > **is\_active**: `boolean`
 
-Defined in: [src/client/types.gen.ts:264](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#264)
+Defined in: [src/client/types.gen.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#265)
 
 ***
 
@@ -92,7 +100,7 @@ Defined in: [src/client/types.gen.ts:264](https://github.com/anuma-ai/sdk/blob/m
 
 > **name**: `string`
 
-Defined in: [src/client/types.gen.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#265)
+Defined in: [src/client/types.gen.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#266)
 
 ***
 
@@ -100,7 +108,7 @@ Defined in: [src/client/types.gen.ts:265](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **phone\_call\_voice**: `string`
 
-Defined in: [src/client/types.gen.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#266)
+Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#267)
 
 ***
 
@@ -108,7 +116,7 @@ Defined in: [src/client/types.gen.ts:266](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **privy\_app\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#267)
+Defined in: [src/client/types.gen.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#268)
 
 ***
 
@@ -116,4 +124,4 @@ Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/m
 
 > **updated\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:268](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#268)
+Defined in: [src/client/types.gen.ts:269](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#269)

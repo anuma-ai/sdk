@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperBillingResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:4613](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4613)
+Defined in: [src/client/types.gen.ts:4620](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4620)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:4613](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersBillingHistoryResponse`](HandlersBillingHistoryResponse.md)
 
-Defined in: [src/client/types.gen.ts:4617](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4617)
+Defined in: [src/client/types.gen.ts:4624](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4624)
 
 OK

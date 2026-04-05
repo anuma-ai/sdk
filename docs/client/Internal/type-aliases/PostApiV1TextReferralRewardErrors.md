@@ -2,7 +2,7 @@
 
 > **PostApiV1TextReferralRewardErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5302](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5302)
+Defined in: [src/client/types.gen.ts:5309](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5309)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5302](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5306](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5306)
+Defined in: [src/client/types.gen.ts:5313](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5313)
 
 Invalid request
 
@@ -20,7 +20,7 @@ Invalid request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5310](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5310)
+Defined in: [src/client/types.gen.ts:5317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5317)
 
 Unauthorized
 
@@ -30,7 +30,7 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5314)
+Defined in: [src/client/types.gen.ts:5321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5321)
 
 Referrer or referee not found
 
@@ -40,7 +40,7 @@ Referrer or referee not found
 
 > **409**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5318](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5318)
+Defined in: [src/client/types.gen.ts:5325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5325)
 
 Referral already rewarded
 
@@ -50,6 +50,6 @@ Referral already rewarded
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5322](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5322)
+Defined in: [src/client/types.gen.ts:5329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5329)
 
 Internal Server Error

@@ -2,4 +2,4 @@
 
 > **PostApiV1CreditsClaimTaskError** = [`PostApiV1CreditsClaimTaskErrors`](PostApiV1CreditsClaimTaskErrors.md)\[keyof [`PostApiV1CreditsClaimTaskErrors`](PostApiV1CreditsClaimTaskErrors.md)]
 
-Defined in: [src/client/types.gen.ts:3633](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3633)
+Defined in: [src/client/types.gen.ts:3640](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3640)

@@ -253,6 +253,7 @@ export type HandlersAppResponse = {
     app_uuid: string;
     created_at: string;
     credit_reset_enabled: boolean;
+    credits_token_address?: string;
     default_user_cost_limit_usd: number;
     developer_account_id?: number;
     escrow_contract: string;
@@ -448,6 +449,7 @@ export type HandlersCreateAgentRequest = {
 
 export type HandlersCreateAppRequest = {
     credit_reset_enabled?: boolean;
+    credits_token_address?: string;
     escrow_contract?: string;
     is_active?: boolean;
     name?: string;
@@ -877,6 +879,10 @@ export type HandlersSeedAppInput = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
     /**
+     * Per-app ERC20 credits token address
+     */
+    credits_token_address?: string;
+    /**
      * Default credits for auto-enrollment in micro-USD
      */
     default_user_cost_limit_usd?: number;
@@ -1133,6 +1139,7 @@ export type HandlersUpdateAgentRequest = {
 export type HandlersUpdateAppRequest = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
+    credits_token_address?: string;
     default_user_cost_limit_usd?: number;
     escrow_contract?: string;
     is_active?: boolean;

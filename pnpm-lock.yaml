@@ -24,8 +24,8 @@ importers:
   .:
     dependencies:
       '@anuma/portal':
-        specifier: 1.0.0-next.20260401202724
-        version: 1.0.0-next.20260401202724
+        specifier: 1.0.0-next.20260405054707
+        version: 1.0.0-next.20260405054707
       '@huggingface/transformers':
         specifier: ^3.0.0
         version: 3.8.1
@@ -190,8 +190,8 @@ packages:
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
 
-  '@anuma/portal@1.0.0-next.20260401202724':
-    resolution: {integrity: sha512-gmTeys12UW0T2BDR6xT9hFadvPH9w9DyT4EjEzlEw5Jkb5SafK9qXDgxvbg3E87MGJG9LaNTZFsWwakmG3f7/w==}
+  '@anuma/portal@1.0.0-next.20260405054707':
+    resolution: {integrity: sha512-ruLaN9Zoqk6LuWeFbIGpR99y9N3jAai2dtV/fl61/8xuaC++esKC0EpYLtADHS9q/7Xiry5z8kaeICED/S57Iw==}
 
   '@arethetypeswrong/cli@0.18.2':
     resolution: {integrity: sha512-PcFM20JNlevEDKBg4Re29Rtv2xvjvQZzg7ENnrWFSS0PHgdP2njibVFw+dRUhNkPgNfac9iUqO0ohAXqQL4hbw==}
@@ -7169,7 +7169,7 @@ snapshots:
 
   '@andrewbranch/untar.js@1.0.3': {}
 
-  '@anuma/portal@1.0.0-next.20260401202724': {}
+  '@anuma/portal@1.0.0-next.20260405054707': {}
 
   '@arethetypeswrong/cli@0.18.2':
     dependencies:
@@ -13033,7 +13033,7 @@ snapshots:
 
   extension-port-stream@3.0.0:
     dependencies:
-      readable-stream: 3.6.2
+      readable-stream: 4.7.0
       webextension-polyfill: 0.10.0
 
   eyes@0.1.8: {}

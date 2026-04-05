@@ -2,7 +2,7 @@
 
 > **HandlersMigrateCreditsRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:743](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#743)
+Defined in: [src/client/types.gen.ts:745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#745)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:743](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **batch\_size**: `number`
 
-Defined in: [src/client/types.gen.ts:747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#747)
+Defined in: [src/client/types.gen.ts:749](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#749)
 
 BatchSize is the number of users per on-chain transaction. Required, max 200.
 
@@ -20,7 +20,7 @@ BatchSize is the number of users per on-chain transaction. Required, max 200.
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#748)
+Defined in: [src/client/types.gen.ts:750](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#750)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:748](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **force**: `boolean`
 
-Defined in: [src/client/types.gen.ts:753](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#753)
+Defined in: [src/client/types.gen.ts:755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#755)
 
 Force resets the credits\_migrated flag for all enrolled users before migrating,
 allowing re-migration (e.g., after a credits token redeployment).

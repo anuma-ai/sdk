@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsSyncSnagResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:3741](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3741)
+Defined in: [src/client/types.gen.ts:3748](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3748)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:3741](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersSyncSnagResponse`](HandlersSyncSnagResponse.md)
 
-Defined in: [src/client/types.gen.ts:3745](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3745)
+Defined in: [src/client/types.gen.ts:3752](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3752)
 
 OK

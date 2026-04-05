@@ -2,7 +2,7 @@
 
 > **HandlersMigrateCreditsResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:756](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#756)
+Defined in: [src/client/types.gen.ts:758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#758)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:756](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **batches**: [`HandlersMigrateCreditsBatchResult`](HandlersMigrateCreditsBatchResult.md)\[]
 
-Defined in: [src/client/types.gen.ts:757](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#757)
+Defined in: [src/client/types.gen.ts:759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#759)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:757](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **escrow\_contract**: `string`
 
-Defined in: [src/client/types.gen.ts:758](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#758)
+Defined in: [src/client/types.gen.ts:760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#760)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:758](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **failed**: `number`
 
-Defined in: [src/client/types.gen.ts:759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#759)
+Defined in: [src/client/types.gen.ts:761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#761)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:759](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **migrated**: `number`
 
-Defined in: [src/client/types.gen.ts:760](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#760)
+Defined in: [src/client/types.gen.ts:762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#762)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:760](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **total\_users**: `number`
 
-Defined in: [src/client/types.gen.ts:761](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#761)
+Defined in: [src/client/types.gen.ts:763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#763)

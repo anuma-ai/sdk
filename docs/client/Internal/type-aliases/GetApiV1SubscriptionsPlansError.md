@@ -2,4 +2,4 @@
 
 > **GetApiV1SubscriptionsPlansError** = [`GetApiV1SubscriptionsPlansErrors`](GetApiV1SubscriptionsPlansErrors.md)\[keyof [`GetApiV1SubscriptionsPlansErrors`](GetApiV1SubscriptionsPlansErrors.md)]
 
-Defined in: [src/client/types.gen.ts:5067](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5067)
+Defined in: [src/client/types.gen.ts:5074](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5074)
