@@ -163,12 +163,14 @@ interface ToolSelectionCase {
   clientMustInclude?: string[];
   /** Client tool(s) that MUST NOT be in the final merged set */
   clientMustExclude?: string[];
-  /** The top client match must have similarity above this */
-  minTopClientSimilarity?: number;
-  /** The top client match must have similarity below this (for negative cases) */
-  maxTopClientSimilarity?: number;
   /** Expect no client tools to survive filtering */
   expectNoClientTools?: boolean;
+  /** Server tool(s) that MUST be in the results */
+  serverMustInclude?: string[];
+  /** Server tool(s) that MUST NOT be in the results */
+  serverMustExclude?: string[];
+  /** Expect no server tools to survive filtering */
+  expectNoServerTools?: boolean;
 }
 
 const cases: ToolSelectionCase[] = [
@@ -278,23 +280,135 @@ const cases: ToolSelectionCase[] = [
     clientMustInclude: ["github_api"],
   },
 
-  // ── Negative cases ───────────────────────────────────────────────────
-  // For trivial/generic prompts, no client tool should survive the
-  // ambiguity filter (low top score + clustered scores = no clear match).
+  // ── Server-side: Image generation ─────────────────────────────────────
   {
-    label: "general chat: no client tools selected",
+    label: "image generation includes image tools",
+    prompt: "Generate an image of a sunset over the ocean",
+    serverMustInclude: ["AnumaImageMCP-generate_cloud_image"],
+    serverMustExclude: ["AnumaAudioMCP-anuma_audio_music", "OpenMeteoMCP-weather_forecast"],
+  },
+  {
+    label: "image editing includes edit tool",
+    prompt: "Edit this image to remove the background",
+    serverMustInclude: ["AnumaImageMCP-edit_cloud_image"],
+  },
+
+  // ── Server-side: Video generation ────────────────────────────────────
+  {
+    label: "video generation includes video tools",
+    prompt: "Create a video of a cat playing piano",
+    serverMustInclude: ["AnumaVideoMCP-generate_video"],
+  },
+
+  // ── Server-side: Audio ───────────────────────────────────────────────
+  {
+    label: "music generation includes audio tool",
+    prompt: "Generate some relaxing jazz music",
+    serverMustInclude: ["AnumaAudioMCP-anuma_audio_music"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "TwelveDataMCP-get_price"],
+  },
+  {
+    label: "sound effects includes sfx tool",
+    prompt: "Create a sound effect of thunder and lightning",
+    serverMustInclude: ["AnumaAudioMCP-anuma_audio_sfx"],
+  },
+
+  // ── Server-side: Web search ──────────────────────────────────────────
+  {
+    label: "web search includes search tools",
+    prompt: "Search the web for recent news about AI regulation",
+    serverMustInclude: ["JinaMCP-search_web"],
+    serverMustExclude: ["AnumaImageMCP-generate_cloud_image", "AnumaAudioMCP-anuma_audio_music"],
+  },
+  {
+    label: "URL reading includes read_url tool",
+    prompt: "Read the content of https://example.com/article",
+    serverMustInclude: ["JinaMCP-read_url"],
+  },
+
+  // ── Server-side: Finance / Crypto ────────────────────────────────────
+  {
+    label: "crypto price includes price tool",
+    prompt: "What's the current price of Bitcoin?",
+    serverMustInclude: ["TwelveDataMCP-get_price"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
+  },
+  {
+    label: "market trends includes prediction tools",
+    prompt: "What's trending in the crypto market today?",
+    serverMustInclude: ["PredictionsMCP-trending"],
+  },
+  {
+    label: "exchange rate includes exchange rate tool",
+    prompt: "What's the exchange rate between USD and EUR?",
+    serverMustInclude: ["TwelveDataMCP-get_exchange_rate"],
+  },
+
+  // ── Server-side: ZetaChain ───────────────────────────────────────────
+  {
+    label: "zetachain query includes zetachain tools",
+    prompt: "Search for DeFi projects on ZetaChain",
+    serverMustInclude: ["ZetachainMCP-search_zetachain"],
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast"],
+  },
+
+  // ── Server-side: Documents ───────────────────────────────────────────
+  {
+    label: "PDF extraction includes PDF tool",
+    prompt: "Extract the text from this PDF document",
+    serverMustInclude: ["JinaMCP-extract_pdf"],
+  },
+  {
+    label: "OCR includes vision tool",
+    prompt: "Extract text from this screenshot image",
+    serverMustInclude: ["VisionMCP-extract_text"],
+  },
+
+  // ── Server-side: Voiceover ───────────────────────────────────────────
+  {
+    label: "voiceover includes voiceover tool",
+    prompt: "Generate a voiceover narration for this text",
+    serverMustInclude: ["AnumaVideoMCP-generate_voiceover"],
+  },
+
+  // ── Noise exclusions on client-focused prompts ───────────────────────
+  {
+    label: "chart request: no irrelevant server tools",
+    prompt: "Show me a bar chart of monthly sales data",
+    clientMustInclude: ["display_chart"],
+    serverMustExclude: [
+      "AnumaAudioMCP-anuma_audio_music",
+      "AnumaVideoMCP-generate_video_from_image",
+    ],
+  },
+  {
+    label: "booking form: no irrelevant server tools",
+    prompt: "Let me fill out my booking details: name, email, dates, and room preferences",
+    clientMustInclude: ["prompt_user_form"],
+    // NOTE: server tools like anuma_audio_music (0.559) still leak in because
+    // server tool descriptions are too broad — they score within 85% of the top
+    // match. This is a server-side description quality issue.
+    serverMustExclude: ["OpenMeteoMCP-weather_forecast", "AnumaImageMCP-generate_cloud_image"],
+  },
+
+  // ── Negative cases ───────────────────────────────────────────────────
+  {
+    label: "general chat: nothing selected",
     prompt: "Tell me a joke about programming",
     expectNoClientTools: true,
+    expectNoServerTools: true,
   },
   {
-    label: "math question: no client tools selected",
+    label: "math question: nothing selected",
     prompt: "What is the square root of 144?",
     expectNoClientTools: true,
+    expectNoServerTools: true,
   },
   {
-    label: "simple greeting: no client tools selected",
+    label: "simple greeting: nothing selected",
     prompt: "Hello, how are you?",
     expectNoClientTools: true,
+    expectNoServerTools: true,
   },
 ];
 
@@ -365,18 +479,31 @@ describe("client tool selection (full pipeline)", () => {
         ).toBe(0);
       }
 
-      if (tc.minTopClientSimilarity !== undefined && clientMatches.length > 0) {
-        expect(
-          clientMatches[0].similarity,
-          `Top client match "${clientMatches[0].tool.name}" (${clientMatches[0].similarity.toFixed(3)}) should be >= ${tc.minTopClientSimilarity}`
-        ).toBeGreaterThanOrEqual(tc.minTopClientSimilarity);
+      const matchedServerNames = serverMatches.map((m) => m.tool.name);
+
+      if (tc.serverMustInclude) {
+        for (const required of tc.serverMustInclude) {
+          expect(
+            matchedServerNames,
+            `Expected server tool "${required}" for: "${tc.prompt}" (got: [${matchedServerNames.join(", ")}])`
+          ).toContain(required);
+        }
       }
 
-      if (tc.maxTopClientSimilarity !== undefined && clientMatches.length > 0) {
+      if (tc.serverMustExclude) {
+        for (const excluded of tc.serverMustExclude) {
+          expect(
+            matchedServerNames,
+            `Server tool "${excluded}" should NOT be selected for: "${tc.prompt}"`
+          ).not.toContain(excluded);
+        }
+      }
+
+      if (tc.expectNoServerTools) {
         expect(
-          clientMatches[0].similarity,
-          `Top client match "${clientMatches[0].tool.name}" (${clientMatches[0].similarity.toFixed(3)}) should be < ${tc.maxTopClientSimilarity} for: "${tc.prompt}"`
-        ).toBeLessThan(tc.maxTopClientSimilarity);
+          serverMatches.length,
+          `Expected no server tools for: "${tc.prompt}" (got: [${matchedServerNames.join(", ")}])`
+        ).toBe(0);
       }
     });
   }
