@@ -14,7 +14,7 @@
  */
 
 import "dotenv/config";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
   findMatchingTools,
   getServerTools,
@@ -412,6 +412,50 @@ const cases: ToolSelectionCase[] = [
   },
 ];
 
+// ── Summary table ────────────────────────────────────────────────────────────
+
+type ResultRow = {
+  prompt: string;
+  clientTools: string;
+  serverTools: string;
+  total: number;
+};
+
+const results: ResultRow[] = [];
+
+function stripMCPPrefix(name: string): string {
+  // "AnumaImageMCP-generate_cloud_image" → "generate_cloud_image"
+  const idx = name.indexOf("-");
+  return idx >= 0 ? name.slice(idx + 1) : name;
+}
+
+function formatTools(matches: { tool: { name: string }; similarity: number }[]): string {
+  if (matches.length === 0) return "—";
+  return matches
+    .map((m) => `${stripMCPPrefix(m.tool.name)} (${m.similarity.toFixed(2)})`)
+    .join(", ");
+}
+
+function printSummaryTable() {
+  // Calculate column widths
+  const promptWidth = Math.max(7, ...results.map((r) => r.prompt.length));
+  const clientWidth = Math.max(12, ...results.map((r) => r.clientTools.length));
+  const serverWidth = Math.max(12, ...results.map((r) => r.serverTools.length));
+
+  const sep = `${"─".repeat(promptWidth + 2)}┼${"─".repeat(clientWidth + 2)}┼${"─".repeat(serverWidth + 2)}┼${"─".repeat(7)}`;
+  const header = ` ${"Prompt".padEnd(promptWidth)} │ ${"Client Tools".padEnd(clientWidth)} │ ${"Server Tools".padEnd(serverWidth)} │ Total`;
+
+  console.log("");
+  console.log(header);
+  console.log(sep);
+  for (const r of results) {
+    console.log(
+      ` ${r.prompt.padEnd(promptWidth)} │ ${r.clientTools.padEnd(clientWidth)} │ ${r.serverTools.padEnd(serverWidth)} │ ${String(r.total).padStart(5)}`
+    );
+  }
+  console.log("");
+}
+
 // ── Test runner ──────────────────────────────────────────────────────────────
 
 describe("client tool selection (full pipeline)", () => {
@@ -429,25 +473,27 @@ describe("client tool selection (full pipeline)", () => {
     for (let i = 0; i < CLIENT_TOOLS.length; i++) {
       clientToolEmbeddings.set(CLIENT_TOOLS[i].name, clientEmbeddings[i]);
     }
-
-    console.log(`  Server tools loaded: ${allServerTools.length}`);
-    console.log(`  Client tools: ${CLIENT_TOOLS.length}`);
   }, 30_000);
+
+  afterAll(() => {
+    printSummaryTable();
+  });
 
   for (const tc of cases) {
     it(tc.label, async () => {
       const { serverMatches, clientMatches, allToolNames } = await selectTools(tc.prompt);
 
-      const serverNames = serverMatches.map((m) => `${m.tool.name} (${m.similarity.toFixed(3)})`);
-      const clientDetails = clientMatches.map((m) => `${m.tool.name} (${m.similarity.toFixed(3)})`);
-
-      console.log(`  [${tc.label}]`);
-      console.log(`    prompt: "${tc.prompt}"`);
-      console.log(`    server tools (${serverMatches.length}): [${serverNames.join(", ")}]`);
-      console.log(`    client tools (${clientMatches.length}): [${clientDetails.join(", ")}]`);
-      console.log(`    merged total: ${allToolNames.length}`);
+      results.push({
+        prompt: tc.prompt,
+        clientTools: formatTools(clientMatches),
+        serverTools: formatTools(serverMatches),
+        total: allToolNames.length,
+      });
 
       const clientNames = clientMatches.map((m) => m.tool.name);
+      const clientDetails = clientMatches.map(
+        (m) => `${m.tool.name} (${m.similarity.toFixed(3)})`
+      );
 
       if (tc.clientMustInclude) {
         for (const required of tc.clientMustInclude) {
@@ -455,7 +501,6 @@ describe("client tool selection (full pipeline)", () => {
             clientNames,
             `Expected client tool "${required}" for: "${tc.prompt}" (got: [${clientDetails.join(", ")}])`
           ).toContain(required);
-          // Also verify it made it into the final merged set
           expect(
             allToolNames,
             `Client tool "${required}" was filtered but didn't make it into merged tools`
