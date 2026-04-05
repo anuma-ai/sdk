@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 # API Extractor temp and output files
 temp/
 etc/
+
+# Test output (generated app previews)
+test/**/.output/
