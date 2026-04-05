@@ -34,7 +34,7 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   {
     name: "display_weather",
     description:
-      "Fetches and displays current weather as a visual card in the chat. ALWAYS call this tool when the user asks about weather, even if you already have weather data from another tool. The card displays temperature, conditions, and a 7-day forecast visually — do NOT repeat this data in your text response. Just add a brief conversational comment if appropriate.",
+      "Display a weather forecast card showing temperature, conditions, and a 7-day forecast for a city or location. Only call this when the user explicitly asks about weather, temperature, rain, snow, or climate conditions. Do NOT repeat the card's data in text — just add a brief comment.",
   },
   {
     name: "display_chart",
@@ -44,12 +44,12 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
   {
     name: "prompt_user_choice",
     description:
-      "Renders an interactive inline menu the user can click to pick from choices. Use when the user's request naturally involves selecting between specific, concrete options — for example picking a restaurant, choosing a travel destination, or selecting a category. Call this tool FIRST before generating any response text. After the user selects, you receive their choice and can respond based on it.",
+      "Show a clickable choice menu when the user needs to pick between specific options. Examples: choosing a restaurant, selecting a travel destination, picking a category or plan. Only use when the user is deciding between concrete alternatives. Do NOT use for search, media generation, or information lookups.",
   },
   {
     name: "prompt_user_form",
     description:
-      "Renders an interactive inline form the user can fill out and submit. Use when you need to collect 2 or more specific pieces of structured information from the user — for example trip planning details (destination, dates, budget), booking info, or configuration settings. Supports text inputs, textareas, dropdowns (select), toggles, date pickers, and sliders. Call this tool FIRST before generating any response text. After the user submits, you receive all their answers at once.",
+      "Show an interactive form to collect structured input from the user. Use when you need 2+ pieces of information like trip details (destination, dates, budget), booking info, or settings. Supports text, textarea, select, toggle, date, and slider fields. Only use when the user needs to provide structured data — not for search, media, or general questions.",
   },
   {
     name: "display_phone_call_offer",
