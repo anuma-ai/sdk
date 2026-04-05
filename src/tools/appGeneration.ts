@@ -99,7 +99,7 @@ export function applyPatches(
     if (result.includes(patch.find)) {
       // Intentionally replaces only the first match — the LLM should provide
       // enough surrounding context in "find" to target a unique location.
-      result = result.replace(patch.find, patch.replace ?? "");
+      result = result.replace(patch.find, () => patch.replace ?? "");
       applied.push(patch.find.slice(0, 40));
     } else {
       failed.push(patch.find.slice(0, 40));
@@ -220,6 +220,8 @@ export interface CreateAppGenerationToolsOptions {
   storage: AppFileStorage;
   /** Optional error logger. Falls back to console.error. */
   logError?: (message: string, error?: Error) => void;
+  /** Optional executor for display_app. When provided, a display_app tool is included in the returned array. */
+  displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
 }
 
 /** Validate and write a batch of files. Returns an error string or null on success. */
@@ -247,6 +249,7 @@ export function createAppGenerationTools({
   getConversationId,
   storage,
   logError = (msg, err) => console.error(msg, err),
+  displayApp,
 }: CreateAppGenerationToolsOptions): ToolConfig[] {
   function requireConversationId(): string {
     const id = getConversationId();
@@ -410,7 +413,23 @@ export function createAppGenerationTools({
     },
   };
 
-  return [createFileTool, patchFileTool, deleteFileTool, readFileTool, listFilesTool];
+  const tools: ToolConfig[] = [
+    createFileTool,
+    patchFileTool,
+    deleteFileTool,
+    readFileTool,
+    listFilesTool,
+  ];
+
+  if (displayApp) {
+    tools.push({
+      type: "function",
+      function: DISPLAY_APP_SCHEMA,
+      executor: displayApp,
+    });
+  }
+
+  return tools;
 }
 
 // ---------------------------------------------------------------------------
