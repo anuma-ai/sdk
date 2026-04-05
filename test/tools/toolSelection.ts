@@ -432,8 +432,8 @@ function formatToolLine(
   matches: { tool: { name: string }; similarity: number }[]
 ): string {
   if (matches.length === 0) return "";
-  const items = matches.map((m) => `${stripPrefix(m.tool.name)} (${m.similarity.toFixed(2)})`);
-  return `[${label}] ${items.join(", ")}`;
+  const lines = matches.map((m) => `  ${stripPrefix(m.tool.name)} (${m.similarity.toFixed(2)})`);
+  return `[${label}]\n${lines.join("\n")}`;
 }
 
 function printSummary() {
@@ -445,8 +445,8 @@ function printSummary() {
     "\n" +
       table(rows, {
         border: getBorderCharacters("norc"),
-        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 60, wrapWord: true } },
-        drawHorizontalLine: (idx, size) => idx <= 1 || idx === size,
+        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 50 } },
+        drawHorizontalLine: () => true,
       })
   );
 }
