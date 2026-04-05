@@ -14,7 +14,8 @@
  */
 
 import "dotenv/config";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { table, getBorderCharacters } from "table";
 import {
   findMatchingTools,
   getServerTools,
@@ -412,11 +413,48 @@ const cases: ToolSelectionCase[] = [
   },
 ];
 
+// ── Summary table ────────────────────────────────────────────────────────────
+
+type ResultRow = {
+  prompt: string;
+  tools: string;
+};
+
+const summaryRows: ResultRow[] = [];
+
+function stripPrefix(name: string): string {
+  const idx = name.indexOf("-");
+  return idx >= 0 ? name.slice(idx + 1) : name;
+}
+
+function formatToolLine(
+  label: string,
+  matches: { tool: { name: string }; similarity: number }[]
+): string {
+  if (matches.length === 0) return "";
+  const items = matches.map((m) => `${stripPrefix(m.tool.name)} (${m.similarity.toFixed(2)})`);
+  return `[${label}] ${items.join(", ")}`;
+}
+
+function printSummary() {
+  const rows: string[][] = [["Prompt", "Tools"]];
+  for (const r of summaryRows) {
+    rows.push([r.prompt, r.tools || "(none)"]);
+  }
+  console.log(
+    "\n" +
+      table(rows, {
+        border: getBorderCharacters("norc"),
+        columns: { 0: { width: 40, wrapWord: true }, 1: { width: 60, wrapWord: true } },
+        drawHorizontalLine: (idx, size) => idx <= 1 || idx === size,
+      })
+  );
+}
+
 // ── Test runner ──────────────────────────────────────────────────────────────
 
 describe("client tool selection (full pipeline)", () => {
   beforeAll(async () => {
-    // Fetch server tools and generate client tool embeddings once
     const [serverTools, clientEmbeddings] = await Promise.all([
       getServerTools({ apiKey, baseUrl, forceRefresh: true }),
       generateEmbeddings(
@@ -429,23 +467,18 @@ describe("client tool selection (full pipeline)", () => {
     for (let i = 0; i < CLIENT_TOOLS.length; i++) {
       clientToolEmbeddings.set(CLIENT_TOOLS[i].name, clientEmbeddings[i]);
     }
-
-    console.log(`  Server tools loaded: ${allServerTools.length}`);
-    console.log(`  Client tools: ${CLIENT_TOOLS.length}`);
   }, 30_000);
+
+  afterAll(() => printSummary());
 
   for (const tc of cases) {
     it(tc.label, async () => {
       const { serverMatches, clientMatches, allToolNames } = await selectTools(tc.prompt);
 
-      const serverNames = serverMatches.map((m) => `${m.tool.name} (${m.similarity.toFixed(3)})`);
-      const clientDetails = clientMatches.map((m) => `${m.tool.name} (${m.similarity.toFixed(3)})`);
-
-      console.log(`  [${tc.label}]`);
-      console.log(`    prompt: "${tc.prompt}"`);
-      console.log(`    server tools (${serverMatches.length}): [${serverNames.join(", ")}]`);
-      console.log(`    client tools (${clientMatches.length}): [${clientDetails.join(", ")}]`);
-      console.log(`    merged total: ${allToolNames.length}`);
+      const clientLine = formatToolLine("client", clientMatches);
+      const serverLine = formatToolLine("server", serverMatches);
+      const toolsCell = [clientLine, serverLine].filter(Boolean).join("\n");
+      summaryRows.push({ prompt: tc.prompt, tools: toolsCell });
 
       const clientNames = clientMatches.map((m) => m.tool.name);
 
@@ -453,7 +486,7 @@ describe("client tool selection (full pipeline)", () => {
         for (const required of tc.clientMustInclude) {
           expect(
             clientNames,
-            `Expected client tool "${required}" for: "${tc.prompt}" (got: [${clientDetails.join(", ")}])`
+            `Expected client tool "${required}" for: "${tc.prompt}" (got: [${clientLine}])`
           ).toContain(required);
           expect(
             allToolNames,
@@ -474,7 +507,7 @@ describe("client tool selection (full pipeline)", () => {
       if (tc.expectNoClientTools) {
         expect(
           clientMatches.length,
-          `Expected no client tools for: "${tc.prompt}" (got: [${clientDetails.join(", ")}])`
+          `Expected no client tools for: "${tc.prompt}" (got: [${clientLine}])`
         ).toBe(0);
       }
 
