@@ -96,10 +96,13 @@ export function applyPatches(
       failed.push("(empty find string)");
       continue;
     }
-    if (result.includes(patch.find)) {
+    const matchIndex = result.indexOf(patch.find);
+    if (matchIndex !== -1) {
       // Intentionally replaces only the first match — the LLM should provide
       // enough surrounding context in "find" to target a unique location.
-      result = result.replace(patch.find, patch.replace ?? "");
+      const replacement = patch.replace ?? "";
+      result =
+        result.slice(0, matchIndex) + replacement + result.slice(matchIndex + patch.find.length);
       applied.push(patch.find.slice(0, 40));
     } else {
       failed.push(patch.find.slice(0, 40));
@@ -318,7 +321,6 @@ export function createAppGenerationTools({
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
 
         const { content, applied, failed } = applyPatches(existing.content, patches);
-        await storage.putFile(conversationId, filePath, content);
 
         if (failed.length > 0) {
           return {
@@ -331,6 +333,7 @@ export function createAppGenerationTools({
           };
         }
 
+        await storage.putFile(conversationId, filePath, content);
         return { success: true, path: filePath, applied: applied.length };
       } catch (err) {
         logError("patch_file failed", err instanceof Error ? err : undefined);
@@ -410,7 +413,19 @@ export function createAppGenerationTools({
     },
   };
 
-  return [createFileTool, patchFileTool, deleteFileTool, readFileTool, listFilesTool];
+  const displayAppTool: ToolConfig = {
+    type: "function",
+    function: DISPLAY_APP_SCHEMA,
+  };
+
+  return [
+    createFileTool,
+    patchFileTool,
+    deleteFileTool,
+    readFileTool,
+    listFilesTool,
+    displayAppTool,
+  ];
 }
 
 // ---------------------------------------------------------------------------
