@@ -128,6 +128,101 @@ export function printDiff(label: string, diffs: FileDiff[]): void {
 
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
+/**
+ * Build an import-map from package.json dependencies so the browser can
+ * resolve bare-specifier imports (e.g. `import { Heart } from "lucide-react"`)
+ * via esm.sh without a bundler.
+ */
+function buildImportMap(deps: Record<string, string>): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [name, version] of Object.entries(deps)) {
+    // Strip semver range chars (^, ~, >=, etc.) to get a clean version for the URL
+    const clean = version.replace(/^[\^~>=<]+/, "");
+    map[name] = `https://esm.sh/${name}@${clean}`;
+    map[`${name}/`] = `https://esm.sh/${name}@${clean}/`;
+  }
+  // Always pin react so every package shares the same instance
+  const reactVersion = deps.react?.replace(/^[\^~>=<]+/, "") ?? "18.2.0";
+  for (const key of Object.keys(map)) {
+    if (key === "react" || key === "react/") continue;
+    const base = map[key];
+    map[key] = base.includes("?")
+      ? `${base}&external=react,react-dom`
+      : `${base}?external=react,react-dom`;
+  }
+  // Ensure react/react-dom are present even if package.json omits them
+  if (!map.react) {
+    map.react = `https://esm.sh/react@${reactVersion}`;
+    map["react/"] = `https://esm.sh/react@${reactVersion}/`;
+  }
+  if (!map["react-dom"]) {
+    map["react-dom"] = `https://esm.sh/react-dom@${reactVersion}`;
+    map["react-dom/"] = `https://esm.sh/react-dom@${reactVersion}/`;
+  }
+  return map;
+}
+
+/** Generate a self-contained index.html that renders App.js in the browser. */
+function generateAppHtml(appDir: string, title: string): string {
+  const cssPath = path.join(appDir, "App.css");
+  const jsPath = path.join(appDir, "App.js");
+  const pkgPath = path.join(appDir, "package.json");
+
+  const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, "utf-8") : "";
+  const js = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, "utf-8") : "";
+
+  let deps: Record<string, string> = { react: "18.2.0", "react-dom": "18.2.0" };
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      if (pkg.dependencies) deps = { ...deps, ...pkg.dependencies };
+    } catch {
+      /* ignore parse errors */
+    }
+  }
+
+  const importMap = buildImportMap(deps);
+
+  // Strip the `import './App.css'` line — we inline the CSS instead
+  const jsClean = js.replace(/^import\s+['"]\.\/App\.css['"];?\s*$/m, "");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>${css}</style>
+  <script type="importmap">
+${JSON.stringify({ imports: importMap }, null, 2)}
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+${jsClean}
+import ReactDOM from "react-dom/client";
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>`;
+}
+
+/** Write an index.html into a directory if it contains App.js (works recursively for step dirs). */
+function writeAppHtml(dir: string, title: string): void {
+  if (fs.existsSync(path.join(dir, "App.js"))) {
+    fs.writeFileSync(path.join(dir, "index.html"), generateAppHtml(dir, title), "utf-8");
+  }
+  // Handle step subdirectories (e.g. precision-multi/step-1-initial/)
+  for (const entry of fs.readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (fs.statSync(full).isDirectory()) {
+      writeAppHtml(full, `${title} / ${entry}`);
+    }
+  }
+}
+
 /** Write all files from the store to disk for inspection. */
 export function dumpFiles(store: FileStore, testName: string): string {
   const dir = path.join(OUTPUT_DIR, testName.replace(/[^a-zA-Z0-9-_/]/g, "_"));
@@ -137,6 +232,7 @@ export function dumpFiles(store: FileStore, testName: string): string {
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, content, "utf-8");
   }
+  writeAppHtml(dir, testName);
   console.log(`  Output written to ${path.relative(process.cwd(), dir)}/`);
   return dir;
 }
@@ -147,7 +243,30 @@ export function writeIndex(): void {
   const dirs = fs
     .readdirSync(OUTPUT_DIR)
     .filter((d) => fs.statSync(path.join(OUTPUT_DIR, d)).isDirectory());
-  const links = dirs.map((name) => `      <a href="${name}/">${name}</a>`).join("\n");
+
+  const links: string[] = [];
+  for (const name of dirs) {
+    const appDir = path.join(OUTPUT_DIR, name);
+    // If the dir has App.js directly, link to it
+    if (fs.existsSync(path.join(appDir, "index.html"))) {
+      links.push(`      <a href="${name}/">${name}</a>`);
+    } else {
+      // Step-based app — link to each step
+      const steps = fs
+        .readdirSync(appDir)
+        .filter((s) => fs.statSync(path.join(appDir, s)).isDirectory())
+        .sort();
+      if (steps.length > 0) {
+        links.push(`      <div class="group"><strong>${name}</strong></div>`);
+        for (const step of steps) {
+          links.push(`      <a href="${name}/${step}/" class="step">${step}</a>`);
+        }
+      } else {
+        links.push(`      <a href="${name}/">${name}</a>`);
+      }
+    }
+  }
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -158,11 +277,13 @@ export function writeIndex(): void {
     h1 { font-size: 1.5rem; margin-bottom: 2rem; }
     a { display: block; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; background: #f1f5f9; color: #1e293b; text-decoration: none; }
     a:hover { background: #e2e8f0; }
+    .group { padding: 0.75rem 1rem 0.25rem; margin-top: 1rem; font-size: 0.95rem; color: #475569; }
+    .step { padding-left: 2rem; font-size: 0.9rem; }
   </style>
 </head>
 <body>
   <h1>Generated Apps</h1>
-${links}
+${links.join("\n")}
 </body>
 </html>`;
   fs.writeFileSync(path.join(OUTPUT_DIR, "index.html"), html, "utf-8");
