@@ -129,37 +129,74 @@ export function printDiff(label: string, diffs: FileDiff[]): void {
 const OUTPUT_DIR = path.resolve(__dirname, ".output");
 
 /**
- * Build an import-map from package.json dependencies so the browser can
- * resolve bare-specifier imports (e.g. `import { Heart } from "lucide-react"`)
- * via esm.sh without a bundler.
+ * Collect extra (non-React) dependencies from package.json and return CDN
+ * script tags that expose them as UMD globals on `window`.
+ *
+ * esm.sh's `?bundle-deps&cjs-exports=*` mode bundles the package as a
+ * self-executing UMD script that works on file:// without import maps.
  */
-function buildImportMap(deps: Record<string, string>): Record<string, string> {
-  const map: Record<string, string> = {};
+function extraDepScripts(deps: Record<string, string>): string {
+  const skip = new Set(["react", "react-dom", "react-scripts"]);
+  const tags: string[] = [];
   for (const [name, version] of Object.entries(deps)) {
-    // Strip semver range chars (^, ~, >=, etc.) to get a clean version for the URL
+    if (skip.has(name)) continue;
     const clean = version.replace(/^[\^~>=<]+/, "");
-    map[name] = `https://esm.sh/${name}@${clean}`;
-    map[`${name}/`] = `https://esm.sh/${name}@${clean}/`;
+    // camelCase the package name for the global variable
+    const globalName = name.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase());
+    tags.push(
+      `<script src="https://esm.sh/${name}@${clean}?bundle-deps&no-dts"></script>` +
+        `\n  <script>window.${globalName} = window.${globalName} || {}</script>`
+    );
   }
-  // Always pin react so every package shares the same instance
-  const reactVersion = deps.react?.replace(/^[\^~>=<]+/, "") ?? "18.2.0";
-  for (const key of Object.keys(map)) {
-    if (key === "react" || key === "react/") continue;
-    const base = map[key];
-    map[key] = base.includes("?")
-      ? `${base}&external=react,react-dom`
-      : `${base}?external=react,react-dom`;
-  }
-  // Ensure react/react-dom are present even if package.json omits them
-  if (!map.react) {
-    map.react = `https://esm.sh/react@${reactVersion}`;
-    map["react/"] = `https://esm.sh/react@${reactVersion}/`;
-  }
-  if (!map["react-dom"]) {
-    map["react-dom"] = `https://esm.sh/react-dom@${reactVersion}`;
-    map["react-dom/"] = `https://esm.sh/react-dom@${reactVersion}/`;
-  }
-  return map;
+  return tags.join("\n  ");
+}
+
+/**
+ * Strip ES module import statements from App.js and replace them with global
+ * variable access.  This lets the code run inside a Babel standalone
+ * `<script type="text/babel">` block without needing import maps or ESM,
+ * which means it works on file:// URLs.
+ */
+function stripImports(js: string): string {
+  return (
+    js
+      // Remove CSS imports (already inlined)
+      .replace(/^import\s+['"]\.\/App\.css['"];?\s*$/gm, "")
+      // `import React, { useState, ... } from 'react'` → destructure from global
+      .replace(
+        /^import\s+React\s*,\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
+        (_, names: string) => `const { ${names.trim()} } = React;`
+      )
+      // `import { useState, ... } from 'react'` (no default)
+      .replace(
+        /^import\s*\{([^}]+)\}\s*from\s*['"]react['"];?\s*$/gm,
+        (_, names: string) => `const { ${names.trim()} } = React;`
+      )
+      // `import React from 'react'`
+      .replace(/^import\s+React\s+from\s*['"]react['"];?\s*$/gm, "")
+      // `import ... from 'react-dom/client'`
+      .replace(/^import\s+.*\s+from\s*['"]react-dom(?:\/.*)?['"];?\s*$/gm, "")
+      // Other named imports: `import { X, Y } from 'pkg'` → destructure from window global
+      .replace(
+        /^import\s*\{([^}]+)\}\s*from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
+        (_, names: string, pkg: string) => {
+          const globalName = pkg.replace(/[^a-zA-Z0-9]+(.)/g, (__, c: string) => c.toUpperCase());
+          return `const { ${names.trim()} } = window["${globalName}"] || {};`;
+        }
+      )
+      // Default imports: `import Foo from 'pkg'` → window global
+      .replace(
+        /^import\s+(\w+)\s+from\s*['"]([^'"./][^'"]*?)['"];?\s*$/gm,
+        (_, name: string, pkg: string) => {
+          const globalName = pkg.replace(/[^a-zA-Z0-9]+(.)/g, (__, c: string) => c.toUpperCase());
+          return `const ${name} = window["${globalName}"] || {};`;
+        }
+      )
+      // Strip `export default function App` → `function App`
+      .replace(/^export\s+default\s+function\s+/gm, "function ")
+      // Strip `export default App;`
+      .replace(/^export\s+default\s+\w+;\s*$/gm, "")
+  );
 }
 
 /** Generate a self-contained index.html that renders App.js in the browser. */
@@ -171,20 +208,18 @@ function generateAppHtml(appDir: string, title: string): string {
   const css = fs.existsSync(cssPath) ? fs.readFileSync(cssPath, "utf-8") : "";
   const js = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, "utf-8") : "";
 
-  let deps: Record<string, string> = { react: "18.2.0", "react-dom": "18.2.0" };
+  let deps: Record<string, string> = {};
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-      if (pkg.dependencies) deps = { ...deps, ...pkg.dependencies };
+      if (pkg.dependencies) deps = pkg.dependencies;
     } catch {
       /* ignore parse errors */
     }
   }
 
-  const importMap = buildImportMap(deps);
-
-  // Strip the `import './App.css'` line — we inline the CSS instead
-  const jsClean = js.replace(/^import\s+['"]\.\/App\.css['"];?\s*$/m, "");
+  const extraScripts = extraDepScripts(deps);
+  const jsClean = stripImports(js);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -193,18 +228,16 @@ function generateAppHtml(appDir: string, title: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
   <style>${css}</style>
-  <script type="importmap">
-${JSON.stringify({ imports: importMap }, null, 2)}
-  </script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-type="module">
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  ${extraScripts ? extraScripts + "\n  " : ""}<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
 ${jsClean}
-import ReactDOM from "react-dom/client";
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </body>
 </html>`;
 }
