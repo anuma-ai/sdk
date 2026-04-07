@@ -111,8 +111,6 @@ export type {
 export {
   analyzeStyle,
   buildSystemPrompt,
-  PERSONA_PRESETS,
-  presetContext,
   DEFAULT_ANALYSIS_PROMPT,
   DEFAULT_ANALYZE_AFTER_MESSAGES,
   DEFAULT_DOCUMENT_PATTERN,
@@ -121,6 +119,8 @@ export {
   DEFAULT_MIN_MESSAGES,
   DEFAULT_PROMPT_TEMPLATES,
   DEFAULT_REFRESH_EVERY_MESSAGES,
+  PERSONA_PRESETS,
+  presetContext,
   renderTemplate,
   sanitizeQuotes,
   shouldAnalyzeStyle,
