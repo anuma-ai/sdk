@@ -77,7 +77,7 @@ export function createFormTool(options: CreateUIToolsOptions): ToolConfig {
   return createInteractiveTool(options, {
     name: "prompt_user_form",
     description:
-      "Renders an interactive inline form the user can fill out and submit. Use when you need to collect 2 or more specific pieces of structured information from the user — for example trip planning details (destination, dates, budget), booking info, or configuration settings. Supports text inputs, textareas, dropdowns (select), toggles, date pickers, and sliders. Call this tool FIRST before generating any response text. After the user submits, you receive all their answers at once.",
+      "Show an interactive form to collect structured input from the user. Use when you need 2+ pieces of information like trip details (destination, dates, budget), booking info, or settings. Supports text, textarea, select, toggle, date, and slider fields. Only use when the user needs to provide structured data — not for search, media, or general questions.",
     parameters: {
       type: "object",
       properties: {

@@ -2,7 +2,7 @@
 
 > **HandlersClaimTaskRewardRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#251)
+Defined in: [src/client/types.gen.ts:328](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#328)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:251](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **memories**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#252)
+Defined in: [src/client/types.gen.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#329)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/client/types.gen.ts:252](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **task\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:253](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#253)
+Defined in: [src/client/types.gen.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#330)

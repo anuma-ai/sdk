@@ -2,7 +2,7 @@
 
 > **deleteApiV1DeveloperAppsByAppUuidApiKeysByKeyId**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdResponses.md), [`DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors`](../type-aliases/DeleteApiV1DeveloperAppsByAppUuidApiKeysByKeyIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#438)
+Defined in: [src/client/sdk.gen.ts:606](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#606)
 
 Delete API key
 

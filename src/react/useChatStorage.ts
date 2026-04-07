@@ -131,10 +131,12 @@ import { onKeyAvailable } from "./useEncryption";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-// Max client tools to include after automatic semantic filtering
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Max client tools to include after automatic semantic filtering.
+// Set high — the relevanceRatio (0.85) does the real trimming; this
+// is just a safety cap to avoid pathological cases.
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -219,11 +221,13 @@ async function autoFilterClientTools(
   const matches = findMatchingTools(promptEmbeddings, pseudoServerTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+    filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
 
   if (matches.length === 0) {
-    // No matches above threshold — send all filterable tools + memory
-    return clientTools;
+    // No matches above threshold — return only always-included tools (e.g. memory)
+    return alwaysInclude;
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
@@ -2238,6 +2242,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
       let preprocessedFileIds: string[] = [];
+      let imageContentUrls: string[] | undefined;
       if (filesForStorage && filesForStorage.length > 0) {
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
@@ -2250,8 +2255,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             fileContextForRequest = preprocessingResult.extractedContent;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
-        } catch {
-          // Non-fatal error - continue without preprocessing
+
+          // Collect image fallback URLs (e.g. scanned PDF pages rendered as images)
+          if (preprocessingResult.imageContentUrls?.length) {
+            imageContentUrls = preprocessingResult.imageContentUrls;
+          }
+        } catch (err) {
+          getLogger().error(
+            "[sendMessage] File preprocessing failed — continuing without file context:",
+            err
+          );
         }
       }
 
@@ -2422,6 +2435,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }),
             };
           }
+        }
+      }
+
+      // Inject image fallback content (e.g. scanned PDF pages rendered as images).
+      // These are appended to the last user message so the vision model can read
+      // the document even when text extraction returned no content.
+      if (imageContentUrls && imageContentUrls.length > 0) {
+        let lastUserIdx = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserIdx = i;
+            break;
+          }
+        }
+        if (lastUserIdx !== -1) {
+          const msg = messagesToSend[lastUserIdx];
+          const existingParts = Array.isArray(msg.content)
+            ? msg.content
+            : [{ type: "text" as const, text: msg.content ?? "" }];
+          const imageParts = imageContentUrls.map((url) => ({
+            type: "image_url" as const,
+            image_url: { url },
+          }));
+          messagesToSend[lastUserIdx] = {
+            ...msg,
+            content: [...existingParts, ...imageParts],
+          };
         }
       }
 

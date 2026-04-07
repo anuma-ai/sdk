@@ -1,8 +1,11 @@
 # PdfProcessor
 
-Defined in: [src/lib/processors/PdfProcessor.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#8)
+Defined in: [src/lib/processors/PdfProcessor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#17)
 
-Processor for PDF files that extracts text content
+Processor for PDF files that extracts text content.
+Falls back to rendering pages as images when text extraction yields no
+content (e.g. scanned/image-based PDFs), enabling vision models to read
+the document.
 
 ## Implements
 
@@ -24,7 +27,7 @@ Processor for PDF files that extracts text content
 
 > `readonly` **name**: `"pdf"` = `"pdf"`
 
-Defined in: [src/lib/processors/PdfProcessor.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#9)
+Defined in: [src/lib/processors/PdfProcessor.ts:18](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#18)
 
 Unique identifier for this processor
 
@@ -38,7 +41,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/PdfProcessor.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#11)
+Defined in: [src/lib/processors/PdfProcessor.ts:20](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#20)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -52,7 +55,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/PdfProcessor.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#10)
+Defined in: [src/lib/processors/PdfProcessor.ts:19](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#19)
 
 MIME types this processor can handle
 
@@ -66,7 +69,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/PdfProcessor.ts:13](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#13)
+Defined in: [src/lib/processors/PdfProcessor.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/PdfProcessor.ts#22)
 
 Process a file and extract text content
 

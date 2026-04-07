@@ -2,7 +2,7 @@
 
 > **HandlersConfigResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#263)
+Defined in: [src/client/types.gen.ts:340](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#340)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:263](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **apps**: [`HandlersAppConfig`](HandlersAppConfig.md)\[]
 
-Defined in: [src/client/types.gen.ts:267](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#267)
+Defined in: [src/client/types.gen.ts:344](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#344)
 
 Apps is the list of active apps with their escrow contracts
 
@@ -20,7 +20,7 @@ Apps is the list of active apps with their escrow contracts
 
 > `optional` **chain\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:271](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#271)
+Defined in: [src/client/types.gen.ts:348](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#348)
 
 ChainID is the blockchain chain ID
 
@@ -30,7 +30,7 @@ ChainID is the blockchain chain ID
 
 > `optional` **operator\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:275](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#275)
+Defined in: [src/client/types.gen.ts:352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#352)
 
 OperatorAddress is the operator wallet address
 
@@ -40,7 +40,7 @@ OperatorAddress is the operator wallet address
 
 > `optional` **phone\_calls\_enabled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:279](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#279)
+Defined in: [src/client/types.gen.ts:356](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#356)
 
 PhoneCallsEnabled indicates whether Bland phone calling is available
 
@@ -50,6 +50,6 @@ PhoneCallsEnabled indicates whether Bland phone calling is available
 
 > `optional` **settlement\_recipient**: `string`
 
-Defined in: [src/client/types.gen.ts:283](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#283)
+Defined in: [src/client/types.gen.ts:360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#360)
 
 SettlementRecipient is the address that receives settlement payments

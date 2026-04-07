@@ -2,7 +2,7 @@
 
 > **putApiV1AdminAppsByAppIdApiKeysById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminAppsByAppIdApiKeysByIdData`](../type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminAppsByAppIdApiKeysByIdResponses`](../type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdResponses.md), [`PutApiV1AdminAppsByAppIdApiKeysByIdErrors`](../type-aliases/PutApiV1AdminAppsByAppIdApiKeysByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:122](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#122)
+Defined in: [src/client/sdk.gen.ts:178](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#178)
 
 Update API key
 

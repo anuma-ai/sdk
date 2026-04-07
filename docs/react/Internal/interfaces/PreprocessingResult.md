@@ -1,6 +1,6 @@
 # PreprocessingResult
 
-Defined in: [src/lib/processors/types.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#83)
+Defined in: [src/lib/processors/types.ts:90](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#90)
 
 Result from preprocessing files
 
@@ -10,9 +10,21 @@ Result from preprocessing files
 
 > **extractedContent**: `string` | `null`
 
-Defined in: [src/lib/processors/types.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#85)
+Defined in: [src/lib/processors/types.ts:92](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#92)
 
 Extracted content to prepend to user message
+
+***
+
+### imageContentUrls?
+
+> `optional` **imageContentUrls**: `string`\[]
+
+Defined in: [src/lib/processors/types.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#99)
+
+Image data URLs for files where text extraction failed but page images were
+rendered (e.g. scanned PDFs). The caller should inject these as `image_url`
+content parts in the user message so the vision model can read the document.
 
 ***
 
@@ -20,7 +32,7 @@ Extracted content to prepend to user message
 
 > **metadata**: `object`
 
-Defined in: [src/lib/processors/types.ts:94](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#94)
+Defined in: [src/lib/processors/types.ts:108](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#108)
 
 Processing metadata
 
@@ -42,7 +54,7 @@ Processing metadata
 
 > `optional` **originalFiles**: [`FileMetadata`](FileMetadata.md)\[]
 
-Defined in: [src/lib/processors/types.ts:88](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#88)
+Defined in: [src/lib/processors/types.ts:102](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#102)
 
 Original files (if keepOriginalFiles = true)
 
@@ -52,6 +64,6 @@ Original files (if keepOriginalFiles = true)
 
 > **preprocessedFileIds**: `string`\[]
 
-Defined in: [src/lib/processors/types.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#91)
+Defined in: [src/lib/processors/types.ts:105](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/types.ts#105)
 
 IDs of files that were successfully preprocessed (used to remove from message)
