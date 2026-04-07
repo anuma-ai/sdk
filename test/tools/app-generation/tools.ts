@@ -5,9 +5,12 @@
  * so tests run without any external dependencies.
  */
 
-import { createAppGenerationTools, type AppFileStorage } from "../../../src/tools/appGeneration.js";
+import {
+  createAppGenerationTools,
+  normalizePath,
+  type AppFileStorage,
+} from "../../../src/tools/appGeneration.js";
 import type { FileStore } from "./setup.js";
-import { normalizePath } from "../../../src/tools/appGeneration.js";
 
 /** Create an AppFileStorage adapter backed by an in-memory Map. */
 function createMapStorage(store: FileStore): AppFileStorage {

@@ -19,6 +19,7 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { normalizePath } from "../utils/paths.js";
 
 // ---------------------------------------------------------------------------
 // Storage interface
@@ -45,23 +46,8 @@ export interface AppFileStorage {
   deleteFile: (conversationId: string, path: string) => Promise<void>;
 }
 
-// ---------------------------------------------------------------------------
-// Path normalization
-// ---------------------------------------------------------------------------
-
-/** Strip leading slash and collapse traversal segments so paths are always clean relative paths. */
-export function normalizePath(p: string): string {
-  return p
-    .replace(/^\/+/, "")
-    .replace(/\/\/+/g, "/")
-    .split("/")
-    .reduce<string[]>((acc, seg) => {
-      if (seg === "..") acc.pop();
-      else if (seg !== ".") acc.push(seg);
-      return acc;
-    }, [])
-    .join("/");
-}
+// Re-export so existing consumers of normalizePath from this module keep working.
+export { normalizePath } from "../utils/paths.js";
 
 // ---------------------------------------------------------------------------
 // Result size management
@@ -327,6 +313,8 @@ export function createAppGenerationTools({
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
 
         const { content, applied, failed } = applyPatches(existing.content, patches);
+        // Save the partially-patched file even when some patches fail so the
+        // LLM can see the current content and retry only the failed ones.
         await storage.putFile(conversationId, filePath, content);
 
         if (failed.length > 0) {

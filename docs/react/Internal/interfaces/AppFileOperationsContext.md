@@ -1,6 +1,6 @@
 # AppFileOperationsContext
 
-Defined in: [src/lib/db/appFiles/operations.ts:8](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#8)
+Defined in: [src/lib/db/appFiles/operations.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#9)
 
 Context required by app file operations.
 
@@ -10,7 +10,7 @@ Context required by app file operations.
 
 > **appFilesCollection**: `Collection`<[`AppFileModel`](../classes/AppFileModel.md)>
 
-Defined in: [src/lib/db/appFiles/operations.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#10)
+Defined in: [src/lib/db/appFiles/operations.ts:11](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#11)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [src/lib/db/appFiles/operations.ts:10](https://github.com/anuma-ai/s
 
 > **database**: `Database`
 
-Defined in: [src/lib/db/appFiles/operations.ts:9](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#9)
+Defined in: [src/lib/db/appFiles/operations.ts:10](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/appFiles/operations.ts#10)
