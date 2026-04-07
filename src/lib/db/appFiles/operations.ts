@@ -1,9 +1,9 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { normalizePath } from "../../../utils/paths.js";
 import { AppFile } from "./models";
 import type { StoredAppFile } from "./types";
-import { normalizePath } from "../../../utils/paths.js";
 
 /** Context required by app file operations. */
 export interface AppFileOperationsContext {
