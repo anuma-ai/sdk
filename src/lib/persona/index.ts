@@ -15,6 +15,8 @@ export {
   renderTemplate,
   sanitizeQuotes,
 } from "./buildPrompt";
+export type { PresetPersona } from "./presets";
+export { PERSONA_PRESETS, presetContext } from "./presets";
 export type {
   AnalyzeStyleOptions,
   AnalyzeStyleResult,

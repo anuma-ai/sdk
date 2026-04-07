@@ -398,6 +398,7 @@ export type {
   AnalyzeStyleResult,
   BuildPromptOptions,
   BuildPromptResult,
+  PresetPersona,
   PromptContext,
   PromptSection,
   PromptTemplates,
@@ -406,6 +407,8 @@ export type {
 export {
   analyzeStyle,
   buildSystemPrompt,
+  PERSONA_PRESETS,
+  presetContext,
   DEFAULT_ANALYSIS_PROMPT,
   DEFAULT_ANALYZE_AFTER_MESSAGES,
   DEFAULT_DOCUMENT_PATTERN,
