@@ -104,13 +104,13 @@ export function applyPatches(
 // ---------------------------------------------------------------------------
 
 /** Tool names for app file operations (create, patch, delete, read, list). */
-export const APP_FILE_TOOL_NAMES = new Set([
+export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(new Set([
   "create_file",
   "patch_file",
   "delete_file",
   "read_file",
   "list_files",
-]);
+]));
 
 // ---------------------------------------------------------------------------
 // In-memory storage implementation
@@ -138,7 +138,7 @@ export class MapFileStorage implements AppFileStorage {
   private files: Map<string, string>;
 
   constructor(initial?: Map<string, string>) {
-    this.files = initial ?? new Map<string, string>();
+    this.files = initial ? new Map(initial) : new Map<string, string>();
   }
 
   getFile(_conversationId: string, path: string): Promise<AppFileRecord | null> {
@@ -188,11 +188,7 @@ export class MapFileStorage implements AppFileStorage {
   /** Restore from a previously serialized JSON string. */
   static deserialize(json: string | undefined | null): MapFileStorage {
     if (!json) return new MapFileStorage();
-    try {
-      return new MapFileStorage(new Map(JSON.parse(json) as Array<[string, string]>));
-    } catch {
-      return new MapFileStorage();
-    }
+    return new MapFileStorage(new Map(JSON.parse(json) as Array<[string, string]>));
   }
 }
 
