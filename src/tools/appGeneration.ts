@@ -138,31 +138,36 @@ export class MapFileStorage implements AppFileStorage {
   private files: Map<string, string>;
 
   constructor(initial?: Map<string, string>) {
-    this.files = initial ?? new Map();
+    this.files = initial ?? new Map<string, string>();
   }
 
-  async getFile(_conversationId: string, path: string): Promise<AppFileRecord | null> {
+  getFile(_conversationId: string, path: string): Promise<AppFileRecord | null> {
     const content = this.files.get(path);
-    return content !== undefined ? { path, content } : null;
+    return Promise.resolve(content !== undefined ? { path, content } : null);
   }
 
-  async getFiles(_conversationId: string): Promise<AppFileRecord[]> {
-    return Array.from(this.files.entries()).map(([path, content]) => ({ path, content }));
+  getFiles(_conversationId: string): Promise<AppFileRecord[]> {
+    return Promise.resolve(
+      Array.from(this.files.entries()).map(([path, content]) => ({ path, content }))
+    );
   }
 
-  async putFile(_conversationId: string, path: string, content: string): Promise<void> {
+  putFile(_conversationId: string, path: string, content: string): Promise<void> {
     this.files.set(path, content);
+    return Promise.resolve();
   }
 
-  async putFiles(
+  putFiles(
     _conversationId: string,
     files: Array<{ path: string; content: string }>
   ): Promise<void> {
     for (const f of files) this.files.set(f.path, f.content);
+    return Promise.resolve();
   }
 
-  async deleteFile(_conversationId: string, path: string): Promise<void> {
+  deleteFile(_conversationId: string, path: string): Promise<void> {
     this.files.delete(path);
+    return Promise.resolve();
   }
 
   /** Direct access to the underlying map. */
