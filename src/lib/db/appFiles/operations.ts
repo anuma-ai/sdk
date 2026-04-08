@@ -1,6 +1,7 @@
 import type { Collection, Database } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
+import { normalizePath } from "../../../utils/paths.js";
 import { AppFile } from "./models";
 import type { StoredAppFile } from "./types";
 
@@ -8,20 +9,6 @@ import type { StoredAppFile } from "./types";
 export interface AppFileOperationsContext {
   database: Database;
   appFilesCollection: Collection<AppFile>;
-}
-
-/** Normalize a file path: strip leading slashes, collapse double slashes. */
-function normalizePath(path: string): string {
-  return path
-    .replace(/^\/+/, "")
-    .replace(/\/\/+/g, "/")
-    .split("/")
-    .reduce<string[]>((acc, seg) => {
-      if (seg === "..") acc.pop();
-      else if (seg !== ".") acc.push(seg);
-      return acc;
-    }, [])
-    .join("/");
 }
 
 /** Convert a WatermelonDB AppFile model to a plain StoredAppFile object. */

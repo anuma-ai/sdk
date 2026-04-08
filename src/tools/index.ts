@@ -146,3 +146,23 @@ export {
 
 // GitHub exports
 export { createGitHubTools } from "./github";
+
+// App generation tools
+export type {
+  AppFileRecord,
+  AppFileStorage,
+  CreateAppGenerationToolsOptions,
+} from "./appGeneration";
+export {
+  applyPatches,
+  buildAppSystemPrompt,
+  CREATE_FILE_SCHEMA,
+  createAppGenerationTools,
+  DELETE_FILE_SCHEMA,
+  DISPLAY_APP_SCHEMA,
+  LIST_FILES_SCHEMA,
+  normalizePath,
+  PATCH_FILE_SCHEMA,
+  READ_FILE_SCHEMA,
+  truncateContent,
+} from "./appGeneration";
