@@ -110,7 +110,6 @@ interface ModelResult {
 const EXTRA_MODELS: string[] = [
   "cerebras/qwen-3-235b-a22b-instruct-2507",
   "cerebras/zai-glm-4.7",
-  "fireworks/accounts/fireworks/models/minimax-m2p1",
   "fireworks/accounts/fireworks/models/minimax-m2p5",
   "fireworks/accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
 ];
