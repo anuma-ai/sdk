@@ -5,6 +5,7 @@
  */
 
 export {
+  applyToolSets,
   type CachedServerTools,
   clearServerToolsCache,
   // Constants

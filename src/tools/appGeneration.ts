@@ -137,7 +137,7 @@ DESIGN: Visually polished apps with modern aesthetics, generous whitespace, read
 
 export const PATCH_FILE_SCHEMA = {
   name: "patch_file",
-  description: `Applies targeted find-and-replace patches to an existing file. Use this instead of create_file when making small changes (color tweaks, text edits, adding a few lines). The file must already exist.
+  description: `Modify, update, or edit an existing file in the app project using targeted find-and-replace patches. Use this instead of create_file when making small changes to an app — color tweaks, text edits, styling updates, adding a few lines, fixing bugs, or updating components. The file must already exist.
 
 Pass a "patches" array where each item has "find" (exact string to locate) and "replace" (replacement string). Patches are applied in order. The find string must match exactly — include enough surrounding context (2-3 lines) to be unique.`,
   arguments: {

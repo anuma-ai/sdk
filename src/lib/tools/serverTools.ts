@@ -772,6 +772,102 @@ export function findMatchingTools(
   return sorted;
 }
 
+// ---------------------------------------------------------------------------
+// Tool sets — groups of tools that must be included/excluded together
+// ---------------------------------------------------------------------------
+
+/**
+ * A tool set defines a group of tools that work together. When any "anchor"
+ * tool in the set is selected by semantic matching, the entire set is
+ * included and non-set tools are excluded (unless they pass independently
+ * at a higher threshold).
+ */
+interface ToolSet {
+  /** Human-readable name for logging/debugging */
+  name: string;
+  /** All tool names in the set */
+  members: string[];
+  /**
+   * Tools that trigger the set when selected. If any anchor appears in the
+   * semantic match results with a score at or above `anchorMinSimilarity`,
+   * all members are pulled in.
+   */
+  anchors: string[];
+  /**
+   * Minimum similarity an anchor must reach to activate the set.
+   * Prevents false activation on prompts where the anchor barely passes
+   * the global minSimilarity threshold. Default: 0.60
+   */
+  anchorMinSimilarity?: number;
+}
+
+/** Built-in tool sets. Consumers can extend this with their own. */
+const BUILT_IN_TOOL_SETS: ToolSet[] = [
+  {
+    name: "app-generation",
+    members: ["create_file", "patch_file", "delete_file", "read_file", "list_files", "display_app"],
+    anchors: ["create_file", "patch_file"],
+  },
+];
+
+/**
+ * Apply tool set logic to a set of semantic match results.
+ *
+ * For each defined tool set, if any anchor tool appears in `matchedNames`,
+ * all set members present in `availableNames` are added and non-member
+ * tools are removed (unless they scored above `independentThreshold`).
+ *
+ * @param matchedNames - Names selected by semantic matching
+ * @param availableNames - All tool names available for selection
+ * @param scores - Map of tool name → similarity score (from semantic matching)
+ * @param toolSets - Tool sets to apply (defaults to BUILT_IN_TOOL_SETS)
+ * @param independentThreshold - Non-set tools scoring above this survive (default: 0.70)
+ */
+export function applyToolSets(
+  matchedNames: Set<string>,
+  availableNames: Set<string>,
+  scores: Map<string, number>,
+  toolSets: ToolSet[] = BUILT_IN_TOOL_SETS,
+  independentThreshold: number = 0.65
+): Set<string> {
+  // Check if any tool set is triggered (anchor must meet its min similarity)
+  let activatedSet: ToolSet | null = null;
+  for (const ts of toolSets) {
+    const minSim = ts.anchorMinSimilarity ?? 0.6;
+    for (const anchor of ts.anchors) {
+      const anchorScore = scores.get(anchor) ?? 0;
+      if (matchedNames.has(anchor) && anchorScore >= minSim) {
+        activatedSet = ts;
+        break;
+      }
+    }
+    if (activatedSet) break;
+  }
+
+  if (!activatedSet) return matchedNames;
+
+  const setMembers = new Set(activatedSet.members);
+  const result = new Set<string>();
+
+  // Include all set members that are available
+  for (const member of activatedSet.members) {
+    if (availableNames.has(member)) {
+      result.add(member);
+    }
+  }
+
+  // Keep non-set tools only if they scored above the independent threshold
+  for (const name of matchedNames) {
+    if (setMembers.has(name)) continue;
+    const score = scores.get(name) ?? 0;
+    if (score >= independentThreshold) {
+      result.add(name);
+    }
+  }
+
+  return result;
+}
+
 /**
  * Options for selectServerSideTools
  */

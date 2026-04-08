@@ -17,6 +17,7 @@ import "dotenv/config";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { table, getBorderCharacters } from "table";
 import {
+  applyToolSets,
   findMatchingTools,
   getServerTools,
   mergeTools,
@@ -76,6 +77,37 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
     description:
       'Make an authenticated request to the GitHub REST API (https://api.github.com). You can call any endpoint documented at https://docs.github.com/en/rest. Examples: List PRs: GET /repos/{owner}/{repo}/pulls?state=open, Get file: GET /repos/{owner}/{repo}/contents/{path}, Create issue: POST /repos/{owner}/{repo}/issues with body {"title": "...", "body": "..."}, Search repos: GET /search/repositories?q={query}. IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with the user before executing. This includes creating issues, opening PRs, merging, committing files, and submitting reviews.',
   },
+
+  // ── App generation tools ──────────────────────────────────────────────
+  {
+    name: "create_file",
+    description:
+      'Creates or overwrites files in the app project. ALWAYS use this tool when the user asks to create any visual, interactive app, demo, diagram, game, simulation, UI mockup, dashboard, tracker, or data visualization. NEVER output code as text. A live preview appears automatically.\n\nSupports two modes:\n- Single file: pass "path" and "content".\n- Batch (preferred): pass "files" array with {path, content} objects to write all files in one call.\n\nWORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.), then call display_app.\n\nApp.js must be a default export React component. Do NOT create index.js or index.html — these are auto-generated. Use standard import statements for all libraries. NEVER use CDN script tags — instead list dependencies in package.json.',
+  },
+  {
+    name: "patch_file",
+    description:
+      'Modify, update, or edit an existing file in the app project using targeted find-and-replace patches. Use this instead of create_file when making small changes to an app — color tweaks, text edits, styling updates, adding a few lines, fixing bugs, or updating components. The file must already exist.\n\nPass a "patches" array where each item has "find" (exact string to locate) and "replace" (replacement string). Patches are applied in order.',
+  },
+  {
+    name: "delete_file",
+    description: "Deletes a file from the app project.",
+  },
+  {
+    name: "read_file",
+    description:
+      "Reads the content of a file from the app project. Use this to inspect existing files before making changes.",
+  },
+  {
+    name: "list_files",
+    description:
+      "Lists all files in the app project. Returns file paths and sizes. Use this to understand the current project structure.",
+  },
+  {
+    name: "display_app",
+    description:
+      "Renders the app preview. Called automatically when files are created — you usually do not need to call this manually.",
+  },
 ];
 
 // Match the constants from useChatStorage.ts
@@ -133,23 +165,47 @@ async function selectTools(prompt: string) {
     relevanceRatio: 0.85,
   });
 
-  // Merge (server first, then client — deduped by name)
-  const filteredClientToolConfigs = clientMatches.map((m) => ({
-    type: "function" as const,
-    function: {
-      name: m.tool.name,
-      description: m.tool.description,
-      parameters: m.tool.parameters,
-    },
-  }));
+  // Apply tool sets: if an anchor tool matched, pull in the full set
+  const matchedNames = new Set(clientMatches.map((m) => m.tool.name));
+  const scores = new Map(clientMatches.map((m) => [m.tool.name, m.similarity]));
+  const availableNames = new Set(CLIENT_TOOLS.map((t) => t.name));
+  const finalClientNames = applyToolSets(matchedNames, availableNames, scores);
+
+  // Build client tool configs from the final set (including set-expanded tools)
+  const filteredClientToolConfigs = CLIENT_TOOLS.filter((t) => finalClientNames.has(t.name)).map(
+    (t) => ({
+      type: "function" as const,
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: { type: "object", properties: {}, required: [] },
+      },
+    })
+  );
   const merged = mergeTools(filteredServerTools, filteredClientToolConfigs, "responses");
 
   // Extract tool names from merged result
   const allToolNames = merged.map((t) => (t.name as string) || "");
 
+  // Build effective client matches including set-expanded tools
+  const effectiveClientMatches = [...clientMatches];
+  for (const name of finalClientNames) {
+    if (!matchedNames.has(name)) {
+      // Tool was added by tool set expansion — mark with similarity 0 (set-included)
+      const pseudoTool = clientPseudoTools.find((t) => t.name === name);
+      if (pseudoTool) {
+        effectiveClientMatches.push({ tool: pseudoTool, similarity: 0 });
+      }
+    }
+  }
+  // Remove tools that were in matches but got excluded by tool sets
+  const prunedClientMatches = effectiveClientMatches.filter((m) =>
+    finalClientNames.has(m.tool.name)
+  );
+
   return {
     serverMatches,
-    clientMatches,
+    clientMatches: prunedClientMatches,
     allToolNames,
     merged,
   };
@@ -374,6 +430,43 @@ const cases: ToolSelectionCase[] = [
     serverMustInclude: ["AnumaVideoMCP-generate_voiceover"],
   },
 
+  // ── App generation ───────────────────────────────────────────────────
+  // App gen tools form a logical set: when building/modifying apps, the LLM
+  // needs the full toolkit (create_file, patch_file, read_file, list_files,
+  // delete_file, display_app). Semantic matching alone picks create_file but
+  // misses the supporting tools. These tests document what SHOULD happen
+  // once tool sets are implemented.
+  {
+    label: "build app includes all app gen tools",
+    prompt: "Build me a todo list app",
+    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustExclude: ["display_weather", "display_chart", "github_api", "prompt_user_choice"],
+  },
+  {
+    label: "create game includes app gen tools",
+    prompt: "Create a snake game",
+    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustExclude: ["display_weather", "github_api"],
+  },
+  {
+    label: "dashboard app includes app gen tools",
+    prompt: "Make a dashboard that shows sales metrics with charts",
+    clientMustInclude: ["create_file", "patch_file", "display_app", "display_chart"],
+    clientMustExclude: ["display_weather", "github_api"],
+  },
+  {
+    label: "modify existing app includes app gen tools",
+    prompt: "Edit the app to change the background color to blue and add a new footer component",
+    clientMustInclude: ["patch_file", "create_file"],
+    clientMustExclude: ["display_weather", "github_api"],
+  },
+  {
+    label: "build calculator includes app gen tools",
+    prompt: "Create a calculator app with basic arithmetic operations",
+    clientMustInclude: ["create_file", "patch_file", "display_app"],
+    clientMustExclude: ["display_weather", "github_api"],
+  },
+
   // ── Noise exclusions on client-focused prompts ───────────────────────
   {
     label: "chart request: no irrelevant server tools",
@@ -434,7 +527,10 @@ function formatToolLine(
   matches: { tool: { name: string }; similarity: number }[]
 ): string {
   if (matches.length === 0) return "";
-  const lines = matches.map((m) => `  ${stripPrefix(m.tool.name)} (${m.similarity.toFixed(2)})`);
+  const lines = matches.map((m) => {
+    const score = m.similarity === 0 ? "set" : m.similarity.toFixed(2);
+    return `  ${stripPrefix(m.tool.name)} (${score})`;
+  });
   return `[${label}]\n${lines.join("\n")}`;
 }
 
