@@ -104,13 +104,9 @@ export function applyPatches(
 // ---------------------------------------------------------------------------
 
 /** Tool names for app file operations (create, patch, delete, read, list). */
-export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(new Set([
-  "create_file",
-  "patch_file",
-  "delete_file",
-  "read_file",
-  "list_files",
-]));
+export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
+  new Set(["create_file", "patch_file", "delete_file", "read_file", "list_files"])
+);
 
 // ---------------------------------------------------------------------------
 // In-memory storage implementation
