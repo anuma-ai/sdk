@@ -9,14 +9,33 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to test (leave empty for default kimi-k2p5)"
+        required: false
+        type: choice
+        default: ""
+        options:
+          - ""
+          - "fireworks/accounts/fireworks/models/glm-5"
+          - "minimax/MiniMax-M2.7"
+          - "anthropic/claude-sonnet-4-6"
+          - "gemini/gemini-3.1-pro-preview"
+          - "openai/gpt-5.4"
+          - "all"
+      test_filter:
+        description: "Vitest file filter (e.g. 'weather' to match weather.ts — leave empty for all tests)"
+        required: false
+        type: string
+        default: ""
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.model || 'default' }}
   cancel-in-progress: true
 
 jobs:
   e2e-tools:
-    if: github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'merge_group' || (github.event_name == 'workflow_dispatch' && github.event.inputs.model != 'all')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -24,6 +43,7 @@ jobs:
       ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
       GOOGLE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_SHARED_DRIVE_ID }}
+      E2E_MODEL: ${{ github.event.inputs.model || '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +59,52 @@ jobs:
         run: pnpm install
 
       - name: Run e2e tool tests
-        run: pnpm e2e:tools
+        run: pnpm e2e:tools ${{ github.event.inputs.test_filter || '' }}
+
+  e2e-tools-compat:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - "fireworks/accounts/fireworks/models/glm-5"
+          - "minimax/MiniMax-M2.7"
+          - "anthropic/claude-sonnet-4-6"
+          - "gemini/gemini-3.1-pro-preview"
+          - "openai/gpt-5.4"
+    env:
+      PORTAL_API_KEY: ${{ secrets.PORTAL_API_KEY }}
+      ANUMA_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+      GOOGLE_SHARED_DRIVE_ID: ${{ secrets.GOOGLE_SHARED_DRIVE_ID }}
+      E2E_MODEL: ${{ matrix.model }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run e2e tool tests (${{ matrix.model }})
+        run: pnpm e2e:tools ${{ github.event.inputs.test_filter || '' }}
 
   e2e-tools-status:
     if: always()
-    needs: [e2e-tools]
+    needs: [e2e-tools, e2e-tools-compat]
     runs-on: ubuntu-latest
     steps:
       - name: Check e2e results
         run: |
-          if [[ "${{ needs.e2e-tools.result }}" == "failure" ]]; then
+          if [[ "${{ needs.e2e-tools.result }}" == "failure" || "${{ needs.e2e-tools-compat.result }}" == "failure" ]]; then
             echo "E2E tool tests failed"
             exit 1
           fi

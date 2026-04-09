@@ -24,6 +24,8 @@ if (!config.portalKey) {
   throw new Error("PORTAL_API_KEY is required. Add it to .env or set the environment variable.");
 }
 
+console.log(`[e2e] model: ${config.model}, apiType: ${config.apiType}`);
+
 // ── Result helpers ───────────────────────────────────────────────────────────
 
 export function extractText(result: Awaited<ReturnType<typeof runToolLoop>>): string {
