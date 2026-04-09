@@ -420,7 +420,7 @@ export function createAppGenerationTools({
       type: "function",
       function: DISPLAY_APP_SCHEMA,
       executor: displayApp,
-      dependsOn: ["create_file", "patch_file"],
+      dependsOn: ["create_file", "patch_file", "delete_file"],
     });
   }
 

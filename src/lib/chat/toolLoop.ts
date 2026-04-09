@@ -61,6 +61,16 @@ import {
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
+/** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "error" in result &&
+    typeof (result as { error: unknown }).error === "string"
+  );
+}
+
 /** Extract tool name from either nested (function.name) or flat (name) format. */
 function getToolName(tool: Record<string, unknown>): string | undefined {
   const func = tool.function as Record<string, unknown> | undefined;
@@ -474,6 +484,8 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       // Topological phase execution: tools with dependsOn wait for the named
       // tools to complete before starting. Handles multi-level chains (A → B → C).
+      // Note: batchToolNames tracks by name, so duplicate calls to the same tool
+      // (e.g. two create_file calls) land in the same phase via Promise.all.
       const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
       const completed = new Set<string>();
       let remaining = [...toolCallsToExecute];
@@ -550,13 +562,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
 
         for (const r of phaseResults) {
-          const isErrorResult =
-            !r.error &&
-            r.result !== null &&
-            typeof r.result === "object" &&
-            "error" in r.result &&
-            typeof (r.result as { error: unknown }).error === "string";
-          if (r.name && !r.error && !isErrorResult) completed.add(r.name);
+          if (r.name && !r.error && !isToolErrorResult(r.result)) completed.add(r.name);
         }
         executionResults.push(...phaseResults);
         const readySet = new Set(ready);
@@ -594,7 +600,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
         for (const r of executionResults) {
-          if (!r.error && "name" in r && r.name) {
+          if (!r.error && !isToolErrorResult(r.result) && "name" in r && r.name) {
             successfullyExecutedNames.add(r.name);
           }
         }

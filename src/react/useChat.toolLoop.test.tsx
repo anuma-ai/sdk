@@ -1224,6 +1224,128 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolBResult?.content[0].text).not.toContain("dependency cycle");
   });
 
+  it("keeps tool with removeAfterExecution when it returns an error object", async () => {
+    const saveTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "save_tool",
+        description: "Save tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => ({ error: "quota exceeded" }),
+      removeAfterExecution: true,
+    };
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("save_tool", {})) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Save failed.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Save" }] }],
+        model: "test-model",
+        tools: [saveTool],
+      });
+    });
+
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+
+    // Tool should still be present since it returned an error object
+    const continuationBody = getRequestBody(1);
+    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    expect(toolNames).toContain("save_tool");
+  });
+
+  it("removes dependency tool with removeAfterExecution after success, dependent still runs", async () => {
+    const executionOrder: string[] = [];
+
+    const createFile: ToolConfig = {
+      type: "function",
+      function: {
+        name: "create_file",
+        description: "Create a file",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("create_file");
+        return "created";
+      },
+      removeAfterExecution: true,
+    };
+
+    const displayApp: ToolConfig = {
+      type: "function",
+      function: {
+        name: "display_app",
+        description: "Display the app",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("display_app");
+        return "displayed";
+      },
+      dependsOn: ["create_file"],
+    };
+
+    const bothToolsStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "create_file",
+          call_id: "call-1",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "display_app",
+          call_id: "call-2",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Build" }] }],
+        model: "test-model",
+        tools: [createFile, displayApp],
+      });
+    });
+
+    // Both should execute in correct order
+    expect(executionOrder).toEqual(["create_file", "display_app"]);
+
+    // create_file should be removed from continuation, display_app kept
+    const continuationBody = getRequestBody(1);
+    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    expect(toolNames).not.toContain("create_file");
+    expect(toolNames).toContain("display_app");
+  });
+
   it("does not send dependsOn to the API in the tool definition payload", async () => {
     const toolWithDeps: ToolConfig = {
       type: "function",
