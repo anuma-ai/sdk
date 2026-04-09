@@ -534,6 +534,288 @@ describe("useChat multi-turn tool loop", () => {
     expect(continuationBody.tools).toBeUndefined();
   });
 
+  // ── dependsOn: topological execution order ──────────────────
+
+  it("executes dependent tool after its dependency completes", async () => {
+    const executionOrder: string[] = [];
+
+    const createFile: ToolConfig = {
+      type: "function",
+      function: {
+        name: "create_file",
+        description: "Create a file",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("create_file");
+        return "file created";
+      },
+    };
+
+    const displayApp: ToolConfig = {
+      type: "function",
+      function: {
+        name: "display_app",
+        description: "Display the app",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("display_app");
+        return "app displayed";
+      },
+      dependsOn: ["create_file"],
+    };
+
+    // Stream that calls both tools in one response
+    const bothToolsStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "display_app",
+          call_id: "call-1",
+          arguments: "",
+        },
+      },
+      {
+        type: "response.function_call_arguments.done",
+        item_id: "fc-1",
+        arguments: "{}",
+      },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "create_file",
+          call_id: "call-2",
+          arguments: "",
+        },
+      },
+      {
+        type: "response.function_call_arguments.done",
+        item_id: "fc-2",
+        arguments: "{}",
+      },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Build app" }] }],
+        model: "test-model",
+        tools: [createFile, displayApp],
+      });
+    });
+
+    // display_app depends on create_file, so create_file must run first
+    // even though display_app appeared first in the stream
+    expect(executionOrder).toEqual(["create_file", "display_app"]);
+  });
+
+  it("executes multi-level dependency chains in correct order (A → B → C)", async () => {
+    const executionOrder: string[] = [];
+
+    const toolA: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_a",
+        description: "Tool A",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_a");
+        return "a";
+      },
+    };
+
+    const toolB: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_b",
+        description: "Tool B",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_b");
+        return "b";
+      },
+      dependsOn: ["tool_a"],
+    };
+
+    const toolC: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_c",
+        description: "Tool C",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_c");
+        return "c";
+      },
+      dependsOn: ["tool_b"],
+    };
+
+    const threeToolsStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: { id: "fc-1", type: "function_call", name: "tool_c", call_id: "call-1", arguments: "" },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: { id: "fc-2", type: "function_call", name: "tool_b", call_id: "call-2", arguments: "" },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: { id: "fc-3", type: "function_call", name: "tool_a", call_id: "call-3", arguments: "" },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-3", arguments: "{}" },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(threeToolsStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Run chain" }] }],
+        model: "test-model",
+        tools: [toolA, toolB, toolC],
+      });
+    });
+
+    expect(executionOrder).toEqual(["tool_a", "tool_b", "tool_c"]);
+  });
+
+  it("returns error results for all tools in a dependency cycle", async () => {
+    const toolX: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_x",
+        description: "Tool X",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "x",
+      dependsOn: ["tool_y"],
+    };
+
+    const toolY: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_y",
+        description: "Tool Y",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "y",
+      dependsOn: ["tool_x"],
+    };
+
+    const cycleStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: { id: "fc-1", type: "function_call", name: "tool_x", call_id: "call-1", arguments: "" },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: { id: "fc-2", type: "function_call", name: "tool_y", call_id: "call-2", arguments: "" },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(cycleStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Cycle detected.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Go" }] }],
+        model: "test-model",
+        tools: [toolX, toolY],
+      });
+    });
+
+    // Should still continue (error results sent to model), not hang
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+
+    // The continuation should contain error messages for both tools
+    const continuationBody = getRequestBody(1);
+    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    expect(toolResults).toHaveLength(2);
+    for (const tr of toolResults) {
+      expect(tr.content[0].text).toContain("dependency cycle");
+    }
+  });
+
+  it("does not send dependsOn to the API in the tool definition payload", async () => {
+    const toolWithDeps: ToolConfig = {
+      type: "function",
+      function: {
+        name: "display_app",
+        description: "Display the app",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "displayed",
+      dependsOn: ["create_file"],
+    };
+
+    mockCreateSseClient.mockReturnValueOnce(
+      makeMockStream(makeTextStream("Hello")) as any
+    );
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        model: "test-model",
+        tools: [toolWithDeps],
+      });
+    });
+
+    const body = getRequestBody(0);
+    const sentTool = body.tools[0];
+    expect(sentTool.dependsOn).toBeUndefined();
+    expect(sentTool.executor).toBeUndefined();
+  });
+
   it("removes only flagged tools when mixed with non-flagged tools", async () => {
     const saveTool: ToolConfig = {
       type: "function",
