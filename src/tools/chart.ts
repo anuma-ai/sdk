@@ -50,7 +50,7 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_chart",
     description:
-      "Render data visualization charts when the user explicitly requests a bar chart, line chart, area chart, or pie chart of their data. Accepts an array of data points and renders the chart inline in the conversation.",
+      'Render a chart inline. You MUST pass the actual numeric values in the "data" array — they are never inferred. Example call: {"chartType":"bar","data":[{"label":"A","value":10},{"label":"B","value":20}],"dataKeys":["value"],"xAxisKey":"label"}',
     parameters: {
       type: "object",
       properties: {
@@ -70,13 +70,13 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
             additionalProperties: true,
           },
           description:
-            "Array of data points. Each object should have a label key and one or more numeric value keys.",
+            'Array of objects containing the actual values to plot. Example: [{"quarter":"Q1","revenue":10},{"quarter":"Q2","revenue":15}]. Each object must include the label key and numeric value keys with real data from the user\'s message.',
         },
         dataKeys: {
           type: "array",
           items: { type: "string" },
           description:
-            "Which keys in each data object to chart as series/bars/slices (the numeric values).",
+            'Which keys in each data object contain the numeric values to chart (e.g. ["revenue"]). Must match keys present in the data array.',
         },
         xAxisKey: {
           type: "string",
