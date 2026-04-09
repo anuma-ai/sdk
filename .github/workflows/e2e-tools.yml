@@ -59,7 +59,9 @@ jobs:
         run: pnpm install
 
       - name: Run e2e tool tests
-        run: pnpm e2e:tools ${{ github.event.inputs.test_filter || '' }}
+        env:
+          TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
+        run: pnpm e2e:tools "$TEST_FILTER"
 
   e2e-tools-compat:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.model == 'all'
@@ -95,7 +97,9 @@ jobs:
         run: pnpm install
 
       - name: Run e2e tool tests (${{ matrix.model }})
-        run: pnpm e2e:tools ${{ github.event.inputs.test_filter || '' }}
+        env:
+          TEST_FILTER: ${{ github.event.inputs.test_filter || '' }}
+        run: pnpm e2e:tools "$TEST_FILTER"
 
   e2e-tools-status:
     if: always()
