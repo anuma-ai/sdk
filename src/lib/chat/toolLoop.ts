@@ -493,18 +493,29 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (ready.length === 0) {
           // Emit error results for remaining tools so every tool call the
           // LLM issued gets a corresponding tool result message.
-          // Seed failed set from tools that already ran and errored.
+          // Propagate failures transitively through the dependency chain
+          // before classifying, so the result is independent of iteration order.
           const failedNames = new Set(
             executionResults
               .filter((r) => r.error)
               .map((r) => r.name)
               .filter(Boolean) as string[]
           );
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const tc of remaining) {
+              if (failedNames.has(tc.name)) continue;
+              const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+              if (deps.some((d) => batchToolNames.has(d) && failedNames.has(d))) {
+                failedNames.add(tc.name);
+                changed = true;
+              }
+            }
+          }
           for (const tc of remaining) {
             const deps = executorMap.get(tc.name)?.dependsOn ?? [];
             const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
-            // A dep is "blocked by failure" if it failed directly or was
-            // itself blocked (already added to failedNames in this loop).
             const blockedByFailure = failedDeps.some((d) => failedNames.has(d));
             const reason = blockedByFailure
               ? `failed dependencies: ${failedDeps.join(", ")}`
@@ -515,8 +526,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               error: `Tool "${tc.name}" was not executed due to ${reason}`,
               errorType: "execution",
             });
-            // Propagate failure (not cycles) for downstream dependents
-            if (blockedByFailure) failedNames.add(tc.name);
           }
           break;
         }

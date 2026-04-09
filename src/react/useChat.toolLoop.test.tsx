@@ -1105,6 +1105,125 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolCResult?.content[0].text).not.toContain("dependency cycle");
   });
 
+  it("classifies transitive failures correctly when stream emits tools in reverse order (C, B, A)", async () => {
+    const executionOrder: string[] = [];
+
+    const toolA: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_a",
+        description: "Tool A",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_a");
+        throw new Error("A failed");
+      },
+    };
+
+    const toolB: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_b",
+        description: "Tool B",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_b");
+        return "b";
+      },
+      dependsOn: ["tool_a"],
+    };
+
+    const toolC: ToolConfig = {
+      type: "function",
+      function: {
+        name: "tool_c",
+        description: "Tool C",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("tool_c");
+        return "c";
+      },
+      dependsOn: ["tool_b"],
+    };
+
+    // Stream emits in reverse topological order: C, B, A
+    const reverseStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "tool_c",
+          call_id: "call-1",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "tool_b",
+          call_id: "call-2",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-3",
+          type: "function_call",
+          name: "tool_a",
+          call_id: "call-3",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-3", arguments: "{}" },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(reverseStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("A failed.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Run chain" }] }],
+        model: "test-model",
+        tools: [toolA, toolB, toolC],
+      });
+    });
+
+    expect(executionOrder).toEqual(["tool_a"]);
+
+    const continuationBody = getRequestBody(1);
+    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    expect(toolResults).toHaveLength(3);
+
+    // C (emitted first) should still get "failed dependencies", not "dependency cycle"
+    const toolCResult = toolResults.find((m: any) => m.tool_call_id === "call-1");
+    expect(toolCResult?.content[0].text).toContain("failed dependencies");
+    expect(toolCResult?.content[0].text).not.toContain("dependency cycle");
+
+    const toolBResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
+    expect(toolBResult?.content[0].text).toContain("failed dependencies");
+    expect(toolBResult?.content[0].text).not.toContain("dependency cycle");
+  });
+
   it("does not send dependsOn to the API in the tool definition payload", async () => {
     const toolWithDeps: ToolConfig = {
       type: "function",
