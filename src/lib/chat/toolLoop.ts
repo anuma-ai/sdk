@@ -524,7 +524,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
 
         for (const r of phaseResults) {
-          if (r.name) completed.add(r.name);
+          if (r.name && !r.error) completed.add(r.name);
         }
         executionResults.push(...phaseResults);
         const readySet = new Set(ready);

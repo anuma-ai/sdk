@@ -814,6 +814,96 @@ describe("useChat multi-turn tool loop", () => {
     }
   });
 
+  it("does not execute dependent tool when its dependency fails", async () => {
+    const executionOrder: string[] = [];
+
+    const createFile: ToolConfig = {
+      type: "function",
+      function: {
+        name: "create_file",
+        description: "Create a file",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("create_file");
+        throw new Error("Write failed");
+      },
+    };
+
+    const displayApp: ToolConfig = {
+      type: "function",
+      function: {
+        name: "display_app",
+        description: "Display the app",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        executionOrder.push("display_app");
+        return "displayed";
+      },
+      dependsOn: ["create_file"],
+    };
+
+    const bothToolsStream = [
+      {
+        type: "response.created",
+        response: { id: "resp-1", model: "test-model" },
+      },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "create_file",
+          call_id: "call-1",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
+      {
+        type: "response.output_item.added",
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "display_app",
+          call_id: "call-2",
+          arguments: "",
+        },
+      },
+      { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
+      {
+        type: "response.completed",
+        response: { usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ];
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("File write failed.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Build app" }] }],
+        model: "test-model",
+        tools: [createFile, displayApp],
+      });
+    });
+
+    // display_app should NOT have executed since create_file failed
+    expect(executionOrder).toEqual(["create_file"]);
+
+    // Both tools should have results sent to the model
+    const continuationBody = getRequestBody(1);
+    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    expect(toolResults).toHaveLength(2);
+
+    // display_app should get a dependency cycle error (not executed)
+    const displayResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
+    expect(displayResult?.content[0].text).toContain("dependency cycle");
+  });
+
   it("does not send dependsOn to the API in the tool definition payload", async () => {
     const toolWithDeps: ToolConfig = {
       type: "function",
