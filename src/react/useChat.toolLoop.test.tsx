@@ -899,9 +899,9 @@ describe("useChat multi-turn tool loop", () => {
     const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
 
-    // display_app should get a dependency cycle error (not executed)
+    // display_app should get a failed dependency error (not executed)
     const displayResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
-    expect(displayResult?.content[0].text).toContain("dependency cycle");
+    expect(displayResult?.content[0].text).toContain("failed dependencies: create_file");
   });
 
   it("does not send dependsOn to the API in the tool definition payload", async () => {

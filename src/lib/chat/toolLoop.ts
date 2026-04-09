@@ -491,13 +491,19 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           return deps.every((d) => !batchToolNames.has(d) || completed.has(d));
         });
         if (ready.length === 0) {
-          // Cycle guard: emit error results for remaining tools so every
-          // tool call the LLM issued gets a corresponding tool result message.
+          // Emit error results for remaining tools so every tool call the
+          // LLM issued gets a corresponding tool result message.
           for (const tc of remaining) {
+            const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+            const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
+            const hasCycle = failedDeps.every((d) => remaining.some((r) => r.name === d));
+            const reason = hasCycle
+              ? "a dependency cycle"
+              : `failed dependencies: ${failedDeps.join(", ")}`;
             executionResults.push({
               id: tc.id,
               name: tc.name,
-              error: `Tool "${tc.name}" could not be executed due to a dependency cycle`,
+              error: `Tool "${tc.name}" was not executed due to ${reason}`,
               errorType: "execution",
             });
           }
