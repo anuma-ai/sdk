@@ -9,6 +9,7 @@ export default defineConfig({
       "test/tools/googleAuth.ts",
       "test/tools/**/setup.ts",
       "test/tools/**/tools.ts",
+      "test/tools/*.comparison.ts",
     ],
     testTimeout: 300_000,
     hookTimeout: 120_000,
