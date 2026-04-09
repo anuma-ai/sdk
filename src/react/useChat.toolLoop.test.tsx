@@ -678,17 +678,35 @@ describe("useChat multi-turn tool loop", () => {
       },
       {
         type: "response.output_item.added",
-        item: { id: "fc-1", type: "function_call", name: "tool_c", call_id: "call-1", arguments: "" },
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "tool_c",
+          call_id: "call-1",
+          arguments: "",
+        },
       },
       { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
       {
         type: "response.output_item.added",
-        item: { id: "fc-2", type: "function_call", name: "tool_b", call_id: "call-2", arguments: "" },
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "tool_b",
+          call_id: "call-2",
+          arguments: "",
+        },
       },
       { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
       {
         type: "response.output_item.added",
-        item: { id: "fc-3", type: "function_call", name: "tool_a", call_id: "call-3", arguments: "" },
+        item: {
+          id: "fc-3",
+          type: "function_call",
+          name: "tool_a",
+          call_id: "call-3",
+          arguments: "",
+        },
       },
       { type: "response.function_call_arguments.done", item_id: "fc-3", arguments: "{}" },
       {
@@ -744,12 +762,24 @@ describe("useChat multi-turn tool loop", () => {
       },
       {
         type: "response.output_item.added",
-        item: { id: "fc-1", type: "function_call", name: "tool_x", call_id: "call-1", arguments: "" },
+        item: {
+          id: "fc-1",
+          type: "function_call",
+          name: "tool_x",
+          call_id: "call-1",
+          arguments: "",
+        },
       },
       { type: "response.function_call_arguments.done", item_id: "fc-1", arguments: "{}" },
       {
         type: "response.output_item.added",
-        item: { id: "fc-2", type: "function_call", name: "tool_y", call_id: "call-2", arguments: "" },
+        item: {
+          id: "fc-2",
+          type: "function_call",
+          name: "tool_y",
+          call_id: "call-2",
+          arguments: "",
+        },
       },
       { type: "response.function_call_arguments.done", item_id: "fc-2", arguments: "{}" },
       {
@@ -796,9 +826,7 @@ describe("useChat multi-turn tool loop", () => {
       dependsOn: ["create_file"],
     };
 
-    mockCreateSseClient.mockReturnValueOnce(
-      makeMockStream(makeTextStream("Hello")) as any
-    );
+    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeTextStream("Hello")) as any);
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
