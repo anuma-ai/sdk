@@ -61,6 +61,16 @@ import {
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
+/** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "error" in result &&
+    typeof (result as { error: unknown }).error === "string"
+  );
+}
+
 /** Extract tool name from either nested (function.name) or flat (name) format. */
 function getToolName(tool: Record<string, unknown>): string | undefined {
   const func = tool.function as Record<string, unknown> | undefined;
@@ -472,32 +482,92 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
       }
 
-      // Execute all tools in parallel
-      const executionResults = await Promise.all(
-        toolCallsToExecute.map(async (toolCall) => {
-          const executorConfig = executorMap.get(toolCall.name);
-          if (!executorConfig) {
-            return {
-              id: toolCall.id,
-              error: `No executor found for tool: ${toolCall.name}`,
-            };
-          }
+      // Topological phase execution: tools with dependsOn wait for the named
+      // tools to complete before starting. Handles multi-level chains (A → B → C).
+      // Note: batchToolNames tracks by name, so duplicate calls to the same tool
+      // (e.g. two create_file calls) land in the same phase via Promise.all.
+      const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
+      const completed = new Set<string>();
+      let remaining = [...toolCallsToExecute];
+      const executionResults: {
+        id: string;
+        name?: string;
+        result?: unknown;
+        error?: string;
+        errorType?: ToolExecutionErrorType;
+      }[] = [];
 
-          const { result, error, errorType } = await executeToolCall(
-            toolCall,
-            executorConfig.executor,
-            executorConfig.executorTimeout
+      while (remaining.length > 0) {
+        const ready = remaining.filter((tc) => {
+          const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+          return deps.every((d) => !batchToolNames.has(d) || completed.has(d));
+        });
+        if (ready.length === 0) {
+          // Emit error results for remaining tools so every tool call the
+          // LLM issued gets a corresponding tool result message.
+          // Propagate failures transitively through the dependency chain
+          // before classifying, so the result is independent of iteration order.
+          const failedNames = new Set(
+            executionResults
+              .filter((r) => r.error)
+              .map((r) => r.name)
+              .filter(Boolean) as string[]
           );
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const tc of remaining) {
+              if (failedNames.has(tc.name)) continue;
+              const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+              if (deps.some((d) => batchToolNames.has(d) && failedNames.has(d))) {
+                failedNames.add(tc.name);
+                changed = true;
+              }
+            }
+          }
+          for (const tc of remaining) {
+            const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+            const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
+            const blockedByFailure = failedDeps.some((d) => failedNames.has(d));
+            const reason = blockedByFailure
+              ? `failed dependencies: ${failedDeps.join(", ")}`
+              : "a dependency cycle";
+            executionResults.push({
+              id: tc.id,
+              name: tc.name,
+              error: `Tool "${tc.name}" was not executed due to ${reason}`,
+              errorType: "execution",
+            });
+          }
+          break;
+        }
 
-          return {
-            id: toolCall.id,
-            name: toolCall.name,
-            result,
-            error,
-            errorType,
-          };
-        })
-      );
+        const phaseResults = await Promise.all(
+          ready.map(async (toolCall) => {
+            const executorConfig = executorMap.get(toolCall.name);
+            if (!executorConfig) {
+              return {
+                id: toolCall.id,
+                name: toolCall.name,
+                error: `No executor found for tool: ${toolCall.name}`,
+              };
+            }
+            const { result, error, errorType } = await executeToolCall(
+              toolCall,
+              executorConfig.executor,
+              executorConfig.executorTimeout
+            );
+            return { id: toolCall.id, name: toolCall.name, result, error, errorType };
+          })
+        );
+
+        for (const r of phaseResults) {
+          if (r.name && !r.error && !isToolErrorResult(r.result)) completed.add(r.name);
+        }
+        executionResults.push(...phaseResults);
+        const readySet = new Set(ready);
+        remaining = remaining.filter((tc) => !readySet.has(tc));
+      }
 
       // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
@@ -530,7 +600,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
         for (const r of executionResults) {
-          if (!r.error && "name" in r && r.name) {
+          if (!r.error && !isToolErrorResult(r.result) && "name" in r && r.name) {
             successfullyExecutedNames.add(r.name);
           }
         }
