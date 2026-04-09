@@ -230,14 +230,14 @@ function executeAnalyzeSubscriptions(
     if (typeof item.amount !== "number" || item.amount < 0) {
       errors.push(`Item ${i} (${item.name}): amount must be a positive number`);
     }
-    if (!SUBSCRIPTION_FREQUENCIES.includes(item.frequency as SubscriptionFrequency)) {
+    if (!SUBSCRIPTION_FREQUENCIES.includes(item.frequency)) {
       errors.push(`Item ${i} (${item.name}): invalid frequency "${item.frequency}"`);
     }
-    if (!SUBSCRIPTION_CATEGORIES.includes(item.category as SubscriptionCategory)) {
+    if (!SUBSCRIPTION_CATEGORIES.includes(item.category)) {
       errors.push(`Item ${i} (${item.name}): invalid category "${item.category}"`);
     }
 
-    const multiplier = TO_MONTHLY[item.frequency as SubscriptionFrequency] ?? 1;
+    const multiplier = TO_MONTHLY[item.frequency] ?? 1;
     const monthly = round2(item.amount * multiplier);
     const annual = round2(monthly * 12);
 
@@ -301,9 +301,9 @@ function executeFlagSubscriptions(
 
   const errors: string[] = [];
   for (let i = 0; i < flags.length; i++) {
-    const f = flags[i]!;
+    const f = flags[i];
     if (!f.name) errors.push(`Flag ${i}: missing name`);
-    if (!SUBSCRIPTION_FLAG_TYPES.includes(f.type as SubscriptionFlagType)) {
+    if (!SUBSCRIPTION_FLAG_TYPES.includes(f.type)) {
       errors.push(`Flag ${i} (${f.name}): invalid type "${f.type}"`);
     }
     if (!f.detail) errors.push(`Flag ${i} (${f.name}): missing detail`);
