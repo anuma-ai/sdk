@@ -99,13 +99,22 @@ export function createChartTool(options: CreateUIToolsOptions): ToolConfig {
       const dataKeys = args.dataKeys as string[];
 
       if (!chartType || !["bar", "line", "area", "pie"].includes(chartType)) {
-        return { error: `Unsupported chart type: ${chartType}` };
+        return {
+          error: `Unsupported chart type: ${chartType}. Must be one of: bar, line, area, pie.`,
+        };
       }
       if (!data || !Array.isArray(data) || data.length === 0) {
-        return { error: "Invalid or empty chart data" };
+        return {
+          error:
+            'The "data" array is required and must contain at least one data point object, e.g. [{"quarter":"Q1","revenue":10}]. You provided: ' +
+            JSON.stringify(data),
+        };
       }
       if (!dataKeys || !Array.isArray(dataKeys) || dataKeys.length === 0) {
-        return { error: "No data keys specified for charting" };
+        return {
+          error:
+            'The "dataKeys" array is required and must list the numeric keys to chart, e.g. ["revenue"].',
+        };
       }
 
       return {
