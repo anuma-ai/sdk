@@ -493,19 +493,30 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (ready.length === 0) {
           // Emit error results for remaining tools so every tool call the
           // LLM issued gets a corresponding tool result message.
+          // Seed failed set from tools that already ran and errored.
+          const failedNames = new Set(
+            executionResults
+              .filter((r) => r.error)
+              .map((r) => r.name)
+              .filter(Boolean) as string[]
+          );
           for (const tc of remaining) {
             const deps = executorMap.get(tc.name)?.dependsOn ?? [];
             const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
-            const hasCycle = failedDeps.every((d) => remaining.some((r) => r.name === d));
-            const reason = hasCycle
-              ? "a dependency cycle"
-              : `failed dependencies: ${failedDeps.join(", ")}`;
+            // A dep is "blocked by failure" if it failed directly or was
+            // itself blocked (already added to failedNames in this loop).
+            const blockedByFailure = failedDeps.some((d) => failedNames.has(d));
+            const reason = blockedByFailure
+              ? `failed dependencies: ${failedDeps.join(", ")}`
+              : "a dependency cycle";
             executionResults.push({
               id: tc.id,
               name: tc.name,
               error: `Tool "${tc.name}" was not executed due to ${reason}`,
               errorType: "execution",
             });
+            // Propagate failure (not cycles) for downstream dependents
+            if (blockedByFailure) failedNames.add(tc.name);
           }
           break;
         }
@@ -530,7 +541,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         );
 
         for (const r of phaseResults) {
-          if (r.name && !r.error) completed.add(r.name);
+          const isErrorResult =
+            !r.error &&
+            r.result !== null &&
+            typeof r.result === "object" &&
+            "error" in (r.result as object) &&
+            typeof (r.result as { error: unknown }).error === "string";
+          if (r.name && !r.error && !isErrorResult) completed.add(r.name);
         }
         executionResults.push(...phaseResults);
         const readySet = new Set(ready);
