@@ -287,9 +287,9 @@ function addConsistencyReport(
   const toolMonthly = runs.map((r) => r.tools.monthly);
   const skillValid = skillMonthly.filter((v): v is number => v !== null);
   const toolValid = toolMonthly.filter((v): v is number => v !== null);
-  const skillSpread =
-    skillValid.length > 1 ? Math.max(...skillValid) - Math.min(...skillValid) : 0;
-  const skillMean = skillValid.length > 0 ? skillValid.reduce((a, b) => a + b, 0) / skillValid.length : 0;
+  const skillSpread = skillValid.length > 1 ? Math.max(...skillValid) - Math.min(...skillValid) : 0;
+  const skillMean =
+    skillValid.length > 0 ? skillValid.reduce((a, b) => a + b, 0) / skillValid.length : 0;
   const skillExact = skillValid.filter((v) => Math.abs(v - expected) < 0.02).length;
   const toolUnique = new Set(toolValid.map((v) => v.toFixed(2)));
 
@@ -345,9 +345,7 @@ function addExtractionReport(
 
   for (let i = 0; i < runs.length; i++) {
     for (const item of runs[i]!.extractedItems) {
-      const nameKey = Object.keys(known).find((k) =>
-        item.name.toLowerCase().includes(k)
-      );
+      const nameKey = Object.keys(known).find((k) => item.name.toLowerCase().includes(k));
       if (!nameKey) continue;
 
       totalChecks++;

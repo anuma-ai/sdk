@@ -11,9 +11,7 @@ const baseExclude = [
 export default defineConfig({
   test: {
     include: ["test/tools/*.ts", "test/tools/**/*.test.ts"],
-    exclude: process.env.COMPARISON
-      ? baseExclude
-      : [...baseExclude, "test/tools/*.comparison.ts"],
+    exclude: process.env.COMPARISON ? baseExclude : [...baseExclude, "test/tools/*.comparison.ts"],
     testTimeout: 600_000,
     hookTimeout: 300_000,
   },
