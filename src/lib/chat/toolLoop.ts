@@ -545,7 +545,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             !r.error &&
             r.result !== null &&
             typeof r.result === "object" &&
-            "error" in (r.result as object) &&
+            "error" in r.result &&
             typeof (r.result as { error: unknown }).error === "string";
           if (r.name && !r.error && !isErrorResult) completed.add(r.name);
         }
