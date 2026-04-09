@@ -192,7 +192,7 @@ export const LIST_FILES_SCHEMA = {
 export const DISPLAY_APP_SCHEMA = {
   name: "display_app",
   description:
-    "Renders the app preview from the current saved files. This does NOT modify any files — you must use patch_file or create_file first to make changes, then call display_app to show the result.",
+    "Renders the app preview from the current saved files. This does NOT modify files — you must call patch_file or create_file first to make changes, then call display_app to show the updated result.",
   arguments: {
     type: "object",
     properties: { title: { type: "string", description: "Short title for the app" } },
