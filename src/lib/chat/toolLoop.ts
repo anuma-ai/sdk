@@ -651,7 +651,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             type: "function",
             function: {
               name: tc.name,
-              arguments: tc.arguments,
+              arguments: tc.arguments || "{}",
             },
           })),
       };
