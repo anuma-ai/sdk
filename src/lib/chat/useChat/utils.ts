@@ -619,6 +619,7 @@ export function toolsToApiFormat(
       skipContinuation: _skipContinuation,
       removeAfterExecution: _removeAfterExecution,
       executorTimeout: _executorTimeout,
+      dependsOn: _dependsOn,
       ...apiTool
     } = tool as ToolConfig & Record<string, unknown>;
 

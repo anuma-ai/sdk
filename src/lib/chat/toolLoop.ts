@@ -510,6 +510,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             if (!executorConfig) {
               return {
                 id: toolCall.id,
+                name: toolCall.name,
                 error: `No executor found for tool: ${toolCall.name}`,
               };
             }
