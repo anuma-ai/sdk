@@ -467,10 +467,13 @@ export function isDoneMarker(chunk: unknown): boolean {
  */
 export function createToolExecutorMap(
   tools?: Array<LlmapiChatCompletionTool | ToolConfig | Record<string, unknown>>
-): Map<string, { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }> {
+): Map<
+  string,
+  { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number; dependsOn?: string[] }
+> {
   const map = new Map<
     string,
-    { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number }
+    { executor: ToolExecutor; skipContinuation: boolean; executorTimeout?: number; dependsOn?: string[] }
   >();
 
   if (!tools) {
@@ -497,6 +500,7 @@ export function createToolExecutorMap(
         ...(toolWithExecutor.executorTimeout !== undefined && {
           executorTimeout: toolWithExecutor.executorTimeout,
         }),
+        ...(toolWithExecutor.dependsOn && { dependsOn: toolWithExecutor.dependsOn }),
       });
     }
   }

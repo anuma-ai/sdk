@@ -472,32 +472,50 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
       }
 
-      // Execute all tools in parallel
-      const executionResults = await Promise.all(
-        toolCallsToExecute.map(async (toolCall) => {
-          const executorConfig = executorMap.get(toolCall.name);
-          if (!executorConfig) {
-            return {
-              id: toolCall.id,
-              error: `No executor found for tool: ${toolCall.name}`,
-            };
-          }
+      // Split tools into phases based on dependsOn. Tools whose dependsOn
+      // includes a tool in the current batch must wait for that tool to finish.
+      const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
+      const deferred: AccumulatedToolCall[] = [];
+      const immediate: AccumulatedToolCall[] = [];
+      for (const toolCall of toolCallsToExecute) {
+        const config = executorMap.get(toolCall.name);
+        const deps = config?.dependsOn;
+        if (deps?.some((dep) => batchToolNames.has(dep))) {
+          deferred.push(toolCall);
+        } else {
+          immediate.push(toolCall);
+        }
+      }
 
-          const { result, error, errorType } = await executeToolCall(
-            toolCall,
-            executorConfig.executor,
-            executorConfig.executorTimeout
-          );
-
+      const executeOne = async (toolCall: AccumulatedToolCall) => {
+        const executorConfig = executorMap.get(toolCall.name);
+        if (!executorConfig) {
           return {
             id: toolCall.id,
-            name: toolCall.name,
-            result,
-            error,
-            errorType,
+            error: `No executor found for tool: ${toolCall.name}`,
           };
-        })
-      );
+        }
+
+        const { result, error, errorType } = await executeToolCall(
+          toolCall,
+          executorConfig.executor,
+          executorConfig.executorTimeout
+        );
+
+        return {
+          id: toolCall.id,
+          name: toolCall.name,
+          result,
+          error,
+          errorType,
+        };
+      };
+
+      // Phase 1: execute independent tools in parallel
+      const immediateResults = await Promise.all(immediate.map(executeOne));
+      // Phase 2: execute dependent tools in parallel (their dependencies are done)
+      const deferredResults = await Promise.all(deferred.map(executeOne));
+      const executionResults = [...immediateResults, ...deferredResults];
 
       // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");

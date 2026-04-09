@@ -108,6 +108,15 @@ export type ToolConfig = LlmapiChatCompletionTool & {
    * @default 30000
    */
   executorTimeout?: number;
+  /**
+   * Tool names that this tool depends on. When multiple tools are called in
+   * the same response, tools with `dependsOn` will wait for the named tools
+   * to finish executing before starting.
+   *
+   * Example: `display_slides` depends on `create_file` because it reads
+   * files from IndexedDB that `create_file` writes.
+   */
+  dependsOn?: string[];
 };
 
 /**
