@@ -2,7 +2,7 @@
 
 > **HandlersPhoneCallTranscriptEntry** = `object`
 
-Defined in: [src/client/types.gen.ts:818](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#818)
+Defined in: [src/client/types.gen.ts:776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#776)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:818](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **created\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:819](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#819)
+Defined in: [src/client/types.gen.ts:777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#777)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:819](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **speaker**: `string`
 
-Defined in: [src/client/types.gen.ts:820](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#820)
+Defined in: [src/client/types.gen.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#778)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [src/client/types.gen.ts:820](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **text**: `string`
 
-Defined in: [src/client/types.gen.ts:821](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#821)
+Defined in: [src/client/types.gen.ts:779](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#779)

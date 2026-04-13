@@ -2,7 +2,7 @@
 
 > **HandlersUnregisterTextResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1051)
+Defined in: [src/client/types.gen.ts:1027](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1027)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:1051](https://github.com/anuma-ai/sdk/blob/
 
 > **status**: `string`
 
-Defined in: [src/client/types.gen.ts:1052](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1052)
+Defined in: [src/client/types.gen.ts:1028](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1028)

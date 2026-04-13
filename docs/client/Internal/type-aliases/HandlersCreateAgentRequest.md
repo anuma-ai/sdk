@@ -2,7 +2,7 @@
 
 > **HandlersCreateAgentRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#378)
+Defined in: [src/client/types.gen.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#362)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:378](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **category**: `string`
 
-Defined in: [src/client/types.gen.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#382)
+Defined in: [src/client/types.gen.ts:366](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#366)
 
 Category groups agents by use case.
 
@@ -20,7 +20,7 @@ Category groups agents by use case.
 
 > `optional` **color**: `string`
 
-Defined in: [src/client/types.gen.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#386)
+Defined in: [src/client/types.gen.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#370)
 
 Color is a hex or CSS variable for agent theming.
 
@@ -30,7 +30,7 @@ Color is a hex or CSS variable for agent theming.
 
 > `optional` **description**: `string`
 
-Defined in: [src/client/types.gen.ts:390](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#390)
+Defined in: [src/client/types.gen.ts:374](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#374)
 
 Description is a short description of the agent's purpose.
 
@@ -40,7 +40,7 @@ Description is a short description of the agent's purpose.
 
 > `optional` **display\_order**: `number`
 
-Defined in: [src/client/types.gen.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#394)
+Defined in: [src/client/types.gen.ts:378](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#378)
 
 DisplayOrder controls the sort position in listing endpoints (lower = first).
 
@@ -50,7 +50,7 @@ DisplayOrder controls the sort position in listing endpoints (lower = first).
 
 > `optional` **example\_conversations**: `object`\[]
 
-Defined in: [src/client/types.gen.ts:398](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#398)
+Defined in: [src/client/types.gen.ts:382](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#382)
 
 ExampleConversations is a list of sample Q\&A pairs for the marketplace.
 
@@ -64,7 +64,7 @@ ExampleConversations is a list of sample Q\&A pairs for the marketplace.
 
 > `optional` **features**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:404](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#404)
+Defined in: [src/client/types.gen.ts:388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#388)
 
 Features is a list of user-facing capability descriptions.
 
@@ -74,7 +74,7 @@ Features is a list of user-facing capability descriptions.
 
 > `optional` **icon\_url**: `string`
 
-Defined in: [src/client/types.gen.ts:408](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#408)
+Defined in: [src/client/types.gen.ts:392](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#392)
 
 IconURL is the URL to the agent's icon.
 
@@ -84,7 +84,7 @@ IconURL is the URL to the agent's icon.
 
 > `optional` **is\_featured**: `boolean`
 
-Defined in: [src/client/types.gen.ts:412](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#412)
+Defined in: [src/client/types.gen.ts:396](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#396)
 
 IsFeatured indicates whether to highlight the agent in the marketplace.
 
@@ -94,7 +94,7 @@ IsFeatured indicates whether to highlight the agent in the marketplace.
 
 > `optional` **model\_config**: `object`
 
-Defined in: [src/client/types.gen.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#416)
+Defined in: [src/client/types.gen.ts:400](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#400)
 
 ModelConfig is the model whitelist, display names, and descriptions.
 
@@ -108,7 +108,7 @@ ModelConfig is the model whitelist, display names, and descriptions.
 
 > `optional` **name**: `string`
 
-Defined in: [src/client/types.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#422)
+Defined in: [src/client/types.gen.ts:406](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#406)
 
 Name is the human-readable name of the agent.
 
@@ -118,7 +118,7 @@ Name is the human-readable name of the agent.
 
 > `optional` **parent\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#426)
+Defined in: [src/client/types.gen.ts:410](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#410)
 
 ParentID is the optional parent agent ID for sub-agent relationships.
 
@@ -128,7 +128,7 @@ ParentID is the optional parent agent ID for sub-agent relationships.
 
 > `optional` **recommended\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:430](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#430)
+Defined in: [src/client/types.gen.ts:414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#414)
 
 RecommendedModel is the suggested default model.
 
@@ -138,7 +138,7 @@ RecommendedModel is the suggested default model.
 
 > `optional` **skills**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#434)
+Defined in: [src/client/types.gen.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#418)
 
 Skills is the list of skill identifiers bound to this agent.
 
@@ -148,7 +148,7 @@ Skills is the list of skill identifiers bound to this agent.
 
 > `optional` **status**: `string`
 
-Defined in: [src/client/types.gen.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#438)
+Defined in: [src/client/types.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#422)
 
 Status is the agent's availability: "active", "coming\_soon", or "disabled".
 
@@ -158,7 +158,7 @@ Status is the agent's availability: "active", "coming\_soon", or "disabled".
 
 > `optional` **system\_prompt**: `string`
 
-Defined in: [src/client/types.gen.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#442)
+Defined in: [src/client/types.gen.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#426)
 
 SystemPrompt is the curated system prompt.
 
@@ -168,6 +168,6 @@ SystemPrompt is the curated system prompt.
 
 > `optional` **tagline**: `string`
 
-Defined in: [src/client/types.gen.ts:446](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#446)
+Defined in: [src/client/types.gen.ts:430](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#430)
 
 Tagline is a short one-liner for marketplace cards.

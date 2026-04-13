@@ -2,4 +2,4 @@
 
 > **PostApiV1WebhooksRevenuecatResponse** = [`PostApiV1WebhooksRevenuecatResponses`](PostApiV1WebhooksRevenuecatResponses.md)\[keyof [`PostApiV1WebhooksRevenuecatResponses`](PostApiV1WebhooksRevenuecatResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5715](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5715)
+Defined in: [src/client/types.gen.ts:5679](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5679)

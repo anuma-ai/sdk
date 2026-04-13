@@ -2,7 +2,7 @@
 
 > **PostApiV1ChatCompletionsData** = `object`
 
-Defined in: [src/client/types.gen.ts:3457](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3457)
+Defined in: [src/client/types.gen.ts:3381](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3381)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3457](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`LlmapiChatCompletionRequest`](LlmapiChatCompletionRequest.md)
 
-Defined in: [src/client/types.gen.ts:3461](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3461)
+Defined in: [src/client/types.gen.ts:3385](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3385)
 
 Chat completion request
 
@@ -20,7 +20,7 @@ Chat completion request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:3462](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3462)
+Defined in: [src/client/types.gen.ts:3386](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3386)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:3462](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:3463](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3463)
+Defined in: [src/client/types.gen.ts:3387](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3387)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:3463](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/chat/completions"`
 
-Defined in: [src/client/types.gen.ts:3464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3464)
+Defined in: [src/client/types.gen.ts:3388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3388)

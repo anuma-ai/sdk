@@ -2,7 +2,7 @@
 
 > **postApiV1ChatCompletions**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1ChatCompletionsData`](../type-aliases/PostApiV1ChatCompletionsData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1ChatCompletionsResponses`](../type-aliases/PostApiV1ChatCompletionsResponses.md), [`PostApiV1ChatCompletionsErrors`](../type-aliases/PostApiV1ChatCompletionsErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:402](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#402)
+Defined in: [src/client/sdk.gen.ts:386](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#386)
 
 Create chat completion
 

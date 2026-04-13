@@ -2,7 +2,7 @@
 
 > **HandlersClaimTaskRewardResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#333)
+Defined in: [src/client/types.gen.ts:329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#329)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:333](https://github.com/anuma-ai/sdk/blob/m
 
 > **already\_claimed**: `boolean`
 
-Defined in: [src/client/types.gen.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#334)
+Defined in: [src/client/types.gen.ts:330](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#330)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:334](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **credits\_awarded**: `number`
 
-Defined in: [src/client/types.gen.ts:335](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#335)
+Defined in: [src/client/types.gen.ts:331](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#331)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:335](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:336](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#336)
+Defined in: [src/client/types.gen.ts:332](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#332)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:336](https://github.com/anuma-ai/sdk/blob/m
 
 > **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:337](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#337)
+Defined in: [src/client/types.gen.ts:333](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#333)

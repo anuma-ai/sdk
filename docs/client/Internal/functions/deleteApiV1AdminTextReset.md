@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminTextReset**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminTextResetData`](../type-aliases/DeleteApiV1AdminTextResetData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminTextResetResponses`](../type-aliases/DeleteApiV1AdminTextResetResponses.md), [`DeleteApiV1AdminTextResetErrors`](../type-aliases/DeleteApiV1AdminTextResetErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:326](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#326)
+Defined in: [src/client/sdk.gen.ts:310](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#310)
 
 Reset text registrations
 

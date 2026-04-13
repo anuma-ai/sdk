@@ -2,7 +2,7 @@
 
 > **LlmapiResponseRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1969)
+Defined in: [src/client/types.gen.ts:1935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1935)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **background**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
+Defined in: [src/client/types.gen.ts:1939](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1939)
 
 Background indicates if request should be processed in background
 
@@ -20,7 +20,7 @@ Background indicates if request should be processed in background
 
 > `optional` **conversation\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1978](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1978)
+Defined in: [src/client/types.gen.ts:1944](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1944)
 
 ConversationID groups requests belonging to the same conversation for observability.
 Pass-through only — not forwarded to the LLM provider.
@@ -31,7 +31,7 @@ Pass-through only — not forwarded to the LLM provider.
 
 > `optional` **image\_model**: `string`
 
-Defined in: [src/client/types.gen.ts:1983](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1983)
+Defined in: [src/client/types.gen.ts:1949](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1949)
 
 ImageModel is the user-selected image generation model.
 When set, the portal overrides the model field in image tool call arguments.
@@ -42,7 +42,7 @@ When set, the portal overrides the model field in image tool call arguments.
 
 > **input**: [`LlmapiResponseInput`](LlmapiResponseInput.md)
 
-Defined in: [src/client/types.gen.ts:1984](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1984)
+Defined in: [src/client/types.gen.ts:1950](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1950)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [src/client/types.gen.ts:1984](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **max\_output\_tokens**: `number`
 
-Defined in: [src/client/types.gen.ts:1988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1988)
+Defined in: [src/client/types.gen.ts:1954](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1954)
 
 MaxOutputTokens is the maximum number of tokens to generate
 
@@ -60,7 +60,7 @@ MaxOutputTokens is the maximum number of tokens to generate
 
 > **model**: `string`
 
-Defined in: [src/client/types.gen.ts:1992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1992)
+Defined in: [src/client/types.gen.ts:1958](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1958)
 
 Model is the model identifier in 'provider/model' format
 
@@ -70,7 +70,7 @@ Model is the model identifier in 'provider/model' format
 
 > `optional` **reasoning**: [`LlmapiResponseReasoning`](LlmapiResponseReasoning.md)
 
-Defined in: [src/client/types.gen.ts:1993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1993)
+Defined in: [src/client/types.gen.ts:1959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1959)
 
 ***
 
@@ -78,7 +78,7 @@ Defined in: [src/client/types.gen.ts:1993](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **stream**: `boolean`
 
-Defined in: [src/client/types.gen.ts:1997](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1997)
+Defined in: [src/client/types.gen.ts:1963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1963)
 
 Stream indicates if response should be streamed
 
@@ -88,7 +88,7 @@ Stream indicates if response should be streamed
 
 > `optional` **temperature**: `number`
 
-Defined in: [src/client/types.gen.ts:2001](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2001)
+Defined in: [src/client/types.gen.ts:1967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1967)
 
 Temperature controls randomness (0.0 to 2.0)
 
@@ -98,7 +98,7 @@ Temperature controls randomness (0.0 to 2.0)
 
 > `optional` **thinking**: [`LlmapiThinkingOptions`](LlmapiThinkingOptions.md)
 
-Defined in: [src/client/types.gen.ts:2002](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2002)
+Defined in: [src/client/types.gen.ts:1968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1968)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [src/client/types.gen.ts:2002](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tool\_choice**: [`LlmapiResponseToolChoice`](LlmapiResponseToolChoice.md)
 
-Defined in: [src/client/types.gen.ts:2003](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2003)
+Defined in: [src/client/types.gen.ts:1969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1969)
 
 ***
 
@@ -114,6 +114,6 @@ Defined in: [src/client/types.gen.ts:2003](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **tools**: [`LlmapiResponseTool`](LlmapiResponseTool.md)\[]
 
-Defined in: [src/client/types.gen.ts:2007](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2007)
+Defined in: [src/client/types.gen.ts:1973](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1973)
 
 Tools is an array of tool schemas describing which tools the model can use

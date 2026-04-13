@@ -2,11 +2,11 @@
 
 > **getApiV1Config**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1ConfigData`](../type-aliases/GetApiV1ConfigData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1ConfigResponses`](../type-aliases/GetApiV1ConfigResponses.md), [`GetApiV1ConfigErrors`](../type-aliases/GetApiV1ConfigErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#418)
+Defined in: [src/client/sdk.gen.ts:402](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#402)
 
 Get configuration
 
-Returns public configuration including contract addresses and registered apps
+Returns public configuration including registered apps
 
 ## Type Parameters
 
