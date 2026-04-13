@@ -27,7 +27,7 @@ describe("useChat", () => {
           type: "response.created",
           response: {
             id: "resp-123",
-            model: "gpt-3.5-turbo",
+            model: "fireworks/accounts/fireworks/models/kimi-k2p5",
           },
         };
         yield {
@@ -61,7 +61,7 @@ describe("useChat", () => {
     await act(async () => {
       response = await result.current.sendMessage({
         messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-        model: "gpt-3.5-turbo",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
       });
     });
 
@@ -72,7 +72,7 @@ describe("useChat", () => {
     expect(body).toEqual(
       expect.objectContaining({
         input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-        model: "gpt-3.5-turbo",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         stream: true,
       })
     );
@@ -116,7 +116,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -150,7 +150,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -166,7 +166,7 @@ describe("useChat", () => {
             type: "response.created",
             response: {
               id: "resp-123",
-              model: "gpt-3.5-turbo",
+              model: "fireworks/accounts/fireworks/models/kimi-k2p5",
             },
           };
           yield {
@@ -191,7 +191,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -208,7 +208,7 @@ describe("useChat", () => {
             type: "response.created",
             response: {
               id: "resp-123",
-              model: "gpt-3.5-turbo",
+              model: "fireworks/accounts/fireworks/models/kimi-k2p5",
             },
           };
           // Keep yielding to simulate long-running request
@@ -233,7 +233,7 @@ describe("useChat", () => {
         await act(async () => {
           response = await result.current.sendMessage({
             messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-            model: "gpt-3.5-turbo",
+            model: "fireworks/accounts/fireworks/models/kimi-k2p5",
           });
         });
       })();
@@ -262,7 +262,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -286,7 +286,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -310,7 +310,7 @@ describe("useChat", () => {
               type: "response.created",
               response: {
                 id: "resp-123",
-                model: "gpt-3.5-turbo",
+                model: "fireworks/accounts/fireworks/models/kimi-k2p5",
               },
             };
             // Wait for SSE error callback to fire
@@ -332,7 +332,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 
@@ -355,7 +355,7 @@ describe("useChat", () => {
       await act(async () => {
         response = await result.current.sendMessage({
           messages: [], // Invalid: empty messages
-          model: "gpt-3.5-turbo",
+          model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         });
       });
 

@@ -311,7 +311,7 @@ sendMessage({
 
 Defined in: [src/lib/db/chat/types.ts:433](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#433)
 
-The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
+The model identifier to use for this request (e.g., "fireworks/accounts/fireworks/models/kimi-k2p5").
 If not specified, uses the default model configured on the server.
 
 **Inherited from**

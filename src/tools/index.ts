@@ -27,7 +27,7 @@
  * // Use with chat
  * await sendMessage({
  *   messages: [...],
- *   model: "gpt-4o-mini",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   tools: calendarTools,
  * });
  * ```

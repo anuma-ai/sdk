@@ -658,7 +658,7 @@ function ChatComponent({ database }: { database: Database }) {
   const handleSend = async () => {
     const result = await sendMessage({
       content: 'Hello, how are you?',
-      model: 'gpt-4o-mini',
+      model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
       includeHistory: true, // Include previous messages from this conversation
     });
 

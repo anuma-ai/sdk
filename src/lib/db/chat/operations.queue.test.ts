@@ -20,7 +20,7 @@ describe("Synthetic Constructors", () => {
         conversationId: "conv_123",
         role: "user",
         content: "Hello, world!",
-        model: "gpt-4o",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
       };
 
       const result = makeSyntheticStoredMessage(opts);
@@ -30,7 +30,7 @@ describe("Synthetic Constructors", () => {
       expect(result.conversationId).toBe("conv_123");
       expect(result.role).toBe("user");
       expect(result.content).toBe("Hello, world!");
-      expect(result.model).toBe("gpt-4o");
+      expect(result.model).toBe("fireworks/accounts/fireworks/models/kimi-k2p5");
       expect(result.createdAt).toBeInstanceOf(Date);
       expect(result.updatedAt).toBeInstanceOf(Date);
     });
@@ -40,7 +40,7 @@ describe("Synthetic Constructors", () => {
         conversationId: "conv_123",
         role: "assistant",
         content: "Hi there!",
-        model: "gpt-4o",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         sources: [{ title: "Source 1", url: "https://example.com" }],
         responseDuration: 1.5,
         wasStopped: true,
@@ -229,7 +229,7 @@ describe("Queue Integration with Synthetic Constructors", () => {
       conversationId: "conv_1",
       role: "assistant",
       content: "I can help with that!",
-      model: "gpt-4o",
+      model: "fireworks/accounts/fireworks/models/kimi-k2p5",
       usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30 },
       responseDuration: 2.5,
       sources: [{ title: "Ref", url: "https://example.com" }],
@@ -240,7 +240,7 @@ describe("Queue Integration with Synthetic Constructors", () => {
     // Verify all fields are passed through correctly
     expect(synthetic.role).toBe("assistant");
     expect(synthetic.content).toBe("I can help with that!");
-    expect(synthetic.model).toBe("gpt-4o");
+    expect(synthetic.model).toBe("fireworks/accounts/fireworks/models/kimi-k2p5");
     expect(synthetic.usage).toEqual({ promptTokens: 10, completionTokens: 20, totalTokens: 30 });
     expect(synthetic.responseDuration).toBe(2.5);
     expect(synthetic.sources).toEqual([{ title: "Ref", url: "https://example.com" }]);
