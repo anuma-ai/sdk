@@ -100,6 +100,95 @@ export function applyPatches(
 }
 
 // ---------------------------------------------------------------------------
+// Tool name constants
+// ---------------------------------------------------------------------------
+
+/** Tool names for app file operations (create, patch, delete, read, list). */
+export const APP_FILE_TOOL_NAMES: ReadonlySet<string> = Object.freeze(
+  new Set(["create_file", "patch_file", "delete_file", "read_file", "list_files"])
+);
+
+// ---------------------------------------------------------------------------
+// In-memory storage implementation
+// ---------------------------------------------------------------------------
+
+/**
+ * In-memory `AppFileStorage` backed by a `Map<string, string>`.
+ *
+ * Useful for server-side consumers (Cloudflare Workers, Node.js) that manage
+ * their own persistence. The `conversationId` parameter is ignored — all
+ * operations target the single internal map.
+ *
+ * @example
+ * ```typescript
+ * const storage = new MapFileStorage();
+ * const tools = createAppGenerationTools({
+ *   getConversationId: () => "task-1",
+ *   storage,
+ * });
+ * // After tool execution, read the files:
+ * const files = storage.getAll(); // Map<string, string>
+ * ```
+ */
+export class MapFileStorage implements AppFileStorage {
+  private files: Map<string, string>;
+
+  constructor(initial?: Map<string, string>) {
+    this.files = initial ? new Map(initial) : new Map<string, string>();
+  }
+
+  getFile(_conversationId: string, path: string): Promise<AppFileRecord | null> {
+    const content = this.files.get(path);
+    return Promise.resolve(content !== undefined ? { path, content } : null);
+  }
+
+  getFiles(_conversationId: string): Promise<AppFileRecord[]> {
+    return Promise.resolve(
+      Array.from(this.files.entries()).map(([path, content]) => ({ path, content }))
+    );
+  }
+
+  putFile(_conversationId: string, path: string, content: string): Promise<void> {
+    this.files.set(path, content);
+    return Promise.resolve();
+  }
+
+  putFiles(
+    _conversationId: string,
+    files: Array<{ path: string; content: string }>
+  ): Promise<void> {
+    for (const f of files) this.files.set(f.path, f.content);
+    return Promise.resolve();
+  }
+
+  deleteFile(_conversationId: string, path: string): Promise<void> {
+    this.files.delete(path);
+    return Promise.resolve();
+  }
+
+  /** Direct access to the underlying map. */
+  getAll(): Map<string, string> {
+    return this.files;
+  }
+
+  /** Number of files stored. */
+  get size(): number {
+    return this.files.size;
+  }
+
+  /** Serialize to JSON for persistence (e.g. Durable Object storage). */
+  serialize(): string {
+    return JSON.stringify(Array.from(this.files.entries()));
+  }
+
+  /** Restore from a previously serialized JSON string. */
+  static deserialize(json: string | undefined | null): MapFileStorage {
+    if (!json) return new MapFileStorage();
+    return new MapFileStorage(new Map(JSON.parse(json) as Array<[string, string]>));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Tool schemas (name, description, parameters — no executors)
 // ---------------------------------------------------------------------------
 

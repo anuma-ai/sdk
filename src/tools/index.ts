@@ -154,6 +154,7 @@ export type {
   CreateAppGenerationToolsOptions,
 } from "./appGeneration";
 export {
+  APP_FILE_TOOL_NAMES,
   applyPatches,
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
@@ -161,6 +162,7 @@ export {
   DELETE_FILE_SCHEMA,
   DISPLAY_APP_SCHEMA,
   LIST_FILES_SCHEMA,
+  MapFileStorage,
   normalizePath,
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
