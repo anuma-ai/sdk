@@ -263,6 +263,7 @@
 | [HandlersDeveloperAppResponse](Internal/type-aliases/HandlersDeveloperAppResponse.md) | - |
 | [HandlersDeveloperUserResponse](Internal/type-aliases/HandlersDeveloperUserResponse.md) | - |
 | [HandlersExchangeRequest](Internal/type-aliases/HandlersExchangeRequest.md) | - |
+| [HandlersExpiringCredits](Internal/type-aliases/HandlersExpiringCredits.md) | - |
 | [HandlersFundDeveloperAppRequest](Internal/type-aliases/HandlersFundDeveloperAppRequest.md) | - |
 | [HandlersGeneratedApiKey](Internal/type-aliases/HandlersGeneratedApiKey.md) | - |
 | [HandlersGetToolsResponse](Internal/type-aliases/HandlersGetToolsResponse.md) | - |
@@ -273,9 +274,6 @@
 | [HandlersListDeveloperAppsResponse](Internal/type-aliases/HandlersListDeveloperAppsResponse.md) | - |
 | [HandlersListUserApiKeysResponse](Internal/type-aliases/HandlersListUserApiKeysResponse.md) | - |
 | [HandlersListUsersResponse](Internal/type-aliases/HandlersListUsersResponse.md) | - |
-| [HandlersMigrateCreditsBatchResult](Internal/type-aliases/HandlersMigrateCreditsBatchResult.md) | - |
-| [HandlersMigrateCreditsRequest](Internal/type-aliases/HandlersMigrateCreditsRequest.md) | - |
-| [HandlersMigrateCreditsResponse](Internal/type-aliases/HandlersMigrateCreditsResponse.md) | - |
 | [HandlersModelToolUsageItem](Internal/type-aliases/HandlersModelToolUsageItem.md) | - |
 | [HandlersModelUsageItem](Internal/type-aliases/HandlersModelUsageItem.md) | - |
 | [HandlersPaginationResponse](Internal/type-aliases/HandlersPaginationResponse.md) | - |
@@ -283,6 +281,8 @@
 | [HandlersPersonaResponse](Internal/type-aliases/HandlersPersonaResponse.md) | - |
 | [HandlersPhoneCallResponse](Internal/type-aliases/HandlersPhoneCallResponse.md) | - |
 | [HandlersPhoneCallTranscriptEntry](Internal/type-aliases/HandlersPhoneCallTranscriptEntry.md) | - |
+| [HandlersRedeemTokensRequest](Internal/type-aliases/HandlersRedeemTokensRequest.md) | - |
+| [HandlersRedeemTokensResponse](Internal/type-aliases/HandlersRedeemTokensResponse.md) | - |
 | [HandlersRefreshRequest](Internal/type-aliases/HandlersRefreshRequest.md) | - |
 | [HandlersRegisterTextResponse](Internal/type-aliases/HandlersRegisterTextResponse.md) | - |
 | [HandlersRenewSubscriptionResponse](Internal/type-aliases/HandlersRenewSubscriptionResponse.md) | - |
@@ -406,11 +406,6 @@
 | [PostApiV1AdminAppsErrors](Internal/type-aliases/PostApiV1AdminAppsErrors.md) | - |
 | [PostApiV1AdminAppsResponse](Internal/type-aliases/PostApiV1AdminAppsResponse.md) | - |
 | [PostApiV1AdminAppsResponses](Internal/type-aliases/PostApiV1AdminAppsResponses.md) | - |
-| [PostApiV1AdminMigrateCreditsData](Internal/type-aliases/PostApiV1AdminMigrateCreditsData.md) | - |
-| [PostApiV1AdminMigrateCreditsError](Internal/type-aliases/PostApiV1AdminMigrateCreditsError.md) | - |
-| [PostApiV1AdminMigrateCreditsErrors](Internal/type-aliases/PostApiV1AdminMigrateCreditsErrors.md) | - |
-| [PostApiV1AdminMigrateCreditsResponse](Internal/type-aliases/PostApiV1AdminMigrateCreditsResponse.md) | - |
-| [PostApiV1AdminMigrateCreditsResponses](Internal/type-aliases/PostApiV1AdminMigrateCreditsResponses.md) | - |
 | [PostApiV1AdminPersonasData](Internal/type-aliases/PostApiV1AdminPersonasData.md) | - |
 | [PostApiV1AdminPersonasError](Internal/type-aliases/PostApiV1AdminPersonasError.md) | - |
 | [PostApiV1AdminPersonasErrors](Internal/type-aliases/PostApiV1AdminPersonasErrors.md) | - |
@@ -446,6 +441,11 @@
 | [PostApiV1CreditsPurchaseErrors](Internal/type-aliases/PostApiV1CreditsPurchaseErrors.md) | - |
 | [PostApiV1CreditsPurchaseResponse](Internal/type-aliases/PostApiV1CreditsPurchaseResponse.md) | - |
 | [PostApiV1CreditsPurchaseResponses](Internal/type-aliases/PostApiV1CreditsPurchaseResponses.md) | - |
+| [PostApiV1CreditsRedeemTokensData](Internal/type-aliases/PostApiV1CreditsRedeemTokensData.md) | - |
+| [PostApiV1CreditsRedeemTokensError](Internal/type-aliases/PostApiV1CreditsRedeemTokensError.md) | - |
+| [PostApiV1CreditsRedeemTokensErrors](Internal/type-aliases/PostApiV1CreditsRedeemTokensErrors.md) | - |
+| [PostApiV1CreditsRedeemTokensResponse](Internal/type-aliases/PostApiV1CreditsRedeemTokensResponse.md) | - |
+| [PostApiV1CreditsRedeemTokensResponses](Internal/type-aliases/PostApiV1CreditsRedeemTokensResponses.md) | - |
 | [PostApiV1CreditsSyncSnagData](Internal/type-aliases/PostApiV1CreditsSyncSnagData.md) | - |
 | [PostApiV1CreditsSyncSnagError](Internal/type-aliases/PostApiV1CreditsSyncSnagError.md) | - |
 | [PostApiV1CreditsSyncSnagErrors](Internal/type-aliases/PostApiV1CreditsSyncSnagErrors.md) | - |
@@ -647,7 +647,6 @@
 | [postApiV1AdminAgents](Internal/functions/postApiV1AdminAgents.md) | Create agent |
 | [postApiV1AdminApps](Internal/functions/postApiV1AdminApps.md) | Create app |
 | [postApiV1AdminAppsByAppIdApiKeys](Internal/functions/postApiV1AdminAppsByAppIdApiKeys.md) | Create API key |
-| [postApiV1AdminMigrateCredits](Internal/functions/postApiV1AdminMigrateCredits.md) | Migrate enrolled users to credits |
 | [postApiV1AdminPersonas](Internal/functions/postApiV1AdminPersonas.md) | Create persona |
 | [postApiV1AdminSeedApps](Internal/functions/postApiV1AdminSeedApps.md) | Seed apps and API keys |
 | [postApiV1AdminSubscriptionTier](Internal/functions/postApiV1AdminSubscriptionTier.md) | Set user subscription tier |
@@ -655,6 +654,7 @@
 | [postApiV1CreditsClaimDaily](Internal/functions/postApiV1CreditsClaimDaily.md) | Claim daily credits |
 | [postApiV1CreditsClaimTask](Internal/functions/postApiV1CreditsClaimTask.md) | Claim task reward |
 | [postApiV1CreditsPurchase](Internal/functions/postApiV1CreditsPurchase.md) | Create credit pack checkout session |
+| [postApiV1CreditsRedeemTokens](Internal/functions/postApiV1CreditsRedeemTokens.md) | Redeem Anuma Tokens for credits |
 | [postApiV1CreditsSyncSnag](Internal/functions/postApiV1CreditsSyncSnag.md) | Sync Snag points |
 | [postApiV1DeveloperApps](Internal/functions/postApiV1DeveloperApps.md) | Create app |
 | [postApiV1DeveloperAppsByAppUuidApiKeys](Internal/functions/postApiV1DeveloperAppsByAppUuidApiKeys.md) | Create API key |

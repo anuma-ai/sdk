@@ -2,7 +2,7 @@
 
 > **deleteApiV1AdminPersonasById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`DeleteApiV1AdminPersonasByIdData`](../type-aliases/DeleteApiV1AdminPersonasByIdData.md), `ThrowOnError`>): `RequestResult`<[`DeleteApiV1AdminPersonasByIdResponses`](../type-aliases/DeleteApiV1AdminPersonasByIdResponses.md), [`DeleteApiV1AdminPersonasByIdErrors`](../type-aliases/DeleteApiV1AdminPersonasByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:266](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#266)
+Defined in: [src/client/sdk.gen.ts:250](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#250)
 
 Delete persona
 

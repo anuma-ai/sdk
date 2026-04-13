@@ -6,21 +6,21 @@ Defined in: [src/client/types.gen.ts:48](https://github.com/anuma-ai/sdk/blob/ma
 
 ## Properties
 
+### app\_id
+
+> **app\_id**: `number`
+
+Defined in: [src/client/types.gen.ts:52](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#52)
+
+App ID used for the operation
+
+***
+
 ### credits\_added
 
 > **credits\_added**: `number`
 
-Defined in: [src/client/types.gen.ts:49](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#49)
-
-***
-
-### escrow\_contract?
-
-> `optional` **escrow\_contract**: `string`
-
 Defined in: [src/client/types.gen.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#53)
-
-Escrow contract used for the operation
 
 ***
 

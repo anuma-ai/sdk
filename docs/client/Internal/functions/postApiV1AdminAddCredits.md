@@ -6,7 +6,7 @@ Defined in: [src/client/sdk.gen.ts:38](https://github.com/anuma-ai/sdk/blob/main
 
 Add credits to user
 
-Adds credits to a user's account. The settlement worker will handle on-chain enrollment when processing requests.
+Adds credits to a user's account.
 
 ## Type Parameters
 
