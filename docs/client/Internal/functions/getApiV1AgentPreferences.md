@@ -2,7 +2,7 @@
 
 > **getApiV1AgentPreferences**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1AgentPreferencesData`](../type-aliases/GetApiV1AgentPreferencesData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1AgentPreferencesResponses`](../type-aliases/GetApiV1AgentPreferencesResponses.md), [`GetApiV1AgentPreferencesErrors`](../type-aliases/GetApiV1AgentPreferencesErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:334](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#334)
+Defined in: [src/client/sdk.gen.ts:350](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#350)
 
 List user agent preferences
 

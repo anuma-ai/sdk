@@ -2,7 +2,7 @@
 
 > **PostApiV1TextReferralRewardData** = `object`
 
-Defined in: [src/client/types.gen.ts:5256](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5256)
+Defined in: [src/client/types.gen.ts:5292](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5292)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5256](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`ModelsReferralRewardRequest`](ModelsReferralRewardRequest.md)
 
-Defined in: [src/client/types.gen.ts:5260](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5260)
+Defined in: [src/client/types.gen.ts:5296](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5296)
 
 Referral reward request
 
@@ -20,7 +20,7 @@ Referral reward request
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:5261](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5261)
+Defined in: [src/client/types.gen.ts:5297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5297)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:5261](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:5262](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5262)
+Defined in: [src/client/types.gen.ts:5298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5298)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:5262](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/text/referral/reward"`
 
-Defined in: [src/client/types.gen.ts:5263](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5263)
+Defined in: [src/client/types.gen.ts:5299](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5299)

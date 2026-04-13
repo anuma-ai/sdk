@@ -35,22 +35,22 @@ export type HandlersApiKeyWithKeyResponse = {
 
 export type HandlersAddCreditsRequest = {
     /**
-     * App ID to use
-     */
-    app_id?: number;
-    /**
      * Number of credits to add (1 credit = 1 cent)
      */
     credits?: number;
+    /**
+     * Escrow contract address to use
+     */
+    escrow_contract?: string;
     user_address?: string;
 };
 
 export type HandlersAddCreditsResponse = {
-    /**
-     * App ID used for the operation
-     */
-    app_id: number;
     credits_added: number;
+    /**
+     * Escrow contract used for the operation
+     */
+    escrow_contract?: string;
     message?: string;
     success: boolean;
     user_address: string;
@@ -235,6 +235,10 @@ export type HandlersAgentResponse = {
 
 export type HandlersAppConfig = {
     /**
+     * EscrowContract is the escrow contract address for this app
+     */
+    escrow_contract: string;
+    /**
      * Name is the human-readable name of the app
      */
     name: string;
@@ -249,9 +253,9 @@ export type HandlersAppResponse = {
     app_uuid: string;
     created_at: string;
     credit_reset_enabled: boolean;
-    credits_token_address?: string;
     default_user_cost_limit_usd: number;
     developer_account_id?: number;
+    escrow_contract: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
@@ -335,13 +339,25 @@ export type HandlersClaimTaskRewardResponse = {
 
 export type HandlersConfigResponse = {
     /**
-     * Apps is the list of active apps
+     * Apps is the list of active apps with their escrow contracts
      */
     apps?: Array<HandlersAppConfig>;
+    /**
+     * ChainID is the blockchain chain ID
+     */
+    chain_id?: string;
+    /**
+     * OperatorAddress is the operator wallet address
+     */
+    operator_address?: string;
     /**
      * PhoneCallsEnabled indicates whether Bland phone calling is available
      */
     phone_calls_enabled?: boolean;
+    /**
+     * SettlementRecipient is the address that receives settlement payments
+     */
+    settlement_recipient?: string;
 };
 
 export type HandlersConfigurePrivyRequest = {
@@ -432,7 +448,7 @@ export type HandlersCreateAgentRequest = {
 
 export type HandlersCreateAppRequest = {
     credit_reset_enabled?: boolean;
-    credits_token_address?: string;
+    escrow_contract?: string;
     is_active?: boolean;
     name?: string;
     phone_call_voice?: string;
@@ -521,9 +537,9 @@ export type HandlersCreditBalanceResponse = {
      */
     claimed_import_rewards: Array<string>;
     /**
-     * Upcoming credit expirations (soonest first)
+     * Whether enrolled on-chain
      */
-    expiring_credits?: Array<HandlersExpiringCredits>;
+    is_enrolled: boolean;
     last_claim_at?: string;
     /**
      * Total credits ever received (1 credit = $0.01)
@@ -594,6 +610,10 @@ export type HandlersDeveloperAppResponse = {
      * credits per new user (1 credit = $0.01)
      */
     default_user_credits: number;
+    /**
+     * on-chain escrow contract address
+     */
+    escrow_contract?: string;
     has_privy_config: boolean;
     is_active: boolean;
     name: string;
@@ -608,6 +628,10 @@ export type HandlersDeveloperUserResponse = {
      * available credits (1 credit = $0.01)
      */
     credits: number;
+    /**
+     * on-chain enrollment status
+     */
+    is_enrolled_onchain: boolean;
     /**
      * total credits ever received
      */
@@ -628,17 +652,6 @@ export type HandlersExchangeRequest = {
      * Optional - uses config default if not provided
      */
     redirect_uri?: string;
-};
-
-export type HandlersExpiringCredits = {
-    /**
-     * Number of credits expiring (1 credit = $0.01)
-     */
-    credits?: number;
-    /**
-     * ISO8601 timestamp
-     */
-    expires_at?: string;
 };
 
 export type HandlersFundDeveloperAppRequest = {
@@ -719,6 +732,35 @@ export type HandlersListUsersResponse = {
     users: Array<HandlersDeveloperUserResponse>;
 };
 
+export type HandlersMigrateCreditsBatchResult = {
+    batch_index?: number;
+    error?: string;
+    success?: boolean;
+    tx_hash?: string;
+    users?: number;
+};
+
+export type HandlersMigrateCreditsRequest = {
+    /**
+     * BatchSize is the number of users per on-chain transaction. Required, max 200.
+     */
+    batch_size?: number;
+    escrow_contract?: string;
+    /**
+     * Force resets the credits_migrated flag for all enrolled users before migrating,
+     * allowing re-migration (e.g., after a credits token redeployment).
+     */
+    force?: boolean;
+};
+
+export type HandlersMigrateCreditsResponse = {
+    batches?: Array<HandlersMigrateCreditsBatchResult>;
+    escrow_contract?: string;
+    failed?: number;
+    migrated?: number;
+    total_users?: number;
+};
+
 export type HandlersModelToolUsageItem = {
     call_count: number;
     cost_usd: number;
@@ -779,21 +821,6 @@ export type HandlersPhoneCallTranscriptEntry = {
     text?: string;
 };
 
-export type HandlersRedeemTokensRequest = {
-    /**
-     * Amount is the number of Anuma Tokens to burn (as a decimal string to handle large values).
-     */
-    amount?: string;
-};
-
-export type HandlersRedeemTokensResponse = {
-    burn_tx_hash?: string;
-    credits_awarded?: number;
-    message?: string;
-    redemption_id?: number;
-    success?: boolean;
-};
-
 export type HandlersRefreshRequest = {
     refresh_token: string;
 };
@@ -850,10 +877,6 @@ export type HandlersSeedAppInput = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
     /**
-     * Per-app ERC20 credits token address
-     */
-    credits_token_address?: string;
-    /**
      * Default credits for auto-enrollment in micro-USD
      */
     default_user_cost_limit_usd?: number;
@@ -865,6 +888,7 @@ export type HandlersSeedAppInput = {
      * Developer wallet (auto-creates account if not exists)
      */
     developer_wallet_address?: string;
+    escrow_contract?: string;
     is_active?: boolean;
     name?: string;
     phone_call_voice?: string;
@@ -893,7 +917,7 @@ export type HandlersSetSubscriptionTierRequest = {
     /**
      * Required to identify which app enrollment to update
      */
-    app_id?: number;
+    escrow_contract?: string;
     /**
      * "basic" or "pro"
      */
@@ -1109,8 +1133,8 @@ export type HandlersUpdateAgentRequest = {
 export type HandlersUpdateAppRequest = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
-    credits_token_address?: string;
     default_user_cost_limit_usd?: number;
+    escrow_contract?: string;
     is_active?: boolean;
     name?: string;
     phone_call_voice?: string;
@@ -1252,7 +1276,9 @@ export type HandlersUserLookupEnrollment = {
     balance_updated_at?: string;
     cached_balance_usd?: number;
     created_at?: string;
+    escrow_contract?: string;
     id?: number;
+    is_enrolled?: boolean;
     lifetime_credits?: number;
     pending_cost_usd?: number;
     pro_activated_at?: string;
@@ -1311,6 +1337,14 @@ export type HandlersWalletDetails = {
      * Balance in micro-dollars (USD * 1,000,000)
      */
     cached_balance_usd: number;
+    /**
+     * App ID for enrollment (0 if not enrolled)
+     */
+    enrolled_app_id?: number;
+    /**
+     * Whether enrolled in cost-limit model
+     */
+    is_enrolled: boolean;
     /**
      * In-flight request holds in micro-dollars
      */
@@ -2900,6 +2934,48 @@ export type PutApiV1AdminAppsByIdResponses = {
 
 export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
 
+export type PostApiV1AdminMigrateCreditsData = {
+    /**
+     * Migration request
+     */
+    body: HandlersMigrateCreditsRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/migrate-credits';
+};
+
+export type PostApiV1AdminMigrateCreditsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminMigrateCreditsError = PostApiV1AdminMigrateCreditsErrors[keyof PostApiV1AdminMigrateCreditsErrors];
+
+export type PostApiV1AdminMigrateCreditsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersMigrateCreditsResponse;
+};
+
+export type PostApiV1AdminMigrateCreditsResponse = PostApiV1AdminMigrateCreditsResponses[keyof PostApiV1AdminMigrateCreditsResponses];
+
 export type PostApiV1AdminPersonasData = {
     /**
      * Create persona request
@@ -3633,46 +3709,6 @@ export type PostApiV1CreditsPurchaseResponses = {
 };
 
 export type PostApiV1CreditsPurchaseResponse = PostApiV1CreditsPurchaseResponses[keyof PostApiV1CreditsPurchaseResponses];
-
-export type PostApiV1CreditsRedeemTokensData = {
-    /**
-     * Redemption request
-     */
-    body: HandlersRedeemTokensRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/credits/redeem-tokens';
-};
-
-export type PostApiV1CreditsRedeemTokensErrors = {
-    /**
-     * Bad Request
-     */
-    400: ResponseErrorResponse;
-    /**
-     * Unauthorized
-     */
-    401: ResponseErrorResponse;
-    /**
-     * Conflict
-     */
-    409: ResponseErrorResponse;
-    /**
-     * Internal Server Error
-     */
-    500: ResponseErrorResponse;
-};
-
-export type PostApiV1CreditsRedeemTokensError = PostApiV1CreditsRedeemTokensErrors[keyof PostApiV1CreditsRedeemTokensErrors];
-
-export type PostApiV1CreditsRedeemTokensResponses = {
-    /**
-     * OK
-     */
-    200: HandlersRedeemTokensResponse;
-};
-
-export type PostApiV1CreditsRedeemTokensResponse = PostApiV1CreditsRedeemTokensResponses[keyof PostApiV1CreditsRedeemTokensResponses];
 
 export type PostApiV1CreditsSyncSnagData = {
     body?: never;

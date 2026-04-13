@@ -2,7 +2,7 @@
 
 > **HandlersCreditBalanceResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:513](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#513)
+Defined in: [src/client/types.gen.ts:529](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#529)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:513](https://github.com/anuma-ai/sdk/blob/m
 
 > **available\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:517](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#517)
+Defined in: [src/client/types.gen.ts:533](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#533)
 
 Available credits (1 credit = $0.01)
 
@@ -20,7 +20,7 @@ Available credits (1 credit = $0.01)
 
 > **can\_claim\_daily**: `boolean`
 
-Defined in: [src/client/types.gen.ts:518](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#518)
+Defined in: [src/client/types.gen.ts:534](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#534)
 
 ***
 
@@ -28,19 +28,19 @@ Defined in: [src/client/types.gen.ts:518](https://github.com/anuma-ai/sdk/blob/m
 
 > **claimed\_import\_rewards**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:522](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#522)
+Defined in: [src/client/types.gen.ts:538](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#538)
 
 Which import providers have been claimed
 
 ***
 
-### expiring\_credits?
+### is\_enrolled
 
-> `optional` **expiring\_credits**: [`HandlersExpiringCredits`](HandlersExpiringCredits.md)\[]
+> **is\_enrolled**: `boolean`
 
-Defined in: [src/client/types.gen.ts:526](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#526)
+Defined in: [src/client/types.gen.ts:542](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#542)
 
-Upcoming credit expirations (soonest first)
+Whether enrolled on-chain
 
 ***
 
@@ -48,7 +48,7 @@ Upcoming credit expirations (soonest first)
 
 > `optional` **last\_claim\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:527](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#527)
+Defined in: [src/client/types.gen.ts:543](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#543)
 
 ***
 
@@ -56,7 +56,7 @@ Defined in: [src/client/types.gen.ts:527](https://github.com/anuma-ai/sdk/blob/m
 
 > **lifetime\_credits**: `number`
 
-Defined in: [src/client/types.gen.ts:531](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#531)
+Defined in: [src/client/types.gen.ts:547](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#547)
 
 Total credits ever received (1 credit = $0.01)
 
@@ -66,7 +66,7 @@ Total credits ever received (1 credit = $0.01)
 
 > `optional` **next\_claim\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:532](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#532)
+Defined in: [src/client/types.gen.ts:548](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#548)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [src/client/types.gen.ts:532](https://github.com/anuma-ai/sdk/blob/m
 
 > **subscription\_tier**: `string`
 
-Defined in: [src/client/types.gen.ts:536](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#536)
+Defined in: [src/client/types.gen.ts:552](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#552)
 
 "basic" or "pro"
 
@@ -84,4 +84,4 @@ Defined in: [src/client/types.gen.ts:536](https://github.com/anuma-ai/sdk/blob/m
 
 > **wallet\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:537](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#537)
+Defined in: [src/client/types.gen.ts:553](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#553)
