@@ -1425,4 +1425,44 @@ describe("useChat multi-turn tool loop", () => {
     expect(toolNames).not.toContain("memory_save");
     expect(toolNames).toContain("web_search");
   });
+
+  // ── Provider-sent in-stream error event ─────────────────────
+
+  it("surfaces a provider-sent in-stream error (e.g. timeout) as a real error", async () => {
+    // Some upstream providers end a streaming response by emitting a normal
+    // SSE data chunk of the form {"error":{"code":"timeout","message":"..."}}
+    // instead of raising an HTTP/SSE error. Those chunks were previously
+    // silently consumed by the strategy, so the stream finished empty and
+    // the caller saw the generic "no response" fallback. The toolLoop now
+    // detects this shape and throws so the real message bubbles up.
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: (async function* () {
+        yield {
+          type: "response.created",
+          response: { id: "resp-1", model: "test-model" },
+        };
+        // Provider emits a mid-stream error event.
+        yield {
+          error: {
+            code: "timeout",
+            message: "The request timed out while calling the model provider.",
+          },
+        };
+      })(),
+    } as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    let response: SendMessageResult | undefined;
+    await act(async () => {
+      response = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        model: "test-model",
+      });
+    });
+
+    expect(response?.error).toBeTruthy();
+    expect(response?.error).toContain("timed out");
+    expect(result.current.isLoading).toBe(false);
+  });
 });

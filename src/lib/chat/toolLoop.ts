@@ -36,6 +36,41 @@ function wrapSseError(error: unknown): Error {
   }
   return new Error(String(error));
 }
+
+/**
+ * Extract a provider-supplied error object from an SSE data chunk, if present.
+ *
+ * Some upstream providers (e.g. Fireworks, via our portal) end a stream by
+ * emitting a normal `data: {"error": {...}}` event instead of raising an HTTP
+ * error or closing the connection abnormally. Those chunks pass right through
+ * the strategy's processStreamChunk (which only looks at content/tool deltas)
+ * and the stream finishes cleanly with empty content — so the client shows a
+ * generic "no response" error instead of the real cause (typically a provider
+ * timeout). Detecting the shape here lets us surface the real message.
+ *
+ * Accepts either `{error: "..."}` or `{error: {code?, message?}}`.
+ */
+function extractProviderStreamError(chunk: unknown): Error | null {
+  if (!chunk || typeof chunk !== "object") return null;
+  const errField = (chunk as { error?: unknown }).error;
+  if (!errField) return null;
+  if (typeof errField === "string") return new Error(errField);
+  if (typeof errField === "object") {
+    const err = errField as { code?: unknown; message?: unknown };
+    const code = typeof err.code === "string" ? err.code : undefined;
+    const message = typeof err.message === "string" ? err.message : undefined;
+    if (!code && !message) return null;
+    // Craft a readable message: prefer provider's message, prefix with code for
+    // programmatic matching (the client can check `code === 'timeout'`).
+    if (code === "timeout") {
+      return new Error(
+        message ?? "The model provider timed out before returning a response. Please try again."
+      );
+    }
+    return new Error(message ?? `Provider error: ${code}`);
+  }
+  return null;
+}
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -375,6 +410,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       for await (const chunk of sseResult.stream) {
         if (isDoneMarker(chunk)) continue;
 
+        const providerError = extractProviderStreamError(chunk);
+        if (providerError) {
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
+          throw providerError;
+        }
+
         if (chunk && typeof chunk === "object") {
           const {
             content: contentDelta,
@@ -691,8 +733,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       await thinkingSmoother.drain();
 
       // Build tool result messages — exclude tools with skipContinuation
+      // EXCEPT when the tool errored. Errors always continue so the model
+      // can see what went wrong and retry; otherwise a skipContinuation
+      // tool that fails leaves the assistant turn silently broken.
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
+        if (r.error || isToolErrorResult(r.result)) return true;
         return executorMap.get(r.name)?.skipContinuation !== true;
       });
 
@@ -782,6 +828,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       try {
         for await (const chunk of continuationResult.stream) {
           if (isDoneMarker(chunk)) continue;
+
+          const providerError = extractProviderStreamError(chunk);
+          if (providerError) {
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            throw providerError;
+          }
 
           if (chunk && typeof chunk === "object") {
             const {
