@@ -38,6 +38,21 @@ function wrapSseError(error: unknown): Error {
 }
 
 /**
+ * Error thrown when an upstream provider emits an in-stream error event.
+ * Carries the provider's code (e.g. `"timeout"`) so callers can match
+ * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
+ * instead of string-matching the message.
+ */
+export class ProviderStreamError extends Error {
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProviderStreamError";
+    this.code = code;
+  }
+}
+
+/**
  * Extract a provider-supplied error object from an SSE data chunk, if present.
  *
  * Some upstream providers (e.g. Fireworks, via our portal) end a stream by
@@ -50,24 +65,23 @@ function wrapSseError(error: unknown): Error {
  *
  * Accepts either `{error: "..."}` or `{error: {code?, message?}}`.
  */
-function extractProviderStreamError(chunk: unknown): Error | null {
+function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
   if (!chunk || typeof chunk !== "object") return null;
   const errField = (chunk as { error?: unknown }).error;
   if (!errField) return null;
-  if (typeof errField === "string") return new Error(errField);
+  if (typeof errField === "string") return new ProviderStreamError(errField);
   if (typeof errField === "object") {
     const err = errField as { code?: unknown; message?: unknown };
     const code = typeof err.code === "string" ? err.code : undefined;
     const message = typeof err.message === "string" ? err.message : undefined;
     if (!code && !message) return null;
-    // Craft a readable message: prefer provider's message, prefix with code for
-    // programmatic matching (the client can check `code === 'timeout'`).
     if (code === "timeout") {
-      return new Error(
-        message ?? "The model provider timed out before returning a response. Please try again."
+      return new ProviderStreamError(
+        message ?? "The model provider timed out before returning a response. Please try again.",
+        code
       );
     }
-    return new Error(message ?? `Provider error: ${code}`);
+    return new ProviderStreamError(message ?? `Provider error: ${code}`, code);
   }
   return null;
 }
