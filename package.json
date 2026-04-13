@@ -119,7 +119,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260401202724",
+    "@anuma/portal": "1.0.0-next.20260410171436",
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",

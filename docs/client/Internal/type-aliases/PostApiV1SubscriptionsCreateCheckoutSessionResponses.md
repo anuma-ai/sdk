@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsCreateCheckoutSessionResponses** = `object`
 
-Defined in: [src/client/types.gen.ts:5004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5004)
+Defined in: [src/client/types.gen.ts:4968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4968)
 
 ## Properties
 
@@ -10,6 +10,6 @@ Defined in: [src/client/types.gen.ts:5004](https://github.com/anuma-ai/sdk/blob/
 
 > **200**: [`HandlersCheckoutSessionResponse`](HandlersCheckoutSessionResponse.md)
 
-Defined in: [src/client/types.gen.ts:5008](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5008)
+Defined in: [src/client/types.gen.ts:4972](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4972)
 
 OK

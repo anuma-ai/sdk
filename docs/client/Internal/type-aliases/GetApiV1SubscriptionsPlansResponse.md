@@ -2,4 +2,4 @@
 
 > **GetApiV1SubscriptionsPlansResponse** = [`GetApiV1SubscriptionsPlansResponses`](GetApiV1SubscriptionsPlansResponses.md)\[keyof [`GetApiV1SubscriptionsPlansResponses`](GetApiV1SubscriptionsPlansResponses.md)]
 
-Defined in: [src/client/types.gen.ts:5076](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5076)
+Defined in: [src/client/types.gen.ts:5040](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5040)

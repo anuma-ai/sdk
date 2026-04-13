@@ -2,7 +2,7 @@
 
 > **GetApiV1TextByChannelLookupErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:5353](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5353)
+Defined in: [src/client/types.gen.ts:5317](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5317)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:5353](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5357](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5357)
+Defined in: [src/client/types.gen.ts:5321](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5321)
 
 Invalid channel or identifier format
 
@@ -20,7 +20,7 @@ Invalid channel or identifier format
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5361)
+Defined in: [src/client/types.gen.ts:5325](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5325)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **404**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:5365](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5365)
+Defined in: [src/client/types.gen.ts:5329](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5329)
 
 No registration found
