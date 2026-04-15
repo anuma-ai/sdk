@@ -3,6 +3,7 @@ import { getLogger } from "../logger";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { PdfProcessor } from "./PdfProcessor";
 import { ProcessorRegistry } from "./registry";
+import { TextProcessor } from "./TextProcessor";
 import type { FileWithData, PreprocessingOptions, PreprocessingResult } from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
@@ -88,6 +89,7 @@ export async function preprocessFiles(
     registry.register(new PdfProcessor());
     registry.register(new ExcelProcessor());
     registry.register(new WordProcessor());
+    registry.register(new TextProcessor());
 
     // ZipProcessor needs registry to delegate to other processors
     const zipProcessor = new ZipProcessor();

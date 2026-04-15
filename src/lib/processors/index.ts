@@ -1,6 +1,7 @@
 // Processors
 export { ExcelProcessor } from "./ExcelProcessor";
 export { PdfProcessor } from "./PdfProcessor";
+export { TextProcessor } from "./TextProcessor";
 export { WordProcessor } from "./WordProcessor";
 export type { ZipProcessorOptions } from "./ZipProcessor";
 export { ZipProcessor } from "./ZipProcessor";

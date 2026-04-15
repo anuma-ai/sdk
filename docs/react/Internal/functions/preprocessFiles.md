@@ -2,7 +2,7 @@
 
 > **preprocessFiles**(`files`: [`FileMetadata`](../interfaces/FileMetadata.md)\[] | `undefined`, `options`: [`PreprocessingOptions`](../interfaces/PreprocessingOptions.md)): `Promise`<[`PreprocessingResult`](../interfaces/PreprocessingResult.md)>
 
-Defined in: [src/lib/processors/preprocessor.ts:39](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#39)
+Defined in: [src/lib/processors/preprocessor.ts:40](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/preprocessor.ts#40)
 
 Preprocess files by extracting text content
 

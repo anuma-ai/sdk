@@ -404,6 +404,7 @@ export {
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,
+  TextProcessor,
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";

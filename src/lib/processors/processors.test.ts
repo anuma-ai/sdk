@@ -16,6 +16,7 @@ import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { preprocessFiles } from "./preprocessor";
 import { ProcessorRegistry } from "./registry";
+import { TextProcessor } from "./TextProcessor";
 import type { FileWithData } from "./types";
 import { WordProcessor } from "./WordProcessor";
 import { ZipProcessor } from "./ZipProcessor";
@@ -173,6 +174,79 @@ describe("WordProcessor (Node.js)", () => {
 
     const result = await new WordProcessor().process(file);
     expect(result!.metadata!.wordCount).toBe(5);
+  });
+});
+
+// ── TextProcessor tests ──
+
+describe("TextProcessor (Node.js)", () => {
+  it("decodes a UTF-8 markdown file", async () => {
+    const content = "# Hello\n\nThis is **markdown** content.";
+    const file = makeFile(
+      "notes.md",
+      "text/markdown",
+      toDataUrl(Buffer.from(content), "text/markdown")
+    );
+
+    const result = await new TextProcessor().process(file);
+    expect(result).not.toBeNull();
+    expect(result!.format).toBe("markdown");
+    expect(result!.extractedText).toBe(content);
+  });
+
+  it("decodes a plain .txt file", async () => {
+    const content = "Just some plain text.";
+    const file = makeFile("notes.txt", "text/plain", toDataUrl(Buffer.from(content), "text/plain"));
+
+    const result = await new TextProcessor().process(file);
+    expect(result!.format).toBe("plain");
+    expect(result!.extractedText).toBe(content);
+  });
+
+  it("flags JSON files with the json format hint", async () => {
+    const content = '{"hello":"world"}';
+    const file = makeFile(
+      "data.json",
+      "application/json",
+      toDataUrl(Buffer.from(content), "application/json")
+    );
+
+    const result = await new TextProcessor().process(file);
+    expect(result!.format).toBe("json");
+    expect(result!.extractedText).toBe(content);
+  });
+
+  it("falls back to extension when MIME type is application/octet-stream", async () => {
+    // Browsers/OSes sometimes report .md as octet-stream; the registry's
+    // extension fallback should still route it to TextProcessor.
+    const content = "# from octet-stream";
+    const result = await preprocessFiles([
+      {
+        id: "1",
+        name: "readme.md",
+        type: "application/octet-stream",
+        size: content.length,
+        url: toDataUrl(Buffer.from(content), "application/octet-stream"),
+      },
+    ]);
+
+    expect(result.extractedContent).toContain("from octet-stream");
+    expect(result.extractedContent).toContain("[Extracted content from readme.md]");
+    expect(result.preprocessedFileIds).toEqual(["1"]);
+  });
+
+  it("returns null for an empty file", async () => {
+    const file = makeFile("empty.txt", "text/plain", toDataUrl(Buffer.from(""), "text/plain"));
+    const result = await new TextProcessor().process(file);
+    expect(result).toBeNull();
+  });
+
+  it("preserves multi-byte UTF-8 characters", async () => {
+    const content = "héllo 🌍 日本語";
+    const file = makeFile("utf8.txt", "text/plain", toDataUrl(Buffer.from(content), "text/plain"));
+
+    const result = await new TextProcessor().process(file);
+    expect(result!.extractedText).toBe(content);
   });
 });
 
