@@ -3,7 +3,7 @@
 ## What is an agent
 
  - An agent is a system prompt + a list of tools. When invoked, the prompt and tools are sent to the LLM. The LLM decides which tools to call, executes them via the SDK tool loop, and returns a response. The portal provides inference and MCP tools but has no agent awareness.
- - A llm in this context is an orchestration layer and not an execution layer, for majority of tasks, specially ones that are deterministic the task should be offloaded to tools. 
+ - An LLM in this context is an orchestration layer and not an execution layer, for the majority of tasks, especially ones that are deterministic, the task should be offloaded to tools. 
 ## How it works
 
 
