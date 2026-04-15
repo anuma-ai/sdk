@@ -360,6 +360,7 @@ export { QueueManager, queueManager, WalletPoller } from "../lib/db/queue";
 
 export type {
   FileProcessor,
+  FileTypeQuery,
   FileWithData,
   PreprocessingOptions,
   PreprocessingResult,
@@ -368,6 +369,8 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  getSupportedFileTypes,
+  isSupportedFile,
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,

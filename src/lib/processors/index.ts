@@ -7,10 +7,11 @@ export type { ZipProcessorOptions } from "./ZipProcessor";
 export { ZipProcessor } from "./ZipProcessor";
 
 // Registry
+export type { FileTypeQuery } from "./registry";
 export { ProcessorRegistry } from "./registry";
 
 // Orchestration
-export { preprocessFiles } from "./preprocessor";
+export { getSupportedFileTypes, isSupportedFile, preprocessFiles } from "./preprocessor";
 
 // Types
 export type {

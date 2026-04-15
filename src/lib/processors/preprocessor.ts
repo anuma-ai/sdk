@@ -2,7 +2,7 @@ import type { FileMetadata } from "../db/chat/types";
 import { getLogger } from "../logger";
 import { ExcelProcessor } from "./ExcelProcessor";
 import { PdfProcessor } from "./PdfProcessor";
-import { ProcessorRegistry } from "./registry";
+import { type FileTypeQuery, ProcessorRegistry } from "./registry";
 import { TextProcessor } from "./TextProcessor";
 import type { FileWithData, PreprocessingOptions, PreprocessingResult } from "./types";
 import { WordProcessor } from "./WordProcessor";
@@ -10,6 +10,84 @@ import { ZipProcessor } from "./ZipProcessor";
 
 /** Maximum total image fallback URLs across all files in a single preprocessing run */
 const MAX_TOTAL_IMAGES = 20;
+
+/**
+ * Build a registry containing all built-in processors.
+ *
+ * Single source of truth used both by `preprocessFiles` (when no custom
+ * processor list is supplied) and by the public `isSupportedFile` /
+ * `getSupportedFileTypes` helpers — keeping upload-time validation and
+ * runtime processing in lockstep so an attached file that passes validation
+ * is guaranteed to have a processor.
+ */
+function createDefaultRegistry(): ProcessorRegistry {
+  const registry = new ProcessorRegistry();
+  registry.register(new PdfProcessor());
+  registry.register(new ExcelProcessor());
+  registry.register(new WordProcessor());
+  registry.register(new TextProcessor());
+
+  // ZipProcessor needs registry to delegate to other processors
+  const zipProcessor = new ZipProcessor();
+  zipProcessor.setRegistry(registry);
+  registry.register(zipProcessor);
+
+  return registry;
+}
+
+/**
+ * Lazily built and cached registry used by the validation helpers below.
+ * Avoids paying processor-construction cost (e.g. ExcelProcessor's
+ * process.umask polyfill check) until the first lookup, and avoids rebuilding
+ * on every call to `isSupportedFile` (which can fire many times per drag-drop).
+ */
+let cachedDefaultRegistry: ProcessorRegistry | null = null;
+
+function getDefaultRegistry(): ProcessorRegistry {
+  if (!cachedDefaultRegistry) {
+    cachedDefaultRegistry = createDefaultRegistry();
+  }
+  return cachedDefaultRegistry;
+}
+
+/**
+ * Test whether the SDK can extract text from the given file.
+ *
+ * Use this for upload-time validation in drag-drop handlers, file-picker
+ * onChange, or paste handlers — block at the boundary with a clear message
+ * instead of silently accepting a file the model will never see.
+ *
+ * Note: this covers files handled by the SDK's text extractors (PDF, Word,
+ * Excel, Zip, plain text/markdown/JSON, etc.). Image files (`image/*`) are
+ * sent directly as `image_url` content parts and are NOT handled by
+ * processors — combine with an image check in your validation:
+ *
+ * ```ts
+ * const ok = file.type.startsWith("image/") || isSupportedFile(file);
+ * ```
+ */
+export function isSupportedFile(file: FileTypeQuery): boolean {
+  return getDefaultRegistry().isSupported(file);
+}
+
+/**
+ * Get the union of all MIME types and extensions handled by the SDK's
+ * default processors. Useful for building an `<input type="file" accept>`
+ * allowlist.
+ *
+ * Note: does NOT include image MIME types — add `"image/*"` yourself if you
+ * want the file picker to also accept images. See `isSupportedFile` docs.
+ */
+export function getSupportedFileTypes(): {
+  mimeTypes: string[];
+  extensions: string[];
+} {
+  const registry = getDefaultRegistry();
+  return {
+    mimeTypes: registry.getSupportedMimeTypes(),
+    extensions: registry.getSupportedExtensions(),
+  };
+}
 
 /**
  * Format extracted content with file context header
@@ -82,20 +160,13 @@ export async function preprocessFiles(
     };
   }
 
-  // Build registry
-  const registry = new ProcessorRegistry();
+  // Build registry. Use the cached default when no overrides are provided so
+  // a single registry instance is shared with the validation helpers.
+  let registry: ProcessorRegistry;
   if (processors === undefined) {
-    // Use defaults
-    registry.register(new PdfProcessor());
-    registry.register(new ExcelProcessor());
-    registry.register(new WordProcessor());
-    registry.register(new TextProcessor());
-
-    // ZipProcessor needs registry to delegate to other processors
-    const zipProcessor = new ZipProcessor();
-    zipProcessor.setRegistry(registry);
-    registry.register(zipProcessor);
+    registry = getDefaultRegistry();
   } else {
+    registry = new ProcessorRegistry();
     // Use provided processors, inject registry into ZipProcessor if present
     processors.forEach((p) => {
       if (p instanceof ZipProcessor) {

@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { dataUrlToArrayBuffer, uint8ArrayToBase64 } from "./encoding";
 import { ExcelProcessor } from "./ExcelProcessor";
-import { preprocessFiles } from "./preprocessor";
+import { getSupportedFileTypes, isSupportedFile, preprocessFiles } from "./preprocessor";
 import { ProcessorRegistry } from "./registry";
 import { TextProcessor } from "./TextProcessor";
 import type { FileWithData } from "./types";
@@ -247,6 +247,131 @@ describe("TextProcessor (Node.js)", () => {
 
     const result = await new TextProcessor().process(file);
     expect(result!.extractedText).toBe(content);
+  });
+});
+
+// ── Registry query method tests ──
+
+describe("ProcessorRegistry queries", () => {
+  it("isSupported returns true for a registered MIME type", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+
+    expect(registry.isSupported({ name: "notes.md", type: "text/markdown" })).toBe(true);
+    expect(registry.isSupported({ name: "data.json", type: "application/json" })).toBe(true);
+  });
+
+  it("isSupported falls back to extension when MIME type is missing or generic", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+
+    expect(registry.isSupported({ name: "readme.md", type: "" })).toBe(true);
+    expect(registry.isSupported({ name: "readme.md", type: "application/octet-stream" })).toBe(
+      true
+    );
+  });
+
+  it("isSupported returns false for unknown formats", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+
+    expect(registry.isSupported({ name: "song.mp3", type: "audio/mpeg" })).toBe(false);
+    expect(registry.isSupported({ name: "image.png", type: "image/png" })).toBe(false);
+  });
+
+  it("getSupportedMimeTypes returns deduplicated, sorted types from all processors", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    registry.register(new WordProcessor());
+
+    const mimeTypes = registry.getSupportedMimeTypes();
+
+    // Sorted
+    expect(mimeTypes).toEqual([...mimeTypes].sort());
+    // Deduplicated (Set semantics)
+    expect(new Set(mimeTypes).size).toBe(mimeTypes.length);
+    // Includes types from both processors
+    expect(mimeTypes).toContain("text/markdown");
+    expect(mimeTypes).toContain(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+  });
+
+  it("getSupportedExtensions returns deduplicated, sorted extensions", () => {
+    const registry = new ProcessorRegistry();
+    registry.register(new TextProcessor());
+    registry.register(new WordProcessor());
+
+    const extensions = registry.getSupportedExtensions();
+
+    expect(extensions).toEqual([...extensions].sort());
+    expect(new Set(extensions).size).toBe(extensions.length);
+    expect(extensions).toContain(".md");
+    expect(extensions).toContain(".docx");
+    // All entries include the leading dot so they're <input accept>-ready
+    expect(extensions.every((e) => e.startsWith("."))).toBe(true);
+  });
+
+  it("query methods return empty when no processors registered", () => {
+    const registry = new ProcessorRegistry();
+    expect(registry.isSupported({ name: "x.md", type: "text/markdown" })).toBe(false);
+    expect(registry.getSupportedMimeTypes()).toEqual([]);
+    expect(registry.getSupportedExtensions()).toEqual([]);
+  });
+});
+
+// ── Top-level support helpers tests ──
+
+describe("isSupportedFile / getSupportedFileTypes", () => {
+  it("isSupportedFile accepts files handled by default processors", () => {
+    expect(isSupportedFile({ name: "notes.md", type: "text/markdown" })).toBe(true);
+    expect(isSupportedFile({ name: "doc.pdf", type: "application/pdf" })).toBe(true);
+    expect(isSupportedFile({ name: "data.csv", type: "text/csv" })).toBe(true);
+    expect(isSupportedFile({ name: "archive.zip", type: "application/zip" })).toBe(true);
+  });
+
+  it("isSupportedFile rejects formats with no processor", () => {
+    expect(isSupportedFile({ name: "song.mp3", type: "audio/mpeg" })).toBe(false);
+    expect(isSupportedFile({ name: "video.mp4", type: "video/mp4" })).toBe(false);
+    // Images are handled separately as image_url content parts, not by processors
+    expect(isSupportedFile({ name: "photo.png", type: "image/png" })).toBe(false);
+  });
+
+  it("isSupportedFile uses extension fallback when MIME type is unreliable", () => {
+    // Reproduces the original .md upload bug: macOS/Windows often report .md
+    // as text/plain or octet-stream; extension match keeps validation aligned
+    // with what preprocessFiles will actually accept.
+    expect(isSupportedFile({ name: "readme.md", type: "" })).toBe(true);
+    expect(isSupportedFile({ name: "readme.md", type: "application/octet-stream" })).toBe(true);
+  });
+
+  it("getSupportedFileTypes returns mimeTypes and extensions arrays", () => {
+    const { mimeTypes, extensions } = getSupportedFileTypes();
+
+    expect(Array.isArray(mimeTypes)).toBe(true);
+    expect(Array.isArray(extensions)).toBe(true);
+
+    // Includes contributions from each default processor
+    expect(mimeTypes).toContain("application/pdf");
+    expect(mimeTypes).toContain("text/markdown");
+    expect(extensions).toContain(".md");
+    expect(extensions).toContain(".pdf");
+    expect(extensions).toContain(".xlsx");
+    expect(extensions).toContain(".docx");
+    expect(extensions).toContain(".zip");
+  });
+
+  it("getSupportedFileTypes is consistent with isSupportedFile", () => {
+    const { mimeTypes, extensions } = getSupportedFileTypes();
+
+    // Every advertised MIME type should pass validation
+    for (const mimeType of mimeTypes) {
+      expect(isSupportedFile({ name: "anything", type: mimeType })).toBe(true);
+    }
+    // Every advertised extension should pass validation when MIME is missing
+    for (const ext of extensions) {
+      expect(isSupportedFile({ name: `file${ext}`, type: "" })).toBe(true);
+    }
   });
 });
 

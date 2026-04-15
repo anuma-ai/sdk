@@ -1,6 +1,6 @@
 # TextProcessor
 
-Defined in: src/lib/processors/TextProcessor.ts:15
+Defined in: [src/lib/processors/TextProcessor.ts:15](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/TextProcessor.ts#15)
 
 Processor for plain-text files (.md, .txt, .csv, .json, .yaml, etc.) that
 decodes the file's data URL as UTF-8 and inlines the contents into the user
@@ -31,7 +31,7 @@ model (only `image/*` files are inlined directly by callers).
 
 > `readonly` **name**: `"text"` = `"text"`
 
-Defined in: src/lib/processors/TextProcessor.ts:16
+Defined in: [src/lib/processors/TextProcessor.ts:16](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/TextProcessor.ts#16)
 
 Unique identifier for this processor
 
@@ -45,7 +45,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: src/lib/processors/TextProcessor.ts:33
+Defined in: [src/lib/processors/TextProcessor.ts:33](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/TextProcessor.ts#33)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -59,7 +59,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: src/lib/processors/TextProcessor.ts:17
+Defined in: [src/lib/processors/TextProcessor.ts:17](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/TextProcessor.ts#17)
 
 MIME types this processor can handle
 
@@ -73,7 +73,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: src/lib/processors/TextProcessor.ts:54
+Defined in: [src/lib/processors/TextProcessor.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/TextProcessor.ts#54)
 
 Process a file and extract text content
 
