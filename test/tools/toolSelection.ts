@@ -364,7 +364,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "OCR includes vision tool",
     prompt: "Extract text from this screenshot image",
-    serverMustInclude: ["VisionMCP-extract_text"],
+    serverMustInclude: ["AnumaImageMCP-anuma_analyze_image"],
   },
 
   // ── Server-side: Voiceover ───────────────────────────────────────────
