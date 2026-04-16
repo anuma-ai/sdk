@@ -248,6 +248,11 @@ describe("TextProcessor (Node.js)", () => {
     const result = await new TextProcessor().process(file);
     expect(result!.extractedText).toBe(content);
   });
+
+  it("throws on an invalid data URL", async () => {
+    const file = makeFile("bad.txt", "text/plain", "not-a-data-url");
+    await expect(new TextProcessor().process(file)).rejects.toThrow();
+  });
 });
 
 // ── Registry query method tests ──
