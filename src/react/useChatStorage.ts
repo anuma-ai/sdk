@@ -2086,6 +2086,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -2877,6 +2878,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        // Pre-allocated ID from consumer — when provided, both the in-flight streaming
+        // placeholder and this persisted message share the same React key, preventing
+        // the unmount/remount flash when streaming completes.
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
