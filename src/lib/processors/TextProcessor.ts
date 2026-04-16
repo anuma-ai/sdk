@@ -2,6 +2,44 @@ import { getLogger } from "../logger";
 import { dataUrlToArrayBuffer } from "./encoding";
 import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 
+const MIME = {
+  PLAIN: "text/plain",
+  MARKDOWN: "text/markdown",
+  X_MARKDOWN: "text/x-markdown",
+  CSV: "text/csv",
+  TSV: "text/tab-separated-values",
+  HTML: "text/html",
+  XML_TEXT: "text/xml",
+  YAML_TEXT: "text/yaml",
+  X_YAML_TEXT: "text/x-yaml",
+  JSON: "application/json",
+  LD_JSON: "application/ld+json",
+  XML_APP: "application/xml",
+  YAML_APP: "application/yaml",
+  X_YAML_APP: "application/x-yaml",
+} as const;
+
+const EXT = {
+  TXT: ".txt",
+  MD: ".md",
+  MARKDOWN: ".markdown",
+  CSV: ".csv",
+  TSV: ".tsv",
+  JSON: ".json",
+  JSONL: ".jsonl",
+  NDJSON: ".ndjson",
+  LOG: ".log",
+  YAML: ".yaml",
+  YML: ".yml",
+  XML: ".xml",
+  HTML: ".html",
+  HTM: ".htm",
+  INI: ".ini",
+  TOML: ".toml",
+  CFG: ".cfg",
+  CONF: ".conf",
+} as const;
+
 /**
  * Processor for plain-text files (.md, .txt, .csv, .json, .yaml, etc.) that
  * decodes the file's data URL as UTF-8 and inlines the contents into the user
@@ -14,42 +52,8 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
  */
 export class TextProcessor implements FileProcessor {
   readonly name = "text";
-  readonly supportedMimeTypes = [
-    "text/plain",
-    "text/markdown",
-    "text/x-markdown",
-    "text/csv",
-    "text/tab-separated-values",
-    "text/html",
-    "text/xml",
-    "text/yaml",
-    "text/x-yaml",
-    "application/json",
-    "application/ld+json",
-    "application/xml",
-    "application/yaml",
-    "application/x-yaml",
-  ];
-  readonly supportedExtensions = [
-    ".txt",
-    ".md",
-    ".markdown",
-    ".csv",
-    ".tsv",
-    ".json",
-    ".jsonl",
-    ".ndjson",
-    ".log",
-    ".yaml",
-    ".yml",
-    ".xml",
-    ".html",
-    ".htm",
-    ".ini",
-    ".toml",
-    ".cfg",
-    ".conf",
-  ];
+  readonly supportedMimeTypes = Object.values(MIME);
+  readonly supportedExtensions = Object.values(EXT);
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
     try {
@@ -88,20 +92,20 @@ export class TextProcessor implements FileProcessor {
     const name = file.name?.toLowerCase() ?? "";
 
     if (
-      type === "text/markdown" ||
-      type === "text/x-markdown" ||
-      name.endsWith(".md") ||
-      name.endsWith(".markdown")
+      type === MIME.MARKDOWN ||
+      type === MIME.X_MARKDOWN ||
+      name.endsWith(EXT.MD) ||
+      name.endsWith(EXT.MARKDOWN)
     ) {
       return "markdown";
     }
 
     if (
-      type === "application/json" ||
-      type === "application/ld+json" ||
-      name.endsWith(".json") ||
-      name.endsWith(".jsonl") ||
-      name.endsWith(".ndjson")
+      type === MIME.JSON ||
+      type === MIME.LD_JSON ||
+      name.endsWith(EXT.JSON) ||
+      name.endsWith(EXT.JSONL) ||
+      name.endsWith(EXT.NDJSON)
     ) {
       return "json";
     }
