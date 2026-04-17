@@ -523,10 +523,16 @@ export async function maybeSummarizeHistory(
     const staleGuard = new Promise<MaybeSummarizeHistoryResult>((resolve) => {
       staleGuardTimerId = setTimeout(() => resolve(verbatimFallback), 15_000);
     });
-    // Swallow rejections on inProgress — if the stale guard wins the race and
-    // inProgress later rejects, the rejection would otherwise be unobserved.
+    // Attach a logged swallower to inProgress before the race. If the stale
+    // guard wins, inProgress may still reject later — without this handler the
+    // rejection would be unobserved, producing process-level unhandledRejection
+    // noise. Logging preserves diagnosability of the underlying failure.
+    const observedInProgress = inProgress.catch((err: unknown) => {
+      getLogger().warn("[summarize] in-progress summarization rejected after race", err);
+      return verbatimFallback;
+    });
     try {
-      return await Promise.race([inProgress.catch(() => verbatimFallback), staleGuard]);
+      return await Promise.race([observedInProgress, staleGuard]);
     } finally {
       clearTimeout(staleGuardTimerId!);
     }
