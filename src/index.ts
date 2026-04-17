@@ -92,6 +92,13 @@
 export * from "./client";
 export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
 
+// SSE idle-keepalive wrapper for the generated SSE client
+export {
+  SseIdleTimeoutError,
+  type SseKeepaliveOptions,
+  withSseKeepalive,
+} from "./lib/sse/keepalive";
+
 // Pluggable logger
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";
