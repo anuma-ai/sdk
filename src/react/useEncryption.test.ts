@@ -14,6 +14,8 @@ import {
   useEncryption,
   clearEncryptionKey,
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
+  onKeyAvailable,
   requestEncryptionKey,
   hasEncryptionKey,
   SIGN_MESSAGE,
@@ -326,6 +328,64 @@ describe("useEncryption - Key Pair Generation", () => {
 
       expect(hasKeyPair(address1)).toBe(false);
       expect(hasKeyPair(address2)).toBe(false);
+    });
+  });
+
+  describe("clearAllEncryptionState", () => {
+    it("wipes encryption keys, key pairs, persisted key pairs, and availability listeners", async () => {
+      const address1 = "0x1111111111111111111111111111111111111111";
+      const address2 = "0x2222222222222222222222222222222222222222";
+
+      await act(async () => {
+        await requestEncryptionKey(address1, mockSignMessage);
+        await requestEncryptionKey(address2, mockSignMessage);
+        await requestKeyPair(address1, mockSignMessage);
+        await requestKeyPair(address2, mockSignMessage);
+      });
+
+      // Seed an availability listener and a persisted keypair entry.
+      const listener = vi.fn();
+      onKeyAvailable(address1, listener);
+      listener.mockClear();
+      localStorage.setItem(`ecdh_keypair_${address1}`, "stale-ciphertext");
+
+      expect(hasEncryptionKey(address1)).toBe(true);
+      expect(hasEncryptionKey(address2)).toBe(true);
+      expect(hasKeyPair(address1)).toBe(true);
+      expect(hasKeyPair(address2)).toBe(true);
+
+      clearAllEncryptionState();
+
+      expect(hasEncryptionKey(address1)).toBe(false);
+      expect(hasEncryptionKey(address2)).toBe(false);
+      expect(hasKeyPair(address1)).toBe(false);
+      expect(hasKeyPair(address2)).toBe(false);
+      expect(localStorage.getItem(`ecdh_keypair_${address1}`)).toBeNull();
+
+      // Re-requesting a key after teardown must re-run the sign flow; the old
+      // listener registered pre-teardown must not fire for the new key.
+      await act(async () => {
+        await requestEncryptionKey(address1, mockSignMessage);
+      });
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("is reachable via the clearAllEncryptionKeys alias", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      await act(async () => {
+        await requestEncryptionKey(address, mockSignMessage);
+        await requestKeyPair(address, mockSignMessage);
+      });
+
+      expect(hasEncryptionKey(address)).toBe(true);
+      expect(hasKeyPair(address)).toBe(true);
+
+      clearAllEncryptionKeys();
+
+      // Alias now performs the full canonical teardown, so key pairs go too.
+      expect(hasEncryptionKey(address)).toBe(false);
+      expect(hasKeyPair(address)).toBe(false);
     });
   });
 

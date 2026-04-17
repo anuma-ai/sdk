@@ -140,11 +140,60 @@ export function clearEncryptionKey(address: string): void {
 }
 
 /**
- * Clears all encryption keys from memory
+ * Clears all encryption-related state from memory and any derived persistence.
+ *
+ * This is the canonical session-teardown entry point. It wipes every module-level
+ * map that retains key material or listeners tied to a session: the raw
+ * encryption keys, cached imported CryptoKey objects, availability callbacks,
+ * pending sign-in flights, and derived ECDH key pairs. It also removes any
+ * persisted ECDH key pairs from localStorage so they can't be decrypted by a
+ * subsequent user on a shared browser.
+ *
+ * Call this on logout / session-end to prevent cross-user key leakage on shared
+ * browsers. If you manage auth outside the SDK, wire this into your logout flow.
+ *
+ * @example
+ * ```tsx
+ * import { clearAllEncryptionState } from "@anuma/sdk/react";
+ *
+ * async function handleLogout() {
+ *   clearAllEncryptionState();
+ *   await privy.logout();
+ * }
+ * ```
  */
-export function clearAllEncryptionKeys(): void {
+export function clearAllEncryptionState(): void {
   encryptionKeyStore.clear();
   cryptoKeyCache.clear();
+  keyAvailableCallbacks.clear();
+  pendingKeyRequests.clear();
+
+  // Remove persisted (encrypted) ECDH key pairs from localStorage so the next
+  // user on a shared browser can't decrypt them if they happen to derive the
+  // same wallet signature.
+  if (typeof window !== "undefined") {
+    for (const address of keyPairStore.keys()) {
+      try {
+        localStorage.removeItem(`${KEYPAIR_STORAGE_PREFIX}${address}`);
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+  }
+
+  keyPairStore.clear();
+}
+
+/**
+ * Clears all encryption keys from memory.
+ *
+ * @deprecated Use {@link clearAllEncryptionState} instead. This function is kept
+ * as an alias for backwards compatibility and now delegates to the canonical
+ * teardown, which additionally clears `keyAvailableCallbacks`, pending key
+ * requests, and derived ECDH key pairs (both in-memory and persisted).
+ */
+export function clearAllEncryptionKeys(): void {
+  clearAllEncryptionState();
 }
 
 /**
