@@ -63,16 +63,21 @@ interface EmbeddedItem {
 
 /**
  * Minimum pairwise cosine similarity between two memories for the older
- * one to be considered superseded by the newer one.
+ * one to be considered superseded by the newer one. 0.5 is loose enough to
+ * catch semantically-related supersession pairs whose wording changes
+ * materially (e.g. "drinks coffee" → "switched from coffee to matcha"); the
+ * 60-day age gap below prevents false positives from bulk-same-session saves.
  */
-const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
+const SUPERSESSION_SIMILARITY_THRESHOLD = 0.5;
 
 /**
  * Minimum time gap (in milliseconds) between two memories for supersession
  * to apply. Memories created close together are likely complementary, not
- * superseding. Default: 30 days.
+ * superseding. 60 days is wide enough to exclude false pairs from
+ * bulk-same-session saves (where dozens of memories share near-identical
+ * timestamps) while still catching real life-change supersession pairs.
  */
-const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+const SUPERSESSION_MIN_AGE_GAP_MS = 60 * 24 * 60 * 60 * 1000;
 
 /**
  * How much of the score gap to transfer from the older memory to the newer
