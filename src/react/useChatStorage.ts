@@ -151,6 +151,17 @@ function getToolDescription(t: LlmapiChatCompletionTool): string {
 }
 
 /**
+ * Log a fire-and-forget background operation failure.
+ * Used for non-blocking tasks (eager embeds, cache refreshes, background DB writes)
+ * where awaiting would harm UX but a silent failure would hide real problems.
+ *
+ * Exported for tests. Not re-exported from the package entry point.
+ */
+export function logBackground(op: string, ctx: Record<string, unknown>, err: unknown): void {
+  getLogger().warn(`[useChatStorage] ${op} failed`, { ...ctx, err });
+}
+
+/**
  * Automatically filter client tools using embedding-based semantic matching.
  * Generates embeddings for tool descriptions (cached), then selects the most
  * relevant tools for the user's prompt. This prevents sending 20+ tool
@@ -1196,7 +1207,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           result.uniqueId
-        ).catch(() => {});
+        ).catch((err: unknown) => {
+          logBackground("eager vault embed (create)", { id: result.uniqueId }, err);
+        });
       }
       return result;
     },
@@ -1220,7 +1233,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           id
-        ).catch(() => {});
+        ).catch((err: unknown) => {
+          logBackground("eager vault embed (update)", { id }, err);
+        });
       }
       return result;
     },
@@ -2217,7 +2232,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err: unknown) => {
+            logBackground("server tools refresh", { reason: "checksum-mismatch-skip" }, err);
+          });
         }
 
         return {
@@ -2623,8 +2640,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               messageChunks,
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err: unknown) => {
+              // Non-fatal — the message is already stored; chunks can be re-embedded later.
+              logBackground(
+                "update message chunks",
+                { messageId: storedUserMessage.uniqueId, chunks: messageChunks.length },
+                err
+              );
             });
           } else {
             // Single embedding
@@ -2633,8 +2655,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               userMessageEmbeddings as number[],
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err: unknown) => {
+              // Non-fatal — the message is already stored; embedding can be regenerated later.
+              logBackground(
+                "update message embedding",
+                { messageId: storedUserMessage.uniqueId },
+                err
+              );
             });
           }
         } else {
@@ -2975,7 +3002,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err: unknown) => {
+          logBackground("server tools refresh", { reason: "checksum-mismatch-send" }, err);
+        });
       }
 
       return {
