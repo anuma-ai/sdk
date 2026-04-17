@@ -2,8 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "./useChat";
 import * as sseModule from "../client/core/serverSentEvents.gen";
+import type { ServerSentEventsOptions } from "../client/core/serverSentEvents.gen";
+import { makeMockSseResult } from "../test-utils/mocks";
 
 type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
+
+/** Error with an HTTP-style status attached — mirrors what the SSE layer surfaces. */
+interface HttpLikeError extends Error {
+  status?: number;
+}
 
 vi.mock("../client/core/serverSentEvents.gen", async (importOriginal) => {
   const orig = await importOriginal<typeof sseModule>();
@@ -21,24 +28,24 @@ describe("useChat", () => {
   });
 
   it("should send message and handle stream response", async () => {
-    mockCreateSseClient.mockReturnValue({
-      stream: (async function* () {
-        yield {
+    mockCreateSseClient.mockReturnValue(
+      makeMockSseResult([
+        {
           type: "response.created",
           response: {
             id: "resp-123",
             model: "fireworks/accounts/fireworks/models/kimi-k2p5",
           },
-        };
-        yield {
+        },
+        {
           type: "response.output_text.delta",
           delta: { OfString: "Hello" },
-        };
-        yield {
+        },
+        {
           type: "response.output_text.delta",
           delta: { OfString: " world" },
-        };
-        yield {
+        },
+        {
           type: "response.completed",
           response: {
             usage: {
@@ -46,9 +53,9 @@ describe("useChat", () => {
               output_tokens: 5,
             },
           },
-        };
-      })(),
-    } as any);
+        },
+      ])
+    );
 
     const { result } = renderHook(() =>
       useChat({
@@ -67,8 +74,8 @@ describe("useChat", () => {
 
     // Verify createSseClient was called with correct request body
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
-    const callOpts = mockCreateSseClient.mock.calls[0][0] as any;
-    const body = JSON.parse(callOpts.serializedBody);
+    const callOpts = mockCreateSseClient.mock.calls[0][0];
+    const body = JSON.parse(callOpts.serializedBody as string) as Record<string, unknown>;
     expect(body).toEqual(
       expect.objectContaining({
         input: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
@@ -91,15 +98,18 @@ describe("useChat", () => {
 
   describe("isLoading state reset on errors", () => {
     it("should reset isLoading to false when server returns 500 error", async () => {
-      const serverError = new Error("Internal Server Error");
-      (serverError as any).status = 500;
+      const serverError: HttpLikeError = new Error("Internal Server Error");
+      serverError.status = 500;
 
       // createSseClient returns a stream that throws on iteration
-      mockCreateSseClient.mockReturnValue({
-        stream: (async function* () {
-          throw serverError;
-        })(),
-      } as any);
+      mockCreateSseClient.mockReturnValue(
+        makeMockSseResult(() =>
+          // eslint-disable-next-line require-yield -- throw-only generator by design
+          (async function* () {
+            throw serverError;
+          })()
+        )
+      );
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -131,11 +141,14 @@ describe("useChat", () => {
     it("should reset isLoading to false when network error occurs", async () => {
       const networkError = new Error("Network request failed");
 
-      mockCreateSseClient.mockReturnValue({
-        stream: (async function* () {
-          throw networkError;
-        })(),
-      } as any);
+      mockCreateSseClient.mockReturnValue(
+        makeMockSseResult(() =>
+          // eslint-disable-next-line require-yield -- throw-only generator by design
+          (async function* () {
+            throw networkError;
+          })()
+        )
+      );
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -160,23 +173,25 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when SSE stream throws error mid-stream", async () => {
-      mockCreateSseClient.mockReturnValue({
-        stream: (async function* () {
-          yield {
-            type: "response.created",
-            response: {
-              id: "resp-123",
-              model: "fireworks/accounts/fireworks/models/kimi-k2p5",
-            },
-          };
-          yield {
-            type: "response.output_text.delta",
-            delta: { OfString: "Hello" },
-          };
-          // Simulate error during streaming
-          throw new Error("Stream interrupted: 500 Internal Server Error");
-        })(),
-      } as any);
+      mockCreateSseClient.mockReturnValue(
+        makeMockSseResult(() =>
+          (async function* () {
+            yield {
+              type: "response.created",
+              response: {
+                id: "resp-123",
+                model: "fireworks/accounts/fireworks/models/kimi-k2p5",
+              },
+            };
+            yield {
+              type: "response.output_text.delta",
+              delta: { OfString: "Hello" },
+            };
+            // Simulate error during streaming
+            throw new Error("Stream interrupted: 500 Internal Server Error");
+          })()
+        )
+      );
 
       const onErrorSpy = vi.fn();
       const { result } = renderHook(() =>
@@ -202,23 +217,25 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when request is aborted", async () => {
-      mockCreateSseClient.mockReturnValue({
-        stream: (async function* () {
-          yield {
-            type: "response.created",
-            response: {
-              id: "resp-123",
-              model: "fireworks/accounts/fireworks/models/kimi-k2p5",
-            },
-          };
-          // Keep yielding to simulate long-running request
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          yield {
-            type: "response.output_text.delta",
-            delta: { OfString: "Hello" },
-          };
-        })(),
-      } as any);
+      mockCreateSseClient.mockReturnValue(
+        makeMockSseResult(() =>
+          (async function* () {
+            yield {
+              type: "response.created",
+              response: {
+                id: "resp-123",
+                model: "fireworks/accounts/fireworks/models/kimi-k2p5",
+              },
+            };
+            // Keep yielding to simulate long-running request
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            yield {
+              type: "response.output_text.delta",
+              delta: { OfString: "Hello" },
+            };
+          })()
+        )
+      );
 
       const { result } = renderHook(() =>
         useChat({
@@ -296,7 +313,7 @@ describe("useChat", () => {
     });
 
     it("should reset isLoading to false when SSE onSseError callback fires", async () => {
-      mockCreateSseClient.mockImplementation((options: any) => {
+      mockCreateSseClient.mockImplementation((options: ServerSentEventsOptions) => {
         // Trigger SSE error during streaming via the callback
         setTimeout(() => {
           if (options.onSseError) {
@@ -304,8 +321,8 @@ describe("useChat", () => {
           }
         }, 5);
 
-        return {
-          stream: (async function* () {
+        return makeMockSseResult(() =>
+          (async function* () {
             yield {
               type: "response.created",
               response: {
@@ -315,8 +332,8 @@ describe("useChat", () => {
             };
             // Wait for SSE error callback to fire
             await new Promise((resolve) => setTimeout(resolve, 10));
-          })(),
-        } as any;
+          })()
+        );
       });
 
       const onErrorSpy = vi.fn();
