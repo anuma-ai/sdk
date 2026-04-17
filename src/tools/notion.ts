@@ -12,7 +12,27 @@
  * @see https://modelcontextprotocol.io
  */
 
+import { NotionError } from "../lib/auth/notion.js";
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { getLogger } from "../lib/logger.js";
+
+/**
+ * Safely read an HTTP error response as text. Logs failure with context and
+ * returns an empty string — the caller always throws a NotionError afterward
+ * so failures never silently become empty results.
+ */
+async function readErrorText(response: Response, endpoint: string): Promise<string> {
+  try {
+    return await response.text();
+  } catch (err) {
+    getLogger().warn("Failed to read Notion MCP error response body", {
+      endpoint,
+      status: response.status,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return "";
+  }
+}
 
 // MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
@@ -135,9 +155,16 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(
-      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    const errorBody = await readErrorText(response, MCP_HTTP_ENDPOINT);
+    getLogger().error("Notion MCP initialization failed", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody,
+    });
+    throw new NotionError(
+      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+      { status: response.status, endpoint: MCP_HTTP_ENDPOINT }
     );
   }
 
@@ -243,9 +270,17 @@ async function callMCPTool<T>(
       });
 
       if (!retryResponse.ok) {
-        const errorBody = await retryResponse.text().catch(() => "");
-        throw new Error(
-          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+        const errorBody = await readErrorText(retryResponse, MCP_HTTP_ENDPOINT);
+        getLogger().error("Notion MCP tool call failed after session retry", {
+          endpoint: MCP_HTTP_ENDPOINT,
+          tool: toolName,
+          status: retryResponse.status,
+          statusText: retryResponse.statusText,
+          body: errorBody,
+        });
+        throw new NotionError(
+          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+          { status: retryResponse.status, endpoint: MCP_HTTP_ENDPOINT }
         );
       }
 
@@ -263,9 +298,17 @@ async function callMCPTool<T>(
     }
 
     // Try to get error details from response
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(
-      `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    const errorBody = await readErrorText(response, MCP_HTTP_ENDPOINT);
+    getLogger().error("Notion MCP tool call failed", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      tool: toolName,
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody,
+    });
+    throw new NotionError(
+      `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+      { status: response.status, endpoint: MCP_HTTP_ENDPOINT }
     );
   }
 
