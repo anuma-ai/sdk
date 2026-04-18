@@ -76,6 +76,9 @@ describe.each(MODELS)("slide-generation prompts [%s]", (model) => {
       tools,
       toolChoice: "auto",
       maxToolRounds: 8,
+      // Anthropic via Bifrost seems to 500 when the streamed JSON payload
+      // exceeds the default output-token budget on dense decks. Raise it.
+      maxOutputTokens: 16000,
     });
 
     printResult(result);
