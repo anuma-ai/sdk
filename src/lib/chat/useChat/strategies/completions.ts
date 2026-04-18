@@ -3,6 +3,7 @@ import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
 import { parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
 /**
  * Tool call event from server-side MCP tool execution
@@ -342,6 +343,16 @@ export class CompletionsStrategy implements ApiStrategy {
 
       // Mark tool calls as completed when finish_reason is set
       if (choice.finish_reason === "tool_calls" || choice.finish_reason === "stop") {
+        // Recover xAI's hybrid tool-call format: Grok emits most args inside
+        // <parameter name="X">Y</parameter> text content while function_call
+        // arguments only carry a subset (e.g. just `path`). Merge the XML
+        // params into the tool call args here, before marking complete.
+        if (accumulator.toolCalls.size > 0) {
+          accumulator.content = mergeXaiInlineParameterTags(
+            accumulator.content,
+            accumulator.toolCalls
+          );
+        }
         for (const toolCall of accumulator.toolCalls.values()) {
           if (toolCall.status === "pending") {
             toolCall.status = "completed";
