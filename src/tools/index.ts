@@ -168,3 +168,38 @@ export {
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
+
+// Slide deck tools
+export type {
+  CreateSlideToolsOptions,
+  FontPreset,
+  IconElement,
+  ImageElement,
+  ShapeElement,
+  Slide,
+  SlideDeck,
+  SlideElement,
+  SlideTheme,
+  TextElement,
+} from "./slides";
+export {
+  buildSlideSystemPrompt,
+  createSlideTools,
+  DEFAULT_SLIDE_THEME,
+  DISPLAY_SLIDES_SCHEMA,
+  extractSlideContent,
+  FONT_PRESETS,
+  hToPct,
+  PATCH_SLIDES_SCHEMA,
+  pctToFontSize,
+  pctToH,
+  pctToW,
+  pctToX,
+  pctToY,
+  READ_SLIDES_SCHEMA,
+  REF_H,
+  REF_W,
+  wToPct,
+  xToPct,
+  yToPct,
+} from "./slides";

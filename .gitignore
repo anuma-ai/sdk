@@ -147,3 +147,5 @@ etc/
 
 # Test output (generated app previews)
 test/**/.output/
+
+.claude/worktrees
