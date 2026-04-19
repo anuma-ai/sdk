@@ -901,9 +901,12 @@ ${renderLayoutCatalog()}
 LAYOUT PICKER — match content shape to a template, don't default to grids:
 - Sequence through time (seasons, phases, steps, months) → timeline-horizontal, timeline-numbered, or timeline-table.
 - Rows with the same schema (plant × zone × note; year × event × note) → table or timeline-table.
-- Single memorable number or statement → focus-metric or stats-large.
+- Single memorable number → stats-large or stats-inline.
+- Single memorable statement → focus-statement.
 - Mega-number paired with what-it-unlocks → focus-number-list.
 - Two-panel contrast (classical vs quantum, before vs after) → compare-two-panel.
+- Two-column comparison with enumerated steps/items (old way vs new way, before/after process) → compare-lists.
+- Case study / product profile / review by attribute (big title + body + 6 key-value rows) → profile-spec.
 - 3-part outline / steps 01/02/03 / feature rundown → agenda-cards.
 - Closing summary with "take three things with you" → takeaways-numbered.
 - Running prose explanation → text-prose or text-two-col.
