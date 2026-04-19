@@ -36,7 +36,9 @@ describe("getInStreamErrorMessage", () => {
 
   it("falls back to type when message is missing", () => {
     const chunk = { error: { type: "upstream_unreachable", code: "network" } };
-    expect(getInStreamErrorMessage(chunk)).toBe("[upstream_unreachable network] upstream_unreachable");
+    expect(getInStreamErrorMessage(chunk)).toBe(
+      "[upstream_unreachable network] upstream_unreachable"
+    );
   });
 
   it("returns null when there's no error field", () => {

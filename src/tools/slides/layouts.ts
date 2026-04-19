@@ -17,7 +17,7 @@
 
 import type { SlideElement } from "./index";
 
-export interface LayoutTemplate {
+interface LayoutTemplate {
   /** Name shown to the LLM and used as the human-readable key. */
   name: string;
   /**
@@ -525,21 +525,48 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     elements: (() => {
       const els: SlideElement[] = [hrule("topRule", 30)];
       const sampleEntries = [
-        { eyebrow: "SUCKING · SOFT-BODIED", title: "Aphids", body: "Clusters on new growth. Sticky residue." },
-        { eyebrow: "CHEWING · NOCTURNAL", title: "Slugs", body: "Silver trails at dawn. Ragged holes in leaves." },
-        { eyebrow: "CHEWING · CATERPILLAR", title: "Cabbage worms", body: "Green velvet caterpillars on brassicas." },
-        { eyebrow: "ARMORED · BEETLES", title: "Japanese beetles", body: "Skeletonized leaves, metallic clusters." },
-        { eyebrow: "SUCKING · TINY", title: "Spider mites", body: "Stippled yellow leaves, fine webs underneath." },
-        { eyebrow: "BORING · HIDDEN", title: "Squash vine borers", body: "Sudden plant collapse, sawdust at stem base." },
+        {
+          eyebrow: "SUCKING · SOFT-BODIED",
+          title: "Aphids",
+          body: "Clusters on new growth. Sticky residue.",
+        },
+        {
+          eyebrow: "CHEWING · NOCTURNAL",
+          title: "Slugs",
+          body: "Silver trails at dawn. Ragged holes in leaves.",
+        },
+        {
+          eyebrow: "CHEWING · CATERPILLAR",
+          title: "Cabbage worms",
+          body: "Green velvet caterpillars on brassicas.",
+        },
+        {
+          eyebrow: "ARMORED · BEETLES",
+          title: "Japanese beetles",
+          body: "Skeletonized leaves, metallic clusters.",
+        },
+        {
+          eyebrow: "SUCKING · TINY",
+          title: "Spider mites",
+          body: "Stippled yellow leaves, fine webs underneath.",
+        },
+        {
+          eyebrow: "BORING · HIDDEN",
+          title: "Squash vine borers",
+          body: "Sudden plant collapse, sawdust at stem base.",
+        },
       ];
       for (let r = 0; r < 2; r++) {
         for (let c = 0; c < 3; c++) {
           const idx = r * 3 + c;
           const x = 7 + 30 * c;
           const y = 33 + r * 24;
-          const sample = sampleEntries[idx]!;
+          const sample = sampleEntries[idx];
           els.push(
-            eyebrow(`e${idx}_eyebrow`, sample.eyebrow, x, y, 27, { fontSize: 1.3, letterSpacing: 0.14 })
+            eyebrow(`e${idx}_eyebrow`, sample.eyebrow, x, y, 27, {
+              fontSize: 1.3,
+              letterSpacing: 0.14,
+            })
           );
           els.push({
             id: `e${idx}_title`,

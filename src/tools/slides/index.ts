@@ -39,6 +39,7 @@
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderLayoutTemplates } from "./layouts";
+import { renderPalettes } from "./palettes";
 
 // ---------------------------------------------------------------------------
 // Canvas reference dimensions (16:9)
@@ -657,6 +658,11 @@ export function buildSlideSystemPrompt(): string {
   // layout name followed by its notes (if any) and element recipes.
   const layoutTemplates = renderLayoutTemplates();
 
+  // Palettes live in ./palettes.ts as typed `Palette[]` (register + fontPreset
+  // + colors). `renderPalettes` emits a compact table the LLM reads when
+  // picking a register to match the topic.
+  const palettes = renderPalettes();
+
   return `You are a presentation design assistant. You produce polished slide decks as JSON files with positioned elements.
 
 WORKFLOW:
@@ -731,85 +737,7 @@ IMAGES — CRITICAL:
 - Most slides should be text-only. If no images available, omit image elements entirely.
 - WORKFLOW WITH IMAGES: First generate all images, collect their URLs, THEN create the deck JSON with those URLs in a single create_file call. Do NOT create the deck before images are ready — the deck renders the moment create_file succeeds.
 
-CHOOSING A PALETTE — don't default to dark grey + orange for everything. Match tone to topic:
-- Warm editorial (guides, culture, cooking, nature): cream + moss/terracotta. Use fontPreset "editorial" or "humanist".
-- Techno dark (dev tools, infra, product launches): near-black + electric accent. Use fontPreset "techno" or "bold".
-- Clean minimal (business, enterprise, finance): white + one restrained accent. Use fontPreset "clean" or "geometric".
+CHOOSING A PALETTE — don't default to dark grey + orange for every deck. Pick a register below to match the topic, then copy its fontPreset and colors verbatim into theme. Don't invent new palettes unless the topic really demands it; picking from this list is the expected path.
 
-Three short examples — pick the register closest to the topic, don't copy palettes verbatim:
-
-EXAMPLE A — Warm editorial (guide/culture):
-{
-  "version": 2,
-  "theme": {
-    "fontPreset": "editorial",
-    "colors": {
-      "background": "#F3EEE5", "slideBg": "#F3EEE5", "surfaceSecondary": "#EDE6D8",
-      "textPrimary": "#1F2A22", "textSecondary": "#4A5449", "textMuted": "#8A8F84",
-      "accent": "#6B8246", "card": "#EDE6D8", "border": "#CFC8B8"
-    }
-  },
-  "slides": [
-    { "id": "cover", "elements": [
-      { "id": "eyebrow", "kind": "text", "text": "HOME GARDENING · FUNDAMENTALS", "x": 6, "y": 30, "w": 60, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "accent", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
-      { "id": "title", "kind": "text", "text": "The Growing Year.", "x": 6, "y": 36, "w": 88, "h": 30, "fontSize": 9.5, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary", "fontStyle": "italic", "align": "left", "lineHeight": 0.95 },
-      { "id": "sub", "kind": "text", "text": "Soil, seasons, pests, and starter plants.", "x": 6, "y": 70, "w": 60, "h": 6, "fontSize": 2.2, "fontRole": "body", "fontWeight": 400, "color": "textSecondary", "align": "left" }
-    ]}
-  ]
-}
-
-EXAMPLE B — Techno dark (tech/product):
-{
-  "version": 2,
-  "theme": {
-    "fontPreset": "techno",
-    "colors": {
-      "background": "#0a0b0e", "slideBg": "#0a0b0e", "surfaceSecondary": "#12151a",
-      "textPrimary": "#e8eaed", "textSecondary": "#c4c7cc", "textMuted": "#7c828b",
-      "accent": "#6ee7b7", "card": "#12151a", "border": "#2a2e36"
-    }
-  },
-  "slides": [
-    { "id": "focus", "elements": [
-      { "id": "eyebrow", "kind": "text", "text": "Q4 · THROUGHPUT", "x": 6, "y": 9, "w": 40, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "letterSpacing": 0.16, "textTransform": "uppercase" },
-      { "id": "num", "kind": "text", "text": "50M+", "x": 6, "y": 30, "w": 88, "h": 30, "fontSize": 12, "fontRole": "heading", "fontWeight": 700, "color": "accent", "align": "left", "lineHeight": 1.0 },
-      { "id": "lbl", "kind": "text", "text": "API calls processed daily — 3x last quarter.", "x": 6, "y": 64, "w": 70, "h": 6, "fontSize": 2, "fontRole": "body", "fontWeight": 400, "color": "textSecondary", "align": "left" }
-    ]}
-  ]
-}
-
-EXAMPLE C — Clean minimal (business):
-{
-  "version": 2,
-  "theme": {
-    "fontPreset": "clean",
-    "colors": {
-      "background": "#ffffff", "slideBg": "#ffffff", "surfaceSecondary": "#f8fafc",
-      "textPrimary": "#0f172a", "textSecondary": "#475569", "textMuted": "#94a3b8",
-      "accent": "#2563eb", "card": "#f8fafc", "border": "#e2e8f0"
-    }
-  },
-  "slides": [
-    { "id": "table", "elements": [
-      { "id": "eyebrow", "kind": "text", "text": "Q4 · ACCOUNT SUMMARY", "x": 6, "y": 9, "w": 80, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
-      { "id": "title", "kind": "text", "text": "Top movers", "x": 6, "y": 14, "w": 88, "h": 10, "fontSize": 5.2, "fontRole": "heading", "fontWeight": 600, "color": "textPrimary", "align": "left", "lineHeight": 1.0 },
-      { "id": "rule", "kind": "shape", "shape": "line", "x": 6, "y": 26, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "h1", "kind": "text", "text": "ACCOUNT", "x": 6, "y": 32, "w": 40, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "h2", "kind": "text", "text": "CHANGE", "x": 48, "y": 32, "w": 18, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "h3", "kind": "text", "text": "NOTE", "x": 68, "y": 32, "w": 26, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "l0", "kind": "shape", "shape": "line", "x": 6, "y": 37, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "r1n", "kind": "text", "text": "Acme Robotics", "x": 6, "y": 40, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
-      { "id": "r1c", "kind": "text", "text": "+38%", "x": 48, "y": 41, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
-      { "id": "r1b", "kind": "text", "text": "Expanded to 4 regions.", "x": 68, "y": 41, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" },
-      { "id": "l1", "kind": "shape", "shape": "line", "x": 6, "y": 49, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "r2n", "kind": "text", "text": "Northwind", "x": 6, "y": 52, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
-      { "id": "r2c", "kind": "text", "text": "+22%", "x": 48, "y": 53, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
-      { "id": "r2b", "kind": "text", "text": "Added seat-based billing.", "x": 68, "y": 53, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" },
-      { "id": "l2", "kind": "shape", "shape": "line", "x": 6, "y": 61, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "r3n", "kind": "text", "text": "Contoso", "x": 6, "y": 64, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
-      { "id": "r3c", "kind": "text", "text": "+18%", "x": 48, "y": 65, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
-      { "id": "r3b", "kind": "text", "text": "Consolidated tiers.", "x": 68, "y": 65, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" }
-    ]}
-  ]
-}`;
+${palettes}`;
 }

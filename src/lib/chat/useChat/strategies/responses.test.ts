@@ -130,7 +130,10 @@ describe("ResponsesStrategy.processStreamChunk - response.failed", () => {
     });
     expect(() =>
       strategy.processStreamChunk(
-        { type: "response.failed", response: { error: { code: "server_error", message: wrapped } } },
+        {
+          type: "response.failed",
+          response: { error: { code: "server_error", message: wrapped } },
+        },
         acc
       )
     ).toThrow("[server_error] Model not found, inaccessible, and/or not deployed");

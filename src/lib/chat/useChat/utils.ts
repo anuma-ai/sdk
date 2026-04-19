@@ -13,15 +13,15 @@ import type { AccumulatedToolCall, StreamAccumulator, ToolConfig, ToolExecutor }
  * Returns `{ args }` on success or `{ error }` with the original parse error
  * if the string can't be recovered.
  */
-function parseToolArguments(
-  raw: string
-): { args: Record<string, unknown> } | { error: string } {
+function parseToolArguments(raw: string): { args: Record<string, unknown> } | { error: string } {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return { args: parsed as Record<string, unknown> };
     }
-    return { error: `Tool arguments must be a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}` };
+    return {
+      error: `Tool arguments must be a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}`,
+    };
   } catch (e) {
     const originalError = e instanceof Error ? e.message : String(e);
     try {
