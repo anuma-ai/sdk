@@ -1,6 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { getInStreamErrorMessage } from "./utils";
+import type { AccumulatedToolCall } from "./types";
+import { executeToolCall, getInStreamErrorMessage } from "./utils";
+
+function makeToolCall(args: string): AccumulatedToolCall {
+  return {
+    id: "call_1",
+    type: "function",
+    name: "test_tool",
+    arguments: args,
+    status: "pending",
+  };
+}
 
 describe("getInStreamErrorMessage", () => {
   it("detects Bifrost timeout_error and formats with type, message, trace_id", () => {
@@ -47,5 +58,60 @@ describe("getInStreamErrorMessage", () => {
     expect(getInStreamErrorMessage("hello")).toBeNull();
     expect(getInStreamErrorMessage(null)).toBeNull();
     expect(getInStreamErrorMessage(undefined)).toBeNull();
+  });
+});
+
+describe("executeToolCall argument parsing", () => {
+  it("passes well-formed JSON through to the executor unchanged", async () => {
+    const executor = vi.fn().mockResolvedValue("ok");
+    const result = await executeToolCall(
+      makeToolCall('{"path":"slides.json","content":"hi"}'),
+      executor
+    );
+    expect(result).toEqual({ result: "ok" });
+    expect(executor).toHaveBeenCalledWith({ path: "slides.json", content: "hi" });
+  });
+
+  it("repairs trailing commas (common LLM mistake) and executes", async () => {
+    const executor = vi.fn().mockResolvedValue("ok");
+    const result = await executeToolCall(
+      makeToolCall('{"path":"slides.json","content":"hi",}'),
+      executor
+    );
+    expect(result).toEqual({ result: "ok" });
+    expect(executor).toHaveBeenCalledWith({ path: "slides.json", content: "hi" });
+  });
+
+  it("repairs single-quoted keys/values", async () => {
+    const executor = vi.fn().mockResolvedValue("ok");
+    const result = await executeToolCall(
+      makeToolCall("{'path': 'slides.json', 'content': 'hi'}"),
+      executor
+    );
+    expect(result).toEqual({ result: "ok" });
+    expect(executor).toHaveBeenCalledWith({ path: "slides.json", content: "hi" });
+  });
+
+  it("repairs unquoted keys", async () => {
+    const executor = vi.fn().mockResolvedValue("ok");
+    const result = await executeToolCall(makeToolCall('{path: "slides.json"}'), executor);
+    expect(result).toEqual({ result: "ok" });
+    expect(executor).toHaveBeenCalledWith({ path: "slides.json" });
+  });
+
+  it("returns a parse error when repair cannot salvage the string", async () => {
+    const executor = vi.fn();
+    const result = await executeToolCall(makeToolCall("not json at all {{{"), executor);
+    expect(result.error).toMatch(/Failed to parse tool arguments/);
+    expect(result.errorType).toBe("parse");
+    expect(executor).not.toHaveBeenCalled();
+  });
+
+  it("rejects JSON arrays (tools expect objects)", async () => {
+    const executor = vi.fn();
+    const result = await executeToolCall(makeToolCall('["a","b"]'), executor);
+    expect(result.error).toMatch(/must be a JSON object.*array/);
+    expect(result.errorType).toBe("parse");
+    expect(executor).not.toHaveBeenCalled();
   });
 });
