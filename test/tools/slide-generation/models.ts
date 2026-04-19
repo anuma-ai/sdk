@@ -21,7 +21,6 @@ export const MODELS = [
   "cerebras/zai-glm-4.7",
   "fireworks/accounts/fireworks/models/deepseek-v3p2",
   "fireworks/accounts/fireworks/models/minimax-m2p5",
-  "fireworks/accounts/fireworks/models/minimax-m2p1",
   "minimax/MiniMax-M2.7",
   "gemini/gemini-3.1-pro-preview",
   "gemini/gemini-3-flash-preview",
