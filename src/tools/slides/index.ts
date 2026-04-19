@@ -38,7 +38,8 @@
 
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
-import { renderLayoutTemplates } from "./layouts";
+import { renderElementKinds } from "./elementKinds";
+import { renderLayoutTemplates, renderSharedHeader } from "./layouts";
 import { renderPalettes } from "./palettes";
 
 // ---------------------------------------------------------------------------
@@ -683,11 +684,7 @@ COORDINATE SYSTEM — all positions use percentages (0–100):
 - fontSize is percentage of canvas width: 4.5 ≈ 43px heading, 1.9 ≈ 18px body, 2.5 ≈ 24px sub
 
 ELEMENT TYPES:
-text: { kind: "text", id, x, y, w, h, text, fontSize, fontRole: "heading"|"body", fontWeight, color, align?, lineHeight?, fontStyle?, textTransform?, fontFamily? }
-  fontFamily is optional — overrides the theme preset for this element (e.g. "Playfair Display", "JetBrains Mono"). Omit to use the theme default.
-shape: { kind: "shape", id, x, y, w, h, shape: "rect"|"circle"|"line", fill?, stroke?, strokeWidth?, cornerRadius? }
-image: { kind: "image", id, x, y, w, h, src, cornerRadius? }
-icon: { kind: "icon", id, x, y, w, h, name, color, fontSize }
+${renderElementKinds()}
 
 SLIDE STRUCTURE:
 Each slide: { id, elements, background? }
@@ -702,10 +699,7 @@ ${fontTable}
 Recommendations: Tech → bold/techno. Business → geometric/clean. Culture → editorial/humanist. Premium → elegant.
 
 SHARED HEADER PATTERN — use on every content slide, not as a standalone template:
-  eyebrow: { kind: "text", x: 6, y: 9, w: 80, h: 3.5, text: "CHAPTER 01 · SOIL", fontSize: 1.4, fontRole: "body", fontWeight: 500, color: "textMuted", fontFamily: "JetBrains Mono", letterSpacing: 0.16, textTransform: "uppercase" }
-  title: { kind: "text", x: 6, y: 14, w: 88, h: 10, text: "Reading your soil", fontSize: 5.2, fontRole: "heading", fontWeight: 400, color: "textPrimary", align: "left", lineHeight: 1.0 }
-  rule: { kind: "shape", shape: "line", x: 6, y: 26, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
-  Content below the header starts at y ≥ 30. Skip this pattern on cover and chapter-break slides only.
+${renderSharedHeader()}
 
 LAYOUT TEMPLATES — use these as blueprints when building slides. Vary your layouts across a deck.
 

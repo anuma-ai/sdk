@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { SlideElement } from "./index";
-import { LAYOUT_TEMPLATES, renderLayoutTemplates } from "./layouts";
+import {
+  LAYOUT_TEMPLATES,
+  renderLayoutTemplates,
+  renderSharedHeader,
+  SHARED_HEADER_ELEMENTS,
+} from "./layouts";
 
 // Narrow runtime check that a value has the shape of a SlideElement.
 // TypeScript already guarantees this at compile time; this catches mistakes
@@ -49,6 +54,38 @@ describe("LAYOUT_TEMPLATES", () => {
         expect(el.h, `${t.name}/${el.id} h`).toBeGreaterThanOrEqual(0);
       }
     }
+  });
+});
+
+describe("SHARED_HEADER_ELEMENTS", () => {
+  it("has eyebrow, title, and rule", () => {
+    const ids = SHARED_HEADER_ELEMENTS.map((e) => e.id);
+    expect(ids).toEqual(["eyebrow", "title", "rule"]);
+  });
+
+  it("every element has a valid SlideElement shape", () => {
+    for (const el of SHARED_HEADER_ELEMENTS) {
+      expect(isElementShape(el), el.id).toBe(true);
+    }
+  });
+
+  it("all elements stay inside the content band (y < 30) so content starts below", () => {
+    for (const el of SHARED_HEADER_ELEMENTS) {
+      expect(el.y + el.h, el.id).toBeLessThanOrEqual(30);
+    }
+  });
+});
+
+describe("renderSharedHeader", () => {
+  it("emits each element id as a recipe-line prefix", () => {
+    const prose = renderSharedHeader();
+    for (const el of SHARED_HEADER_ELEMENTS) {
+      expect(prose).toContain(`${el.id}: {`);
+    }
+  });
+
+  it("includes the content-band note", () => {
+    expect(renderSharedHeader()).toContain("Content below the header starts at y ≥ 30");
   });
 });
 

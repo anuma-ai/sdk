@@ -900,6 +900,61 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Shared header pattern — applied to every content slide (not a full layout)
+// ---------------------------------------------------------------------------
+
+/**
+ * Elements the LLM should place on every content slide (skip only on cover
+ * and chapter-break slides). Rendered into the prompt as-is, so the model
+ * can copy the coordinates directly.
+ */
+export const SHARED_HEADER_ELEMENTS: SlideElement[] = [
+  {
+    id: "eyebrow",
+    kind: "text",
+    x: 6,
+    y: 9,
+    w: 80,
+    h: 3.5,
+    text: "CHAPTER 01 · SOIL",
+    fontSize: 1.4,
+    fontRole: "body",
+    fontWeight: 500,
+    color: "textMuted",
+    fontFamily: "JetBrains Mono",
+    letterSpacing: 0.16,
+    textTransform: "uppercase",
+  },
+  {
+    id: "title",
+    kind: "text",
+    x: 6,
+    y: 14,
+    w: 88,
+    h: 10,
+    text: "Reading your soil",
+    fontSize: 5.2,
+    fontRole: "heading",
+    fontWeight: 400,
+    color: "textPrimary",
+    align: "left",
+    lineHeight: 1.0,
+  },
+  hrule("rule", 26, 1),
+];
+
+const SHARED_HEADER_NOTE =
+  "Content below the header starts at y ≥ 30. Skip this pattern on cover and chapter-break slides only.";
+
+/** Render the shared header pattern as prompt prose. */
+export function renderSharedHeader(): string {
+  return [
+    ...SHARED_HEADER_ELEMENTS.map((el) => renderElementLine(el)),
+    `  ${SHARED_HEADER_NOTE}`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // Prompt rendering
 // ---------------------------------------------------------------------------
 
