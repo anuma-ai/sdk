@@ -298,19 +298,13 @@ export class ResponsesStrategy implements ApiStrategy {
       // Bifrost creates entries via the `.delta` handler with name="" (since
       // its output_item.added event has no name). The final response.output
       // array carries the names, keyed by item.id / call_id.
-      backfillToolCallNames(
-        accumulator,
-        typedChunk.response as { output?: unknown } | undefined
-      );
+      backfillToolCallNames(accumulator, typedChunk.response as { output?: unknown } | undefined);
 
       // Recover xAI's hybrid tool-call format: Grok streams most args inside
       // <parameter name="X">Y</parameter> text content while function_call
       // arguments only carry a subset (e.g. just `path`). Merge the XML
       // params into the tool call args here, after both streams are final.
-      accumulator.content = mergeXaiInlineParameterTags(
-        accumulator.content,
-        accumulator.toolCalls
-      );
+      accumulator.content = mergeXaiInlineParameterTags(accumulator.content, accumulator.toolCalls);
 
       // Mark all pending tool calls as completed and emit completion event
       for (const toolCall of accumulator.toolCalls.values()) {

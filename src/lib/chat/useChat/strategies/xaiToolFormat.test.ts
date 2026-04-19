@@ -84,8 +84,7 @@ describe("mergeXaiInlineParameterTags", () => {
 
   it("is a no-op when there are no tool calls", () => {
     const toolCalls = new Map<string, AccumulatedToolCall>();
-    const content =
-      '<parameter name="content">{"a":1}</parameter></xai:function_call>';
+    const content = '<parameter name="content">{"a":1}</parameter></xai:function_call>';
 
     const result = mergeXaiInlineParameterTags(content, toolCalls);
 

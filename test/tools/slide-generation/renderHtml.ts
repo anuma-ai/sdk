@@ -10,7 +10,11 @@
 import { FONT_PRESETS, type SlideDeck, type SlideTheme } from "../../../src/tools/slides.js";
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function resolveColor(token: string, theme: SlideTheme): string {
