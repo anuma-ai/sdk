@@ -1,7 +1,7 @@
 import type { LlmapiChatCompletionResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -122,6 +122,13 @@ export class CompletionsStrategy implements ApiStrategy {
 
   processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
+
+    // Detect in-stream error events from Bifrost (e.g. MiniMax upstream
+    // timeouts). If we don't throw here the stream just ends silently with no
+    // tool call and no usable response. The outer tool loop catches this and
+    // surfaces it as the final error to the caller.
+    const inStreamErr = getInStreamErrorMessage(chunk);
+    if (inStreamErr) throw new Error(inStreamErr);
 
     // Handle wrapped response format: { response: {...}, type: "response" }
     // Some endpoints return the completions response nested under a "response" key

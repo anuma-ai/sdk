@@ -1,7 +1,7 @@
 import type { LlmapiResponseResponse } from "../../../../client";
 import type { AccumulatedToolCall, StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
 import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
@@ -154,6 +154,13 @@ export class ResponsesStrategy implements ApiStrategy {
   processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
+
+    // Detect in-stream error events from Bifrost (e.g. OpenRouter Qwen upstream
+    // timeouts). If we don't throw here the stream just ends silently with no
+    // tool call and no usable response. The outer tool loop catches this and
+    // surfaces it as the final error to the caller.
+    const inStreamErr = getInStreamErrorMessage(chunk);
+    if (inStreamErr) throw new Error(inStreamErr);
 
     // Handle full "response" event — sent by the portal's chat/completions fallback
     // when it uses non-streaming internally and sends the entire result as one chunk.
