@@ -104,6 +104,25 @@ describe("getLayoutByName", () => {
   });
 });
 
+describe("LAYOUT_TEMPLATES descriptions", () => {
+  it("every template has a non-empty description", () => {
+    for (const t of LAYOUT_TEMPLATES) {
+      expect(t.description, t.name).toBeTruthy();
+    }
+  });
+
+  it("names are unique", () => {
+    const names = LAYOUT_TEMPLATES.map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("names are short kebab-case identifiers (no spaces or parens)", () => {
+    for (const t of LAYOUT_TEMPLATES) {
+      expect(t.name, t.name).toMatch(/^[a-z][a-z0-9-]*$/);
+    }
+  });
+});
+
 describe("renderLayoutCatalog", () => {
   it("emits one bullet line per template", () => {
     const prose = renderLayoutCatalog();
@@ -111,10 +130,11 @@ describe("renderLayoutCatalog", () => {
     expect(lines.length).toBe(LAYOUT_TEMPLATES.length);
   });
 
-  it("includes every layout name exactly once", () => {
+  it("includes every layout name + description exactly once", () => {
     const prose = renderLayoutCatalog();
     for (const t of LAYOUT_TEMPLATES) {
-      const occurrences = prose.split(t.name).length - 1;
+      const marker = `- ${t.name} — ${t.description}`;
+      const occurrences = prose.split(marker).length - 1;
       expect(occurrences, t.name).toBe(1);
     }
   });
@@ -122,42 +142,41 @@ describe("renderLayoutCatalog", () => {
 
 describe("renderLayoutRecipes", () => {
   it("emits recipes only for the names passed", () => {
-    const names = [
-      LAYOUT_TEMPLATES[0]!.name,
-      LAYOUT_TEMPLATES[LAYOUT_TEMPLATES.length - 1]!.name,
-    ];
+    const names = [LAYOUT_TEMPLATES[0]!.name, LAYOUT_TEMPLATES[LAYOUT_TEMPLATES.length - 1]!.name];
     const prose = renderLayoutRecipes(names);
     for (const t of LAYOUT_TEMPLATES) {
-      const occurrences = prose.split(`${t.name}:`).length - 1;
+      const marker = `${t.name} — ${t.description}:`;
+      const occurrences = prose.split(marker).length - 1;
       expect(occurrences, t.name).toBe(names.includes(t.name) ? 1 : 0);
     }
   });
 
   it("dedupes when the same name is passed twice", () => {
-    const name = LAYOUT_TEMPLATES[0]!.name;
-    const prose = renderLayoutRecipes([name, name, name]);
-    const occurrences = prose.split(`${name}:`).length - 1;
-    expect(occurrences).toBe(1);
+    const t = LAYOUT_TEMPLATES[0]!;
+    const prose = renderLayoutRecipes([t.name, t.name, t.name]);
+    const marker = `${t.name} — ${t.description}:`;
+    expect(prose.split(marker).length - 1).toBe(1);
   });
 
   it("silently skips unknown names", () => {
-    const known = LAYOUT_TEMPLATES[0]!.name;
-    const prose = renderLayoutRecipes([known, "DOES NOT EXIST", known]);
-    expect(prose.split(`${known}:`).length - 1).toBe(1);
-    expect(prose).not.toContain("DOES NOT EXIST");
+    const t = LAYOUT_TEMPLATES[0]!;
+    const prose = renderLayoutRecipes([t.name, "does-not-exist", t.name]);
+    const marker = `${t.name} — ${t.description}:`;
+    expect(prose.split(marker).length - 1).toBe(1);
+    expect(prose).not.toContain("does-not-exist");
   });
 
   it("returns empty string when no names are known", () => {
     expect(renderLayoutRecipes([])).toBe("");
-    expect(renderLayoutRecipes(["NOT REAL"])).toBe("");
+    expect(renderLayoutRecipes(["not-real"])).toBe("");
   });
 });
 
 describe("renderLayoutTemplates", () => {
-  it("emits a section per template with the name as a header", () => {
+  it("emits a section per template with name + description as header", () => {
     const prose = renderLayoutTemplates();
     for (const t of LAYOUT_TEMPLATES) {
-      expect(prose).toContain(`${t.name}:`);
+      expect(prose).toContain(`${t.name} — ${t.description}:`);
     }
   });
 
@@ -174,7 +193,8 @@ describe("renderLayoutTemplates", () => {
     const prose = renderLayoutTemplates();
     for (const t of LAYOUT_TEMPLATES) {
       if (!t.notes?.length) continue;
-      const sectionStart = prose.indexOf(`${t.name}:`);
+      const header = `${t.name} — ${t.description}:`;
+      const sectionStart = prose.indexOf(header);
       const note = t.notes[0]!;
       const noteAt = prose.indexOf(note, sectionStart);
       expect(noteAt).toBeGreaterThan(sectionStart);

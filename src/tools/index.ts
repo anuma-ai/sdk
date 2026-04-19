@@ -184,9 +184,9 @@ export type {
 } from "./slides";
 export {
   buildSlideSystemPrompt,
+  CREATE_SLIDES_SCHEMA,
   createSlideTools,
   DEFAULT_SLIDE_THEME,
-  DISPLAY_SLIDES_SCHEMA,
   extractSlideContent,
   FONT_PRESETS,
   hToPct,
@@ -196,6 +196,7 @@ export {
   pctToW,
   pctToX,
   pctToY,
+  PLAN_SLIDES_SCHEMA,
   READ_SLIDES_SCHEMA,
   REF_H,
   REF_W,

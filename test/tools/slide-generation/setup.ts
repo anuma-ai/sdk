@@ -70,9 +70,7 @@ export function printRunSummary(rounds: StepFinishEvent[], elapsedMs: number): v
     totalOutput += r.usage.outputTokens ?? 0;
   }
   const usage = totalInput || totalOutput ? ` · tokens in=${totalInput} out=${totalOutput}` : "";
-  console.log(
-    `  Rounds: ${rounds.length} · ${(elapsedMs / 1000).toFixed(1)}s total${usage}`
-  );
+  console.log(`  Rounds: ${rounds.length} · ${(elapsedMs / 1000).toFixed(1)}s total${usage}`);
   for (const r of rounds) {
     const calls = r.toolCalls.map((c) => c.name).join(", ") || "(no tool calls)";
     const roundTokens =

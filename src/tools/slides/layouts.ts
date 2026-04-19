@@ -18,17 +18,27 @@
 import type { SlideElement } from "./index";
 
 interface LayoutTemplate {
-  /** Name shown to the LLM and used as the human-readable key. */
+  /**
+   * Short kebab-case identifier the LLM returns in `plan_slides`. Kept
+   * short + typo-proof so the model can match it exactly without fuzzy
+   * matching. Must be unique across templates.
+   */
   name: string;
   /**
-   * Free-form hints that don't fit as elements. Rendered before the element
-   * list in the prompt. Use for things like "set slide.background" or
-   * "use '• ' prefix for each bullet line".
+   * One-line human description rendered alongside the name in the
+   * catalog and picker rubric. Explains what the layout is for and when
+   * to reach for it. The LLM sees this but doesn't have to echo it back.
+   */
+  description: string;
+  /**
+   * Free-form hints that don't fit as elements. Rendered before the
+   * element list in the prompt. Use for things like "set slide.background"
+   * or "use '• ' prefix for each bullet line".
    */
   notes?: string[];
   /**
-   * Reference elements with real coordinates + example content. The LLM is
-   * told to copy the shape and substitute its own text values.
+   * Reference elements with real coordinates + example content. The LLM
+   * is told to copy the shape and substitute its own text values.
    */
   elements: SlideElement[];
 }
@@ -105,7 +115,8 @@ function vdiv(id: string, x: number, y: number, h: number): SlideElement {
 
 export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   {
-    name: "COVER (centered)",
+    name: "cover-centered",
+    description: "Cover slide: big centered title with centered subtitle below.",
     elements: [
       {
         id: "title",
@@ -139,7 +150,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "COVER (left, with accent bar)",
+    name: "cover-accent-bar",
+    description: "Cover slide: left-aligned title with a short accent-colored bar above it.",
     elements: [
       {
         id: "bar",
@@ -184,7 +196,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "COVER (bottom — huge title at bottom, metadata top)",
+    name: "cover-bottom",
+    description:
+      "Cover slide: huge editorial title anchored to the bottom, mono metadata eyebrow at top.",
     elements: [
       eyebrow("meta", "META · 2024", 6, 7, 30, { fontSize: 1.4 }),
       {
@@ -205,7 +219,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "SECTION (dark chapter break — rhythm marker between parts of a multi-part deck)",
+    name: "section-dark",
+    description: "Dark chapter break — a rhythm marker between parts of a multi-part deck.",
     notes: [
       `Set slide.background to a dark hex (e.g. "#1F2A22", "#1a1b1e") so this slide reads as a tonal shift from content slides.`,
     ],
@@ -246,7 +261,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "AGENDA (bordered cards — 3 enclosed rectangles, each with label + heading + body)",
+    name: "agenda-cards",
+    description:
+      "Three enclosed rectangles side by side, each with a mono label + heading + body. For 3-part outlines, Step 01/02/03, feature rundowns.",
     notes: [
       "Use for 3-part outlines (Part I/II/III), process steps (Step 01/02/03), or feature rundowns. Each card is a fully enclosed rect with a 1px border — unlike STATS hairline cells which share a grid rail. Include the shared header above.",
     ],
@@ -423,7 +440,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TEXT (prose)",
+    name: "text-prose",
+    description: "Heading + long prose body — for running explanatory text.",
     elements: [
       {
         id: "heading",
@@ -458,7 +476,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TEXT (bullets)",
+    name: "text-bullets",
+    description: "Heading + a clean bullet list (≤ 6 items with short descriptions).",
     notes: [`Use "• " prefix for each bullet line inside the "bullets" text.`],
     elements: [
       {
@@ -494,7 +513,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TEXT (two-column — heading left, content right)",
+    name: "text-two-col",
+    description: "Two-column layout: heading on the left, running content on the right.",
     elements: [
       {
         id: "heading",
@@ -530,7 +550,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "COMPARE (two panels linked by a mid-axis — classical vs quantum, before vs after)",
+    name: "compare-two-panel",
+    description:
+      "Two panels side by side linked by a mid-axis label. For classical vs quantum, before vs after, option A vs B.",
     notes: [
       "Use for two-panel contrasts: option A vs option B, classical vs quantum, before vs after. The mid axis carries a short connector label (distance, relation, consequence) on a dashed horizontal line. Include the shared header above.",
     ],
@@ -659,7 +681,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "STATS (hairline cells — editorial grid, no filled cards)",
+    name: "stats-cells",
+    description:
+      "Editorial hairline grid of stat cells — no filled cards, dividers only. For categorical 3×2 card grids when order doesn't matter.",
     notes: [`Use SHARED HEADER PATTERN above (y 9–26) for the title/rule above the grid.`],
     elements: [
       hrule("topRule", 30),
@@ -766,7 +790,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "STATS (inline — border-left accent)",
+    name: "stats-inline",
+    description: "Inline stat strip with a border-left accent per cell.",
     notes: [
       `For each stat: a narrow vertical accent bar (rect w=0.3, h=11, fill="accent") followed by a big value text and a smaller label text, stacked together.`,
     ],
@@ -774,7 +799,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "STATS (large — featured number)",
+    name: "stats-large",
+    description: "Single featured number dominating the slide, with a small supporting label.",
     elements: [
       {
         id: "value",
@@ -823,7 +849,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "LIST (hairline entries — editorial field guide, 3 cols × 2 rows)",
+    name: "list-hairline",
+    description:
+      "Editorial field guide: 3 columns × 2 rows of entries separated by hairline dividers. Each entry has a mono eyebrow + serif title + body.",
     notes: [
       `Use SHARED HEADER PATTERN above for the title/rule.`,
       `Six entries arranged as 3 columns × 2 rows. Vertical dividers separate columns, a horizontal rule separates rows.`,
@@ -915,7 +943,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "LIST (minimal — sidebar heading, stacked items with dividers)",
+    name: "list-minimal",
+    description: "Sidebar heading on the left, stacked items with thin dividers on the right.",
     notes: [
       `Items stack in the right column with line dividers (shape "line" with stroke="border") between them.`,
     ],
@@ -938,7 +967,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "QUOTE (large, centered)",
+    name: "quote-centered",
+    description: "Large centered pull-quote with a centered attribution line below.",
     elements: [
       {
         id: "quote",
@@ -965,7 +995,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "QUOTE (offset — left-aligned with accent bar)",
+    name: "quote-offset",
+    description: "Left-aligned pull-quote with a short accent bar and cite line.",
     elements: [
       {
         id: "bar",
@@ -997,7 +1028,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TIMELINE (numbered, vertical)",
+    name: "timeline-numbered",
+    description:
+      "Vertical timeline with big accent index numbers and a one-line description per step.",
     notes: [
       `For each step: a small number text (fontSize=1.9, fontWeight=700, color="accent") + a step title + a step body, with line dividers between steps.`,
     ],
@@ -1019,7 +1052,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TIMELINE (horizontal axis)",
+    name: "timeline-horizontal",
+    description:
+      "Horizontal axis timeline: even tick marks across the page with labels above and descriptions below.",
     notes: [
       `For each event along the axis: a vertical tick line + a title below the tick + a short body below the title.`,
     ],
@@ -1052,7 +1087,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TIMELINE (table rows — year | what | note, hairlines between, 5 rows)",
+    name: "timeline-table",
+    description:
+      "Year | what | note table rows with hairlines between. For 5+ events needing a label column and an explanatory note column.",
     notes: [
       "Use when the sequence is 5+ events with enough nuance to need a year column, a headline column, and a muted explanatory note. Different from the horizontal-axis timeline (no year column) and numbered-vertical timeline (no distinct note column). Include the shared header above.",
     ],
@@ -1277,7 +1314,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "HERO (split — text left, image right)",
+    name: "hero-split",
+    description: "Split layout: text column on the left, full-bleed image on the right.",
     elements: [
       {
         id: "image",
@@ -1320,7 +1358,8 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "HERO (overlay — full image with gradient + text at bottom)",
+    name: "hero-overlay",
+    description: "Full-bleed image with a gradient overlay and title text pinned at the bottom.",
     elements: [
       {
         id: "image",
@@ -1371,7 +1410,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TABLE",
+    name: "table",
+    description:
+      "Tabular data with header row + data rows separated by line dividers. For rows of the same schema (plant × zone × note).",
     notes: [
       `Compose with: heading text + a header row (bold text elements) + data rows (regular text elements) + line dividers between rows.`,
     ],
@@ -1379,13 +1420,17 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "FOCUS (metric — huge centered number)",
+    name: "focus-metric",
+    description:
+      "Single huge centered metric number — same coordinates as stats-large, used as the focal point of the slide.",
     notes: [`Same coordinates as STATS (large — featured number). See that template above.`],
     elements: [],
   },
 
   {
-    name: "FOCUS (accent — centered statement with underline)",
+    name: "focus-statement",
+    description:
+      "Centered statement with a short accent-colored underline and optional subtitle. For a single declarative takeaway.",
     elements: [
       {
         id: "title",
@@ -1430,7 +1475,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "FOCUS (mega number + supporting list — one big figure with 3 hairline-divided items beside it)",
+    name: "focus-number-list",
+    description:
+      "Giant accent figure on the left paired with a 3-item hairline-divided list on the right. For mega-number + what-it-unlocks.",
     notes: [
       "Use when a single number carries the slide and you need to name what it unlocks or what it means. The giant number sits left, the list sits right with 1px hairlines between items. Include the shared header above.",
     ],
@@ -1567,7 +1614,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
   },
 
   {
-    name: "TAKEAWAYS (oversized numbered sentences — 3 rows of giant accent number + serif sentence)",
+    name: "takeaways-numbered",
+    description:
+      "Closing / summary: 3 rows of giant accent number (01/02/03) paired with full-width serif sentences. For 'three things to remember'.",
     notes: [
       "Closing / summary pattern. Each row pairs a giant accent index (01 / 02 / 03) with one full-width serif sentence — use this for 'three things to remember', 'what matters', or 'the key takeaways'. Include the shared header above.",
     ],
@@ -1761,11 +1810,12 @@ export function renderLayoutTemplates(): string {
 }
 
 /**
- * Render only layout names as a bullet list — used by the planning-step
- * system prompt where the LLM picks layouts without seeing element recipes.
+ * Render the catalog as `name — description` bullets for the planning
+ * prompt. The LLM returns the short `name`; description is shown so it
+ * can match content shape to layout without seeing the element recipes.
  */
 export function renderLayoutCatalog(): string {
-  return LAYOUT_TEMPLATES.map((t) => `- ${t.name}`).join("\n");
+  return LAYOUT_TEMPLATES.map((t) => `- ${t.name} — ${t.description}`).join("\n");
 }
 
 /** Look up a layout template by its exact `name`. Returns null if missing. */
@@ -1796,7 +1846,7 @@ export function renderLayoutRecipes(names: string[]): string {
 function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
   return templates
     .map((template) => {
-      const lines: string[] = [`${template.name}:`];
+      const lines: string[] = [`${template.name} — ${template.description}:`];
       if (template.notes) {
         for (const note of template.notes) lines.push(`  ${note}`);
       }
