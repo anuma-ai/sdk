@@ -173,9 +173,12 @@ function safeMerge(target: Record<string, unknown>, patch: Record<string, unknow
     const tVal = target[key];
     const pVal = patch[key];
     if (
-      tVal && pVal &&
-      typeof tVal === "object" && typeof pVal === "object" &&
-      !Array.isArray(tVal) && !Array.isArray(pVal)
+      tVal &&
+      pVal &&
+      typeof tVal === "object" &&
+      typeof pVal === "object" &&
+      !Array.isArray(tVal) &&
+      !Array.isArray(pVal)
     ) {
       safeMerge(tVal as Record<string, unknown>, pVal as Record<string, unknown>);
     } else {
@@ -199,7 +202,8 @@ export function extractSlideContent(json: string): string {
               return `  [${el.id}] text "${((el.text as string) ?? "").slice(0, 40)}" at (${el.x},${el.y}) ${el.w}x${el.h}`;
             if (el.kind === "shape")
               return `  [${el.id}] ${String(el.shape)} at (${el.x},${el.y}) ${el.w}x${el.h}`;
-            if (el.kind === "icon") return `  [${el.id}] icon "${String(el.name)}" at (${el.x},${el.y})`;
+            if (el.kind === "icon")
+              return `  [${el.id}] icon "${String(el.name)}" at (${el.x},${el.y})`;
             if (el.kind === "image")
               return `  [${el.id}] image at (${el.x},${el.y}) ${el.w}x${el.h}`;
             return `  [${el.id}] ${el.kind as string}`;
@@ -382,9 +386,7 @@ export function createSlideGenerationTools({
                 ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
                 : -1;
               if (op.afterSlideId && insertIdx === -1) {
-                results.push(
-                  `add_slide: afterSlideId ${op.afterSlideId} not found`
-                );
+                results.push(`add_slide: afterSlideId ${op.afterSlideId} not found`);
                 break;
               }
               if (insertIdx === -1) deck.slides.push(op.slide);

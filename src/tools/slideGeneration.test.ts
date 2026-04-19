@@ -248,9 +248,7 @@ describe("patch_slides", () => {
     const { tools } = makeTools(store);
     const exec = getExecutor(tools, "patch_slides");
     await exec({
-      operations: [
-        { action: "update_theme", set: { colors: { accent: "#ff0000" } } },
-      ],
+      operations: [{ action: "update_theme", set: { colors: { accent: "#ff0000" } } }],
     });
 
     const file = await store.getFile("conv-1", "slides.json");
