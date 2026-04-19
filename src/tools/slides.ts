@@ -805,8 +805,18 @@ FOCUS (accent — centered statement with underline):
 
 DESIGN RULES:
 - Each slide and element MUST have a unique id.
-- Vary layouts across slides — mix 4+ template types in a deck.
-- Use cover for openers, focus for key takeaways, hero for visual impact, stats for data, list for features, timeline for processes, quote for testimonials, section for dividers.
+- LAYOUT VARIETY IS MANDATORY. Do not reuse the same content-slide template more than twice in a deck. If your deck has 4 content slides, pick 4 different templates. A deck where every content slide is hairline cells looks monotonous — force yourself to reach for other patterns.
+
+LAYOUT PICKER — match content shape to template, don't default to grids:
+- Sequence through time (seasons, phases, steps, months, timelines) → TIMELINE (horizontal axis) or TIMELINE (numbered vertical). NOT cells.
+- Rows of the same schema (plant × zone × note; pest × sign × fix) → TABLE with serif name column + mono tag column + body column.
+- Single memorable number or statement → FOCUS (large featured number) or STATS (large).
+- Running prose explanation → TEXT (prose) or TEXT (two-column).
+- Short list of ≤ 6 items with short descriptions → TEXT (bullets) — reach for this before cells.
+- Memorable quote, proverb, or one-liner → QUOTE (offset).
+- 3–6 categorical cards where each card has title + body and no natural order → STATS (hairline cells) or LIST (hairline entries). This is the LAST resort, not the default.
+- Image-forward visual → HERO (split or overlay).
+
 - Keep text concise. Slides are visual — avoid paragraphs.
 - When using icons, place them as small elements (w≈3, h≈5, fontSize≈2.5) near related text.
 - For per-slide background: set "background" field on the slide object.
@@ -878,23 +888,25 @@ EXAMPLE C — Clean minimal (business):
     }
   },
   "slides": [
-    { "id": "stats", "elements": [
-      { "id": "eyebrow", "kind": "text", "text": "Q4 2024 · BUSINESS REVIEW", "x": 6, "y": 9, "w": 80, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
-      { "id": "title", "kind": "text", "text": "Key metrics", "x": 6, "y": 14, "w": 88, "h": 10, "fontSize": 5.2, "fontRole": "heading", "fontWeight": 600, "color": "textPrimary", "align": "left", "lineHeight": 1.0 },
+    { "id": "table", "elements": [
+      { "id": "eyebrow", "kind": "text", "text": "Q4 · ACCOUNT SUMMARY", "x": 6, "y": 9, "w": 80, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
+      { "id": "title", "kind": "text", "text": "Top movers", "x": 6, "y": 14, "w": 88, "h": 10, "fontSize": 5.2, "fontRole": "heading", "fontWeight": 600, "color": "textPrimary", "align": "left", "lineHeight": 1.0 },
       { "id": "rule", "kind": "shape", "shape": "line", "x": 6, "y": 26, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "top", "kind": "shape", "shape": "line", "x": 6, "y": 30, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
-      { "id": "d1", "kind": "shape", "shape": "rect", "x": 36, "y": 31, "w": 0.1, "h": 48, "fill": "border" },
-      { "id": "d2", "kind": "shape", "shape": "rect", "x": 66, "y": 31, "w": 0.1, "h": 48, "fill": "border" },
-      { "id": "e0", "kind": "text", "text": "01 · REVENUE", "x": 7, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "v0", "kind": "text", "text": "142%", "x": 7, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
-      { "id": "b0", "kind": "text", "text": "Year-over-year growth.", "x": 7, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
-      { "id": "e1", "kind": "text", "text": "02 · USERS", "x": 37, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "v1", "kind": "text", "text": "2.4M", "x": 37, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
-      { "id": "b1", "kind": "text", "text": "Monthly active.", "x": 37, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
-      { "id": "e2", "kind": "text", "text": "03 · UPTIME", "x": 67, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
-      { "id": "v2", "kind": "text", "text": "99.9%", "x": 67, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
-      { "id": "b2", "kind": "text", "text": "Rolling 30-day.", "x": 67, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
-      { "id": "bot", "kind": "shape", "shape": "line", "x": 6, "y": 80, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 }
+      { "id": "h1", "kind": "text", "text": "ACCOUNT", "x": 6, "y": 32, "w": 40, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "h2", "kind": "text", "text": "CHANGE", "x": 48, "y": 32, "w": 18, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "h3", "kind": "text", "text": "NOTE", "x": 68, "y": 32, "w": 26, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "l0", "kind": "shape", "shape": "line", "x": 6, "y": 37, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
+      { "id": "r1n", "kind": "text", "text": "Acme Robotics", "x": 6, "y": 40, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
+      { "id": "r1c", "kind": "text", "text": "+38%", "x": 48, "y": 41, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
+      { "id": "r1b", "kind": "text", "text": "Expanded to 4 regions.", "x": 68, "y": 41, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" },
+      { "id": "l1", "kind": "shape", "shape": "line", "x": 6, "y": 49, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
+      { "id": "r2n", "kind": "text", "text": "Northwind", "x": 6, "y": 52, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
+      { "id": "r2c", "kind": "text", "text": "+22%", "x": 48, "y": 53, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
+      { "id": "r2b", "kind": "text", "text": "Added seat-based billing.", "x": 68, "y": 53, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" },
+      { "id": "l2", "kind": "shape", "shape": "line", "x": 6, "y": 61, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
+      { "id": "r3n", "kind": "text", "text": "Contoso", "x": 6, "y": 64, "w": 40, "h": 6, "fontSize": 2.6, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary" },
+      { "id": "r3c", "kind": "text", "text": "+18%", "x": 48, "y": 65, "w": 18, "h": 5, "fontSize": 2, "fontRole": "body", "fontWeight": 500, "color": "accent" },
+      { "id": "r3b", "kind": "text", "text": "Consolidated tiers.", "x": 68, "y": 65, "w": 26, "h": 6, "fontSize": 1.5, "fontRole": "body", "color": "textSecondary" }
     ]}
   ]
 }`;
