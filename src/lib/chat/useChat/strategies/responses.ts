@@ -162,6 +162,34 @@ export class ResponsesStrategy implements ApiStrategy {
     const inStreamErr = getInStreamErrorMessage(chunk);
     if (inStreamErr) throw new Error(inStreamErr);
 
+    // Detect response.failed events (e.g. model not deployed, upstream refused
+    // the request). Carries a nested error object with message/code; surface
+    // it so callers see a real reason instead of a silent empty response.
+    if (typedChunk.type === "response.failed") {
+      const resp = (typedChunk as { response?: { error?: { code?: unknown; message?: unknown } } })
+        .response;
+      const err = resp?.error;
+      if (err && typeof err === "object") {
+        const code = typeof err.code === "string" ? err.code : "";
+        const rawMessage = typeof err.message === "string" ? err.message : "";
+        // Bifrost sometimes double-encodes the upstream error as a JSON string
+        // in `message`. Pull out the inner message when that happens.
+        let message = rawMessage;
+        if (rawMessage.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(rawMessage) as { error?: { message?: unknown } };
+            const inner = parsed.error?.message;
+            if (typeof inner === "string" && inner.length > 0) message = inner;
+          } catch {
+            // fall through
+          }
+        }
+        const label = code ? `[${code}] ` : "";
+        throw new Error(`${label}${message || "Upstream request failed"}`);
+      }
+      throw new Error("Upstream request failed (response.failed)");
+    }
+
     // Handle full "response" event — sent by the portal's chat/completions fallback
     // when it uses non-streaming internally and sends the entire result as one chunk.
     if (typedChunk.type === "response" && typedChunk.response) {
