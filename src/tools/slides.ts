@@ -689,6 +689,12 @@ FONT PRESETS:
 ${fontTable}
 Recommendations: Tech → bold/techno. Business → geometric/clean. Culture → editorial/humanist. Premium → elegant.
 
+SHARED HEADER PATTERN — use on every content slide, not as a standalone template:
+  eyebrow: { kind: "text", x: 6, y: 9, w: 80, h: 3.5, text: "CHAPTER 01 · SOIL", fontSize: 1.4, fontRole: "body", fontWeight: 500, color: "textMuted", fontFamily: "JetBrains Mono", letterSpacing: 0.16, textTransform: "uppercase" }
+  title: { kind: "text", x: 6, y: 14, w: 88, h: 10, text: "Reading your soil", fontSize: 5.2, fontRole: "heading", fontWeight: 400, color: "textPrimary", align: "left", lineHeight: 1.0 }
+  rule: { kind: "shape", shape: "line", x: 6, y: 26, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
+  Content below the header starts at y ≥ 30. Skip this pattern on cover and chapter-break slides only.
+
 LAYOUT TEMPLATES — use these as blueprints when building slides. Vary your layouts across a deck.
 
 COVER (centered):
@@ -704,10 +710,11 @@ COVER (bottom — huge title at bottom, metadata top):
   meta: { kind: "text", x: 6, y: 7, w: 30, h: 4, fontSize: 1.4, fontRole: "heading", fontWeight: 500, color: "textMuted", align: "left", textTransform: "uppercase" }
   title: { kind: "text", x: 6, y: 68, w: 88, h: 26, fontSize: 6.5, fontRole: "heading", fontWeight: 700, color: "textPrimary", align: "left" }
 
-SECTION (accent divider):
-  bar: { kind: "shape", shape: "rect", x: 46, y: 33, w: 8, h: 0.6, fill: "accent" }
-  title: { kind: "text", x: 7.5, y: 37, w: 85, h: 18, fontSize: 4.2, fontRole: "heading", fontWeight: 700, color: "textPrimary", align: "center" }
-  subtitle: { kind: "text", x: 15, y: 58, w: 70, h: 7, fontSize: 1.9, fontRole: "body", fontWeight: 400, color: "textMuted", align: "center" }
+SECTION (dark chapter break — rhythm marker between parts of a multi-part deck):
+  Set slide.background to a dark hex (e.g. "#1F2A22", "#1a1b1e") so this slide reads as a tonal shift from content slides.
+  eyebrow: { kind: "text", x: 6, y: 55, w: 40, h: 3.5, text: "CHAPTER TWO", fontSize: 1.4, fontRole: "body", fontWeight: 500, color: "accent", fontFamily: "JetBrains Mono", letterSpacing: 0.16, textTransform: "uppercase" }
+  title: { kind: "text", x: 6, y: 61, w: 88, h: 26, text: "Timing is\\nhalf the game.", fontSize: 7.5, fontRole: "heading", fontWeight: 400, color: "#EDE6D8", fontStyle: "italic", align: "left", lineHeight: 1.02 }
+  subtitle: { kind: "text", x: 6, y: 89, w: 82, h: 7, fontSize: 1.8, fontRole: "body", fontWeight: 400, color: "#B8BEB3", align: "left", lineHeight: 1.3 }
 
 TEXT (prose):
   heading: { kind: "text", x: 6, y: 10, w: 88, h: 10, fontSize: 3, fontRole: "heading", fontWeight: 600, color: "textPrimary", align: "left" }
@@ -722,11 +729,16 @@ TEXT (two-column — heading left, content right):
   heading: { kind: "text", x: 6, y: 9, w: 33, h: 82, fontSize: 3.3, fontRole: "heading", fontWeight: 700, color: "accent", align: "left", textTransform: "uppercase" }
   body: { kind: "text", x: 43, y: 9, w: 51, h: 82, fontSize: 1.9, fontRole: "body", fontWeight: 400, color: "textSecondary", align: "left", lineHeight: 1.7 }
 
-STATS (3 cards in a row):
-  heading: { kind: "text", x: 5, y: 7, w: 40, h: 8, fontSize: 3.3, fontRole: "heading", fontWeight: 700, color: "accent", align: "left" }
-  For each stat (i=0,1,2): card rect at x=5+31*i, y=20, w=29, h=55, fill="card", cornerRadius=1.7
-    value text inside card: fontSize=4.2, fontWeight=700, color="accent"
-    label text inside card: fontSize=1.7, color="textSecondary"
+STATS (hairline cells — editorial grid, no filled cards):
+  Header: use SHARED HEADER PATTERN above (y 9–26).
+  topRule: { kind: "shape", shape: "line", x: 6, y: 30, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
+  For each cell (i=0,1,2):
+    eyebrow: { kind: "text", x: 7+30*i, y: 34, w: 27, h: 3.5, text: "01 · Revenue", fontSize: 1.3, fontRole: "body", fontWeight: 500, color: "textMuted", fontFamily: "JetBrains Mono", letterSpacing: 0.14, textTransform: "uppercase" }
+    value: { kind: "text", x: 7+30*i, y: 41, w: 27, h: 12, text: "142%", fontSize: 5.5, fontRole: "heading", fontWeight: 400, color: "accent", align: "left", lineHeight: 1.0 }
+    body: { kind: "text", x: 7+30*i, y: 57, w: 27, h: 20, text: "Year-over-year growth, Q4.", fontSize: 1.5, fontRole: "body", fontWeight: 400, color: "textSecondary", lineHeight: 1.4 }
+  Vertical dividers between cells (use narrow rects, not line shapes): for i=1,2 add
+    { kind: "shape", shape: "rect", x: 6+30*i, y: 31, w: 0.1, h: 48, fill: "border" }
+  bottomRule: { kind: "shape", shape: "line", x: 6, y: 80, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
 
 STATS (inline — border-left accent):
   For each stat: vertical accent bar (rect w=0.3, h=11, fill="accent") + value + label stacked
@@ -736,9 +748,16 @@ STATS (large — featured number):
   label: { kind: "text", x: 15, y: 52, w: 70, h: 8, fontSize: 2.1, fontRole: "heading", fontWeight: 400, color: "textMuted", align: "center" }
   body: { kind: "text", x: 15, y: 63, w: 70, h: 12, fontSize: 1.9, fontRole: "body", fontWeight: 400, color: "textMuted", align: "center", lineHeight: 1.5 }
 
-LIST (3-column cards):
-  heading: { kind: "text", x: 6, y: 9, w: 88, h: 8, fontSize: 3, fontRole: "heading", fontWeight: 600, color: "accent", align: "left" }
-  For each card (3 cols): rect bg (fill="card", cornerRadius=1.7) + icon + title + description text
+LIST (hairline entries — editorial field guide, 3 cols × 2 rows):
+  Header: use SHARED HEADER PATTERN above.
+  topRule: { kind: "shape", shape: "line", x: 6, y: 30, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
+  For each entry at grid position (row r ∈ 0..1, col c ∈ 0..2):
+    eyebrow: { kind: "text", x: 7+30*c, y: 33+r*24, w: 27, h: 3.5, text: "SUCKING · SOFT-BODIED", fontSize: 1.3, fontRole: "body", fontWeight: 500, color: "textMuted", fontFamily: "JetBrains Mono", letterSpacing: 0.14, textTransform: "uppercase" }
+    title: { kind: "text", x: 7+30*c, y: 37+r*24, w: 27, h: 7, text: "Aphids", fontSize: 3.8, fontRole: "heading", fontWeight: 400, color: "textPrimary", align: "left", lineHeight: 1.0 }
+    body: { kind: "text", x: 7+30*c, y: 46+r*24, w: 27, h: 9, text: "Clusters on new growth. Sticky residue.", fontSize: 1.5, fontRole: "body", fontWeight: 400, color: "textSecondary", lineHeight: 1.35 }
+  Vertical dividers between columns (c=1,2): { kind: "shape", shape: "rect", x: 6+30*c, y: 31, w: 0.1, h: 48, fill: "border" }
+  Horizontal divider between rows: { kind: "shape", shape: "line", x: 6, y: 56, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
+  bottomRule: { kind: "shape", shape: "line", x: 6, y: 80, w: 88, h: 0, stroke: "border", strokeWidth: 1 }
 
 LIST (minimal — sidebar heading, stacked items with dividers):
   heading: { kind: "text", x: 6, y: 9, w: 29, h: 82, fontSize: 3.3, fontRole: "heading", fontWeight: 700, color: "accent", textTransform: "uppercase" }
@@ -800,49 +819,83 @@ IMAGES — CRITICAL:
 - Most slides should be text-only. If no images available, omit image elements entirely.
 - WORKFLOW WITH IMAGES: First generate all images, collect their URLs, THEN create the deck JSON with those URLs in a single create_file call. Do NOT create the deck before images are ready — the deck renders the moment create_file succeeds.
 
-EXAMPLE DECK:
+CHOOSING A PALETTE — don't default to dark grey + orange for everything. Match tone to topic:
+- Warm editorial (guides, culture, cooking, nature): cream + moss/terracotta. Use fontPreset "editorial" or "humanist".
+- Techno dark (dev tools, infra, product launches): near-black + electric accent. Use fontPreset "techno" or "bold".
+- Clean minimal (business, enterprise, finance): white + one restrained accent. Use fontPreset "clean" or "geometric".
+
+Three short examples — pick the register closest to the topic, don't copy palettes verbatim:
+
+EXAMPLE A — Warm editorial (guide/culture):
 {
   "version": 2,
   "theme": {
-    "fontPreset": "bold",
+    "fontPreset": "editorial",
     "colors": {
-      "background": "#222529", "slideBg": "#1a1b1e", "surfaceSecondary": "#1a1b1e",
-      "textPrimary": "#ffffff", "textSecondary": "#ffffff", "textMuted": "#9a9592",
-      "accent": "#e67519", "card": "#1a1a21", "border": "#434242"
+      "background": "#F3EEE5", "slideBg": "#F3EEE5", "surfaceSecondary": "#EDE6D8",
+      "textPrimary": "#1F2A22", "textSecondary": "#4A5449", "textMuted": "#8A8F84",
+      "accent": "#6B8246", "card": "#EDE6D8", "border": "#CFC8B8"
     }
   },
   "slides": [
-    {
-      "id": "s1",
-      "elements": [
-        { "id": "bar", "kind": "shape", "shape": "rect", "x": 6, "y": 26, "w": 5, "h": 0.6, "fill": "accent", "cornerRadius": 0.2 },
-        { "id": "title", "kind": "text", "text": "Q4 Product Review", "x": 6, "y": 30, "w": 88, "h": 20, "fontSize": 4.5, "fontRole": "heading", "fontWeight": 700, "color": "textPrimary", "align": "left" },
-        { "id": "sub", "kind": "text", "text": "Engineering Team — December 2024", "x": 6, "y": 56, "w": 62, "h": 8, "fontSize": 2.3, "fontRole": "heading", "fontWeight": 500, "color": "textSecondary", "align": "left" }
-      ]
-    },
-    {
-      "id": "s2",
-      "elements": [
-        { "id": "heading", "kind": "text", "text": "KEY METRICS", "x": 5, "y": 7, "w": 40, "h": 8, "fontSize": 3.3, "fontRole": "heading", "fontWeight": 700, "color": "accent", "align": "left" },
-        { "id": "c0", "kind": "shape", "shape": "rect", "x": 5, "y": 20, "w": 29, "h": 55, "fill": "card", "cornerRadius": 1.7 },
-        { "id": "v0", "kind": "text", "text": "142%", "x": 7, "y": 24, "w": 25, "h": 12, "fontSize": 4.2, "fontRole": "heading", "fontWeight": 700, "color": "accent" },
-        { "id": "l0", "kind": "text", "text": "Revenue Growth", "x": 7, "y": 62, "w": 25, "h": 6, "fontSize": 1.7, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
-        { "id": "c1", "kind": "shape", "shape": "rect", "x": 36, "y": 20, "w": 29, "h": 55, "fill": "card", "cornerRadius": 1.7 },
-        { "id": "v1", "kind": "text", "text": "2.4M", "x": 38, "y": 24, "w": 25, "h": 12, "fontSize": 4.2, "fontRole": "heading", "fontWeight": 700, "color": "accent" },
-        { "id": "l1", "kind": "text", "text": "Active Users", "x": 38, "y": 62, "w": 25, "h": 6, "fontSize": 1.7, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
-        { "id": "c2", "kind": "shape", "shape": "rect", "x": 67, "y": 20, "w": 29, "h": 55, "fill": "card", "cornerRadius": 1.7 },
-        { "id": "v2", "kind": "text", "text": "99.9%", "x": 69, "y": 24, "w": 25, "h": 12, "fontSize": 4.2, "fontRole": "heading", "fontWeight": 700, "color": "accent" },
-        { "id": "l2", "kind": "text", "text": "Uptime", "x": 69, "y": 62, "w": 25, "h": 6, "fontSize": 1.7, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" }
-      ]
-    },
-    {
-      "id": "s3",
-      "elements": [
-        { "id": "num", "kind": "text", "text": "50M+", "x": 7.5, "y": 28, "w": 85, "h": 22, "fontSize": 7.5, "fontRole": "heading", "fontWeight": 700, "color": "accent", "align": "center" },
-        { "id": "lbl", "kind": "text", "text": "API calls processed daily", "x": 15, "y": 52, "w": 70, "h": 8, "fontSize": 2.1, "fontRole": "heading", "fontWeight": 400, "color": "textMuted", "align": "center" },
-        { "id": "body", "kind": "text", "text": "A 3x increase from last quarter.", "x": 15, "y": 63, "w": 70, "h": 10, "fontSize": 1.9, "fontRole": "body", "fontWeight": 400, "color": "textMuted", "align": "center", "lineHeight": 1.5 }
-      ]
+    { "id": "cover", "elements": [
+      { "id": "eyebrow", "kind": "text", "text": "HOME GARDENING · FUNDAMENTALS", "x": 6, "y": 30, "w": 60, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "accent", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
+      { "id": "title", "kind": "text", "text": "The Growing Year.", "x": 6, "y": 36, "w": 88, "h": 30, "fontSize": 9.5, "fontRole": "heading", "fontWeight": 400, "color": "textPrimary", "fontStyle": "italic", "align": "left", "lineHeight": 0.95 },
+      { "id": "sub", "kind": "text", "text": "Soil, seasons, pests, and starter plants.", "x": 6, "y": 70, "w": 60, "h": 6, "fontSize": 2.2, "fontRole": "body", "fontWeight": 400, "color": "textSecondary", "align": "left" }
+    ]}
+  ]
+}
+
+EXAMPLE B — Techno dark (tech/product):
+{
+  "version": 2,
+  "theme": {
+    "fontPreset": "techno",
+    "colors": {
+      "background": "#0a0b0e", "slideBg": "#0a0b0e", "surfaceSecondary": "#12151a",
+      "textPrimary": "#e8eaed", "textSecondary": "#c4c7cc", "textMuted": "#7c828b",
+      "accent": "#6ee7b7", "card": "#12151a", "border": "#2a2e36"
     }
+  },
+  "slides": [
+    { "id": "focus", "elements": [
+      { "id": "eyebrow", "kind": "text", "text": "Q4 · THROUGHPUT", "x": 6, "y": 9, "w": 40, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "letterSpacing": 0.16, "textTransform": "uppercase" },
+      { "id": "num", "kind": "text", "text": "50M+", "x": 6, "y": 30, "w": 88, "h": 30, "fontSize": 12, "fontRole": "heading", "fontWeight": 700, "color": "accent", "align": "left", "lineHeight": 1.0 },
+      { "id": "lbl", "kind": "text", "text": "API calls processed daily — 3x last quarter.", "x": 6, "y": 64, "w": 70, "h": 6, "fontSize": 2, "fontRole": "body", "fontWeight": 400, "color": "textSecondary", "align": "left" }
+    ]}
+  ]
+}
+
+EXAMPLE C — Clean minimal (business):
+{
+  "version": 2,
+  "theme": {
+    "fontPreset": "clean",
+    "colors": {
+      "background": "#ffffff", "slideBg": "#ffffff", "surfaceSecondary": "#f8fafc",
+      "textPrimary": "#0f172a", "textSecondary": "#475569", "textMuted": "#94a3b8",
+      "accent": "#2563eb", "card": "#f8fafc", "border": "#e2e8f0"
+    }
+  },
+  "slides": [
+    { "id": "stats", "elements": [
+      { "id": "eyebrow", "kind": "text", "text": "Q4 2024 · BUSINESS REVIEW", "x": 6, "y": 9, "w": 80, "h": 3.5, "fontSize": 1.4, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.16, "textTransform": "uppercase" },
+      { "id": "title", "kind": "text", "text": "Key metrics", "x": 6, "y": 14, "w": 88, "h": 10, "fontSize": 5.2, "fontRole": "heading", "fontWeight": 600, "color": "textPrimary", "align": "left", "lineHeight": 1.0 },
+      { "id": "rule", "kind": "shape", "shape": "line", "x": 6, "y": 26, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
+      { "id": "top", "kind": "shape", "shape": "line", "x": 6, "y": 30, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 },
+      { "id": "d1", "kind": "shape", "shape": "rect", "x": 36, "y": 31, "w": 0.1, "h": 48, "fill": "border" },
+      { "id": "d2", "kind": "shape", "shape": "rect", "x": 66, "y": 31, "w": 0.1, "h": 48, "fill": "border" },
+      { "id": "e0", "kind": "text", "text": "01 · REVENUE", "x": 7, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "v0", "kind": "text", "text": "142%", "x": 7, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
+      { "id": "b0", "kind": "text", "text": "Year-over-year growth.", "x": 7, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
+      { "id": "e1", "kind": "text", "text": "02 · USERS", "x": 37, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "v1", "kind": "text", "text": "2.4M", "x": 37, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
+      { "id": "b1", "kind": "text", "text": "Monthly active.", "x": 37, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
+      { "id": "e2", "kind": "text", "text": "03 · UPTIME", "x": 67, "y": 34, "w": 27, "h": 3.5, "fontSize": 1.3, "fontRole": "body", "fontWeight": 500, "color": "textMuted", "fontFamily": "JetBrains Mono", "letterSpacing": 0.14, "textTransform": "uppercase" },
+      { "id": "v2", "kind": "text", "text": "99.9%", "x": 67, "y": 41, "w": 27, "h": 12, "fontSize": 5.5, "fontRole": "heading", "fontWeight": 600, "color": "accent", "lineHeight": 1.0 },
+      { "id": "b2", "kind": "text", "text": "Rolling 30-day.", "x": 67, "y": 57, "w": 27, "h": 6, "fontSize": 1.5, "fontRole": "body", "fontWeight": 400, "color": "textSecondary" },
+      { "id": "bot", "kind": "shape", "shape": "line", "x": 6, "y": 80, "w": 88, "h": 0, "stroke": "border", "strokeWidth": 1 }
+    ]}
   ]
 }`;
 }
