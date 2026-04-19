@@ -227,6 +227,27 @@ export type StreamingTransportResult = {
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
 /**
+ * Wraps `globalThis.fetch` so that non-OK HTTP responses reject with an error
+ * that includes the response body. Without this, a 500 from the portal
+ * surfaces as "SSE failed: 500 Internal Server Error" with no detail — the
+ * trace_id, request_id, and error type in the body are discarded. We read the
+ * body defensively (at most 500 chars) so the original error path behaves the
+ * same for successful responses.
+ */
+const errorCapturingFetch: typeof fetch = async (input, init) => {
+  const response = await globalThis.fetch(input, init);
+  if (response.ok) return response;
+  let body = "";
+  try {
+    body = (await response.text()).slice(0, 500);
+  } catch {
+    // Ignore — some environments disallow reading the body on a failed response.
+  }
+  const detail = body ? `: ${body}` : "";
+  throw new Error(`SSE failed: ${response.status} ${response.statusText}${detail}`);
+};
+
+/**
  * Default fetch-based streaming transport for the Portal API.
  */
 const defaultTransport: StreamingTransport = (options) => {
@@ -243,6 +264,7 @@ const defaultTransport: StreamingTransport = (options) => {
     signal: options.signal,
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
+    fetch: errorCapturingFetch,
   });
 };
 
