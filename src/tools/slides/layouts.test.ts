@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { SlideElement } from "./index";
 import {
+  getLayoutByName,
   LAYOUT_TEMPLATES,
+  renderLayoutCatalog,
+  renderLayoutRecipes,
   renderLayoutTemplates,
   renderSharedHeader,
   SHARED_HEADER_ELEMENTS,
@@ -86,6 +89,67 @@ describe("renderSharedHeader", () => {
 
   it("includes the content-band note", () => {
     expect(renderSharedHeader()).toContain("Content below the header starts at y ≥ 30");
+  });
+});
+
+describe("getLayoutByName", () => {
+  it("returns the template for every catalog name", () => {
+    for (const t of LAYOUT_TEMPLATES) {
+      expect(getLayoutByName(t.name), t.name).toBe(t);
+    }
+  });
+
+  it("returns null for unknown names", () => {
+    expect(getLayoutByName("DOES NOT EXIST")).toBeNull();
+  });
+});
+
+describe("renderLayoutCatalog", () => {
+  it("emits one bullet line per template", () => {
+    const prose = renderLayoutCatalog();
+    const lines = prose.split("\n").filter((l) => l.startsWith("- "));
+    expect(lines.length).toBe(LAYOUT_TEMPLATES.length);
+  });
+
+  it("includes every layout name exactly once", () => {
+    const prose = renderLayoutCatalog();
+    for (const t of LAYOUT_TEMPLATES) {
+      const occurrences = prose.split(t.name).length - 1;
+      expect(occurrences, t.name).toBe(1);
+    }
+  });
+});
+
+describe("renderLayoutRecipes", () => {
+  it("emits recipes only for the names passed", () => {
+    const names = [
+      LAYOUT_TEMPLATES[0]!.name,
+      LAYOUT_TEMPLATES[LAYOUT_TEMPLATES.length - 1]!.name,
+    ];
+    const prose = renderLayoutRecipes(names);
+    for (const t of LAYOUT_TEMPLATES) {
+      const occurrences = prose.split(`${t.name}:`).length - 1;
+      expect(occurrences, t.name).toBe(names.includes(t.name) ? 1 : 0);
+    }
+  });
+
+  it("dedupes when the same name is passed twice", () => {
+    const name = LAYOUT_TEMPLATES[0]!.name;
+    const prose = renderLayoutRecipes([name, name, name]);
+    const occurrences = prose.split(`${name}:`).length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it("silently skips unknown names", () => {
+    const known = LAYOUT_TEMPLATES[0]!.name;
+    const prose = renderLayoutRecipes([known, "DOES NOT EXIST", known]);
+    expect(prose.split(`${known}:`).length - 1).toBe(1);
+    expect(prose).not.toContain("DOES NOT EXIST");
+  });
+
+  it("returns empty string when no names are known", () => {
+    expect(renderLayoutRecipes([])).toBe("");
+    expect(renderLayoutRecipes(["NOT REAL"])).toBe("");
   });
 });
 

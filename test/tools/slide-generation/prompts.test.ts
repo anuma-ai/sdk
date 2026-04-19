@@ -25,6 +25,7 @@ import {
   dumpFiles,
   getDeck,
   printResult,
+  printRunSummary,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
@@ -82,6 +83,7 @@ describe.each(MODELS)("slide-generation prompts [%s]", (model) => {
     });
 
     printResult(result);
+    printRunSummary(result.rounds, result.elapsedMs);
     dumpFiles(store, `prompt-home-gardening/${slug}`);
     expect(result.error).toBeNull();
 

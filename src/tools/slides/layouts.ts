@@ -1757,14 +1757,53 @@ function renderElementLine(el: SlideElement): string {
 
 /** Render the full `LAYOUT_TEMPLATES` array to the prose block the prompt embeds. */
 export function renderLayoutTemplates(): string {
-  return LAYOUT_TEMPLATES.map((template) => {
-    const lines: string[] = [`${template.name}:`];
-    if (template.notes) {
-      for (const note of template.notes) lines.push(`  ${note}`);
-    }
-    for (const el of template.elements) {
-      lines.push(renderElementLine(el));
-    }
-    return lines.join("\n");
-  }).join("\n\n");
+  return renderLayoutRecipesImpl(LAYOUT_TEMPLATES);
+}
+
+/**
+ * Render only layout names as a bullet list — used by the planning-step
+ * system prompt where the LLM picks layouts without seeing element recipes.
+ */
+export function renderLayoutCatalog(): string {
+  return LAYOUT_TEMPLATES.map((t) => `- ${t.name}`).join("\n");
+}
+
+/** Look up a layout template by its exact `name`. Returns null if missing. */
+export function getLayoutByName(name: string): LayoutTemplate | null {
+  return LAYOUT_TEMPLATES.find((t) => t.name === name) ?? null;
+}
+
+/**
+ * Render full element recipes for ONLY the named layouts — used by the
+ * planning-step tool result to inject just the templates the LLM actually
+ * picked, instead of the full catalog.
+ *
+ * Unknown names are silently skipped; callers that care should validate
+ * first via `getLayoutByName`.
+ */
+export function renderLayoutRecipes(names: string[]): string {
+  const seen = new Set<string>();
+  const templates: LayoutTemplate[] = [];
+  for (const name of names) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const t = getLayoutByName(name);
+    if (t) templates.push(t);
+  }
+  return renderLayoutRecipesImpl(templates);
+}
+
+function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
+  return templates
+    .map((template) => {
+      const lines: string[] = [`${template.name}:`];
+      if (template.notes) {
+        for (const note of template.notes) lines.push(`  ${note}`);
+      }
+      for (const el of template.elements) {
+        lines.push(renderElementLine(el));
+      }
+      return lines.join("\n");
+    })
+    .join("\n\n");
 }

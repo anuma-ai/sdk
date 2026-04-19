@@ -160,3 +160,25 @@ export function renderPalettes(): string {
     return `${p.name} — ${p.useFor}\n  fontPreset: ${p.fontPreset}\n  ${colorLine}`;
   }).join("\n\n");
 }
+
+/**
+ * Render only the palette `name — use-for (fontPreset)` header lines.
+ * Used by the slim planning-step system prompt where the LLM picks a
+ * register by name and the hex values are injected later in the
+ * plan_slides tool result.
+ */
+export function renderPaletteNames(): string {
+  return PALETTES.map((p) => `- ${p.name} — ${p.useFor} (fontPreset: ${p.fontPreset})`).join("\n");
+}
+
+/** Look up a palette by its exact `name`. Returns null if missing. */
+export function getPaletteByName(name: string): Palette | null {
+  return PALETTES.find((p) => p.name === name) ?? null;
+}
+
+/** Render just one palette's hex values as key:value lines for plan_slides result. */
+export function renderPaletteColors(p: Palette): string {
+  return Object.entries(p.colors)
+    .map(([k, v]) => `  ${k}: ${v}`)
+    .join("\n");
+}

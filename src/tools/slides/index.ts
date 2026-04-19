@@ -39,8 +39,13 @@
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderElementKinds } from "./elementKinds";
-import { renderLayoutTemplates, renderSharedHeader } from "./layouts";
-import { renderPalettes } from "./palettes";
+import {
+  getLayoutByName,
+  renderLayoutCatalog,
+  renderLayoutRecipes,
+  renderSharedHeader,
+} from "./layouts";
+import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
 
 // ---------------------------------------------------------------------------
 // Canvas reference dimensions (16:9)
@@ -357,6 +362,94 @@ Operations:
   },
 } as const;
 
+export const PLAN_SLIDES_SCHEMA = {
+  name: "plan_slides",
+  description: `Plan a new slide deck before you generate it. Call this FIRST — once — when creating a new deck. You pick:
+  - fontPreset: one of the font-preset keys
+  - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
+  - slides: an array of { id, layout, topic } — layout must be an exact name from the LAYOUT CATALOG
+
+The result contains the element recipes for every layout you picked, plus the shared header pattern, element-type schemas, coordinate-system notes, and the full palette hex values. You then call create_slides once with the concrete deck JSON, using those recipes as blueprints.
+
+For editing an existing deck (read_slides + patch_slides flow), do NOT call plan_slides.`,
+  arguments: {
+    type: "object",
+    properties: {
+      fontPreset: {
+        type: "string",
+        description: "Font preset key (default, editorial, geometric, humanist, bold, elegant, clean, techno)",
+      },
+      paletteName: {
+        type: "string",
+        description:
+          "Palette register name from the CHOOSING A PALETTE table. Copy exactly (e.g. 'warm editorial').",
+      },
+      slides: {
+        type: "array",
+        description: "One entry per slide, in order.",
+        items: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description: "Short snake-case slide id (e.g. 'cover', 'soil_intro')",
+            },
+            layout: {
+              type: "string",
+              description: "Exact layout name from LAYOUT CATALOG (e.g. 'COVER (bottom — huge title at bottom, metadata top)')",
+            },
+            topic: {
+              type: "string",
+              description: "One-line summary of what this slide will cover",
+            },
+          },
+          required: ["id", "layout", "topic"],
+        },
+      },
+    },
+    required: ["fontPreset", "paletteName", "slides"],
+  },
+} as const;
+
+export const CREATE_SLIDES_SCHEMA = {
+  name: "create_slides",
+  description: `Create a new slide deck from a complete SlideDeck JSON object. Call this AFTER plan_slides — the plan_slides result contains the layout recipes you should follow. The deck renders automatically as soon as create_slides succeeds.
+
+Deck shape: { version: 2, theme: { fontPreset, colors: { background, slideBg, surfaceSecondary, textPrimary, textSecondary, textMuted, accent, card, border } }, slides: Slide[] }
+Slide shape: { id, background?, elements: SlideElement[] }
+
+Use the element recipes from the plan_slides result as geometry blueprints and substitute your own real text.`,
+  arguments: {
+    type: "object",
+    properties: {
+      deck: {
+        type: "object",
+        description: "Full SlideDeck JSON",
+        properties: {
+          version: { type: "number", description: "Always 2" },
+          theme: {
+            type: "object",
+            properties: {},
+            additionalProperties: true,
+            description: "SlideTheme with fontPreset + colors",
+          },
+          slides: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {},
+              additionalProperties: true,
+            },
+            description: "Array of Slide objects",
+          },
+        },
+        required: ["version", "theme", "slides"],
+      },
+    },
+    required: ["deck"],
+  },
+} as const;
+
 export const DISPLAY_SLIDES_SCHEMA = {
   name: "display_slides",
   description:
@@ -460,11 +553,15 @@ function safeMerge(target: Record<string, unknown>, patch: Record<string, unknow
 }
 
 /**
- * Create the slide deck tool suite (`read_slides`, `patch_slides`, and
- * optionally `display_slides`) backed by the provided storage adapter.
+ * Create the slide deck tool suite: `plan_slides`, `create_slides`,
+ * `read_slides`, `patch_slides`, and optionally `display_slides`.
  *
- * The tools expect a sibling file-creation tool (from
- * {@link createAppGenerationTools}) to produce the initial `slides.json`.
+ * New decks flow: plan_slides → create_slides.
+ * Existing deck edits: read_slides → patch_slides.
+ *
+ * Backed by the provided storage adapter. No dependency on the
+ * app-generation `create_file` tool — `create_slides` writes slides.json
+ * directly.
  */
 export function createSlideTools({
   getConversationId,
@@ -477,6 +574,131 @@ export function createSlideTools({
     if (!id) throw new Error("No active conversation");
     return id;
   }
+
+  const planSlidesTool: ToolConfig = {
+    type: "function",
+    function: PLAN_SLIDES_SCHEMA,
+    executor: async (args: Record<string, unknown>) => {
+      try {
+        const fontPreset = typeof args.fontPreset === "string" ? args.fontPreset : "";
+        const paletteName = typeof args.paletteName === "string" ? args.paletteName : "";
+        const slides = Array.isArray(args.slides)
+          ? (args.slides as Array<{ id?: unknown; layout?: unknown; topic?: unknown }>)
+          : [];
+
+        if (!fontPreset || !FONT_PRESETS[fontPreset]) {
+          return {
+            error: `Unknown fontPreset '${fontPreset}'. Valid: ${Object.keys(FONT_PRESETS).join(", ")}`,
+          };
+        }
+
+        const palette = getPaletteByName(paletteName);
+        if (!palette) {
+          return {
+            error: `Unknown paletteName '${paletteName}'. Use an exact name from the CHOOSING A PALETTE table.`,
+          };
+        }
+
+        if (slides.length === 0) {
+          return { error: "slides array is required and must not be empty" };
+        }
+
+        const unknownLayouts: string[] = [];
+        const chosenLayouts: string[] = [];
+        for (const s of slides) {
+          const layout = typeof s.layout === "string" ? s.layout : "";
+          if (!layout) {
+            unknownLayouts.push("(missing)");
+            continue;
+          }
+          if (!getLayoutByName(layout)) {
+            unknownLayouts.push(layout);
+            continue;
+          }
+          chosenLayouts.push(layout);
+        }
+        if (unknownLayouts.length > 0) {
+          return {
+            error: `Unknown layout name(s): ${unknownLayouts.join(" | ")}. Copy an exact name from the LAYOUT CATALOG.`,
+          };
+        }
+
+        const recipes = renderLayoutRecipes(chosenLayouts);
+        const planSummary = slides
+          .map((s, i) => `${i + 1}. ${String(s.id)} — ${String(s.layout)}`)
+          .join("\n");
+
+        const content = `Plan accepted.
+
+Theme: ${palette.name} (fontPreset: ${palette.fontPreset})
+Palette colors (copy verbatim into theme.colors):
+${renderPaletteColors(palette)}
+
+Slide plan (${slides.length}):
+${planSummary}
+
+COORDINATE SYSTEM — positions are percentages (0–100) of a 16:9 canvas (960×540 reference).
+- x=0 left, x=100 right, y=0 top, y=100 bottom
+- Standard padding: x≈6, y≈9. Content area: x=6–94, y=9–91
+- fontSize is percentage of canvas width: 4.5 ≈ 43px heading, 1.9 ≈ 18px body
+
+ELEMENT TYPES:
+${renderElementKinds()}
+
+SHARED HEADER PATTERN — place on every content slide (skip on cover and chapter-break):
+${renderSharedHeader()}
+
+LAYOUT RECIPES (only the ones you picked — copy geometries, substitute your text):
+
+${recipes}
+
+NOW call create_slides ONCE with the full SlideDeck. Use version: 2, set theme.fontPreset to "${palette.fontPreset}", copy the palette colors above verbatim into theme.colors, and build one slide per plan entry using the recipes as blueprints.`;
+
+        return { content };
+      } catch (err) {
+        logError("plan_slides failed", err instanceof Error ? err : undefined);
+        return {
+          error: `Failed to plan slides: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  };
+
+  const createSlidesTool: ToolConfig = {
+    type: "function",
+    function: CREATE_SLIDES_SCHEMA,
+    executor: async (args: Record<string, unknown>) => {
+      try {
+        const conversationId = requireConversationId();
+        const deck = args.deck as SlideDeck | undefined;
+        if (!deck || typeof deck !== "object") {
+          return { error: "deck is required and must be a SlideDeck object" };
+        }
+        if (!Array.isArray(deck.slides) || deck.slides.length === 0) {
+          return { error: "deck.slides must be a non-empty array" };
+        }
+        if (!deck.theme || typeof deck.theme !== "object") {
+          return { error: "deck.theme is required" };
+        }
+        const normalized: SlideDeck = {
+          version: 2,
+          theme: deck.theme,
+          slides: deck.slides,
+        };
+        await storage.putFile(conversationId, "slides.json", JSON.stringify(normalized));
+        return {
+          success: true,
+          slides: normalized.slides.length,
+          message: `Wrote slides.json with ${normalized.slides.length} slides.`,
+        };
+      } catch (err) {
+        logError("create_slides failed", err instanceof Error ? err : undefined);
+        return {
+          error: `Failed to create slides: ${err instanceof Error ? err.message : String(err)}`,
+        };
+      }
+    },
+  };
 
   const readSlidesTool: ToolConfig = {
     type: "function",
@@ -624,14 +846,19 @@ export function createSlideTools({
     },
   };
 
-  const tools: ToolConfig[] = [readSlidesTool, patchSlidesTool];
+  const tools: ToolConfig[] = [
+    planSlidesTool,
+    createSlidesTool,
+    readSlidesTool,
+    patchSlidesTool,
+  ];
 
   if (displaySlides) {
     tools.push({
       type: "function",
       function: DISPLAY_SLIDES_SCHEMA,
       executor: displaySlides,
-      dependsOn: ["create_file", "patch_file", "patch_slides"],
+      dependsOn: ["create_slides", "patch_slides"],
     });
   }
 
@@ -643,95 +870,64 @@ export function createSlideTools({
 // ---------------------------------------------------------------------------
 
 /**
- * Build the slide mode system prompt.
+ * Build the slide mode system prompt — slim planning-step version.
  *
- * Instructs the LLM to generate a JSON slide deck with percentage-based
- * positioned elements using `create_file` + `patch_slides`. The deck is
- * rendered by the host app as soon as `slides.json` is written.
+ * Instructs the LLM to use the two-step flow: plan_slides first (picks
+ * palette + fontPreset + layout-per-slide), then create_slides with the
+ * full deck. Layout element recipes, element-type schemas, shared-header
+ * pattern, coordinate-system detail, and palette hex values are NOT in
+ * this prompt — they come back in the plan_slides tool result so the
+ * generation turn only sees the handful of layouts actually picked.
  */
 export function buildSlideSystemPrompt(): string {
   const fontTable = Object.entries(FONT_PRESETS)
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)
     .join("\n");
 
-  // Layouts are typed SlideElement[] values in ./layouts.ts. `renderLayoutTemplates`
-  // walks the catalog and emits the prose block the LLM reads, with each
-  // layout name followed by its notes (if any) and element recipes.
-  const layoutTemplates = renderLayoutTemplates();
+  return `You are a presentation design assistant. You produce polished slide decks as JSON with positioned elements.
 
-  // Palettes live in ./palettes.ts as typed `Palette[]` (register + fontPreset
-  // + colors). `renderPalettes` emits a compact table the LLM reads when
-  // picking a register to match the topic.
-  const palettes = renderPalettes();
+WORKFLOW (two steps for a new deck):
+1. PLAN — call plan_slides ONCE with { fontPreset, paletteName, slides: [{ id, layout, topic }] }. Pick a layout from the LAYOUT CATALOG for each slide; pick a palette from CHOOSING A PALETTE.
+2. GENERATE — the plan_slides result contains the element recipes for every layout you picked, the shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values. Call create_slides ONCE with the full SlideDeck, using those recipes as blueprints and substituting real text.
 
-  return `You are a presentation design assistant. You produce polished slide decks as JSON files with positioned elements.
+For edits to an existing deck: read_slides → patch_slides (no plan_slides needed).
 
-WORKFLOW:
-1. NEVER output code as text or markdown. ALWAYS use tools.
-2. To create a new deck: use create_file to write "slides.json" with a valid SlideDeck JSON object. The deck appears automatically as soon as create_file succeeds — there is no separate render tool to call.
-3. For ALL changes to an existing deck:
-   - First call read_slides to see the current elements and their positions.
-   - Then use patch_slides with targeted operations (update_element, add_element, remove_element, update_slide, add_slide, delete_slide, update_theme). The deck re-renders automatically — no separate render tool to call.
-4. Only use create_file to fully rewrite slides.json when the majority of the content is changing.
-5. Keep text responses to one or two sentences.
+Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-COORDINATE SYSTEM — all positions use percentages (0–100):
-- Canvas is 16:9 (960×540 reference). x=0 is left edge, x=100 is right edge. y=0 is top, y=100 is bottom.
-- Standard padding: x≈6, y≈9
-- Content area: x=6 to x=94, y=9 to y=91
-- Center of slide: x=50, y=50
-- Full-width element: x=0, w=100 (edge-to-edge) or x=6, w=88 (with padding)
-- fontSize is percentage of canvas width: 4.5 ≈ 43px heading, 1.9 ≈ 18px body, 2.5 ≈ 24px sub
+LAYOUT CATALOG — pick one of these names per slide (the exact string, including parens):
 
-ELEMENT TYPES:
-${renderElementKinds()}
+${renderLayoutCatalog()}
 
-SLIDE STRUCTURE:
-Each slide: { id, elements, background? }
-- background: optional color token or hex. Defaults to theme slideBg.
-- To change background: patch_slides with { action: "update_slide", slideId, set: { background: "#hex" } }
+LAYOUT PICKER — match content shape to a template, don't default to grids:
+- Sequence through time (seasons, phases, steps, months) → TIMELINE variants (horizontal axis / numbered vertical / table rows).
+- Rows with the same schema (plant × zone × note; year × event × note) → TABLE or TIMELINE (table rows).
+- Single memorable number or statement → FOCUS (metric) or STATS (large).
+- Mega-number paired with what-it-unlocks → FOCUS (mega number + supporting list).
+- Two-panel contrast (classical vs quantum, before vs after) → COMPARE (two panels linked by mid-axis).
+- 3-part outline / steps 01/02/03 / feature rundown → AGENDA (bordered cards).
+- Closing summary with "take three things with you" → TAKEAWAYS (oversized numbered sentences).
+- Running prose explanation → TEXT (prose) or TEXT (two-column).
+- Short list ≤ 6 items with short descriptions → TEXT (bullets) — reach for this before cells.
+- Memorable quote / proverb → QUOTE (offset) or QUOTE (large, centered).
+- 3–6 categorical cards with no natural order → STATS (hairline cells) or LIST (hairline entries) — last resort, not the default.
+- Image-forward visual → HERO (split) or HERO (overlay).
 
-COLOR TOKENS: textPrimary, textSecondary, textMuted, accent, card, border, background, slideBg
-ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
+LAYOUT VARIETY IS MANDATORY. Do not reuse the same content-slide layout more than twice in a deck. If you have 4 content slides pick 4 different layouts.
 
 FONT PRESETS:
 ${fontTable}
-Recommendations: Tech → bold/techno. Business → geometric/clean. Culture → editorial/humanist. Premium → elegant.
+Tech → bold/techno. Business → geometric/clean. Culture → editorial/humanist. Premium → elegant.
 
-SHARED HEADER PATTERN — use on every content slide, not as a standalone template:
-${renderSharedHeader()}
+CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register that matches the topic; plan_slides will inject its hex values for you. Don't invent new palettes unless the topic really demands it.
 
-LAYOUT TEMPLATES — use these as blueprints when building slides. Vary your layouts across a deck.
+${renderPaletteNames()}
 
-${layoutTemplates}
+IMAGES:
+- Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).
+- Most decks should be text-only. If no images are available, omit image elements entirely.
+- With images: generate them FIRST, then call plan_slides and create_slides — the deck renders the moment create_slides succeeds.
 
-DESIGN RULES:
-- Each slide and element MUST have a unique id.
-- LAYOUT VARIETY IS MANDATORY. Do not reuse the same content-slide template more than twice in a deck. If your deck has 4 content slides, pick 4 different templates. A deck where every content slide is hairline cells looks monotonous — force yourself to reach for other patterns.
+ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
 
-LAYOUT PICKER — match content shape to template, don't default to grids:
-- Sequence through time (seasons, phases, steps, months, timelines) → TIMELINE (horizontal axis) or TIMELINE (numbered vertical). NOT cells.
-- Rows of the same schema (plant × zone × note; pest × sign × fix) → TABLE with serif name column + mono tag column + body column.
-- Single memorable number or statement → FOCUS (large featured number) or STATS (large).
-- Running prose explanation → TEXT (prose) or TEXT (two-column).
-- Short list of ≤ 6 items with short descriptions → TEXT (bullets) — reach for this before cells.
-- Memorable quote, proverb, or one-liner → QUOTE (offset).
-- 3–6 categorical cards where each card has title + body and no natural order → STATS (hairline cells) or LIST (hairline entries). This is the LAST resort, not the default.
-- Image-forward visual → HERO (split or overlay).
-
-- Keep text concise. Slides are visual — avoid paragraphs.
-- When using icons, place them as small elements (w≈3, h≈5, fontSize≈2.5) near related text.
-- For per-slide background: set "background" field on the slide object.
-
-IMAGES — CRITICAL:
-- Do NOT use web search, search_images, or arbitrary URLs.
-- ONLY ways to get images:
-  1. User-attached: "attached:0", "attached:1", etc. Resolved to data URLs automatically.
-  2. AnumaImageMCP-generate_cloud_image: generate 1-2 max, use returned URLs.
-- Most slides should be text-only. If no images available, omit image elements entirely.
-- WORKFLOW WITH IMAGES: First generate all images, collect their URLs, THEN create the deck JSON with those URLs in a single create_file call. Do NOT create the deck before images are ready — the deck renders the moment create_file succeeds.
-
-CHOOSING A PALETTE — don't default to dark grey + orange for every deck. Pick a register below to match the topic, then copy its fontPreset and colors verbatim into theme. Don't invent new palettes unless the topic really demands it; picking from this list is the expected path.
-
-${palettes}`;
+COLOR TOKENS: textPrimary, textSecondary, textMuted, accent, card, border, background, slideBg`;
 }

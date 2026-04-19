@@ -1,37 +1,24 @@
 /**
  * Slide deck tools backed by an in-memory file store for testing.
  *
- * Combines createAppGenerationTools (for the initial create_file write of
- * slides.json) with createSlideTools (read_slides, patch_slides,
- * display_slides) using a Map-based storage adapter so tests run without
- * any external dependencies.
+ * Uses only createSlideTools — the two-step plan_slides → create_slides
+ * flow writes slides.json directly via the storage adapter, so no
+ * createAppGenerationTools (create_file) dependency is needed.
  */
 
-import {
-  createAppGenerationTools,
-  normalizePath,
-  type AppFileStorage,
-} from "../../../src/tools/appGeneration.js";
+import { normalizePath, type AppFileStorage } from "../../../src/tools/appGeneration.js";
 import { createSlideTools } from "../../../src/tools/slides/index.js";
 import type { FileStore } from "./setup.js";
 
-/** Create an AppFileStorage adapter backed by an in-memory Map. */
-function createMapStorage(store: FileStore): AppFileStorage {
+/** Minimal AppFileStorage adapter backed by an in-memory Map (getFile + putFile only). */
+function createMapStorage(store: FileStore): Pick<AppFileStorage, "getFile" | "putFile"> {
   return {
     getFile: async (_cid: string, p: string) => {
       const content = store.get(normalizePath(p));
       return content !== undefined ? { path: normalizePath(p), content } : null;
     },
-    getFiles: async (_cid: string) =>
-      Array.from(store.entries()).map(([path, content]) => ({ path, content })),
     putFile: async (_cid: string, p: string, content: string) => {
       store.set(normalizePath(p), content);
-    },
-    putFiles: async (_cid: string, files: Array<{ path: string; content: string }>) => {
-      for (const f of files) store.set(normalizePath(f.path), f.content);
-    },
-    deleteFile: async (_cid: string, p: string) => {
-      store.delete(normalizePath(p));
     },
   };
 }
@@ -39,27 +26,14 @@ function createMapStorage(store: FileStore): AppFileStorage {
 const TEST_CONVERSATION_ID = "test-conversation";
 
 /**
- * Returns the full slide tool suite:
- *   - create_file, patch_file, read_file, list_files, delete_file, display_app
- *     (from createAppGenerationTools — only create_file/patch_file are used)
- *   - read_slides, patch_slides, display_slides (from createSlideTools)
- *
- * All tools share the same in-memory store.
+ * Returns the slide tool suite: plan_slides, create_slides, read_slides,
+ * patch_slides, display_slides — all sharing the same in-memory store.
  */
 export function createTestSlideTools(store: FileStore) {
   const storage = createMapStorage(store);
   const getConversationId = () => TEST_CONVERSATION_ID;
 
-  const appTools = createAppGenerationTools({
-    getConversationId,
-    storage,
-    displayApp: async (args: Record<string, unknown>) => ({
-      title: args.title ?? "App",
-      interaction_id: `app_test_${Date.now()}`,
-    }),
-  });
-
-  const slideTools = createSlideTools({
+  return createSlideTools({
     getConversationId,
     storage,
     displaySlides: async (args: Record<string, unknown>) => ({
@@ -68,6 +42,4 @@ export function createTestSlideTools(store: FileStore) {
       displayType: "slides",
     }),
   });
-
-  return [...appTools, ...slideTools];
 }

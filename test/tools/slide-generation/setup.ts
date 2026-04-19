@@ -16,21 +16,71 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
+import type { StepFinishEvent } from "../../../src/lib/chat/toolLoop.js";
 import type { SlideDeck } from "../../../src/tools/slides/index.js";
 import { renderDeckToHtml } from "./renderHtml.js";
 
 export { config, extractText, printResult, wrapTool, type ToolCallLog } from "../setup.js";
 export { runToolLoop };
+export type { StepFinishEvent };
 
-/** Wrapper that times the tool loop and logs the duration. */
+/**
+ * Wrapper that times the tool loop, captures per-round info via
+ * `onStepFinish`, and logs the total duration. Returns the raw tool-loop
+ * result plus `elapsedMs` and the ordered `rounds` array.
+ *
+ * If the caller also passes `onStepFinish`, it's invoked after the
+ * captured event is recorded.
+ */
 export async function timedToolLoop(
-  ...args: Parameters<typeof runToolLoop>
-): Promise<Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number }> {
+  options: Parameters<typeof runToolLoop>[0]
+): Promise<
+  Awaited<ReturnType<typeof runToolLoop>> & { elapsedMs: number; rounds: StepFinishEvent[] }
+> {
+  const rounds: StepFinishEvent[] = [];
+  const userOnStepFinish = options.onStepFinish;
   const start = performance.now();
-  const result = await runToolLoop(...args);
+  const result = await runToolLoop({
+    ...options,
+    onStepFinish: (event) => {
+      rounds.push(event);
+      userOnStepFinish?.(event);
+    },
+  });
   const elapsedMs = Math.round(performance.now() - start);
   console.log(`  Tool loop: ${(elapsedMs / 1000).toFixed(1)}s`);
-  return { ...result, elapsedMs };
+  return { ...result, elapsedMs, rounds };
+}
+
+/**
+ * Print a per-round summary: rounds, wall time, input/output tokens, and
+ * tool-call names in order. Designed to give a compact, scannable record
+ * of what the model did during an e2e run.
+ */
+export function printRunSummary(rounds: StepFinishEvent[], elapsedMs: number): void {
+  if (rounds.length === 0) {
+    console.log(`  Rounds: 0 · ${(elapsedMs / 1000).toFixed(1)}s total`);
+    return;
+  }
+
+  let totalInput = 0;
+  let totalOutput = 0;
+  for (const r of rounds) {
+    totalInput += r.usage.inputTokens ?? 0;
+    totalOutput += r.usage.outputTokens ?? 0;
+  }
+  const usage = totalInput || totalOutput ? ` · tokens in=${totalInput} out=${totalOutput}` : "";
+  console.log(
+    `  Rounds: ${rounds.length} · ${(elapsedMs / 1000).toFixed(1)}s total${usage}`
+  );
+  for (const r of rounds) {
+    const calls = r.toolCalls.map((c) => c.name).join(", ") || "(no tool calls)";
+    const roundTokens =
+      r.usage.inputTokens || r.usage.outputTokens
+        ? ` [in=${r.usage.inputTokens ?? "?"} out=${r.usage.outputTokens ?? "?"}]`
+        : "";
+    console.log(`    · Round ${r.stepIndex}: ${calls}${roundTokens}`);
+  }
 }
 
 // ---------------------------------------------------------------------------

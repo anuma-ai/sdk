@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { PALETTES, renderPalettes } from "./palettes";
+import {
+  getPaletteByName,
+  PALETTES,
+  renderPaletteColors,
+  renderPaletteNames,
+  renderPalettes,
+} from "./palettes";
 
 const REQUIRED_COLOR_KEYS = [
   "background",
@@ -42,6 +48,40 @@ describe("PALETTES", () => {
   it("palette names are unique", () => {
     const names = PALETTES.map((p) => p.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe("getPaletteByName", () => {
+  it("returns the palette for every catalog name", () => {
+    for (const p of PALETTES) {
+      expect(getPaletteByName(p.name)).toBe(p);
+    }
+  });
+
+  it("returns null for unknown names", () => {
+    expect(getPaletteByName("not a palette")).toBeNull();
+  });
+});
+
+describe("renderPaletteNames", () => {
+  it("emits name + useFor + fontPreset, no hex colors", () => {
+    const prose = renderPaletteNames();
+    for (const p of PALETTES) {
+      expect(prose).toContain(p.name);
+      expect(prose).toContain(p.useFor);
+      expect(prose).toContain(`fontPreset: ${p.fontPreset}`);
+    }
+    expect(prose).not.toMatch(/#[0-9a-fA-F]{3,}/);
+  });
+});
+
+describe("renderPaletteColors", () => {
+  it("emits every hex value of the palette", () => {
+    const p = PALETTES[0]!;
+    const prose = renderPaletteColors(p);
+    for (const [k, v] of Object.entries(p.colors)) {
+      expect(prose).toContain(`${k}: ${v}`);
+    }
   });
 });
 
