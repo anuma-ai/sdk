@@ -147,6 +147,22 @@ export {
 // GitHub exports
 export { createGitHubTools } from "./github";
 
+// Slide generation tools
+export type {
+  CreateSlideGenerationToolsOptions,
+  Slide,
+  SlideDeck,
+  SlideElement,
+} from "./slideGeneration";
+export {
+  CREATE_SLIDES_SCHEMA,
+  createSlideGenerationTools,
+  extractSlideContent,
+  PATCH_SLIDES_SCHEMA,
+  READ_SLIDES_SCHEMA,
+  SLIDE_TOOL_NAMES,
+} from "./slideGeneration";
+
 // App generation tools
 export type {
   AppFileRecord,
