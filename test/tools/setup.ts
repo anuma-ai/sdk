@@ -15,7 +15,10 @@ import type { ApiType } from "../../src/lib/chat/useChat/strategies/types.js";
 
 export const config = {
   model: process.env.E2E_MODEL || "fireworks/accounts/fireworks/models/kimi-k2p5",
-  apiType: (process.env.E2E_API_TYPE || "completions") as ApiType,
+  // Default to "auto" so the SDK picks the best endpoint per model
+  // (responses vs. completions) via `resolveApiType`. Many models
+  // (Gemini, DeepSeek, MiniMax M2.7) 500 on the completions endpoint.
+  apiType: (process.env.E2E_API_TYPE || "auto") as ApiType,
   baseUrl: process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai",
   portalKey: process.env.PORTAL_API_KEY || "",
 };
