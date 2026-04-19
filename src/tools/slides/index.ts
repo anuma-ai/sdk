@@ -38,7 +38,7 @@
 
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
-import { LAYOUT_TEMPLATES } from "./layouts";
+import { renderLayoutTemplates } from "./layouts";
 
 // ---------------------------------------------------------------------------
 // Canvas reference dimensions (16:9)
@@ -652,12 +652,10 @@ export function buildSlideSystemPrompt(): string {
     .map(([name, p]) => `  ${name}: heading="${p.heading}", body="${p.body}"`)
     .join("\n");
 
-  // Layouts live in ./layouts.ts. Joined back in here so the LLM sees the
-  // same prompt content; having the catalog in code keeps slides.ts focused
-  // on tool runtime and gives layouts a single importable source of truth.
-  const layoutTemplates = Object.entries(LAYOUT_TEMPLATES)
-    .map(([name, body]) => `${name}:\n${body}`)
-    .join("\n\n");
+  // Layouts are typed SlideElement[] values in ./layouts.ts. `renderLayoutTemplates`
+  // walks the catalog and emits the prose block the LLM reads, with each
+  // layout name followed by its notes (if any) and element recipes.
+  const layoutTemplates = renderLayoutTemplates();
 
   return `You are a presentation design assistant. You produce polished slide decks as JSON files with positioned elements.
 

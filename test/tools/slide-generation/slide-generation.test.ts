@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildSlideSystemPrompt, type SlideDeck } from "../../../src/tools/slides.js";
+import { buildSlideSystemPrompt, type SlideDeck } from "../../../src/tools/slides/index.js";
 import {
   allSlideText,
   config,

@@ -12,7 +12,7 @@ import {
   normalizePath,
   type AppFileStorage,
 } from "../../../src/tools/appGeneration.js";
-import { createSlideTools } from "../../../src/tools/slides.js";
+import { createSlideTools } from "../../../src/tools/slides/index.js";
 import type { FileStore } from "./setup.js";
 
 /** Create an AppFileStorage adapter backed by an in-memory Map. */

@@ -7,7 +7,7 @@
  * generated decks, not shipping a renderer.
  */
 
-import { FONT_PRESETS, type SlideDeck, type SlideTheme } from "../../../src/tools/slides.js";
+import { FONT_PRESETS, type SlideDeck, type SlideTheme } from "../../../src/tools/slides/index.js";
 
 function esc(s: string): string {
   return s

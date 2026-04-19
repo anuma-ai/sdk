@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { runToolLoop } from "../../../src/lib/chat/toolLoop.js";
-import type { SlideDeck } from "../../../src/tools/slides.js";
+import type { SlideDeck } from "../../../src/tools/slides/index.js";
 import { renderDeckToHtml } from "./renderHtml.js";
 
 export { config, extractText, printResult, wrapTool, type ToolCallLog } from "../setup.js";

@@ -18,7 +18,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildSlideSystemPrompt } from "../../../src/tools/slides.js";
+import { buildSlideSystemPrompt } from "../../../src/tools/slides/index.js";
 import {
   config,
   createFileStore,
