@@ -225,6 +225,40 @@ describe("patch_slides", () => {
     expect(result.error).toContain("operations array is required");
   });
 
+  it("reports missing afterSlideId", async () => {
+    const store = new MapFileStorage();
+    await store.putFile("conv-1", "slides.json", JSON.stringify(SAMPLE_DECK));
+    const { tools } = makeTools(store);
+    const exec = getExecutor(tools, "patch_slides");
+    const result = (await exec({
+      operations: [
+        {
+          action: "add_slide",
+          afterSlideId: "nonexistent",
+          slide: { id: "s3", elements: [] },
+        },
+      ],
+    })) as { success: boolean; results: string[] };
+    expect(result.results[0]).toContain("afterSlideId nonexistent not found");
+  });
+
+  it("deep-merges nested theme objects", async () => {
+    const store = new MapFileStorage();
+    await store.putFile("conv-1", "slides.json", JSON.stringify(SAMPLE_DECK));
+    const { tools } = makeTools(store);
+    const exec = getExecutor(tools, "patch_slides");
+    await exec({
+      operations: [
+        { action: "update_theme", set: { colors: { accent: "#ff0000" } } },
+      ],
+    });
+
+    const file = await store.getFile("conv-1", "slides.json");
+    const deck = JSON.parse(file!.content);
+    expect(deck.theme.colors.accent).toBe("#ff0000");
+    expect(deck.theme.colors.background).toBe("#222");
+  });
+
   it("reports missing slide", async () => {
     const store = new MapFileStorage();
     await store.putFile("conv-1", "slides.json", JSON.stringify(SAMPLE_DECK));

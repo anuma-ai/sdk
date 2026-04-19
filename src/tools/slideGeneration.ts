@@ -17,7 +17,6 @@
  */
 
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
-
 import type { AppFileStorage } from "./appGeneration.js";
 
 // ---------------------------------------------------------------------------
@@ -163,11 +162,25 @@ Operations:
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Shallow-merge only own, non-prototype keys to prevent prototype pollution. */
+/**
+ * Deep-merge own, non-prototype keys to prevent prototype pollution.
+ * Nested plain objects are merged recursively so partial updates
+ * (e.g. updating a single color in theme.colors) don't destroy siblings.
+ */
 function safeMerge(target: Record<string, unknown>, patch: Record<string, unknown>) {
   for (const key of Object.keys(patch)) {
     if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
-    target[key] = patch[key];
+    const tVal = target[key];
+    const pVal = patch[key];
+    if (
+      tVal && pVal &&
+      typeof tVal === "object" && typeof pVal === "object" &&
+      !Array.isArray(tVal) && !Array.isArray(pVal)
+    ) {
+      safeMerge(tVal as Record<string, unknown>, pVal as Record<string, unknown>);
+    } else {
+      target[key] = pVal;
+    }
   }
 }
 
@@ -185,11 +198,11 @@ export function extractSlideContent(json: string): string {
             if (el.kind === "text")
               return `  [${el.id}] text "${((el.text as string) ?? "").slice(0, 40)}" at (${el.x},${el.y}) ${el.w}x${el.h}`;
             if (el.kind === "shape")
-              return `  [${el.id}] ${el.shape} at (${el.x},${el.y}) ${el.w}x${el.h}`;
-            if (el.kind === "icon") return `  [${el.id}] icon "${el.name}" at (${el.x},${el.y})`;
+              return `  [${el.id}] ${String(el.shape)} at (${el.x},${el.y}) ${el.w}x${el.h}`;
+            if (el.kind === "icon") return `  [${el.id}] icon "${String(el.name)}" at (${el.x},${el.y})`;
             if (el.kind === "image")
               return `  [${el.id}] image at (${el.x},${el.y}) ${el.w}x${el.h}`;
-            return `  [${el.id}] ${el.kind}`;
+            return `  [${el.id}] ${el.kind as string}`;
           })
           .join("\n");
         const bg = s.background ? ` (bg: ${s.background})` : "";
@@ -277,7 +290,6 @@ export function createSlideGenerationTools({
     },
   };
 
-  // eslint-disable-next-line complexity -- switch over 7 operation types
   const patchSlidesTool: ToolConfig = {
     type: "function",
     function: PATCH_SLIDES_SCHEMA,
@@ -304,7 +316,7 @@ export function createSlideGenerationTools({
             error: "No slides.json found. Use create_slides first.",
           };
 
-        const deck: SlideDeck = JSON.parse(file.content);
+        const deck = JSON.parse(file.content) as SlideDeck;
         const results: string[] = [];
 
         for (const op of operations) {
@@ -369,6 +381,12 @@ export function createSlideGenerationTools({
               const insertIdx = op.afterSlideId
                 ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
                 : -1;
+              if (op.afterSlideId && insertIdx === -1) {
+                results.push(
+                  `add_slide: afterSlideId ${op.afterSlideId} not found`
+                );
+                break;
+              }
               if (insertIdx === -1) deck.slides.push(op.slide);
               else deck.slides.splice(insertIdx + 1, 0, op.slide);
               results.push(`added slide ${op.slide.id}`);
