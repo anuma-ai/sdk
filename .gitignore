@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Git worktrees created inside the repo (e.g. for testing old commits)
+.worktrees/
+
 # Logs
 logs
 *.log
