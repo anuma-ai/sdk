@@ -558,26 +558,6 @@ function safeMerge(target: Record<string, unknown>, patch: Record<string, unknow
 }
 
 /**
- * Strip NUL and other unprintable control bytes (except \t \n \r) from every
- * `text` field on a slide element or partial patch. Some models (observed
- * with Qwen) occasionally emit literal U+0000 inside text strings, which
- * breaks browser canvas text measurement and causes the Konva Text node to
- * render nothing at all in the editable main canvas. Sanitize on write so
- * the stored JSON stays clean going forward.
- */
-function sanitizeElementText(elements: unknown): void {
-  const list: unknown[] = Array.isArray(elements) ? elements : [elements];
-  for (const el of list) {
-    if (!el || typeof el !== "object") continue;
-    const holder = el as { text?: unknown };
-    if (typeof holder.text === "string") {
-      // eslint-disable-next-line no-control-regex -- intentional: stripping control chars
-      holder.text = holder.text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
-    }
-  }
-}
-
-/**
  * Walk a slide's elements (or a single partial element from patch_slides)
  * and reject any unknown `fontFamily` value. Returns an error string the
  * executor can return, or null if every fontFamily is valid (or absent).
@@ -872,7 +852,6 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         }
         const fontError = validateFontFamilies(slide.elements);
         if (fontError) return { error: fontError };
-        sanitizeElementText(slide.elements);
 
         // Serialize the read-modify-write so parallel add_slide tool calls
         // in a single assistant turn don't race on slides.json.
@@ -1006,7 +985,6 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`update_element: ${fontError}`);
                   break;
                 }
-                sanitizeElementText(op.set);
                 safeMerge(el as unknown as Record<string, unknown>, op.set);
               }
               results.push(`updated ${op.slideId}/${op.elementId}`);
@@ -1026,7 +1004,6 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 results.push(`add_element: ${fontError}`);
                 break;
               }
-              sanitizeElementText(op.element);
               slide.elements.push(op.element);
               results.push(`added ${op.element.id} to ${op.slideId}`);
               break;
@@ -1065,7 +1042,6 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`add_slide: ${fontError}`);
                   break;
                 }
-                sanitizeElementText(op.slide.elements);
               }
               const insertIdx = op.afterSlideId
                 ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
