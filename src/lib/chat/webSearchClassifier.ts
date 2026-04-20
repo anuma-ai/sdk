@@ -13,7 +13,7 @@
 
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import { searchCentroid, noSearchCentroid } from "./webSearchCentroids";
+import { noSearchCentroid,searchCentroid } from "./webSearchCentroids";
 
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {

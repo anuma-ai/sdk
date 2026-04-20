@@ -368,7 +368,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           const { classifyWebSearch } = await import("./webSearchClassifier");
           const classification = await classifyWebSearch(text, {
             apiKey: headers?.["X-API-Key"],
-            getToken: token ? async () => token : undefined,
+            getToken: token ? () => Promise.resolve(token) : undefined,
             baseUrl,
           });
           const extra = await onWebSearchClassification(classification);
