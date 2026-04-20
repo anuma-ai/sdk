@@ -58,7 +58,6 @@ import {
   validateModel,
 } from "./useChat/utils";
 
-const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
 /** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
@@ -132,8 +131,10 @@ export type RunToolLoopOptions = {
   toolChoice?: string;
   /**
    * Maximum tool execution rounds before forcing the model to respond with text.
-   * After this many rounds, `toolChoice` is set to `"none"`.
-   * @default 3
+   * After this many rounds, `toolChoice` is set to `"none"`. A hard safety
+   * cap of `maxToolRounds + 5` iterations applies on top, in case the model
+   * ignores `toolChoice: "none"` and keeps emitting tool calls.
+   * @default 20
    */
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
@@ -452,6 +453,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentMessages = messages;
     let toolIteration = 0;
     const effectiveMaxToolRounds = maxToolRounds ?? 20;
+    // Hard safety cap: a small margin above the soft cap. The soft cap sets
+    // `toolChoice: "none"` to force a final text response, which should end
+    // the loop within one more iteration; the hard cap guards against a
+    // model that ignores `toolChoice: "none"` and keeps emitting tool calls.
+    const hardIterationCap = effectiveMaxToolRounds + 5;
     const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
@@ -464,7 +470,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // deck via parseDisplayResults.
     const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
-    while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
+    while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
       toolIteration++;
       sseError = null;
 

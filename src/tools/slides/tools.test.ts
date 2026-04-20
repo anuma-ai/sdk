@@ -136,6 +136,20 @@ describe("plan_deck executor", () => {
     expect(parsed.theme.colors.slideBg).toBe("#F3EEE5"); // warm editorial
   });
 
+  it("honors the model's fontPreset when it differs from the palette's default", async () => {
+    const { store, storage } = makeStore();
+    const tools = createSlideTools({ getConversationId: () => "cid", storage });
+    // "warm editorial" palette has fontPreset "editorial"; override to "bold".
+    const result = (await tools.find((t) => toolName(t) === "plan_deck")!.executor!({
+      ...VALID_PLAN,
+      fontPreset: "bold",
+    })) as { content?: string; error?: string };
+    expect(result.error).toBeUndefined();
+    const parsed = JSON.parse(store.get("slides.json")!);
+    expect(parsed.theme.fontPreset).toBe("bold");
+    expect(result.content).toContain("fontPreset: bold");
+  });
+
   it("returns content with palette hex values, element kinds, shared header, and layout recipes", async () => {
     const result = (await getTool("plan_deck").executor!(VALID_PLAN)) as { content?: string };
     const content = result.content ?? "";
