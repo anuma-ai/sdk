@@ -962,6 +962,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thinking,
         imageModel,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1453,6 +1454,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
