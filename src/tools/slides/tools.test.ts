@@ -367,10 +367,11 @@ describe("add_slide executor", () => {
 
     // plan_deck: called with { title }
     expect(calls[0]).toEqual({ title: "Test" });
-    // add_slide #1: should pass plan_deck's returned id as replaces_interaction_id
-    expect(calls[1]).toEqual({ replaces_interaction_id: "deck_1" });
+    // add_slide #1: should pass plan_deck's returned id as replaces_interaction_id,
+    // and thread the deck title so the viewer header stays stable across appends.
+    expect(calls[1]).toEqual({ title: "Test", replaces_interaction_id: "deck_1" });
     // add_slide #2: should pass add_slide #1's returned id
-    expect(calls[2]).toEqual({ replaces_interaction_id: "deck_2" });
+    expect(calls[2]).toEqual({ title: "Test", replaces_interaction_id: "deck_2" });
   });
 });
 
@@ -401,7 +402,10 @@ describe("patch_slides interaction_id fallback", () => {
         operations: [{ action: "update_theme", set: { fontPreset: "techno" } }],
       });
 
-    expect(calls[calls.length - 1]).toEqual({ replaces_interaction_id: "deck_2" });
+    expect(calls[calls.length - 1]).toEqual({
+      title: "Test",
+      replaces_interaction_id: "deck_2",
+    });
   });
 
   it("prefers the model-supplied replaces_interaction_id when provided", async () => {
@@ -427,7 +431,10 @@ describe("patch_slides interaction_id fallback", () => {
         operations: [{ action: "update_theme", set: { fontPreset: "techno" } }],
       });
 
-    expect(calls[calls.length - 1]).toEqual({ replaces_interaction_id: "custom_id" });
+    expect(calls[calls.length - 1]).toEqual({
+      title: "Test",
+      replaces_interaction_id: "custom_id",
+    });
   });
 });
 

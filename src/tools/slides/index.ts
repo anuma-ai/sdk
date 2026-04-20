@@ -814,10 +814,13 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             typeof planned === "number" ? Math.max(0, planned - totalSlides) : undefined;
 
           // Update the display interaction in-place, reusing the id from
-          // plan_deck / the previous add_slide.
-          const displayArgs: Record<string, unknown> = state?.interactionId
-            ? { replaces_interaction_id: state.interactionId }
-            : {};
+          // plan_deck / the previous add_slide. Pass the deck title too so
+          // host hooks that display a header don't fall back to a generic
+          // label on per-slide appends.
+          const displayArgs: Record<string, unknown> = {
+            ...(state?.title ? { title: state.title } : {}),
+            ...(state?.interactionId ? { replaces_interaction_id: state.interactionId } : {}),
+          };
           const display = displaySlides ? await displaySlides(displayArgs) : null;
           if (display && typeof display === "object" && "interaction_id" in display) {
             const newId = (display as { interaction_id?: unknown }).interaction_id;
@@ -1022,7 +1025,10 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             ? args.replaces_interaction_id
             : state?.interactionId || undefined;
         const display = displaySlides
-          ? await displaySlides(replacesId ? { replaces_interaction_id: replacesId } : {})
+          ? await displaySlides({
+              ...(state?.title ? { title: state.title } : {}),
+              ...(replacesId ? { replaces_interaction_id: replacesId } : {}),
+            })
           : null;
         if (display && typeof display === "object" && "interaction_id" in display) {
           const newId = (display as { interaction_id?: unknown }).interaction_id;

@@ -451,10 +451,18 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentAccumulator = accumulator;
     let currentMessages = messages;
     let toolIteration = 0;
-    const effectiveMaxToolRounds = maxToolRounds ?? 3;
+    const effectiveMaxToolRounds = maxToolRounds ?? 20;
     const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
+    // Accumulate successful tool results across every loop iteration. The
+    // skipContinuation-only early-return path below returns just the final
+    // round's results, which is fine for one-shot display_* tools. Multi-
+    // round flows (e.g. slide-deck plan_deck + add_slide × N) need every
+    // round's results so the storage layer can persist them as a
+    // `[Tool Execution Results]` message and the chat UI can render the
+    // deck via parseDisplayResults.
+    const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
     while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
       toolIteration++;
@@ -712,6 +720,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
+      // Accumulate this round's successful results for the main return path.
+      // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
+      // results so the chat UI can render the aggregated display interactions
+      // (e.g. a populated slide deck) via parseDisplayResults.
+      for (const r of executionResults) {
+        if (!r.error && r.name) {
+          accumulatedToolResults.push({ name: r.name, result: r.result });
+        }
+      }
+
       // Build tool result messages — exclude tools with skipContinuation
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
@@ -726,9 +744,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           data: skipResponse,
           error: null,
           toolsChecksum: currentAccumulator.toolsChecksum,
-          autoExecutedToolResults: executionResults
-            .filter((r) => !r.error && r.name)
-            .map((r) => ({ name: r.name!, result: r.result })),
+          autoExecutedToolResults: accumulatedToolResults,
         };
       }
 
@@ -869,6 +885,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         data: finalResponse,
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
+        autoExecutedToolResults: accumulatedToolResults,
       };
     }
 
