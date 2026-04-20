@@ -42,6 +42,9 @@ import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderElementKinds } from "./elementKinds";
 import { isKnownFont, renderFontLibrary } from "./fonts";
+
+export type { FontCategory, FontSpec } from "./fonts";
+export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
 import {
   getLayoutByName,
   renderLayoutCatalog,

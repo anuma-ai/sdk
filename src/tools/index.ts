@@ -172,7 +172,9 @@ export {
 // Slide deck tools
 export type {
   CreateSlideToolsOptions,
+  FontCategory,
   FontPreset,
+  FontSpec,
   IconElement,
   ImageElement,
   ShapeElement,
@@ -184,12 +186,16 @@ export type {
 } from "./slides";
 export {
   ADD_SLIDE_SCHEMA,
+  buildFontsUrl,
   buildSlideSystemPrompt,
   createSlideTools,
   DEFAULT_SLIDE_THEME,
   extractSlideContent,
+  FONT_LIBRARY,
   FONT_PRESETS,
+  getFontByName,
   hToPct,
+  isKnownFont,
   PATCH_SLIDES_SCHEMA,
   pctToFontSize,
   pctToH,
