@@ -168,3 +168,24 @@ export {
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
+
+// Subscription analysis tools
+export type {
+  AnalyzeSubscriptionsResult,
+  CategoryTotal,
+  FlagSubscriptionsResult,
+  NormalizedSubscription,
+  SubscriptionCategory,
+  SubscriptionFlag,
+  SubscriptionFlagType,
+  SubscriptionFrequency,
+  SubscriptionItem,
+} from "./subscriptionAnalysis";
+export {
+  ANALYZE_SUBSCRIPTIONS_SCHEMA,
+  createSubscriptionAnalysisTools,
+  FLAG_SUBSCRIPTIONS_SCHEMA,
+  SUBSCRIPTION_CATEGORIES,
+  SUBSCRIPTION_FLAG_TYPES,
+  SUBSCRIPTION_FREQUENCIES,
+} from "./subscriptionAnalysis";
