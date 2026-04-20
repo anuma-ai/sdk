@@ -8,6 +8,7 @@
  */
 
 import { FONT_PRESETS, type SlideDeck, type SlideTheme } from "../../../src/tools/slides/index.js";
+import { buildFontsUrl } from "../../../src/tools/slides/fonts.js";
 
 function esc(s: string): string {
   return s
@@ -100,11 +101,10 @@ export function renderDeckToHtml(deck: SlideDeck, title?: string): string {
 
   const preset = FONT_PRESETS[deck.theme.fontPreset] ?? FONT_PRESETS.default!;
   const extras = collectExtraFonts(deck);
-  const families = [
-    preset.slug,
-    ...extras.map((f) => `${f.replace(/ /g, "+")}:wght@400;500;600;700`),
-  ];
-  const fontsUrl = `https://fonts.googleapis.com/css2?${families.map((f) => `family=${f}`).join("&")}&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap`;
+  const fontsUrl = buildFontsUrl(
+    [preset.heading, preset.body, ...extras],
+    ["Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"]
+  );
 
   const slidesHtml = deck.slides
     .map((s, i) => {

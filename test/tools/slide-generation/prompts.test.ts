@@ -67,7 +67,7 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
 
     const result = await timedToolLoop({
       messages: makeMessages(
-        "Create a deck of at least 10 slides teaching beginners the fundamentals of home gardening, covering soil types, seasonal planting, common pests, and starter plants for different climates. No images."
+        "Create a deck of exactly 15 slides teaching beginners the fundamentals of home gardening, covering soil types, seasonal planting, common pests, and starter plants for different climates. No images. Use fontFamily 'Instrument Serif' on every heading text element and fontFamily 'IBM Plex Sans' on every body text element."
       ),
       model,
       baseUrl: config.baseUrl,
@@ -103,8 +103,8 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
 
     const deck = getDeck(store);
 
-    // Prompt explicitly asks for ≥10 slides
-    expect(deck.slides.length).toBeGreaterThanOrEqual(10);
+    // Prompt explicitly asks for exactly 15 slides
+    expect(deck.slides.length).toBeGreaterThanOrEqual(15);
 
     // "No images" constraint: there should be zero image elements
     const imageCount = deck.slides.reduce(

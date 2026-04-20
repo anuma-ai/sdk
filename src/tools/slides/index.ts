@@ -41,6 +41,7 @@
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderElementKinds } from "./elementKinds";
+import { isKnownFont, renderFontLibrary } from "./fonts";
 import {
   getLayoutByName,
   renderLayoutCatalog,
@@ -546,6 +547,30 @@ function safeMerge(target: Record<string, unknown>, patch: Record<string, unknow
 }
 
 /**
+ * Walk a slide's elements (or a single partial element from patch_slides)
+ * and reject any unknown `fontFamily` value. Returns an error string the
+ * executor can return, or null if every fontFamily is valid (or absent).
+ *
+ * We only validate fontFamily because every other font-related field is
+ * either (a) a theme-level fontPreset (validated in plan_deck) or (b) a
+ * free-form CSS value we don't inspect (color, letterSpacing, etc.).
+ */
+function validateFontFamilies(elements: unknown): string | null {
+  const names: unknown[] = Array.isArray(elements) ? elements : [elements];
+  const bad: string[] = [];
+  for (const raw of names) {
+    if (!raw || typeof raw !== "object") continue;
+    const family = (raw as { fontFamily?: unknown }).fontFamily;
+    if (family === undefined) continue;
+    if (typeof family !== "string" || !isKnownFont(family)) {
+      bad.push(typeof family === "string" ? family : String(family));
+    }
+  }
+  if (bad.length === 0) return null;
+  return `Unknown fontFamily value(s): ${bad.map((b) => JSON.stringify(b)).join(", ")}. Use an exact name from the FONT LIBRARY shown in the plan_deck result.`;
+}
+
+/**
  * Create the slide deck tool suite: `plan_deck`, `add_slide`, `read_slides`,
  * and `patch_slides`.
  *
@@ -650,6 +675,27 @@ export function createSlideTools({
           };
         }
 
+        // State-machine guard: plan_deck is only for initializing a fresh
+        // deck. If a deck already exists in this conversation, refuse —
+        // the caller should use read_slides + patch_slides to modify it,
+        // or start a new conversation to regenerate. This prevents the
+        // model from silently clobbering a working deck when it forgets
+        // that one already exists (e.g., in long conversations where the
+        // original plan_deck call has scrolled out of active context).
+        const existing = await storage.getFile(conversationId, "slides.json");
+        if (existing) {
+          try {
+            const existingDeck = JSON.parse(existing.content) as SlideDeck;
+            if (Array.isArray(existingDeck.slides) && existingDeck.slides.length > 0) {
+              return {
+                error: `Deck already exists with ${existingDeck.slides.length} slide(s). Use read_slides + patch_slides to modify it, or start a new conversation to regenerate. plan_deck is only for initializing a fresh deck.`,
+              };
+            }
+          } catch {
+            // slides.json is unreadable — treat as absent and allow init.
+          }
+        }
+
         // Initialize an empty deck with the chosen theme — add_slide appends
         // individual slides into this shell.
         const deck: SlideDeck = {
@@ -695,6 +741,10 @@ LAYOUT RECIPES — pick one for each slide; copy the element geometry and substi
 
 ${renderLayoutTemplates()}
 
+FONT LIBRARY — the theme already applies the fontPreset pairing (${palette.fontPreset}) to every text element by default. Override per-element by setting fontFamily on a TextElement to any name from this library — reach for a display face on a hero title, or an accent script for a single signature word. Do NOT use accent fonts for body copy. Names validated on write; typos are rejected with a hint.
+
+${renderFontLibrary()}
+
 NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_slide takes { layout: "<layout-name>", slide: { id, elements, ... } } and reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
 
         return {
@@ -736,6 +786,8 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         if (!Array.isArray(slide.elements)) {
           return { error: "slide.elements must be an array" };
         }
+        const fontError = validateFontFamilies(slide.elements);
+        if (fontError) return { error: fontError };
 
         // Serialize the read-modify-write so parallel add_slide tool calls
         // in a single assistant turn don't race on slides.json.
@@ -860,7 +912,14 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 results.push(`update_element: element ${op.elementId} not found`);
                 break;
               }
-              if (op.set) safeMerge(el as unknown as Record<string, unknown>, op.set);
+              if (op.set) {
+                const fontError = validateFontFamilies(op.set);
+                if (fontError) {
+                  results.push(`update_element: ${fontError}`);
+                  break;
+                }
+                safeMerge(el as unknown as Record<string, unknown>, op.set);
+              }
               results.push(`updated ${op.slideId}/${op.elementId}`);
               break;
             }
@@ -871,6 +930,11 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
               }
               if (!op.element) {
                 results.push("add_element: missing element");
+                break;
+              }
+              const fontError = validateFontFamilies(op.element);
+              if (fontError) {
+                results.push(`add_element: ${fontError}`);
                 break;
               }
               slide.elements.push(op.element);
@@ -904,6 +968,13 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
               if (!op.slide) {
                 results.push("add_slide: missing slide");
                 break;
+              }
+              if (Array.isArray(op.slide.elements)) {
+                const fontError = validateFontFamilies(op.slide.elements);
+                if (fontError) {
+                  results.push(`add_slide: ${fontError}`);
+                  break;
+                }
               }
               const insertIdx = op.afterSlideId
                 ? deck.slides.findIndex((s) => s.id === op.afterSlideId)

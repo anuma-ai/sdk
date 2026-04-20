@@ -1,11 +1,11 @@
 /**
  * E2E tests for slide deck generation tool loop.
  *
- * Runs real LLM calls with slide tools (plus the app-generation create_file
- * tool that writes the initial slides.json) backed by an in-memory store.
- * Tests the full generate -> read -> patch cycle without any UI.
+ * Runs real LLM calls with the slide-tool suite (plan_deck, add_slide,
+ * read_slides, patch_slides) backed by an in-memory store. Tests the full
+ * generate → read → patch cycle without any UI.
  *
- * Run: PORTAL_API_KEY=... pnpm vitest run test/tools/slide-generation
+ * Run: PORTAL_API_KEY=... pnpm vitest -c vitest.e2e.config.mts run test/tools/slide-generation
  */
 
 import { describe, expect, it } from "vitest";
@@ -49,7 +49,7 @@ function isDeckShape(deck: unknown): deck is SlideDeck {
 }
 
 describe("slide-generation", () => {
-  it("generates a new slide deck with create_file", async () => {
+  it("generates a new slide deck via plan_deck + add_slide", async () => {
     const store = createFileStore();
     const log: ToolCallLog[] = [];
     const tools = createTestSlideTools(store).map((t) => wrapTool(t, log));
@@ -65,16 +65,18 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
 
     printResult(result);
     dumpFiles(store, "remote-work-deck");
     expect(result.error).toBeNull();
 
-    // Should have called create_file to write slides.json
-    const createCalls = log.filter((l) => l.name === "create_file");
-    expect(createCalls.length).toBeGreaterThanOrEqual(1);
+    // Generation flow: one plan_deck + one add_slide per slide.
+    const planCalls = log.filter((l) => l.name === "plan_deck");
+    const addCalls = log.filter((l) => l.name === "add_slide");
+    expect(planCalls.length).toBe(1);
+    expect(addCalls.length).toBeGreaterThanOrEqual(2);
 
     // slides.json should exist and be a valid SlideDeck
     expect(store.has("slides.json")).toBe(true);
@@ -117,7 +119,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
 
     printResult(genResult);
@@ -159,7 +161,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
 
     printResult(updateResult);
@@ -169,14 +171,15 @@ describe("slide-generation", () => {
     const updateCalls = log.slice(callsAfterGen);
     const readCalls = updateCalls.filter((l) => l.name === "read_slides");
     const patchCalls = updateCalls.filter((l) => l.name === "patch_slides");
-    const createCalls = updateCalls.filter((l) => l.name === "create_file");
+    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck");
 
     console.log(
-      `  Update tools: ${readCalls.length} read_slides, ${patchCalls.length} patch_slides, ${createCalls.length} create_file`
+      `  Update tools: ${readCalls.length} read_slides, ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
     );
 
-    // The LLM should prefer patch_slides over a full create_file rewrite
+    // The LLM should prefer patch_slides over re-initializing the deck
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
+    expect(reinitCalls.length).toBe(0);
 
     // slides.json should have changed and still be valid
     expect(store.get("slides.json")).not.toBe(initialJson);
@@ -213,7 +216,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
     expect(genResult.error).toBeNull();
     dumpFiles(store, "renewable-gen");
@@ -252,21 +255,21 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
     expect(updateResult.error).toBeNull();
     dumpFiles(store, "renewable-emerald");
 
     const updateCalls = log.slice(callsAfterGen);
     const patchCalls = updateCalls.filter((l) => l.name === "patch_slides");
-    const createCalls = updateCalls.filter((l) => l.name === "create_file");
+    const reinitCalls = updateCalls.filter((l) => l.name === "plan_deck");
     console.log(
-      `  Theme update tools: ${patchCalls.length} patch_slides, ${createCalls.length} create_file`
+      `  Theme update tools: ${patchCalls.length} patch_slides, ${reinitCalls.length} plan_deck (reinits)`
     );
 
     // Should use patch_slides rather than rewrite the whole deck
     expect(patchCalls.length).toBeGreaterThanOrEqual(1);
-    expect(createCalls.length).toBe(0);
+    expect(reinitCalls.length).toBe(0);
 
     const updatedDeck = getDeck(store);
     // Structure should be preserved
@@ -294,7 +297,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 8,
+      maxToolRounds: 15,
     });
 
     printResult(result);
@@ -321,9 +324,10 @@ describe("slide-generation", () => {
         expect(el.x).toBeLessThanOrEqual(100);
         expect(el.y).toBeGreaterThanOrEqual(0);
         expect(el.y).toBeLessThanOrEqual(100);
-        expect(el.w).toBeGreaterThan(0);
+        // Line shapes legitimately have h=0 or w=0 (rendered as borders).
+        expect(el.w).toBeGreaterThanOrEqual(0);
         expect(el.w).toBeLessThanOrEqual(100);
-        expect(el.h).toBeGreaterThan(0);
+        expect(el.h).toBeGreaterThanOrEqual(0);
         expect(el.h).toBeLessThanOrEqual(100);
       }
     }
@@ -343,7 +347,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
     expect(genResult.error).toBeNull();
     dumpFiles(store, "ocean-gen");
@@ -379,7 +383,7 @@ describe("slide-generation", () => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 6,
+      maxToolRounds: 15,
     });
     expect(updateResult.error).toBeNull();
     dumpFiles(store, "ocean-added");
