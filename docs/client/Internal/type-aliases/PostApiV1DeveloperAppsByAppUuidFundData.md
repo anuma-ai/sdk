@@ -2,7 +2,7 @@
 
 > **PostApiV1DeveloperAppsByAppUuidFundData** = `object`
 
-Defined in: [src/client/types.gen.ts:3112](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3112)
+Defined in: [src/client/types.gen.ts:4079](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4079)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:3112](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersFundDeveloperAppRequest`](HandlersFundDeveloperAppRequest.md)
 
-Defined in: [src/client/types.gen.ts:3116](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3116)
+Defined in: [src/client/types.gen.ts:4083](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4083)
 
 Fund request
 
@@ -20,7 +20,7 @@ Fund request
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:3117](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3117)
+Defined in: [src/client/types.gen.ts:4084](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4084)
 
 **app\_uuid**
 
@@ -34,7 +34,7 @@ App UUID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:3123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3123)
+Defined in: [src/client/types.gen.ts:4090](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4090)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:3123](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/developer/apps/{app_uuid}/fund"`
 
-Defined in: [src/client/types.gen.ts:3124](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3124)
+Defined in: [src/client/types.gen.ts:4091](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4091)

@@ -114,7 +114,7 @@ export async function uploadFileToDropbox(
     throw new Error(`Dropbox upload failed: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  return response.json() as Promise<DropboxUploadResponse>;
 }
 
 /**
@@ -140,7 +140,7 @@ export async function listDropboxFiles(
   });
 
   if (!response.ok) {
-    const error: DropboxError = await response.json();
+    const error = (await response.json()) as DropboxError;
     // If folder doesn't exist, return empty array
     if (error.error?.path?.[".tag"] === "not_found") {
       return [];
@@ -148,7 +148,7 @@ export async function listDropboxFiles(
     throw new Error(`Dropbox list failed: ${error.error_summary}`);
   }
 
-  let data: DropboxListFolderResponse = await response.json();
+  let data = (await response.json()) as DropboxListFolderResponse;
 
   // Accumulate all entries across paginated responses
   const allEntries: DropboxListFolderResponse["entries"] = [...data.entries];
@@ -171,7 +171,7 @@ export async function listDropboxFiles(
       throw new Error(`Dropbox list continue failed: ${continueResponse.status} - ${errorText}`);
     }
 
-    data = await continueResponse.json();
+    data = (await continueResponse.json()) as DropboxListFolderResponse;
     allEntries.push(...data.entries);
   }
 

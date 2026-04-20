@@ -35,22 +35,22 @@ export type HandlersApiKeyWithKeyResponse = {
 
 export type HandlersAddCreditsRequest = {
     /**
+     * App ID to use
+     */
+    app_id?: number;
+    /**
      * Number of credits to add (1 credit = 1 cent)
      */
     credits?: number;
-    /**
-     * Escrow contract address to use
-     */
-    escrow_contract?: string;
     user_address?: string;
 };
 
 export type HandlersAddCreditsResponse = {
-    credits_added: number;
     /**
-     * Escrow contract used for the operation
+     * App ID used for the operation
      */
-    escrow_contract?: string;
+    app_id: number;
+    credits_added: number;
     message?: string;
     success: boolean;
     user_address: string;
@@ -61,6 +61,10 @@ export type HandlersAgentListItem = {
      * Category groups agents by use case.
      */
     category: string;
+    /**
+     * Color is a hex or CSS variable for agent theming.
+     */
+    color?: string;
     /**
      * CreatedAt is when the agent was created.
      */
@@ -74,6 +78,16 @@ export type HandlersAgentListItem = {
      */
     display_order?: number;
     /**
+     * ExampleConversations is a list of sample Q&A pairs for the marketplace.
+     */
+    example_conversations?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Features is a list of user-facing capability descriptions.
+     */
+    features?: Array<string>;
+    /**
      * IconURL is the URL to the agent's icon.
      */
     icon_url?: string;
@@ -82,9 +96,27 @@ export type HandlersAgentListItem = {
      */
     id: number;
     /**
+     * IsFeatured indicates whether to highlight the agent in the marketplace.
+     */
+    is_featured?: boolean;
+    /**
+     * ModelConfig is the model whitelist, display names, and descriptions.
+     */
+    model_config?: {
+        [key: string]: unknown;
+    };
+    /**
      * Name is the human-readable name.
      */
     name: string;
+    /**
+     * ParentID is the optional parent agent ID for sub-agent relationships.
+     */
+    parent_id?: number;
+    /**
+     * PhoneNumber is the SMS-reachable phone number for text-enabled agents.
+     */
+    phone_number?: string;
     /**
      * RecommendedModel is the suggested default model.
      */
@@ -97,6 +129,10 @@ export type HandlersAgentListItem = {
      * Status is the agent's availability: "active", "coming_soon", or "disabled".
      */
     status: string;
+    /**
+     * Tagline is a short one-liner for marketplace cards.
+     */
+    tagline?: string;
     /**
      * UpdatedAt is when the agent was last updated.
      */
@@ -116,6 +152,10 @@ export type HandlersAgentResponse = {
      */
     category: string;
     /**
+     * Color is a hex or CSS variable for agent theming.
+     */
+    color?: string;
+    /**
      * CreatedAt is when the agent was created.
      */
     created_at: string;
@@ -128,6 +168,16 @@ export type HandlersAgentResponse = {
      */
     display_order?: number;
     /**
+     * ExampleConversations is a list of sample Q&A pairs for the marketplace.
+     */
+    example_conversations?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Features is a list of user-facing capability descriptions.
+     */
+    features?: Array<string>;
+    /**
      * IconURL is the URL to the agent's icon.
      */
     icon_url?: string;
@@ -136,9 +186,27 @@ export type HandlersAgentResponse = {
      */
     id: number;
     /**
+     * IsFeatured indicates whether to highlight the agent in the marketplace.
+     */
+    is_featured?: boolean;
+    /**
+     * ModelConfig is the model whitelist, display names, and descriptions.
+     */
+    model_config?: {
+        [key: string]: unknown;
+    };
+    /**
      * Name is the human-readable name.
      */
     name: string;
+    /**
+     * ParentID is the optional parent agent ID for sub-agent relationships.
+     */
+    parent_id?: number;
+    /**
+     * PhoneNumber is the SMS-reachable phone number for text-enabled agents.
+     */
+    phone_number?: string;
     /**
      * RecommendedModel is the suggested default model.
      */
@@ -156,6 +224,10 @@ export type HandlersAgentResponse = {
      */
     system_prompt?: string;
     /**
+     * Tagline is a short one-liner for marketplace cards.
+     */
+    tagline?: string;
+    /**
      * UpdatedAt is when the agent was last updated.
      */
     updated_at: string;
@@ -163,13 +235,13 @@ export type HandlersAgentResponse = {
 
 export type HandlersAppConfig = {
     /**
-     * EscrowContract is the escrow contract address for this app
-     */
-    escrow_contract: string;
-    /**
      * Name is the human-readable name of the app
      */
     name: string;
+    /**
+     * PhoneCallVoice is the configured default voice for phone calls
+     */
+    phone_call_voice?: string;
 };
 
 export type HandlersAppResponse = {
@@ -177,9 +249,9 @@ export type HandlersAppResponse = {
     app_uuid: string;
     created_at: string;
     credit_reset_enabled: boolean;
+    credits_token_address?: string;
     default_user_cost_limit_usd: number;
     developer_account_id?: number;
-    escrow_contract: string;
     /**
      * Indicates if key is set, but doesn't expose it
      */
@@ -187,6 +259,7 @@ export type HandlersAppResponse = {
     id: number;
     is_active: boolean;
     name: string;
+    phone_call_voice?: string;
     privy_app_id?: string;
     updated_at: string;
 };
@@ -262,25 +335,13 @@ export type HandlersClaimTaskRewardResponse = {
 
 export type HandlersConfigResponse = {
     /**
-     * Apps is the list of active apps with their escrow contracts
+     * Apps is the list of active apps
      */
     apps?: Array<HandlersAppConfig>;
-    /**
-     * ChainID is the blockchain chain ID
-     */
-    chain_id?: string;
-    /**
-     * OperatorAddress is the operator wallet address
-     */
-    operator_address?: string;
     /**
      * PhoneCallsEnabled indicates whether Bland phone calling is available
      */
     phone_calls_enabled?: boolean;
-    /**
-     * SettlementRecipient is the address that receives settlement payments
-     */
-    settlement_recipient?: string;
 };
 
 export type HandlersConfigurePrivyRequest = {
@@ -298,11 +359,83 @@ export type HandlersCreateApiKeyRequest = {
     wallet_address?: string;
 };
 
+export type HandlersCreateAgentRequest = {
+    /**
+     * Category groups agents by use case.
+     */
+    category?: string;
+    /**
+     * Color is a hex or CSS variable for agent theming.
+     */
+    color?: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description?: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * ExampleConversations is a list of sample Q&A pairs for the marketplace.
+     */
+    example_conversations?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Features is a list of user-facing capability descriptions.
+     */
+    features?: Array<string>;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * IsFeatured indicates whether to highlight the agent in the marketplace.
+     */
+    is_featured?: boolean;
+    /**
+     * ModelConfig is the model whitelist, display names, and descriptions.
+     */
+    model_config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name is the human-readable name of the agent.
+     */
+    name?: string;
+    /**
+     * ParentID is the optional parent agent ID for sub-agent relationships.
+     */
+    parent_id?: number;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status?: string;
+    /**
+     * SystemPrompt is the curated system prompt.
+     */
+    system_prompt?: string;
+    /**
+     * Tagline is a short one-liner for marketplace cards.
+     */
+    tagline?: string;
+};
+
 export type HandlersCreateAppRequest = {
     credit_reset_enabled?: boolean;
-    escrow_contract?: string;
+    credits_token_address?: string;
     is_active?: boolean;
     name?: string;
+    phone_call_voice?: string;
     privy_app_id?: string;
     privy_verification_key?: string;
 };
@@ -355,6 +488,19 @@ export type HandlersCreateDeveloperAppRequest = {
     name?: string;
 };
 
+export type HandlersCreatePersonaRequest = {
+    /**
+     * Config is the persona configuration JSON.
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name is the unique persona name.
+     */
+    name?: string;
+};
+
 export type HandlersCreatePhoneCallRequest = {
     caller_name?: string;
     context?: string;
@@ -375,9 +521,9 @@ export type HandlersCreditBalanceResponse = {
      */
     claimed_import_rewards: Array<string>;
     /**
-     * Whether enrolled on-chain
+     * Upcoming credit expirations (soonest first)
      */
-    is_enrolled: boolean;
+    expiring_credits?: Array<HandlersExpiringCredits>;
     last_claim_at?: string;
     /**
      * Total credits ever received (1 credit = $0.01)
@@ -408,7 +554,6 @@ export type HandlersCustomerPortalResponse = {
 };
 
 export type HandlersDeveloperApiKeyRequest = {
-    is_test?: boolean;
     name?: string;
 };
 
@@ -449,10 +594,6 @@ export type HandlersDeveloperAppResponse = {
      * credits per new user (1 credit = $0.01)
      */
     default_user_credits: number;
-    /**
-     * on-chain escrow contract address
-     */
-    escrow_contract?: string;
     has_privy_config: boolean;
     is_active: boolean;
     name: string;
@@ -467,10 +608,6 @@ export type HandlersDeveloperUserResponse = {
      * available credits (1 credit = $0.01)
      */
     credits: number;
-    /**
-     * on-chain enrollment status
-     */
-    is_enrolled_onchain: boolean;
     /**
      * total credits ever received
      */
@@ -491,6 +628,17 @@ export type HandlersExchangeRequest = {
      * Optional - uses config default if not provided
      */
     redirect_uri?: string;
+};
+
+export type HandlersExpiringCredits = {
+    /**
+     * Number of credits expiring (1 credit = $0.01)
+     */
+    credits?: number;
+    /**
+     * ISO8601 timestamp
+     */
+    expires_at?: string;
 };
 
 export type HandlersFundDeveloperAppRequest = {
@@ -562,6 +710,10 @@ export type HandlersListDeveloperAppsResponse = {
     pagination: HandlersPaginationResponse;
 };
 
+export type HandlersListUserApiKeysResponse = {
+    api_keys: Array<HandlersUserApiKeyResponse>;
+};
+
 export type HandlersListUsersResponse = {
     pagination: HandlersPaginationResponse;
     users: Array<HandlersDeveloperUserResponse>;
@@ -588,6 +740,20 @@ export type HandlersPaginationResponse = {
     total: number;
 };
 
+export type HandlersPersonaListResponse = {
+    personas: Array<HandlersPersonaResponse>;
+};
+
+export type HandlersPersonaResponse = {
+    config: {
+        [key: string]: unknown;
+    };
+    created_at: string;
+    id: number;
+    name: string;
+    updated_at: string;
+};
+
 export type HandlersPhoneCallResponse = {
     answered_by?: string;
     call_ended_by?: string;
@@ -611,6 +777,21 @@ export type HandlersPhoneCallTranscriptEntry = {
     created_at?: string;
     speaker?: string;
     text?: string;
+};
+
+export type HandlersRedeemTokensRequest = {
+    /**
+     * Amount is the number of Anuma Tokens to burn (as a decimal string to handle large values).
+     */
+    amount?: string;
+};
+
+export type HandlersRedeemTokensResponse = {
+    burn_tx_hash?: string;
+    credits_awarded?: number;
+    message?: string;
+    redemption_id?: number;
+    success?: boolean;
 };
 
 export type HandlersRefreshRequest = {
@@ -669,6 +850,10 @@ export type HandlersSeedAppInput = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
     /**
+     * Per-app ERC20 credits token address
+     */
+    credits_token_address?: string;
+    /**
      * Default credits for auto-enrollment in micro-USD
      */
     default_user_cost_limit_usd?: number;
@@ -680,9 +865,9 @@ export type HandlersSeedAppInput = {
      * Developer wallet (auto-creates account if not exists)
      */
     developer_wallet_address?: string;
-    escrow_contract?: string;
     is_active?: boolean;
     name?: string;
+    phone_call_voice?: string;
     privy_app_id?: string;
     privy_verification_key?: string;
 };
@@ -708,7 +893,7 @@ export type HandlersSetSubscriptionTierRequest = {
     /**
      * Required to identify which app enrollment to update
      */
-    escrow_contract?: string;
+    app_id?: number;
     /**
      * "basic" or "pro"
      */
@@ -721,6 +906,13 @@ export type HandlersSetSubscriptionTierResponse = {
     success: boolean;
     tier: string;
     user_address: string;
+};
+
+export type HandlersSetUserAgentPreferenceRequest = {
+    /**
+     * PreferredModel is the model to use for this agent.
+     */
+    preferred_model?: string;
 };
 
 export type HandlersSubscriptionPlan = {
@@ -749,6 +941,10 @@ export type HandlersSubscriptionStatusResponse = {
      * "month" | "year", only present if subscribed
      */
     interval?: string;
+    /**
+     * "stripe" | "revenuecat" — tells the client how to manage subscription
+     */
+    payment_provider?: string;
     /**
      * "free" | "starter" | "pro"
      */
@@ -839,13 +1035,85 @@ export type HandlersUpdateApiKeyRequest = {
     wallet_address?: string;
 };
 
+export type HandlersUpdateAgentRequest = {
+    /**
+     * Category groups agents by use case.
+     */
+    category?: string;
+    /**
+     * Color is a hex or CSS variable for agent theming.
+     */
+    color?: string;
+    /**
+     * Description is a short description of the agent's purpose.
+     */
+    description?: string;
+    /**
+     * DisplayOrder controls the sort position in listing endpoints (lower = first).
+     */
+    display_order?: number;
+    /**
+     * ExampleConversations is a list of sample Q&A pairs for the marketplace.
+     */
+    example_conversations?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Features is a list of user-facing capability descriptions.
+     */
+    features?: Array<string>;
+    /**
+     * IconURL is the URL to the agent's icon.
+     */
+    icon_url?: string;
+    /**
+     * IsFeatured indicates whether to highlight the agent in the marketplace.
+     */
+    is_featured?: boolean;
+    /**
+     * ModelConfig is the model whitelist, display names, and descriptions.
+     */
+    model_config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name is the human-readable name of the agent.
+     */
+    name?: string;
+    /**
+     * ParentID is the optional parent agent ID for sub-agent relationships.
+     */
+    parent_id?: number;
+    /**
+     * RecommendedModel is the suggested default model.
+     */
+    recommended_model?: string;
+    /**
+     * Skills is the list of skill identifiers bound to this agent.
+     */
+    skills?: Array<string>;
+    /**
+     * Status is the agent's availability: "active", "coming_soon", or "disabled".
+     */
+    status?: string;
+    /**
+     * SystemPrompt is the curated system prompt.
+     */
+    system_prompt?: string;
+    /**
+     * Tagline is a short one-liner for marketplace cards.
+     */
+    tagline?: string;
+};
+
 export type HandlersUpdateAppRequest = {
     app_balance_usd?: number;
     credit_reset_enabled?: boolean;
+    credits_token_address?: string;
     default_user_cost_limit_usd?: number;
-    escrow_contract?: string;
     is_active?: boolean;
     name?: string;
+    phone_call_voice?: string;
     privy_app_id?: string;
     privy_verification_key?: string;
 };
@@ -859,6 +1127,19 @@ export type HandlersUpdateDeveloperAppRequest = {
      * credits per new user (1 credit = $0.01)
      */
     default_user_credits?: number;
+    name?: string;
+};
+
+export type HandlersUpdatePersonaRequest = {
+    /**
+     * Config is the new persona configuration JSON.
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name is the new persona name.
+     */
     name?: string;
 };
 
@@ -914,6 +1195,89 @@ export type HandlersUsageTotals = {
     total_tokens: number;
 };
 
+export type HandlersUserApiKeyRequest = {
+    name?: string;
+};
+
+export type HandlersUserApiKeyResponse = {
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
+};
+
+export type HandlersUserApiKeyWithSecretResponse = {
+    /**
+     * Full key, only shown once
+     */
+    api_key: string;
+    created_at: string;
+    id: number;
+    is_active: boolean;
+    name: string;
+};
+
+export type HandlersUserAgentPreferenceResponse = {
+    /**
+     * AgentID is the agent this preference applies to.
+     */
+    agent_id: number;
+    /**
+     * PreferredModel is the model the user chose for this agent.
+     */
+    preferred_model: string;
+};
+
+export type HandlersUserAgentPreferencesListResponse = {
+    /**
+     * Preferences is the list of user agent preferences.
+     */
+    preferences: Array<HandlersUserAgentPreferenceResponse>;
+};
+
+export type HandlersUserLookupAccount = {
+    created_at?: string;
+    fraud_flag?: string;
+    fraud_flag_updated_at?: string;
+    fraud_notes?: string;
+    id?: number;
+    identifier?: string;
+    stripe_customer_id?: string;
+    type?: string;
+};
+
+export type HandlersUserLookupEnrollment = {
+    app_id?: number;
+    app_name?: string;
+    balance_updated_at?: string;
+    cached_balance_usd?: number;
+    created_at?: string;
+    id?: number;
+    lifetime_credits?: number;
+    pending_cost_usd?: number;
+    pro_activated_at?: string;
+    subscription_tier?: string;
+    updated_at?: string;
+};
+
+export type HandlersUserLookupResponse = {
+    account?: HandlersUserLookupAccount;
+    enrollments?: Array<HandlersUserLookupEnrollment>;
+    text_registrations?: Array<HandlersUserLookupTextReg>;
+};
+
+export type HandlersUserLookupTextReg = {
+    app_id?: number;
+    channel?: string;
+    created_at?: string;
+    id?: number;
+    identifier?: string;
+    is_active?: boolean;
+    preferred_model?: string;
+    updated_at?: string;
+    verified?: boolean;
+};
+
 export type HandlersUserUsageResponse = {
     address: string;
     cost_credits: number;
@@ -947,14 +1311,6 @@ export type HandlersWalletDetails = {
      * Balance in micro-dollars (USD * 1,000,000)
      */
     cached_balance_usd: number;
-    /**
-     * App ID for enrollment (0 if not enrolled)
-     */
-    enrolled_app_id?: number;
-    /**
-     * Whether enrolled in cost-limit model
-     */
-    is_enrolled: boolean;
     /**
      * In-flight request holds in micro-dollars
      */
@@ -993,6 +1349,11 @@ export type LlmapiChatCompletionExtraFields = {
 
 export type LlmapiChatCompletionRequest = {
     /**
+     * ConversationID groups requests belonging to the same conversation for observability.
+     * Pass-through only — not forwarded to the LLM provider.
+     */
+    conversation_id?: string;
+    /**
      * ImageModel is the user-selected image generation model.
      * When set, the portal overrides the model field in image tool call arguments.
      */
@@ -1030,6 +1391,12 @@ export type LlmapiChatCompletionResponse = {
      * ID is the completion ID
      */
     id?: string;
+    /**
+     * ImageModel is set when an image generation tool was called during the request.
+     * This allows the client to detect that the response contains generated images
+     * and render them appropriately, even when the orchestrating model is a text model.
+     */
+    image_model?: string;
     /**
      * InferenceID is the unique identifier for this inference request
      */
@@ -1087,6 +1454,14 @@ export type LlmapiChatCompletionUsage = {
      * CreditsUsed is the number of credits consumed by this completion (ceiling of cost / MicroUSDPerCredit)
      */
     credits_used?: number;
+    /**
+     * InitCompletionTokens is the completion token count from the first LLM call before the MCP tool loop
+     */
+    init_completion_tokens?: number;
+    /**
+     * InitPromptTokens is the prompt token count from the first LLM call before the MCP tool loop
+     */
+    init_prompt_tokens?: number;
     /**
      * PromptTokens is the number of tokens in the prompt
      */
@@ -1155,6 +1530,11 @@ export type LlmapiEmbeddingExtraFields = {
 };
 
 export type LlmapiEmbeddingRequest = {
+    /**
+     * ConversationID groups requests belonging to the same conversation for observability.
+     * Pass-through only — not forwarded to the LLM provider.
+     */
+    conversation_id?: string;
     /**
      * Dimensions is the number of dimensions the resulting output embeddings should have (optional)
      */
@@ -1461,7 +1841,16 @@ export type LlmapiResponseExtraFields = {
  * Input can be a simple text string or an array of messages for multi-turn conversations.
  * When continuing after client tool calls, pass the messages array from the previous response.
  */
-export type LlmapiResponseInput = string | Array<LlmapiMessage>;
+export type LlmapiResponseInput = {
+    /**
+     * Messages is set when input is an array of messages (for multi-turn/tool continuations)
+     */
+    messages?: Array<LlmapiMessage>;
+    /**
+     * Text is set when input is a simple string
+     */
+    text?: string;
+};
 
 export type LlmapiResponseOutputContent = {
     /**
@@ -1549,6 +1938,11 @@ export type LlmapiResponseRequest = {
      */
     background?: boolean;
     /**
+     * ConversationID groups requests belonging to the same conversation for observability.
+     * Pass-through only — not forwarded to the LLM provider.
+     */
+    conversation_id?: string;
+    /**
      * ImageModel is the user-selected image generation model.
      * When set, the portal overrides the model field in image tool call arguments.
      */
@@ -1593,6 +1987,12 @@ export type LlmapiResponseResponse = {
      * ID is the unique response identifier
      */
     id?: string;
+    /**
+     * ImageModel is set when an image generation tool was called during the request.
+     * This allows the client to detect that the response contains generated images
+     * and render them appropriately, even when the orchestrating model is a text model.
+     */
+    image_model?: string;
     /**
      * Messages contains the full conversation history when local tools need execution.
      * This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -1654,6 +2054,14 @@ export type LlmapiResponseUsage = {
      * CreditsUsed is the number of credits consumed by this response
      */
     credits_used?: number;
+    /**
+     * InitCompletionTokens is the completion token count from the first LLM call before the MCP tool loop
+     */
+    init_completion_tokens?: number;
+    /**
+     * InitPromptTokens is the prompt token count from the first LLM call before the MCP tool loop
+     */
+    init_prompt_tokens?: number;
     /**
      * PromptTokens is the number of tokens in the prompt
      */
@@ -1727,6 +2135,20 @@ export type McpToolSchema = {
     parameters?: unknown;
 };
 
+export type ModelsReferralRewardRequest = {
+    channel?: string;
+    referee_identifier?: string;
+    referee_reward_amount?: number;
+    referrer_identifier?: string;
+    referrer_reward_amount?: number;
+};
+
+export type ModelsReferralRewardResponse = {
+    referee_credits_granted?: number;
+    referrer_credits_granted?: number;
+    status?: string;
+};
+
 export type ModelsRegisterTextRequest = {
     identifier: string;
     preferred_model?: string;
@@ -1761,6 +2183,41 @@ export type ResponseErrorResponse = {
     trace_id?: string;
     type?: string;
 };
+
+export type DeleteApiV1AccountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/account';
+};
+
+export type DeleteApiV1AccountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Account not found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal server error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AccountError = DeleteApiV1AccountErrors[keyof DeleteApiV1AccountErrors];
+
+export type DeleteApiV1AccountResponses = {
+    /**
+     * Account deleted
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AccountResponse = DeleteApiV1AccountResponses[keyof DeleteApiV1AccountResponses];
 
 export type PostApiV1AdminAddCreditsData = {
     /**
@@ -1807,6 +2264,149 @@ export type PostApiV1AdminAddCreditsResponses = {
 };
 
 export type PostApiV1AdminAddCreditsResponse = PostApiV1AdminAddCreditsResponses[keyof PostApiV1AdminAddCreditsResponses];
+
+export type PostApiV1AdminAgentsData = {
+    /**
+     * Create agent request
+     */
+    body: HandlersCreateAgentRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/agents';
+};
+
+export type PostApiV1AdminAgentsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminAgentsError = PostApiV1AdminAgentsErrors[keyof PostApiV1AdminAgentsErrors];
+
+export type PostApiV1AdminAgentsResponses = {
+    /**
+     * Created
+     */
+    201: HandlersAgentResponse;
+};
+
+export type PostApiV1AdminAgentsResponse = PostApiV1AdminAgentsResponses[keyof PostApiV1AdminAgentsResponses];
+
+export type DeleteApiV1AdminAgentsByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Agent ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/agents/{id}';
+};
+
+export type DeleteApiV1AdminAgentsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminAgentsByIdError = DeleteApiV1AdminAgentsByIdErrors[keyof DeleteApiV1AdminAgentsByIdErrors];
+
+export type DeleteApiV1AdminAgentsByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminAgentsByIdResponse = DeleteApiV1AdminAgentsByIdResponses[keyof DeleteApiV1AdminAgentsByIdResponses];
+
+export type PutApiV1AdminAgentsByIdData = {
+    /**
+     * Update agent request
+     */
+    body: HandlersUpdateAgentRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Agent ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/agents/{id}';
+};
+
+export type PutApiV1AdminAgentsByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminAgentsByIdError = PutApiV1AdminAgentsByIdErrors[keyof PutApiV1AdminAgentsByIdErrors];
+
+export type PutApiV1AdminAgentsByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersAgentResponse;
+};
+
+export type PutApiV1AdminAgentsByIdResponse = PutApiV1AdminAgentsByIdResponses[keyof PutApiV1AdminAgentsByIdResponses];
 
 export type GetApiV1AdminAppsData = {
     body?: never;
@@ -2300,6 +2900,149 @@ export type PutApiV1AdminAppsByIdResponses = {
 
 export type PutApiV1AdminAppsByIdResponse = PutApiV1AdminAppsByIdResponses[keyof PutApiV1AdminAppsByIdResponses];
 
+export type PostApiV1AdminPersonasData = {
+    /**
+     * Create persona request
+     */
+    body: HandlersCreatePersonaRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/personas';
+};
+
+export type PostApiV1AdminPersonasErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1AdminPersonasError = PostApiV1AdminPersonasErrors[keyof PostApiV1AdminPersonasErrors];
+
+export type PostApiV1AdminPersonasResponses = {
+    /**
+     * Created
+     */
+    201: HandlersPersonaResponse;
+};
+
+export type PostApiV1AdminPersonasResponse = PostApiV1AdminPersonasResponses[keyof PostApiV1AdminPersonasResponses];
+
+export type DeleteApiV1AdminPersonasByIdData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Persona ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/personas/{id}';
+};
+
+export type DeleteApiV1AdminPersonasByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminPersonasByIdError = DeleteApiV1AdminPersonasByIdErrors[keyof DeleteApiV1AdminPersonasByIdErrors];
+
+export type DeleteApiV1AdminPersonasByIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminPersonasByIdResponse = DeleteApiV1AdminPersonasByIdResponses[keyof DeleteApiV1AdminPersonasByIdResponses];
+
+export type PutApiV1AdminPersonasByIdData = {
+    /**
+     * Update persona request
+     */
+    body: HandlersUpdatePersonaRequest;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path: {
+        /**
+         * Persona ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/personas/{id}';
+};
+
+export type PutApiV1AdminPersonasByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AdminPersonasByIdError = PutApiV1AdminPersonasByIdErrors[keyof PutApiV1AdminPersonasByIdErrors];
+
+export type PutApiV1AdminPersonasByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPersonaResponse;
+};
+
+export type PutApiV1AdminPersonasByIdResponse = PutApiV1AdminPersonasByIdResponses[keyof PutApiV1AdminPersonasByIdResponses];
+
 export type PostApiV1AdminSeedAppsData = {
     /**
      * Seed apps request
@@ -2388,6 +3131,145 @@ export type PostApiV1AdminSubscriptionTierResponses = {
 
 export type PostApiV1AdminSubscriptionTierResponse = PostApiV1AdminSubscriptionTierResponses[keyof PostApiV1AdminSubscriptionTierResponses];
 
+export type DeleteApiV1AdminTextResetData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query: {
+        /**
+         * User wallet address
+         */
+        wallet_address: string;
+    };
+    url: '/api/v1/admin/text/reset';
+};
+
+export type DeleteApiV1AdminTextResetErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1AdminTextResetError = DeleteApiV1AdminTextResetErrors[keyof DeleteApiV1AdminTextResetErrors];
+
+export type DeleteApiV1AdminTextResetResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1AdminTextResetResponse = DeleteApiV1AdminTextResetResponses[keyof DeleteApiV1AdminTextResetResponses];
+
+export type GetApiV1AdminUsersLookupData = {
+    body?: never;
+    headers: {
+        /**
+         * Admin API key
+         */
+        'X-Admin-API-Key': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * User wallet address (0x...)
+         */
+        wallet_address?: string;
+        /**
+         * Phone number (e.g. +15551234567)
+         */
+        phone?: string;
+        /**
+         * Telegram handle
+         */
+        telegram?: string;
+        /**
+         * Email address (requires Privy credentials)
+         */
+        email?: string;
+    };
+    url: '/api/v1/admin/users/lookup';
+};
+
+export type GetApiV1AdminUsersLookupErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AdminUsersLookupError = GetApiV1AdminUsersLookupErrors[keyof GetApiV1AdminUsersLookupErrors];
+
+export type GetApiV1AdminUsersLookupResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUserLookupResponse;
+};
+
+export type GetApiV1AdminUsersLookupResponse = GetApiV1AdminUsersLookupResponses[keyof GetApiV1AdminUsersLookupResponses];
+
+export type GetApiV1AgentPreferencesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/agent-preferences';
+};
+
+export type GetApiV1AgentPreferencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1AgentPreferencesError = GetApiV1AgentPreferencesErrors[keyof GetApiV1AgentPreferencesErrors];
+
+export type GetApiV1AgentPreferencesResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUserAgentPreferencesListResponse;
+};
+
+export type GetApiV1AgentPreferencesResponse = GetApiV1AgentPreferencesResponses[keyof GetApiV1AgentPreferencesResponses];
+
 export type GetApiV1AgentsData = {
     body?: never;
     path?: never;
@@ -2450,6 +3332,51 @@ export type GetApiV1AgentsByIdResponses = {
 };
 
 export type GetApiV1AgentsByIdResponse = GetApiV1AgentsByIdResponses[keyof GetApiV1AgentsByIdResponses];
+
+export type PutApiV1AgentsByIdPreferenceData = {
+    /**
+     * Preference
+     */
+    body: HandlersSetUserAgentPreferenceRequest;
+    path: {
+        /**
+         * Agent ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/agents/{id}/preference';
+};
+
+export type PutApiV1AgentsByIdPreferenceErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PutApiV1AgentsByIdPreferenceError = PutApiV1AgentsByIdPreferenceErrors[keyof PutApiV1AgentsByIdPreferenceErrors];
+
+export type PutApiV1AgentsByIdPreferenceResponses = {
+    /**
+     * OK
+     */
+    200: HandlersUserAgentPreferenceResponse;
+};
+
+export type PutApiV1AgentsByIdPreferenceResponse = PutApiV1AgentsByIdPreferenceResponses[keyof PutApiV1AgentsByIdPreferenceResponses];
 
 export type PostApiV1ChatCompletionsData = {
     /**
@@ -2706,6 +3633,46 @@ export type PostApiV1CreditsPurchaseResponses = {
 };
 
 export type PostApiV1CreditsPurchaseResponse = PostApiV1CreditsPurchaseResponses[keyof PostApiV1CreditsPurchaseResponses];
+
+export type PostApiV1CreditsRedeemTokensData = {
+    /**
+     * Redemption request
+     */
+    body: HandlersRedeemTokensRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/credits/redeem-tokens';
+};
+
+export type PostApiV1CreditsRedeemTokensErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Conflict
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1CreditsRedeemTokensError = PostApiV1CreditsRedeemTokensErrors[keyof PostApiV1CreditsRedeemTokensErrors];
+
+export type PostApiV1CreditsRedeemTokensResponses = {
+    /**
+     * OK
+     */
+    200: HandlersRedeemTokensResponse;
+};
+
+export type PostApiV1CreditsRedeemTokensResponse = PostApiV1CreditsRedeemTokensResponses[keyof PostApiV1CreditsRedeemTokensResponses];
 
 export type PostApiV1CreditsSyncSnagData = {
     body?: never;
@@ -3716,6 +4683,69 @@ export type GetApiV1ModelsResponses = {
 
 export type GetApiV1ModelsResponse = GetApiV1ModelsResponses[keyof GetApiV1ModelsResponses];
 
+export type GetApiV1PersonasData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/personas';
+};
+
+export type GetApiV1PersonasErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1PersonasError = GetApiV1PersonasErrors[keyof GetApiV1PersonasErrors];
+
+export type GetApiV1PersonasResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPersonaListResponse;
+};
+
+export type GetApiV1PersonasResponse = GetApiV1PersonasResponses[keyof GetApiV1PersonasResponses];
+
+export type GetApiV1PersonasByIdData = {
+    body?: never;
+    path: {
+        /**
+         * Persona ID
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/v1/personas/{id}';
+};
+
+export type GetApiV1PersonasByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1PersonasByIdError = GetApiV1PersonasByIdErrors[keyof GetApiV1PersonasByIdErrors];
+
+export type GetApiV1PersonasByIdResponses = {
+    /**
+     * OK
+     */
+    200: HandlersPersonaResponse;
+};
+
+export type GetApiV1PersonasByIdResponse = GetApiV1PersonasByIdResponses[keyof GetApiV1PersonasByIdResponses];
+
 export type PostApiV1PhoneCallsData = {
     /**
      * Phone call request
@@ -4223,6 +5253,50 @@ export type GetApiV1TasksResponses = {
 
 export type GetApiV1TasksResponse = GetApiV1TasksResponses[keyof GetApiV1TasksResponses];
 
+export type PostApiV1TextReferralRewardData = {
+    /**
+     * Referral reward request
+     */
+    body: ModelsReferralRewardRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/text/referral/reward';
+};
+
+export type PostApiV1TextReferralRewardErrors = {
+    /**
+     * Invalid request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Referrer or referee not found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Referral already rewarded
+     */
+    409: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1TextReferralRewardError = PostApiV1TextReferralRewardErrors[keyof PostApiV1TextReferralRewardErrors];
+
+export type PostApiV1TextReferralRewardResponses = {
+    /**
+     * OK
+     */
+    200: ModelsReferralRewardResponse;
+};
+
+export type PostApiV1TextReferralRewardResponse = PostApiV1TextReferralRewardResponses[keyof PostApiV1TextReferralRewardResponses];
+
 export type GetApiV1TextByChannelLookupData = {
     body?: never;
     path: {
@@ -4457,6 +5531,152 @@ export type GetApiV1UsageModelsResponses = {
 };
 
 export type GetApiV1UsageModelsResponse = GetApiV1UsageModelsResponses[keyof GetApiV1UsageModelsResponses];
+
+export type GetApiV1UserApiKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/user/api-keys';
+};
+
+export type GetApiV1UserApiKeysErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type GetApiV1UserApiKeysError = GetApiV1UserApiKeysErrors[keyof GetApiV1UserApiKeysErrors];
+
+export type GetApiV1UserApiKeysResponses = {
+    /**
+     * OK
+     */
+    200: HandlersListUserApiKeysResponse;
+};
+
+export type GetApiV1UserApiKeysResponse = GetApiV1UserApiKeysResponses[keyof GetApiV1UserApiKeysResponses];
+
+export type PostApiV1UserApiKeysData = {
+    /**
+     * API key request
+     */
+    body: HandlersUserApiKeyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/user/api-keys';
+};
+
+export type PostApiV1UserApiKeysErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Forbidden
+     */
+    403: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type PostApiV1UserApiKeysError = PostApiV1UserApiKeysErrors[keyof PostApiV1UserApiKeysErrors];
+
+export type PostApiV1UserApiKeysResponses = {
+    /**
+     * Created
+     */
+    201: HandlersUserApiKeyWithSecretResponse;
+};
+
+export type PostApiV1UserApiKeysResponse = PostApiV1UserApiKeysResponses[keyof PostApiV1UserApiKeysResponses];
+
+export type DeleteApiV1UserApiKeysByKeyIdData = {
+    body?: never;
+    path: {
+        /**
+         * API Key ID
+         */
+        key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/api-keys/{key_id}';
+};
+
+export type DeleteApiV1UserApiKeysByKeyIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+    /**
+     * Not Found
+     */
+    404: ResponseErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: ResponseErrorResponse;
+};
+
+export type DeleteApiV1UserApiKeysByKeyIdError = DeleteApiV1UserApiKeysByKeyIdErrors[keyof DeleteApiV1UserApiKeysByKeyIdErrors];
+
+export type DeleteApiV1UserApiKeysByKeyIdResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type DeleteApiV1UserApiKeysByKeyIdResponse = DeleteApiV1UserApiKeysByKeyIdResponses[keyof DeleteApiV1UserApiKeysByKeyIdResponses];
+
+export type PostApiV1WebhooksRevenuecatData = {
+    body?: {
+        [key: string]: unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/webhooks/revenuecat';
+};
+
+export type PostApiV1WebhooksRevenuecatErrors = {
+    /**
+     * Bad Request
+     */
+    400: ResponseErrorResponse;
+    /**
+     * Unauthorized
+     */
+    401: ResponseErrorResponse;
+};
+
+export type PostApiV1WebhooksRevenuecatError = PostApiV1WebhooksRevenuecatErrors[keyof PostApiV1WebhooksRevenuecatErrors];
+
+export type PostApiV1WebhooksRevenuecatResponses = {
+    /**
+     * OK
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type PostApiV1WebhooksRevenuecatResponse = PostApiV1WebhooksRevenuecatResponses[keyof PostApiV1WebhooksRevenuecatResponses];
 
 export type PostAuthOauthByProviderExchangeData = {
     /**

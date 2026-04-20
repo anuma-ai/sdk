@@ -220,9 +220,26 @@ This is called with delta chunks as the model "thinks" through a problem.
 </td>
 <td>
 
-Callback function to be called when a tool call is requested by the LLM.
-This is called for tools that don't have an executor or have autoExecute=false.
-The app should execute the tool and send the result back.
+Callback function to be called when a tool call is requested by the LLM
+but no executor is registered for it (e.g. server-side tools).
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onToolCallArgumentsDelta?`
+
+</td>
+<td>
+
+(`event`: [`ToolCallArgumentsDeltaEvent`](../Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+
+</td>
+<td>
+
+Called with partial tool call arguments as they stream in.
+Use for live preview of artifacts (HTML, slides) being generated.
 
 </td>
 </tr>
@@ -275,22 +292,22 @@ const { isLoading, sendMessage, stop } = useChat({
 const handleSend = async () => {
   const result = await sendMessage({
     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
-    model: 'gpt-4o-mini'
+    model: 'your-provider/your-model'
   });
 };
 
-// Using extended thinking (Anthropic Claude)
+// Using extended thinking
 const result = await sendMessage({
   messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
-  model: 'anthropic/claude-3-7-sonnet-20250219',
+  model: 'your-provider/your-model',
   thinking: { type: 'enabled', budget_tokens: 10000 },
   onThinking: (chunk) => console.log('Thinking:', chunk)
 });
 
-// Using reasoning (OpenAI o-series)
+// Using reasoning
 const result = await sendMessage({
   messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
-  model: 'openai/o1',
+  model: 'your-provider/your-model',
   reasoning: { effort: 'high', summary: 'detailed' }
 });
 ```

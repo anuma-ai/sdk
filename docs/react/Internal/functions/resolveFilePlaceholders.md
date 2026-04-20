@@ -2,7 +2,7 @@
 
 > **resolveFilePlaceholders**(`content`: `string`, `encryptionKey`: `CryptoKey`, `blobManager`: [`BlobUrlManager`](../classes/BlobUrlManager.md)): `Promise`<`string`>
 
-Defined in: [src/lib/storage/opfs.ts:370](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#370)
+Defined in: [src/lib/storage/opfs.ts:372](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/opfs.ts#372)
 
 Resolves file placeholders in content to blob URLs.
 

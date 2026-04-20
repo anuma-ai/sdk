@@ -2,7 +2,7 @@
 
 import { type ReactNode, useLayoutEffect } from "react";
 
-import { type Logger, getLogger, setLogger } from "../lib/logger";
+import { getLogger, type Logger, setLogger } from "../lib/logger";
 
 export interface LoggerProviderProps {
   logger: Logger;

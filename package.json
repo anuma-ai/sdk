@@ -93,6 +93,7 @@
     "eval:vault": "tsx test/memory/longmemeval.ts --strategy vault",
     "eval:longmemeval": "tsx test/memory/longmemeval.ts",
     "eval:longmemeval:preload": "tsx test/memory/longmemeval.ts --preload",
+    "eval:vault-search": "tsx test/memory/src/vault/benchmark.test.ts",
     "update-model-apis": "tsx scripts/update-model-apis.ts",
     "api-report": "node scripts/api-extractor-run.mjs",
     "api-report:update": "node scripts/api-extractor-run.mjs --local",
@@ -118,7 +119,7 @@
   "homepage": "https://github.com/anuma-ai/sdk#readme",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@anuma/portal": "1.0.0-next.20260306183544",
+    "@anuma/portal": "1.0.0-next.20260410171436",
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
@@ -155,6 +156,7 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "recharts": "^2.15.4",
+    "table": "^6.9.0",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.14",
@@ -199,7 +201,10 @@
     "overrides": {
       "react": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
       "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
-      "tar": ">=7.5.11"
+      "tar": ">=7.5.11",
+      "picomatch": ">=2.3.2 <3.0.0 || >=4.0.4",
+      "@xmldom/xmldom": ">=0.8.12 <0.9.0",
+      "protobufjs": ">=7.5.5 <8.0.0"
     },
     "patchedDependencies": {
       "tesseract.js@6.0.1": "patches/tesseract.js@6.0.1.patch",

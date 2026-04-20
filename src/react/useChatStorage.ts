@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  LlmapiChatCompletionResponse,
-  LlmapiChatCompletionTool,
-  LlmapiMessage,
-  LlmapiToolCallEvent,
-} from "../client";
+import type { LlmapiChatCompletionTool, LlmapiMessage, LlmapiToolCallEvent } from "../client";
 import { MCP_R2_DOMAIN } from "../clientConfig";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -18,6 +14,7 @@ import {
 } from "../lib/chat/summarize";
 import { type ApiType, resolveApiType } from "../lib/chat/useChat";
 import type { ApiResponse } from "../lib/chat/useChat/strategies/types";
+import type { ToolConfig } from "../lib/chat/useChat/types";
 import {
   type ActivityPhase,
   type BaseSendMessageWithStorageArgs,
@@ -82,6 +79,7 @@ import {
   type QueueStatus,
   WalletPoller,
 } from "../lib/db/queue";
+import { getLogger } from "../lib/logger";
 import {
   chunkText,
   createMemoryEngineTool as createMemoryEngineToolBase,
@@ -92,6 +90,7 @@ import {
   type MemoryEngineSearchOptions,
   shouldChunkMessage,
 } from "../lib/memoryEngine";
+import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
 import {
   createMemoryVaultSearchTool as createMemoryVaultSearchToolBase,
   createMemoryVaultTool as createMemoryVaultToolBase,
@@ -111,6 +110,7 @@ import {
   deleteEncryptedFile,
   extractFileIds,
   extractMCPImageUrls,
+  IMAGE_TOOL_NAMES,
   isOPFSSupported,
   isR2UrlExpired,
   readEncryptedFile,
@@ -128,16 +128,15 @@ import { useChat } from "./useChat";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import { onKeyAvailable } from "./useEncryption";
-import type { ToolConfig } from "../lib/chat/useChat/types";
-import { DEFAULT_API_EMBEDDING_MODEL } from "../lib/memoryEngine/constants";
-import { getLogger } from "../lib/logger";
 
 // Lower threshold for tool filtering - short prompts like "draw a cat" should work
 const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
-// Max client tools to include after automatic semantic filtering
-const MAX_CLIENT_TOOLS_AFTER_FILTER = 3;
+// Max client tools to include after automatic semantic filtering.
+// Set high — the relevanceRatio (0.85) does the real trimming; this
+// is just a safety cap to avoid pathological cases.
+const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
-const CLIENT_TOOLS_MIN_SIMILARITY = 0.25;
+const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -222,11 +221,13 @@ async function autoFilterClientTools(
   const matches = findMatchingTools(promptEmbeddings, pseudoServerTools, {
     limit: MAX_CLIENT_TOOLS_AFTER_FILTER,
     minSimilarity: CLIENT_TOOLS_MIN_SIMILARITY,
+    filterAmbiguous: true,
+    relevanceRatio: 0.85,
   });
 
   if (matches.length === 0) {
-    // No matches above threshold — send all filterable tools + memory
-    return clientTools;
+    // No matches above threshold — return only always-included tools (e.g. memory)
+    return alwaysInclude;
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
@@ -259,7 +260,7 @@ async function storedToLlmapiMessage(
   stored: StoredMessage,
   encryptionKey?: CryptoKey,
   resolveMediaByIds?: (ids: string[]) => Promise<Array<{ mediaId: string; sourceUrl?: string }>>
-): Promise<LlmapiMessage> {
+): Promise<LlmapiMessage[]> {
   let textContent = stored.content;
 
   // Build a map of fileId -> sourceUrl for replacement
@@ -337,7 +338,7 @@ async function storedToLlmapiMessage(
 
   // Replace internal __SDKFILE__ placeholders with sourceUrls or remove them
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(/__SDKFILE__([a-zA-Z0-9_-]+)__/g, (_match, fileId) => {
+  textContent = textContent.replace(/__SDKFILE__([a-zA-Z0-9_-]+)__/g, (_match, fileId: string) => {
     const sourceUrl = fileUrlMap.get(fileId);
     if (sourceUrl) {
       // Replace with markdown image pointing to sourceUrl
@@ -350,13 +351,16 @@ async function storedToLlmapiMessage(
   // Also handle legacy ![MCP_IMAGE:fileId] placeholders for backward compatibility
   // This supports old messages that may still contain MCP_IMAGE placeholders
   // Pattern matches both legacy hex UUIDs and new media_UUID format from generateMediaId()
-  textContent = textContent.replace(/!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g, (_match, fileId) => {
-    const sourceUrl = fileUrlMap.get(fileId);
-    if (sourceUrl) {
-      return `![image](${sourceUrl})`;
+  textContent = textContent.replace(
+    /!\[MCP_IMAGE:([a-zA-Z0-9_-]+)\]/g,
+    (_match, fileId: string) => {
+      const sourceUrl = fileUrlMap.get(fileId);
+      if (sourceUrl) {
+        return `![image](${sourceUrl})`;
+      }
+      return "";
     }
-    return "";
-  });
+  );
 
   // For assistant messages with resolved image URLs that aren't already in the content,
   // append them as markdown images so the LLM can reference them
@@ -378,10 +382,72 @@ async function storedToLlmapiMessage(
 
   const content: LlmapiMessage["content"] = [{ type: "text", text: textContent }, ...imageParts];
 
-  return {
-    role: stored.role,
-    content,
-  };
+  const messages: LlmapiMessage[] = [];
+
+  // For assistant messages with tool call events, reconstruct the tool call chain
+  // so the backend receives proper function_call + function_call_output items.
+  // The chain must be: assistant(tool_calls) → tool(results) → assistant(final text)
+  // because the assistant text is the *post-tool* response that references tool results.
+  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+    // 1. Assistant message that decided to call tools (no text content)
+    messages.push({
+      role: stored.role,
+      content: undefined,
+      tool_calls: stored.toolCallEvents.map((event) => ({
+        id: event.id,
+        type: "function",
+        function: {
+          name: event.name ?? "",
+          arguments: event.arguments ?? "",
+        },
+      })),
+    });
+
+    // 2. Tool result messages for each event that has output
+    for (const event of stored.toolCallEvents) {
+      if (event.id && event.output !== undefined && event.output !== null) {
+        // For image tools, strip the URL from the output to prevent the model
+        // from echoing previous images and causing duplicate storage in the library.
+        let toolOutput = event.output;
+        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
+          try {
+            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
+            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            toolOutput = JSON.stringify(rest);
+          } catch {
+            // Not JSON — use as-is
+          }
+        }
+
+        messages.push({
+          role: "tool" as LlmapiMessage["role"],
+          tool_call_id: event.id,
+          content: [{ type: "text", text: toolOutput }],
+        });
+      }
+    }
+
+    // 3. Assistant message with the final text response (post-tool).
+    // Strip R2-hosted image markdown AND plain R2 URLs so the model doesn't echo previous
+    // images in subsequent turns (which causes duplicate images and URL streaming).
+    // Only strips R2 URLs — external image references are preserved.
+    const postToolText = textContent
+      .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    messages.push({
+      role: stored.role,
+      content: [{ type: "text", text: postToolText }],
+    });
+  } else {
+    messages.push({
+      role: stored.role,
+      content,
+    });
+  }
+
+  return messages;
 }
 
 /**
@@ -490,7 +556,7 @@ export type SendMessageWithStorageResult =
       userMessage: StoredMessage;
       assistantMessage: StoredMessage;
       /** Results from tools that were auto-executed by the SDK (e.g. display tools) */
-      autoExecutedToolResults?: { name: string; result: any }[];
+      autoExecutedToolResults?: { name: string; result: unknown }[];
     }
   | {
       data: ApiResponse;
@@ -541,7 +607,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * ```ts
    * const result = await sendMessage({
    *   content: "Explain quantum computing",
-   *   model: "gpt-4o",
+   *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
    *   includeHistory: true,
    *   onData: (chunk) => setStreamingText(prev => prev + chunk),
    * });
@@ -699,7 +765,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *   const handleSend = async () => {
  *     const result = await sendMessage({
  *       content: 'Hello, how are you?',
- *       model: 'gpt-4o-mini',
+ *       model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
  *       includeHistory: true, // Include previous messages from this conversation
  *     });
  *
@@ -735,6 +801,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
     walletAddress,
     signMessage,
@@ -864,15 +931,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         case "updateConversationTitle":
           await updateConversationTitleOp(
             ctx,
-            operation.payload.conversationId,
-            operation.payload.title
+            operation.payload.conversationId as string,
+            operation.payload.title as string
           );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
           break;
         case "createMediaBatch":
-          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
+          await createMediaBatchOp(
+            mCtx,
+            operation.payload.mediaOptions as Parameters<typeof createMediaBatchOp>[1]
+          );
           break;
         default:
           getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
@@ -956,7 +1026,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   const pendingOpsRef = useRef<
     Array<{
       type: QueuedOperationType;
-      payload: Record<string, any>;
+      payload: Record<string, unknown>;
       dependencies: string[];
     }>
   >([]);
@@ -1188,7 +1258,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   // Pre-embed vault memories on mount
   useEffect(() => {
     if (!getToken) return;
-    (async () => {
+    void (async () => {
       try {
         await preEmbedVaultMemories(
           vaultCtx,
@@ -1254,6 +1324,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     onFinish,
     onError,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     apiType,
   });
 
@@ -1458,10 +1529,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
   }, [currentConversationId, getConversation, autoCreateConversation, createConversation]);
 
   /**
-   * Extracts SearchSource objects from tool call events (e.g., BraveSearchMCP results).
+   * Extracts SearchSource objects from tool call events (search results from MCP tools).
    *
-   * Note: Currently only handles BraveSearchMCP tool calls. Other search tools
-   * (e.g., PerplexityMCP) would need to be added here if they return structured sources.
+   * Supported tools:
+   * - AnumaSearchMCP (structured JSON with results array — primary search tool)
+   * - BraveSearchMCP (concatenated JSON objects — legacy, kept for backward compat)
+   * - JinaMCP (search_web — JSON with results array)
+   * - PerplexityMCP (markdown-formatted text)
    */
   const extractSourcesFromToolCallEvents = useCallback(
     (toolCallEvents?: LlmapiToolCallEvent[]): SearchSource[] => {
@@ -1472,9 +1546,43 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         if (toolCallEvents) {
           for (const toolCallEvent of toolCallEvents) {
             const outputStr = toolCallEvent.output || "";
+            const toolName = toolCallEvent.name || "";
 
-            // BraveSearchMCP returns concatenated JSON objects
-            if (toolCallEvent.name?.includes("BraveSearchMCP")) {
+            // AnumaSearchMCP returns structured JSON:
+            // {"results": [{title, url, snippets: [...]}], "sources": {url: {title, hostname}}, "cost": N}
+            if (toolName.includes("AnumaSearchMCP") && toolName.includes("text_search")) {
+              try {
+                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
+                const results = parsed?.results;
+                if (Array.isArray(results)) {
+                  for (const result of results) {
+                    const r = result as Record<string, unknown>;
+                    const url = typeof r.url === "string" ? r.url : "";
+                    if (url && !seenUrls.has(url)) {
+                      seenUrls.add(url);
+                      const title = typeof r.title === "string" ? r.title : undefined;
+                      const snippets = Array.isArray(r.snippets)
+                        ? (r.snippets as string[]).filter((s) => typeof s === "string")
+                        : [];
+                      let snippet = snippets.join(" ").trim();
+                      if (snippet.length > 250) {
+                        snippet = snippet.slice(0, 250).trim() + "...";
+                      }
+                      extractedSources.push({
+                        title: title || undefined,
+                        url,
+                        snippet: snippet || undefined,
+                      });
+                    }
+                  }
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            }
+
+            // BraveSearchMCP returns concatenated JSON objects (legacy — kept for backward compat)
+            if (toolName.includes("BraveSearchMCP")) {
               try {
                 // Note: Assumes flat JSON objects from BraveSearch output (no nested braces)
                 const jsonObjectRegex = /\{[^{}]*"url"[^{}]*\}/g;
@@ -1482,11 +1590,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
                 while ((match = jsonObjectRegex.exec(outputStr)) !== null) {
                   try {
-                    const result = JSON.parse(match[0]);
-                    if (result.url && !seenUrls.has(result.url)) {
-                      seenUrls.add(result.url);
+                    const result = JSON.parse(match[0]) as Record<string, unknown>;
+                    const resultUrl = typeof result.url === "string" ? result.url : "";
+                    if (resultUrl && !seenUrls.has(resultUrl)) {
+                      seenUrls.add(resultUrl);
                       // Strip HTML tags and decode entities from description
-                      const rawDescription = result.description || "";
+                      const rawDescription =
+                        typeof result.description === "string" ? result.description : "";
                       const cleanDescription = rawDescription
                         .replace(/<[^>]*>/g, "") // Remove HTML tags
                         .replace(/&amp;/g, "&")
@@ -1498,9 +1608,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
                         .replace(/&apos;/g, "'")
                         .replace(/&nbsp;/g, " ")
                         .trim();
+                      const resultTitle =
+                        typeof result.title === "string" ? result.title : undefined;
                       extractedSources.push({
-                        title: result.title || undefined,
-                        url: result.url,
+                        title: resultTitle || undefined,
+                        url: resultUrl,
                         snippet: cleanDescription || undefined,
                       });
                     }
@@ -1513,12 +1625,49 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }
             }
 
+            // JinaMCP search_web/parallel_search_web — try JSON with results array
+            if (toolName.includes("JinaMCP") && toolName.includes("search")) {
+              try {
+                const parsed = JSON.parse(outputStr) as Record<string, unknown>;
+                const results = Array.isArray(parsed)
+                  ? (parsed as Record<string, unknown>[])
+                  : Array.isArray(parsed?.results)
+                    ? (parsed.results as Record<string, unknown>[])
+                    : Array.isArray(parsed?.data)
+                      ? (parsed.data as Record<string, unknown>[])
+                      : [];
+                for (const r of results) {
+                  const url =
+                    (typeof r.url === "string" ? r.url : "") ||
+                    (typeof r.link === "string" ? r.link : "");
+                  if (url && !seenUrls.has(url)) {
+                    seenUrls.add(url);
+                    const title = typeof r.title === "string" ? r.title : undefined;
+                    let snippet =
+                      (typeof r.snippet === "string" ? r.snippet : "") ||
+                      (typeof r.description === "string" ? r.description : "") ||
+                      (typeof r.content === "string" ? r.content : "");
+                    if (snippet.length > 250) {
+                      snippet = snippet.slice(0, 250).trim() + "...";
+                    }
+                    extractedSources.push({
+                      title: title || undefined,
+                      url,
+                      snippet: snippet || undefined,
+                    });
+                  }
+                }
+              } catch {
+                // Ignore JinaMCP parse errors
+              }
+            }
+
             // PerplexityMCP returns markdown-formatted text:
             // 1. **Title**
             //    URL: https://...
             //    [description]
             //    Date: YYYY-MM-DD
-            if (toolCallEvent.name?.includes("PerplexityMCP")) {
+            if (toolName.includes("PerplexityMCP")) {
               try {
                 // Match each numbered result block
                 // Pattern: digit(s). **title**\n   URL: url
@@ -1760,7 +1909,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
-      } catch (err) {
+      } catch {
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
         return { fileIds: [], cleanedContent: content };
@@ -2017,8 +2166,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         let filteredClientTools = clientTools;
         if (clientToolsFilter && clientTools?.length) {
           const clientToolNames = clientToolsFilter(skipStorageEmbeddings, clientTools);
-          filteredClientTools = clientTools.filter((t: any) => {
-            const name = t.function?.name || t.name;
+          filteredClientTools = clientTools.filter((t) => {
+            const fn = t.function as Record<string, unknown> | undefined;
+            const name = (fn?.name as string) || (t.name as string);
             return clientToolNames.includes(name);
           });
         } else if (clientTools?.length && getToken) {
@@ -2092,6 +2242,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Preprocess files if present to generate file context
       let fileContextForRequest: string | undefined;
       let preprocessedFileIds: string[] = [];
+      let imageContentUrls: string[] | undefined;
       if (filesForStorage && filesForStorage.length > 0) {
         try {
           const preprocessingResult = await preprocessFiles(filesForStorage, {
@@ -2104,8 +2255,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             fileContextForRequest = preprocessingResult.extractedContent;
             preprocessedFileIds = preprocessingResult.preprocessedFileIds;
           }
-        } catch {
-          // Non-fatal error - continue without preprocessing
+
+          // Collect image fallback URLs (e.g. scanned PDF pages rendered as images)
+          if (preprocessingResult.imageContentUrls?.length) {
+            imageContentUrls = preprocessingResult.imageContentUrls;
+          }
+        } catch (err) {
+          getLogger().error(
+            "[sendMessage] File preprocessing failed — continuing without file context:",
+            err
+          );
         }
       }
 
@@ -2135,13 +2294,24 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       }
 
       // Build the messages array
-      let messagesToSend: LlmapiMessage[] = [];
+      let messagesToSend: LlmapiMessage[];
+
+      // Collect tool call event IDs already stored on earlier messages so we can
+      // deduplicate the backend's accumulated tool_call_events later.
+      // This must run unconditionally — even when includeHistory is false, the
+      // backend still returns accumulated events across the entire conversation.
+      const storedMessages = await getMessagesOp(storageCtx, convId);
+      const knownToolCallEventIds = new Set<string>();
+      for (const msg of storedMessages) {
+        if (msg.toolCallEvents) {
+          for (const evt of msg.toolCallEvents) {
+            if (evt.id) knownToolCallEventIds.add(evt.id);
+          }
+        }
+      }
 
       // Include history if requested
       if (includeHistory) {
-        // Get raw messages from database (not transformed for client display)
-        // This ensures we have the original placeholders, not blob URLs
-        const storedMessages = await getMessagesOp(storageCtx, convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
@@ -2204,21 +2374,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
-        const historyMessages = await Promise.all(
-          messagesToConvert.map((msg) =>
-            storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+        const historyMessages = (
+          await Promise.all(
+            messagesToConvert.map((msg) =>
+              storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+            )
           )
-        );
+        ).flat();
 
-        // Assemble: [summary (if exists), window messages, new messages]
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...historyMessages,
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          historyMessages,
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // If we have file context, remove file attachments from the user message to avoid sending large base64 data
@@ -2264,6 +2435,33 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               }),
             };
           }
+        }
+      }
+
+      // Inject image fallback content (e.g. scanned PDF pages rendered as images).
+      // These are appended to the last user message so the vision model can read
+      // the document even when text extraction returned no content.
+      if (imageContentUrls && imageContentUrls.length > 0) {
+        let lastUserIdx = -1;
+        for (let i = messagesToSend.length - 1; i >= 0; i--) {
+          if (messagesToSend[i].role === "user") {
+            lastUserIdx = i;
+            break;
+          }
+        }
+        if (lastUserIdx !== -1) {
+          const msg = messagesToSend[lastUserIdx];
+          const existingParts = Array.isArray(msg.content)
+            ? msg.content
+            : [{ type: "text" as const, text: msg.content ?? "" }];
+          const imageParts = imageContentUrls.map((url) => ({
+            type: "image_url" as const,
+            image_url: { url },
+          }));
+          messagesToSend[lastUserIdx] = {
+            ...msg,
+            content: [...existingParts, ...imageParts],
+          };
         }
       }
 
@@ -2392,8 +2590,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       let filteredClientTools = clientTools;
       if (clientToolsFilter && clientTools?.length) {
         const clientToolNames = clientToolsFilter(userMessageEmbeddings ?? null, clientTools);
-        filteredClientTools = clientTools.filter((t: any) => {
-          const name = t.function?.name || t.name;
+        filteredClientTools = clientTools.filter((t) => {
+          const fn = t.function as Record<string, unknown> | undefined;
+          const name = (fn?.name as string) || (t.name as string);
           return clientToolNames.includes(name);
         });
       } else if (clientTools?.length && getToken) {
@@ -2441,7 +2640,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage);
         }
       }
 
@@ -2524,7 +2723,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             });
 
             // Embed assistant message (non-blocking)
-            embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: ApiResponse = abortedResult.data || {
@@ -2619,11 +2818,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
       }
 
+      // Deduplicate tool_call_events: the backend returns accumulated events across
+      // the entire conversation. Filter to only new events from this turn so we don't
+      // re-extract images (or other artifacts) that already belong to earlier messages.
+      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      );
+
       // Extract sources from tool_call_events (e.g., search results from MCP tools)
       // Filter out MCP image URLs from sources (they are handled separately as files)
-      const extractedSources = extractSourcesFromToolCallEvents(
-        responseData.tool_call_events
-      ).filter((source: SearchSource) => !source.url?.includes(mcpR2Domain));
+      const extractedSources = extractSourcesFromToolCallEvents(currentTurnToolCallEvents).filter(
+        (source: SearchSource) => !source.url?.includes(mcpR2Domain)
+      );
 
       // Clean up extra newlines left after stripping
       let cleanedContent = assistantContent.replace(/\n{3,}/g, "\n\n");
@@ -2637,7 +2843,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           cleanedContent,
           walletAddress,
           convId,
-          responseData.tool_call_events
+          currentTurnToolCallEvents
         );
         assistantFileIds = result.fileIds;
         cleanedContent = result.cleanedContent;
@@ -2648,7 +2854,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Resolve image model: prefer user-provided, fall back to MCP tool response
       const resolvedImageModel =
-        imageModel || extractMCPImageUrls("", responseData.tool_call_events, mcpR2Domain)[0]?.model;
+        imageModel || extractMCPImageUrls("", currentTurnToolCallEvents, mcpR2Domain)[0]?.model;
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -2667,6 +2873,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
         // isn't updated. The client-side mergeParentMessageIds handles this on reload.
         parentMessageId: storedUserMessage.uniqueId,
+        toolCallEvents:
+          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
+            ? currentTurnToolCallEvents
+            : undefined,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -2684,7 +2894,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage);
         }
       } catch (err) {
         // Clean up OPFS files and media records if message creation failed
@@ -2722,8 +2932,8 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // synthetic user message so they persist across page refreshes and can be
       // rendered by the app. Parented to the assistant message so they appear as
       // a continuation in the conversation tree, not as a sibling branch.
-      const autoToolResults = (result as any).autoExecutedToolResults as
-        | { name: string; result: any }[]
+      const autoToolResults = (result as Record<string, unknown>).autoExecutedToolResults as
+        | { name: string; result: unknown }[]
         | undefined;
       if (autoToolResults && autoToolResults.length > 0) {
         const toolSummary = autoToolResults
@@ -2773,9 +2983,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         error: null,
         userMessage: storedUserMessage,
         assistantMessage: storedAssistantMessage,
-        autoExecutedToolResults: (result as any).autoExecutedToolResults,
+        autoExecutedToolResults: (result as Record<string, unknown>).autoExecutedToolResults as
+          | { name: string; result: unknown }[]
+          | undefined,
       };
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally omitting stable refs and config values that don't change identity
     [
       ensureConversation,
       getMessages,

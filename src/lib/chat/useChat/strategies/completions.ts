@@ -244,6 +244,12 @@ export class CompletionsStrategy implements ApiStrategy {
               }
               if (toolCallDelta.function?.arguments) {
                 toolCall.arguments += toolCallDelta.function.arguments;
+                result.toolCallArgumentsDelta = {
+                  toolCallId: toolCall.id,
+                  toolName: toolCall.name,
+                  argumentsDelta: toolCallDelta.function.arguments,
+                  accumulatedArguments: toolCall.arguments,
+                };
               }
             }
           }
@@ -256,7 +262,7 @@ export class CompletionsStrategy implements ApiStrategy {
           const toolCall = choice.messages.tool_calls[i];
           const toolKey = `tool_${i}`;
           accumulator.toolCalls.set(toolKey, {
-            id: toolCall.id || `tool_${i}`,
+            id: toolCall.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2)}_${i}`,
             type: toolCall.type || "function",
             name: toolCall.function?.name || "",
             arguments: toolCall.function?.arguments || "",
@@ -324,7 +330,7 @@ export class CompletionsStrategy implements ApiStrategy {
             const toolCall = choice.message.tool_calls[i];
             const toolKey = `tool_${i}`;
             accumulator.toolCalls.set(toolKey, {
-              id: toolCall.id || `tool_${i}`,
+              id: toolCall.id || `tool_${Date.now()}_${Math.random().toString(36).slice(2)}_${i}`,
               type: toolCall.type || "function",
               name: toolCall.function?.name || "",
               arguments: toolCall.function?.arguments || "",
@@ -350,8 +356,6 @@ export class CompletionsStrategy implements ApiStrategy {
   buildFinalResponse(accumulator: StreamAccumulator): LlmapiChatCompletionResponse {
     // Final cleanup: handle any remaining partial tag
     let finalContent = accumulator.content;
-    let finalThinking = accumulator.thinking;
-
     if (accumulator.partialReasoningTag) {
       // Final cleanup: if we have a partial tag, try to parse it one more time
       const finalParse = parseReasoningTags(
@@ -362,19 +366,14 @@ export class CompletionsStrategy implements ApiStrategy {
         accumulator.implicitReasoningStart
       );
       finalContent += finalParse.messageContent;
-      if (finalParse.reasoningContent) {
-        finalThinking += finalParse.reasoningContent;
-      }
       // Handle any remaining partial tag content that couldn't be parsed
       // (e.g., stream ended with incomplete tag like "<" or "<thi")
       if (finalParse.partialTag) {
-        if (finalParse.insideReasoning) {
-          // If we're inside reasoning, the partial belongs to thinking
-          finalThinking += finalParse.partialTag;
-        } else {
-          // Otherwise, it's regular content
+        if (!finalParse.insideReasoning) {
+          // If we're not inside reasoning, the partial is regular content
           finalContent += finalParse.partialTag;
         }
+        // If inside reasoning, the partial belongs to thinking (not used in Completions format)
       }
     }
 

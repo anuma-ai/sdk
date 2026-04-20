@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsClaimTaskErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:2615](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2615)
+Defined in: [src/client/types.gen.ts:3542](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3542)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2615](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2619](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2619)
+Defined in: [src/client/types.gen.ts:3546](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3546)
 
 Invalid task type or already claimed
 
@@ -20,7 +20,7 @@ Invalid task type or already claimed
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2623](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2623)
+Defined in: [src/client/types.gen.ts:3550](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3550)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:2627](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2627)
+Defined in: [src/client/types.gen.ts:3554](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3554)
 
 Internal Server Error

@@ -27,7 +27,7 @@
  * // Use with chat
  * await sendMessage({
  *   messages: [...],
- *   model: "gpt-4o-mini",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   tools: calendarTools,
  * });
  * ```
@@ -62,6 +62,7 @@
 
 // Google Calendar exports
 export type { ToolConfig } from "../lib/chat/useChat/types.js";
+export type { ToolExecutionErrorType, ToolExecutionResult } from "../lib/chat/useChat/utils.js";
 export type {
   CalendarEvent,
   CreateEventArgs,
@@ -142,3 +143,28 @@ export {
   createNotionUpdatePageTool,
   getMCPEndpoints,
 } from "./notion";
+
+// GitHub exports
+export { createGitHubTools } from "./github";
+
+// App generation tools
+export type {
+  AppFileRecord,
+  AppFileStorage,
+  CreateAppGenerationToolsOptions,
+} from "./appGeneration";
+export {
+  APP_FILE_TOOL_NAMES,
+  applyPatches,
+  buildAppSystemPrompt,
+  CREATE_FILE_SCHEMA,
+  createAppGenerationTools,
+  DELETE_FILE_SCHEMA,
+  DISPLAY_APP_SCHEMA,
+  LIST_FILES_SCHEMA,
+  MapFileStorage,
+  normalizePath,
+  PATCH_FILE_SCHEMA,
+  READ_FILE_SCHEMA,
+  truncateContent,
+} from "./appGeneration";

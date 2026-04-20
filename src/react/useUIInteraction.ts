@@ -18,7 +18,7 @@ export type InteractionType = "choice" | "form" | "display" | (string & {});
 /**
  * Represents a pending user interaction that needs to be resolved
  */
-export type PendingInteraction<TData = any, TResult = any> = {
+export type PendingInteraction<TData = unknown, TResult = unknown> = {
   id: string;
   type: InteractionType;
   data: TData;
@@ -38,16 +38,16 @@ export type PendingInteraction<TData = any, TResult = any> = {
  */
 export type UIInteractionContextValue = {
   pendingInteractions: Map<string, PendingInteraction>;
-  createInteraction: (id: string, type: InteractionType, data: any) => Promise<any>;
+  createInteraction: (id: string, type: InteractionType, data: unknown) => Promise<unknown>;
   createDisplayInteraction: (
     id: string,
     displayType: string,
-    data: any,
-    result: any,
+    data: unknown,
+    result: unknown,
     toolVersion?: number,
     replacesInteractionId?: string
   ) => void;
-  resolveInteraction: (id: string, result: any) => void;
+  resolveInteraction: (id: string, result: unknown) => void;
   cancelInteraction: (id: string) => void;
   clearInteractions: () => void;
   getInteraction: (id: string) => PendingInteraction | undefined;
@@ -88,14 +88,15 @@ export function UIInteractionProvider({
     new Map()
   );
 
-  const cleanupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Per-interaction timeout timers, keyed by interaction ID */
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   /**
    * Create a new pending interaction and return a promise that resolves
    * when the user responds
    */
   const createInteraction = useCallback(
-    (id: string, type: InteractionType, data: any): Promise<any> => {
+    (id: string, type: InteractionType, data: unknown): Promise<unknown> => {
       return new Promise((resolve, reject) => {
         const interaction: PendingInteraction = {
           id,
@@ -112,27 +113,18 @@ export function UIInteractionProvider({
           return next;
         });
 
-        if (cleanupTimerRef.current) {
-          clearTimeout(cleanupTimerRef.current);
-        }
-
-        cleanupTimerRef.current = setTimeout(() => {
+        // Per-interaction timeout so each interaction gets the full window
+        const timer = setTimeout(() => {
+          timersRef.current.delete(id);
+          reject(new Error("Interaction timeout"));
           setPendingInteractions((prev) => {
-            const now = Date.now();
+            if (!prev.has(id)) return prev;
             const next = new Map(prev);
-            let hasChanges = false;
-
-            for (const [key, value] of next.entries()) {
-              if (now - value.createdAt > timeout) {
-                value.reject(new Error("Interaction timeout"));
-                next.delete(key);
-                hasChanges = true;
-              }
-            }
-
-            return hasChanges ? next : prev;
+            next.delete(id);
+            return next;
           });
         }, timeout);
+        timersRef.current.set(id, timer);
       });
     },
     [timeout]
@@ -146,8 +138,8 @@ export function UIInteractionProvider({
     (
       id: string,
       displayType: string,
-      data: any,
-      result: any,
+      data: unknown,
+      result: unknown,
       toolVersion?: number,
       replacesInteractionId?: string
     ) => {
@@ -155,7 +147,10 @@ export function UIInteractionProvider({
         const next = new Map(prev);
         if (!replacesInteractionId || !next.has(replacesInteractionId)) {
           for (const [key, value] of next.entries()) {
-            if (value.type === "display" && value.data?.displayType === displayType) {
+            if (
+              value.type === "display" &&
+              (value.data as Record<string, unknown> | null)?.displayType === displayType
+            ) {
               next.delete(key);
             }
           }
@@ -165,7 +160,7 @@ export function UIInteractionProvider({
         next.set(id, {
           id,
           type: "display",
-          data: { ...data, displayType },
+          data: { ...(data as Record<string, unknown>), displayType },
           resolve: () => {},
           reject: () => {},
           createdAt: Date.now(),
@@ -183,11 +178,18 @@ export function UIInteractionProvider({
   /**
    * Resolve a pending interaction with a result
    */
-  const resolveInteraction = useCallback((id: string, result: any) => {
+  const resolveInteraction = useCallback((id: string, result: unknown) => {
     setPendingInteractions((prev) => {
       const interaction = prev.get(id);
       if (!interaction) {
         return prev;
+      }
+
+      // Clear the per-interaction timeout
+      const timer = timersRef.current.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        timersRef.current.delete(id);
       }
 
       interaction.resolve(result);
@@ -200,10 +202,22 @@ export function UIInteractionProvider({
   }, []);
 
   /**
-   * Clear all interactions (e.g. on conversation switch)
+   * Clear all interactions (e.g. on conversation switch).
+   * Rejects any unsettled promises so the tool loop doesn't hang.
    */
   const clearInteractions = useCallback(() => {
-    setPendingInteractions(new Map());
+    for (const timer of timersRef.current.values()) {
+      clearTimeout(timer);
+    }
+    timersRef.current.clear();
+    setPendingInteractions((prev) => {
+      for (const interaction of prev.values()) {
+        if (!interaction.resolved) {
+          interaction.reject(new Error("Interaction cleared"));
+        }
+      }
+      return new Map();
+    });
   }, []);
 
   /**
@@ -214,6 +228,13 @@ export function UIInteractionProvider({
       const interaction = prev.get(id);
       if (!interaction) {
         return prev;
+      }
+
+      // Clear the per-interaction timeout
+      const timer = timersRef.current.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        timersRef.current.delete(id);
       }
 
       interaction.reject(new Error("Interaction cancelled by user"));

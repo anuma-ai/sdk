@@ -72,7 +72,7 @@ function ChatScreen() {
   const handleSend = async () => {
     await sendMessage({
       messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
-      model: "openai/gpt-4o",
+      model: "fireworks/accounts/fireworks/models/kimi-k2p5",
     });
   };
 
@@ -511,6 +511,12 @@ Re-exports [StoredVaultMemory](../react/Internal/interfaces/StoredVaultMemory.md
 ### StoredVaultMemoryModel
 
 Re-exports [StoredVaultMemoryModel](../react/Internal/classes/StoredVaultMemoryModel.md)
+
+***
+
+### updateVaultFolderContextOp
+
+Re-exports [updateVaultFolderContextOp](../react/Internal/functions/updateVaultFolderContextOp.md)
 
 ***
 

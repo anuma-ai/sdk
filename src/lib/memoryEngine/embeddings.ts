@@ -5,7 +5,6 @@
  */
 
 import { postApiV1Embeddings } from "../../client";
-import { getLogger } from "../logger";
 import { BASE_URL } from "../../clientConfig";
 import {
   getConversationsOp,
@@ -15,6 +14,7 @@ import {
   updateMessageEmbeddingOp,
 } from "../db/chat/operations";
 import type { MessageChunk, StoredMessage } from "../db/chat/types";
+import { getLogger } from "../logger";
 import {
   type ChunkingOptions,
   chunkText,
@@ -166,7 +166,7 @@ export async function generateEmbeddings(
   const chunkSize = batchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE;
 
   // Separate cached and uncached texts
-  const results: (number[] | null)[] = new Array(texts.length).fill(null);
+  const results: (number[] | null)[] = new Array<number[] | null>(texts.length).fill(null);
   const uncachedIndices: number[] = [];
   const uncachedTexts: string[] = [];
 
@@ -221,7 +221,7 @@ export async function generateEmbeddings(
       chunks.push(uncachedTexts.slice(i, i + chunkSize));
     }
 
-    const allEmbeddings: number[][][] = new Array(chunks.length);
+    const allEmbeddings: number[][][] = new Array<number[][]>(chunks.length);
     let nextIndex = 0;
 
     const worker = async () => {

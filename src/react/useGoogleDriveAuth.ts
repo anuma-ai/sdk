@@ -13,9 +13,7 @@ import {
 
 import type { Client } from "../client/client";
 import {
-  clearGoogleDriveToken,
   getGoogleDriveAccessToken,
-  getGoogleDriveStoredToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
   isGoogleDriveCallback,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { LlmapiMessage, LlmapiResponseResponse } from "../client";
+import { assembleMessagesWithHistory } from "../lib/chat/assembleMessages";
 import {
   cleanupConversationSummary,
   DEFAULT_SUMMARY_MIN_WINDOW_MESSAGES,
@@ -41,7 +42,11 @@ import {
   updateMessageErrorOp,
 } from "../lib/db/chat";
 import { updateMessageEmbeddingOp } from "../lib/db/chat";
-import { createMediaBatchOp, deleteMediaByConversationOp } from "../lib/db/media";
+import {
+  createMediaBatchOp,
+  type CreateMediaOptions,
+  deleteMediaByConversationOp,
+} from "../lib/db/media";
 import {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
@@ -58,6 +63,7 @@ import {
   type QueueStatus,
   WalletPoller,
 } from "../lib/db/queue";
+import { getLogger } from "../lib/logger";
 import {
   createMemoryEngineTool as createMemoryEngineToolBase,
   DEFAULT_MIN_CONTENT_LENGTH,
@@ -69,21 +75,11 @@ import {
   createMemoryVaultTool as createMemoryVaultToolBase,
   type MemoryVaultToolOptions,
 } from "../lib/memoryVault";
-import { getLogger } from "../lib/logger";
+import { IMAGE_TOOL_NAMES } from "../lib/storage/mcpImages";
 import { filterServerTools, getServerTools, mergeTools, type ServerTool } from "../lib/tools";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 import { hasEncryptionKey, onKeyAvailable, requestEncryptionKey } from "../react/useEncryption";
 import { useChat } from "./useChat";
-
-/** Image tool names recognized by the MCP image pipeline. */
-const IMAGE_TOOL_NAMES = new Set([
-  "AnumaImageMCP_generate_cloud_image",
-  "AnumaImageMCP_edit_cloud_image",
-  "AnumaImageMCP-generate_cloud_image",
-  "AnumaImageMCP-edit_cloud_image",
-  "generate_cloud_image",
-  "edit_cloud_image",
-]);
 
 /**
  * Extract the image generation model name from tool_call_events.
@@ -96,8 +92,8 @@ function extractImageModelFromToolEvents(
   for (const event of toolCallEvents) {
     if (event.name && IMAGE_TOOL_NAMES.has(event.name) && event.output) {
       try {
-        const output = JSON.parse(event.output);
-        if (output.model) return output.model as string;
+        const output = JSON.parse(event.output) as { model?: string };
+        if (output.model) return output.model;
       } catch {
         // Malformed JSON — skip
       }
@@ -111,7 +107,7 @@ function extractImageModelFromToolEvents(
  * Only adds image_url parts for non-assistant messages.
  * ai-portal doesn't support image_url in assistant messages for /chat/completions.
  */
-function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
+function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage[] {
   const content: LlmapiMessage["content"] = [{ type: "text", text: stored.content }];
 
   // Add file image parts if present (only for non-assistant messages)
@@ -127,10 +123,71 @@ function storedToLlmapiMessage(stored: StoredMessage): LlmapiMessage {
     }
   }
 
-  return {
-    role: stored.role,
-    content,
-  };
+  const messages: LlmapiMessage[] = [];
+
+  // For assistant messages with tool call events, reconstruct the tool call chain.
+  // The chain must be: assistant(tool_calls) → tool(results) → assistant(final text)
+  // because the assistant text is the *post-tool* response that references tool results.
+  if (stored.role === "assistant" && stored.toolCallEvents?.length) {
+    // 1. Assistant message that decided to call tools (no text content)
+    messages.push({
+      role: stored.role,
+      content: undefined,
+      tool_calls: stored.toolCallEvents.map((event) => ({
+        id: event.id,
+        type: "function",
+        function: {
+          name: event.name ?? "",
+          arguments: event.arguments ?? "",
+        },
+      })),
+    });
+
+    // 2. Tool result messages
+    for (const event of stored.toolCallEvents) {
+      if (event.id && event.output !== undefined && event.output !== null) {
+        // For image tools, strip the URL from the output to prevent the model
+        // from echoing previous images and causing duplicate storage in the library.
+        let toolOutput = event.output;
+        if (event.name && IMAGE_TOOL_NAMES.has(event.name)) {
+          try {
+            const parsed = JSON.parse(toolOutput) as Record<string, unknown>;
+            const { imageUrl: _imageUrl, url: _url, ...rest } = parsed;
+            toolOutput = JSON.stringify(rest);
+          } catch {
+            // Not JSON — use as-is
+          }
+        }
+
+        messages.push({
+          role: "tool" as LlmapiMessage["role"],
+          tool_call_id: event.id,
+          content: [{ type: "text", text: toolOutput }],
+        });
+      }
+    }
+
+    // 3. Assistant message with the final text response (post-tool).
+    // Strip R2-hosted image markdown AND plain R2 URLs so the model doesn't echo previous
+    // images in subsequent turns (which causes duplicate images and URL streaming).
+    // Only strips R2 URLs — external image references are preserved.
+    const postToolText = stored.content
+      .replace(/!\[[^\]]*\]\(https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^)]+\)/g, "")
+      .replace(/https?:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s)]+/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    messages.push({
+      role: stored.role,
+      content: [{ type: "text", text: postToolText }],
+    });
+  } else {
+    messages.push({
+      role: stored.role,
+      content,
+    });
+  }
+
+  return messages;
 }
 
 /**
@@ -275,7 +332,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *   const handleSend = async () => {
  *     const result = await sendMessage({
  *       content: 'Hello!',
- *       model: 'gpt-4o-mini',
+ *       model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
  *       includeHistory: true,
  *     });
  *   };
@@ -403,15 +460,15 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         case "updateConversationTitle":
           await updateConversationTitleOp(
             ctx,
-            operation.payload.conversationId,
-            operation.payload.title
+            operation.payload.conversationId as string,
+            operation.payload.title as string
           );
           break;
         case "createMessage":
           await createMessageOp(ctx, operation.payload as Parameters<typeof createMessageOp>[1]);
           break;
         case "createMediaBatch":
-          await createMediaBatchOp(mCtx, operation.payload.mediaOptions);
+          await createMediaBatchOp(mCtx, operation.payload.mediaOptions as CreateMediaOptions[]);
           break;
         default:
           getLogger().warn(`[QueueManager] Unknown operation type: ${operation.type}`);
@@ -754,7 +811,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         while ((jsonMatch = jsonBlockRegex.exec(content)) !== null) {
           if (jsonMatch[1]) {
             try {
-              const parsed = JSON.parse(jsonMatch[1]);
+              const parsed = JSON.parse(jsonMatch[1]) as {
+                sources?: Array<{
+                  url?: string;
+                  title?: string;
+                  description?: string;
+                  snippet?: string;
+                }>;
+              };
               if (Array.isArray(parsed.sources)) {
                 foundJsonSources = true;
                 for (const source of parsed.sources) {
@@ -1020,9 +1084,22 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Build the messages array
       let messagesToSend: LlmapiMessage[];
 
+      // Collect tool call event IDs already stored on earlier messages so we can
+      // deduplicate the backend's accumulated tool_call_events later.
+      // This must run unconditionally — even when includeHistory is false, the
+      // backend still returns accumulated events across the entire conversation.
+      const storedMessages = await getMessages(convId);
+      const knownToolCallEventIds = new Set<string>();
+      for (const msg of storedMessages) {
+        if (msg.toolCallEvents) {
+          for (const evt of msg.toolCallEvents) {
+            if (evt.id) knownToolCallEventIds.add(evt.id);
+          }
+        }
+      }
+
       // Include history if requested
       if (includeHistory) {
-        const storedMessages = await getMessages(convId);
         // Filter out errored messages and limit history to most recent messages
         const validMessages = storedMessages.filter((msg) => !msg.error);
         const limitedMessages = validMessages.slice(-maxHistoryMessages);
@@ -1048,14 +1125,14 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           baseUrl,
         });
 
-        messagesToSend = [
-          ...(summarySystemMessage ? [summarySystemMessage] : []),
-          ...messagesToConvert.map(storedToLlmapiMessage),
-          ...messages,
-        ];
+        messagesToSend = assembleMessagesWithHistory(
+          messagesToConvert.flatMap(storedToLlmapiMessage),
+          messages,
+          summarySystemMessage
+        );
       } else {
-        // Use provided messages directly
-        messagesToSend = [...messages];
+        // Hoist system messages to the front even without history
+        messagesToSend = assembleMessagesWithHistory([], messages);
       }
 
       // Store the user message
@@ -1166,7 +1243,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         } else {
           // No embedding to reuse - use async embedding
           // (embedMessageAsync has guards for autoEmbedMessages and minContentLength)
-          embedMessageAsync(storedUserMessage);
+          void embedMessageAsync(storedUserMessage);
         }
       }
 
@@ -1234,7 +1311,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               parentMessageId: storedUserMessage.uniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
-            embedMessageAsync(storedAssistantMessage);
+            void embedMessageAsync(storedAssistantMessage);
 
             // Build a valid response for the return (even if original was null)
             const responseData: LlmapiResponseResponse = abortedResult.data || {
@@ -1345,9 +1422,16 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
       // Clean up extra newlines left after stripping
       cleanedContent = cleanedContent.replace(/\n{3,}/g, "\n\n");
 
+      // Deduplicate tool_call_events: the backend returns accumulated events across
+      // the entire conversation. Filter to only new events from this turn so we don't
+      // re-extract images (or other artifacts) that already belong to earlier messages.
+      const currentTurnToolCallEvents = responseData.tool_call_events?.filter(
+        (evt) => evt.id !== undefined && evt.id !== null && !knownToolCallEventIds.has(evt.id)
+      );
+
       // Resolve image model: prefer user-provided, fall back to MCP tool response
       const resolvedImageModel =
-        imageModel || extractImageModelFromToolEvents(responseData.tool_call_events);
+        imageModel || extractImageModelFromToolEvents(currentTurnToolCallEvents);
 
       // Store the assistant message
       const assistantMsgOpts: CreateMessageOptions = {
@@ -1365,6 +1449,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         // synthetic "queued_*" ID. The real DB ID is assigned on flush, but this reference
         // isn't updated. The client-side mergeParentMessageIds handles this on reload.
         parentMessageId: storedUserMessage.uniqueId,
+        toolCallEvents:
+          currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
+            ? currentTurnToolCallEvents
+            : undefined,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -1380,7 +1468,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Embed assistant message (non-blocking, only for direct writes)
         if (!assistantMsgResult.queued) {
-          embedMessageAsync(storedAssistantMessage);
+          void embedMessageAsync(storedAssistantMessage);
         }
       } catch (err) {
         return {

@@ -2,7 +2,7 @@
 
 > **DeleteApiV1TextByChannelUnregisterData** = `object`
 
-Defined in: [src/client/types.gen.ts:4352](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4352)
+Defined in: [src/client/types.gen.ts:5426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5426)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4352](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4353](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4353)
+Defined in: [src/client/types.gen.ts:5427](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5427)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4353](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4354](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4354)
+Defined in: [src/client/types.gen.ts:5428](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5428)
 
 **channel**
 
@@ -32,7 +32,7 @@ Text channel (sms, telegram)
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4360](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4360)
+Defined in: [src/client/types.gen.ts:5434](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5434)
 
 ***
 
@@ -40,4 +40,4 @@ Defined in: [src/client/types.gen.ts:4360](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/text/{channel}/unregister"`
 
-Defined in: [src/client/types.gen.ts:4361](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4361)
+Defined in: [src/client/types.gen.ts:5435](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5435)

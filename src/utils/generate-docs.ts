@@ -25,7 +25,9 @@ function resolveGithubBase(cwd: string): string {
   const pkgPath = join(cwd, "package.json");
   if (!existsSync(pkgPath)) return "";
 
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
+    repository?: string | { url?: string };
+  };
   const url: string | undefined =
     typeof pkg.repository === "string" ? pkg.repository : pkg.repository?.url;
 

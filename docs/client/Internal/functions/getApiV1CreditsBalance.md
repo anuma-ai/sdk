@@ -2,7 +2,7 @@
 
 > **getApiV1CreditsBalance**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`GetApiV1CreditsBalanceData`](../type-aliases/GetApiV1CreditsBalanceData.md), `ThrowOnError`>): `RequestResult`<[`GetApiV1CreditsBalanceResponses`](../type-aliases/GetApiV1CreditsBalanceResponses.md), [`GetApiV1CreditsBalanceErrors`](../type-aliases/GetApiV1CreditsBalanceErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
+Defined in: [src/client/sdk.gen.ts:414](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#414)
 
 Get credit balance
 

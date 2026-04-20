@@ -2,7 +2,7 @@
 
 > **exportMarkdownToPdf**(`markdown`: `string`, `options?`: [`PdfExportOptions`](PdfExportOptions.md)): `Promise`<`Blob`>
 
-Defined in: [src/lib/pdf-export.ts:351](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#351)
+Defined in: [src/lib/pdf-export.ts:407](https://github.com/anuma-ai/sdk/blob/main/src/lib/pdf-export.ts#407)
 
 Convert a markdown string to a PDF. No DOM required.
 

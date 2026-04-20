@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
-import { extractTextFromPdf } from "../lib/pdf";
 import { getLogger } from "../lib/logger";
+import { extractTextFromPdf } from "../lib/pdf";
 
 const PDF_MIME_TYPE = "application/pdf";
 

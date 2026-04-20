@@ -2,7 +2,7 @@
 
 > **HandlersTokenResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#791)
+Defined in: [src/client/types.gen.ts:987](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#987)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:791](https://github.com/anuma-ai/sdk/blob/m
 
 > **access\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:792](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#792)
+Defined in: [src/client/types.gen.ts:988](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#988)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:792](https://github.com/anuma-ai/sdk/blob/m
 
 > **expires\_in**: `number`
 
-Defined in: [src/client/types.gen.ts:796](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#796)
+Defined in: [src/client/types.gen.ts:992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#992)
 
 Seconds until expiration
 
@@ -28,7 +28,7 @@ Seconds until expiration
 
 > `optional` **refresh\_token**: `string`
 
-Defined in: [src/client/types.gen.ts:800](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#800)
+Defined in: [src/client/types.gen.ts:996](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#996)
 
 May not be present on refresh
 
@@ -38,7 +38,7 @@ May not be present on refresh
 
 > `optional` **scope**: `string`
 
-Defined in: [src/client/types.gen.ts:804](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#804)
+Defined in: [src/client/types.gen.ts:1000](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1000)
 
 Granted scopes
 
@@ -48,6 +48,6 @@ Granted scopes
 
 > **token\_type**: `string`
 
-Defined in: [src/client/types.gen.ts:808](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#808)
+Defined in: [src/client/types.gen.ts:1004](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1004)
 
 Usually "Bearer"

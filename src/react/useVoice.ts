@@ -238,7 +238,7 @@ export function useVoice(options?: UseVoiceOptions): UseVoiceResult {
         device: "wasm",
         progress_callback: options?.onModelProgress
           ? (progress: { file?: string; progress?: number; loaded?: number; total?: number }) => {
-              if (progress.file && progress.progress != null) {
+              if (progress.file && progress.progress !== null && progress.progress !== undefined) {
                 options.onModelProgress!({
                   file: progress.file,
                   progress: progress.progress / 100,

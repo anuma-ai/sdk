@@ -2,7 +2,7 @@
 
 > **LlmapiEmbeddingResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1176)
+Defined in: [src/client/types.gen.ts:1556](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1556)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1176](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **data**: [`LlmapiEmbeddingData`](LlmapiEmbeddingData.md)\[]
 
-Defined in: [src/client/types.gen.ts:1180](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1180)
+Defined in: [src/client/types.gen.ts:1560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1560)
 
 Data contains the embeddings
 
@@ -20,7 +20,7 @@ Data contains the embeddings
 
 > `optional` **extra\_fields**: [`LlmapiEmbeddingExtraFields`](LlmapiEmbeddingExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:1181](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1181)
+Defined in: [src/client/types.gen.ts:1561](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1561)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:1181](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **inference\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1185](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1185)
+Defined in: [src/client/types.gen.ts:1565](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1565)
 
 InferenceID is the unique identifier for this inference request
 
@@ -38,7 +38,7 @@ InferenceID is the unique identifier for this inference request
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:1189](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1189)
+Defined in: [src/client/types.gen.ts:1569](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1569)
 
 Model is the model used
 
@@ -48,7 +48,7 @@ Model is the model used
 
 > `optional` **object**: `string`
 
-Defined in: [src/client/types.gen.ts:1193](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1193)
+Defined in: [src/client/types.gen.ts:1573](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1573)
 
 Object is always "list"
 
@@ -58,4 +58,4 @@ Object is always "list"
 
 > `optional` **usage**: [`LlmapiEmbeddingUsage`](LlmapiEmbeddingUsage.md)
 
-Defined in: [src/client/types.gen.ts:1194](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1194)
+Defined in: [src/client/types.gen.ts:1574](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1574)

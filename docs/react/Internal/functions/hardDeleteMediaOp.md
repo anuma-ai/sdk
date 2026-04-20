@@ -2,7 +2,7 @@
 
 > **hardDeleteMediaOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `mediaId`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/db/media/operations.ts:362](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#362)
+Defined in: [src/lib/db/media/operations.ts:361](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#361)
 
 Permanently delete a media record (hard delete).
 Also removes the file from OPFS.

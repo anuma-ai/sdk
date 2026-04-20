@@ -218,9 +218,26 @@ This is called with delta chunks as the model "thinks" through a problem.
 </td>
 <td>
 
-Callback function to be called when a tool call is requested by the LLM.
-This is called for tools that don't have an executor or have autoExecute=false.
-The app should execute the tool and send the result back.
+Callback function to be called when a tool call is requested by the LLM
+but no executor is registered for it (e.g. server-side tools).
+
+</td>
+</tr>
+<tr>
+<td>
+
+`options.onToolCallArgumentsDelta?`
+
+</td>
+<td>
+
+(`event`: [`ToolCallArgumentsDeltaEvent`](../../react/Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+
+</td>
+<td>
+
+Called with partial tool call arguments as they stream in.
+Use for live preview of artifacts (HTML, slides) being generated.
 
 </td>
 </tr>
@@ -278,7 +295,7 @@ const { isLoading, sendMessage, stop } = useChat({
 const handleSend = async () => {
   const result = await sendMessage({
     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
-    model: 'gpt-4o-mini'
+    model: 'fireworks/accounts/fireworks/models/kimi-k2p5'
   });
 };
 ```

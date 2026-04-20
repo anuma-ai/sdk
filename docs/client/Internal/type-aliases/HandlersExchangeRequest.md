@@ -2,7 +2,7 @@
 
 > **HandlersExchangeRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:488](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#488)
+Defined in: [src/client/types.gen.ts:625](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#625)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:488](https://github.com/anuma-ai/sdk/blob/m
 
 > **code**: `string`
 
-Defined in: [src/client/types.gen.ts:489](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#489)
+Defined in: [src/client/types.gen.ts:626](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#626)
 
 ***
 
@@ -18,6 +18,6 @@ Defined in: [src/client/types.gen.ts:489](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **redirect\_uri**: `string`
 
-Defined in: [src/client/types.gen.ts:493](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#493)
+Defined in: [src/client/types.gen.ts:630](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#630)
 
 Optional - uses config default if not provided

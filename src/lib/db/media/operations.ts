@@ -1,8 +1,7 @@
 import { Q } from "@nozbe/watermelondb";
 
-import { getLogger } from "../../logger";
-
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../../react/useEncryption";
+import { getLogger } from "../../logger";
 import { deleteEncryptedFile, isOPFSSupported } from "../../storage";
 import { decryptMediaFields, encryptMediaFields } from "./encryption";
 import { Media } from "./models";

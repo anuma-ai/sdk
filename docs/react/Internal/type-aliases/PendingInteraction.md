@@ -24,7 +24,7 @@ Represents a pending user interaction that needs to be resolved
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>
@@ -36,7 +36,7 @@ Represents a pending user interaction that needs to be resolved
 </td>
 <td>
 
-`any`
+`unknown`
 
 </td>
 </tr>

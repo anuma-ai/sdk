@@ -2,7 +2,7 @@
 
 > **PostApiV1CreditsSyncSnagData** = `object`
 
-Defined in: [src/client/types.gen.ts:2710](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2710)
+Defined in: [src/client/types.gen.ts:3677](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3677)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2710](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:2711](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2711)
+Defined in: [src/client/types.gen.ts:3678](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3678)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2711](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:2712](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2712)
+Defined in: [src/client/types.gen.ts:3679](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3679)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:2712](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2713](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2713)
+Defined in: [src/client/types.gen.ts:3680](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3680)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [src/client/types.gen.ts:2713](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/credits/sync-snag"`
 
-Defined in: [src/client/types.gen.ts:2714](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2714)
+Defined in: [src/client/types.gen.ts:3681](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#3681)

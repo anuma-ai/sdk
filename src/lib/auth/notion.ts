@@ -112,6 +112,21 @@ interface ResourceMetadata {
   authorization_servers: string[];
 }
 
+// Client registration response from dynamic registration endpoint
+interface ClientRegistrationResponse {
+  client_id?: string;
+  client_secret?: string;
+}
+
+// OAuth token response from token endpoint
+interface OAuthTokenResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+  error?: string;
+}
+
 // ============================================================================
 // OAUTH DISCOVERY (RFC 8414)
 // ============================================================================
@@ -127,7 +142,7 @@ async function discoverOAuthMetadata(): Promise<OAuthMetadata> {
     if (!resourceResponse.ok) {
       throw new Error(`Resource discovery failed: ${resourceResponse.status}`);
     }
-    const resourceData: ResourceMetadata = await resourceResponse.json();
+    const resourceData = (await resourceResponse.json()) as ResourceMetadata;
 
     // Get the authorization server URL
     const authServer = resourceData.authorization_servers?.[0];
@@ -142,7 +157,7 @@ async function discoverOAuthMetadata(): Promise<OAuthMetadata> {
       throw new Error(`Auth server metadata fetch failed: ${metadataResponse.status}`);
     }
 
-    const metadata: OAuthMetadata = await metadataResponse.json();
+    const metadata = (await metadataResponse.json()) as OAuthMetadata;
 
     // Cache metadata for future use
     if (typeof window !== "undefined") {
@@ -210,13 +225,13 @@ async function registerClient(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
+    const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     throw new Error(
       `Client registration failed: ${response.status} - ${JSON.stringify(errorData)}`
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as ClientRegistrationResponse;
 
   if (!data.client_id) {
     throw new Error("No client_id in registration response");
@@ -773,13 +788,13 @@ export async function handleNotionCallback(
   });
 
   if (!tokenResponse.ok) {
-    const errorData = await tokenResponse.json().catch(() => ({}));
+    const errorData = (await tokenResponse.json().catch(() => ({}))) as Record<string, unknown>;
     throw new Error(
       `Token exchange failed: ${tokenResponse.status} - ${JSON.stringify(errorData)}`
     );
   }
 
-  const tokenData = await tokenResponse.json();
+  const tokenData = (await tokenResponse.json()) as OAuthTokenResponse;
 
   if (!tokenData.access_token) {
     throw new Error("No access token in response");
@@ -850,7 +865,7 @@ export async function refreshNotionToken(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = (await response.json().catch(() => ({}))) as OAuthTokenResponse;
 
       // If invalid_grant, user needs to re-authenticate
       if (errorData.error === "invalid_grant") {
@@ -861,7 +876,7 @@ export async function refreshNotionToken(
       throw new Error(`Token refresh failed: ${JSON.stringify(errorData)}`);
     }
 
-    const tokenData = await response.json();
+    const tokenData = (await response.json()) as OAuthTokenResponse;
 
     if (!tokenData.access_token) {
       throw new Error("No access token in refresh response");

@@ -44,12 +44,12 @@ export function createTimezoneTool(): ToolConfig {
           return `Error: Timezone lookup failed (${resp.status})`;
         }
 
-        const data: {
+        const data = (await resp.json()) as {
           timeZone: string;
           dateTime: string;
           utcOffset: string;
           dayOfWeek: string;
-        } = await resp.json();
+        };
         return {
           timezone: data.timeZone,
           datetime: data.dateTime,
@@ -60,6 +60,5 @@ export function createTimezoneTool(): ToolConfig {
         return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
       }
     },
-    autoExecute: true,
   };
 }

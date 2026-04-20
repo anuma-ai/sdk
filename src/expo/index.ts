@@ -71,7 +71,7 @@
  *   const handleSend = async () => {
  *     await sendMessage({
  *       messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
- *       model: "openai/gpt-4o",
+ *       model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *     });
  *   };
  *
@@ -87,12 +87,12 @@
  * @module
  */
 
+export { xhrTransport } from "../lib/chat/xhrTransport";
 export type { UseCreditsOptions, UseCreditsResult } from "../react/useCredits";
 export { useCredits } from "../react/useCredits";
 export type { UseModelsOptions, UseModelsResult } from "../react/useModels";
 export { useModels } from "../react/useModels";
 export { useChat } from "./useChat";
-export { xhrTransport } from "../lib/chat/xhrTransport";
 export type {
   SendMessageWithStorageArgs,
   SendMessageWithStorageResult,
@@ -174,6 +174,7 @@ export {
   moveMemoriesToFolderOp,
   type StoredVaultFolder,
   VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderContextOp,
   updateVaultFolderOp,
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
@@ -206,3 +207,26 @@ export {
   generateEmbedding,
   generateEmbeddings,
 } from "../lib/memoryEngine";
+
+// Notion OAuth primitives (platform-agnostic, no browser globals)
+export type {
+  NotionAuthUrlParams,
+  NotionClientRegistration,
+  NotionExchangeCodeParams,
+  NotionOAuthEndpoints,
+  NotionPKCEChallenge,
+  NotionRefreshTokenParams,
+  NotionTokenResponse,
+} from "../lib/auth/notion-primitives";
+export {
+  buildNotionAuthUrl,
+  discoverNotionOAuthEndpoints,
+  exchangeNotionCode,
+  generateNotionPKCE,
+  NOTION_OAUTH_CONFIG,
+  refreshNotionAccessToken,
+  registerNotionClient,
+} from "../lib/auth/notion-primitives";
+
+// Notion MCP tools (platform-agnostic)
+export { createNotionTools } from "../tools/notion";

@@ -2,7 +2,7 @@
 
 > **HandlersCancelScheduledDowngradeResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:224](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#224)
+Defined in: [src/client/types.gen.ts:297](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#297)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:224](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:225](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#225)
+Defined in: [src/client/types.gen.ts:298](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#298)

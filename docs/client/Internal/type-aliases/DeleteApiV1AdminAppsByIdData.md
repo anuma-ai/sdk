@@ -2,7 +2,7 @@
 
 > **DeleteApiV1AdminAppsByIdData** = `object`
 
-Defined in: [src/client/types.gen.ts:2162](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2162)
+Defined in: [src/client/types.gen.ts:2762](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2762)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:2162](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:2163](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2163)
+Defined in: [src/client/types.gen.ts:2763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2763)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:2163](https://github.com/anuma-ai/sdk/blob/
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:2164](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2164)
+Defined in: [src/client/types.gen.ts:2764](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2764)
 
 **X-Admin-API-Key**
 
@@ -32,7 +32,7 @@ Admin API key
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:2170](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2170)
+Defined in: [src/client/types.gen.ts:2770](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2770)
 
 **id**
 
@@ -46,7 +46,7 @@ App ID
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:2176](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2176)
+Defined in: [src/client/types.gen.ts:2776](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2776)
 
 ***
 
@@ -54,4 +54,4 @@ Defined in: [src/client/types.gen.ts:2176](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps/{id}"`
 
-Defined in: [src/client/types.gen.ts:2177](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2177)
+Defined in: [src/client/types.gen.ts:2777](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2777)

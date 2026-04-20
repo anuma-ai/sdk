@@ -6,6 +6,7 @@ export {
   getAllVaultFoldersOp,
   getVaultFolderMemoryCountOp,
   moveMemoriesToFolderOp,
+  updateVaultFolderContextOp,
   updateVaultFolderOp,
   type VaultFolderOperationsContext,
 } from "./operations";

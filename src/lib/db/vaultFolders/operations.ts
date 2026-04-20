@@ -1,4 +1,4 @@
-import type { Collection, Database } from "@nozbe/watermelondb";
+import type { Collection, Database, Model } from "@nozbe/watermelondb";
 import { Q } from "@nozbe/watermelondb";
 
 import type { VaultMemory } from "../memoryVault/models";
@@ -24,6 +24,7 @@ function folderToStored(folder: VaultFolder): StoredVaultFolder {
     updatedAt: folder.updatedAt,
     isDeleted: folder.isDeleted,
     isSystem: folder.isSystem ?? false,
+    context: folder.context ?? null,
   };
 }
 
@@ -75,8 +76,7 @@ export async function updateVaultFolderOp(
     const scopeChanged = opts.scope !== undefined && opts.scope !== record.scope;
 
     const updated = await ctx.database.write(async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mixed model types in batch
-      const updates: any[] = [];
+      const updates: Model[] = [];
 
       updates.push(
         record.prepareUpdate((r) => {
@@ -197,6 +197,33 @@ export async function moveMemoriesToFolderOp(
   } catch {
     // Move failed (record not found or write error) – return false to caller
     return false;
+  }
+}
+
+/**
+ * Update a vault folder's context summary.
+ */
+export async function updateVaultFolderContextOp(
+  ctx: VaultFolderOperationsContext,
+  id: string,
+  context: string | null
+): Promise<StoredVaultFolder | null> {
+  try {
+    const record = await ctx.vaultFolderCollection.find(id);
+    if (record.isDeleted) return null;
+
+    const updated = await ctx.database.write(async () => {
+      await ctx.database.batch(
+        record.prepareUpdate((r) => {
+          r._setRaw("context", context);
+        })
+      );
+      return ctx.vaultFolderCollection.find(id);
+    });
+
+    return folderToStored(updated);
+  } catch {
+    return null;
   }
 }
 

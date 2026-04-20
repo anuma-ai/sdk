@@ -41,7 +41,11 @@ import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
 import { StreamSmoother } from "./useChat/StreamSmoother";
 import type { AccumulatedToolCall, ToolConfig } from "./useChat/types";
-import type { ServerToolCallEvent } from "./useChat/utils";
+import type {
+  ServerToolCallEvent,
+  ToolCallArgumentsDeltaEvent,
+  ToolExecutionErrorType,
+} from "./useChat/utils";
 import {
   createStreamAccumulator,
   createToolExecutorMap,
@@ -56,6 +60,26 @@ import {
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "error" in result &&
+    typeof (result as { error: unknown }).error === "string"
+  );
+}
+
+/** Extract tool name from either nested (function.name) or flat (name) format. */
+function getToolName(tool: Record<string, unknown>): string | undefined {
+  const func = tool.function as Record<string, unknown> | undefined;
+  const nestedName = func?.name;
+  if (typeof nestedName === "string") return nestedName;
+  const flatName = tool.name;
+  if (typeof flatName === "string") return flatName;
+  return undefined;
+}
 
 /** A tool result from an auto-executed tool. */
 export type AutoExecutedToolResult = {
@@ -72,7 +96,12 @@ export type StepFinishEvent = {
   /** Tool calls the model made in this round. */
   toolCalls: Array<{ name: string; arguments: string }>;
   /** Results from auto-executed tools in this round. */
-  toolResults: Array<{ name: string; result: unknown; error?: string }>;
+  toolResults: Array<{
+    name: string;
+    result: unknown;
+    error?: string;
+    errorType?: ToolExecutionErrorType;
+  }>;
   /** Token usage for this round, if available. */
   usage: { inputTokens?: number; outputTokens?: number };
 };
@@ -83,7 +112,7 @@ export type StepFinishEvent = {
 export type RunToolLoopOptions = {
   /** Messages to send to the model. */
   messages: LlmapiMessage[];
-  /** Model identifier (e.g. "gpt-4o", "anthropic/claude-3-7-sonnet-20250219"). */
+  /** Model identifier (e.g. "fireworks/accounts/fireworks/models/kimi-k2p5"). */
   model: string;
   /** Bearer token for the Portal API. Omit when using API-key auth via `headers`. */
   token?: string;
@@ -109,7 +138,7 @@ export type RunToolLoopOptions = {
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
   reasoning?: LlmapiResponseReasoning;
-  /** Extended thinking configuration for Anthropic models. */
+  /** Extended thinking configuration. */
   thinking?: LlmapiThinkingOptions;
   /** User-selected image generation model. */
   imageModel?: string;
@@ -127,7 +156,7 @@ export type RunToolLoopOptions = {
   onFinish?: (response: ApiResponse) => void;
   /** Called when an unexpected error occurs (not called for aborts). */
   onError?: (error: Error) => void;
-  /** Called for tool calls that don't have an executor or have autoExecute=false. */
+  /** Called for tool calls that don't have an executor (e.g. server-side tools). */
   onToolCall?: (toolCall: LlmapiToolCall) => void;
   /** Called when a server-side tool (MCP) is invoked during streaming. */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
@@ -136,6 +165,11 @@ export type RunToolLoopOptions = {
    * Receives the round index, model content, tool calls, results, and usage.
    */
   onStepFinish?: (event: StepFinishEvent) => void;
+  /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
   /**
    * Custom streaming transport. Defaults to a fetch-based SSE client.
    * React Native environments can supply an XHR-based transport since
@@ -154,6 +188,13 @@ export type RunToolLoopOptions = {
     searchScore: number;
     noSearchScore: number;
   }) => void | Promise<void>;
+  /**
+   * Maximum number of connector tool calls (notion, google calendar, google drive)
+   * before they are removed from subsequent rounds. Set to `Infinity` to disable.
+   * Only applies to fast models (cerebras) by default.
+   * @default 2
+   */
+  maxConnectorCalls?: number;
 };
 
 export type RunToolLoopResult =
@@ -233,7 +274,7 @@ const defaultTransport: StreamingTransport = (options) => {
  *
  * const result = await runToolLoop({
  *   messages: [{ role: "user", content: [{ type: "text", text: "What's the weather?" }] }],
- *   model: "gpt-4o",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   token: "my-api-token",
  *   tools: [{
  *     type: "function",
@@ -269,9 +310,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onError,
     onToolCall,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
     onWebSearchClassification,
+    maxConnectorCalls = 2,
   } = options;
 
   const resolved = resolveApiType(apiType, model);
@@ -382,10 +425,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             content: contentDelta,
             thinking: thinkingDelta,
             serverToolCall,
+            toolCallArgumentsDelta,
           } = strategy.processStreamChunk(chunk, accumulator);
           if (contentDelta) contentSmoother.push(contentDelta);
           if (thinkingDelta) thinkingSmoother.push(thinkingDelta);
           if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+          if (toolCallArgumentsDelta && onToolCallArgumentsDelta)
+            onToolCallArgumentsDelta(toolCallArgumentsDelta);
         }
       }
     } catch (streamErr) {
@@ -413,10 +459,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       };
     }
 
-    if (sseError) {
+    if (sseError !== null) {
       contentSmoother.destroy();
       thinkingSmoother.destroy();
-      throw sseError;
+      throw sseError as Error;
     }
 
     await Promise.all([contentSmoother.drain(), thinkingSmoother.drain()]);
@@ -439,11 +485,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
       const toolCallsToExecute: AccumulatedToolCall[] = [];
 
-      // Determine which tools to execute vs emit as events
+      // Execute tools that have an executor; emit onToolCall for the rest
       for (const toolCall of currentAccumulator.toolCalls.values()) {
         const executorConfig = executorMap.get(toolCall.name);
 
-        if (executorConfig && executorConfig.autoExecute) {
+        if (executorConfig) {
           toolCallsToExecute.push(toolCall);
         } else {
           if (onToolCall) {
@@ -468,9 +514,9 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         const toolInfo = toolCallsToExecute
           .map((tc) => {
             try {
-              const args = JSON.parse(tc.arguments);
+              const args = JSON.parse(tc.arguments) as Record<string, unknown>;
               const argsStr = Object.entries(args)
-                .map(([k, v]) => `${k}=${v}`)
+                .map(([k, v]) => `${k}=${String(v)}`)
                 .join(", ");
               return `${tc.name}(${argsStr})`;
             } catch {
@@ -481,47 +527,112 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
       }
 
-      // Execute all tools in parallel
-      const executionResults = await Promise.all(
-        toolCallsToExecute.map(async (toolCall) => {
-          const executorConfig = executorMap.get(toolCall.name);
-          if (!executorConfig) {
-            return {
-              id: toolCall.id,
-              error: `No executor found for tool: ${toolCall.name}`,
-            };
+      // Topological phase execution: tools with dependsOn wait for the named
+      // tools to complete before starting. Handles multi-level chains (A → B → C).
+      // Note: batchToolNames tracks by name, so duplicate calls to the same tool
+      // (e.g. two create_file calls) land in the same phase via Promise.all.
+      const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
+      const completed = new Set<string>();
+      let remaining = [...toolCallsToExecute];
+      const executionResults: {
+        id: string;
+        name?: string;
+        result?: unknown;
+        error?: string;
+        errorType?: ToolExecutionErrorType;
+      }[] = [];
+
+      while (remaining.length > 0) {
+        const ready = remaining.filter((tc) => {
+          const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+          return deps.every((d) => !batchToolNames.has(d) || completed.has(d));
+        });
+        if (ready.length === 0) {
+          // Emit error results for remaining tools so every tool call the
+          // LLM issued gets a corresponding tool result message.
+          // Propagate failures transitively through the dependency chain
+          // before classifying, so the result is independent of iteration order.
+          const failedNames = new Set(
+            executionResults
+              .filter((r) => r.error)
+              .map((r) => r.name)
+              .filter(Boolean) as string[]
+          );
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const tc of remaining) {
+              if (failedNames.has(tc.name)) continue;
+              const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+              if (deps.some((d) => batchToolNames.has(d) && failedNames.has(d))) {
+                failedNames.add(tc.name);
+                changed = true;
+              }
+            }
           }
+          for (const tc of remaining) {
+            const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+            const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
+            const blockedByFailure = failedDeps.some((d) => failedNames.has(d));
+            const reason = blockedByFailure
+              ? `failed dependencies: ${failedDeps.join(", ")}`
+              : "a dependency cycle";
+            executionResults.push({
+              id: tc.id,
+              name: tc.name,
+              error: `Tool "${tc.name}" was not executed due to ${reason}`,
+              errorType: "execution",
+            });
+          }
+          break;
+        }
 
-          const { result, error } = await executeToolCall(toolCall, executorConfig.executor);
+        const phaseResults = await Promise.all(
+          ready.map(async (toolCall) => {
+            const executorConfig = executorMap.get(toolCall.name);
+            if (!executorConfig) {
+              return {
+                id: toolCall.id,
+                name: toolCall.name,
+                error: `No executor found for tool: ${toolCall.name}`,
+              };
+            }
+            const { result, error, errorType } = await executeToolCall(
+              toolCall,
+              executorConfig.executor,
+              executorConfig.executorTimeout
+            );
+            return { id: toolCall.id, name: toolCall.name, result, error, errorType };
+          })
+        );
 
-          return {
-            id: toolCall.id,
-            name: toolCall.name,
-            result,
-            error,
-          };
-        })
-      );
+        for (const r of phaseResults) {
+          if (r.name && !r.error && !isToolErrorResult(r.result)) completed.add(r.name);
+        }
+        executionResults.push(...phaseResults);
+        const readySet = new Set(ready);
+        remaining = remaining.filter((tc) => !readySet.has(tc));
+      }
 
-      // Remove connector tools after 2 total calls (fast models only)
+      // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
-      if (isFastModel && apiTools) {
+      if (isFastModel && apiTools && isFinite(maxConnectorCalls)) {
         for (const tc of toolCallsToExecute) {
           if (isConnectorTool(tc.name)) {
             connectorCallCount.total++;
           }
         }
 
-        if (connectorCallCount.total >= 2) {
+        if (connectorCallCount.total >= maxConnectorCalls) {
           apiTools = apiTools.filter((t) => {
-            const name = (t as any).function?.name || (t as any).name;
+            const name = getToolName(t);
             return !name || !isConnectorTool(name);
           });
           if (apiTools.length === 0) {
             apiTools = undefined;
             toolChoice = undefined;
           } else if (typeof toolChoice === "string" && isConnectorTool(toolChoice)) {
-            toolChoice = undefined;
+            toolChoice = "auto";
           }
           for (const [name] of executorMap) {
             if (isConnectorTool(name)) executorMap.delete(name);
@@ -534,7 +645,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
         for (const r of executionResults) {
-          if (!r.error && "name" in r && r.name) {
+          if (!r.error && !isToolErrorResult(r.result) && "name" in r && r.name) {
             successfullyExecutedNames.add(r.name);
           }
         }
@@ -542,8 +653,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         if (successfullyExecutedNames.size > 0) {
           const toolsToRemove = new Set<string>();
           for (const t of tools) {
-            const tc = t as any;
-            const toolName: string | undefined = tc.function?.name || tc.name;
+            const tc = t as ToolConfig & Record<string, unknown>;
+            const func = tc.function as Record<string, unknown> | undefined;
+            const toolName: string | undefined =
+              typeof func?.name === "string"
+                ? func.name
+                : typeof tc.name === "string"
+                  ? tc.name
+                  : undefined;
             if (
               tc.removeAfterExecution === true &&
               toolName &&
@@ -555,14 +672,14 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
           if (toolsToRemove.size > 0) {
             apiTools = apiTools.filter((t) => {
-              const name = (t as any).function?.name || (t as any).name;
-              return !toolsToRemove.has(name);
+              const name = getToolName(t);
+              return !name || !toolsToRemove.has(name);
             });
             if (apiTools.length === 0) {
               apiTools = undefined;
               toolChoice = undefined;
             } else if (typeof toolChoice === "string" && toolsToRemove.has(toolChoice)) {
-              toolChoice = undefined;
+              toolChoice = "auto";
             }
             for (const name of toolsToRemove) {
               executorMap.delete(name);
@@ -585,7 +702,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
                 return `${r.name}: Error - ${r.error}`;
               }
               const resultStr =
-                typeof r.result === "object" ? safeJsonStringify(r.result) : String(r.result);
+                typeof r.result === "string" ? r.result : safeJsonStringify(r.result);
               return `${r.name}: ${resultStr}`;
             })
             .join("\n");
@@ -606,6 +723,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             name: r.name ?? "",
             result: r.result,
             ...(r.error ? { error: r.error } : undefined),
+            ...(r.errorType ? { errorType: r.errorType } : undefined),
           })),
           usage: {
             inputTokens: currentAccumulator.usage.prompt_tokens,
@@ -617,10 +735,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
-      // Build tool result messages
-      const continueResults = executionResults.filter(
-        (r) => !r.name || executorMap.get(r.name)?.skipContinuation !== true
-      );
+      // Build tool result messages — exclude tools with skipContinuation
+      const continueResults = executionResults.filter((r) => {
+        if (!r.name) return false;
+        return executorMap.get(r.name)?.skipContinuation !== true;
+      });
 
       // If ALL tools have skipContinuation, return early
       if (continueResults.length === 0) {
@@ -647,7 +766,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             type: "function",
             function: {
               name: tc.name,
-              arguments: tc.arguments,
+              arguments: tc.arguments || "{}",
             },
           })),
       };
@@ -714,10 +833,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
               content: contentDelta,
               thinking: thinkingDelta,
               serverToolCall,
+              toolCallArgumentsDelta: contToolCallArgsDelta,
             } = strategy.processStreamChunk(chunk, currentAccumulator);
             if (contentDelta) contContentSmoother.push(contentDelta);
             if (thinkingDelta) contThinkingSmoother.push(thinkingDelta);
             if (serverToolCall && onServerToolCall) onServerToolCall(serverToolCall);
+            if (contToolCallArgsDelta && onToolCallArgumentsDelta)
+              onToolCallArgumentsDelta(contToolCallArgsDelta);
           }
         }
       } catch (streamErr) {
@@ -745,10 +867,10 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         };
       }
 
-      if (sseError) {
+      if (sseError !== null) {
         contContentSmoother.destroy();
         contThinkingSmoother.destroy();
-        throw sseError;
+        throw sseError as Error;
       }
 
       await Promise.all([contContentSmoother.drain(), contThinkingSmoother.drain()]);

@@ -2,7 +2,7 @@
 
 > **useChatStorage**(`options`: `object`): [`UseChatStorageResult`](../Internal/interfaces/UseChatStorageResult.md)
 
-Defined in: [src/react/useChatStorage.ts:725](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#725)
+Defined in: [src/react/useChatStorage.ts:791](https://github.com/anuma-ai/sdk/blob/main/src/react/useChatStorage.ts#791)
 
 A React hook that wraps useChat with automatic message persistence using WatermelonDB.
 
@@ -351,7 +351,7 @@ Callback for progress updates
 </td>
 <td>
 
-`any`\[] | `null`
+[`FileProcessor`](../Internal/interfaces/FileProcessor.md)\[] | `null`
 
 </td>
 <td>
@@ -532,6 +532,24 @@ Callback invoked when thinking/reasoning content is received (from `<think>` tag
 <tr>
 <td>
 
+`options.onToolCallArgumentsDelta?`
+
+</td>
+<td>
+
+(`event`: [`ToolCallArgumentsDeltaEvent`](../Internal/type-aliases/ToolCallArgumentsDeltaEvent.md)) => `void`
+
+</td>
+<td>
+
+Called with partial tool call arguments as they stream in.
+Use for live preview of artifacts (HTML, slides) being generated.
+
+</td>
+</tr>
+<tr>
+<td>
+
 `options.serverTools?`
 
 </td>
@@ -640,7 +658,7 @@ function ChatComponent({ database }: { database: Database }) {
   const handleSend = async () => {
     const result = await sendMessage({
       content: 'Hello, how are you?',
-      model: 'gpt-4o-mini',
+      model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
       includeHistory: true, // Include previous messages from this conversation
     });
 

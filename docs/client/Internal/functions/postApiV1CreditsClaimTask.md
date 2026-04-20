@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsClaimTask**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsClaimTaskData`](../type-aliases/PostApiV1CreditsClaimTaskData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsClaimTaskResponses`](../type-aliases/PostApiV1CreditsClaimTaskResponses.md), [`PostApiV1CreditsClaimTaskErrors`](../type-aliases/PostApiV1CreditsClaimTaskErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:286](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#286)
+Defined in: [src/client/sdk.gen.ts:438](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#438)
 
 Claim task reward
 

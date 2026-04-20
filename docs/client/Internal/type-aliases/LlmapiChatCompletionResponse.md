@@ -2,7 +2,7 @@
 
 > **LlmapiChatCompletionResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:1019](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1019)
+Defined in: [src/client/types.gen.ts:1380](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1380)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1019](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **choices**: [`LlmapiChoice`](LlmapiChoice.md)\[]
 
-Defined in: [src/client/types.gen.ts:1023](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1023)
+Defined in: [src/client/types.gen.ts:1384](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1384)
 
 Choices contains the completion choices
 
@@ -20,7 +20,7 @@ Choices contains the completion choices
 
 > `optional` **client\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1027](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1027)
+Defined in: [src/client/types.gen.ts:1388](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1388)
 
 ClientInjectedTools are tool names the client provided in the original request.
 
@@ -30,7 +30,7 @@ ClientInjectedTools are tool names the client provided in the original request.
 
 > `optional` **extra\_fields**: [`LlmapiChatCompletionExtraFields`](LlmapiChatCompletionExtraFields.md)
 
-Defined in: [src/client/types.gen.ts:1028](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1028)
+Defined in: [src/client/types.gen.ts:1389](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1389)
 
 ***
 
@@ -38,9 +38,21 @@ Defined in: [src/client/types.gen.ts:1028](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **id**: `string`
 
-Defined in: [src/client/types.gen.ts:1032](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1032)
+Defined in: [src/client/types.gen.ts:1393](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1393)
 
 ID is the completion ID
+
+***
+
+### image\_model?
+
+> `optional` **image\_model**: `string`
+
+Defined in: [src/client/types.gen.ts:1399](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1399)
+
+ImageModel is set when an image generation tool was called during the request.
+This allows the client to detect that the response contains generated images
+and render them appropriately, even when the orchestrating model is a text model.
 
 ***
 
@@ -48,7 +60,7 @@ ID is the completion ID
 
 > `optional` **inference\_id**: `string`
 
-Defined in: [src/client/types.gen.ts:1036](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1036)
+Defined in: [src/client/types.gen.ts:1403](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1403)
 
 InferenceID is the unique identifier for this inference request
 
@@ -58,7 +70,7 @@ InferenceID is the unique identifier for this inference request
 
 > `optional` **messages**: [`LlmapiMessage`](LlmapiMessage.md)\[]
 
-Defined in: [src/client/types.gen.ts:1043](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1043)
+Defined in: [src/client/types.gen.ts:1410](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1410)
 
 Messages contains the full conversation history when local tools need execution.
 This is populated when the model requests tools that are not MCP tools (local/client-side tools).
@@ -71,7 +83,7 @@ plus the tool results appended.
 
 > `optional` **model**: `string`
 
-Defined in: [src/client/types.gen.ts:1047](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1047)
+Defined in: [src/client/types.gen.ts:1414](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1414)
 
 Model is the model used
 
@@ -81,7 +93,7 @@ Model is the model used
 
 > `optional` **portal\_injected\_tools**: `string`\[]
 
-Defined in: [src/client/types.gen.ts:1051](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1051)
+Defined in: [src/client/types.gen.ts:1418](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1418)
 
 PortalInjectedTools are tool names the portal's classifier added to the request.
 
@@ -91,7 +103,7 @@ PortalInjectedTools are tool names the portal's classifier added to the request.
 
 > `optional` **tool\_call\_events**: [`LlmapiToolCallEvent`](LlmapiToolCallEvent.md)\[]
 
-Defined in: [src/client/types.gen.ts:1055](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1055)
+Defined in: [src/client/types.gen.ts:1422](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1422)
 
 ToolCallEvents is an array of tool call events.
 
@@ -101,7 +113,7 @@ ToolCallEvents is an array of tool call events.
 
 > `optional` **tools\_checksum**: `string`
 
-Defined in: [src/client/types.gen.ts:1059](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1059)
+Defined in: [src/client/types.gen.ts:1426](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1426)
 
 ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
@@ -111,4 +123,4 @@ ToolsChecksum is the checksum of the tool schemas used by the AI Portal.
 
 > `optional` **usage**: [`LlmapiChatCompletionUsage`](LlmapiChatCompletionUsage.md)
 
-Defined in: [src/client/types.gen.ts:1060](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1060)
+Defined in: [src/client/types.gen.ts:1427](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1427)

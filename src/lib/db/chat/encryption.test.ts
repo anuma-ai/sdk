@@ -208,7 +208,7 @@ describe("Chat Encryption Utilities", () => {
         conversationId: "conv-123",
         role: "assistant",
         content: encrypted.content,
-        model: "gpt-4",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         createdAt: new Date(),
         updatedAt: new Date(),
         thinking: encrypted.thinking,
@@ -231,7 +231,7 @@ describe("Chat Encryption Utilities", () => {
         conversationId: "conv-123",
         role: "user",
         content: "This is plaintext from old SDK",
-        model: "gpt-4",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -249,7 +249,7 @@ describe("Chat Encryption Utilities", () => {
         conversationId: "conv-1",
         role: "user",
         content: "test",
-        model: "gpt-4",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -289,7 +289,7 @@ describe("Chat Encryption Utilities", () => {
         conversationId: "conv-123",
         role: "user",
         content: `enc:v2:${encryptedHex}`,
-        model: "gpt-4",
+        model: "fireworks/accounts/fireworks/models/kimi-k2p5",
         createdAt: new Date(),
         updatedAt: new Date(),
       };

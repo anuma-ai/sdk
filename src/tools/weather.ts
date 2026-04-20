@@ -63,7 +63,7 @@ export function createWeatherTool(options: CreateUIToolsOptions): ToolConfig {
   return createDisplayTool(options, {
     name: "display_weather",
     description:
-      "Fetches and displays current weather as a visual card in the chat. ALWAYS call this tool when the user asks about weather, even if you already have weather data from another tool. The card displays temperature, conditions, and a 7-day forecast visually — do NOT repeat this data in your text response. Just add a brief conversational comment if appropriate.",
+      "Display a weather forecast card showing temperature, conditions, and a 7-day forecast for a city or location. Only call this when the user explicitly asks about weather, temperature, rain, snow, or climate conditions. Do NOT repeat the card's data in text — just add a brief comment.",
     parameters: {
       type: "object",
       properties: {

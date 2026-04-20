@@ -56,7 +56,12 @@ describe("embedding cache lifecycle", () => {
     vi.mocked(createVaultMemoryOp).mockResolvedValue(makeMemory("m2", "new fact"));
     vi.mocked(generateEmbedding).mockResolvedValue([0, 1, 0]);
 
-    const saveTool = createMemoryVaultTool(mockVaultCtx, undefined, embeddingOptions, cache);
+    const saveTool = createMemoryVaultTool(
+      mockVaultCtx,
+      { onSave: async () => true },
+      embeddingOptions,
+      cache
+    );
     await saveTool.executor!({ content: "new fact" });
     await new Promise((r) => setTimeout(r, 10)); // fire-and-forget
 

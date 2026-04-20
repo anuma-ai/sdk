@@ -8,8 +8,10 @@ import type {
   LlmapiResponseResponse,
   LlmapiResponseUsage,
   LlmapiThinkingOptions,
+  LlmapiToolCallEvent,
 } from "../../../client";
-import type { ServerToolCallEvent } from "../../chat/useChat/utils";
+import type { ServerToolCallEvent, ToolCallArgumentsDeltaEvent } from "../../chat/useChat/utils";
+import type { FileProcessor } from "../../processors/types";
 import type { ServerTool } from "../../tools";
 
 /**
@@ -43,7 +45,7 @@ export type ServerToolsFilter = string[] | ServerToolsFilterFn;
  */
 export type ClientToolsFilterFn = (
   embeddings: number[] | number[][] | null,
-  tools: any[]
+  tools: LlmapiChatCompletionTool[]
 ) => string[];
 
 // Core types
@@ -139,6 +141,8 @@ export interface StoredMessage {
   parentMessageId?: string;
   /** User feedback: 'like', 'dislike', or null for no feedback */
   feedback?: MessageFeedback;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export interface ActivityPhase {
@@ -249,6 +253,8 @@ export interface CreateMessageOptions {
   thinking?: string;
   /** Parent message ID for branching (edit/regenerate). */
   parentMessageId?: string;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export interface CreateConversationOptions {
@@ -279,6 +285,8 @@ export interface UpdateMessageOptions {
   thinking?: string | null;
   /** User feedback: 'like', 'dislike', or null for no feedback */
   feedback?: MessageFeedback | null;
+  /** Tool call events from the backend response (for reconstructing tool call history) */
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 // Hook types
@@ -313,12 +321,17 @@ export interface BaseUseChatStorageOptions {
    */
   onServerToolCall?: (toolCall: ServerToolCallEvent) => void;
   /**
+   * Called with partial tool call arguments as they stream in.
+   * Use for live preview of artifacts (HTML, slides) being generated.
+   */
+  onToolCallArgumentsDelta?: (event: ToolCallArgumentsDeltaEvent) => void;
+  /**
    * File preprocessors to use for automatic text extraction.
    * - undefined (default): Use all built-in processors (PDF, Excel, Word)
    * - null or []: Disable preprocessing
    * - FileProcessor[]: Use specific processors
    */
-  fileProcessors?: any[] | null;
+  fileProcessors?: FileProcessor[] | null;
   /**
    * Options for file preprocessing behavior
    */
@@ -414,7 +427,7 @@ export interface BaseSendMessageWithStorageArgs {
   messages: LlmapiMessage[];
 
   /**
-   * The model identifier to use for this request (e.g., "gpt-4o", "claude-sonnet-4-20250514").
+   * The model identifier to use for this request (e.g., "fireworks/accounts/fireworks/models/kimi-k2p5").
    * If not specified, uses the default model configured on the server.
    */
   model?: string;

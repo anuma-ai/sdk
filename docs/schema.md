@@ -1,6 +1,6 @@
 # Database Schema
 
-Current version: **v23**
+Current version: **v27**
 
 ```mermaid
 graph LR
@@ -22,6 +22,8 @@ graph LR
 - [vault_folders](#vault_folders)
 - [conversation_summaries](#conversation_summaries)
 - [media](#media)
+- [app_files](#app_files)
+- [saved_tools](#saved_tools)
 
 ## history
 
@@ -49,6 +51,7 @@ graph LR
 | `thinking` | string |  | ✓ |
 | `parent_message_id` | string |  | ✓ |
 | `feedback` | string |  | ✓ |
+| `tool_call_events` | string |  | ✓ |
 
 ## conversations
 
@@ -114,6 +117,7 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 | `is_system` | boolean |  | ✓ |
+| `context` | string |  | ✓ |
 
 ## conversation_summaries
 
@@ -148,10 +152,38 @@ graph LR
 | `updated_at` | number |  |  |
 | `is_deleted` | boolean | ✓ |  |
 
+## app_files
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `conversation_id` | string | ✓ |  |
+| `path` | string |  |  |
+| `content` | string |  |  |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number |  |  |
+
+## saved_tools
+
+| Column | Type | Indexed | Optional |
+|--------|------|---------|----------|
+| `name` | string |  |  |
+| `display_name` | string |  |  |
+| `description` | string |  |  |
+| `parameters` | string |  |  |
+| `html` | string |  |  |
+| `conversation_id` | string |  | ✓ |
+| `created_at` | number | ✓ |  |
+| `updated_at` | number |  |  |
+| `is_deleted` | boolean | ✓ |  |
+
 ## Migration History
 
 | Version | Changes |
 |---------|---------|
+| v27 | Added `tool_call_events` to `history` |
+| v26 | Added `app_files` table |
+| v25 | Added `saved_tools` table |
+| v24 | Added `context` to `vault_folders` |
 | v23 | Added `conversation_summaries` table |
 | v22 | Added `is_system` to `vault_folders` |
 | v21 | Added `embedding` to `memory_vault` |

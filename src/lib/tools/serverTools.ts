@@ -7,9 +7,9 @@
 
 import type { LlmapiChatCompletionTool } from "../../client";
 import type { ToolConfig } from "../chat/useChat/types";
+import { getLogger } from "../logger";
 import { chunkText, DEFAULT_CHUNK_SIZE, shouldChunkMessage } from "../memoryEngine/chunking";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
-import { getLogger } from "../logger";
 
 /** Tool parameters schema */
 interface ToolParameters {
@@ -454,15 +454,32 @@ export function filterServerTools(
   return serverTools.filter((tool) => includeSet.has(tool.name));
 }
 
+/** Shape of the `function` property on OpenAI-style tool objects. */
+interface ToolFunctionDef {
+  name?: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+  arguments?: Record<string, unknown>;
+}
+
+/** Helper to safely extract the `function` property from a tool-like object. */
+function getToolFunction(tool: LlmapiChatCompletionTool | ToolConfig): ToolFunctionDef | undefined {
+  const fn = (tool as Record<string, unknown>).function;
+  if (fn && typeof fn === "object") {
+    return fn as ToolFunctionDef;
+  }
+  return undefined;
+}
+
 /**
  * Convert client tool to Responses API format.
- * Preserves executor and autoExecute for client-side execution.
+ * Preserves executor for client-side execution.
  */
 function clientToolToResponsesFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = (tool as any).function;
+  const func = getToolFunction(tool);
 
   if (!func) {
     // Already in responses format or malformed - return as-is
@@ -474,17 +491,17 @@ function clientToolToResponsesFormat(
     name: func.name,
     description: func.description,
     // Handle both 'parameters' and 'arguments' field names
-    parameters: func.parameters || func.arguments,
+    parameters: func.parameters ?? func.arguments,
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
-    ...(toolConfig.autoExecute !== undefined && {
-      autoExecute: toolConfig.autoExecute,
-    }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
     }),
     ...(toolConfig.removeAfterExecution !== undefined && {
       removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
+    ...(toolConfig.executorTimeout !== undefined && {
+      executorTimeout: toolConfig.executorTimeout,
     }),
   };
 }
@@ -492,13 +509,13 @@ function clientToolToResponsesFormat(
 /**
  * Normalize client tool for Completions API format.
  * Ensures 'parameters' field exists (converts from 'arguments' if needed).
- * Preserves executor, autoExecute, skipContinuation, and removeAfterExecution for client-side execution.
+ * Preserves executor, skipContinuation, removeAfterExecution, and executorTimeout for client-side execution.
  */
 function clientToolToCompletionsFormat(
   tool: LlmapiChatCompletionTool | ToolConfig
 ): Record<string, unknown> {
   const toolConfig = tool as ToolConfig;
-  const func = (tool as any).function;
+  const func = getToolFunction(tool);
 
   if (!func) {
     // Malformed tool - return as-is
@@ -517,18 +534,18 @@ function clientToolToCompletionsFormat(
     type: "function",
     function: {
       ...restFunc,
-      parameters: args || { type: "object", properties: {} },
+      parameters: args ?? { type: "object", properties: {} },
     },
     // Preserve executor functions for client-side execution
     ...(toolConfig.executor && { executor: toolConfig.executor }),
-    ...(toolConfig.autoExecute !== undefined && {
-      autoExecute: toolConfig.autoExecute,
-    }),
     ...(toolConfig.skipContinuation !== undefined && {
       skipContinuation: toolConfig.skipContinuation,
     }),
     ...(toolConfig.removeAfterExecution !== undefined && {
       removeAfterExecution: toolConfig.removeAfterExecution,
+    }),
+    ...(toolConfig.executorTimeout !== undefined && {
+      executorTimeout: toolConfig.executorTimeout,
     }),
   };
 }
@@ -568,14 +585,22 @@ export function mergeTools(
   // Get client tool names for deduplication
   const clientToolNames = new Set(
     clientTools
-      .map((t) => (t as any).function?.name || (t as any).name)
-      .filter((name): name is string => !!name)
+      .map((t) => {
+        const fn = getToolFunction(t);
+        return fn?.name ?? (t as Record<string, unknown>).name;
+      })
+      .filter((name): name is string => typeof name === "string" && !!name)
   );
 
   // Filter server tools that don't conflict with client tools
   const nonConflictingServerTools = formattedServerTools.filter((tool) => {
-    const name = "name" in tool ? (tool.name as string) : (tool as any).function?.name;
-    return !clientToolNames.has(name ?? "");
+    let toolName: string | undefined;
+    if ("name" in tool && typeof tool.name === "string") {
+      toolName = tool.name;
+    } else if ("function" in tool && typeof tool.function === "object" && tool.function !== null) {
+      toolName = (tool.function as ToolFunctionDef).name;
+    }
+    return !clientToolNames.has(toolName ?? "");
   });
 
   // Return merged array: server tools first, then client tools
@@ -617,15 +642,40 @@ export interface ToolMatchResult {
  * Options for findMatchingTools
  */
 export interface ToolMatchOptions {
-  /** Maximum number of tools to return (default: 10) */
+  /** Maximum number of tools to return (default: 5) */
   limit?: number;
   /** Minimum similarity threshold 0-1 (default: 0.3) */
   minSimilarity?: number;
+  /**
+   * When enabled, returns empty results if the top match doesn't clearly
+   * stand out from the runner-up. This filters out generic prompts like
+   * "hello" or "tell me a joke" where all tools score similarly low.
+   *
+   * A match is considered ambiguous when:
+   * - The top score is below `ambiguityThreshold` (default: 0.55), AND
+   * - The gap between the top score and the runner-up is below `minLead` (default: 0.04)
+   */
+  filterAmbiguous?: boolean;
+  /** Top score must be above this to skip the ambiguity check (default: 0.55) */
+  ambiguityThreshold?: number;
+  /** Minimum gap between top and runner-up scores (default: 0.04) */
+  minLead?: number;
+  /**
+   * Only keep tools scoring at least this fraction of the top match's score.
+   * Filters out the tail of weakly-related tools that fill up the limit.
+   * For example, 0.85 means a tool must score within 85% of the top match.
+   * Set to 0 to disable. Default: 0 (disabled).
+   */
+  relevanceRatio?: number;
 }
 
 const DEFAULT_TOOL_MATCH_OPTIONS: Required<ToolMatchOptions> = {
-  limit: 10,
+  limit: 5,
   minSimilarity: 0.3,
+  filterAmbiguous: false,
+  ambiguityThreshold: 0.55,
+  minLead: 0.04,
+  relevanceRatio: 0,
 };
 
 /**
@@ -653,7 +703,7 @@ export function findMatchingTools(
   tools: ServerTool[],
   options?: ToolMatchOptions
 ): ToolMatchResult[] {
-  const { limit, minSimilarity } = {
+  const { limit, minSimilarity, filterAmbiguous, ambiguityThreshold, minLead, relevanceRatio } = {
     ...DEFAULT_TOOL_MATCH_OPTIONS,
     ...options,
   };
@@ -700,7 +750,26 @@ export function findMatchingTools(
   }
 
   // Sort by similarity descending and limit results
-  return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+  let sorted = results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+
+  // Ambiguity filter: when the top match is weak and clustered with the runner-up,
+  // no tool is a genuine match for this prompt — return empty.
+  if (filterAmbiguous && sorted.length > 1) {
+    const topScore = sorted[0].similarity;
+    const runnerUpScore = sorted[1].similarity;
+    if (topScore < ambiguityThreshold && topScore - runnerUpScore < minLead) {
+      return [];
+    }
+  }
+
+  // Relevance dropoff: only keep tools scoring within relevanceRatio of the top match.
+  // This trims the tail of loosely-related tools that fill up the limit.
+  if (relevanceRatio > 0 && sorted.length > 1) {
+    const cutoff = sorted[0].similarity * relevanceRatio;
+    sorted = sorted.filter((r) => r.similarity >= cutoff);
+  }
+
+  return sorted;
 }
 
 /**
@@ -748,7 +817,7 @@ export interface SelectServerSideToolsOptions {
  * const response = await postApiV1Responses({
  *   body: {
  *     messages: [{ role: "user", content: [{ type: "text", text: "Draw me a cat" }] }],
- *     model: "gpt-4o-mini",
+ *     model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *     tools,
  *   },
  *   headers: { Authorization: `Bearer ${identityToken}` },
@@ -812,7 +881,7 @@ export async function selectServerSideTools(
   }
 
   // Semantic matching (only pass defined values to avoid overriding defaults with undefined)
-  const matchOptions: ToolMatchOptions = {};
+  const matchOptions: ToolMatchOptions = { filterAmbiguous: true, relevanceRatio: 0.85 };
   if (limit !== undefined) matchOptions.limit = limit;
   if (minSimilarity !== undefined) matchOptions.minSimilarity = minSimilarity;
   const matches = findMatchingTools(promptEmbeddings, tools, matchOptions);

@@ -41,13 +41,13 @@ import {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
+import { getLogger } from "../lib/logger";
 import {
   BlobUrlManager,
   isOPFSSupported,
   readEncryptedFile,
   resolveFilePlaceholders as resolveFilePlaceholdersOp,
 } from "../lib/storage";
-import { getLogger } from "../lib/logger";
 import { getEncryptionKey, hasEncryptionKey, onKeyAvailable } from "./useEncryption";
 
 /**
@@ -564,10 +564,11 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
             return new File([result.blob], result.metadata?.name || mediaId, {
               type: result.metadata?.type || "application/octet-stream",
             });
-          } catch (error) {
+          } catch (encryptedError) {
             // If encrypted read fails, fall back to legacy storage
             getLogger().warn(
-              `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`
+              `[useFiles] Encrypted read failed for ${mediaId}, trying legacy storage`,
+              encryptedError
             );
           }
         }
@@ -579,8 +580,7 @@ export function useFiles(options: UseFilesOptions): UseFilesResult {
         const filesDir = await root.getDirectoryHandle("files", { create: false });
         const fileHandle = await filesDir.getFileHandle(mediaId);
         return await fileHandle.getFile();
-      } catch (error) {
-        // eslint-disable-next-line preserve-caught-error
+      } catch {
         throw new Error(`File could not be found: ${mediaId}`);
       }
     },

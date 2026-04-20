@@ -151,7 +151,8 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   const jsonRpcResponse = (await parseResponseBody(response)) as Record<string, unknown>;
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
-    throw new Error(`MCP initialization error: ${err.message || JSON.stringify(err)}`);
+    const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+    throw new Error(`MCP initialization error: ${errMsg}`);
   }
 
   // Send required notifications/initialized to complete the MCP handshake
@@ -254,7 +255,8 @@ async function callMCPTool<T>(
       >;
       if (retryJsonRpcResponse.error) {
         const err = retryJsonRpcResponse.error as Record<string, unknown>;
-        throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
+        const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+        throw new Error(`MCP tool error: ${errMsg}`);
       }
 
       return truncateToolResult(retryJsonRpcResponse.result) as T;
@@ -272,7 +274,8 @@ async function callMCPTool<T>(
   // Check for JSON-RPC error
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
-    throw new Error(`MCP tool error: ${err.message || JSON.stringify(err)}`);
+    const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
+    throw new Error(`MCP tool error: ${errMsg}`);
   }
 
   return truncateToolResult(jsonRpcResponse.result) as T;
@@ -388,7 +391,6 @@ export function createNotionSearchTool(
         return `Error searching Notion: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -442,7 +444,6 @@ export function createNotionFetchTool(
         return `Error fetching Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -511,7 +512,6 @@ export function createNotionCreatePagesTool(
         return `Error creating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -595,7 +595,6 @@ export function createNotionUpdatePageTool(
         return `Error updating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -646,7 +645,6 @@ export function createNotionMovePagesTool(
         return `Error moving Notion pages: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -690,7 +688,6 @@ export function createNotionDuplicatePageTool(
         return `Error duplicating Notion page: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -753,7 +750,6 @@ export function createNotionCreateDatabaseTool(
         return `Error creating Notion database: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -823,7 +819,6 @@ export function createNotionUpdateDataSourceTool(
         return `Error updating Notion data source: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -896,7 +891,6 @@ export function createNotionCreateCommentTool(
         return `Error creating Notion comment: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -954,7 +948,6 @@ export function createNotionGetCommentsTool(
         return `Error retrieving Notion comments: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -1013,7 +1006,6 @@ export function createNotionGetUsersTool(
         return `Error listing Notion users: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 
@@ -1057,7 +1049,6 @@ export function createNotionGetTeamsTool(
         return `Error retrieving Notion teams: ${error instanceof Error ? error.message : String(error)}`;
       }
     },
-    autoExecute: true,
   };
 }
 

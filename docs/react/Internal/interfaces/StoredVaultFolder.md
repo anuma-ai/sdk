@@ -4,6 +4,16 @@ Defined in: [src/lib/db/vaultFolders/types.ts:1](https://github.com/anuma-ai/sdk
 
 ## Properties
 
+### context
+
+> **context**: `string` | `null`
+
+Defined in: [src/lib/db/vaultFolders/types.ts:14](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/vaultFolders/types.ts#14)
+
+LLM-generated context summary for the folder
+
+***
+
 ### createdAt
 
 > **createdAt**: `Date`

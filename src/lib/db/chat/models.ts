@@ -2,6 +2,7 @@ import { Model } from "@nozbe/watermelondb";
 import { date, field, json, text } from "@nozbe/watermelondb/decorators";
 import type { Associations } from "@nozbe/watermelondb/Model";
 
+import type { LlmapiToolCallEvent } from "../../../client";
 import type {
   ActivityPhase,
   ChatCompletionUsage,
@@ -27,23 +28,26 @@ export class Message extends Model {
   @text("model") model?: string;
   @text("image_model") imageModel?: string;
   /** @deprecated Use fileIds with media table instead */
-  @json("files", (json) => json) files?: FileMetadata[];
+  @json("files", (raw: unknown) => raw as FileMetadata[]) files?: FileMetadata[];
   /** Array of media_id references for direct lookup */
-  @json("file_ids", (json) => json) fileIds?: string[];
+  @json("file_ids", (raw: unknown) => raw as string[]) fileIds?: string[];
   @date("created_at") createdAt!: Date;
   @date("updated_at") updatedAt!: Date;
-  @json("vector", (json) => json) vector?: number[];
+  @json("vector", (raw: unknown) => raw as number[]) vector?: number[];
   @text("embedding_model") embeddingModel?: string;
-  @json("chunks", (json) => json) chunks?: MessageChunk[];
-  @json("usage", (json) => json) usage?: ChatCompletionUsage;
-  @json("sources", (json) => json) sources?: SearchSource[];
+  @json("chunks", (raw: unknown) => raw as MessageChunk[]) chunks?: MessageChunk[];
+  @json("usage", (raw: unknown) => raw as ChatCompletionUsage) usage?: ChatCompletionUsage;
+  @json("sources", (raw: unknown) => raw as SearchSource[]) sources?: SearchSource[];
   @field("response_duration") responseDuration?: number;
   @field("was_stopped") wasStopped?: boolean;
   @text("error") error?: string;
-  @json("thought_process", (json) => json) thoughtProcess?: ActivityPhase[];
+  @json("thought_process", (raw: unknown) => raw as ActivityPhase[])
+  thoughtProcess?: ActivityPhase[];
   @text("thinking") thinking?: string;
   @text("parent_message_id") parentMessageId?: string;
   @text("feedback") feedback?: MessageFeedback;
+  @json("tool_call_events", (raw: unknown) => raw as LlmapiToolCallEvent[])
+  toolCallEvents?: LlmapiToolCallEvent[];
 }
 
 export class Conversation extends Model {

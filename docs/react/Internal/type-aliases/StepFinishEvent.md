@@ -2,7 +2,7 @@
 
 > **StepFinishEvent** = `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:67](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#67)
+Defined in: [src/lib/chat/toolLoop.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#91)
 
 Information emitted after each tool execution round completes.
 
@@ -12,7 +12,7 @@ Information emitted after each tool execution round completes.
 
 > **content**: `string`
 
-Defined in: [src/lib/chat/toolLoop.ts:71](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#71)
+Defined in: [src/lib/chat/toolLoop.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#95)
 
 Text content the model produced in this round (may be empty if the model only called tools).
 
@@ -22,7 +22,7 @@ Text content the model produced in this round (may be empty if the model only ca
 
 > **stepIndex**: `number`
 
-Defined in: [src/lib/chat/toolLoop.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#69)
+Defined in: [src/lib/chat/toolLoop.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#93)
 
 1-based index of this tool round.
 
@@ -32,7 +32,7 @@ Defined in: [src/lib/chat/toolLoop.ts:69](https://github.com/anuma-ai/sdk/blob/m
 
 > **toolCalls**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:73](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#73)
+Defined in: [src/lib/chat/toolLoop.ts:97](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#97)
 
 Tool calls the model made in this round.
 
@@ -50,13 +50,17 @@ Tool calls the model made in this round.
 
 > **toolResults**: `object`\[]
 
-Defined in: [src/lib/chat/toolLoop.ts:75](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#75)
+Defined in: [src/lib/chat/toolLoop.ts:99](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#99)
 
 Results from auto-executed tools in this round.
 
 **error?**
 
 > `optional` **error**: `string`
+
+**errorType?**
+
+> `optional` **errorType**: `ToolExecutionErrorType`
 
 **name**
 
@@ -72,7 +76,7 @@ Results from auto-executed tools in this round.
 
 > **usage**: `object`
 
-Defined in: [src/lib/chat/toolLoop.ts:77](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#77)
+Defined in: [src/lib/chat/toolLoop.ts:106](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/toolLoop.ts#106)
 
 Token usage for this round, if available.
 

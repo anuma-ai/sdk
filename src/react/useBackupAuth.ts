@@ -13,7 +13,6 @@ import {
 
 import type { Client } from "../client/client";
 import {
-  clearToken as clearDropboxToken,
   getDropboxAccessToken,
   handleDropboxCallback,
   hasDropboxCredentials,
@@ -22,7 +21,6 @@ import {
   startDropboxAuth,
 } from "../lib/backup/dropbox/auth";
 import {
-  clearGoogleDriveToken,
   getGoogleDriveAccessToken,
   handleGoogleDriveCallback,
   hasGoogleDriveCredentials,
@@ -376,11 +374,12 @@ export function BackupAuthProvider({
       setIcloudUserRecordName(userIdentity.userRecordName);
       return userIdentity.userRecordName;
     } catch (err) {
-      // eslint-disable-next-line preserve-caught-error
+      // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
       throw new Error(err instanceof Error ? err.message : "Failed to sign in to iCloud");
     }
   }, [icloudAuthenticated, icloudUserRecordName, isIcloudConfigured]);
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- must return Promise<void> per interface
   const logoutIcloud = useCallback(async () => {
     setIcloudAuthenticated(false);
     setIcloudUserRecordName(null);

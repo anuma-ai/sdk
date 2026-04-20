@@ -2,7 +2,7 @@
 
 > **getMediaByConversationOp**(`ctx`: [`MediaOperationsContext`](../interfaces/MediaOperationsContext.md), `walletAddress`: `string`, `conversationId`: `string`, `limit?`: `number`): `Promise`<[`StoredMedia`](../interfaces/StoredMedia.md)\[]>
 
-Defined in: [src/lib/db/media/operations.ts:496](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#496)
+Defined in: [src/lib/db/media/operations.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/media/operations.ts#495)
 
 Get media by conversation.
 

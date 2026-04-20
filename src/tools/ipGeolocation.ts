@@ -46,7 +46,7 @@ export function createIpGeolocationTool(): ToolConfig {
           return `Error: Geolocation failed (${resp.status})`;
         }
 
-        const data: {
+        const data = (await resp.json()) as {
           status: string;
           message?: string;
           query: string;
@@ -57,7 +57,7 @@ export function createIpGeolocationTool(): ToolConfig {
           lat: number;
           lon: number;
           timezone: string;
-        } = await resp.json();
+        };
         if (data.status === "fail") {
           return `Error: ${data.message || "Invalid IP address"}`;
         }
@@ -76,6 +76,5 @@ export function createIpGeolocationTool(): ToolConfig {
         return `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
       }
     },
-    autoExecute: true,
   };
 }

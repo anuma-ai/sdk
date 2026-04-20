@@ -40,7 +40,7 @@
  *   const handleSend = async () => {
  *     await sendMessage({
  *       messages: [{ role: "user", content: [{ type: "text", text: input }] }],
- *       model: "gpt-4o-mini",
+ *       model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *     });
  *   };
  *
@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
 // Pluggable logger
@@ -254,6 +255,7 @@ export {
   moveMemoriesToFolderOp,
   type StoredVaultFolder,
   VaultFolder as StoredVaultFolderModel,
+  updateVaultFolderContextOp,
   updateVaultFolderOp,
   type UpdateVaultFolderOptions,
   type VaultFolderOperationsContext,
@@ -341,26 +343,57 @@ export {
   updateMediaOp,
   type UpdateMediaOptions,
 } from "../lib/db/media";
+
+// App files storage (LLM-generated app source files)
+export {
+  AppFile as AppFileModel,
+  type AppFileOperationsContext,
+  appFileToStored,
+  deleteAllAppFilesOp,
+  deleteAppFileOp,
+  getAppFileMapOp,
+  getAppFileOp,
+  getAppFilesOp,
+  putAppFileOp,
+  type StoredAppFile,
+} from "../lib/db/appFiles";
+
+// Saved tools storage
+export {
+  createSavedToolOp,
+  type CreateSavedToolOptions,
+  deleteSavedToolOp,
+  getAllSavedToolsOp,
+  getSavedToolByIdOp,
+  SavedTool as SavedToolModel,
+  type SavedToolOperationsContext,
+  type SavedToolParameter,
+  savedToolToStored,
+  type StoredSavedTool,
+  updateSavedToolOp,
+  type UpdateSavedToolOptions,
+} from "../lib/db/savedTools";
+export type { PdfExportOptions, PdfExportProgress, PdfExportStage } from "../lib/pdf-export";
+export { exportElementToPdf, exportMarkdownToPdf, renderElementToCanvas } from "../lib/pdf-export";
 export type {
   ModelLoadProgress,
   TranscriptionResult,
   VoiceRecording,
   WhisperModel,
 } from "../lib/voice";
+export type { UseExportPdfResult } from "./useExportPdf";
+export { useExportPdf } from "./useExportPdf";
 export type { OCRFile, UseOCRResult } from "./useOCR";
 export { useOCR } from "./useOCR";
 export type { PdfFile, UsePdfResult } from "./usePdf";
 export { usePdf } from "./usePdf";
-export type { PdfExportOptions } from "../lib/pdf-export";
-export { exportElementToPdf, exportMarkdownToPdf } from "../lib/pdf-export";
-export type { UseExportPdfResult } from "./useExportPdf";
-export { useExportPdf } from "./useExportPdf";
 export type { UseVoiceOptions, UseVoiceResult } from "./useVoice";
 export { useVoice } from "./useVoice";
 
 // File processors for preprocessing attachments
 export type {
   FileProcessor,
+  FileTypeQuery,
   FileWithData,
   PreprocessingOptions,
   PreprocessingResult,
@@ -369,9 +402,12 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  getSupportedFileTypes,
+  isSupportedFile,
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,
+  TextProcessor,
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";
@@ -557,3 +593,25 @@ export {
   storeNotionPendingMessage,
   storeNotionReturnUrl,
 } from "../lib/auth/notion";
+
+// GitHub Auth (with repo scope for full repository access)
+export {
+  clearGithubToken,
+  getAndClearGithubPendingMessage,
+  getAndClearGithubReturnUrl,
+  getGithubAccessToken,
+  getValidGithubToken,
+  handleGithubCallback,
+  hasGithubCredentials,
+  isGithubCallback,
+  migrateGithubToken,
+  refreshGithubToken,
+  revokeGithubToken,
+  startGithubAuth,
+  storeGithubPendingMessage,
+  storeGithubReturnUrl,
+  storeGithubToken,
+} from "../lib/auth/github";
+
+// GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
+export { createGitHubTools } from "../tools/github";

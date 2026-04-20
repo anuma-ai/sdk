@@ -2,7 +2,7 @@
 
 > **PostApiV1AdminAppsData** = `object`
 
-Defined in: [src/client/types.gen.ts:1859](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1859)
+Defined in: [src/client/types.gen.ts:2459](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2459)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:1859](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersCreateAppRequest`](HandlersCreateAppRequest.md)
 
-Defined in: [src/client/types.gen.ts:1863](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1863)
+Defined in: [src/client/types.gen.ts:2463](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2463)
 
 Create app request
 
@@ -20,7 +20,7 @@ Create app request
 
 > **headers**: `object`
 
-Defined in: [src/client/types.gen.ts:1864](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1864)
+Defined in: [src/client/types.gen.ts:2464](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2464)
 
 **X-Admin-API-Key**
 
@@ -34,7 +34,7 @@ Admin API key
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:1870](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1870)
+Defined in: [src/client/types.gen.ts:2470](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2470)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [src/client/types.gen.ts:1870](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:1871](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1871)
+Defined in: [src/client/types.gen.ts:2471](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2471)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [src/client/types.gen.ts:1871](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/admin/apps"`
 
-Defined in: [src/client/types.gen.ts:1872](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#1872)
+Defined in: [src/client/types.gen.ts:2472](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#2472)

@@ -2,7 +2,7 @@
 
 > **HandlersSubscriptionStatusResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:739](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#739)
+Defined in: [src/client/types.gen.ts:931](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#931)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:739](https://github.com/anuma-ai/sdk/blob/m
 
 > **cancel\_at\_period\_end**: `boolean`
 
-Defined in: [src/client/types.gen.ts:743](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#743)
+Defined in: [src/client/types.gen.ts:935](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#935)
 
 true if scheduled to cancel
 
@@ -20,7 +20,7 @@ true if scheduled to cancel
 
 > `optional` **current\_period\_end**: `number`
 
-Defined in: [src/client/types.gen.ts:747](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#747)
+Defined in: [src/client/types.gen.ts:939](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#939)
 
 Unix timestamp, only present if subscribed
 
@@ -30,9 +30,19 @@ Unix timestamp, only present if subscribed
 
 > `optional` **interval**: `string`
 
-Defined in: [src/client/types.gen.ts:751](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#751)
+Defined in: [src/client/types.gen.ts:943](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#943)
 
 "month" | "year", only present if subscribed
+
+***
+
+### payment\_provider?
+
+> `optional` **payment\_provider**: `string`
+
+Defined in: [src/client/types.gen.ts:947](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#947)
+
+"stripe" | "revenuecat" — tells the client how to manage subscription
 
 ***
 
@@ -40,7 +50,7 @@ Defined in: [src/client/types.gen.ts:751](https://github.com/anuma-ai/sdk/blob/m
 
 > **plan**: `string`
 
-Defined in: [src/client/types.gen.ts:755](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#755)
+Defined in: [src/client/types.gen.ts:951](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#951)
 
 "free" | "starter" | "pro"
 
@@ -50,7 +60,7 @@ Defined in: [src/client/types.gen.ts:755](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **scheduled\_interval**: `string`
 
-Defined in: [src/client/types.gen.ts:759](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#759)
+Defined in: [src/client/types.gen.ts:955](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#955)
 
 billing interval of the scheduled plan
 
@@ -60,7 +70,7 @@ billing interval of the scheduled plan
 
 > `optional` **scheduled\_plan**: `string`
 
-Defined in: [src/client/types.gen.ts:763](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#763)
+Defined in: [src/client/types.gen.ts:959](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#959)
 
 tier user will switch to at period end
 
@@ -70,6 +80,6 @@ tier user will switch to at period end
 
 > **status**: `string`
 
-Defined in: [src/client/types.gen.ts:767](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#767)
+Defined in: [src/client/types.gen.ts:963](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#963)
 
 "none" | "active" | "canceling" | "past\_due" | "canceled"

@@ -1,6 +1,6 @@
 # ProviderAuthState
 
-Defined in: [src/react/useBackupAuth.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#83)
+Defined in: [src/react/useBackupAuth.ts:81](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#81)
 
 Auth state for a single provider
 
@@ -10,7 +10,7 @@ Auth state for a single provider
 
 > **accessToken**: `string` | `null`
 
-Defined in: [src/react/useBackupAuth.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#85)
+Defined in: [src/react/useBackupAuth.ts:83](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#83)
 
 Current access token (null if not authenticated)
 
@@ -20,7 +20,7 @@ Current access token (null if not authenticated)
 
 > **isAuthenticated**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#87)
+Defined in: [src/react/useBackupAuth.ts:85](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#85)
 
 Whether user has authenticated with this provider
 
@@ -30,7 +30,7 @@ Whether user has authenticated with this provider
 
 > **isConfigured**: `boolean`
 
-Defined in: [src/react/useBackupAuth.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#89)
+Defined in: [src/react/useBackupAuth.ts:87](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#87)
 
 Whether this provider is configured
 
@@ -40,7 +40,7 @@ Whether this provider is configured
 
 > **logout**: () => `Promise`<`void`>
 
-Defined in: [src/react/useBackupAuth.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#93)
+Defined in: [src/react/useBackupAuth.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#91)
 
 Clear stored token and log out
 
@@ -54,7 +54,7 @@ Clear stored token and log out
 
 > **refreshToken**: () => `Promise`<`string` | `null`>
 
-Defined in: [src/react/useBackupAuth.ts:95](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#95)
+Defined in: [src/react/useBackupAuth.ts:93](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#93)
 
 Refresh the access token using the refresh token
 
@@ -68,7 +68,7 @@ Refresh the access token using the refresh token
 
 > **requestAccess**: () => `Promise`<`string`>
 
-Defined in: [src/react/useBackupAuth.ts:91](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#91)
+Defined in: [src/react/useBackupAuth.ts:89](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#89)
 
 Request access - returns token or redirects to OAuth
 

@@ -118,22 +118,22 @@ type UseChatResult = BaseUseChatResult & {
  * const handleSend = async () => {
  *   const result = await sendMessage({
  *     messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello!' }] }],
- *     model: 'gpt-4o-mini'
+ *     model: 'your-provider/your-model'
  *   });
  * };
  *
- * // Using extended thinking (Anthropic Claude)
+ * // Using extended thinking
  * const result = await sendMessage({
  *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Solve this complex problem...' }] }],
- *   model: 'anthropic/claude-3-7-sonnet-20250219',
+ *   model: 'your-provider/your-model',
  *   thinking: { type: 'enabled', budget_tokens: 10000 },
  *   onThinking: (chunk) => console.log('Thinking:', chunk)
  * });
  *
- * // Using reasoning (OpenAI o-series)
+ * // Using reasoning
  * const result = await sendMessage({
  *   messages: [{ role: 'user', content: [{ type: 'text', text: 'Reason through this...' }] }],
- *   model: 'openai/o1',
+ *   model: 'your-provider/your-model',
  *   reasoning: { effort: 'high', summary: 'detailed' }
  * });
  * ```
@@ -148,6 +148,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
     onError,
     onToolCall,
     onServerToolCall,
+    onToolCallArgumentsDelta,
     onStepFinish,
     apiType: defaultApiType = "auto",
     smoothing,
@@ -290,6 +291,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
           onError,
           onToolCall,
           onServerToolCall,
+          onToolCallArgumentsDelta,
           onStepFinish,
         });
 
@@ -315,6 +317,7 @@ export function useChat(options?: UseChatOptions): UseChatResult {
       onError,
       onToolCall,
       onServerToolCall,
+      onToolCallArgumentsDelta,
       onStepFinish,
       defaultApiType,
       smoothing,

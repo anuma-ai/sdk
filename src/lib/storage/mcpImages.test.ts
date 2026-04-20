@@ -9,7 +9,7 @@ describe("extractMCPImageUrls", () => {
   it("extracts URLs from tool_call_events with AnumaImageMCP prefix", () => {
     const events = [
       {
-        name: "AnumaImageMCP_generate_cloud_image",
+        name: "AnumaImageMCP-generate_cloud_image",
         output: JSON.stringify({ url: MCP_URL_1, model: "flux-1" }),
       },
     ];

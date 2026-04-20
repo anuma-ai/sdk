@@ -2,7 +2,7 @@
 
 > **postApiV1DeveloperAppsByAppUuidApiKeys**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PostApiV1DeveloperAppsByAppUuidApiKeysData`](../type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1DeveloperAppsByAppUuidApiKeysResponses`](../type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysResponses.md), [`PostApiV1DeveloperAppsByAppUuidApiKeysErrors`](../type-aliases/PostApiV1DeveloperAppsByAppUuidApiKeysErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:422](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#422)
+Defined in: [src/client/sdk.gen.ts:590](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#590)
 
 Create API key
 

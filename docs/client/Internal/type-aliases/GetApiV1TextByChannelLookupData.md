@@ -2,7 +2,7 @@
 
 > **GetApiV1TextByChannelLookupData** = `object`
 
-Defined in: [src/client/types.gen.ts:4226](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4226)
+Defined in: [src/client/types.gen.ts:5300](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5300)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4226](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **body**: `never`
 
-Defined in: [src/client/types.gen.ts:4227](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4227)
+Defined in: [src/client/types.gen.ts:5301](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5301)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:4227](https://github.com/anuma-ai/sdk/blob/
 
 > **path**: `object`
 
-Defined in: [src/client/types.gen.ts:4228](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4228)
+Defined in: [src/client/types.gen.ts:5302](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5302)
 
 **channel**
 
@@ -32,7 +32,7 @@ Text channel (sms, telegram)
 
 > **query**: `object`
 
-Defined in: [src/client/types.gen.ts:4234](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4234)
+Defined in: [src/client/types.gen.ts:5308](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5308)
 
 **identifier**
 
@@ -46,4 +46,4 @@ Channel identifier (e.g., E.164 phone number for SMS)
 
 > **url**: `"/api/v1/text/{channel}/lookup"`
 
-Defined in: [src/client/types.gen.ts:4240](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4240)
+Defined in: [src/client/types.gen.ts:5314](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5314)

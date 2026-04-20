@@ -2,7 +2,7 @@
 
 > **PostApiV1SubscriptionsUpgradeData** = `object`
 
-Defined in: [src/client/types.gen.ts:4118](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4118)
+Defined in: [src/client/types.gen.ts:5148](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5148)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4118](https://github.com/anuma-ai/sdk/blob/
 
 > **body**: [`HandlersUpgradeSubscriptionRequest`](HandlersUpgradeSubscriptionRequest.md)
 
-Defined in: [src/client/types.gen.ts:4122](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4122)
+Defined in: [src/client/types.gen.ts:5152](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5152)
 
 Upgrade request with target tier and optional interval
 
@@ -20,7 +20,7 @@ Upgrade request with target tier and optional interval
 
 > `optional` **path**: `never`
 
-Defined in: [src/client/types.gen.ts:4123](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4123)
+Defined in: [src/client/types.gen.ts:5153](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5153)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/client/types.gen.ts:4123](https://github.com/anuma-ai/sdk/blob/
 
 > `optional` **query**: `never`
 
-Defined in: [src/client/types.gen.ts:4124](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4124)
+Defined in: [src/client/types.gen.ts:5154](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5154)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/client/types.gen.ts:4124](https://github.com/anuma-ai/sdk/blob/
 
 > **url**: `"/api/v1/subscriptions/upgrade"`
 
-Defined in: [src/client/types.gen.ts:4125](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4125)
+Defined in: [src/client/types.gen.ts:5155](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#5155)

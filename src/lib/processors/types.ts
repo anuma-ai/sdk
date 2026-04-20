@@ -18,13 +18,20 @@ export interface ProcessedFileResult {
   /** Format hint for how text should be presented */
   format: "plain" | "markdown" | "json";
 
+  /**
+   * Fallback image data URLs (base64 PNG) when text extraction yields no content.
+   * For example, scanned PDFs have no extractable text — rendering each page as an
+   * image lets the vision model read the document instead.
+   */
+  imageDataUrls?: string[];
+
   /** Optional metadata about the extraction */
   metadata?: {
     pageCount?: number;
     sheetCount?: number;
     sheetNames?: string[];
     wordCount?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -83,6 +90,13 @@ export interface PreprocessingOptions {
 export interface PreprocessingResult {
   /** Extracted content to prepend to user message */
   extractedContent: string | null;
+
+  /**
+   * Image data URLs for files where text extraction failed but page images were
+   * rendered (e.g. scanned PDFs). The caller should inject these as `image_url`
+   * content parts in the user message so the vision model can read the document.
+   */
+  imageContentUrls?: string[];
 
   /** Original files (if keepOriginalFiles = true) */
   originalFiles?: FileMetadata[];

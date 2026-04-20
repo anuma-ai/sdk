@@ -1,8 +1,8 @@
 # withAnuma
 
-> **withAnuma**(`nextConfig`: `Record`<`string`, `any`>): `object`
+> **withAnuma**(`nextConfig`: `NextConfig`): `object`
 
-Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src/next/index.ts#22)
+Defined in: [src/next/index.ts:44](https://github.com/anuma-ai/sdk/blob/main/src/next/index.ts#44)
 
 ## Parameters
 
@@ -22,7 +22,7 @@ Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src
 </td>
 <td>
 
-`Record`<`string`, `any`>
+`NextConfig`
 
 </td>
 </tr>
@@ -35,11 +35,11 @@ Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src
 
 ### serverExternalPackages
 
-> **serverExternalPackages**: `any`\[]
+> **serverExternalPackages**: `string`\[]
 
 ### webpack()
 
-> **webpack**: (`config`: `any`, `options`: `any`) => `any`
+> **webpack**: (`config`: `WebpackConfig`, `options`: `WebpackOptions`) => `WebpackConfig`
 
 **Parameters**
 
@@ -59,7 +59,7 @@ Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src
 </td>
 <td>
 
-`any`
+`WebpackConfig`
 
 </td>
 </tr>
@@ -71,7 +71,7 @@ Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src
 </td>
 <td>
 
-`any`
+`WebpackOptions`
 
 </td>
 </tr>
@@ -80,4 +80,4 @@ Defined in: [src/next/index.ts:22](https://github.com/anuma-ai/sdk/blob/main/src
 
 **Returns**
 
-`any`
+`WebpackConfig`

@@ -51,6 +51,174 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 /**
+ * An item with a pre-computed embedding, ready for ranking.
+ */
+interface EmbeddedItem {
+  id: string;
+  content: string;
+  embedding: number[];
+  /** Last update timestamp — used for supersession detection. */
+  updatedAt?: Date;
+}
+
+/**
+ * Minimum pairwise cosine similarity between two memories for the older
+ * one to be considered superseded by the newer one.
+ */
+const SUPERSESSION_SIMILARITY_THRESHOLD = 0.7;
+
+/**
+ * Minimum time gap (in milliseconds) between two memories for supersession
+ * to apply. Memories created close together are likely complementary, not
+ * superseding. Default: 30 days.
+ */
+const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * How much of the score gap to transfer from the older memory to the newer
+ * one. At 1.0 this is equivalent to a full swap; at 0.0 no adjustment
+ * happens. A value around 0.5–0.8 boosts the newer memory while keeping
+ * the older one in contention for recall.
+ */
+const SUPERSESSION_BOOST_FACTOR = 0.8;
+
+/**
+ * Supersession adjustment for a single pair. Returns the score delta to
+ * add to the newer item (and subtract from the older item).
+ */
+function supersessionDelta(olderScore: number, newerScore: number): number {
+  const gap = olderScore - newerScore;
+  return gap * SUPERSESSION_BOOST_FACTOR;
+}
+
+/**
+ * Find supersession pairs among scored candidates. When two items have
+ * pairwise embedding similarity above the threshold and the older one
+ * outranks the newer one, they form a supersession pair whose scores
+ * should be adjusted via boost/penalty.
+ *
+ * Candidate pairs are scored by confidence (pairwise similarity * time gap
+ * weight) and assigned greedily highest-confidence-first so that the
+ * strongest supersession signals aren't blocked by weaker pairs that
+ * happen to iterate first.
+ *
+ * Returns an array of [oldId, newId] pairs to adjust.
+ */
+function findSupersessionPairs(
+  candidates: Array<{ id: string; embedding: number[]; updatedAt?: Date; similarity: number }>
+): Array<[string, string]> {
+  // Collect all valid pairs with confidence scores
+  const allPairs: Array<{ oldId: string; newId: string; confidence: number }> = [];
+
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i];
+      const b = candidates[j];
+      if (!a.updatedAt || !b.updatedAt) continue;
+
+      const sim = cosineSimilarity(a.embedding, b.embedding);
+      if (sim < SUPERSESSION_SIMILARITY_THRESHOLD) continue;
+
+      const gap = Math.abs(a.updatedAt.getTime() - b.updatedAt.getTime());
+      if (gap < SUPERSESSION_MIN_AGE_GAP_MS) continue;
+
+      const [older, newer] = a.updatedAt < b.updatedAt ? [a, b] : [b, a];
+      if (older.similarity <= newer.similarity) continue;
+
+      // Higher pairwise similarity + larger time gap = more confident supersession
+      const gapDays = gap / (24 * 60 * 60 * 1000);
+      const confidence = sim * Math.min(gapDays / 30, 3);
+      allPairs.push({ oldId: older.id, newId: newer.id, confidence });
+    }
+  }
+
+  // Greedy assignment: highest confidence first, each ID used at most once
+  allPairs.sort((a, b) => b.confidence - a.confidence);
+  const claimed = new Set<string>();
+  const result: Array<[string, string]> = [];
+  for (const pair of allPairs) {
+    if (claimed.has(pair.oldId) || claimed.has(pair.newId)) continue;
+    result.push([pair.oldId, pair.newId]);
+    claimed.add(pair.oldId);
+    claimed.add(pair.newId);
+  }
+  return result;
+}
+
+/**
+ * Pure ranking function: scores, filters, and ranks items using cosine
+ * similarity with supersession detection. When items include `updatedAt`
+ * timestamps, pairs of highly similar items are checked for supersession —
+ * a fraction of the score gap is transferred from the older item to the
+ * newer one, boosting the replacement without fully evicting the original.
+ *
+ * @param queryEmbedding - Pre-computed embedding for the query
+ * @param items - Items with pre-computed embeddings to rank
+ * @param options - Ranking options (limit, minSimilarity)
+ * @returns Ranked results sorted by descending similarity
+ */
+export function rankVaultMemories(
+  _query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+  }
+): VaultSearchResult[] {
+  const limit = options?.limit ?? 5;
+  const minSimilarity = options?.minSimilarity ?? 0.1;
+
+  const scored = items.map((item) => ({
+    uniqueId: item.id,
+    content: item.content,
+    embedding: item.embedding,
+    updatedAt: item.updatedAt,
+    similarity: cosineSimilarity(queryEmbedding, item.embedding),
+  }));
+
+  const filtered = scored.filter((r) => r.similarity >= minSimilarity);
+  filtered.sort((a, b) => b.similarity - a.similarity);
+
+  // Check top candidates for supersession — boost newer items and penalize
+  // older ones when they are highly similar and the older one outranks
+  const window = filtered.slice(0, limit * 3);
+  const pairs = findSupersessionPairs(
+    window.map((r) => ({
+      id: r.uniqueId,
+      embedding: r.embedding,
+      updatedAt: r.updatedAt,
+      similarity: r.similarity,
+    }))
+  );
+
+  if (pairs.length > 0) {
+    const scoreMap = new Map(filtered.map((r) => [r.uniqueId, r.similarity]));
+    const itemMap = new Map(filtered.map((r) => [r.uniqueId, r]));
+    for (const [oldId, newId] of pairs) {
+      const oldScore = scoreMap.get(oldId)!;
+      const newScore = scoreMap.get(newId)!;
+      const delta = supersessionDelta(oldScore, newScore);
+      const oldItem = itemMap.get(oldId);
+      const newItem = itemMap.get(newId);
+      if (oldItem && newItem) {
+        oldItem.similarity = oldScore - delta;
+        newItem.similarity = newScore + delta;
+        scoreMap.set(oldId, oldItem.similarity);
+        scoreMap.set(newId, newItem.similarity);
+      }
+    }
+    filtered.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  return filtered.slice(0, limit).map((r) => ({
+    uniqueId: r.uniqueId,
+    content: r.content,
+    similarity: r.similarity,
+  }));
+}
+
+/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -194,21 +362,20 @@ async function searchVaultMemoriesWithSize(
     }
   }
 
-  // Score each memory by cosine similarity
-  const scored = memories
-    .map((m) => {
-      const embedding = cache.get(m.content);
-      if (!embedding) return null;
-      return {
-        uniqueId: m.uniqueId,
-        content: m.content,
-        similarity: cosineSimilarity(queryEmbedding, embedding),
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+  // Build embedded items for the pure ranking function
+  const embeddedItems: EmbeddedItem[] = [];
+  for (const m of memories) {
+    const embedding = cache.get(m.content);
+    if (embedding) {
+      embeddedItems.push({ id: m.uniqueId, content: m.content, embedding, updatedAt: m.updatedAt });
+    }
+  }
 
-  scored.sort((a, b) => b.similarity - a.similarity);
-  const results = scored.filter((r) => r.similarity >= minSimilarity).slice(0, limit);
+  const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
+    limit,
+    minSimilarity,
+  });
+
   return { results, vaultSize: memories.length };
 }
 
@@ -344,6 +511,5 @@ export function createMemoryVaultSearchTool(
         return `Error searching vault: ${message}`;
       }
     },
-    autoExecute: true,
   };
 }

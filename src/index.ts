@@ -51,7 +51,7 @@
  *
  * await sendMessage({
  *   messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
- *   model: "gpt-4o-mini",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  * });
  * ```
  *
@@ -65,7 +65,7 @@
  * const response = await postApiV1Responses({
  *   body: {
  *     messages: [{ role: "user", content: [{ type: "text", text: "Tell me a joke" }] }],
- *     model: "gpt-4o-mini",
+ *     model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   },
  *   headers: {
  *     Authorization: `Bearer ${identityToken}`,
@@ -95,3 +95,30 @@ export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/
 // Pluggable logger
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";
+
+// Persona (prompt building + style analysis)
+export type {
+  AnalyzeStyleOptions,
+  AnalyzeStyleResult,
+  BuildPromptOptions,
+  BuildPromptResult,
+  PromptContext,
+  PromptSection,
+  PromptTemplates,
+  StyleAnalysisSchedule,
+} from "./lib/persona";
+export {
+  analyzeStyle,
+  buildSystemPrompt,
+  DEFAULT_ANALYSIS_PROMPT,
+  DEFAULT_ANALYZE_AFTER_MESSAGES,
+  DEFAULT_DOCUMENT_PATTERN,
+  DEFAULT_MAX_INPUT_MESSAGES,
+  DEFAULT_MAX_PROFILE_LENGTH,
+  DEFAULT_MIN_MESSAGES,
+  DEFAULT_PROMPT_TEMPLATES,
+  DEFAULT_REFRESH_EVERY_MESSAGES,
+  renderTemplate,
+  sanitizeQuotes,
+  shouldAnalyzeStyle,
+} from "./lib/persona";

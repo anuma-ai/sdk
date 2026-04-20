@@ -22,7 +22,11 @@ export class WordProcessor implements FileProcessor {
       // build accepts { arrayBuffer }. Detect true Node.js (not just polyfilled
       // Buffer) to pick the right input format.
       const isNode =
-        typeof process !== "undefined" && process.versions != null && process.versions.node != null;
+        typeof process !== "undefined" &&
+        process.versions !== null &&
+        process.versions !== undefined &&
+        process.versions.node !== null &&
+        process.versions.node !== undefined;
       const input = isNode ? { buffer: Buffer.from(arrayBuffer) } : { arrayBuffer };
       const result = await mammoth.extractRawText(input);
 
