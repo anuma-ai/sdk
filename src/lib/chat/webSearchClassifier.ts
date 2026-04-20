@@ -16,6 +16,12 @@ import type { EmbeddingOptions } from "../memoryEngine/types";
 import { searchCentroid, noSearchCentroid } from "./webSearchCentroids";
 
 function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) {
+    // Dimension mismatch — likely centroids generated with a different
+    // embedding model than the one now in use. Returning 0 makes the
+    // classifier fall back to "no search" rather than producing NaN.
+    return 0;
+  }
   let dot = 0;
   let normA = 0;
   let normB = 0;

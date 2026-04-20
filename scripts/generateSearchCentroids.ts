@@ -10,6 +10,7 @@
 
 import "dotenv/config";
 import { generateEmbeddings } from "../src/lib/memoryEngine/embeddings";
+import { BASE_URL } from "../src/clientConfig";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 
@@ -132,7 +133,17 @@ const NO_SEARCH_PHRASES = [
 ];
 
 function averageVectors(vectors: number[][]): number[] {
+  if (vectors.length === 0) {
+    throw new Error("averageVectors: received an empty vector list");
+  }
   const dim = vectors[0].length;
+  for (let i = 1; i < vectors.length; i++) {
+    if (vectors[i].length !== dim) {
+      throw new Error(
+        `averageVectors: dimension mismatch — vectors[0] has ${dim} dims, vectors[${i}] has ${vectors[i].length}`
+      );
+    }
+  }
   const avg = new Array(dim).fill(0);
   for (const v of vectors) {
     for (let i = 0; i < dim; i++) {
@@ -147,13 +158,14 @@ function averageVectors(vectors: number[][]): number[] {
 
 async function main() {
   const apiKey = process.env.PORTAL_API_KEY;
-  const baseUrl = process.env.ANUMA_API_URL || "https://portal.anuma-dev.ai";
+  const baseUrl = process.env.ANUMA_API_URL || BASE_URL;
 
   if (!apiKey) {
     console.error("PORTAL_API_KEY is required");
     process.exit(1);
   }
 
+  console.log(`Using baseUrl: ${baseUrl}`);
   console.log("Embedding search phrases...");
   const searchEmbeddings = await generateEmbeddings(SEARCH_PHRASES, { apiKey, baseUrl });
 
