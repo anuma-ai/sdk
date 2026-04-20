@@ -183,8 +183,8 @@ export type {
   TextElement,
 } from "./slides";
 export {
+  ADD_SLIDE_SCHEMA,
   buildSlideSystemPrompt,
-  CREATE_SLIDES_SCHEMA,
   createSlideTools,
   DEFAULT_SLIDE_THEME,
   extractSlideContent,
@@ -196,7 +196,7 @@ export {
   pctToW,
   pctToX,
   pctToY,
-  PLAN_SLIDES_SCHEMA,
+  PLAN_DECK_SCHEMA,
   READ_SLIDES_SCHEMA,
   REF_H,
   REF_W,

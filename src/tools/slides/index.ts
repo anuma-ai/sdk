@@ -1,20 +1,22 @@
 /**
  * Slide deck tools for LLM-driven presentation generation.
  *
- * Provides plan_slides, create_slides, read_slides, and patch_slides tool
+ * Provides plan_deck, add_slide, read_slides, and patch_slides tool
  * configurations, along with the type system, coordinate helpers, font
  * presets, and system prompt that drive the slide generation flow.
  *
  * Slide decks are JSON documents persisted to a file named `slides.json`
- * via the shared `AppFileStorage` interface. The LLM plans the deck with
- * `plan_slides`, writes the full deck with `create_slides`, and applies
- * incremental edits with `patch_slides`. All positions use a
+ * via the shared `AppFileStorage` interface. The LLM initializes an empty
+ * deck with `plan_deck`, appends slides one at a time via `add_slide`,
+ * and applies incremental edits with `patch_slides`. All positions use a
  * percentage-based coordinate system relative to a 960×540 (16:9)
  * reference canvas.
  *
  * When a `displaySlides` callback is supplied to `createSlideTools`, the
  * deck-display UI interaction is emitted automatically from inside
- * `create_slides` and `patch_slides` — no separate display tool needed.
+ * `plan_deck`, `add_slide`, and `patch_slides` — no separate display
+ * tool needed. The SDK tracks the interaction_id internally so per-slide
+ * appends update the same viewer in-place.
  *
  * @example
  * ```typescript
@@ -39,12 +41,7 @@
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderElementKinds } from "./elementKinds";
-import {
-  getLayoutByName,
-  renderLayoutCatalog,
-  renderLayoutRecipes,
-  renderSharedHeader,
-} from "./layouts";
+import { renderLayoutCatalog, renderLayoutTemplates, renderSharedHeader } from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
 
 // ---------------------------------------------------------------------------
@@ -290,7 +287,7 @@ export const READ_SLIDES_SCHEMA = {
 
 export const PATCH_SLIDES_SCHEMA = {
   name: "patch_slides",
-  description: `Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous create_slides/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
+  description: `Apply targeted operations to an existing slide deck. The deck re-renders inline automatically after each patch; pass replaces_interaction_id from a previous add_slide/patch_slides result to update the same deck viewer in-place (otherwise a new viewer is created).
 
 Operations:
 - update_element: modify properties of an element within a slide
@@ -306,7 +303,7 @@ Operations:
       replaces_interaction_id: {
         type: "string",
         description:
-          "interaction_id from a previous create_slides or patch_slides result. Pass this to update the existing deck viewer in-place instead of creating a new one.",
+          "interaction_id from a previous add_slide or patch_slides result. Pass this to update the existing deck viewer in-place instead of creating a new one.",
       },
       operations: {
         type: "array",
@@ -367,19 +364,25 @@ Operations:
   },
 } as const;
 
-export const PLAN_SLIDES_SCHEMA = {
-  name: "plan_slides",
-  description: `Plan a new slide deck before you generate it. Call this FIRST — once — when creating a new deck. You pick:
+export const PLAN_DECK_SCHEMA = {
+  name: "plan_deck",
+  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, and display. You pick:
+  - title: presentation title (shown above the deck in the UI)
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
-  - slides: an array of { id, layout, topic } — layout must be an exact name from the LAYOUT CATALOG
 
-The result contains the element recipes for every layout you picked, plus the shared header pattern, element-type schemas, coordinate-system notes, and the full palette hex values. You then call create_slides once with the concrete deck JSON, using those recipes as blueprints.
+The result contains the full layout catalog with element recipes, shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow.
 
-For editing an existing deck (read_slides + patch_slides flow), do NOT call plan_slides.`,
+After plan_deck, call add_slide ONCE PER SLIDE, in order, appending slides to the deck. Aim for at least 8–12 slides for a substantive topic. Each add_slide call writes one slide's elements.
+
+For editing an existing deck (read_slides + patch_slides flow), do NOT call plan_deck.`,
   arguments: {
     type: "object",
     properties: {
+      title: {
+        type: "string",
+        description: "Title of the presentation (shown above the deck in the UI).",
+      },
       fontPreset: {
         type: "string",
         description:
@@ -390,74 +393,43 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         description:
           "Palette register name from the CHOOSING A PALETTE table. Copy exactly (e.g. 'warm editorial').",
       },
-      slides: {
-        type: "array",
-        description: "One entry per slide, in order.",
-        items: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-              description: "Short snake-case slide id (e.g. 'cover', 'soil_intro')",
-            },
-            layout: {
-              type: "string",
-              description:
-                "Short layout name from the LAYOUT CATALOG (kebab-case, e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').",
-            },
-            topic: {
-              type: "string",
-              description: "One-line summary of what this slide will cover",
-            },
-          },
-          required: ["id", "layout", "topic"],
-        },
-      },
     },
-    required: ["fontPreset", "paletteName", "slides"],
+    required: ["title", "fontPreset", "paletteName"],
   },
 } as const;
 
-export const CREATE_SLIDES_SCHEMA = {
-  name: "create_slides",
-  description: `Create a new slide deck from a complete SlideDeck JSON object. Call this AFTER plan_slides — the plan_slides result contains the layout recipes you should follow. The deck renders inline automatically; the result includes an interaction_id you can pass to later patch_slides calls (as replaces_interaction_id) to update the same deck viewer in-place.
+export const ADD_SLIDE_SCHEMA = {
+  name: "add_slide",
+  description: `Append ONE slide to the deck. Call this repeatedly after plan_deck, once per slide, in order. Each call writes a single slide — you pick a layout name from the LAYOUT CATALOG (in the plan_deck result), copy its element recipe, and substitute real text. The deck re-renders inline after each add_slide so the viewer updates in-place.
 
-Deck shape: { version: 2, theme: { fontPreset, colors: { background, slideBg, surfaceSecondary, textPrimary, textSecondary, textMuted, accent, card, border } }, slides: Slide[] }
+IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant turn). Do NOT emit multiple add_slide tool calls in parallel in a single turn — they race on shared deck state and slides will be lost. Wait for each add_slide result before emitting the next.
+
 Slide shape: { id, background?, elements: SlideElement[] }
 
-Use the element recipes from the plan_slides result as geometry blueprints and substitute your own real text.`,
+Layout variety is mandatory — don't reuse the same layout more than twice in a deck. Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
   arguments: {
     type: "object",
     properties: {
-      title: {
-        type: "string",
-        description: "Title of the presentation (shown above the deck in the UI).",
-      },
-      deck: {
+      slide: {
         type: "object",
-        description: "Full SlideDeck JSON",
+        description: "One Slide: { id, background?, elements: SlideElement[] }",
         properties: {
-          version: { type: "number", description: "Always 2" },
-          theme: {
-            type: "object",
-            properties: {},
-            additionalProperties: true,
-            description: "SlideTheme with fontPreset + colors",
+          id: { type: "string", description: "Short snake-case slide id (e.g. 'cover', 'soil_intro')" },
+          background: {
+            type: "string",
+            description:
+              "Optional slide background hex or color token. Overrides theme slideBg for this slide only.",
           },
-          slides: {
+          elements: {
             type: "array",
-            items: {
-              type: "object",
-              properties: {},
-              additionalProperties: true,
-            },
-            description: "Array of Slide objects",
+            description: "Array of SlideElement objects (text/shape/image/icon).",
+            items: { type: "object", properties: {}, additionalProperties: true },
           },
         },
-        required: ["version", "theme", "slides"],
+        required: ["id", "elements"],
       },
     },
-    required: ["title", "deck"],
+    required: ["slide"],
   },
 } as const;
 
@@ -527,9 +499,13 @@ export interface CreateSlideToolsOptions {
   logError?: (message: string, error?: Error) => void;
   /**
    * Host-supplied hook that emits a deck-display UI interaction. Called
-   * automatically from inside `create_slides` and `patch_slides`; its
-   * return value is merged into the tool result so the model (and the
+   * automatically from inside `plan_deck`, `add_slide`, and `patch_slides`;
+   * its return value is merged into the tool result so the model (and the
    * chat UI) see the `interaction_id`. Receives `{ title, replaces_interaction_id }`.
+   *
+   * The SDK tracks the interaction_id internally per conversation so
+   * per-slide appends update the same viewer — the model does not need
+   * to thread the id through its tool arguments.
    *
    * Omit in headless/test environments that don't need a UI anchor — in
    * that case the tool results just omit `interaction_id`.
@@ -547,20 +523,22 @@ function safeMerge(target: Record<string, unknown>, patch: Record<string, unknow
 }
 
 /**
- * Create the slide deck tool suite: `plan_slides`, `create_slides`,
- * `read_slides`, and `patch_slides`.
+ * Create the slide deck tool suite: `plan_deck`, `add_slide`, `read_slides`,
+ * and `patch_slides`.
  *
- * New decks flow: plan_slides → create_slides.
+ * New decks flow: plan_deck (once) → add_slide (once per slide, in order).
  * Existing deck edits: read_slides → patch_slides.
  *
- * When `displaySlides` is provided, `create_slides` and `patch_slides`
- * automatically emit the deck-display UI interaction as part of their
- * result. No standalone `display_slides` tool — the write and the
- * display anchor are a single step.
+ * When `displaySlides` is provided, `plan_deck`, `add_slide`, and
+ * `patch_slides` all emit the deck-display UI interaction as part of
+ * their result. No standalone `display_slides` tool — the write and the
+ * display anchor are a single step, and the SDK tracks the interaction
+ * id per conversation so per-slide appends update the same viewer
+ * in-place.
  *
  * Backed by the provided storage adapter. No dependency on the
- * app-generation `create_file` tool — `create_slides` writes slides.json
- * directly.
+ * app-generation `create_file` tool — `plan_deck` initializes slides.json
+ * and `add_slide` appends to it directly.
  */
 export function createSlideTools({
   getConversationId,
@@ -574,23 +552,54 @@ export function createSlideTools({
     return id;
   }
 
-  const planSlidesTool: ToolConfig = {
+  // Tracks the last displaySlides interaction_id per conversation so that
+  // add_slide / patch_slides calls can update the same deck viewer in-place
+  // (via replaces_interaction_id) instead of spawning new viewers for each
+  // incremental write. Populated by plan_deck and refreshed by add_slide.
+  const lastInteractionByConv = new Map<string, { id: string; title: string }>();
+
+  // Per-conversation write lock. Serializes the read-modify-write sequence
+  // inside add_slide so that if a model emits multiple add_slide tool calls
+  // in parallel in a single turn, each one sees the result of the previous
+  // rather than racing on slides.json. Chain via Promise so queued callers
+  // await the previous write to complete.
+  const writeLockByConv = new Map<string, Promise<void>>();
+  async function withWriteLock<T>(cid: string, fn: () => Promise<T>): Promise<T> {
+    const prev = writeLockByConv.get(cid) ?? Promise.resolve();
+    let release!: () => void;
+    const next = new Promise<void>((r) => {
+      release = r;
+    });
+    writeLockByConv.set(
+      cid,
+      prev.then(() => next)
+    );
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
+  const planDeckTool: ToolConfig = {
     type: "function",
-    function: PLAN_SLIDES_SCHEMA,
-    executor: (args: Record<string, unknown>) => {
+    function: PLAN_DECK_SCHEMA,
+    executor: async (args: Record<string, unknown>) => {
       try {
+        const conversationId = requireConversationId();
+        const title = typeof args.title === "string" ? args.title : "";
         const fontPreset = typeof args.fontPreset === "string" ? args.fontPreset : "";
         const paletteName = typeof args.paletteName === "string" ? args.paletteName : "";
-        const slides = Array.isArray(args.slides)
-          ? (args.slides as Array<{ id?: unknown; layout?: unknown; topic?: unknown }>)
-          : [];
 
+        if (!title) {
+          return { error: "title is required" };
+        }
         if (!fontPreset || !FONT_PRESETS[fontPreset]) {
           return {
             error: `Unknown fontPreset '${fontPreset}'. Valid: ${Object.keys(FONT_PRESETS).join(", ")}`,
           };
         }
-
         const palette = getPaletteByName(paletteName);
         if (!palette) {
           return {
@@ -598,43 +607,31 @@ export function createSlideTools({
           };
         }
 
-        if (slides.length === 0) {
-          return { error: "slides array is required and must not be empty" };
+        // Initialize an empty deck with the chosen theme — add_slide appends
+        // individual slides into this shell.
+        const deck: SlideDeck = {
+          version: 2,
+          theme: { fontPreset: palette.fontPreset, colors: palette.colors },
+          slides: [],
+        };
+        await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+
+        // Open a display interaction now so the viewer appears and add_slide
+        // calls can update it in-place.
+        const display = displaySlides ? await displaySlides({ title }) : null;
+        const interactionId =
+          display && typeof display === "object" && "interaction_id" in display
+            ? (display as { interaction_id?: unknown }).interaction_id
+            : undefined;
+        if (typeof interactionId === "string") {
+          lastInteractionByConv.set(conversationId, { id: interactionId, title });
         }
 
-        const unknownLayouts: string[] = [];
-        const chosenLayouts: string[] = [];
-        for (const s of slides) {
-          const layout = typeof s.layout === "string" ? s.layout : "";
-          if (!layout) {
-            unknownLayouts.push("(missing)");
-            continue;
-          }
-          if (!getLayoutByName(layout)) {
-            unknownLayouts.push(layout);
-            continue;
-          }
-          chosenLayouts.push(layout);
-        }
-        if (unknownLayouts.length > 0) {
-          return {
-            error: `Unknown layout name(s): ${unknownLayouts.join(" | ")}. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom').`,
-          };
-        }
-
-        const recipes = renderLayoutRecipes(chosenLayouts);
-        const planSummary = slides
-          .map((s, i) => `${i + 1}. ${String(s.id)} — ${String(s.layout)}`)
-          .join("\n");
-
-        const content = `Plan accepted.
+        const content = `Deck initialized — theme applied, empty slides array ready.
 
 Theme: ${palette.name} (fontPreset: ${palette.fontPreset})
-Palette colors (copy verbatim into theme.colors):
+Palette colors (already applied to theme.colors):
 ${renderPaletteColors(palette)}
-
-Slide plan (${slides.length}):
-${planSummary}
 
 COORDINATE SYSTEM — positions are percentages (0–100) of a 16:9 canvas (960×540 reference).
 - x=0 left, x=100 right, y=0 top, y=100 bottom
@@ -647,59 +644,82 @@ ${renderElementKinds()}
 SHARED HEADER PATTERN — place on every content slide (skip on cover and chapter-break):
 ${renderSharedHeader()}
 
-LAYOUT RECIPES (only the ones you picked — copy geometries, substitute your text):
+LAYOUT RECIPES — pick one for each slide; copy the element geometry and substitute your text:
 
-${recipes}
+${renderLayoutTemplates()}
 
-NOW call create_slides ONCE with { title, deck }. Pick a short presentation title (shown in the UI header). Set deck.version to 2, deck.theme.fontPreset to "${palette.fontPreset}", copy the palette colors above verbatim into deck.theme.colors, and build one deck.slides entry per plan entry using the recipes as blueprints. The deck renders inline automatically; the result includes an interaction_id you can pass to patch_slides.replaces_interaction_id for later in-place updates.`;
+NOW call add_slide ONE SLIDE AT A TIME, in order. Produce AT LEAST 10 slides for a substantive topic (12–14 is a typical good deck). Do not stop early — if the user asked for N slides, you must call add_slide at least N times. For each slide: pick a layout, copy its elements, substitute real text. LAYOUT VARIETY IS MANDATORY — do not reuse the same layout more than twice. Each add_slide call re-renders the deck in-place.`;
 
-        return { content };
-      } catch (err) {
-        logError("plan_slides failed", err instanceof Error ? err : undefined);
         return {
-          error: `Failed to plan slides: ${err instanceof Error ? err.message : String(err)}`,
+          content,
+          ...(display && typeof display === "object" ? display : {}),
+        };
+      } catch (err) {
+        logError("plan_deck failed", err instanceof Error ? err : undefined);
+        return {
+          error: `Failed to plan deck: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
     },
   };
 
-  const createSlidesTool: ToolConfig = {
+  const addSlideTool: ToolConfig = {
     type: "function",
-    function: CREATE_SLIDES_SCHEMA,
+    function: ADD_SLIDE_SCHEMA,
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
-        const title = typeof args.title === "string" ? args.title : "";
-        const deck = args.deck as SlideDeck | undefined;
-        if (!title) {
-          return { error: "title is required" };
+        const slide = args.slide as Slide | undefined;
+        if (!slide || typeof slide !== "object") {
+          return { error: "slide is required and must be a Slide object" };
         }
-        if (!deck || typeof deck !== "object") {
-          return { error: "deck is required and must be a SlideDeck object" };
+        if (typeof slide.id !== "string" || !slide.id) {
+          return { error: "slide.id is required" };
         }
-        if (!Array.isArray(deck.slides) || deck.slides.length === 0) {
-          return { error: "deck.slides must be a non-empty array" };
+        if (!Array.isArray(slide.elements)) {
+          return { error: "slide.elements must be an array" };
         }
-        if (!deck.theme || typeof deck.theme !== "object") {
-          return { error: "deck.theme is required" };
-        }
-        const normalized: SlideDeck = {
-          version: 2,
-          theme: deck.theme,
-          slides: deck.slides,
-        };
-        await storage.putFile(conversationId, "slides.json", JSON.stringify(normalized));
-        const display = displaySlides ? await displaySlides({ title }) : null;
-        return {
-          success: true,
-          slides: normalized.slides.length,
-          message: `Wrote slides.json with ${normalized.slides.length} slides.`,
-          ...(display && typeof display === "object" ? display : {}),
-        };
+
+        // Serialize the read-modify-write so parallel add_slide tool calls
+        // in a single assistant turn don't race on slides.json.
+        return await withWriteLock(conversationId, async () => {
+          const file = await storage.getFile(conversationId, "slides.json");
+          if (!file) {
+            return { error: "No slides.json found. Call plan_deck first." };
+          }
+          const deck = JSON.parse(file.content) as SlideDeck;
+          deck.slides.push(slide);
+          await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+
+          // Update the display interaction in-place. If plan_deck already
+          // created one, reuse its interaction_id so the viewer updates.
+          const prev = lastInteractionByConv.get(conversationId);
+          const displayArgs: Record<string, unknown> = prev
+            ? { replaces_interaction_id: prev.id }
+            : {};
+          const display = displaySlides ? await displaySlides(displayArgs) : null;
+          if (display && typeof display === "object" && "interaction_id" in display) {
+            const newId = (display as { interaction_id?: unknown }).interaction_id;
+            if (typeof newId === "string") {
+              lastInteractionByConv.set(conversationId, {
+                id: newId,
+                title: prev?.title ?? "",
+              });
+            }
+          }
+
+          return {
+            success: true,
+            slideIndex: deck.slides.length - 1,
+            totalSlides: deck.slides.length,
+            message: `Appended slide ${deck.slides.length} (id=${slide.id}).`,
+            ...(display && typeof display === "object" ? display : {}),
+          };
+        });
       } catch (err) {
-        logError("create_slides failed", err instanceof Error ? err : undefined);
+        logError("add_slide failed", err instanceof Error ? err : undefined);
         return {
-          error: `Failed to create slides: ${err instanceof Error ? err.message : String(err)}`,
+          error: `Failed to add slide: ${err instanceof Error ? err.message : String(err)}`,
         };
       }
     },
@@ -744,7 +764,7 @@ NOW call create_slides ONCE with { title, deck }. Pick a short presentation titl
         }
 
         const file = await storage.getFile(conversationId, "slides.json");
-        if (!file) return { error: "No slides.json found. Call create_slides first." };
+        if (!file) return { error: "No slides.json found. Call plan_deck first." };
 
         const deck = JSON.parse(file.content) as SlideDeck;
         const results: string[] = [];
@@ -841,13 +861,27 @@ NOW call create_slides ONCE with { title, deck }. Pick a short presentation titl
         }
 
         await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+
+        // Prefer the model-supplied replaces_interaction_id, but fall back to
+        // the closure-tracked id from plan_deck / add_slide so patch_slides
+        // updates the same viewer even if the model forgets to thread the id.
         const replacesId =
           typeof args.replaces_interaction_id === "string"
             ? args.replaces_interaction_id
-            : undefined;
+            : lastInteractionByConv.get(conversationId)?.id;
         const display = displaySlides
           ? await displaySlides(replacesId ? { replaces_interaction_id: replacesId } : {})
           : null;
+        if (display && typeof display === "object" && "interaction_id" in display) {
+          const newId = (display as { interaction_id?: unknown }).interaction_id;
+          if (typeof newId === "string") {
+            const prev = lastInteractionByConv.get(conversationId);
+            lastInteractionByConv.set(conversationId, {
+              id: newId,
+              title: prev?.title ?? "",
+            });
+          }
+        }
         return {
           success: true,
           results,
@@ -862,7 +896,7 @@ NOW call create_slides ONCE with { title, deck }. Pick a short presentation titl
     },
   };
 
-  return [planSlidesTool, createSlidesTool, readSlidesTool, patchSlidesTool];
+  return [planDeckTool, addSlideTool, readSlidesTool, patchSlidesTool];
 }
 
 // ---------------------------------------------------------------------------
@@ -870,14 +904,14 @@ NOW call create_slides ONCE with { title, deck }. Pick a short presentation titl
 // ---------------------------------------------------------------------------
 
 /**
- * Build the slide mode system prompt — slim planning-step version.
+ * Build the slide mode system prompt — slim initialize + per-slide flow.
  *
- * Instructs the LLM to use the two-step flow: plan_slides first (picks
- * palette + fontPreset + layout-per-slide), then create_slides with the
- * full deck. Layout element recipes, element-type schemas, shared-header
- * pattern, coordinate-system detail, and palette hex values are NOT in
- * this prompt — they come back in the plan_slides tool result so the
- * generation turn only sees the handful of layouts actually picked.
+ * Instructs the LLM to call plan_deck once (picks title + palette +
+ * fontPreset, initializes an empty slides.json, returns the full layout
+ * recipes + element-type schemas + shared header + palette hex values),
+ * then call add_slide once per slide to append. Per-slide rounds keep
+ * each tool-call stream small so slow / reasoning-heavy models can finish
+ * within portal per-provider timeout ceilings.
  */
 export function buildSlideSystemPrompt(): string {
   const fontTable = Object.entries(FONT_PRESETS)
@@ -886,15 +920,15 @@ export function buildSlideSystemPrompt(): string {
 
   return `You are a presentation design assistant. You produce polished slide decks as JSON with positioned elements.
 
-WORKFLOW (two steps for a new deck):
-1. PLAN — call plan_slides ONCE with { fontPreset, paletteName, slides: [{ id, layout, topic }] }. Pick a layout from the LAYOUT CATALOG for each slide; pick a palette from CHOOSING A PALETTE.
-2. GENERATE — the plan_slides result contains the element recipes for every layout you picked, the shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values. Call create_slides ONCE with { title, deck }, using those recipes as blueprints and substituting real text. The deck renders inline automatically and the result includes an interaction_id.
+WORKFLOW (initialize then add slides one at a time):
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName }. This sets up the theme and returns the full LAYOUT RECIPES, SHARED HEADER, element schemas, coordinate-system notes, and palette hex values. Pick fontPreset + paletteName to match the topic (see CHOOSING A PALETTE).
+2. APPEND — call add_slide ONE SLIDE AT A TIME, in order, aiming for at least 8–12 slides for a substantive topic. For each slide: pick a layout from the LAYOUT CATALOG, copy its element recipe, substitute your real text, and pass the Slide object as { slide: { id, background?, elements: [...] } }. The deck re-renders in-place after each call.
 
-For edits to an existing deck: read_slides → patch_slides. Pass the interaction_id from the most recent create_slides or patch_slides result as replaces_interaction_id so the patch updates the same deck viewer in-place. No plan_slides needed for edits.
+For edits to an existing deck: read_slides → patch_slides. No plan_deck needed for edits.
 
 Never output code as text. Always use tools. Keep text responses to one or two sentences.
 
-LAYOUT CATALOG — each entry is "short-name — description". Pass the short name (e.g. "compare-two-panel") as the layout field in plan_slides:
+LAYOUT CATALOG — each entry is "short-name — description". Pick one when writing each slide's elements:
 
 ${renderLayoutCatalog()}
 
@@ -924,14 +958,14 @@ FONT PRESETS:
 ${fontTable}
 Tech → bold/techno. Business → geometric/clean. Culture → editorial/humanist. Premium → elegant.
 
-CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register that matches the topic; plan_slides will inject its hex values for you. Don't invent new palettes unless the topic really demands it.
+CHOOSING A PALETTE — don't default to dark grey + orange. Pick the register that matches the topic; plan_deck will inject its hex values for you. Don't invent new palettes unless the topic really demands it.
 
 ${renderPaletteNames()}
 
 IMAGES:
 - Do NOT use web search or arbitrary URLs. Only "attached:N" strings (user-attached images) or URLs from AnumaImageMCP-generate_cloud_image (generate 1–2 max first).
 - Most decks should be text-only. If no images are available, omit image elements entirely.
-- With images: generate them FIRST, then call plan_slides and create_slides — the deck renders the moment create_slides succeeds.
+- With images: generate them FIRST, then call plan_deck and add_slide — the deck renders incrementally as slides are appended.
 
 ICONS: Material Symbols Rounded — bolt, lock, search, favorite, star, check_circle, trending_up, rocket_launch, groups, code, brush, settings, etc.
 

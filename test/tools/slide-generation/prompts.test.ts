@@ -67,7 +67,7 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
 
     const result = await timedToolLoop({
       messages: makeMessages(
-        "Create a 4-slide deck teaching beginners the fundamentals of home gardening: one slide on soil types, one on seasonal planting, one on common pests, one on starter plants for different climates. No images."
+        "Create a deck of at least 10 slides teaching beginners the fundamentals of home gardening, covering soil types, seasonal planting, common pests, and starter plants for different climates. No images."
       ),
       model,
       baseUrl: config.baseUrl,
@@ -75,7 +75,10 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
       apiType: config.apiType,
       tools,
       toolChoice: "auto",
-      maxToolRounds: 8,
+      // Per-slide flow: 1 plan_deck + N add_slide calls, so 12–15 rounds
+      // for a 10+ slide deck. Bumped from the old 8 which was tuned for the
+      // single-shot create_slides flow.
+      maxToolRounds: 20,
       // Anthropic via Bifrost seems to 500 when the streamed JSON payload
       // exceeds the default output-token budget on dense decks. Raise it.
       maxOutputTokens: 16000,
@@ -100,8 +103,8 @@ describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
 
     const deck = getDeck(store);
 
-    // Prompt asks for 4 slides
-    expect(deck.slides.length).toBeGreaterThanOrEqual(4);
+    // Prompt explicitly asks for ≥10 slides
+    expect(deck.slides.length).toBeGreaterThanOrEqual(10);
 
     // "No images" constraint: there should be zero image elements
     const imageCount = deck.slides.reduce(
