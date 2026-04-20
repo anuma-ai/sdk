@@ -38,6 +38,7 @@ const VALID_PLAN = {
   fontPreset: "editorial",
   paletteName: "warm editorial",
   slideCount: 5,
+  layouts: ["cover-centered", "text-bullets"],
 };
 
 describe("plan_deck executor", () => {
@@ -46,8 +47,45 @@ describe("plan_deck executor", () => {
       fontPreset: "editorial",
       paletteName: "warm editorial",
       slideCount: 5,
+      layouts: ["cover-centered"],
     })) as { error?: string };
     expect(result.error).toMatch(/title is required/);
+  });
+
+  it("rejects when layouts is missing or empty", async () => {
+    for (const layouts of [undefined, [], "cover-centered", null]) {
+      const result = (await getTool("plan_deck").executor!({
+        ...VALID_PLAN,
+        layouts,
+      })) as { error?: string };
+      expect(result.error, `layouts=${JSON.stringify(layouts)}`).toMatch(
+        /layouts is required|at least one valid layout/
+      );
+    }
+  });
+
+  it("rejects when layouts contains unknown names", async () => {
+    const result = (await getTool("plan_deck").executor!({
+      ...VALID_PLAN,
+      layouts: ["cover-centered", "not-a-layout", "another-bogus"],
+    })) as { error?: string };
+    expect(result.error).toMatch(/Unknown layout name\(s\) in layouts/);
+    expect(result.error).toContain('"not-a-layout"');
+    expect(result.error).toContain('"another-bogus"');
+  });
+
+  it("renders recipes only for the planned layouts, not the full catalog", async () => {
+    const result = (await getTool("plan_deck").executor!({
+      ...VALID_PLAN,
+      layouts: ["cover-centered", "text-bullets"],
+    })) as { content?: string };
+    const content = result.content ?? "";
+    // Planned layouts are present
+    expect(content).toContain("cover-centered");
+    expect(content).toContain("text-bullets");
+    // An unrelated layout is NOT rendered as a recipe heading
+    expect(content).not.toMatch(/^compare-two-panel —/m);
+    expect(content).not.toMatch(/^takeaways-numbered —/m);
   });
 
   it("rejects when fontPreset is unknown", async () => {
@@ -203,6 +241,20 @@ describe("add_slide executor", () => {
       .find((t) => toolName(t) === "add_slide")!
       .executor!({ layout: "bogus-layout", slide: VALID_SLIDE })) as { error?: string };
     expect(result.error).toMatch(/Unknown layout 'bogus-layout'/);
+  });
+
+  it("rejects a layout that wasn't in plan_deck's planned layouts list", async () => {
+    const { storage } = makeStore();
+    const tools = createSlideTools({ getConversationId: () => "cid", storage });
+    await tools
+      .find((t) => toolName(t) === "plan_deck")!
+      .executor!({ ...VALID_PLAN, layouts: ["cover-centered"] });
+    // "text-bullets" is a valid catalog name but not in this deck's plan.
+    const result = (await tools
+      .find((t) => toolName(t) === "add_slide")!
+      .executor!({ layout: "text-bullets", slide: VALID_SLIDE })) as { error?: string };
+    expect(result.error).toMatch(/not in the plan_deck layouts list/);
+    expect(result.error).toContain("'cover-centered'");
   });
 
   it("rejects when slide is missing", async () => {

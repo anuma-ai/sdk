@@ -48,7 +48,7 @@ export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts
 import {
   getLayoutByName,
   renderLayoutCatalog,
-  renderLayoutTemplates,
+  renderLayoutRecipes,
   renderSharedHeader,
 } from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
@@ -375,13 +375,14 @@ Operations:
 
 export const PLAN_DECK_SCHEMA = {
   name: "plan_deck",
-  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, slide count, and display. You pick:
+  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, slide count, and layout pool. You pick:
   - title: presentation title (shown above the deck in the UI)
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
   - slideCount: how many slides the deck will have (commit to a concrete number)
+  - layouts: the subset of layout names from the LAYOUT CATALOG you intend to use across the deck. Each subsequent add_slide call must pick from this list.
 
-The result contains the full layout catalog with element recipes, shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow.
+The result contains the full element recipes ONLY for the layouts you named in \`layouts\`, plus the shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow. Naming a tight subset keeps the context small and keeps the deck visually coherent.
 
 After plan_deck, call add_slide ONCE PER SLIDE, in order, until you've appended slideCount slides. Each add_slide call reports how many slides remain, so you can track progress.
 
@@ -410,8 +411,15 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         description:
           "How many slides this deck will have. Pick a number between 3 and 30 based on the user's ask and the topic's depth. You will then call add_slide exactly this many times.",
       },
+      layouts: {
+        type: "array",
+        items: { type: "string" },
+        minItems: 1,
+        description:
+          "Layout names (from the LAYOUT CATALOG) you plan to use across this deck. Pick a small, well-matched subset — typically 3–8 layouts for a deck of 10 slides. Each add_slide call must use a layout from this list; picking a layout outside it is rejected. Names are short kebab-case (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').",
+      },
     },
-    required: ["title", "fontPreset", "paletteName", "slideCount"],
+    required: ["title", "fontPreset", "paletteName", "slideCount", "layouts"],
   },
 } as const;
 
@@ -617,6 +625,13 @@ export function createSlideTools({
     interactionId: string;
     title: string;
     slideCount: number;
+    /**
+     * Layout names the model committed to in plan_deck. add_slide rejects
+     * any layout outside this set — the plan_deck result only ships recipes
+     * for these names, so using something else would leave the model
+     * guessing at geometry.
+     */
+    plannedLayouts: string[];
     layoutUsage: Record<string, number>;
   }
   const deckStateByConv = new Map<string, DeckState>();
@@ -678,6 +693,42 @@ export function createSlideTools({
           };
         }
 
+        // Validate and dedupe the layouts list. Each name must resolve in
+        // the LAYOUT CATALOG — bad names are rejected as a batch with a
+        // helpful hint. We only ship recipes for these layouts, and
+        // add_slide later refuses to use anything outside this set.
+        const layoutsRaw = args.layouts;
+        if (!Array.isArray(layoutsRaw) || layoutsRaw.length === 0) {
+          return {
+            error:
+              "layouts is required and must be a non-empty array of layout names from the LAYOUT CATALOG (e.g. ['cover-bottom', 'text-bullets', 'takeaways-numbered']).",
+          };
+        }
+        const plannedLayouts: string[] = [];
+        const seenLayouts = new Set<string>();
+        const badLayouts: string[] = [];
+        for (const raw of layoutsRaw) {
+          if (typeof raw !== "string" || !raw) continue;
+          if (seenLayouts.has(raw)) continue;
+          seenLayouts.add(raw);
+          if (!getLayoutByName(raw)) {
+            badLayouts.push(raw);
+            continue;
+          }
+          plannedLayouts.push(raw);
+        }
+        if (badLayouts.length > 0) {
+          return {
+            error: `Unknown layout name(s) in layouts: ${badLayouts.map((n) => JSON.stringify(n)).join(", ")}. Use short kebab-case names from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+          };
+        }
+        if (plannedLayouts.length === 0) {
+          return {
+            error:
+              "layouts must contain at least one valid layout name from the LAYOUT CATALOG.",
+          };
+        }
+
         // State-machine guard: plan_deck is only for initializing a fresh
         // deck. If a deck already exists in this conversation, refuse —
         // the caller should use read_slides + patch_slides to modify it,
@@ -719,6 +770,7 @@ export function createSlideTools({
           interactionId: typeof interactionId === "string" ? interactionId : "",
           title,
           slideCount,
+          plannedLayouts,
           layoutUsage: {},
         });
 
@@ -740,9 +792,9 @@ ${renderElementKinds()}
 SHARED HEADER PATTERN — place on every content slide (skip on cover and chapter-break):
 ${renderSharedHeader()}
 
-LAYOUT RECIPES — pick one for each slide; copy the element geometry and substitute your text:
+LAYOUT RECIPES — element recipes for the ${plannedLayouts.length} layout(s) you named in plan_deck. Each add_slide call must pick one of these; copy the element geometry and substitute your text:
 
-${renderLayoutTemplates()}
+${renderLayoutRecipes(plannedLayouts)}
 
 FONT LIBRARY — the theme already applies the fontPreset pairing (${palette.fontPreset}) to every text element by default. Override per-element by setting fontFamily on a TextElement to any name from this library — reach for a display face on a hero title, or an accent script for a single signature word. Do NOT use accent fonts for body copy. Names validated on write; typos are rejected with a hint.
 
@@ -778,6 +830,12 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
         if (!getLayoutByName(layout)) {
           return {
             error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+          };
+        }
+        const priorState = deckStateByConv.get(conversationId);
+        if (priorState && !priorState.plannedLayouts.includes(layout)) {
+          return {
+            error: `Layout '${layout}' is not in the plan_deck layouts list for this deck. Use one of: ${priorState.plannedLayouts.map((n) => `'${n}'`).join(", ")}. If you genuinely need a different layout, start a new deck and include it in plan_deck.`,
           };
         }
         if (!slide || typeof slide !== "object") {
@@ -1075,8 +1133,8 @@ export function buildSlideSystemPrompt(): string {
   return `You are a presentation design assistant. You produce polished slide decks as JSON with positioned elements.
 
 WORKFLOW (initialize then add slides one at a time):
-1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount }. Commit to an integer slideCount (3–30) based on the user's ask; plan_deck will require you to call add_slide exactly that many times. The result returns the LAYOUT RECIPES, SHARED HEADER, element schemas, coordinate-system notes, and palette hex values.
-2. APPEND — call add_slide N times with { layout: "<name>", slide: { id, elements, ... } }. The executor validates the layout name against the catalog, tracks your layout usage across the deck, and each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied.
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–30) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the element recipes for ONLY the layouts you named, plus the SHARED HEADER, element schemas, coordinate-system notes, and palette hex values.
+2. APPEND — call add_slide N times with { layout: "<name>", slide: { id, elements, ... } }. layout MUST be one of the names you passed to plan_deck; using anything else is rejected. Each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied within your planned subset.
 
 For edits to an existing deck: read_slides → patch_slides. No plan_deck needed for edits.
 
