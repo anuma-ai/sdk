@@ -907,6 +907,9 @@ LAYOUT PICKER — match content shape to a template, don't default to grids:
 - Two-panel contrast (classical vs quantum, before vs after) → compare-two-panel.
 - Two-column comparison with enumerated steps/items (old way vs new way, before/after process) → compare-lists.
 - Case study / product profile / review by attribute (big title + body + 6 key-value rows) → profile-spec.
+- Character / persona study with parallel facets (want/need/flaw/fate, or what/why/how/for-whom) → profile-quadrant.
+- Three-way taxonomy / tier comparison in plain text (no boxes, no grids) → text-three-col.
+- Brand palette / color system / category legend with colored chips → palette-swatches.
 - 3-part outline / steps 01/02/03 / feature rundown → agenda-cards.
 - Closing summary with "take three things with you" → takeaways-numbered.
 - Running prose explanation → text-prose or text-two-col.
