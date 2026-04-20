@@ -41,7 +41,12 @@
 import type { ToolConfig } from "../../lib/chat/useChat/types.js";
 import type { AppFileStorage } from "../appGeneration";
 import { renderElementKinds } from "./elementKinds";
-import { renderLayoutCatalog, renderLayoutTemplates, renderSharedHeader } from "./layouts";
+import {
+  getLayoutByName,
+  renderLayoutCatalog,
+  renderLayoutTemplates,
+  renderSharedHeader,
+} from "./layouts";
 import { getPaletteByName, renderPaletteColors, renderPaletteNames } from "./palettes";
 
 // ---------------------------------------------------------------------------
@@ -366,14 +371,15 @@ Operations:
 
 export const PLAN_DECK_SCHEMA = {
   name: "plan_deck",
-  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, and display. You pick:
+  description: `Initialize a new slide deck. Call this FIRST — once — to set up the theme, title, slide count, and display. You pick:
   - title: presentation title (shown above the deck in the UI)
   - fontPreset: one of the font-preset keys
   - paletteName: the register name from the palette table (e.g. "warm editorial", "techno dark")
+  - slideCount: how many slides the deck will have (commit to a concrete number)
 
 The result contains the full layout catalog with element recipes, shared header pattern, element-type schemas, coordinate-system notes, and the palette hex values — everything you need for the add_slide calls that follow.
 
-After plan_deck, call add_slide ONCE PER SLIDE, in order, appending slides to the deck. Aim for at least 8–12 slides for a substantive topic. Each add_slide call writes one slide's elements.
+After plan_deck, call add_slide ONCE PER SLIDE, in order, until you've appended slideCount slides. Each add_slide call reports how many slides remain, so you can track progress.
 
 For editing an existing deck (read_slides + patch_slides flow), do NOT call plan_deck.`,
   arguments: {
@@ -393,28 +399,45 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
         description:
           "Palette register name from the CHOOSING A PALETTE table. Copy exactly (e.g. 'warm editorial').",
       },
+      slideCount: {
+        type: "integer",
+        minimum: 3,
+        maximum: 30,
+        description:
+          "How many slides this deck will have. Pick a number between 3 and 30 based on the user's ask and the topic's depth. You will then call add_slide exactly this many times.",
+      },
     },
-    required: ["title", "fontPreset", "paletteName"],
+    required: ["title", "fontPreset", "paletteName", "slideCount"],
   },
 } as const;
 
 export const ADD_SLIDE_SCHEMA = {
   name: "add_slide",
-  description: `Append ONE slide to the deck. Call this repeatedly after plan_deck, once per slide, in order. Each call writes a single slide — you pick a layout name from the LAYOUT CATALOG (in the plan_deck result), copy its element recipe, and substitute real text. The deck re-renders inline after each add_slide so the viewer updates in-place.
+  description: `Append ONE slide to the deck. Call this repeatedly after plan_deck, once per slide, in order, until you've added slideCount slides. Each call writes a single slide — you name the layout you're using (validated against the LAYOUT CATALOG) and pass the slide's elements. The deck re-renders inline after each add_slide so the viewer updates in-place.
 
-IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant turn). Do NOT emit multiple add_slide tool calls in parallel in a single turn — they race on shared deck state and slides will be lost. Wait for each add_slide result before emitting the next.
+The response reports: (a) how many slides remain to reach the planned slideCount, (b) which layouts you've used so far and how many times — use this to diversify your layout choices.
+
+IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant turn). Do NOT emit multiple add_slide tool calls in parallel in a single turn — they will be serialized but the ordering feedback is easier to reason about when you wait for each result before the next call.
 
 Slide shape: { id, background?, elements: SlideElement[] }
 
-Layout variety is mandatory — don't reuse the same layout more than twice in a deck. Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
+Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
   arguments: {
     type: "object",
     properties: {
+      layout: {
+        type: "string",
+        description:
+          "Name of the layout you're using for this slide — must be an exact kebab-case name from the LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered'). Rejected with a helpful error if unknown.",
+      },
       slide: {
         type: "object",
         description: "One Slide: { id, background?, elements: SlideElement[] }",
         properties: {
-          id: { type: "string", description: "Short snake-case slide id (e.g. 'cover', 'soil_intro')" },
+          id: {
+            type: "string",
+            description: "Short snake-case slide id (e.g. 'cover', 'soil_intro')",
+          },
           background: {
             type: "string",
             description:
@@ -429,7 +452,7 @@ Layout variety is mandatory — don't reuse the same layout more than twice in a
         required: ["id", "elements"],
       },
     },
-    required: ["slide"],
+    required: ["layout", "slide"],
   },
 } as const;
 
@@ -552,11 +575,23 @@ export function createSlideTools({
     return id;
   }
 
-  // Tracks the last displaySlides interaction_id per conversation so that
-  // add_slide / patch_slides calls can update the same deck viewer in-place
-  // (via replaces_interaction_id) instead of spawning new viewers for each
-  // incremental write. Populated by plan_deck and refreshed by add_slide.
-  const lastInteractionByConv = new Map<string, { id: string; title: string }>();
+  // Per-conversation deck state:
+  //   - interactionId + title: carried forward so add_slide / patch_slides
+  //     can update the same viewer in-place via replaces_interaction_id
+  //     (otherwise a new viewer would be spawned for each incremental write).
+  //   - slideCount: the number the model committed to at plan_deck time;
+  //     each add_slide result reports remaining = slideCount - totalSlides
+  //     so the model has a structural signal of when the deck is complete.
+  //   - layoutUsage: counts per layout-name across add_slide calls, surfaced
+  //     in every response so the model can diversify its layout choices
+  //     without relying on prose enforcement alone.
+  interface DeckState {
+    interactionId: string;
+    title: string;
+    slideCount: number;
+    layoutUsage: Record<string, number>;
+  }
+  const deckStateByConv = new Map<string, DeckState>();
 
   // Per-conversation write lock. Serializes the read-modify-write sequence
   // inside add_slide so that if a model emits multiple add_slide tool calls
@@ -591,6 +626,9 @@ export function createSlideTools({
         const title = typeof args.title === "string" ? args.title : "";
         const fontPreset = typeof args.fontPreset === "string" ? args.fontPreset : "";
         const paletteName = typeof args.paletteName === "string" ? args.paletteName : "";
+        const slideCountRaw = args.slideCount;
+        const slideCount =
+          typeof slideCountRaw === "number" && Number.isInteger(slideCountRaw) ? slideCountRaw : NaN;
 
         if (!title) {
           return { error: "title is required" };
@@ -604,6 +642,11 @@ export function createSlideTools({
         if (!palette) {
           return {
             error: `Unknown paletteName '${paletteName}'. Use an exact name from the CHOOSING A PALETTE table.`,
+          };
+        }
+        if (!Number.isFinite(slideCount) || slideCount < 3 || slideCount > 30) {
+          return {
+            error: `slideCount must be an integer between 3 and 30 (got ${JSON.stringify(slideCountRaw)}).`,
           };
         }
 
@@ -623,15 +666,19 @@ export function createSlideTools({
           display && typeof display === "object" && "interaction_id" in display
             ? (display as { interaction_id?: unknown }).interaction_id
             : undefined;
-        if (typeof interactionId === "string") {
-          lastInteractionByConv.set(conversationId, { id: interactionId, title });
-        }
+        deckStateByConv.set(conversationId, {
+          interactionId: typeof interactionId === "string" ? interactionId : "",
+          title,
+          slideCount,
+          layoutUsage: {},
+        });
 
         const content = `Deck initialized — theme applied, empty slides array ready.
 
 Theme: ${palette.name} (fontPreset: ${palette.fontPreset})
 Palette colors (already applied to theme.colors):
 ${renderPaletteColors(palette)}
+Planned slide count: ${slideCount} (call add_slide exactly ${slideCount} times).
 
 COORDINATE SYSTEM — positions are percentages (0–100) of a 16:9 canvas (960×540 reference).
 - x=0 left, x=100 right, y=0 top, y=100 bottom
@@ -648,7 +695,7 @@ LAYOUT RECIPES — pick one for each slide; copy the element geometry and substi
 
 ${renderLayoutTemplates()}
 
-NOW call add_slide ONE SLIDE AT A TIME, in order. Produce AT LEAST 10 slides for a substantive topic (12–14 is a typical good deck). Do not stop early — if the user asked for N slides, you must call add_slide at least N times. For each slide: pick a layout, copy its elements, substitute real text. LAYOUT VARIETY IS MANDATORY — do not reuse the same layout more than twice. Each add_slide call re-renders the deck in-place.`;
+NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_slide takes { layout: "<layout-name>", slide: { id, elements, ... } } and reports how many slides remain and which layouts you've used so far — use that feedback to keep layouts varied across the deck.`;
 
         return {
           content,
@@ -669,7 +716,17 @@ NOW call add_slide ONE SLIDE AT A TIME, in order. Produce AT LEAST 10 slides for
     executor: async (args: Record<string, unknown>) => {
       try {
         const conversationId = requireConversationId();
+        const layout = typeof args.layout === "string" ? args.layout : "";
         const slide = args.slide as Slide | undefined;
+
+        if (!layout) {
+          return { error: "layout is required (short kebab-case name from LAYOUT CATALOG)" };
+        }
+        if (!getLayoutByName(layout)) {
+          return {
+            error: `Unknown layout '${layout}'. Use the short kebab-case name from LAYOUT CATALOG (e.g. 'cover-bottom', 'compare-two-panel', 'takeaways-numbered').`,
+          };
+        }
         if (!slide || typeof slide !== "object") {
           return { error: "slide is required and must be a Slide object" };
         }
@@ -691,28 +748,48 @@ NOW call add_slide ONE SLIDE AT A TIME, in order. Produce AT LEAST 10 slides for
           deck.slides.push(slide);
           await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
 
-          // Update the display interaction in-place. If plan_deck already
-          // created one, reuse its interaction_id so the viewer updates.
-          const prev = lastInteractionByConv.get(conversationId);
-          const displayArgs: Record<string, unknown> = prev
-            ? { replaces_interaction_id: prev.id }
+          // Update deck state: bump layout usage, compute remaining.
+          const state = deckStateByConv.get(conversationId);
+          if (state) {
+            state.layoutUsage[layout] = (state.layoutUsage[layout] ?? 0) + 1;
+          }
+          const totalSlides = deck.slides.length;
+          const planned = state?.slideCount;
+          const remaining =
+            typeof planned === "number" ? Math.max(0, planned - totalSlides) : undefined;
+
+          // Update the display interaction in-place, reusing the id from
+          // plan_deck / the previous add_slide.
+          const displayArgs: Record<string, unknown> = state?.interactionId
+            ? { replaces_interaction_id: state.interactionId }
             : {};
           const display = displaySlides ? await displaySlides(displayArgs) : null;
           if (display && typeof display === "object" && "interaction_id" in display) {
             const newId = (display as { interaction_id?: unknown }).interaction_id;
-            if (typeof newId === "string") {
-              lastInteractionByConv.set(conversationId, {
-                id: newId,
-                title: prev?.title ?? "",
-              });
+            if (typeof newId === "string" && state) {
+              state.interactionId = newId;
             }
           }
 
+          // Build a short usage hint the model can act on without reading
+          // the whole conversation back.
+          const usage = state?.layoutUsage ?? {};
+          const usageSummary = Object.entries(usage)
+            .map(([name, count]) => `${name}×${count}`)
+            .join(", ");
+
           return {
             success: true,
-            slideIndex: deck.slides.length - 1,
-            totalSlides: deck.slides.length,
-            message: `Appended slide ${deck.slides.length} (id=${slide.id}).`,
+            slideIndex: totalSlides - 1,
+            totalSlides,
+            remaining,
+            layoutUsage: usage,
+            message:
+              typeof remaining === "number" && remaining > 0
+                ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).`
+                : typeof remaining === "number" && remaining === 0
+                  ? `Appended slide ${totalSlides} (${layout}). Deck is complete (layouts used: ${usageSummary}).`
+                  : `Appended slide ${totalSlides} (${layout}).`,
             ...(display && typeof display === "object" ? display : {}),
           };
         });
@@ -865,21 +942,18 @@ NOW call add_slide ONE SLIDE AT A TIME, in order. Produce AT LEAST 10 slides for
         // Prefer the model-supplied replaces_interaction_id, but fall back to
         // the closure-tracked id from plan_deck / add_slide so patch_slides
         // updates the same viewer even if the model forgets to thread the id.
+        const state = deckStateByConv.get(conversationId);
         const replacesId =
           typeof args.replaces_interaction_id === "string"
             ? args.replaces_interaction_id
-            : lastInteractionByConv.get(conversationId)?.id;
+            : state?.interactionId || undefined;
         const display = displaySlides
           ? await displaySlides(replacesId ? { replaces_interaction_id: replacesId } : {})
           : null;
         if (display && typeof display === "object" && "interaction_id" in display) {
           const newId = (display as { interaction_id?: unknown }).interaction_id;
-          if (typeof newId === "string") {
-            const prev = lastInteractionByConv.get(conversationId);
-            lastInteractionByConv.set(conversationId, {
-              id: newId,
-              title: prev?.title ?? "",
-            });
+          if (typeof newId === "string" && state) {
+            state.interactionId = newId;
           }
         }
         return {
@@ -921,8 +995,8 @@ export function buildSlideSystemPrompt(): string {
   return `You are a presentation design assistant. You produce polished slide decks as JSON with positioned elements.
 
 WORKFLOW (initialize then add slides one at a time):
-1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName }. This sets up the theme and returns the full LAYOUT RECIPES, SHARED HEADER, element schemas, coordinate-system notes, and palette hex values. Pick fontPreset + paletteName to match the topic (see CHOOSING A PALETTE).
-2. APPEND — call add_slide ONE SLIDE AT A TIME, in order, aiming for at least 8–12 slides for a substantive topic. For each slide: pick a layout from the LAYOUT CATALOG, copy its element recipe, substitute your real text, and pass the Slide object as { slide: { id, background?, elements: [...] } }. The deck re-renders in-place after each call.
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount }. Commit to an integer slideCount (3–30) based on the user's ask; plan_deck will require you to call add_slide exactly that many times. The result returns the LAYOUT RECIPES, SHARED HEADER, element schemas, coordinate-system notes, and palette hex values.
+2. APPEND — call add_slide N times with { layout: "<name>", slide: { id, elements, ... } }. The executor validates the layout name against the catalog, tracks your layout usage across the deck, and each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied.
 
 For edits to an existing deck: read_slides → patch_slides. No plan_deck needed for edits.
 
@@ -952,7 +1026,7 @@ LAYOUT PICKER — match content shape to a template, don't default to grids:
 - 3–6 categorical cards with no natural order → stats-cells or list-hairline — last resort, not the default.
 - Image-forward visual → hero-split or hero-overlay.
 
-LAYOUT VARIETY IS MANDATORY. Do not reuse the same content-slide layout more than twice in a deck. If you have 4 content slides pick 4 different layouts.
+Layout variety: add_slide reports usage counts after each call. Prefer layouts you haven't used yet; use a layout more than twice only for structural repetition like chapter-break slides.
 
 FONT PRESETS:
 ${fontTable}

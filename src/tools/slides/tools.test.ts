@@ -32,31 +32,50 @@ function getTool(name: string): ToolConfig {
   return tools.find((t) => toolName(t) === name)!;
 }
 
+/** Valid plan_deck args that can be reused across tests. */
+const VALID_PLAN = {
+  title: "Test",
+  fontPreset: "editorial",
+  paletteName: "warm editorial",
+  slideCount: 5,
+};
+
 describe("plan_deck executor", () => {
   it("rejects when title is missing", async () => {
     const result = (await getTool("plan_deck").executor!({
       fontPreset: "editorial",
       paletteName: "warm editorial",
+      slideCount: 5,
     })) as { error?: string };
     expect(result.error).toMatch(/title is required/);
   });
 
   it("rejects when fontPreset is unknown", async () => {
     const result = (await getTool("plan_deck").executor!({
-      title: "Hi",
+      ...VALID_PLAN,
       fontPreset: "nope",
-      paletteName: "warm editorial",
     })) as { error?: string };
     expect(result.error).toMatch(/Unknown fontPreset/);
   });
 
   it("rejects when paletteName is unknown", async () => {
     const result = (await getTool("plan_deck").executor!({
-      title: "Hi",
-      fontPreset: "editorial",
+      ...VALID_PLAN,
       paletteName: "not a palette",
     })) as { error?: string };
     expect(result.error).toMatch(/Unknown paletteName/);
+  });
+
+  it("rejects when slideCount is missing or out of range", async () => {
+    for (const slideCount of [undefined, 0, 2, 31, 100, "five", 5.5]) {
+      const result = (await getTool("plan_deck").executor!({
+        ...VALID_PLAN,
+        slideCount,
+      })) as { error?: string };
+      expect(result.error, `slideCount=${JSON.stringify(slideCount)}`).toMatch(
+        /slideCount must be an integer between 3 and 30/
+      );
+    }
   });
 
   it("initializes slides.json with the chosen theme and an empty slides array", async () => {
@@ -65,12 +84,13 @@ describe("plan_deck executor", () => {
     const result = (await tools
       .find((t) => toolName(t) === "plan_deck")!
       .executor!({
+        ...VALID_PLAN,
         title: "Home Gardening",
-        fontPreset: "editorial",
-        paletteName: "warm editorial",
+        slideCount: 10,
       })) as { content?: string; error?: string };
     expect(result.error).toBeUndefined();
     expect(result.content).toContain("Deck initialized");
+    expect(result.content).toContain("10"); // slideCount surfaced in prompt
 
     const raw = store.get("slides.json");
     expect(raw).toBeDefined();
@@ -82,17 +102,13 @@ describe("plan_deck executor", () => {
   });
 
   it("returns content with palette hex values, element kinds, shared header, and layout recipes", async () => {
-    const result = (await getTool("plan_deck").executor!({
-      title: "Deck",
-      fontPreset: "editorial",
-      paletteName: "warm editorial",
-    })) as { content?: string };
+    const result = (await getTool("plan_deck").executor!(VALID_PLAN)) as { content?: string };
     const content = result.content ?? "";
     expect(content).toContain("#F3EEE5"); // palette hex
-    expect(content).toContain("ELEMENT TYPES"); // element kinds header
-    expect(content).toContain("SHARED HEADER PATTERN"); // shared header
-    expect(content).toContain("LAYOUT RECIPES"); // full catalog
-    expect(content).toContain("NOW call add_slide"); // instructions
+    expect(content).toContain("ELEMENT TYPES");
+    expect(content).toContain("SHARED HEADER PATTERN");
+    expect(content).toContain("LAYOUT RECIPES");
+    expect(content).toContain("NOW call add_slide");
   });
 
   it("calls displaySlides with the title and merges the result into the response", async () => {
@@ -108,11 +124,9 @@ describe("plan_deck executor", () => {
     });
     const result = (await tools
       .find((t) => toolName(t) === "plan_deck")!
-      .executor!({
-        title: "My Deck",
-        fontPreset: "editorial",
-        paletteName: "warm editorial",
-      })) as { interaction_id?: string; content?: string };
+      .executor!({ ...VALID_PLAN, title: "My Deck" })) as {
+      interaction_id?: string;
+    };
     expect(received).toEqual({ title: "My Deck" });
     expect(result.interaction_id).toBe("deck_xyz");
   });
@@ -121,7 +135,8 @@ describe("plan_deck executor", () => {
 describe("add_slide executor", () => {
   async function initDeck(
     storage: ReturnType<typeof makeStore>["storage"],
-    displaySlides?: (args: Record<string, unknown>) => Promise<unknown>
+    displaySlides?: (args: Record<string, unknown>) => Promise<unknown>,
+    slideCount = 5
   ) {
     const tools = createSlideTools({
       getConversationId: () => "cid",
@@ -130,20 +145,36 @@ describe("add_slide executor", () => {
     });
     await tools
       .find((t) => toolName(t) === "plan_deck")!
-      .executor!({
-        title: "Test",
-        fontPreset: "editorial",
-        paletteName: "warm editorial",
-      });
+      .executor!({ ...VALID_PLAN, slideCount });
     return tools;
   }
+
+  const VALID_SLIDE = { id: "s1", elements: [] };
+
+  it("rejects when layout is missing", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage);
+    const result = (await tools
+      .find((t) => toolName(t) === "add_slide")!
+      .executor!({ slide: VALID_SLIDE })) as { error?: string };
+    expect(result.error).toMatch(/layout is required/);
+  });
+
+  it("rejects when layout is not in the catalog", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage);
+    const result = (await tools
+      .find((t) => toolName(t) === "add_slide")!
+      .executor!({ layout: "bogus-layout", slide: VALID_SLIDE })) as { error?: string };
+    expect(result.error).toMatch(/Unknown layout 'bogus-layout'/);
+  });
 
   it("rejects when slide is missing", async () => {
     const { storage } = makeStore();
     const tools = await initDeck(storage);
     const result = (await tools
       .find((t) => toolName(t) === "add_slide")!
-      .executor!({})) as { error?: string };
+      .executor!({ layout: "cover-centered" })) as { error?: string };
     expect(result.error).toMatch(/slide is required/);
   });
 
@@ -152,9 +183,9 @@ describe("add_slide executor", () => {
     const tools = await initDeck(storage);
     const result = (await tools
       .find((t) => toolName(t) === "add_slide")!
-      .executor!({
-        slide: { elements: [] },
-      })) as { error?: string };
+      .executor!({ layout: "cover-centered", slide: { elements: [] } })) as {
+      error?: string;
+    };
     expect(result.error).toMatch(/slide.id is required/);
   });
 
@@ -164,6 +195,7 @@ describe("add_slide executor", () => {
     const result = (await tools
       .find((t) => toolName(t) === "add_slide")!
       .executor!({
+        layout: "cover-centered",
         slide: { id: "s1", elements: "nope" },
       })) as { error?: string };
     expect(result.error).toMatch(/elements must be an array/);
@@ -174,46 +206,53 @@ describe("add_slide executor", () => {
     const tools = createSlideTools({ getConversationId: () => "cid", storage });
     const result = (await tools
       .find((t) => toolName(t) === "add_slide")!
-      .executor!({
-        slide: { id: "s1", elements: [] },
-      })) as { error?: string };
+      .executor!({ layout: "cover-centered", slide: VALID_SLIDE })) as { error?: string };
     expect(result.error).toMatch(/Call plan_deck first/);
   });
 
-  it("appends a slide and writes to storage", async () => {
+  it("appends a slide, tracks layout usage, and reports remaining", async () => {
     const { store, storage } = makeStore();
-    const tools = await initDeck(storage);
+    const tools = await initDeck(storage, undefined, 3);
     const result = (await tools
       .find((t) => toolName(t) === "add_slide")!
       .executor!({
+        layout: "cover-centered",
         slide: { id: "cover", elements: [{ kind: "text", id: "t1", x: 0, y: 0, w: 10, h: 5 }] },
       })) as {
       success?: boolean;
       slideIndex?: number;
       totalSlides?: number;
+      remaining?: number;
+      layoutUsage?: Record<string, number>;
     };
     expect(result.success).toBe(true);
     expect(result.slideIndex).toBe(0);
     expect(result.totalSlides).toBe(1);
+    expect(result.remaining).toBe(2);
+    expect(result.layoutUsage).toEqual({ "cover-centered": 1 });
     const parsed = JSON.parse(store.get("slides.json")!);
     expect(parsed.slides).toHaveLength(1);
     expect(parsed.slides[0].id).toBe("cover");
   });
 
-  it("appends multiple slides in order across calls", async () => {
-    const { store, storage } = makeStore();
-    const tools = await initDeck(storage);
+  it("bumps layoutUsage and decrements remaining across multiple calls", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
     const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
-    await addSlide.executor!({ slide: { id: "s1", elements: [] } });
-    await addSlide.executor!({ slide: { id: "s2", elements: [] } });
-    const result = (await addSlide.executor!({ slide: { id: "s3", elements: [] } })) as {
-      slideIndex?: number;
-      totalSlides?: number;
-    };
-    expect(result.slideIndex).toBe(2);
-    expect(result.totalSlides).toBe(3);
-    const parsed = JSON.parse(store.get("slides.json")!);
-    expect(parsed.slides.map((s: { id: string }) => s.id)).toEqual(["s1", "s2", "s3"]);
+    await addSlide.executor!({
+      layout: "cover-centered",
+      slide: { id: "s1", elements: [] },
+    });
+    await addSlide.executor!({
+      layout: "text-bullets",
+      slide: { id: "s2", elements: [] },
+    });
+    const result = (await addSlide.executor!({
+      layout: "cover-centered",
+      slide: { id: "s3", elements: [] },
+    })) as { remaining?: number; layoutUsage?: Record<string, number> };
+    expect(result.remaining).toBe(0);
+    expect(result.layoutUsage).toEqual({ "cover-centered": 2, "text-bullets": 1 });
   });
 
   it("reuses the plan_deck interaction_id on subsequent add_slide calls (in-place update)", async () => {
@@ -227,8 +266,14 @@ describe("add_slide executor", () => {
     const tools = await initDeck(storage, displaySlides);
 
     const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
-    await addSlide.executor!({ slide: { id: "s1", elements: [] } });
-    await addSlide.executor!({ slide: { id: "s2", elements: [] } });
+    await addSlide.executor!({
+      layout: "cover-centered",
+      slide: { id: "s1", elements: [] },
+    });
+    await addSlide.executor!({
+      layout: "text-bullets",
+      slide: { id: "s2", elements: [] },
+    });
 
     // plan_deck: called with { title }
     expect(calls[0]).toEqual({ title: "Test" });
@@ -253,17 +298,11 @@ describe("patch_slides interaction_id fallback", () => {
       storage,
       displaySlides,
     });
-    // plan_deck (interaction_id=deck_1), add one slide (interaction_id=deck_2)
-    await tools
-      .find((t) => toolName(t) === "plan_deck")!
-      .executor!({
-        title: "Test",
-        fontPreset: "editorial",
-        paletteName: "warm editorial",
-      });
+    // plan_deck (deck_1), add one slide (deck_2)
+    await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
     await tools
       .find((t) => toolName(t) === "add_slide")!
-      .executor!({ slide: { id: "s1", elements: [] } });
+      .executor!({ layout: "cover-centered", slide: { id: "s1", elements: [] } });
 
     // patch_slides without replaces_interaction_id — should fall back to deck_2
     await tools
@@ -272,7 +311,6 @@ describe("patch_slides interaction_id fallback", () => {
         operations: [{ action: "update_theme", set: { fontPreset: "techno" } }],
       });
 
-    // Last call should carry the closure-tracked id (deck_2)
     expect(calls[calls.length - 1]).toEqual({ replaces_interaction_id: "deck_2" });
   });
 
@@ -289,13 +327,7 @@ describe("patch_slides interaction_id fallback", () => {
       storage,
       displaySlides,
     });
-    await tools
-      .find((t) => toolName(t) === "plan_deck")!
-      .executor!({
-        title: "Test",
-        fontPreset: "editorial",
-        paletteName: "warm editorial",
-      });
+    await tools.find((t) => toolName(t) === "plan_deck")!.executor!(VALID_PLAN);
 
     // Explicit id overrides the closure-tracked one.
     await tools
