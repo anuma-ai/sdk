@@ -694,7 +694,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     name: "profile-spec",
     description:
       "Case study / spec sheet: label + big title + body on the left, 6 key-value datum rows with hairlines on the right. For product profiles, feature rundowns, comparisons by attribute.",
-    notes: ["Include the shared header above. Six key-value rows with hairline rules between them."],
+    notes: [
+      "Include the shared header above. Six key-value rows with hairline rules between them.",
+    ],
     elements: [
       {
         id: "left_label",
@@ -2585,7 +2587,9 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     name: "table",
     description:
       "3-column table: serif name column + mono tag column + body note column, hairlines between rows. For rows of the same schema.",
-    notes: ["Include the shared header above. Substitute column headers and row content for your domain."],
+    notes: [
+      "Include the shared header above. Substitute column headers and row content for your domain.",
+    ],
     elements: [
       {
         id: "h1",

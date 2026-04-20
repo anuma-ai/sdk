@@ -574,7 +574,7 @@ function validateFontFamilies(elements: unknown): string | null {
     const family = (raw as { fontFamily?: unknown }).fontFamily;
     if (family === undefined) continue;
     if (typeof family !== "string" || !isKnownFont(family)) {
-      bad.push(typeof family === "string" ? family : String(family));
+      bad.push(typeof family === "string" ? family : JSON.stringify(family));
     }
   }
   if (bad.length === 0) return null;
@@ -671,7 +671,9 @@ export function createSlideTools({
         const paletteName = typeof args.paletteName === "string" ? args.paletteName : "";
         const slideCountRaw = args.slideCount;
         const slideCount =
-          typeof slideCountRaw === "number" && Number.isInteger(slideCountRaw) ? slideCountRaw : NaN;
+          typeof slideCountRaw === "number" && Number.isInteger(slideCountRaw)
+            ? slideCountRaw
+            : NaN;
 
         if (!title) {
           return { error: "title is required" };
@@ -724,8 +726,7 @@ export function createSlideTools({
         }
         if (plannedLayouts.length === 0) {
           return {
-            error:
-              "layouts must contain at least one valid layout name from the LAYOUT CATALOG.",
+            error: "layouts must contain at least one valid layout name from the LAYOUT CATALOG.",
           };
         }
 

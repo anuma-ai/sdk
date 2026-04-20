@@ -53,9 +53,7 @@ export const SCHEMA_NONCOMPLIANT = [
 ] as const;
 
 /** Models that produce no deck at all (empty slides.json or tool-call errors). */
-export const FAILING = [
-  "gemini/gemma-4-31b-it",
-] as const;
+export const FAILING = ["gemini/gemma-4-31b-it"] as const;
 
 /** Full fleet. */
 export const MODELS = [...PASSING_MODELS, ...SCHEMA_NONCOMPLIANT, ...FAILING] as const;
