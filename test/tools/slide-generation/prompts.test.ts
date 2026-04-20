@@ -25,7 +25,6 @@ import {
   dumpFiles,
   getDeck,
   printResult,
-  printRunSummary,
   timedToolLoop,
   type ToolCallLog,
   wrapTool,
@@ -58,7 +57,7 @@ function makeMessages(userText: string): Message[] {
   ];
 }
 
-describe.each(MODELS)("slide-generation prompts [%s]", (model) => {
+describe.concurrent.each(MODELS)("slide-generation prompts [%s]", (model) => {
   const slug = modelSlug(model);
 
   it("home gardening fundamentals (no images)", async () => {
@@ -68,7 +67,7 @@ describe.each(MODELS)("slide-generation prompts [%s]", (model) => {
 
     const result = await timedToolLoop({
       messages: makeMessages(
-        "Create a deck teaching beginners the fundamentals of home gardening, covering soil types, seasonal planting, common pests, and starter plants for different climates. No images."
+        "Create a 4-slide deck teaching beginners the fundamentals of home gardening: one slide on soil types, one on seasonal planting, one on common pests, one on starter plants for different climates. No images."
       ),
       model,
       baseUrl: config.baseUrl,
@@ -82,15 +81,27 @@ describe.each(MODELS)("slide-generation prompts [%s]", (model) => {
       maxOutputTokens: 16000,
     });
 
-    printResult(result);
-    printRunSummary(result.rounds, result.elapsedMs);
+    // Prefix every log line with the model slug so concurrent runs remain
+    // attributable when vitest drops the test-context header from later lines.
+    const tag = `[${slug}]`;
+    if (result.error) {
+      console.error(`${tag} ERROR: ${result.error}`);
+    } else {
+      printResult(result);
+    }
+    console.log(
+      `${tag} Rounds: ${result.rounds.length} · ${(result.elapsedMs / 1000).toFixed(1)}s` +
+        (result.rounds.length > 0
+          ? ` · tools=${result.rounds.map((r) => r.toolCalls.map((c) => c.name).join("+")).join("→")}`
+          : "")
+    );
     dumpFiles(store, `prompt-home-gardening/${slug}`);
     expect(result.error).toBeNull();
 
     const deck = getDeck(store);
 
-    // Prompt listed 4 topic areas plus an implied intro → expect at least 5 slides
-    expect(deck.slides.length).toBeGreaterThanOrEqual(5);
+    // Prompt asks for 4 slides
+    expect(deck.slides.length).toBeGreaterThanOrEqual(4);
 
     // "No images" constraint: there should be zero image elements
     const imageCount = deck.slides.reduce(

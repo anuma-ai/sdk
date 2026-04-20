@@ -17,7 +17,8 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function resolveColor(token: string, theme: SlideTheme): string {
+function resolveColor(token: unknown, theme: SlideTheme): string {
+  if (typeof token !== "string") return "#ffffff";
   if (token.startsWith("#") || token.startsWith("rgb")) return token;
   if (!theme.colors) return "#ffffff";
   return (theme.colors as Record<string, string>)[token] ?? theme.colors.textPrimary;
