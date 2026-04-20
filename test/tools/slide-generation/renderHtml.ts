@@ -63,7 +63,7 @@ function renderElement(
       const family = el.fontFamily
         ? `font-family:'${el.fontFamily as string}',system-ui,sans-serif;`
         : "";
-      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;${italic}${transform}${family}">${esc(el.text as string)}</div>`;
+      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${family}">${esc(el.text as string)}</div>`;
     }
     case "shape": {
       const fill = el.fill ? resolve(el.fill as string) : "transparent";
