@@ -2721,6 +2721,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              uniqueId: assistantUniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2774,6 +2775,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            uniqueId: assistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
