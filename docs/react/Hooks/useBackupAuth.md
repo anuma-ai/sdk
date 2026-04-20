@@ -2,7 +2,7 @@
 
 > **useBackupAuth**(): [`BackupAuthContextValue`](../Internal/interfaces/BackupAuthContextValue.md)
 
-Defined in: [src/react/useBackupAuth.ts:496](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#496)
+Defined in: [src/react/useBackupAuth.ts:495](https://github.com/anuma-ai/sdk/blob/main/src/react/useBackupAuth.ts#495)
 
 Hook to access unified backup authentication state and methods.
 
