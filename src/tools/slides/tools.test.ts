@@ -104,13 +104,13 @@ describe("plan_deck executor", () => {
   });
 
   it("rejects when slideCount is missing or out of range", async () => {
-    for (const slideCount of [undefined, 0, 2, 31, 100, "five", 5.5]) {
+    for (const slideCount of [undefined, 0, 2, 20, 31, 100, "five", 5.5]) {
       const result = (await getTool("plan_deck").executor!({
         ...VALID_PLAN,
         slideCount,
       })) as { error?: string };
       expect(result.error, `slideCount=${JSON.stringify(slideCount)}`).toMatch(
-        /slideCount must be an integer between 3 and 30/
+        /slideCount must be an integer between 3 and 19/
       );
     }
   });

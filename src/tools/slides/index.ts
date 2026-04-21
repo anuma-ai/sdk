@@ -407,9 +407,14 @@ For editing an existing deck (read_slides + patch_slides flow), do NOT call plan
       slideCount: {
         type: "integer",
         minimum: 3,
-        maximum: 30,
+        // Capped at 19 to match the default `maxToolRounds` of 20: a full
+        // deck is 1 plan_deck + N add_slide calls, and the soft cap forces
+        // `toolChoice: "none"` at iteration 20, which would silently
+        // truncate decks of 20+ slides. Callers who raise `maxToolRounds`
+        // can validate larger decks themselves.
+        maximum: 19,
         description:
-          "How many slides this deck will have. Pick a number between 3 and 30 based on the user's ask and the topic's depth. You will then call add_slide exactly this many times.",
+          "How many slides this deck will have. Pick a number between 3 and 19 based on the user's ask and the topic's depth. You will then call add_slide exactly this many times.",
       },
       layouts: {
         type: "array",
@@ -703,9 +708,9 @@ export function createSlideTools({
             error: `Unknown paletteName '${paletteName}'. Use an exact name from the CHOOSING A PALETTE table.`,
           };
         }
-        if (!Number.isFinite(slideCount) || slideCount < 3 || slideCount > 30) {
+        if (!Number.isFinite(slideCount) || slideCount < 3 || slideCount > 19) {
           return {
-            error: `slideCount must be an integer between 3 and 30 (got ${JSON.stringify(slideCountRaw)}).`,
+            error: `slideCount must be an integer between 3 and 19 (got ${JSON.stringify(slideCountRaw)}).`,
           };
         }
 
@@ -1177,7 +1182,7 @@ export function buildSlideSystemPrompt(): string {
   return `You are a presentation design assistant. You produce polished slide decks as JSON with positioned elements.
 
 WORKFLOW (initialize then add slides one at a time):
-1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–30) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the element recipes for ONLY the layouts you named, plus the SHARED HEADER, element schemas, coordinate-system notes, and palette hex values.
+1. INITIALIZE — call plan_deck ONCE with { title, fontPreset, paletteName, slideCount, layouts }. Commit to an integer slideCount (3–19) and a small subset of layouts from the catalog below (typically 3–8) that you will use across the deck. plan_deck's result contains the element recipes for ONLY the layouts you named, plus the SHARED HEADER, element schemas, coordinate-system notes, and palette hex values.
 2. APPEND — call add_slide N times with { layout: "<name>", slide: { id, elements, ... } }. layout MUST be one of the names you passed to plan_deck; using anything else is rejected. Each response reports (a) how many slides remain and (b) which layouts you've used so far. Use that feedback to keep layouts varied within your planned subset.
 
 For edits to an existing deck: read_slides → patch_slides. No plan_deck needed for edits.
