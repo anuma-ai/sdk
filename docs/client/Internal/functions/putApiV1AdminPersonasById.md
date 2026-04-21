@@ -2,7 +2,7 @@
 
 > **putApiV1AdminPersonasById**<`ThrowOnError`>(`options`: [`Options`](../type-aliases/Options.md)<[`PutApiV1AdminPersonasByIdData`](../type-aliases/PutApiV1AdminPersonasByIdData.md), `ThrowOnError`>): `RequestResult`<[`PutApiV1AdminPersonasByIdResponses`](../type-aliases/PutApiV1AdminPersonasByIdResponses.md), [`PutApiV1AdminPersonasByIdErrors`](../type-aliases/PutApiV1AdminPersonasByIdErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:278](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#278)
+Defined in: [src/client/sdk.gen.ts:262](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#262)
 
 Update persona
 

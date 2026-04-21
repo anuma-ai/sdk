@@ -2,7 +2,7 @@
 
 > **HandlersRegisterTextResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:828](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#828)
+Defined in: [src/client/types.gen.ts:801](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#801)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [src/client/types.gen.ts:828](https://github.com/anuma-ai/sdk/blob/m
 
 > **status**: `string`
 
-Defined in: [src/client/types.gen.ts:829](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#829)
+Defined in: [src/client/types.gen.ts:802](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#802)

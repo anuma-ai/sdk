@@ -27,7 +27,7 @@
  * // Use with chat
  * await sendMessage({
  *   messages: [...],
- *   model: "gpt-4o-mini",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   tools: calendarTools,
  * });
  * ```
@@ -154,6 +154,7 @@ export type {
   CreateAppGenerationToolsOptions,
 } from "./appGeneration";
 export {
+  APP_FILE_TOOL_NAMES,
   applyPatches,
   buildAppSystemPrompt,
   CREATE_FILE_SCHEMA,
@@ -161,8 +162,52 @@ export {
   DELETE_FILE_SCHEMA,
   DISPLAY_APP_SCHEMA,
   LIST_FILES_SCHEMA,
+  MapFileStorage,
   normalizePath,
   PATCH_FILE_SCHEMA,
   READ_FILE_SCHEMA,
   truncateContent,
 } from "./appGeneration";
+
+// Slide deck tools
+export type {
+  CreateSlideToolsOptions,
+  FontCategory,
+  FontPreset,
+  FontSpec,
+  IconElement,
+  ImageElement,
+  ShapeElement,
+  Slide,
+  SlideDeck,
+  SlideElement,
+  SlideTheme,
+  SlideToolSet,
+  TextElement,
+} from "./slides";
+export {
+  ADD_SLIDE_SCHEMA,
+  buildFontsUrl,
+  buildSlideSystemPrompt,
+  createSlideTools,
+  DEFAULT_SLIDE_THEME,
+  extractSlideContent,
+  FONT_LIBRARY,
+  FONT_PRESETS,
+  getFontByName,
+  hToPct,
+  isKnownFont,
+  PATCH_SLIDES_SCHEMA,
+  pctToFontSize,
+  pctToH,
+  pctToW,
+  pctToX,
+  pctToY,
+  PLAN_DECK_SCHEMA,
+  READ_SLIDES_SCHEMA,
+  REF_H,
+  REF_W,
+  wToPct,
+  xToPct,
+  yToPct,
+} from "./slides";

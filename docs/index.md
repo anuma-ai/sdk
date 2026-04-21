@@ -30,7 +30,7 @@ const { sendMessage, isLoading, stop } = useChat({
 
 await sendMessage({
   messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
-  model: "gpt-4o-mini",
+  model: "fireworks/accounts/fireworks/models/kimi-k2p5",
 });
 ```
 
@@ -44,7 +44,7 @@ const response = await postApiV1Responses({
     messages: [
       { role: "user", content: [{ type: "text", text: "Hello!" }] },
     ],
-    model: "gpt-4o-mini",
+    model: "fireworks/accounts/fireworks/models/kimi-k2p5",
   },
   headers: {
     Authorization: `Bearer ${apiKey}`,
@@ -62,12 +62,11 @@ The SDK provides entry points for different platforms:
 
 ## Features
 
-The SDK gives you access to a unified API across multiple LLM providers (OpenAI,
-Anthropic, Google, and more) through a single integration. Key capabilities
-include:
+The SDK gives you access to a unified API across multiple LLM providers through
+a single integration. Key capabilities include:
 
 * Streaming chat completions with tool calling and auto-execution
-* Extended thinking (Claude) and reasoning (o-series) support
+* Extended thinking and reasoning support
 * Long-term memory with semantic search and encrypted storage
 * Voice recording and transcription via Whisper
 * PDF and image text extraction (OCR)

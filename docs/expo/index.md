@@ -72,7 +72,7 @@ function ChatScreen() {
   const handleSend = async () => {
     await sendMessage({
       messages: [{ role: "user", content: [{ type: "text", text: "Hello!" }] }],
-      model: "openai/gpt-4o",
+      model: "fireworks/accounts/fireworks/models/kimi-k2p5",
     });
   };
 

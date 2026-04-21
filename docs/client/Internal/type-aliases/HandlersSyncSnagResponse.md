@@ -2,7 +2,7 @@
 
 > **HandlersSyncSnagResponse** = `object`
 
-Defined in: [src/client/types.gen.ts:990](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#990)
+Defined in: [src/client/types.gen.ts:966](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#966)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:990](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **credits\_awarded**: `number`
 
-Defined in: [src/client/types.gen.ts:991](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#991)
+Defined in: [src/client/types.gen.ts:967](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#967)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [src/client/types.gen.ts:991](https://github.com/anuma-ai/sdk/blob/m
 
 > **message**: `string`
 
-Defined in: [src/client/types.gen.ts:992](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#992)
+Defined in: [src/client/types.gen.ts:968](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#968)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [src/client/types.gen.ts:992](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **next\_sync\_at**: `string`
 
-Defined in: [src/client/types.gen.ts:993](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#993)
+Defined in: [src/client/types.gen.ts:969](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#969)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [src/client/types.gen.ts:993](https://github.com/anuma-ai/sdk/blob/m
 
 > **success**: `boolean`
 
-Defined in: [src/client/types.gen.ts:994](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#994)
+Defined in: [src/client/types.gen.ts:970](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#970)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [src/client/types.gen.ts:994](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **total\_converted**: `number`
 
-Defined in: [src/client/types.gen.ts:995](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#995)
+Defined in: [src/client/types.gen.ts:971](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#971)

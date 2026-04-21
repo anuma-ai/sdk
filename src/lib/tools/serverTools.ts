@@ -913,7 +913,7 @@ export interface SelectServerSideToolsOptions {
  * const response = await postApiV1Responses({
  *   body: {
  *     messages: [{ role: "user", content: [{ type: "text", text: "Draw me a cat" }] }],
- *     model: "gpt-4o-mini",
+ *     model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *     tools,
  *   },
  *   headers: { Authorization: `Bearer ${identityToken}` },

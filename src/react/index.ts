@@ -40,7 +40,7 @@
  *   const handleSend = async () => {
  *     await sendMessage({
  *       messages: [{ role: "user", content: [{ type: "text", text: input }] }],
- *       model: "gpt-4o-mini",
+ *       model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *     });
  *   };
  *
@@ -393,6 +393,7 @@ export { useVoice } from "./useVoice";
 // File processors for preprocessing attachments
 export type {
   FileProcessor,
+  FileTypeQuery,
   FileWithData,
   PreprocessingOptions,
   PreprocessingResult,
@@ -401,9 +402,12 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  getSupportedFileTypes,
+  isSupportedFile,
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,
+  TextProcessor,
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";

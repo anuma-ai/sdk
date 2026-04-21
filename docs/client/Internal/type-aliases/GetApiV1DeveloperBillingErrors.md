@@ -2,7 +2,7 @@
 
 > **GetApiV1DeveloperBillingErrors** = `object`
 
-Defined in: [src/client/types.gen.ts:4596](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4596)
+Defined in: [src/client/types.gen.ts:4560](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4560)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [src/client/types.gen.ts:4596](https://github.com/anuma-ai/sdk/blob/
 
 > **400**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4600](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4600)
+Defined in: [src/client/types.gen.ts:4564](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4564)
 
 Bad Request
 
@@ -20,7 +20,7 @@ Bad Request
 
 > **401**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4604](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4604)
+Defined in: [src/client/types.gen.ts:4568](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4568)
 
 Unauthorized
 
@@ -30,6 +30,6 @@ Unauthorized
 
 > **500**: [`ResponseErrorResponse`](ResponseErrorResponse.md)
 
-Defined in: [src/client/types.gen.ts:4608](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4608)
+Defined in: [src/client/types.gen.ts:4572](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#4572)
 
 Internal Server Error

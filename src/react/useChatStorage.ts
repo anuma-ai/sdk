@@ -614,7 +614,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
    * ```ts
    * const result = await sendMessage({
    *   content: "Explain quantum computing",
-   *   model: "gpt-4o",
+   *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
    *   includeHistory: true,
    *   onData: (chunk) => setStreamingText(prev => prev + chunk),
    * });
@@ -772,7 +772,7 @@ export interface UseChatStorageResult extends BaseUseChatStorageResult {
  *   const handleSend = async () => {
  *     const result = await sendMessage({
  *       content: 'Hello, how are you?',
- *       model: 'gpt-4o-mini',
+ *       model: 'fireworks/accounts/fireworks/models/kimi-k2p5',
  *       includeHistory: true, // Include previous messages from this conversation
  *     });
  *
@@ -2093,6 +2093,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -2727,6 +2728,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              uniqueId: assistantUniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2780,6 +2782,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            uniqueId: assistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2884,6 +2887,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        // Pre-allocated ID from consumer — when provided, both the in-flight streaming
+        // placeholder and this persisted message share the same React key, preventing
+        // the unmount/remount flash when streaming completes.
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;

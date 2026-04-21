@@ -2,7 +2,7 @@
 
 > **postApiV1CreditsClaimDaily**<`ThrowOnError`>(`options?`: [`Options`](../type-aliases/Options.md)<[`PostApiV1CreditsClaimDailyData`](../type-aliases/PostApiV1CreditsClaimDailyData.md), `ThrowOnError`>): `RequestResult`<[`PostApiV1CreditsClaimDailyResponses`](../type-aliases/PostApiV1CreditsClaimDailyResponses.md), [`PostApiV1CreditsClaimDailyErrors`](../type-aliases/PostApiV1CreditsClaimDailyErrors.md), `ThrowOnError`>
 
-Defined in: [src/client/sdk.gen.ts:442](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#442)
+Defined in: [src/client/sdk.gen.ts:426](https://github.com/anuma-ai/sdk/blob/main/src/client/sdk.gen.ts#426)
 
 Claim daily credits
 

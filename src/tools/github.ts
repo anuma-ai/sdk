@@ -81,7 +81,6 @@ function createGetAuthenticatedUserTool(
       parameters: {
         type: "object",
         properties: {},
-        required: [],
       },
     },
     executor: async () => {
@@ -155,6 +154,7 @@ IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with 
           body: {
             type: "object",
             description: "Request body for POST/PUT/PATCH requests",
+            additionalProperties: true,
           },
         },
         required: ["method", "path"],

@@ -2,15 +2,15 @@
 
 > **HandlersSetSubscriptionTierRequest** = `object`
 
-Defined in: [src/client/types.gen.ts:916](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#916)
+Defined in: [src/client/types.gen.ts:892](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#892)
 
 ## Properties
 
-### escrow\_contract?
+### app\_id?
 
-> `optional` **escrow\_contract**: `string`
+> `optional` **app\_id**: `number`
 
-Defined in: [src/client/types.gen.ts:920](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#920)
+Defined in: [src/client/types.gen.ts:896](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#896)
 
 Required to identify which app enrollment to update
 
@@ -20,7 +20,7 @@ Required to identify which app enrollment to update
 
 > `optional` **tier**: `string`
 
-Defined in: [src/client/types.gen.ts:924](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#924)
+Defined in: [src/client/types.gen.ts:900](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#900)
 
 "basic" or "pro"
 
@@ -30,4 +30,4 @@ Defined in: [src/client/types.gen.ts:924](https://github.com/anuma-ai/sdk/blob/m
 
 > `optional` **user\_address**: `string`
 
-Defined in: [src/client/types.gen.ts:925](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#925)
+Defined in: [src/client/types.gen.ts:901](https://github.com/anuma-ai/sdk/blob/main/src/client/types.gen.ts#901)

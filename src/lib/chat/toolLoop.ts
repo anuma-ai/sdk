@@ -58,8 +58,17 @@ import {
   validateModel,
 } from "./useChat/utils";
 
-const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
+function isToolErrorResult(result: unknown): boolean {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "error" in result &&
+    typeof (result as { error: unknown }).error === "string"
+  );
+}
 
 /** Extract tool name from either nested (function.name) or flat (name) format. */
 function getToolName(tool: Record<string, unknown>): string | undefined {
@@ -102,7 +111,7 @@ export type StepFinishEvent = {
 export type RunToolLoopOptions = {
   /** Messages to send to the model. */
   messages: LlmapiMessage[];
-  /** Model identifier (e.g. "gpt-4o", "anthropic/claude-3-7-sonnet-20250219"). */
+  /** Model identifier (e.g. "fireworks/accounts/fireworks/models/kimi-k2p5"). */
   model: string;
   /** Bearer token for the Portal API. Omit when using API-key auth via `headers`. */
   token?: string;
@@ -122,13 +131,15 @@ export type RunToolLoopOptions = {
   toolChoice?: string;
   /**
    * Maximum tool execution rounds before forcing the model to respond with text.
-   * After this many rounds, `toolChoice` is set to `"none"`.
-   * @default 3
+   * After this many rounds, `toolChoice` is set to `"none"`. A hard safety
+   * cap of `maxToolRounds + 5` iterations applies on top, in case the model
+   * ignores `toolChoice: "none"` and keeps emitting tool calls.
+   * @default 20
    */
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
   reasoning?: LlmapiResponseReasoning;
-  /** Extended thinking configuration for Anthropic models. */
+  /** Extended thinking configuration. */
   thinking?: LlmapiThinkingOptions;
   /** User-selected image generation model. */
   imageModel?: string;
@@ -217,6 +228,27 @@ export type StreamingTransportResult = {
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
 /**
+ * Wraps `globalThis.fetch` so that non-OK HTTP responses reject with an error
+ * that includes the response body. Without this, a 500 from the portal
+ * surfaces as "SSE failed: 500 Internal Server Error" with no detail — the
+ * trace_id, request_id, and error type in the body are discarded. We read the
+ * body defensively (at most 500 chars) so the original error path behaves the
+ * same for successful responses.
+ */
+const errorCapturingFetch: typeof fetch = async (input, init) => {
+  const response = await globalThis.fetch(input, init);
+  if (response.ok) return response;
+  let body = "";
+  try {
+    body = (await response.text()).slice(0, 500);
+  } catch {
+    // Ignore — some environments disallow reading the body on a failed response.
+  }
+  const detail = body ? `: ${body}` : "";
+  throw new Error(`SSE failed: ${response.status} ${response.statusText}${detail}`);
+};
+
+/**
  * Default fetch-based streaming transport for the Portal API.
  */
 const defaultTransport: StreamingTransport = (options) => {
@@ -233,6 +265,7 @@ const defaultTransport: StreamingTransport = (options) => {
     signal: options.signal,
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
+    fetch: errorCapturingFetch,
   });
 };
 
@@ -252,7 +285,7 @@ const defaultTransport: StreamingTransport = (options) => {
  *
  * const result = await runToolLoop({
  *   messages: [{ role: "user", content: [{ type: "text", text: "What's the weather?" }] }],
- *   model: "gpt-4o",
+ *   model: "fireworks/accounts/fireworks/models/kimi-k2p5",
  *   token: "my-api-token",
  *   tools: [{
  *     type: "function",
@@ -419,12 +452,30 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentAccumulator = accumulator;
     let currentMessages = messages;
     let toolIteration = 0;
-    const effectiveMaxToolRounds = maxToolRounds ?? 3;
+    // Absolute ceiling on caller-supplied maxToolRounds. Even trusted
+    // callers shouldn't be able to drive 10k LLM round-trips per message;
+    // 50 comfortably covers the slide-generation flow (needs ~20) while
+    // bounding worst-case cost from a runaway or malicious caller.
+    const ABSOLUTE_MAX_TOOL_ROUNDS = 50;
+    const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 20, ABSOLUTE_MAX_TOOL_ROUNDS);
+    // Hard safety cap: a small margin above the soft cap. The soft cap sets
+    // `toolChoice: "none"` to force a final text response, which should end
+    // the loop within one more iteration; the hard cap guards against a
+    // model that ignores `toolChoice: "none"` and keeps emitting tool calls.
+    const hardIterationCap = effectiveMaxToolRounds + 5;
     const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
+    // Accumulate successful tool results across every loop iteration. The
+    // skipContinuation-only early-return path below returns just the final
+    // round's results, which is fine for one-shot display_* tools. Multi-
+    // round flows (e.g. slide-deck plan_deck + add_slide × N) need every
+    // round's results so the storage layer can persist them as a
+    // `[Tool Execution Results]` message and the chat UI can render the
+    // deck via parseDisplayResults.
+    const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
-    while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
+    while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
       toolIteration++;
       sseError = null;
 
@@ -472,32 +523,92 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         thinkingSmoother.push(`\nExecuting tool: ${toolInfo}\n`);
       }
 
-      // Execute all tools in parallel
-      const executionResults = await Promise.all(
-        toolCallsToExecute.map(async (toolCall) => {
-          const executorConfig = executorMap.get(toolCall.name);
-          if (!executorConfig) {
-            return {
-              id: toolCall.id,
-              error: `No executor found for tool: ${toolCall.name}`,
-            };
-          }
+      // Topological phase execution: tools with dependsOn wait for the named
+      // tools to complete before starting. Handles multi-level chains (A → B → C).
+      // Note: batchToolNames tracks by name, so duplicate calls to the same tool
+      // (e.g. two create_file calls) land in the same phase via Promise.all.
+      const batchToolNames = new Set(toolCallsToExecute.map((tc) => tc.name));
+      const completed = new Set<string>();
+      let remaining = [...toolCallsToExecute];
+      const executionResults: {
+        id: string;
+        name?: string;
+        result?: unknown;
+        error?: string;
+        errorType?: ToolExecutionErrorType;
+      }[] = [];
 
-          const { result, error, errorType } = await executeToolCall(
-            toolCall,
-            executorConfig.executor,
-            executorConfig.executorTimeout
+      while (remaining.length > 0) {
+        const ready = remaining.filter((tc) => {
+          const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+          return deps.every((d) => !batchToolNames.has(d) || completed.has(d));
+        });
+        if (ready.length === 0) {
+          // Emit error results for remaining tools so every tool call the
+          // LLM issued gets a corresponding tool result message.
+          // Propagate failures transitively through the dependency chain
+          // before classifying, so the result is independent of iteration order.
+          const failedNames = new Set(
+            executionResults
+              .filter((r) => r.error)
+              .map((r) => r.name)
+              .filter(Boolean) as string[]
           );
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (const tc of remaining) {
+              if (failedNames.has(tc.name)) continue;
+              const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+              if (deps.some((d) => batchToolNames.has(d) && failedNames.has(d))) {
+                failedNames.add(tc.name);
+                changed = true;
+              }
+            }
+          }
+          for (const tc of remaining) {
+            const deps = executorMap.get(tc.name)?.dependsOn ?? [];
+            const failedDeps = deps.filter((d) => batchToolNames.has(d) && !completed.has(d));
+            const blockedByFailure = failedDeps.some((d) => failedNames.has(d));
+            const reason = blockedByFailure
+              ? `failed dependencies: ${failedDeps.join(", ")}`
+              : "a dependency cycle";
+            executionResults.push({
+              id: tc.id,
+              name: tc.name,
+              error: `Tool "${tc.name}" was not executed due to ${reason}`,
+              errorType: "execution",
+            });
+          }
+          break;
+        }
 
-          return {
-            id: toolCall.id,
-            name: toolCall.name,
-            result,
-            error,
-            errorType,
-          };
-        })
-      );
+        const phaseResults = await Promise.all(
+          ready.map(async (toolCall) => {
+            const executorConfig = executorMap.get(toolCall.name);
+            if (!executorConfig) {
+              return {
+                id: toolCall.id,
+                name: toolCall.name,
+                error: `No executor found for tool: ${toolCall.name}`,
+              };
+            }
+            const { result, error, errorType } = await executeToolCall(
+              toolCall,
+              executorConfig.executor,
+              executorConfig.executorTimeout
+            );
+            return { id: toolCall.id, name: toolCall.name, result, error, errorType };
+          })
+        );
+
+        for (const r of phaseResults) {
+          if (r.name && !r.error && !isToolErrorResult(r.result)) completed.add(r.name);
+        }
+        executionResults.push(...phaseResults);
+        const readySet = new Set(ready);
+        remaining = remaining.filter((tc) => !readySet.has(tc));
+      }
 
       // Remove connector tools after maxConnectorCalls (fast models only)
       const isFastModel = model?.startsWith("cerebras/");
@@ -530,7 +641,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       if (tools && apiTools) {
         const successfullyExecutedNames = new Set<string>();
         for (const r of executionResults) {
-          if (!r.error && "name" in r && r.name) {
+          if (!r.error && !isToolErrorResult(r.result) && "name" in r && r.name) {
             successfullyExecutedNames.add(r.name);
           }
         }
@@ -620,6 +731,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
+      // Accumulate this round's successful results for the main return path.
+      // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
+      // results so the chat UI can render the aggregated display interactions
+      // (e.g. a populated slide deck) via parseDisplayResults.
+      for (const r of executionResults) {
+        if (!r.error && r.name) {
+          accumulatedToolResults.push({ name: r.name, result: r.result });
+        }
+      }
+
       // Build tool result messages — exclude tools with skipContinuation
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
@@ -634,9 +755,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           data: skipResponse,
           error: null,
           toolsChecksum: currentAccumulator.toolsChecksum,
-          autoExecutedToolResults: executionResults
-            .filter((r) => !r.error && r.name)
-            .map((r) => ({ name: r.name!, result: r.result })),
+          autoExecutedToolResults: accumulatedToolResults,
         };
       }
 
@@ -651,7 +770,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
             type: "function",
             function: {
               name: tc.name,
-              arguments: tc.arguments,
+              arguments: tc.arguments || "{}",
             },
           })),
       };
@@ -777,6 +896,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         data: finalResponse,
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
+        autoExecutedToolResults: accumulatedToolResults,
       };
     }
 
