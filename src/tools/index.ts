@@ -206,6 +206,7 @@ export {
   PLAN_DECK_SCHEMA,
   READ_SLIDES_SCHEMA,
   REF_H,
+  SLIDE_MAX_TOOL_ROUNDS,
   REF_W,
   wToPct,
   xToPct,

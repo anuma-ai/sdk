@@ -159,7 +159,9 @@ export type ResponsesApiOptions = {
    * so the model produces a text answer using whatever tool results it has gathered.
    * A hard safety cap of `maxToolRounds + 5` iterations applies on top, in case the
    * model ignores `toolChoice: "none"` and keeps emitting tool calls.
-   * @default 20
+   *
+   * For slide deck generation, pass `SLIDE_MAX_TOOL_ROUNDS` from `@anuma/sdk/tools`.
+   * @default 3
    */
   maxToolRounds?: number;
 };

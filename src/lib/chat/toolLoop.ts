@@ -134,7 +134,11 @@ export type RunToolLoopOptions = {
    * After this many rounds, `toolChoice` is set to `"none"`. A hard safety
    * cap of `maxToolRounds + 5` iterations applies on top, in case the model
    * ignores `toolChoice: "none"` and keeps emitting tool calls.
-   * @default 20
+   *
+   * For slide deck generation, use {@link SLIDE_MAX_TOOL_ROUNDS} (exported
+   * from `@anuma/sdk/tools`) which accounts for 1 plan_deck + up to 19
+   * add_slide calls.
+   * @default 3
    */
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
@@ -457,7 +461,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     // 50 comfortably covers the slide-generation flow (needs ~20) while
     // bounding worst-case cost from a runaway or malicious caller.
     const ABSOLUTE_MAX_TOOL_ROUNDS = 50;
-    const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 20, ABSOLUTE_MAX_TOOL_ROUNDS);
+    const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 3, ABSOLUTE_MAX_TOOL_ROUNDS);
     // Hard safety cap: a small margin above the soft cap. The soft cap sets
     // `toolChoice: "none"` to force a final text response, which should end
     // the loop within one more iteration; the hard cap guards against a
