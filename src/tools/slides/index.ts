@@ -1102,7 +1102,21 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                 break;
               }
               case "update_theme": {
-                if (op.set) safeMerge(deck.theme as unknown as Record<string, unknown>, op.set);
+                if (op.set) {
+                  // Mirror plan_deck's fontPreset guard so update_theme
+                  // can't sneak an unknown preset past validation.
+                  const nextFontPreset = op.set.fontPreset;
+                  if (
+                    nextFontPreset !== undefined &&
+                    (typeof nextFontPreset !== "string" || !FONT_PRESETS[nextFontPreset])
+                  ) {
+                    results.push(
+                      `update_theme: unknown fontPreset ${JSON.stringify(nextFontPreset)}. Valid: ${Object.keys(FONT_PRESETS).join(", ")}`
+                    );
+                    break;
+                  }
+                  safeMerge(deck.theme as unknown as Record<string, unknown>, op.set);
+                }
                 results.push("updated theme");
                 break;
               }
