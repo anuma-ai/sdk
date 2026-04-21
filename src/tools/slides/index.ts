@@ -599,12 +599,26 @@ function validateFontFamilies(elements: unknown): string | null {
  * app-generation `create_file` tool — `plan_deck` initializes slides.json
  * and `add_slide` appends to it directly.
  */
+/**
+ * Return shape of {@link createSlideTools}: the tool array plus a
+ * `clearConversation(id)` method to release per-conversation state. Call
+ * the method when a conversation ends (session close, timeout, etc.) —
+ * otherwise `deckStateByConv` and `writeLockByConv` grow unbounded over
+ * the server process lifetime.
+ *
+ * The return is still array-iterable, so existing `tools: slideTools`
+ * spreads keep working without destructuring.
+ */
+export type SlideToolSet = ToolConfig[] & {
+  clearConversation: (conversationId: string) => void;
+};
+
 export function createSlideTools({
   getConversationId,
   storage,
   logError = () => {},
   displaySlides,
-}: CreateSlideToolsOptions): ToolConfig[] {
+}: CreateSlideToolsOptions): SlideToolSet {
   function requireConversationId(): string {
     const id = getConversationId();
     if (!id) throw new Error("No active conversation");
@@ -959,123 +973,145 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
           return { error: "operations array is required and must not be empty" };
         }
 
-        const file = await storage.getFile(conversationId, "slides.json");
-        if (!file) return { error: "No slides.json found. Call plan_deck first." };
+        // Serialize the read-modify-write under the same per-conversation
+        // lock that add_slide uses, so a concurrent patch + add_slide pair
+        // can't clobber each other's writes to slides.json.
+        const locked = await withWriteLock(conversationId, async () => {
+          const file = await storage.getFile(conversationId, "slides.json");
+          if (!file) return { error: "No slides.json found. Call plan_deck first." } as const;
 
-        const deck = JSON.parse(file.content) as SlideDeck;
-        const results: string[] = [];
+          const deck = JSON.parse(file.content) as SlideDeck;
+          const results: string[] = [];
 
-        for (const op of operations) {
-          const slide = op.slideId ? deck.slides.find((s) => s.id === op.slideId) : undefined;
+          for (const op of operations) {
+            const slide = op.slideId ? deck.slides.find((s) => s.id === op.slideId) : undefined;
 
-          switch (op.action) {
-            case "update_element": {
-              if (!slide) {
-                results.push(`update_element: slide ${op.slideId} not found`);
-                break;
-              }
-              const el = slide.elements.find((e) => e.id === op.elementId);
-              if (!el) {
-                results.push(`update_element: element ${op.elementId} not found`);
-                break;
-              }
-              if (op.set) {
-                const fontError = validateFontFamilies(op.set);
-                if (fontError) {
-                  results.push(`update_element: ${fontError}`);
+            switch (op.action) {
+              case "update_element": {
+                if (!slide) {
+                  results.push(`update_element: slide ${op.slideId} not found`);
                   break;
                 }
-                safeMerge(el as unknown as Record<string, unknown>, op.set);
-              }
-              results.push(`updated ${op.slideId}/${op.elementId}`);
-              break;
-            }
-            case "add_element": {
-              if (!slide) {
-                results.push(`add_element: slide ${op.slideId} not found`);
-                break;
-              }
-              if (!op.element) {
-                results.push("add_element: missing element");
-                break;
-              }
-              const fontError = validateFontFamilies(op.element);
-              if (fontError) {
-                results.push(`add_element: ${fontError}`);
-                break;
-              }
-              slide.elements.push(op.element);
-              results.push(`added ${op.element.id} to ${op.slideId}`);
-              break;
-            }
-            case "remove_element": {
-              if (!slide) {
-                results.push(`remove_element: slide ${op.slideId} not found`);
-                break;
-              }
-              const before = slide.elements.length;
-              slide.elements = slide.elements.filter((e) => e.id !== op.elementId);
-              results.push(
-                slide.elements.length < before
-                  ? `removed ${op.elementId}`
-                  : `remove_element: ${op.elementId} not found`
-              );
-              break;
-            }
-            case "update_slide": {
-              if (!slide) {
-                results.push(`update_slide: slide ${op.slideId} not found`);
-                break;
-              }
-              if (op.set) safeMerge(slide as unknown as Record<string, unknown>, op.set);
-              results.push(`updated slide ${op.slideId}`);
-              break;
-            }
-            case "add_slide": {
-              if (!op.slide) {
-                results.push("add_slide: missing slide");
-                break;
-              }
-              if (Array.isArray(op.slide.elements)) {
-                const fontError = validateFontFamilies(op.slide.elements);
-                if (fontError) {
-                  results.push(`add_slide: ${fontError}`);
+                const el = slide.elements.find((e) => e.id === op.elementId);
+                if (!el) {
+                  results.push(`update_element: element ${op.elementId} not found`);
                   break;
                 }
-              }
-              const insertIdx = op.afterSlideId
-                ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
-                : -1;
-              if (insertIdx === -1) deck.slides.push(op.slide);
-              else deck.slides.splice(insertIdx + 1, 0, op.slide);
-              results.push(`added slide ${op.slide.id}`);
-              break;
-            }
-            case "delete_slide": {
-              if (!op.slideId) {
-                results.push("delete_slide: missing slideId");
+                if (op.set) {
+                  const fontError = validateFontFamilies(op.set);
+                  if (fontError) {
+                    results.push(`update_element: ${fontError}`);
+                    break;
+                  }
+                  safeMerge(el as unknown as Record<string, unknown>, op.set);
+                }
+                results.push(`updated ${op.slideId}/${op.elementId}`);
                 break;
               }
-              const len = deck.slides.length;
-              deck.slides = deck.slides.filter((s) => s.id !== op.slideId);
-              results.push(
-                deck.slides.length < len
-                  ? `deleted ${op.slideId}`
-                  : `delete_slide: ${op.slideId} not found`
-              );
-              break;
+              case "add_element": {
+                if (!slide) {
+                  results.push(`add_element: slide ${op.slideId} not found`);
+                  break;
+                }
+                if (!op.element) {
+                  results.push("add_element: missing element");
+                  break;
+                }
+                const fontError = validateFontFamilies(op.element);
+                if (fontError) {
+                  results.push(`add_element: ${fontError}`);
+                  break;
+                }
+                slide.elements.push(op.element);
+                results.push(`added ${op.element.id} to ${op.slideId}`);
+                break;
+              }
+              case "remove_element": {
+                if (!slide) {
+                  results.push(`remove_element: slide ${op.slideId} not found`);
+                  break;
+                }
+                const before = slide.elements.length;
+                slide.elements = slide.elements.filter((e) => e.id !== op.elementId);
+                results.push(
+                  slide.elements.length < before
+                    ? `removed ${op.elementId}`
+                    : `remove_element: ${op.elementId} not found`
+                );
+                break;
+              }
+              case "update_slide": {
+                if (!slide) {
+                  results.push(`update_slide: slide ${op.slideId} not found`);
+                  break;
+                }
+                if (op.set) {
+                  // update_slide is for slide-level metadata only (id,
+                  // notes, background, etc.) — not a back-door around
+                  // add_element / remove_element and their font validation.
+                  // Reject an `elements` key explicitly so an unchecked
+                  // array replacement can't bypass validateFontFamilies.
+                  if ("elements" in op.set) {
+                    results.push(
+                      `update_slide: 'elements' cannot be set directly — use add_element / remove_element / update_element instead`
+                    );
+                    break;
+                  }
+                  safeMerge(slide as unknown as Record<string, unknown>, op.set);
+                }
+                results.push(`updated slide ${op.slideId}`);
+                break;
+              }
+              case "add_slide": {
+                if (!op.slide) {
+                  results.push("add_slide: missing slide");
+                  break;
+                }
+                if (Array.isArray(op.slide.elements)) {
+                  const fontError = validateFontFamilies(op.slide.elements);
+                  if (fontError) {
+                    results.push(`add_slide: ${fontError}`);
+                    break;
+                  }
+                }
+                const insertIdx = op.afterSlideId
+                  ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
+                  : -1;
+                if (insertIdx === -1) deck.slides.push(op.slide);
+                else deck.slides.splice(insertIdx + 1, 0, op.slide);
+                results.push(`added slide ${op.slide.id}`);
+                break;
+              }
+              case "delete_slide": {
+                if (!op.slideId) {
+                  results.push("delete_slide: missing slideId");
+                  break;
+                }
+                const len = deck.slides.length;
+                deck.slides = deck.slides.filter((s) => s.id !== op.slideId);
+                results.push(
+                  deck.slides.length < len
+                    ? `deleted ${op.slideId}`
+                    : `delete_slide: ${op.slideId} not found`
+                );
+                break;
+              }
+              case "update_theme": {
+                if (op.set) safeMerge(deck.theme as unknown as Record<string, unknown>, op.set);
+                results.push("updated theme");
+                break;
+              }
+              default:
+                results.push(`unknown action: ${op.action}`);
             }
-            case "update_theme": {
-              if (op.set) safeMerge(deck.theme as unknown as Record<string, unknown>, op.set);
-              results.push("updated theme");
-              break;
-            }
-            default:
-              results.push(`unknown action: ${op.action}`);
           }
-        }
 
-        await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+          await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+          return { results };
+        });
+
+        if ("error" in locked) return { error: locked.error };
+        const { results } = locked;
 
         // Prefer the model-supplied replaces_interaction_id, but fall back to
         // the closure-tracked id from plan_deck / add_slide so patch_slides
@@ -1111,7 +1147,12 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
     },
   };
 
-  return [planDeckTool, addSlideTool, readSlidesTool, patchSlidesTool];
+  const tools = [planDeckTool, addSlideTool, readSlidesTool, patchSlidesTool] as SlideToolSet;
+  tools.clearConversation = (conversationId: string) => {
+    deckStateByConv.delete(conversationId);
+    writeLockByConv.delete(conversationId);
+  };
+  return tools;
 }
 
 // ---------------------------------------------------------------------------

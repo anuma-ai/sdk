@@ -182,6 +182,7 @@ export type {
   SlideDeck,
   SlideElement,
   SlideTheme,
+  SlideToolSet,
   TextElement,
 } from "./slides";
 export {
