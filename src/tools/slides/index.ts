@@ -669,6 +669,19 @@ export function createSlideTools({
     plannedLayouts: string[];
     layoutUsage: Record<string, number>;
   }
+  // Cap the number of tracked conversations to prevent unbounded memory
+  // growth. When the limit is hit, the oldest entry (first in insertion
+  // order) is evicted. In practice a single SDK instance rarely handles
+  // more than a handful of concurrent conversations; this is a safety net.
+  const MAX_TRACKED_CONVERSATIONS = 200;
+
+  function evictOldest<V>(map: Map<string, V>): void {
+    if (map.size > MAX_TRACKED_CONVERSATIONS) {
+      const oldest = map.keys().next().value;
+      if (oldest !== undefined) map.delete(oldest);
+    }
+  }
+
   const deckStateByConv = new Map<string, DeckState>();
 
   // Per-conversation write lock. Serializes the read-modify-write sequence
@@ -687,6 +700,7 @@ export function createSlideTools({
       cid,
       prev.then(() => next)
     );
+    evictOldest(writeLockByConv);
     await prev;
     try {
       return await fn();
@@ -765,52 +779,59 @@ export function createSlideTools({
           };
         }
 
-        // State-machine guard: plan_deck is only for initializing a fresh
-        // deck. If a deck already exists in this conversation, refuse —
-        // the caller should use read_slides + patch_slides to modify it,
-        // or start a new conversation to regenerate. This prevents the
-        // model from silently clobbering a working deck when it forgets
-        // that one already exists (e.g., in long conversations where the
-        // original plan_deck call has scrolled out of active context).
-        const existing = await storage.getFile(conversationId, "slides.json");
-        if (existing) {
-          try {
-            const existingDeck = JSON.parse(existing.content) as SlideDeck;
-            if (Array.isArray(existingDeck.slides) && existingDeck.slides.length > 0) {
-              return {
-                error: `Deck already exists with ${existingDeck.slides.length} slide(s). Use read_slides + patch_slides to modify it, or start a new conversation to regenerate. plan_deck is only for initializing a fresh deck.`,
-              };
+        // Serialize the existence check + write inside the write lock so
+        // two concurrent plan_deck calls for the same conversation cannot
+        // both pass the "deck exists?" guard and clobber each other.
+        const locked = await withWriteLock(conversationId, async () => {
+          // State-machine guard: plan_deck is only for initializing a fresh
+          // deck. If a deck already exists in this conversation, refuse —
+          // the caller should use read_slides + patch_slides to modify it,
+          // or start a new conversation to regenerate.
+          const existing = await storage.getFile(conversationId, "slides.json");
+          if (existing) {
+            try {
+              const existingDeck = JSON.parse(existing.content) as SlideDeck;
+              if (Array.isArray(existingDeck.slides) && existingDeck.slides.length > 0) {
+                return {
+                  error: `Deck already exists with ${existingDeck.slides.length} slide(s). Use read_slides + patch_slides to modify it, or start a new conversation to regenerate. plan_deck is only for initializing a fresh deck.`,
+                };
+              }
+            } catch {
+              // slides.json is unreadable — treat as absent and allow init.
             }
-          } catch {
-            // slides.json is unreadable — treat as absent and allow init.
           }
-        }
 
-        // Initialize an empty deck with the chosen theme — add_slide appends
-        // individual slides into this shell. Use the model's fontPreset
-        // (validated above) rather than the palette's suggested pairing, so
-        // the caller can override per deck.
-        const deck: SlideDeck = {
-          version: 2,
-          theme: { fontPreset, colors: palette.colors },
-          slides: [],
-        };
-        await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
+          // Initialize an empty deck with the chosen theme — add_slide appends
+          // individual slides into this shell. Use the model's fontPreset
+          // (validated above) rather than the palette's suggested pairing, so
+          // the caller can override per deck.
+          const deck: SlideDeck = {
+            version: 2,
+            theme: { fontPreset, colors: palette.colors },
+            slides: [],
+          };
+          await storage.putFile(conversationId, "slides.json", JSON.stringify(deck));
 
-        // Open a display interaction now so the viewer appears and add_slide
-        // calls can update it in-place.
-        const display = displaySlides ? await displaySlides({ title }) : null;
-        const interactionId =
-          display && typeof display === "object" && "interaction_id" in display
-            ? (display as { interaction_id?: unknown }).interaction_id
-            : undefined;
-        deckStateByConv.set(conversationId, {
-          interactionId: typeof interactionId === "string" ? interactionId : "",
-          title,
-          slideCount,
-          plannedLayouts,
-          layoutUsage: {},
+          // Open a display interaction now so the viewer appears and add_slide
+          // calls can update it in-place.
+          const display = displaySlides ? await displaySlides({ title }) : null;
+          const interactionId =
+            display && typeof display === "object" && "interaction_id" in display
+              ? (display as { interaction_id?: unknown }).interaction_id
+              : undefined;
+          deckStateByConv.set(conversationId, {
+            interactionId: typeof interactionId === "string" ? interactionId : "",
+            title,
+            slideCount,
+            plannedLayouts,
+            layoutUsage: {},
+          });
+          evictOldest(deckStateByConv);
+          return { display };
         });
+
+        if ("error" in locked) return locked;
+        const { display } = locked;
 
         const content = `Deck initialized — theme applied, empty slides array ready.
 
@@ -1105,11 +1126,18 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`add_slide: ${fontError}`);
                   break;
                 }
-                const insertIdx = op.afterSlideId
-                  ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
-                  : -1;
-                if (insertIdx === -1) deck.slides.push(op.slide);
-                else deck.slides.splice(insertIdx + 1, 0, op.slide);
+                if (op.afterSlideId) {
+                  const insertIdx = deck.slides.findIndex((s) => s.id === op.afterSlideId);
+                  if (insertIdx === -1) {
+                    results.push(
+                      `add_slide: afterSlideId '${op.afterSlideId}' not found — use a valid slide id or omit to append`
+                    );
+                    break;
+                  }
+                  deck.slides.splice(insertIdx + 1, 0, op.slide);
+                } else {
+                  deck.slides.push(op.slide);
+                }
                 results.push(`added slide ${op.slide.id}`);
                 break;
               }
