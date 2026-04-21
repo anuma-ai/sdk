@@ -1072,12 +1072,22 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push("add_slide: missing slide");
                   break;
                 }
-                if (Array.isArray(op.slide.elements)) {
-                  const fontError = validateFontFamilies(op.slide.elements);
-                  if (fontError) {
-                    results.push(`add_slide: ${fontError}`);
-                    break;
-                  }
+                // Require id + elements so the inserted slide stays
+                // addressable by downstream patch ops. Without a string
+                // id the slide becomes permanently un-targetable; without
+                // an elements array the renderer has nothing to draw.
+                if (typeof op.slide.id !== "string" || !op.slide.id) {
+                  results.push("add_slide: slide.id must be a non-empty string");
+                  break;
+                }
+                if (!Array.isArray(op.slide.elements)) {
+                  results.push("add_slide: slide.elements must be an array");
+                  break;
+                }
+                const fontError = validateFontFamilies(op.slide.elements);
+                if (fontError) {
+                  results.push(`add_slide: ${fontError}`);
+                  break;
                 }
                 const insertIdx = op.afterSlideId
                   ? deck.slides.findIndex((s) => s.id === op.afterSlideId)
@@ -1115,7 +1125,20 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                     );
                     break;
                   }
-                  safeMerge(deck.theme as unknown as Record<string, unknown>, op.set);
+                  // Merge colors one level deeper so partial color patches
+                  // (e.g. { colors: { accent: "#f00" } }) don't drop every
+                  // other token from deck.theme.colors.
+                  const { colors: nextColors, ...restPatch } = op.set as {
+                    colors?: Record<string, unknown>;
+                    [key: string]: unknown;
+                  };
+                  safeMerge(deck.theme as unknown as Record<string, unknown>, restPatch);
+                  if (nextColors && typeof nextColors === "object") {
+                    safeMerge(
+                      deck.theme.colors as unknown as Record<string, unknown>,
+                      nextColors
+                    );
+                  }
                 }
                 results.push("updated theme");
                 break;
