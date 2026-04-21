@@ -1134,10 +1134,7 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   };
                   safeMerge(deck.theme as unknown as Record<string, unknown>, restPatch);
                   if (nextColors && typeof nextColors === "object") {
-                    safeMerge(
-                      deck.theme.colors as unknown as Record<string, unknown>,
-                      nextColors
-                    );
+                    safeMerge(deck.theme.colors as unknown as Record<string, unknown>, nextColors);
                   }
                 }
                 results.push("updated theme");
