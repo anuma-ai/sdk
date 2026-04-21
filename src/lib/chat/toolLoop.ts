@@ -452,7 +452,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentAccumulator = accumulator;
     let currentMessages = messages;
     let toolIteration = 0;
-    const effectiveMaxToolRounds = maxToolRounds ?? 20;
+    // Absolute ceiling on caller-supplied maxToolRounds. Even trusted
+    // callers shouldn't be able to drive 10k LLM round-trips per message;
+    // 50 comfortably covers the slide-generation flow (needs ~20) while
+    // bounding worst-case cost from a runaway or malicious caller.
+    const ABSOLUTE_MAX_TOOL_ROUNDS = 50;
+    const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 20, ABSOLUTE_MAX_TOOL_ROUNDS);
     // Hard safety cap: a small margin above the soft cap. The soft cap sets
     // `toolChoice: "none"` to force a final text response, which should end
     // the loop within one more iteration; the hard cap guards against a
