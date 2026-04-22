@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Git worktrees created inside the repo (e.g. for testing old commits)
+.worktrees/
+
 # Logs
 logs
 *.log
@@ -148,6 +151,4 @@ etc/
 # Test output (generated app previews)
 test/**/.output/
 
-# Claude Code local state (agent worktrees, etc)
-.claude/
-.worktrees/
+.claude/worktrees

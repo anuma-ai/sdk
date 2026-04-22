@@ -58,7 +58,6 @@ import {
   validateModel,
 } from "./useChat/utils";
 
-const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
 
 /** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
@@ -132,8 +131,10 @@ export type RunToolLoopOptions = {
   toolChoice?: string;
   /**
    * Maximum tool execution rounds before forcing the model to respond with text.
-   * After this many rounds, `toolChoice` is set to `"none"`.
-   * @default 3
+   * After this many rounds, `toolChoice` is set to `"none"`. A hard safety
+   * cap of `maxToolRounds + 5` iterations applies on top, in case the model
+   * ignores `toolChoice: "none"` and keeps emitting tool calls.
+   * @default 20
    */
   maxToolRounds?: number;
   /** Reasoning configuration for o-series models. */
@@ -227,6 +228,27 @@ export type StreamingTransportResult = {
 export type StreamingTransport = (options: StreamingTransportOptions) => StreamingTransportResult;
 
 /**
+ * Wraps `globalThis.fetch` so that non-OK HTTP responses reject with an error
+ * that includes the response body. Without this, a 500 from the portal
+ * surfaces as "SSE failed: 500 Internal Server Error" with no detail — the
+ * trace_id, request_id, and error type in the body are discarded. We read the
+ * body defensively (at most 500 chars) so the original error path behaves the
+ * same for successful responses.
+ */
+const errorCapturingFetch: typeof fetch = async (input, init) => {
+  const response = await globalThis.fetch(input, init);
+  if (response.ok) return response;
+  let body = "";
+  try {
+    body = (await response.text()).slice(0, 500);
+  } catch {
+    // Ignore — some environments disallow reading the body on a failed response.
+  }
+  const detail = body ? `: ${body}` : "";
+  throw new Error(`SSE failed: ${response.status} ${response.statusText}${detail}`);
+};
+
+/**
  * Default fetch-based streaming transport for the Portal API.
  */
 const defaultTransport: StreamingTransport = (options) => {
@@ -243,6 +265,7 @@ const defaultTransport: StreamingTransport = (options) => {
     signal: options.signal,
     sseMaxRetryAttempts: 1,
     onSseError: options.onSseError,
+    fetch: errorCapturingFetch,
   });
 };
 
@@ -429,12 +452,30 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     let currentAccumulator = accumulator;
     let currentMessages = messages;
     let toolIteration = 0;
-    const effectiveMaxToolRounds = maxToolRounds ?? 3;
+    // Absolute ceiling on caller-supplied maxToolRounds. Even trusted
+    // callers shouldn't be able to drive 10k LLM round-trips per message;
+    // 50 comfortably covers the slide-generation flow (needs ~20) while
+    // bounding worst-case cost from a runaway or malicious caller.
+    const ABSOLUTE_MAX_TOOL_ROUNDS = 50;
+    const effectiveMaxToolRounds = Math.min(maxToolRounds ?? 20, ABSOLUTE_MAX_TOOL_ROUNDS);
+    // Hard safety cap: a small margin above the soft cap. The soft cap sets
+    // `toolChoice: "none"` to force a final text response, which should end
+    // the loop within one more iteration; the hard cap guards against a
+    // model that ignores `toolChoice: "none"` and keeps emitting tool calls.
+    const hardIterationCap = effectiveMaxToolRounds + 5;
     const isConnectorTool = (name: string) => CONNECTOR_PREFIXES.some((p) => name.startsWith(p));
     const connectorCallCount = { total: 0 };
     let connectorLimitHit = false;
+    // Accumulate successful tool results across every loop iteration. The
+    // skipContinuation-only early-return path below returns just the final
+    // round's results, which is fine for one-shot display_* tools. Multi-
+    // round flows (e.g. slide-deck plan_deck + add_slide × N) need every
+    // round's results so the storage layer can persist them as a
+    // `[Tool Execution Results]` message and the chat UI can render the
+    // deck via parseDisplayResults.
+    const accumulatedToolResults: AutoExecutedToolResult[] = [];
 
-    while (currentAccumulator.toolCalls.size > 0 && toolIteration < MAX_TOOL_ITERATIONS) {
+    while (currentAccumulator.toolCalls.size > 0 && toolIteration < hardIterationCap) {
       toolIteration++;
       sseError = null;
 
@@ -690,6 +731,16 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       // Drain thinking smoother before continuation to avoid interleaved output
       await thinkingSmoother.drain();
 
+      // Accumulate this round's successful results for the main return path.
+      // Multi-round flows (e.g. plan_deck + add_slide × N) need every round's
+      // results so the chat UI can render the aggregated display interactions
+      // (e.g. a populated slide deck) via parseDisplayResults.
+      for (const r of executionResults) {
+        if (!r.error && r.name) {
+          accumulatedToolResults.push({ name: r.name, result: r.result });
+        }
+      }
+
       // Build tool result messages — exclude tools with skipContinuation
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
@@ -704,9 +755,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
           data: skipResponse,
           error: null,
           toolsChecksum: currentAccumulator.toolsChecksum,
-          autoExecutedToolResults: executionResults
-            .filter((r) => !r.error && r.name)
-            .map((r) => ({ name: r.name!, result: r.result })),
+          autoExecutedToolResults: accumulatedToolResults,
         };
       }
 
@@ -847,6 +896,7 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
         data: finalResponse,
         error: null,
         toolsChecksum: currentAccumulator.toolsChecksum,
+        autoExecutedToolResults: accumulatedToolResults,
       };
     }
 
