@@ -98,9 +98,9 @@ export async function* withSseKeepalive<T>(
   if (!Number.isFinite(idleMs) || idleMs <= 0) {
     try {
       while (true) {
-        const { done, value } = await iterator.next();
-        if (done) return;
-        yield value;
+        const next = await iterator.next();
+        if (next.done) return;
+        yield next.value;
       }
     } finally {
       await iterator.return?.();
@@ -130,10 +130,10 @@ export async function* withSseKeepalive<T>(
       });
 
       try {
-        const { done, value } = await Promise.race([iterator.next(), idlePromise]);
-        if (done) return;
+        const next = await Promise.race([iterator.next(), idlePromise]);
+        if (next.done) return;
         lastEventAt = Date.now();
-        yield value;
+        yield next.value;
       } finally {
         if (timer !== undefined) clearTimeout(timer);
       }
