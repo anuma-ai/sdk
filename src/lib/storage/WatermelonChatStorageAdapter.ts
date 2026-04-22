@@ -189,19 +189,39 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
       .observe();
     return {
       subscribe: (observer) => {
+        // Guard against two hazards: (1) two rapid emissions whose async
+        // fetches resolve out of order, which would revert the observer to
+        // a stale snapshot; (2) fetches still in flight after the caller
+        // unsubscribes, which would trigger state updates on already-
+        // unmounted components.
+        let latestSeq = 0;
+        let active = true;
         const sub = rx.subscribe({
           next: () => {
+            const mySeq = ++latestSeq;
             // Fetch decrypted view on change.
             void getMessagesOp(this.ctx, conversationId)
-              .then(observer.next)
+              .then((msgs) => {
+                if (active && mySeq === latestSeq) {
+                  // Use a wrapper call instead of `.then(observer.next)` so
+                  // `this`-bound observer implementations are not broken by
+                  // unbound method extraction.
+                  observer.next(msgs);
+                }
+              })
               .catch((err) => {
-                observer.error?.(err);
+                if (active) observer.error?.(err);
               });
           },
           error: observer.error,
           complete: observer.complete,
         });
-        return { unsubscribe: () => sub.unsubscribe() };
+        return {
+          unsubscribe: () => {
+            active = false;
+            sub.unsubscribe();
+          },
+        };
       },
     };
   }
