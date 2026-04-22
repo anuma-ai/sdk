@@ -1,6 +1,6 @@
 # ChatStorageObservable\<T>
 
-Defined in: src/lib/storage/ChatStorageAdapter.ts:68
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:68](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#68)
 
 Minimal interface for an observable (reactive) query result.
 
@@ -33,7 +33,7 @@ backends can implement it without depending on rxjs.
 
 > **subscribe**(`observer`: `object`): `object`
 
-Defined in: src/lib/storage/ChatStorageAdapter.ts:69
+Defined in: [src/lib/storage/ChatStorageAdapter.ts:69](https://github.com/anuma-ai/sdk/blob/main/src/lib/storage/ChatStorageAdapter.ts#69)
 
 **Parameters**
 
