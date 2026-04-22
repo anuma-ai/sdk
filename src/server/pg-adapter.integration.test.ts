@@ -60,8 +60,12 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
 
   beforeAll(async () => {
     const { PostgreSqlContainer } = await import("@testcontainers/postgresql");
+    // Cache the dynamic import of pg and pick `.default` for CJS-interop
+    // builds, falling back to the namespace object. Evaluating the import
+    // expression twice would issue a second module load.
+    const pgModule = await import("pg");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic import of pg, avoids hard dep
-    const pg: any = (await import("pg")).default ?? (await import("pg"));
+    const pg: any = (pgModule as any).default ?? pgModule;
 
     container = (await new PostgreSqlContainer("postgres:16-alpine").start()) as Container;
     pool = new pg.Pool({ connectionString: container.getConnectionUri() });
@@ -219,8 +223,9 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
       async connect() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pg client is untyped here
         const client: any = await pool.connect();
-        // Make any statement over 1ms abort. We issue a no-op pg_sleep to
-        // guarantee the offending statement exceeds the threshold.
+        // Make any statement over 1ms abort. The INSERT+UPDATE batch issued
+        // below reliably exceeds the threshold on any host (round-trip +
+        // index maintenance), so we rely on that rather than a pg_sleep.
         await client.query("SET statement_timeout = 1");
         return {
           query: (text: string, values?: unknown[]) => client.query(text, values),
