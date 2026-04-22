@@ -36,6 +36,55 @@ function wrapSseError(error: unknown): Error {
   }
   return new Error(String(error));
 }
+
+/**
+ * Error thrown when an upstream provider emits an in-stream error event.
+ * Carries the provider's code (e.g. `"timeout"`) so callers can match
+ * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
+ * instead of string-matching the message.
+ */
+export class ProviderStreamError extends Error {
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProviderStreamError";
+    this.code = code;
+  }
+}
+
+/**
+ * Extract a provider-supplied error object from an SSE data chunk, if present.
+ *
+ * Some upstream providers (e.g. Fireworks, via our portal) end a stream by
+ * emitting a normal `data: {"error": {...}}` event instead of raising an HTTP
+ * error or closing the connection abnormally. Those chunks pass right through
+ * the strategy's processStreamChunk (which only looks at content/tool deltas)
+ * and the stream finishes cleanly with empty content — so the client shows a
+ * generic "no response" error instead of the real cause (typically a provider
+ * timeout). Detecting the shape here lets us surface the real message.
+ *
+ * Accepts either `{error: "..."}` or `{error: {code?, message?}}`.
+ */
+function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
+  if (!chunk || typeof chunk !== "object") return null;
+  const errField = (chunk as { error?: unknown }).error;
+  if (!errField) return null;
+  if (typeof errField === "string") return new ProviderStreamError(errField);
+  if (typeof errField === "object") {
+    const err = errField as { code?: unknown; message?: unknown };
+    const code = typeof err.code === "string" ? err.code : undefined;
+    const message = typeof err.message === "string" ? err.message : undefined;
+    if (!code && !message) return null;
+    if (code === "timeout") {
+      return new ProviderStreamError(
+        message ?? "The model provider timed out before returning a response. Please try again.",
+        code
+      );
+    }
+    return new ProviderStreamError(message ?? `Provider error: ${code}`, code);
+  }
+  return null;
+}
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -398,6 +447,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       for await (const chunk of sseResult.stream) {
         if (isDoneMarker(chunk)) continue;
 
+        const providerError = extractProviderStreamError(chunk);
+        if (providerError) {
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
+          throw providerError;
+        }
+
         if (chunk && typeof chunk === "object") {
           const {
             content: contentDelta,
@@ -742,8 +798,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
 
       // Build tool result messages — exclude tools with skipContinuation
+      // EXCEPT when the tool errored. Errors always continue so the model
+      // can see what went wrong and retry; otherwise a skipContinuation
+      // tool that fails leaves the assistant turn silently broken.
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
+        if (r.error || isToolErrorResult(r.result)) return true;
         return executorMap.get(r.name)?.skipContinuation !== true;
       });
 
@@ -831,6 +891,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       try {
         for await (const chunk of continuationResult.stream) {
           if (isDoneMarker(chunk)) continue;
+
+          const providerError = extractProviderStreamError(chunk);
+          if (providerError) {
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            throw providerError;
+          }
 
           if (chunk && typeof chunk === "object") {
             const {
