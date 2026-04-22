@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useChat } from "./useChat";
-import * as sseModule from "../client/core/serverSentEvents.gen";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { ServerSentEventsOptions } from "../client/core/serverSentEvents.gen";
+import * as sseModule from "../client/core/serverSentEvents.gen";
 import { makeMockSseResult } from "../test-utils/mocks";
+import { useChat } from "./useChat";
 
 type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
 
@@ -89,7 +90,9 @@ describe("useChat", () => {
     expect(response?.data).toBeDefined();
 
     // Type guard: after the assertions above, we know this is the success case
-    if (response && response.error === null && response.data) {
+    // and that `data` is the Responses API variant (the test streams a
+    // Responses-shaped SSE payload), so `output` is present.
+    if (response && response.error === null && response.data && "output" in response.data) {
       const content = response.data.output?.[0]?.content;
       expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
     }

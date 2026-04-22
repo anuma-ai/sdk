@@ -99,6 +99,10 @@ export default tseslint.config(
     files: ["src/react/useChat.test.tsx", "src/react/useChat.toolLoop.test.tsx"],
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
+      // Mocks must match the shape of the async APIs they replace, so the
+      // mock body is async even when it never awaits. Keep signatures honest
+      // rather than pepper the file with disable comments.
+      "@typescript-eslint/require-await": "off",
     },
   }
 );

@@ -27,7 +27,10 @@ export function makeMockSseResult<TData = unknown>(
   const stream =
     typeof source === "function"
       ? source()
-      : (async function* () {
+      : // An async generator is required to satisfy the SSE result shape even
+        // though the synchronous branch never awaits internally.
+        // eslint-disable-next-line @typescript-eslint/require-await
+        (async function* () {
           for (const chunk of source) {
             yield chunk;
           }

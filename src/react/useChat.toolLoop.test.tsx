@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useChat } from "./useChat";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as sseModule from "../client/core/serverSentEvents.gen";
 import type { ToolConfig } from "../lib/chat/useChat/types";
 import { makeMockSseResult } from "../test-utils/mocks";
+import { useChat } from "./useChat";
 
 type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
 
@@ -117,7 +118,7 @@ describe("useChat multi-turn tool loop", () => {
   });
 
   it("auto-executes a tool, sends result back, and completes with final text", async () => {
-    const autoTool = makeAutoTool("auto_tool", async (args) => `result for ${args.input}`);
+    const autoTool = makeAutoTool("auto_tool", async (args) => `result for ${String(args.input)}`);
 
     mockCreateSseClient
       .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", { input: "hello" })))
@@ -169,16 +170,15 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    expect(onToolCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        function: expect.objectContaining({ name: "server_tool" }),
-      })
-    );
+    // `expect.objectContaining` returns `any` in vitest; cast to `unknown` at
+    // the boundary so the surrounding object-literal stays strictly typed.
+    const functionMatcher = expect.objectContaining({ name: "server_tool" }) as unknown;
+    expect(onToolCall).toHaveBeenCalledWith(expect.objectContaining({ function: functionMatcher }));
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1); // no continuation
   });
 
   it("handles multiple rounds of tool calls before final response", async () => {
-    const stepTool = makeAutoTool("step_tool", async (args) => `step ${args.step} done`);
+    const stepTool = makeAutoTool("step_tool", async (args) => `step ${String(args.step)} done`);
 
     mockCreateSseClient
       .mockReturnValueOnce(makeMockStream(makeToolCallStream("step_tool", { step: 1 })))
@@ -300,7 +300,7 @@ describe("useChat multi-turn tool loop", () => {
   // ── Safety: MAX_TOOL_ITERATIONS ────────────────────────────
 
   it("stops after 10 tool iterations even if model keeps requesting tools", async () => {
-    const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${args.n}`);
+    const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${String(args.n)}`);
 
     // Every call returns another tool call — the loop must stop at 10
     let callCount = 0;
