@@ -13,7 +13,12 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 // track whether the polyfill succeeded so `ExcelProcessor.process()` can throw
 // an explicit "unsupported runtime" error up front instead of letting the
 // failure surface as an opaque error deep inside exceljs / fstream.
+//
+// We defer logging until `process()` is first called so the logger has been
+// configured by the host; logging at module-init time risks running before
+// the host's logger is installed.
 let umaskPolyfilled = typeof process !== "undefined" && typeof process.umask === "function";
+let umaskPolyfillFailure: { message: string; error?: unknown } | null = null;
 if (typeof process !== "undefined" && typeof process.umask !== "function") {
   try {
     // 0o22 is the default umask on POSIX systems.  The value is only used by
@@ -22,18 +27,20 @@ if (typeof process !== "undefined" && typeof process.umask !== "function") {
     (process as any).umask = (_mask?: number) => 0o22;
     umaskPolyfilled = typeof process.umask === "function";
     if (!umaskPolyfilled) {
-      getLogger().warn(
-        "[ExcelProcessor] process.umask polyfill assignment did not stick; " +
-          "ExcelProcessor.process() will throw on this runtime."
-      );
+      umaskPolyfillFailure = {
+        message:
+          "[ExcelProcessor] process.umask polyfill assignment did not stick; " +
+          "ExcelProcessor.process() will throw on this runtime.",
+      };
     }
   } catch (error) {
     umaskPolyfilled = false;
-    getLogger().warn(
-      "[ExcelProcessor] Failed to polyfill process.umask; " +
+    umaskPolyfillFailure = {
+      message:
+        "[ExcelProcessor] Failed to polyfill process.umask; " +
         "ExcelProcessor.process() will throw on this runtime.",
-      error
-    );
+      error,
+    };
   }
 }
 
@@ -56,6 +63,14 @@ export class ExcelProcessor implements FileProcessor {
   }
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
+    if (umaskPolyfillFailure) {
+      if (umaskPolyfillFailure.error !== undefined) {
+        getLogger().warn(umaskPolyfillFailure.message, umaskPolyfillFailure.error);
+      } else {
+        getLogger().warn(umaskPolyfillFailure.message);
+      }
+      umaskPolyfillFailure = null;
+    }
     if (!umaskPolyfilled && typeof process?.umask !== "function") {
       throw new Error(
         "ExcelProcessor: unsupported runtime. `process.umask` is missing and the " +
