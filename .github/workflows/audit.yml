@@ -21,7 +21,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Audit (high + critical)
-        run: pnpm audit --prod --audit-level high
+      - name: Audit (high + critical, prod only)
+        run: node scripts/audit.mjs
