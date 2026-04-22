@@ -129,14 +129,15 @@ export async function* withSseKeepalive<T>(
         t?.unref?.();
       });
 
+      let next: IteratorResult<T>;
       try {
-        const next = await Promise.race([iterator.next(), idlePromise]);
-        if (next.done) return;
-        lastEventAt = Date.now();
-        yield next.value;
+        next = await Promise.race([iterator.next(), idlePromise]);
       } finally {
         if (timer !== undefined) clearTimeout(timer);
       }
+      if (next.done) return;
+      lastEventAt = Date.now();
+      yield next.value;
     }
   } finally {
     // Ensure the underlying reader is cancelled on timeout, break, or error.
