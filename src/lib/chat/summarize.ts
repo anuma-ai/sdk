@@ -528,7 +528,7 @@ export async function maybeSummarizeHistory(
     // rejection would be unobserved, producing process-level unhandledRejection
     // noise. Logging preserves diagnosability of the underlying failure.
     const observedInProgress = inProgress.catch((err: unknown) => {
-      getLogger().warn("[summarize] in-progress summarization rejected after race", err);
+      getLogger().warn("[summarize] in-progress summarization rejected", err);
       return verbatimFallback;
     });
     try {

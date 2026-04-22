@@ -1011,51 +1011,55 @@ describe("maybeSummarizeHistory", () => {
     // caught to avoid process-level unhandledRejection noise.
     vi.useFakeTimers();
 
-    const msgs = Array.from({ length: 10 }, (_, i) =>
-      makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
-    );
-    mockedGetSummary.mockResolvedValueOnce(null);
-
     // Track unhandledRejection events during the test.
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", onUnhandled);
 
-    // Prime the lock with a promise that resolves AFTER the 15s stale guard
-    // fires and then rejects — this is the exact scenario where the race's
-    // losing branch would otherwise leak an unobserved rejection.
-    const rejectionError = new Error("simulated in-progress failure");
-    let rejectLate: (err: Error) => void = () => {};
-    type LockValue = NonNullable<ReturnType<typeof summarizationLocks.get>>;
-    const lockedPromise = new Promise<Awaited<LockValue>>((_resolve, reject) => {
-      rejectLate = reject;
-    });
-    summarizationLocks.set("conv-test", lockedPromise);
+    try {
+      const msgs = Array.from({ length: 10 }, (_, i) =>
+        makeMsgWithTokens(`msg-${i}`, i % 2 === 0 ? "user" : "assistant", 500)
+      );
+      mockedGetSummary.mockResolvedValueOnce(null);
 
-    const racePromise = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
+      // Prime the lock with a promise that resolves AFTER the 15s stale guard
+      // fires and then rejects — this is the exact scenario where the race's
+      // losing branch would otherwise leak an unobserved rejection.
+      const rejectionError = new Error("simulated in-progress failure");
+      let rejectLate: (err: Error) => void = () => {};
+      type LockValue = NonNullable<ReturnType<typeof summarizationLocks.get>>;
+      const lockedPromise = new Promise<Awaited<LockValue>>((_resolve, reject) => {
+        rejectLate = reject;
+      });
+      summarizationLocks.set("conv-test", lockedPromise);
 
-    // Advance past the 15s stale-guard timeout so staleGuard wins.
-    await vi.advanceTimersByTimeAsync(15_000);
+      const racePromise = maybeSummarizeHistory({ ...baseOptions, messages: msgs });
 
-    const result = await racePromise;
+      // Advance past the 15s stale-guard timeout so staleGuard wins.
+      await vi.advanceTimersByTimeAsync(15_000);
 
-    // Stale guard returned the verbatim fallback.
-    expect(result.messagesToConvert).toEqual(msgs);
-    expect(result.summarySystemMessage).toBeNull();
+      const result = await racePromise;
 
-    // Now reject the in-progress promise late — this rejection must be
-    // observed by our attached .catch handler, not leaked to the process.
-    rejectLate(rejectionError);
+      // Stale guard returned the verbatim fallback.
+      expect(result.messagesToConvert).toEqual(msgs);
+      expect(result.summarySystemMessage).toBeNull();
 
-    // Flush pending microtasks so any unhandledRejection would surface.
-    await vi.advanceTimersByTimeAsync(0);
-    await Promise.resolve();
-    await Promise.resolve();
+      // Now reject the in-progress promise late — this rejection must be
+      // observed by our attached .catch handler, not leaked to the process.
+      rejectLate(rejectionError);
 
-    process.off("unhandledRejection", onUnhandled);
-    expect(unhandled).toEqual([]);
+      // Flush pending microtasks so any unhandledRejection would surface.
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
+      await Promise.resolve();
 
-    summarizationLocks.clear();
-    vi.useRealTimers();
+      expect(unhandled).toEqual([]);
+    } finally {
+      // Teardown must run even if an assertion throws; otherwise fake timers
+      // and the unhandledRejection listener leak into subsequent tests.
+      process.off("unhandledRejection", onUnhandled);
+      summarizationLocks.clear();
+      vi.useRealTimers();
+    }
   });
 });
