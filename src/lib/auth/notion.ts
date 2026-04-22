@@ -54,19 +54,15 @@ export class NotionError extends Error {
       cause?: unknown;
     } = {}
   ) {
-    // Pass cause through the native ES2022 Error constructor so it is set as
-    // a non-enumerable own property on the instance, matching the behaviour
-    // of built-in causes from `new Error(msg, { cause })` call sites.
-    // Runtime support is fine in all targeted environments (Node 16.9+,
-    // modern browsers); the `@ts-expect-error` below is only required because
-    // this project's tsconfig still targets ES2020, whose lib typings predate
-    // the options object.
-    // @ts-expect-error ES2022 Error options not yet in ES2020 lib typings
-    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
+    super(message);
     this.name = "NotionError";
     this.status = options.status;
     this.endpoint = options.endpoint;
     this.code = options.code;
+    if (options.cause !== undefined) {
+      // Preserve cause for diagnostics (ES2022).
+      (this as { cause?: unknown }).cause = options.cause;
+    }
   }
 }
 
