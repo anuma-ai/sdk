@@ -1884,6 +1884,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             batchTimeoutMs,
             "useChatStorage.extractAndStoreEncryptedMCPImages:downloadBatch"
           );
+        } catch (err) {
+          if (err instanceof TimeoutError) {
+            batchController.abort();
+          }
+          throw err;
         } finally {
           clearTimeout(batchTimeoutId);
         }
