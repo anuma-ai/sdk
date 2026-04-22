@@ -35,6 +35,13 @@ export async function withTimeout<T>(
     return promise;
   }
 
+  // If the timer wins the race, the original `promise` keeps running and may
+  // reject later (e.g. a failed OPFS read). Attach a silent observer so that
+  // late rejection does not surface as an unhandled promise rejection. The
+  // main `await Promise.race` below still propagates a rejection on the
+  // normal path because promises can have multiple handlers.
+  promise.catch(() => {});
+
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([

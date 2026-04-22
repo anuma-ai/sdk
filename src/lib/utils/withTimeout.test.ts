@@ -56,4 +56,32 @@ describe("withTimeout", () => {
     await expect(withTimeout(Promise.resolve("ok"), 0, "zero")).resolves.toBe("ok");
     await expect(withTimeout(Promise.resolve("ok"), -5, "negative")).resolves.toBe("ok");
   });
+
+  it("does not surface an unhandled rejection when the promise rejects after the timeout", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      // Build a promise we can reject manually, so we can reliably sequence:
+      // start withTimeout → timeout fires → reject the original promise late.
+      let rejectLate: (err: Error) => void = () => undefined;
+      const promise = new Promise<number>((_resolve, reject) => {
+        rejectLate = reject;
+      });
+
+      await expect(withTimeout(promise, 5, "race-loser")).rejects.toBeInstanceOf(TimeoutError);
+
+      // Now reject the original promise — without the internal silent observer
+      // this would bubble up as an unhandled rejection.
+      rejectLate(new Error("late failure"));
+
+      // Flush microtasks / nextTick where unhandledRejection would fire.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
 });

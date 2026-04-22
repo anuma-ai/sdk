@@ -1832,7 +1832,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           size: number;
           url: string;
           dimensions: { width: number; height: number } | undefined;
-        }>[];
+        }>[] = [];
         try {
           results = await withTimeout(
             Promise.allSettled(
@@ -1886,6 +1886,11 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           );
         } finally {
           clearTimeout(batchTimeoutId);
+          // If withTimeout rejected, the batchTimeoutId was cleared above but
+          // batchController was never aborted — every in-flight fetch would
+          // keep running in the background. Aborting here honours the
+          // documented "outer controller aborts every in-flight fetch" guarantee.
+          batchController.abort();
         }
 
         // 3. Build urlToMediaId map from successful downloads
