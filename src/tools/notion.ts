@@ -171,7 +171,10 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   // Get session ID from response header
   const sessionId = response.headers.get("Mcp-Session-Id");
   if (!sessionId) {
-    throw new Error("No Mcp-Session-Id returned from initialization");
+    throw new NotionError("No Mcp-Session-Id returned from initialization", {
+      status: response.status,
+      endpoint: MCP_HTTP_ENDPOINT,
+    });
   }
 
   // Parse and validate response before caching (handles both JSON and SSE)
@@ -179,7 +182,14 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    throw new Error(`MCP initialization error: ${errMsg}`);
+    const errCode =
+      typeof err.code === "string" || typeof err.code === "number"
+        ? String(err.code)
+        : undefined;
+    throw new NotionError(`MCP initialization error: ${errMsg}`, {
+      endpoint: MCP_HTTP_ENDPOINT,
+      code: errCode,
+    });
   }
 
   // Send required notifications/initialized to complete the MCP handshake
@@ -291,7 +301,14 @@ async function callMCPTool<T>(
       if (retryJsonRpcResponse.error) {
         const err = retryJsonRpcResponse.error as Record<string, unknown>;
         const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-        throw new Error(`MCP tool error: ${errMsg}`);
+        const errCode =
+          typeof err.code === "string" || typeof err.code === "number"
+            ? String(err.code)
+            : undefined;
+        throw new NotionError(`MCP tool error: ${errMsg}`, {
+          endpoint: MCP_HTTP_ENDPOINT,
+          code: errCode,
+        });
       }
 
       return truncateToolResult(retryJsonRpcResponse.result) as T;
@@ -318,7 +335,14 @@ async function callMCPTool<T>(
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    throw new Error(`MCP tool error: ${errMsg}`);
+    const errCode =
+      typeof err.code === "string" || typeof err.code === "number"
+        ? String(err.code)
+        : undefined;
+    throw new NotionError(`MCP tool error: ${errMsg}`, {
+      endpoint: MCP_HTTP_ENDPOINT,
+      code: errCode,
+    });
   }
 
   return truncateToolResult(jsonRpcResponse.result) as T;
