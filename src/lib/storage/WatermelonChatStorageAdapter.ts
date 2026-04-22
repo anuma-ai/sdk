@@ -17,7 +17,6 @@ import type { EmbeddedWalletSignerFn, SignMessageFn } from "../../react/useEncry
 import { Conversation, Message } from "../db/chat/models";
 import {
   clearMessagesOp,
-  conversationToStoredRaw,
   createConversationOp,
   createMessageOp,
   deleteConversationOp,
@@ -129,7 +128,16 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
     return {
       subscribe: (observer) => {
         const sub = rx.subscribe({
-          next: (records) => observer.next(records.map(conversationToStoredRaw)),
+          next: () => {
+            const getConversationsPromise =
+              options?.projectId !== undefined
+                ? getConversationsByProjectOp(this.ctx, options.projectId)
+                : getConversationsOp(this.ctx);
+            // Fetch decrypted view on change.
+            void getConversationsPromise.then(observer.next).catch((err) => {
+              observer.error?.(err);
+            });
+          },
           error: observer.error,
           complete: observer.complete,
         });
@@ -215,12 +223,10 @@ export class WatermelonChatStorageAdapter implements ChatStorageAdapter {
   // ---------- Transactions ----------
 
   /**
-   * WatermelonDB nests `database.write()` safely: each method we call inside
-   * the callback already wraps its own writes, and Watermelon collapses the
-   * nesting under a single action. The callback receives the same adapter
-   * instance.
+   * Delegate to adapter methods directly to avoid nesting `database.write()`
+   * calls, since each operation method already manages its own writer.
    */
   write<T>(fn: (adapter: ChatStorageAdapter) => Promise<T>): Promise<T> {
-    return this.ctx.database.write(() => fn(this));
+    return fn(this);
   }
 }
