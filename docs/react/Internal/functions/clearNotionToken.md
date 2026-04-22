@@ -2,7 +2,7 @@
 
 > **clearNotionToken**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/notion.ts:557](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#557)
+Defined in: [src/lib/auth/notion.ts:561](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#561)
 
 Clear stored token data from all storage locations
 

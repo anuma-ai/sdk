@@ -2,7 +2,7 @@
 
 > **revokeNotionAccess**(`walletAddress?`: `string`): `void`
 
-Defined in: [src/lib/auth/notion.ts:1107](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1107)
+Defined in: [src/lib/auth/notion.ts:1111](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#1111)
 
 Revoke Notion access (clears local tokens)
 Note: User must revoke via Notion settings for complete revocation
