@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 // The generated OpenAPI client ships with two hard-coded type-safety escapes
 // that defeat compile-time checking on the streaming hot path:
@@ -18,7 +19,9 @@ import process from "node:process";
 // fails loudly if the upstream template changes shape, so a future update to
 // `@hey-api/openapi-ts` cannot silently reintroduce the escape.
 
-const PROJECT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+// `fileURLToPath` handles the Windows edge case where `new URL(...).pathname`
+// returns `/C:/...` with a leading slash, which would break path.resolve.
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const patches = [
   {
@@ -71,7 +74,10 @@ for (const patch of patches) {
     continue;
   }
 
-  const patched = original.replace(patch.find, patch.replace);
+  // Use replaceAll so a future upstream template with the same snippet
+  // repeated would be fully patched instead of silently leaving the second
+  // occurrence in place.
+  const patched = original.replaceAll(patch.find, patch.replace);
   writeFileSync(absolute, patched);
   console.log(`patch-generated-client: patched ${patch.file}`);
 }
