@@ -5,7 +5,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/polyfills/**"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
