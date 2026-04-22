@@ -82,7 +82,7 @@
     "dist"
   ],
   "scripts": {
-    "spec": "openapi-ts",
+    "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
