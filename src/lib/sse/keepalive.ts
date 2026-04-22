@@ -154,7 +154,12 @@ export async function* withSseKeepalive<T>(
       }
     }
   } finally {
-    // Ensure the underlying reader is cancelled on timeout, break, or error.
-    await iterator.return?.();
+    // Best-effort cancellation: do not await `return()` because async
+    // generators queue `return()` behind an in-flight `next()`, which can
+    // hang forever on a dead socket and block timeout propagation.
+    const returnPromise = iterator.return?.();
+    if (returnPromise) {
+      void Promise.resolve(returnPromise).catch(() => {});
+    }
   }
 }
