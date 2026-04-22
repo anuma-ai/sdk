@@ -962,6 +962,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         thinking,
         imageModel,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Eager key derivation: if wallet is present but key isn't, try to derive it now
@@ -1309,6 +1310,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: finalizeThoughtProcess(thoughtProcess),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              uniqueId: assistantUniqueId,
             });
             // Embed assistant message asynchronously (non-blocking)
             void embedMessageAsync(storedAssistantMessage);
@@ -1362,6 +1364,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: finalizeThoughtProcess(thoughtProcess),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            uniqueId: assistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -1453,6 +1456,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;

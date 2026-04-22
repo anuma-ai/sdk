@@ -297,12 +297,12 @@ describe("useChat multi-turn tool loop", () => {
     expect(messageOutput?.content?.[0]?.text).toBe("Final answer");
   });
 
-  // ── Safety: MAX_TOOL_ITERATIONS ────────────────────────────
+  // ── Safety: hard iteration cap ─────────────────────────────
 
-  it("stops after 10 tool iterations even if model keeps requesting tools", async () => {
+  it("stops at the hard cap (maxToolRounds + 5) even if model keeps requesting tools", async () => {
     const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${String(args.n)}`);
 
-    // Every call returns another tool call — the loop must stop at 10
+    // Every call returns another tool call — the loop must stop at the hard cap.
     let callCount = 0;
     mockCreateSseClient.mockImplementation(() => {
       callCount++;
@@ -317,11 +317,12 @@ describe("useChat multi-turn tool loop", () => {
         messages: [{ role: "user", content: [{ type: "text", text: "Loop" }] }],
         model: "test-model",
         tools: [loopTool],
+        maxToolRounds: 3,
       });
     });
 
-    // 1 initial + 10 continuations = 11 total SSE calls
-    expect(mockCreateSseClient).toHaveBeenCalledTimes(11);
+    // 1 initial + (3 + 5) continuations = 9 total SSE calls
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(9);
     // Should still return a response (not hang or throw)
     expect(response).toBeDefined();
     expect(response?.error).toBeNull();
