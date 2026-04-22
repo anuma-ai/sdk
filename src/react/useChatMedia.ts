@@ -152,7 +152,6 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         // 2. Download images → get mediaIds
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
-        const urlToMediaIdMap = new Map<string, string>();
 
         const results = await Promise.allSettled(
           urls.map(async ({ url }) => {
@@ -198,14 +197,12 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
           })
         );
 
-        // 3. Build urlToMediaId map from successful downloads
+        // 3. Collect mediaOptions from successful downloads
         results.forEach((result, i) => {
           const { url, model } = urls[i];
 
           if (result.status === "fulfilled") {
             const { mediaId, fileName, mimeType, size, dimensions } = result.value;
-
-            urlToMediaIdMap.set(url, mediaId);
 
             mediaOptions.push({
               mediaId,
