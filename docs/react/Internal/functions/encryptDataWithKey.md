@@ -2,7 +2,7 @@
 
 > **encryptDataWithKey**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `key`: `CryptoKey`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:612](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#612)
+Defined in: [src/react/useEncryption.ts:639](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#639)
 
 **`Internal`**
 

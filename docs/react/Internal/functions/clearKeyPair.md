@@ -2,7 +2,7 @@
 
 > **clearKeyPair**(`address`: `string`): `void`
 
-Defined in: [src/react/useEncryption.ts:1182](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1182)
+Defined in: [src/react/useEncryption.ts:1228](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1228)
 
 Clears the key pair for a wallet address from memory and localStorage
 

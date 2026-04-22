@@ -31,6 +31,15 @@ const encryptionKeyStore = new Map<string, StoredKeys>();
 const pendingKeyRequests = new Map<string, Promise<void>>();
 
 /**
+ * Monotonic counter incremented whenever `clearAllEncryptionState()` runs.
+ * In-flight async key/key-pair derivations capture this value before signing
+ * and refuse to write back into the module-level stores if the epoch has
+ * advanced in the meantime — preventing a stale session's signature from
+ * silently repopulating the stores after logout.
+ */
+let sessionEpoch = 0;
+
+/**
  * Cache for imported CryptoKey objects.
  * Avoids re-importing the same key on every encrypt/decrypt operation.
  * Keys are cached per wallet address and cleared when the encryption key is cleared.
@@ -163,21 +172,39 @@ export function clearEncryptionKey(address: string): void {
  * ```
  */
 export function clearAllEncryptionState(): void {
+  // Bump the epoch first so any in-flight `requestEncryptionKey` /
+  // `requestKeyPair` promises that resolve after this point become no-ops
+  // instead of re-populating the stores with the previous session's material.
+  sessionEpoch += 1;
+
   encryptionKeyStore.clear();
   cryptoKeyCache.clear();
   keyAvailableCallbacks.clear();
   pendingKeyRequests.clear();
 
-  // Remove persisted (encrypted) ECDH key pairs from localStorage so the next
-  // user on a shared browser can't decrypt them if they happen to derive the
-  // same wallet signature.
-  if (typeof window !== "undefined") {
-    for (const address of keyPairStore.keys()) {
-      try {
-        localStorage.removeItem(`${KEYPAIR_STORAGE_PREFIX}${address}`);
-      } catch {
-        /* ignore storage errors */
+  // Remove every persisted (encrypted) ECDH key pair from localStorage. We
+  // scan localStorage directly rather than iterating `keyPairStore`, because
+  // after a page refresh the in-memory map is empty while persisted entries
+  // may still remain — relying on the map here would silently leave stale
+  // entries behind and defeat the cross-user key-leakage fix.
+  if (typeof localStorage !== "undefined") {
+    try {
+      const staleKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(KEYPAIR_STORAGE_PREFIX)) {
+          staleKeys.push(key);
+        }
       }
+      for (const key of staleKeys) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore per-entry storage errors */
+        }
+      }
+    } catch {
+      /* ignore storage errors (e.g. localStorage access denied) */
     }
   }
 
@@ -799,6 +826,7 @@ export async function requestEncryptionKey(
     return;
   }
 
+  const startEpoch = sessionEpoch;
   const promise = (async () => {
     // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
     // Always disable wallet UIs for a seamless experience
@@ -828,6 +856,13 @@ export async function requestEncryptionKey(
       deriveKeyFromSignature(signature),
       deriveKeyFromSignatureV3(signature),
     ]);
+
+    // If `clearAllEncryptionState()` ran while we were signing/deriving, drop
+    // the result on the floor — writing it back would silently restore the
+    // previous session's key material after logout.
+    if (sessionEpoch !== startEpoch) {
+      return;
+    }
 
     // Store both keys in memory for dual-key migration support
     setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
@@ -1085,10 +1120,14 @@ export async function requestKeyPair(
     return; // Key pair already exists in memory, no need to sign again
   }
 
+  const startEpoch = sessionEpoch;
+
   // Try to load from localStorage if encryption key is available
   try {
     const persistedKeyPair = await loadPersistedKeyPair(walletAddress);
     if (persistedKeyPair) {
+      // Abort if logout raced with us.
+      if (sessionEpoch !== startEpoch) return;
       // Store in memory for faster access
       setStoredKeyPair(walletAddress, persistedKeyPair);
       return; // Successfully loaded from persistence, no need to sign
@@ -1125,6 +1164,13 @@ export async function requestKeyPair(
 
   // Derive key pair from signature
   const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
+
+  // If `clearAllEncryptionState()` ran while we were signing/deriving, drop
+  // the result on the floor — writing it back would silently restore the
+  // previous session's key pair after logout.
+  if (sessionEpoch !== startEpoch) {
+    return;
+  }
 
   // Store the derived key pair in memory
   setStoredKeyPair(walletAddress, keyPair);

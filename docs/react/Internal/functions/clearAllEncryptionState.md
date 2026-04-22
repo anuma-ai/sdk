@@ -2,7 +2,7 @@
 
 > **clearAllEncryptionState**(): `void`
 
-Defined in: [src/react/useEncryption.ts:165](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#165)
+Defined in: [src/react/useEncryption.ts:174](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#174)
 
 Clears all encryption-related state from memory and any derived persistence.
 

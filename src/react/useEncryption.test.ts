@@ -370,6 +370,57 @@ describe("useEncryption - Key Pair Generation", () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
+    it("removes persisted keypair entries even when the in-memory map is empty", async () => {
+      // Simulates the post-page-refresh scenario: keyPairStore is empty, but
+      // encrypted keypair entries remain in localStorage. The teardown must
+      // scan localStorage directly rather than relying on the in-memory map.
+      const address1 = "0x1111111111111111111111111111111111111111";
+      const address2 = "0x2222222222222222222222222222222222222222";
+      localStorage.setItem(`ecdh_keypair_${address1}`, "stale-ciphertext-1");
+      localStorage.setItem(`ecdh_keypair_${address2}`, "stale-ciphertext-2");
+      // A non-keypair entry should be preserved.
+      localStorage.setItem("unrelated_key", "preserved");
+
+      // Sanity: no in-memory key pairs.
+      expect(hasKeyPair(address1)).toBe(false);
+      expect(hasKeyPair(address2)).toBe(false);
+
+      clearAllEncryptionState();
+
+      expect(localStorage.getItem(`ecdh_keypair_${address1}`)).toBeNull();
+      expect(localStorage.getItem(`ecdh_keypair_${address2}`)).toBeNull();
+      expect(localStorage.getItem("unrelated_key")).toBe("preserved");
+    });
+
+    it("drops in-flight requestEncryptionKey results that resolve after teardown", async () => {
+      const address = "0x1234567890123456789012345678901234567890";
+
+      // A sign function whose promise we can resolve manually, so we can
+      // reliably sequence: start request, tear down, then let it finish.
+      let releaseSignature: (sig: string) => void = () => undefined;
+      const slowSignMessage = vi.fn(
+        async () =>
+          new Promise<string>((resolve) => {
+            releaseSignature = resolve;
+          })
+      ) as unknown as SignMessageFn;
+
+      // Kick off a request that won't resolve until we release it.
+      const inFlight = requestEncryptionKey(address, slowSignMessage);
+
+      // Tear down while the request is mid-flight.
+      clearAllEncryptionState();
+
+      // Let the signing promise finish.
+      await act(async () => {
+        releaseSignature(createMockSignature(SIGN_MESSAGE));
+        await inFlight;
+      });
+
+      // State must remain cleared; the late resolution must not repopulate it.
+      expect(hasEncryptionKey(address)).toBe(false);
+    });
+
     it("is reachable via the clearAllEncryptionKeys alias", async () => {
       const address = "0x1234567890123456789012345678901234567890";
 

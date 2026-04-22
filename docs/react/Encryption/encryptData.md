@@ -2,7 +2,7 @@
 
 > **encryptData**(`plaintext`: `string` | `Uint8Array`<`ArrayBufferLike`>, `address`: `string`): `Promise`<`string`>
 
-Defined in: [src/react/useEncryption.ts:511](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#511)
+Defined in: [src/react/useEncryption.ts:538](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#538)
 
 Encrypts data using AES-GCM with the stored encryption key.
 

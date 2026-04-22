@@ -2,7 +2,7 @@
 
 > **getEncryptionKey**(`address`: `string`, `version`: `EncryptionKeyVersion`): `Promise`<`CryptoKey`>
 
-Defined in: [src/react/useEncryption.ts:450](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#450)
+Defined in: [src/react/useEncryption.ts:477](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#477)
 
 Gets the encryption key from in-memory storage and imports it as a CryptoKey.
 The key must have been previously requested via requestEncryptionKey.

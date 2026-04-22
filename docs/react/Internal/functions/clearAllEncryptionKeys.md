@@ -2,7 +2,7 @@
 
 > **clearAllEncryptionKeys**(): `void`
 
-Defined in: [src/react/useEncryption.ts:195](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#195)
+Defined in: [src/react/useEncryption.ts:222](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#222)
 
 Clears all encryption keys from memory.
 
