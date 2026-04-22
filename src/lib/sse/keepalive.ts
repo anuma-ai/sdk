@@ -105,7 +105,6 @@ export async function* withSseKeepalive<T>(
     } finally {
       await iterator.return?.();
     }
-    return;
   }
 
   let lastEventAt = Date.now();
@@ -129,12 +128,28 @@ export async function* withSseKeepalive<T>(
         t?.unref?.();
       });
 
+      // Issue the pending `iterator.next()` call and attach a silent
+      // observer so that, if the idle timer wins the race and we throw
+      // out of this loop, a later rejection of the still-pending
+      // `iterator.next()` (e.g. because the outer `finally` aborted the
+      // underlying fetch) does not surface as an unhandled rejection.
+      // Awaiting `nextPromise` below still propagates rejections normally.
+      const nextPromise = iterator.next();
+      nextPromise.catch(() => {});
+
       try {
-        const next = await Promise.race([iterator.next(), idlePromise]);
+        const next = await Promise.race([nextPromise, idlePromise]);
+        // Event arrived before the idle timer — cancel the timer
+        // immediately so it cannot fire while we're suspended on `yield`
+        // waiting for the consumer to call `.next()` on us.
+        clearTimeout(timer);
+        timer = undefined;
         if (next.done) return;
         lastEventAt = Date.now();
         yield next.value;
       } finally {
+        // Covers the throw path (timer fired or iterator rejected); the
+        // inline clear above has already nulled `timer` on the happy path.
         if (timer !== undefined) clearTimeout(timer);
       }
     }
