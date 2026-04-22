@@ -1,10 +1,32 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useChat } from "./useChat";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as sseModule from "../client/core/serverSentEvents.gen";
 import type { ToolConfig } from "../lib/chat/useChat/types";
+import { makeMockSseResult } from "../test-utils/mocks";
+import { useChat } from "./useChat";
 
 type SendMessageResult = Awaited<ReturnType<ReturnType<typeof useChat>["sendMessage"]>>;
+
+/** Shape of messages echoed back in the `input` array of a continuation request. */
+interface InputMessage {
+  role: string;
+  tool_call_id?: string;
+  content: Array<{ type: string; text: string }>;
+}
+
+/** Shape of tool definitions in the outgoing request body. */
+interface SentToolDefinition {
+  type?: string;
+  name?: string;
+  function?: { name?: string };
+}
+
+/** Shape of the request body we JSON-parse out of the mocked SSE options. */
+interface RequestBody {
+  input: InputMessage[];
+  tools?: SentToolDefinition[];
+}
 
 vi.mock("../client/core/serverSentEvents.gen", async (importOriginal) => {
   const orig = await importOriginal<typeof sseModule>();
@@ -16,14 +38,12 @@ vi.mock("../client/core/serverSentEvents.gen", async (importOriginal) => {
 
 const mockCreateSseClient = vi.mocked(sseModule.createSseClient);
 
-function makeMockStream(chunks: unknown[]) {
-  const stream = (async function* () {
-    for (const chunk of chunks) {
-      yield chunk;
-    }
-  })();
-  return { stream };
-}
+/**
+ * Wrap a fixed list of SSE chunks (or a generator factory for streams that
+ * throw mid-iteration) as a typed `ServerSentEventsResult`. Replaces the
+ * previous `{ stream: ... } as any` pattern that hid interface drift.
+ */
+const makeMockStream = makeMockSseResult;
 
 function makeToolCallStream(toolName: string, toolArgs: Record<string, unknown>) {
   return [
@@ -87,9 +107,9 @@ function makeAutoTool(
 }
 
 /** Helper to extract the request body passed to createSseClient */
-function getRequestBody(callIndex: number): any {
-  const opts = mockCreateSseClient.mock.calls[callIndex][0] as any;
-  return JSON.parse(opts.serializedBody);
+function getRequestBody(callIndex: number): RequestBody {
+  const opts = mockCreateSseClient.mock.calls[callIndex][0];
+  return JSON.parse(opts.serializedBody as string) as RequestBody;
 }
 
 describe("useChat multi-turn tool loop", () => {
@@ -98,13 +118,11 @@ describe("useChat multi-turn tool loop", () => {
   });
 
   it("auto-executes a tool, sends result back, and completes with final text", async () => {
-    const autoTool = makeAutoTool("auto_tool", async (args) => `result for ${args.input}`);
+    const autoTool = makeAutoTool("auto_tool", async (args) => `result for ${String(args.input)}`);
 
     mockCreateSseClient
-      .mockReturnValueOnce(
-        makeMockStream(makeToolCallStream("auto_tool", { input: "hello" })) as any
-      )
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Here is the result.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", { input: "hello" })))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Here is the result.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -122,7 +140,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // Verify the continuation includes tool result in messages
     const continuationBody = getRequestBody(1);
-    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    const toolResultMsg = continuationBody.input.find((m: InputMessage) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg.content[0].text).toContain("result for hello");
   });
@@ -138,7 +156,7 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient.mockReturnValue(
-      makeMockStream(makeToolCallStream("server_tool", { input: "test" })) as any
+      makeMockStream(makeToolCallStream("server_tool", { input: "test" }))
     );
 
     const onToolCall = vi.fn();
@@ -152,21 +170,20 @@ describe("useChat multi-turn tool loop", () => {
       });
     });
 
-    expect(onToolCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        function: expect.objectContaining({ name: "server_tool" }),
-      })
-    );
+    // `expect.objectContaining` returns `any` in vitest; cast to `unknown` at
+    // the boundary so the surrounding object-literal stays strictly typed.
+    const functionMatcher = expect.objectContaining({ name: "server_tool" }) as unknown;
+    expect(onToolCall).toHaveBeenCalledWith(expect.objectContaining({ function: functionMatcher }));
     expect(mockCreateSseClient).toHaveBeenCalledTimes(1); // no continuation
   });
 
   it("handles multiple rounds of tool calls before final response", async () => {
-    const stepTool = makeAutoTool("step_tool", async (args) => `step ${args.step} done`);
+    const stepTool = makeAutoTool("step_tool", async (args) => `step ${String(args.step)} done`);
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("step_tool", { step: 1 })) as any)
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("step_tool", { step: 2 })) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("All steps completed.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("step_tool", { step: 1 })))
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("step_tool", { step: 2 })))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("All steps completed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -229,8 +246,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done with both tools.")) as any);
+      .mockReturnValueOnce(makeMockStream(bothToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done with both tools.")));
 
     const onToolCall = vi.fn();
     const { result } = renderHook(() => useChat({ getToken: async () => "token", onToolCall }));
@@ -249,7 +266,7 @@ describe("useChat multi-turn tool loop", () => {
     expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
     // Verify continuation includes both tool results
     const continuationBody = getRequestBody(1);
-    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    const toolResults = continuationBody.input.filter((m: InputMessage) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
   });
 
@@ -257,8 +274,8 @@ describe("useChat multi-turn tool loop", () => {
     const autoTool = makeAutoTool("auto_tool", async () => "result");
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Final answer")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Final answer")));
 
     const onFinish = vi.fn();
     const { result } = renderHook(() => useChat({ getToken: async () => "token", onFinish }));
@@ -272,21 +289,24 @@ describe("useChat multi-turn tool loop", () => {
     });
 
     expect(onFinish).toHaveBeenCalledTimes(1);
-    const finishArg = onFinish.mock.calls[0][0];
-    const messageOutput = finishArg.output?.find((o: any) => o.type === "message");
+    interface FinishArg {
+      output?: Array<{ type: string; content?: Array<{ text?: string }> }>;
+    }
+    const finishArg = onFinish.mock.calls[0][0] as FinishArg;
+    const messageOutput = finishArg.output?.find((o) => o.type === "message");
     expect(messageOutput?.content?.[0]?.text).toBe("Final answer");
   });
 
   // ── Safety: hard iteration cap ─────────────────────────────
 
   it("stops at the hard cap (maxToolRounds + 5) even if model keeps requesting tools", async () => {
-    const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${args.n}`);
+    const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${String(args.n)}`);
 
     // Every call returns another tool call — the loop must stop at the hard cap.
     let callCount = 0;
     mockCreateSseClient.mockImplementation(() => {
       callCount++;
-      return makeMockStream(makeToolCallStream("loop_tool", { n: callCount })) as any;
+      return makeMockStream(makeToolCallStream("loop_tool", { n: callCount }));
     });
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
@@ -317,8 +337,8 @@ describe("useChat multi-turn tool loop", () => {
     });
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("failing_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("I see the tool failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("failing_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("I see the tool failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -337,7 +357,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // The continuation should contain the error in the tool result message
     const continuationBody = getRequestBody(1);
-    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    const toolResultMsg = continuationBody.input.find((m: InputMessage) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg.content[0].text).toContain("Tool execution failed");
     expect(toolResultMsg.content[0].text).toContain("Tool crashed");
@@ -351,18 +371,20 @@ describe("useChat multi-turn tool loop", () => {
     // First call: tool call stream (completes normally)
     // Second call: continuation stream that throws AbortError
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", {})) as any)
-      .mockReturnValueOnce({
-        stream: (async function* () {
-          yield {
-            type: "response.created",
-            response: { id: "resp-2", model: "test-model" },
-          };
-          const error = new Error("The operation was aborted");
-          error.name = "AbortError";
-          throw error;
-        })(),
-      } as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("auto_tool", {})))
+      .mockReturnValueOnce(
+        makeMockStream(() =>
+          (async function* () {
+            yield {
+              type: "response.created",
+              response: { id: "resp-2", model: "test-model" },
+            };
+            const error = new Error("The operation was aborted");
+            error.name = "AbortError";
+            throw error;
+          })()
+        )
+      );
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -397,8 +419,8 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("slow_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Tool timed out.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("slow_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Tool timed out.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -414,7 +436,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // The continuation should contain the timeout error
     const continuationBody = getRequestBody(1);
-    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    const toolResultMsg = continuationBody.input.find((m: InputMessage) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg.content[0].text).toContain("timed out");
   });
@@ -434,8 +456,8 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("save_tool", { data: "test" })) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Memory saved!")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("save_tool", { data: "test" })))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Memory saved!")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -469,8 +491,8 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("flaky_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("I see the tool failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("flaky_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("I see the tool failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -486,7 +508,9 @@ describe("useChat multi-turn tool loop", () => {
 
     // Tool should still be present since it failed
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    const toolNames = continuationBody.tools?.map(
+      (t: SentToolDefinition) => t.function?.name ?? t.name
+    );
     expect(toolNames).toContain("flaky_tool");
   });
 
@@ -505,10 +529,8 @@ describe("useChat multi-turn tool loop", () => {
     // First call: model calls memory_save tool
     // Second call: model responds with text (no tools available to call)
     mockCreateSseClient
-      .mockReturnValueOnce(
-        makeMockStream(makeToolCallStream("memory_save", { content: "pasta" })) as any
-      )
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Got it, I'll remember that!")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("memory_save", { content: "pasta" })))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Got it, I'll remember that!")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -610,8 +632,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+      .mockReturnValueOnce(makeMockStream(bothToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -717,8 +739,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(threeToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+      .mockReturnValueOnce(makeMockStream(threeToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -790,8 +812,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(cycleStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Cycle detected.")) as any);
+      .mockReturnValueOnce(makeMockStream(cycleStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Cycle detected.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -808,7 +830,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // The continuation should contain error messages for both tools
     const continuationBody = getRequestBody(1);
-    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    const toolResults = continuationBody.input.filter((m: InputMessage) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
     for (const tr of toolResults) {
       expect(tr.content[0].text).toContain("dependency cycle");
@@ -879,8 +901,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("File write failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(bothToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("File write failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -897,11 +919,11 @@ describe("useChat multi-turn tool loop", () => {
 
     // Both tools should have results sent to the model
     const continuationBody = getRequestBody(1);
-    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    const toolResults = continuationBody.input.filter((m: InputMessage) => m.role === "tool");
     expect(toolResults).toHaveLength(2);
 
     // display_app should get a failed dependency error (not executed)
-    const displayResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
+    const displayResult = toolResults.find((m: InputMessage) => m.tool_call_id === "call-2");
     expect(displayResult?.content[0].text).toContain("failed dependencies: create_file");
   });
 
@@ -970,8 +992,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("File failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(bothToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("File failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1076,8 +1098,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(threeToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("A failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(threeToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("A failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1094,14 +1116,14 @@ describe("useChat multi-turn tool loop", () => {
 
     // Both B and C should report "failed dependencies", NOT "dependency cycle"
     const continuationBody = getRequestBody(1);
-    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    const toolResults = continuationBody.input.filter((m: InputMessage) => m.role === "tool");
     expect(toolResults).toHaveLength(3);
 
-    const toolBResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
+    const toolBResult = toolResults.find((m: InputMessage) => m.tool_call_id === "call-2");
     expect(toolBResult?.content[0].text).toContain("failed dependencies");
     expect(toolBResult?.content[0].text).not.toContain("dependency cycle");
 
-    const toolCResult = toolResults.find((m: any) => m.tool_call_id === "call-3");
+    const toolCResult = toolResults.find((m: InputMessage) => m.tool_call_id === "call-3");
     expect(toolCResult?.content[0].text).toContain("failed dependencies");
     expect(toolCResult?.content[0].text).not.toContain("dependency cycle");
   });
@@ -1196,8 +1218,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(reverseStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("A failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(reverseStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("A failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1212,15 +1234,15 @@ describe("useChat multi-turn tool loop", () => {
     expect(executionOrder).toEqual(["tool_a"]);
 
     const continuationBody = getRequestBody(1);
-    const toolResults = continuationBody.input.filter((m: any) => m.role === "tool");
+    const toolResults = continuationBody.input.filter((m: InputMessage) => m.role === "tool");
     expect(toolResults).toHaveLength(3);
 
     // C (emitted first) should still get "failed dependencies", not "dependency cycle"
-    const toolCResult = toolResults.find((m: any) => m.tool_call_id === "call-1");
+    const toolCResult = toolResults.find((m: InputMessage) => m.tool_call_id === "call-1");
     expect(toolCResult?.content[0].text).toContain("failed dependencies");
     expect(toolCResult?.content[0].text).not.toContain("dependency cycle");
 
-    const toolBResult = toolResults.find((m: any) => m.tool_call_id === "call-2");
+    const toolBResult = toolResults.find((m: InputMessage) => m.tool_call_id === "call-2");
     expect(toolBResult?.content[0].text).toContain("failed dependencies");
     expect(toolBResult?.content[0].text).not.toContain("dependency cycle");
   });
@@ -1238,8 +1260,8 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("save_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Save failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("save_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Save failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1255,7 +1277,9 @@ describe("useChat multi-turn tool loop", () => {
 
     // Tool should still be present since it returned an error object
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    const toolNames = continuationBody.tools?.map(
+      (t: SentToolDefinition) => t.function?.name ?? t.name
+    );
     expect(toolNames).toContain("save_tool");
   });
 
@@ -1324,8 +1348,8 @@ describe("useChat multi-turn tool loop", () => {
     ];
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(bothToolsStream) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")) as any);
+      .mockReturnValueOnce(makeMockStream(bothToolsStream))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1342,7 +1366,9 @@ describe("useChat multi-turn tool loop", () => {
 
     // create_file should be removed from continuation, display_app kept
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    const toolNames = continuationBody.tools?.map(
+      (t: SentToolDefinition) => t.function?.name ?? t.name
+    );
     expect(toolNames).not.toContain("create_file");
     expect(toolNames).toContain("display_app");
   });
@@ -1359,7 +1385,7 @@ describe("useChat multi-turn tool loop", () => {
       dependsOn: ["create_file"],
     };
 
-    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeTextStream("Hello")) as any);
+    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeTextStream("Hello")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1403,10 +1429,8 @@ describe("useChat multi-turn tool loop", () => {
     // First call: model calls memory_save
     // Second call: model responds with text
     mockCreateSseClient
-      .mockReturnValueOnce(
-        makeMockStream(makeToolCallStream("memory_save", { content: "test" })) as any
-      )
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Done!")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("memory_save", { content: "test" })))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Done!")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1422,7 +1446,9 @@ describe("useChat multi-turn tool loop", () => {
 
     // Continuation should still have web_search but not memory_save
     const continuationBody = getRequestBody(1);
-    const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
+    const toolNames = continuationBody.tools?.map(
+      (t: SentToolDefinition) => t.function?.name ?? t.name
+    );
     expect(toolNames).not.toContain("memory_save");
     expect(toolNames).toContain("web_search");
   });
