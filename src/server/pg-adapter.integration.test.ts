@@ -212,7 +212,7 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
     );
 
     // Wrap the real pool but force a statement_timeout on every acquired
-    // client so the second INSERT in the batch times out. The first insert
+    // client so the UPDATE in the batch times out. The first insert
     // should still be rolled back because the adapter issues BEGIN/COMMIT.
     const wrapped: PgPoolLike = {
       query: (text: string, values?: unknown[]) => pool.query(text, values),
@@ -223,7 +223,12 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
         // guarantee the offending statement exceeds the threshold.
         await client.query("SET statement_timeout = 1");
         return {
-          query: (text: string, values?: unknown[]) => client.query(text, values),
+          query: async (text: string, values?: unknown[]) => {
+            if (/^\s*update\s+/i.test(text)) {
+              await client.query("select pg_sleep(0.01)");
+            }
+            return client.query(text, values);
+          },
           release: () => client.release(),
         } as PgClientLike;
       },
@@ -263,7 +268,6 @@ describe.skipIf(!runIntegration)("PostgreSQLAdapter (integration)", () => {
                 _status: "updated",
                 _changed: "title",
                 title: "Should also not persist",
-                // Force the statement to run long enough to hit the 1ms timeout.
                 is_done: false,
                 priority: null,
                 created_at: 10,
