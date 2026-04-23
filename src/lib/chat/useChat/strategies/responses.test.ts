@@ -146,3 +146,80 @@ describe("ResponsesStrategy.processStreamChunk - response.failed", () => {
     ).toThrow("Upstream request failed (response.failed)");
   });
 });
+
+// Whitespace-only deltas (regression — see PR for details).
+//
+// OpenAI's Responses API tokenizes content like `"## Heading\n\nBody"` as
+// multiple deltas, some of which are pure-whitespace tokens like `"\n\n"`,
+// `"  \n"`, `" "`. These must reach the app's `onData` callback so live
+// streaming markdown renders correctly (heading + body separated by a blank
+// line). An earlier `parseResult.messageContent.trim().length > 0` guard
+// silently dropped those chunks — the final `sendMessage` resolve was fine
+// (accumulator captured them), but `onData` per-chunk was not — so the
+// client's live `streamingContent` was glued (e.g. `## Chapter 1: TitleBody`).
+describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => {
+  const strategy = new ResponsesStrategy();
+
+  it("emits `\\n\\n` delta to result.content (paragraph break between heading and body)", () => {
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk(
+      { type: "response.output_text.delta", delta: "\n\n" },
+      acc
+    );
+    expect(out.content).toBe("\n\n");
+    expect(acc.content).toBe("\n\n");
+  });
+
+  it("emits single `\\n` delta (line break within a paragraph)", () => {
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk(
+      { type: "response.output_text.delta", delta: "\n" },
+      acc
+    );
+    expect(out.content).toBe("\n");
+    expect(acc.content).toBe("\n");
+  });
+
+  it("emits `  \\n` delta (markdown hard break between sentences)", () => {
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk(
+      { type: "response.output_text.delta", delta: "  \n" },
+      acc
+    );
+    expect(out.content).toBe("  \n");
+    expect(acc.content).toBe("  \n");
+  });
+
+  it("emits a single-space delta", () => {
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk(
+      { type: "response.output_text.delta", delta: " " },
+      acc
+    );
+    expect(out.content).toBe(" ");
+    expect(acc.content).toBe(" ");
+  });
+
+  it("still skips a truly empty delta (no spurious emit)", () => {
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta: "" }, acc);
+    expect(out.content).toBeFalsy();
+    expect(acc.content).toBe("");
+  });
+
+  it("preserves end-to-end whitespace when chunks are accumulated in order", () => {
+    // Simulate the real `"## Heading\n\nBody"` stream split into tokens where
+    // `"\n\n"` is its own delta. After all chunks arrive, the accumulator
+    // should hold the exact source text and each chunk should have emitted
+    // its content to result.content.
+    const acc = createAccumulator();
+    const deltas = ["## ", "Heading", "\n\n", "Body"];
+    const emitted: string[] = [];
+    for (const delta of deltas) {
+      const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta }, acc);
+      if (out.content !== undefined) emitted.push(out.content);
+    }
+    expect(emitted.join("")).toBe("## Heading\n\nBody");
+    expect(acc.content).toBe("## Heading\n\nBody");
+  });
+});
