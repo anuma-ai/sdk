@@ -147,6 +147,3 @@ etc/
 
 # Test output (generated app previews)
 test/**/.output/
-
-# Local notes (scratch / not-yet-decided design notes)
-.notes/
