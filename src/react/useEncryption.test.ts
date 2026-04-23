@@ -329,6 +329,20 @@ describe("useEncryption - Key Pair Generation", () => {
       expect(hasKeyPair(address1)).toBe(false);
       expect(hasKeyPair(address2)).toBe(false);
     });
+
+    it("also sweeps persisted ecdh_keypair_* entries from localStorage", () => {
+      const address1 = "0x1111111111111111111111111111111111111111";
+      const address2 = "0x2222222222222222222222222222222222222222";
+      localStorage.setItem(`ecdh_keypair_${address1}`, "stale-ciphertext-1");
+      localStorage.setItem(`ecdh_keypair_${address2}`, "stale-ciphertext-2");
+      localStorage.setItem("unrelated_key", "preserved");
+
+      clearAllKeyPairs();
+
+      expect(localStorage.getItem(`ecdh_keypair_${address1}`)).toBeNull();
+      expect(localStorage.getItem(`ecdh_keypair_${address2}`)).toBeNull();
+      expect(localStorage.getItem("unrelated_key")).toBe("preserved");
+    });
   });
 
   describe("clearAllEncryptionState", () => {

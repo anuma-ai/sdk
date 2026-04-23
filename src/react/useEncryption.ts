@@ -1249,10 +1249,35 @@ export function clearKeyPair(address: string): void {
 }
 
 /**
- * Clears all key pairs from memory
+ * Clears all key pairs from memory and any persisted entries in localStorage.
+ *
+ * Matches the persistence behavior of the per-address {@link clearKeyPair};
+ * without this, `clearAllKeyPairs()` would leave `ecdh_keypair_*` ciphertext
+ * behind in storage while `clearKeyPair(address)` removes it.
  */
 export function clearAllKeyPairs(): void {
   keyPairStore.clear();
+
+  if (typeof localStorage !== "undefined") {
+    try {
+      const staleKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(KEYPAIR_STORAGE_PREFIX)) {
+          staleKeys.push(key);
+        }
+      }
+      for (const key of staleKeys) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore per-entry storage errors */
+        }
+      }
+    } catch {
+      /* ignore storage errors (e.g. localStorage access denied) */
+    }
+  }
 }
 
 /**
