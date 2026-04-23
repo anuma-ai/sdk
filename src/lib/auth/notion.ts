@@ -54,15 +54,11 @@ export class NotionError extends Error {
       cause?: unknown;
     } = {}
   ) {
-    super(message);
+    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
     this.name = "NotionError";
     this.status = options.status;
     this.endpoint = options.endpoint;
     this.code = options.code;
-    if (options.cause !== undefined) {
-      // Preserve cause for diagnostics (ES2022).
-      (this as { cause?: unknown }).cause = options.cause;
-    }
   }
 }
 
