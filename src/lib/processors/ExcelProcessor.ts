@@ -71,7 +71,10 @@ export class ExcelProcessor implements FileProcessor {
       }
       umaskPolyfillFailure = null;
     }
-    if (!umaskPolyfilled && typeof process?.umask !== "function") {
+    if (
+      !umaskPolyfilled &&
+      (typeof process === "undefined" || typeof process.umask !== "function")
+    ) {
       throw new Error(
         "ExcelProcessor: unsupported runtime. `process.umask` is missing and the " +
           "polyfill could not be installed (the host `process` object is likely " +
