@@ -875,7 +875,13 @@ export async function requestEncryptionKey(
   try {
     await promise;
   } finally {
-    pendingKeyRequests.delete(walletAddress);
+    // Gate on identity: if `clearAllEncryptionState()` ran mid-flight and a
+    // subsequent caller stored a fresh promise for this address, deleting
+    // unconditionally here would evict the new entry and break dedup,
+    // letting a third caller trigger a duplicate sign prompt.
+    if (pendingKeyRequests.get(walletAddress) === promise) {
+      pendingKeyRequests.delete(walletAddress);
+    }
   }
 }
 
