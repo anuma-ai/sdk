@@ -124,6 +124,7 @@ import {
   type ServerTool,
   shouldRefreshTools,
 } from "../lib/tools";
+import { TimeoutError, withTimeout } from "../lib/utils";
 import { useChat } from "./useChat";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
@@ -137,6 +138,10 @@ const MIN_CONTENT_LENGTH_FOR_TOOLS = 5;
 const MAX_CLIENT_TOOLS_AFTER_FILTER = 10;
 // Minimum similarity for client tool semantic matching
 const CLIENT_TOOLS_MIN_SIMILARITY = 0.52;
+// Default budget for critical-path Promise.all fan-outs. If a network request
+// or OPFS/DB lock hangs, the overall operation rejects with TimeoutError
+// instead of deadlocking the UI. Tuned conservatively at 30s.
+const CRITICAL_PROMISE_ALL_TIMEOUT_MS = 30_000;
 
 /** Typed accessor for client tool name (handles function-call style and flat). */
 function getToolName(t: LlmapiChatCompletionTool): string {
@@ -1421,70 +1426,82 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           const encryptionKey = await getEncryptionKey(walletAddress);
           const blobManager = blobManagerRef.current;
 
-          // Resolve placeholders in all messages in parallel
-          const resolvedMessages = await Promise.all(
-            messages.map(async (msg) => {
-              // Collect file IDs from both content placeholders and msg.fileIds
-              const contentFileIds = [...new Set(extractFileIds(msg.content))];
-              const extraFileIds = (msg.fileIds || []).filter((id) => !contentFileIds.includes(id));
-              const allFileIds = [...contentFileIds, ...extraFileIds];
+          // Resolve placeholders in all messages in parallel. Wrapped in
+          // withTimeout so a hung OPFS read or decrypt cannot deadlock the
+          // caller — on timeout we fall through to the catch below and return
+          // the messages without resolved blob URLs.
+          const resolvedMessages = await withTimeout(
+            Promise.all(
+              messages.map(async (msg) => {
+                // Collect file IDs from both content placeholders and msg.fileIds
+                const contentFileIds = [...new Set(extractFileIds(msg.content))];
+                const extraFileIds = (msg.fileIds || []).filter(
+                  (id) => !contentFileIds.includes(id)
+                );
+                const allFileIds = [...contentFileIds, ...extraFileIds];
 
-              if (allFileIds.length === 0) {
-                return msg;
-              }
+                if (allFileIds.length === 0) {
+                  return msg;
+                }
 
-              // Resolve all files to blob URLs and build a map
-              const fileIdToUrlMap = new Map<string, string>();
-              for (const fileId of allFileIds) {
-                let url = blobManager.getUrl(fileId);
+                // Resolve all files to blob URLs and build a map
+                const fileIdToUrlMap = new Map<string, string>();
+                for (const fileId of allFileIds) {
+                  let url = blobManager.getUrl(fileId);
 
-                if (!url) {
-                  // Read and decrypt the file (try current key, fall back to legacy)
-                  let result = await readEncryptedFile(fileId, encryptionKey);
-                  if (!result) {
-                    try {
-                      const legacyKey = await getEncryptionKey(walletAddress, "v2");
-                      result = await readEncryptedFile(fileId, legacyKey);
-                    } catch {
-                      // Legacy key not available or decrypt failed
+                  if (!url) {
+                    // Read and decrypt the file (try current key, fall back to legacy)
+                    let result = await readEncryptedFile(fileId, encryptionKey);
+                    if (!result) {
+                      try {
+                        const legacyKey = await getEncryptionKey(walletAddress, "v2");
+                        result = await readEncryptedFile(fileId, legacyKey);
+                      } catch {
+                        // Legacy key not available or decrypt failed
+                      }
+                    }
+                    if (result) {
+                      url = blobManager.createUrl(fileId, result.blob);
                     }
                   }
-                  if (result) {
-                    url = blobManager.createUrl(fileId, result.blob);
+
+                  if (url) {
+                    fileIdToUrlMap.set(fileId, url);
                   }
                 }
 
-                if (url) {
-                  fileIdToUrlMap.set(fileId, url);
+                // Replace placeholders in content
+                let resolvedContent = msg.content;
+                for (const [fileId, url] of fileIdToUrlMap) {
+                  const placeholder = createFilePlaceholder(fileId);
+                  const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                  const placeholderRegex = new RegExp(escapedPlaceholder, "g");
+                  const replacement = `![image-${fileId}](${url})`;
+
+                  resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
                 }
-              }
 
-              // Replace placeholders in content
-              let resolvedContent = msg.content;
-              for (const [fileId, url] of fileIdToUrlMap) {
-                const placeholder = createFilePlaceholder(fileId);
-                const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                const placeholderRegex = new RegExp(escapedPlaceholder, "g");
-                const replacement = `![image-${fileId}](${url})`;
-
-                resolvedContent = resolvedContent.replace(placeholderRegex, replacement);
-              }
-
-              // Append images from msg.fileIds that weren't in content placeholders
-              // (messages stored before placeholder support was added)
-              for (const fileId of extraFileIds) {
-                const url = fileIdToUrlMap.get(fileId);
-                if (url) {
-                  resolvedContent += `\n\n![image-${fileId}](${url})`;
+                // Append images from msg.fileIds that weren't in content placeholders
+                // (messages stored before placeholder support was added)
+                for (const fileId of extraFileIds) {
+                  const url = fileIdToUrlMap.get(fileId);
+                  if (url) {
+                    resolvedContent += `\n\n![image-${fileId}](${url})`;
+                  }
                 }
-              }
 
-              return { ...msg, content: resolvedContent };
-            })
+                return { ...msg, content: resolvedContent };
+              })
+            ),
+            CRITICAL_PROMISE_ALL_TIMEOUT_MS,
+            "useChatStorage.getMessages:resolveFilePlaceholders"
           );
 
           return resolvedMessages;
-        } catch {
+        } catch (err) {
+          if (err instanceof TimeoutError) {
+            getLogger().warn("[useChatStorage.getMessages] Placeholder resolution timed out:", err);
+          }
           // Return messages without resolving placeholders
           return messages;
         }
@@ -1801,49 +1818,80 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const mediaOptions: CreateMediaOptions[] = [];
         const urlToMediaIdMap = new Map<string, string>();
 
-        const results = await Promise.allSettled(
-          urls.map(async ({ url }) => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60_000);
+        // Outer controller aborts every in-flight fetch if the overall batch
+        // timeout elapses. Individual requests still enforce their own 60s
+        // per-fetch budget so a single slow image cannot stall the batch.
+        const batchController = new AbortController();
+        const batchTimeoutMs = CRITICAL_PROMISE_ALL_TIMEOUT_MS;
+        const batchTimeoutId = setTimeout(() => batchController.abort(), batchTimeoutMs);
 
-            try {
-              const response = await fetch(url, {
-                signal: controller.signal,
-                cache: "no-store",
-              });
+        let results: PromiseSettledResult<{
+          mediaId: string;
+          fileName: string;
+          mimeType: string;
+          size: number;
+          url: string;
+          dimensions: { width: number; height: number } | undefined;
+        }>[] = [];
+        try {
+          results = await withTimeout(
+            Promise.allSettled(
+              urls.map(async ({ url }) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60_000);
+                const abortOuter = () => controller.abort();
+                batchController.signal.addEventListener("abort", abortOuter, { once: true });
 
-              if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
-              }
+                try {
+                  const response = await fetch(url, {
+                    signal: controller.signal,
+                    cache: "no-store",
+                  });
 
-              const blob = await response.blob();
+                  if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status}`);
+                  }
 
-              const mediaId = generateMediaId();
-              const urlPath = url.split("?")[0] ?? url;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-              const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
+                  const blob = await response.blob();
 
-              const dimensions = await getImageDimensions(blob);
+                  const mediaId = generateMediaId();
+                  const urlPath = url.split("?")[0] ?? url;
+                  const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+                  const mimeType = blob.type || `image/${extension}`;
+                  const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              await writeEncryptedFile(mediaId, blob, encryptionKey, {
-                name: fileName,
-                sourceUrl: url,
-              });
+                  const dimensions = await getImageDimensions(blob);
 
-              return {
-                mediaId,
-                fileName,
-                mimeType,
-                size: blob.size,
-                url,
-                dimensions,
-              };
-            } finally {
-              clearTimeout(timeoutId);
-            }
-          })
-        );
+                  await writeEncryptedFile(mediaId, blob, encryptionKey, {
+                    name: fileName,
+                    sourceUrl: url,
+                  });
+
+                  return {
+                    mediaId,
+                    fileName,
+                    mimeType,
+                    size: blob.size,
+                    url,
+                    dimensions,
+                  };
+                } finally {
+                  clearTimeout(timeoutId);
+                  batchController.signal.removeEventListener("abort", abortOuter);
+                }
+              })
+            ),
+            batchTimeoutMs,
+            "useChatStorage.extractAndStoreEncryptedMCPImages:downloadBatch"
+          );
+        } finally {
+          clearTimeout(batchTimeoutId);
+          // If withTimeout rejected, the batchTimeoutId was cleared above but
+          // batchController was never aborted — every in-flight fetch would
+          // keep running in the background. Aborting here honours the
+          // documented "outer controller aborts every in-flight fetch" guarantee.
+          batchController.abort();
+        }
 
         // 3. Build urlToMediaId map from successful downloads
         results.forEach((result, i) => {
@@ -1909,7 +1957,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
-      } catch {
+      } catch (err) {
+        if (err instanceof TimeoutError) {
+          getLogger().warn("[extractAndStoreEncryptedMCPImages] Batch download timed out:", err);
+        }
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
         return { fileIds: [], cleanedContent: content };
@@ -2375,11 +2426,18 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         const mediaLookup = new Map(allMedia.map((m) => [m.mediaId, m]));
         const resolveMediaByIds = (ids: string[]) =>
           Promise.resolve(ids.map((id) => mediaLookup.get(id)).filter(Boolean) as StoredMedia[]);
+        // Guard the history-conversion fan-out: storedToLlmapiMessage performs
+        // OPFS reads and decrypts, any of which could hang. TimeoutError
+        // surfaces to the caller (sendMessage) rather than being swallowed.
         const historyMessages = (
-          await Promise.all(
-            messagesToConvert.map((msg) =>
-              storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
-            )
+          await withTimeout(
+            Promise.all(
+              messagesToConvert.map((msg) =>
+                storedToLlmapiMessage(msg, encryptionKey, resolveMediaByIds)
+              )
+            ),
+            CRITICAL_PROMISE_ALL_TIMEOUT_MS,
+            "useChatStorage.sendMessage:convertHistoryMessages"
           )
         ).flat();
 
