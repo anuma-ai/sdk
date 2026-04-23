@@ -45,6 +45,8 @@ import { isKnownFont, renderFontLibrary } from "./fonts";
 
 export type { FontCategory, FontSpec } from "./fonts";
 export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
+export type { LayoutTemplate } from "./layouts";
+export { getLayoutByName, LAYOUT_TEMPLATES } from "./layouts";
 import {
   getLayoutByName,
   renderLayoutCatalog,

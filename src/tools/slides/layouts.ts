@@ -17,7 +17,7 @@
 
 import type { SlideElement } from "./index";
 
-interface LayoutTemplate {
+export interface LayoutTemplate {
   /**
    * Short kebab-case identifier the LLM returns in `plan_slides`. Kept
    * short + typo-proof so the model can match it exactly without fuzzy
