@@ -1196,7 +1196,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           result.uniqueId
-        ).catch(() => {});
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed new vault memory:", err);
+        });
       }
       return result;
     },
@@ -1220,7 +1222,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           id
-        ).catch(() => {});
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
+        });
       }
       return result;
     },
@@ -2086,6 +2090,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -2217,7 +2222,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+          });
         }
 
         return {
@@ -2623,8 +2630,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               messageChunks,
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err) => {
+              // Non-fatal — message is stored, but chunk embeddings failed to persist
+              getLogger().warn(
+                "[useChatStorage] Failed to persist chunked embeddings for user message:",
+                err
+              );
             });
           } else {
             // Single embedding
@@ -2633,8 +2644,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               userMessageEmbeddings as number[],
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err) => {
+              // Non-fatal — message is stored, but embedding failed to persist
+              getLogger().warn(
+                "[useChatStorage] Failed to persist embedding for user message:",
+                err
+              );
             });
           }
         } else {
@@ -2720,6 +2735,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              uniqueId: assistantUniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2773,6 +2789,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            uniqueId: assistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2877,6 +2894,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        // Pre-allocated ID from consumer — when provided, both the in-flight streaming
+        // placeholder and this persisted message share the same React key, preventing
+        // the unmount/remount flash when streaming completes.
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -2975,7 +2996,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+        });
       }
 
       return {

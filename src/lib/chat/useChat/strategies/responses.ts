@@ -1,8 +1,113 @@
 import type { LlmapiResponseResponse } from "../../../../client";
-import type { StreamAccumulator, StreamingChunk } from "../types";
+import type { AccumulatedToolCall, StreamAccumulator, StreamingChunk } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
+
+type ToolCallEventInput = {
+  id?: string;
+  name?: string;
+  arguments?: string;
+  output?: string;
+};
+
+/**
+ * Walk the final `response.output[]` array (present on `response.completed`
+ * events) and backfill `name` on matching tool-call accumulator entries.
+ * Anthropic via Bifrost doesn't emit `output_item.added` with a usable name —
+ * entries are created by the `.delta` handler with name="" and need the name
+ * from this authoritative final payload.
+ */
+function backfillToolCallNames(
+  accumulator: StreamAccumulator,
+  response: { output?: unknown } | undefined
+): void {
+  const output = response?.output;
+  if (!Array.isArray(output)) return;
+  for (const raw of output) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+    if (item.type !== "function_call") continue;
+    const name = typeof item.name === "string" ? item.name : "";
+    if (!name) continue;
+    const itemId = typeof item.id === "string" ? item.id : "";
+    const callId = typeof item.call_id === "string" ? item.call_id : "";
+
+    // Prefer direct Map lookup by item.id (that's the key the .delta handler uses).
+    let entry: AccumulatedToolCall | undefined = itemId
+      ? accumulator.toolCalls.get(itemId)
+      : undefined;
+    if (!entry) {
+      for (const v of accumulator.toolCalls.values()) {
+        if (v.id === callId || v.id === itemId) {
+          entry = v;
+          break;
+        }
+      }
+    }
+    if (entry && !entry.name) entry.name = name;
+  }
+}
+
+/**
+ * Pull the argument fragment from a `response.function_call_arguments.*` event.
+ * OpenAI's responses API puts it on `arguments` at the top level; Anthropic via
+ * Bifrost puts it on `delta.OfString`. Return empty string if neither is present.
+ */
+function extractArgsString(chunk: StreamingChunk): string {
+  if (typeof chunk.arguments === "string" && chunk.arguments) return chunk.arguments;
+  const delta = chunk.delta;
+  if (typeof delta === "string") return delta;
+  if (delta && typeof delta === "object" && typeof delta.OfString === "string") {
+    return delta.OfString;
+  }
+  return "";
+}
+
+/**
+ * Merge the authoritative `tool_call_events` array from a `response.completed`
+ * (or equivalent) payload into the accumulator's `toolCalls` Map. Some
+ * providers (OpenAI/Anthropic via Bifrost's responses API) emit streaming
+ * events whose `item_id`/`call_id` don't line up with the `.added` event,
+ * leaving entries in `toolCalls` with empty `arguments`. The final
+ * `tool_call_events` array carries complete data, so we use it to backfill
+ * missing arguments or create entries that were never streamed.
+ *
+ * Events with a non-empty `output` are skipped — those are server-side tools
+ * already executed by the portal (search, image generation), so they must
+ * not be re-added as pending client-side calls.
+ */
+function mergeToolCallEventsIntoAccumulator(
+  accumulator: StreamAccumulator,
+  events: ToolCallEventInput[]
+): void {
+  for (const event of events) {
+    if (!event.id || !event.arguments) continue;
+    if (event.output) continue;
+
+    let existing: AccumulatedToolCall | undefined;
+    for (const entry of accumulator.toolCalls.values()) {
+      if (entry.id === event.id) {
+        existing = entry;
+        break;
+      }
+    }
+
+    if (existing) {
+      if (!existing.arguments) existing.arguments = event.arguments;
+      if (!existing.name && event.name) existing.name = event.name;
+    } else if (event.name) {
+      accumulator.toolCalls.set(event.id, {
+        id: event.id,
+        type: "function",
+        name: event.name,
+        arguments: event.arguments,
+        status: "pending",
+      });
+    }
+  }
+}
 
 /**
  * Strategy for the OpenAI Responses API (/api/v1/responses)
@@ -49,6 +154,41 @@ export class ResponsesStrategy implements ApiStrategy {
   processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
     const typedChunk = chunk as StreamingChunk;
+
+    // Detect in-stream error events from Bifrost (e.g. OpenRouter Qwen upstream
+    // timeouts). If we don't throw here the stream just ends silently with no
+    // tool call and no usable response. The outer tool loop catches this and
+    // surfaces it as the final error to the caller.
+    const inStreamErr = getInStreamErrorMessage(chunk);
+    if (inStreamErr) throw new Error(inStreamErr);
+
+    // Detect response.failed events (e.g. model not deployed, upstream refused
+    // the request). Carries a nested error object with message/code; surface
+    // it so callers see a real reason instead of a silent empty response.
+    if (typedChunk.type === "response.failed") {
+      const resp = (typedChunk as { response?: { error?: { code?: unknown; message?: unknown } } })
+        .response;
+      const err = resp?.error;
+      if (err && typeof err === "object") {
+        const code = typeof err.code === "string" ? err.code : "";
+        const rawMessage = typeof err.message === "string" ? err.message : "";
+        // Bifrost sometimes double-encodes the upstream error as a JSON string
+        // in `message`. Pull out the inner message when that happens.
+        let message = rawMessage;
+        if (rawMessage.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(rawMessage) as { error?: { message?: unknown } };
+            const inner = parsed.error?.message;
+            if (typeof inner === "string" && inner.length > 0) message = inner;
+          } catch {
+            // fall through
+          }
+        }
+        const label = code ? `[${code}] ` : "";
+        throw new Error(`${label}${message || "Upstream request failed"}`);
+      }
+      throw new Error("Upstream request failed (response.failed)");
+    }
 
     // Handle full "response" event — sent by the portal's chat/completions fallback
     // when it uses non-streaming internally and sends the entire result as one chunk.
@@ -123,9 +263,7 @@ export class ResponsesStrategy implements ApiStrategy {
       }
 
       // Extract tool call events
-      const toolCallEvents = resp.tool_call_events as
-        | Array<{ id?: string; name?: string; arguments?: string; output?: string }>
-        | undefined;
+      const toolCallEvents = resp.tool_call_events as ToolCallEventInput[] | undefined;
       if (toolCallEvents) {
         accumulator.toolCallEvents = toolCallEvents.map((e) => ({
           id: e.id || "",
@@ -133,6 +271,7 @@ export class ResponsesStrategy implements ApiStrategy {
           arguments: e.arguments || "",
           output: e.output || "",
         }));
+        mergeToolCallEventsIntoAccumulator(accumulator, toolCallEvents);
       }
 
       return result;
@@ -180,13 +319,27 @@ export class ResponsesStrategy implements ApiStrategy {
 
       // Capture tool_call_events if present (skip empty arrays from early chunks)
       if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
-        accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
+        const events = typedChunk.response.tool_call_events as ToolCallEventInput[];
+        accumulator.toolCallEvents = events.map((event) => ({
           id: event.id || "",
           name: event.name || "",
           arguments: event.arguments || "",
           output: event.output || "",
         }));
+        mergeToolCallEventsIntoAccumulator(accumulator, events);
       }
+
+      // Backfill tool call names from response.output[] — Anthropic via
+      // Bifrost creates entries via the `.delta` handler with name="" (since
+      // its output_item.added event has no name). The final response.output
+      // array carries the names, keyed by item.id / call_id.
+      backfillToolCallNames(accumulator, typedChunk.response as { output?: unknown } | undefined);
+
+      // Recover xAI's hybrid tool-call format: Grok streams most args inside
+      // <parameter name="X">Y</parameter> text content while function_call
+      // arguments only carry a subset (e.g. just `path`). Merge the XML
+      // params into the tool call args here, after both streams are final.
+      accumulator.content = mergeXaiInlineParameterTags(accumulator.content, accumulator.toolCalls);
 
       // Mark all pending tool calls as completed and emit completion event
       for (const toolCall of accumulator.toolCalls.values()) {
@@ -219,21 +372,25 @@ export class ResponsesStrategy implements ApiStrategy {
     }
     // Capture tool_call_events from top-level if present (skip empty arrays from early chunks)
     if (typedChunk.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
-      accumulator.toolCallEvents = typedChunk.tool_call_events.map((event) => ({
+      const events = typedChunk.tool_call_events as ToolCallEventInput[];
+      accumulator.toolCallEvents = events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
         arguments: event.arguments || "",
         output: event.output || "",
       }));
+      mergeToolCallEventsIntoAccumulator(accumulator, events);
     }
     // Also capture from nested response if present (skip empty arrays from early chunks)
     if (typedChunk.response?.tool_call_events?.length && !accumulator.toolCallEvents?.length) {
-      accumulator.toolCallEvents = typedChunk.response.tool_call_events.map((event) => ({
+      const events = typedChunk.response.tool_call_events as ToolCallEventInput[];
+      accumulator.toolCallEvents = events.map((event) => ({
         id: event.id || "",
         name: event.name || "",
         arguments: event.arguments || "",
         output: event.output || "",
       }));
+      mergeToolCallEventsIntoAccumulator(accumulator, events);
     }
 
     // Accumulate usage data - merge instead of replace
@@ -363,28 +520,52 @@ export class ResponsesStrategy implements ApiStrategy {
     // Event: response.function_call_arguments.delta - streaming arguments
     if (typedChunk.type === "response.function_call_arguments.delta") {
       const itemId = typedChunk.item_id || typedChunk.call_id || "";
-      if (itemId && typedChunk.arguments) {
-        const existing = accumulator.toolCalls.get(itemId);
-        if (existing) {
-          existing.arguments += typedChunk.arguments;
-          result.toolCallArgumentsDelta = {
-            toolCallId: existing.id,
-            toolName: existing.name,
-            argumentsDelta: typedChunk.arguments,
-            accumulatedArguments: existing.arguments,
+      // OpenAI uses `arguments` at the top level; Anthropic via Bifrost uses
+      // `delta.OfString`. Accept either.
+      const argsDelta = extractArgsString(typedChunk);
+      if (itemId && argsDelta) {
+        // Upsert: Anthropic via Bifrost doesn't emit a usable
+        // `response.output_item.added` (name and id are empty), so the entry
+        // may not yet exist. Create it here keyed by item_id; the name gets
+        // backfilled at response.completed from response.output[].
+        let existing = accumulator.toolCalls.get(itemId);
+        if (!existing) {
+          existing = {
+            id: typedChunk.call_id || itemId,
+            type: "function",
+            name: "",
+            arguments: "",
+            status: "pending",
           };
+          accumulator.toolCalls.set(itemId, existing);
         }
+        existing.arguments += argsDelta;
+        result.toolCallArgumentsDelta = {
+          toolCallId: existing.id,
+          toolName: existing.name,
+          argumentsDelta: argsDelta,
+          accumulatedArguments: existing.arguments,
+        };
       }
     }
 
     // Event: response.function_call_arguments.done - arguments complete
     if (typedChunk.type === "response.function_call_arguments.done") {
       const itemId = typedChunk.item_id || typedChunk.call_id || "";
-      if (itemId && typedChunk.arguments) {
-        const existing = accumulator.toolCalls.get(itemId);
-        if (existing) {
-          existing.arguments = typedChunk.arguments;
+      const finalArgs = extractArgsString(typedChunk);
+      if (itemId && finalArgs) {
+        let existing = accumulator.toolCalls.get(itemId);
+        if (!existing) {
+          existing = {
+            id: typedChunk.call_id || itemId,
+            type: "function",
+            name: "",
+            arguments: "",
+            status: "pending",
+          };
+          accumulator.toolCalls.set(itemId, existing);
         }
+        existing.arguments = finalArgs;
       }
     }
 

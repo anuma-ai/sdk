@@ -76,6 +76,28 @@ const CLIENT_TOOLS: { name: string; description: string }[] = [
     description:
       'Make an authenticated request to the GitHub REST API (https://api.github.com). You can call any endpoint documented at https://docs.github.com/en/rest. Examples: List PRs: GET /repos/{owner}/{repo}/pulls?state=open, Get file: GET /repos/{owner}/{repo}/contents/{path}, Create issue: POST /repos/{owner}/{repo}/issues with body {"title": "...", "body": "..."}, Search repos: GET /search/repositories?q={query}. IMPORTANT: For write operations (POST, PUT, PATCH, DELETE), always confirm with the user before executing. This includes creating issues, opening PRs, merging, committing files, and submitting reviews.',
   },
+  // Slide deck tools — wired via createSlideTools. plan_deck + add_slide
+  // drive new-deck creation; read_slides + patch_slides drive edits.
+  {
+    name: "plan_deck",
+    description:
+      "Create a new slide deck, presentation, PowerPoint, Keynote, or slide show. Sets up the deck theme, title, slide count, and layout palette. Only call this when the user asks to make, build, generate, create, or start a new slide deck or presentation.",
+  },
+  {
+    name: "add_slide",
+    description:
+      "Append a slide to a slide deck or presentation that is being built. Each call adds one slide with its layout and elements. Call repeatedly after plan_deck to assemble the slide deck one slide at a time.",
+  },
+  {
+    name: "read_slides",
+    description:
+      "Read the contents of the current slide deck or presentation. Use this to view, see, check, or inspect the existing slides before editing a slide deck. Pair with patch_slides when the user asks to edit, modify, or update an existing deck.",
+  },
+  {
+    name: "patch_slides",
+    description:
+      "Edit, modify, update, or change an existing slide deck or presentation. Change slide text, add or remove slides, update the deck theme, or reorder slides. Use when the user asks to edit, update, fix, change, rewrite, or add a slide to their slide deck.",
+  },
 ];
 
 // Match the constants from useChatStorage.ts
@@ -281,6 +303,37 @@ const cases: ToolSelectionCase[] = [
     label: "GitHub issues includes github tools",
     prompt: "Show me the latest issues on the repo",
     clientMustInclude: ["github_api"],
+  },
+
+  // ── Slide decks ──────────────────────────────────────────────────────
+  // Slide tools are mode-gated in the anuma app today (activated only when
+  // the user clicks "Create Slides"). These cases verify what semantic
+  // selection can actually deliver — embedding retrieval surfaces the
+  // top-scoring tool per intent, not the full 4-tool workflow suite. On
+  // pure-creation prompts "add_slide" (append) doesn't cluster with
+  // "plan_deck" (create), so the app has to bundle the build pair via a
+  // tool-dependency wiring, not semantic match. The edit pair clusters
+  // more readily because "edit a deck" implies both read and patch.
+  {
+    label: "slide deck creation pulls plan_deck",
+    prompt: "Create a slide deck about the fundamentals of home gardening",
+    clientMustInclude: ["plan_deck"],
+    clientMustExclude: ["display_weather", "geolocate_ip"],
+  },
+  {
+    label: "presentation request pulls plan_deck",
+    prompt: "Make me a slide presentation introducing my startup to investors",
+    clientMustInclude: ["plan_deck"],
+  },
+  {
+    label: "deck edit pulls read_slides + patch_slides",
+    prompt: "Edit the pricing slide in my deck to say $29 instead of $19",
+    clientMustInclude: ["read_slides", "patch_slides"],
+  },
+  {
+    label: "add-slide on an existing deck pulls patch_slides",
+    prompt: "Add a slide about customer testimonials to my existing deck",
+    clientMustInclude: ["patch_slides"],
   },
 
   // ── Server-side: Image generation ─────────────────────────────────────
