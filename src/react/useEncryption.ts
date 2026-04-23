@@ -894,10 +894,15 @@ const KEYPAIR_STORAGE_PREFIX = "ecdh_keypair_";
  * Persists an ECDH keypair to localStorage with AES-GCM encryption
  * The private key is encrypted using the encryption key derived from the wallet signature
  * @param address - The wallet address
+ * @param startEpoch - The `sessionEpoch` captured by the caller before the
+ *   signing/derivation flow began. Re-checked immediately before `setItem` so a
+ *   `clearAllEncryptionState()` that ran mid-flight (after sweeping
+ *   localStorage) can't be clobbered by a late write resurrecting stale
+ *   ciphertext for the previous session.
  * @returns Promise that resolves when keypair is persisted
  * @throws Error if encryption key is not available or persistence fails
  */
-async function persistKeyPair(address: string): Promise<void> {
+async function persistKeyPair(address: string, startEpoch: number): Promise<void> {
   if (typeof window === "undefined") {
     return; // SSR - skip persistence
   }
@@ -958,6 +963,13 @@ async function persistKeyPair(address: string): Promise<void> {
     // Store in localStorage
     const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
     const encryptedHex = bytesToHex(combined);
+    // Last-chance epoch check: `clearAllEncryptionState()` may have swept
+    // localStorage after our caller's initial check but before this write
+    // lands. Skipping here keeps teardown final instead of resurrecting
+    // stale ciphertext for the previous session.
+    if (sessionEpoch !== startEpoch) {
+      return;
+    }
     localStorage.setItem(storageKey, encryptedHex);
   } catch (err) {
     // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
@@ -1186,7 +1198,7 @@ export async function requestKeyPair(
     // Ensure encryption keys exist before persisting
     const keys = encryptionKeyStore.get(walletAddress);
     if (keys) {
-      await persistKeyPair(walletAddress);
+      await persistKeyPair(walletAddress, startEpoch);
     }
   } catch (error) {
     // Persistence is optional - log warning but don't fail
