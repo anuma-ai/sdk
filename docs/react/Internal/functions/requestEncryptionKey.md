@@ -2,7 +2,7 @@
 
 > **requestEncryptionKey**(`walletAddress`: `string`, `signMessage`: [`SignMessageFn`](../type-aliases/SignMessageFn.md), `embeddedWalletSigner?`: [`EmbeddedWalletSignerFn`](../type-aliases/EmbeddedWalletSignerFn.md)): `Promise`<`void`>
 
-Defined in: [src/react/useEncryption.ts:804](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#804)
+Defined in: [src/react/useEncryption.ts:778](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#778)
 
 Requests the user to sign a message to generate an encryption key.
 If a key already exists in memory for the given wallet, resolves immediately.

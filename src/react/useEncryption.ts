@@ -182,33 +182,7 @@ export function clearAllEncryptionState(): void {
   keyAvailableCallbacks.clear();
   pendingKeyRequests.clear();
 
-  // Remove every persisted (encrypted) ECDH key pair from localStorage. We
-  // scan localStorage directly rather than iterating `keyPairStore`, because
-  // after a page refresh the in-memory map is empty while persisted entries
-  // may still remain — relying on the map here would silently leave stale
-  // entries behind and defeat the cross-user key-leakage fix.
-  if (typeof localStorage !== "undefined") {
-    try {
-      const staleKeys: string[] = [];
-      for (let i = 0; i < localStorage.length; i += 1) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(KEYPAIR_STORAGE_PREFIX)) {
-          staleKeys.push(key);
-        }
-      }
-      for (const key of staleKeys) {
-        try {
-          localStorage.removeItem(key);
-        } catch {
-          /* ignore per-entry storage errors */
-        }
-      }
-    } catch {
-      /* ignore storage errors (e.g. localStorage access denied) */
-    }
-  }
-
-  keyPairStore.clear();
+  clearAllKeyPairs();
 }
 
 /**
