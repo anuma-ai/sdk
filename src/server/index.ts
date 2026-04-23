@@ -325,6 +325,7 @@ export {
 export type { EmbeddedWalletSignerFn, SignMessageFn } from "../react/useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearAllKeyPairs,
   clearEncryptionKey,
   clearKeyPair,

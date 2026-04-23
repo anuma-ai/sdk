@@ -89,6 +89,7 @@ export type {
 } from "./useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearAllKeyPairs,
   clearEncryptionKey,
   clearKeyPair,
