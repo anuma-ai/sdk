@@ -249,10 +249,7 @@ export class ResponsesStrategy implements ApiStrategy {
                   if (parseResult.messageContent && parseResult.messageContent.length > 0) {
                     result.content = (result.content || "") + parseResult.messageContent;
                   }
-                  if (
-                    parseResult.reasoningContent &&
-                    parseResult.reasoningContent.length > 0
-                  ) {
+                  if (parseResult.reasoningContent && parseResult.reasoningContent.length > 0) {
                     result.thinking = (result.thinking || "") + parseResult.reasoningContent;
                   }
                 }

@@ -114,42 +114,42 @@ describe("CompletionsStrategy.processStreamChunk - whitespace-only deltas", () =
 
   it("emits `\\n\\n` delta content (paragraph break between heading and body)", () => {
     const acc = createAccumulator();
-    const out = strategy.processStreamChunk(
-      { choices: [{ delta: { content: "\n\n" } }] },
-      acc
-    );
+    const out = strategy.processStreamChunk({ choices: [{ delta: { content: "\n\n" } }] }, acc);
     expect(out.content).toBe("\n\n");
     expect(acc.content).toBe("\n\n");
   });
 
   it("emits single `\\n` delta (intra-paragraph line break)", () => {
     const acc = createAccumulator();
-    const out = strategy.processStreamChunk(
-      { choices: [{ delta: { content: "\n" } }] },
-      acc
-    );
+    const out = strategy.processStreamChunk({ choices: [{ delta: { content: "\n" } }] }, acc);
     expect(out.content).toBe("\n");
     expect(acc.content).toBe("\n");
   });
 
   it("emits `  \\n` delta (markdown hard break between sentences)", () => {
     const acc = createAccumulator();
-    const out = strategy.processStreamChunk(
-      { choices: [{ delta: { content: "  \n" } }] },
-      acc
-    );
+    const out = strategy.processStreamChunk({ choices: [{ delta: { content: "  \n" } }] }, acc);
     expect(out.content).toBe("  \n");
     expect(acc.content).toBe("  \n");
   });
 
   it("emits a single-space delta", () => {
     const acc = createAccumulator();
-    const out = strategy.processStreamChunk(
-      { choices: [{ delta: { content: " " } }] },
-      acc
-    );
+    const out = strategy.processStreamChunk({ choices: [{ delta: { content: " " } }] }, acc);
     expect(out.content).toBe(" ");
     expect(acc.content).toBe(" ");
+  });
+
+  it("still skips a truly empty delta (no spurious emit)", () => {
+    // Pins the outer truthiness guard `if (choice.delta.content)` — an empty
+    // string is falsy, so the branch is never entered and `result.content`
+    // stays `null`. A future refactor that replaces the guard with
+    // `if (choice.delta.content !== undefined)` would silently regress, and
+    // this test would fail.
+    const acc = createAccumulator();
+    const out = strategy.processStreamChunk({ choices: [{ delta: { content: "" } }] }, acc);
+    expect(out.content).toBeFalsy();
+    expect(acc.content).toBe("");
   });
 
   it("preserves end-to-end whitespace when chunks are accumulated in order", () => {

@@ -202,10 +202,7 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
 
   it("still skips a truly empty delta (no spurious emit)", () => {
     const acc = createAccumulator();
-    const out = strategy.processStreamChunk(
-      { type: "response.output_text.delta", delta: "" },
-      acc
-    );
+    const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta: "" }, acc);
     expect(out.content).toBeFalsy();
     expect(acc.content).toBe("");
   });
@@ -219,10 +216,7 @@ describe("ResponsesStrategy.processStreamChunk - whitespace-only deltas", () => 
     const deltas = ["## ", "Heading", "\n\n", "Body"];
     const emitted: string[] = [];
     for (const delta of deltas) {
-      const out = strategy.processStreamChunk(
-        { type: "response.output_text.delta", delta },
-        acc
-      );
+      const out = strategy.processStreamChunk({ type: "response.output_text.delta", delta }, acc);
       if (out.content !== undefined) emitted.push(out.content);
     }
     expect(emitted.join("")).toBe("## Heading\n\nBody");
