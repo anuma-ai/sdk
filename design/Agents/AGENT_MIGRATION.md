@@ -1,6 +1,6 @@
 # Agent Migration
 
-Companion to [AGENT_SERVER.md](./AGENT_SERVER.md). Concrete steps to move existing agents (Sentinel, App Creator) from the current client-runtime model to the agent-server model.
+Companion to [AGENT_SERVER.md](./AGENT_SERVER.md). Concrete steps to add the `server` runtime to existing agents (Sentinel, App Creator). The existing `client` runtime (Anuma Chat) keeps working; this is additive.
 
 ## Topology
 
@@ -38,10 +38,11 @@ Multiple clients can launch agents; Anuma Chat is the reference client. First-pa
 ## Background
 
 - Any authenticated client can launch an agent - Anuma Chat today, mobile and third-party clients later. Each client owns its own local storage (Anuma Chat uses IndexedDB via WatermelonDB) and is the source of truth for the user data it holds.
+- Agents are dual-runtime: `runtimes: ["client"]`, `["server"]`, or `["client", "server"]`. Migration is about adding the `server` runtime, not removing `client`. Agents like App Creator and Slide Deck continue to run client-side in Anuma Chat.
+- Agent configs (prompt, tools, model, runtimes) ship as npm packages. Both runtimes import the same package - zero divergence.
 - Agent server receives only the information needed for a single tool-loop turn. It persists session metadata (OAuth tokens, scheduled jobs) but no user content.
-- Tool executor code (e.g. `create_file`) does not change - the same SDK package runs, just on the agent server instead of in the browser. What changes is **where** it reads/writes state.
-- Regular chat keeps its existing Privy-JWT → portal direct path. Only agent flows move behind the agent server.
-- Prompt, tool list, and model live with the agent server. Portal holds only the registry (auth + routing). Persona / memory / style is dropped as a portal concept - each agent manages its own prompt locally.
+- Tool executor code (e.g. `create_file`) does not change - the same SDK package runs in whichever runtime hosts the agent. What differs across runtimes is the storage adapter wired into the tool.
+- Regular chat keeps its existing Privy-JWT → portal direct path. Only the server-runtime agent path uses OAuth.
 
 ## Shared migration (applies to every agent)
 
@@ -62,16 +63,18 @@ Multiple clients can launch agents; Anuma Chat is the reference client. First-pa
    - On first invocation, the client runs the OAuth consent flow for the agent (auto-grant path for first-party agents - redirect is headless).
    - Client stores the issued scoped access token; uses it on every subsequent turn.
    - Client sends `POST /agents/{id}/turn` with `{ session_id, user_message, scoped_context }` where `scoped_context` is *only what the tool loop needs* (see per-agent sections).
+   - Agent server binds the incoming Privy JWT's user_id to the OAuth access token's `sub` claim; mismatched pairs are rejected. Prevents a token issued for one user from being used in another user's session.
    - Client consumes the SSE stream: `text_delta`, `tool_call_start`, `tool_call_done`, `render_instruction`, `error`, `message_done`.
 
-5. **Remove client-side `runToolLoop` for this agent**
-   - The client stops importing `runToolLoop`, stops assembling tool configs, stops running executors.
-   - Keeps: sending context, consuming the stream, applying results to its local storage.
+5. **Add the server-invocation path in the client**
+   - The client keeps its existing client-runtime path (`runToolLoop` in-process). This step adds an alternative path: hitting the agent server for the same agent.
+   - When the client picks the server path: sends context, consumes the SSE stream, applies mutations to its local store. Skips the local `runToolLoop`.
+   - Which path the client picks per turn is a product decision (feature flag, user setting, context, etc.) - the agent's `runtimes` list just gates what's possible.
 
 6. **Verify**
-   - Turn round-trip works end-to-end.
+   - Turn round-trip works end-to-end in the server path.
    - Streaming events render in the existing UI.
-   - Client-side state after a turn matches what the client-runtime produced before.
+   - Client-side state after a server-path turn matches what a client-path turn would have produced.
 
 ## Per-agent migration
 
@@ -79,9 +82,9 @@ Multiple clients can launch agents; Anuma Chat is the reference client. First-pa
 
 **What it is today**
 
-- Portal agent config: `system_prompt` (static), `skills: [...]` - list of portal-resolved tool IDs. Post-migration both move to the agent server.
+- Portal agent config: `system_prompt` (static), `skills: [...]` - list of portal-resolved tool IDs. Post-migration both ship in the agent's npm package (both runtimes import it).
 - No custom client storage of its own beyond the shared conversation history.
-- Runs by the client fetching the config and calling `runToolLoop({ prompt, tools: resolved(skills) })`.
+- Runs today by the client fetching the config and calling `runToolLoop({ prompt, tools: resolved(skills) })`. Continues to work post-migration.
 
 **Tool footprint** (read from portal config - assumed analyst/web-search shape)
 
@@ -91,7 +94,7 @@ Multiple clients can launch agents; Anuma Chat is the reference client. First-pa
 
 1. Shared steps 1–3 - register `sentinel`, load config on agent server, map `skills` to MCP scopes (`mcp:search_web`, `mcp:financial:*`, etc.).
 2. Consent grant at first use - first-party auto-grant, scopes pulled from the portal config's `skills[]`.
-3. Client replaces its direct portal call with `POST /agents/sentinel/turn`.
+3. Client gains an option to invoke via `POST /agents/sentinel/turn` instead of running the loop locally. Existing direct-portal path remains.
 4. `scoped_context` sent per turn: last-N messages from the conversation's local thread. Nothing else. No user persona or memory - those are applied by portal on the inference call.
 5. Stream consumer unchanged (Sentinel produces text only; no artifact or render events).
 6. Scheduled runs (if Sentinel ever needs them) require `offline_access` scope at consent; agent server stores the cron job.
@@ -121,7 +124,7 @@ To preserve the privacy rule (agent server gets only what it needs), file storag
 **Migration steps**
 
 1. Shared steps 1–3 - register `app-creator`, scopes: `tool:create_file`, `tool:patch_file`, `tool:delete_file`, `tool:read_file`, `tool:list_files`, `tool:display_app`.
-2. Tool executors move server-side but change their backing store from `AppFileStorage` to an **in-memory session map** seeded from the client's snapshot:
+2. Tool executors also run server-side (when the agent is invoked via server runtime). Backing store switches from `AppFileStorage` (client adapter, writes to IndexedDB) to an **in-memory session map** seeded from the client's snapshot:
    - Turn begins: client sends `scoped_context = { messages, fileSnapshot: StoredAppFile[] }` for the current conversation.
    - Agent server constructs a session-scoped in-memory `Map<path, content>` from the snapshot, passes a `SessionFileStorage` wrapper to the SDK tool factory (`createAppGenerationTools`).
    - `create_file` / `patch_file` / `delete_file` mutate the in-memory map *and* emit a `tool_call_done` event with `{ name, args, result, mutation: { op, path, content } }`.
@@ -130,7 +133,7 @@ To preserve the privacy rule (agent server gets only what it needs), file storag
 3. `display_app` becomes a pure render instruction emitted as an SSE event. Client reads its own local store to render the preview (same as today, just the trigger comes over the wire instead of from a local callback).
 4. `read_file` / `list_files` also read from the session-scoped map. Since the snapshot is seeded from the client, reads are consistent with what the user sees.
 5. Streaming artifact previews (`onToolCallArgumentsDelta` today - live typing of HTML as it generates) surface as `tool_call_arguments_delta` SSE events; client wires them into the same live-preview UI.
-6. Shared steps 4–6 - client wires the new endpoint, stops running the local tool loop, consumes the stream, verifies parity.
+6. Shared steps 4–6 - client wires the new endpoint as an additional invocation path, consumes the stream, verifies parity.
 
 **Minimal context the client sends per turn**
 
@@ -148,15 +151,16 @@ To preserve the privacy rule (agent server gets only what it needs), file storag
   - **Sentinel** - the MCP scopes its `skills[]` expands to (e.g. `mcp:search_web`). No artifact scopes. No `offline_access` unless scheduled.
   - **App Creator** - `tool:create_file`, `tool:patch_file`, `tool:delete_file`, `tool:read_file`, `tool:list_files`, `tool:display_app`. No MCP. No `offline_access`.
 - Client holds the issued access token per `(user, agent)`. Refresh on expiry via agent server's `/token` refresh call - transparent to the user.
-- Revocation: user can revoke an agent from the granted-agents dashboard on the portal. Next refresh fails; client re-prompts (or re-triggers consent silently for first-party).
+- Revocation: user can revoke an agent from the granted-agents dashboard on the portal. Next refresh fails; client must re-run the OAuth consent flow explicitly. Re-grant is never silent after a revoke, even for first-party agents. Same rule applies when the agent requests a new scope it didn't previously have - user approval is required.
 
 ## runToolLoop specifics
 
-- **Where it runs now**: client, imported from `@anuma/sdk`.
-- **Where it runs after migration**: agent server, importing the *same* code from `@anuma/sdk`. No fork.
-- **Loop inputs change**: previously the client supplied tool executors directly; post-migration the agent server resolves executors from SDK tool packages using the agent config's `skills[]` list.
-- **Loop outputs change**: previously callbacks (`onData`, `onToolCall`, `onToolCallArgumentsDelta`, `onStepFinish`) fired in-process. Post-migration, these emit as SSE events on the wire. The SDK may ship a helper (`toolLoopToSSE`) that adapts the existing callbacks to the standard event schema - so the tool loop itself doesn't need modification.
-- **Topological execution, dependsOn, skipContinuation, removeAfterExecution** - all preserved. Server-side execution doesn't change semantics.
+- **One implementation, two runtimes.** `runToolLoop` in `@anuma/sdk` runs on both the client (Anuma Chat today) and the agent server (after migration). Same code, imported by each runtime. No fork.
+- **Loop inputs.** Agent config (prompt + tools + model) is imported from the agent's npm package in both runtimes. The only difference is the storage adapter wired into artifact-producing tools (client adapter for in-process, session adapter for server).
+- **Loop outputs.**
+  - Client runtime: callbacks (`onData`, `onToolCall`, `onToolCallArgumentsDelta`, `onStepFinish`) fire in-process, as today.
+  - Server runtime: the same callbacks are piped into SSE events on the wire. The SDK may ship a helper (`toolLoopToSSE`) that adapts callbacks to the standard event schema - so the tool loop itself doesn't need modification.
+- **Topological execution, `dependsOn`, `skipContinuation`, `removeAfterExecution`** - preserved in both runtimes. Semantics are identical.
 
 ## Open items
 

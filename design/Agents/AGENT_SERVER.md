@@ -1,18 +1,22 @@
 # Agent Server
 
-Companion to [AGENT_ARCHITECTURE.md](./AGENT_ARCHITECTURE.md). Describes what changes when agents run on their own server instead of on the client.
+Companion to [AGENT_ARCHITECTURE.md](./AGENT_ARCHITECTURE.md). Describes the server runtime for agents - what it adds, how it authenticates, what the portal needs.
 
-Anuma hosts one agent server runtime for all first-party agents. Third-party developers deploy their own agent server(s) to run their own agents.
+Anuma hosts one agent server runtime for all first-party agents. Third-party developers deploy their own agent server(s).
+
+The server runtime is additive, not a replacement. Agents declare `runtimes: ["client"]`, `["server"]`, or `["client", "server"]` in their config (shipped as an npm package). Client-runnable agents continue to run via SDK's `runToolLoop` in the caller's process; server-runnable agents run in the agent server and are reached over OAuth.
 
 ## Tool calls
 
-- Agent server runs the full tool loop. All tools execute server-side.
-- **Custom tools** - executor runs in the agent server process (imported from SDK tool packages).
+Everything below applies to an agent invoked in the **server runtime**. The client runtime's behaviour is unchanged - SDK `runToolLoop` runs in the caller's process with its local storage adapter.
+
+- Agent server runs the full tool loop for that invocation. All tools execute server-side.
+- **Custom tools** - executor runs in the agent server process (imported from the agent's npm package, often re-exporting SDK tool packages).
 - **MCP tools** - executor runs in the portal. Unchanged.
-- **No client-as-executor round-trips.** Client is a view, not a runtime.
-- Artifacts (e.g. `create_file` output) are written to a server-owned artifact store, not to client storage.
-- `display_app` becomes a render instruction the agent server emits into the response stream. The client interprets it - the same way it interprets text.
-- Tool schemas gain a `runtime` field (`server` / `either`). `runtime: client` tools are rejected at config validation in the server-agent world.
+- **No client-as-executor round-trips in this path.** For a server-path invocation, the client is a view - it consumes the stream and applies mutations.
+- Artifact handling depends on the tool's adapter. Default pattern is a session-scoped in-memory store on the agent server; mutations stream back to the caller, which persists them to its own local store (matches client-runtime behaviour). A shared portal-hosted artifact store is an alternative if cross-runtime continuity is needed - open item, see `AGENT_ARCHITECTURE.md`.
+- `display_app` and similar render-triggering tools emit a render instruction as an SSE event. The caller interprets it the same way it interprets text.
+- Tools may declare a `runtime` capability (`client` / `server` / `either`). An agent's `runtimes` list must be compatible with all its tools.
 
 ### Flow
 
@@ -28,9 +32,8 @@ Anuma hosts one agent server runtime for all first-party agents. Third-party dev
      │                     │                    │                │
      │                     │<── tool_call: create_file ──────────│
      │                     │                    │                │
-     │   writes artifact   │                    │                │
-     │                     │───► artifact store │                │
-     │                     │    (server-owned)  │                │
+     │                     │  writes to session │                │
+     │                     │  store (in-memory) │                │
      │                     │                    │                │
      │  progress event     │                    │                │
      │<────────────────────│                    │                │
@@ -56,7 +59,7 @@ Anuma hosts one agent server runtime for all first-party agents. Third-party dev
      │<────────────────────│                    │                │
 ```
 
-One SSE stream from agent server to client. Typed events: `text_delta`, `tool_call_start`, `tool_call_done`, `render_instruction`, `message_done`. No request ever goes back from server to client mid-turn - client is purely receiving.
+One SSE stream from agent server to client. Typed events: `text_delta`, `tool_call_start`, `tool_call_done`, `render_instruction`, `message_done`. No request ever goes back from server to client mid-turn - for a server-path turn, the client is purely receiving.
 
 ### Open questions
 
@@ -102,7 +105,7 @@ Client authenticates to the agent server with its Privy JWT. Agent server uses a
 
 - **End user credential** - Privy JWT. Also drives the OAuth consent flow.
 - **Agent credential** - `client_id` + `client_secret`, registered in portal (OAuth confidential client).
-- **Access token** - short-lived JWT signed by portal; `{ sub: user_id, azp: agent_id, scope, exp }`. Refresh token issued for scheduled / long-lived use (requires `offline_access` scope).
+- **Access token** - short-lived JWT signed by portal (default 15 min, max 1 hour); `{ sub: user_id, azp: agent_id, scope, exp }`. Refresh token issued for scheduled / long-lived use (requires `offline_access` scope; default 30 days, rotated on each use).
 - **Developer API key** - registers and manages agents. Not used at runtime.
 - Scopes map to capabilities: `tool:search_web`, `artifact:file:write`, `mcp:gmail:read`, `offline_access`. Portal enforces scope on every call.
 - Standard OAuth 2.0 (RFC 6749) + PKCE (RFC 7636); no custom auth.
@@ -114,6 +117,7 @@ Client authenticates to the agent server with its Privy JWT. Agent server uses a
 - Bearer-token middleware on inference/MCP/artifact endpoints, alongside the existing Privy middleware.
 - Consent UI and granted-agents revocation dashboard.
 - Per-`(user, agent)` attribution in billing, usage, rate limits.
+- Per-agent spending caps: user can set a max daily / monthly spend per agent at consent time. Portal checks on each call; turns that would exceed the cap are rejected with an `insufficient_spend_limit` error event.
 
 Prompt, tool list, and model choice live with the agent server, not portal.
 
