@@ -2,9 +2,13 @@
 
 > **clearAllKeyPairs**(): `void`
 
-Defined in: [src/react/useEncryption.ts:1236](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1236)
+Defined in: [src/react/useEncryption.ts:1258](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1258)
 
-Clears all key pairs from memory
+Clears all key pairs from memory and any persisted entries in localStorage.
+
+Matches the persistence behavior of the per-address [clearKeyPair](clearKeyPair.md);
+without this, `clearAllKeyPairs()` would leave `ecdh_keypair_*` ciphertext
+behind in storage while `clearKeyPair(address)` removes it.
 
 ## Returns
 
