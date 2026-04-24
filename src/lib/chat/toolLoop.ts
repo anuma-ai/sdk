@@ -7,6 +7,8 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { generateEmbedding } from "../memoryEngine/embeddings";
+import type { PromptPreProcessor } from "./preProcessor";
 
 /**
  * Error thrown when the SSE connection receives a non-OK HTTP response.
@@ -36,8 +38,6 @@ function wrapSseError(error: unknown): Error {
   }
   return new Error(String(error));
 }
-import { generateEmbedding } from "../memoryEngine/embeddings";
-import type { PromptPreProcessor } from "./preProcessor";
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";

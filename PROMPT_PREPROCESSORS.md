@@ -62,8 +62,8 @@ The SDK ships the web-search classifier as a concrete pre-processor. It does **n
 import { runToolLoop, createWebSearchPreProcessor } from "@anuma/sdk/server";
 
 const webSearch = createWebSearchPreProcessor({
-  fetchSearchResults: async (prompt) => {
-    const res = await mySearchProvider.query(prompt);
+  fetchSearchResults: async (prompt, { signal }) => {
+    const res = await mySearchProvider.query(prompt, { signal });
     return res.results.map((r) => `- ${r.title}: ${r.snippet}`).join("\n");
   },
 });

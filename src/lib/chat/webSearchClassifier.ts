@@ -100,8 +100,14 @@ export interface WebSearchPreProcessorOptions {
    * wrap it in a default user message) or a fully-formed message array
    * (full control over role/shape). Omit to run in observer mode —
    * classification still fires but no messages are injected.
+   *
+   * The `signal` argument is forwarded from the tool loop so long-running
+   * search requests can be aborted when the caller aborts.
    */
-  fetchSearchResults?: (prompt: string) => Promise<string | LlmapiMessage[]>;
+  fetchSearchResults?: (
+    prompt: string,
+    options: { signal?: AbortSignal }
+  ) => Promise<string | LlmapiMessage[]>;
   /**
    * Score margin: `searchScore` must exceed `noSearchScore` by at least
    * this amount to classify as "needs web search".
@@ -123,8 +129,8 @@ export interface WebSearchPreProcessorOptions {
  * import { runToolLoop, createWebSearchPreProcessor } from "@anuma/sdk/server";
  *
  * const webSearch = createWebSearchPreProcessor({
- *   fetchSearchResults: async (prompt) => {
- *     const res = await mySearchProvider.query(prompt);
+ *   fetchSearchResults: async (prompt, { signal }) => {
+ *     const res = await mySearchProvider.query(prompt, { signal });
  *     return res.results.map((r) => `- ${r.title}: ${r.snippet}`).join("\n");
  *   },
  * });
@@ -149,8 +155,8 @@ export interface WebSearchPreProcessorOptions {
  * @example Full control — return a custom message shape
  * ```ts
  * const webSearch = createWebSearchPreProcessor({
- *   fetchSearchResults: async (prompt) => {
- *     const results = await mySearchProvider.query(prompt);
+ *   fetchSearchResults: async (prompt, { signal }) => {
+ *     const results = await mySearchProvider.query(prompt, { signal });
  *     return [
  *       {
  *         role: "system",
@@ -165,11 +171,11 @@ export function createWebSearchPreProcessor(
   options: WebSearchPreProcessorOptions = {}
 ): PromptPreProcessor {
   const margin = options.margin ?? 0.02;
-  return async ({ prompt, embedding }) => {
+  return async ({ prompt, embedding, signal }) => {
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
     if (!classification.needsWebSearch || !options.fetchSearchResults) return;
-    const results = await options.fetchSearchResults(prompt);
+    const results = await options.fetchSearchResults(prompt, { signal });
     if (typeof results === "string") {
       return [
         {
