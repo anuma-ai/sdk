@@ -91,9 +91,19 @@ function locOf(node: { loc?: SourceLocation | null }): SrcLoc {
 
 const NAMESPACE = "Anuma";
 
-const KNOWN_TAGS = [
+/**
+ * `Anuma.*` primitives — things that aren't native HTML concepts. Kept
+ * deliberately small; general content uses raw HTML.
+ *
+ * - Deck / Slide / Screen: layout containers with canvas semantics.
+ * - Text / Image / Icon / Group: preserved for slide templates and LLM
+ *   fluency (with theme-token bindings on Text). Safe to mix with HTML.
+ * - Rect / Circle / Line: SVG shape abstractions.
+ */
+const ANUMA_TAGS = [
   "Deck",
   "Slide",
+  "Screen",
   "Group",
   "Text",
   "Image",
@@ -103,15 +113,188 @@ const KNOWN_TAGS = [
   "Icon",
 ] as const;
 
-export type KnownTag = (typeof KNOWN_TAGS)[number];
+export type KnownTag = (typeof ANUMA_TAGS)[number];
 
-const KNOWN_TAG_SET = new Set<string>(KNOWN_TAGS);
+const ANUMA_TAG_SET = new Set<string>(ANUMA_TAGS);
+
+/**
+ * Allowlist of plain HTML tags the LLM may emit alongside `<Anuma.*>`.
+ * These are pass-through at the parser; the renderer treats them as
+ * native DOM elements.
+ */
+const HTML_TAGS = new Set<string>([
+  // structural
+  "div",
+  "span",
+  "section",
+  "article",
+  "header",
+  "footer",
+  "main",
+  "aside",
+  "nav",
+  "figure",
+  "figcaption",
+  // text
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "strong",
+  "em",
+  "b",
+  "i",
+  "u",
+  "code",
+  "pre",
+  "blockquote",
+  "small",
+  "sub",
+  "sup",
+  "mark",
+  "hr",
+  "br",
+  // lists
+  "ul",
+  "ol",
+  "li",
+  "dl",
+  "dt",
+  "dd",
+  // interactive / form
+  "a",
+  "button",
+  "input",
+  "textarea",
+  "select",
+  "option",
+  "optgroup",
+  "label",
+  "fieldset",
+  "legend",
+  "form",
+  "progress",
+  "meter",
+  // tabular
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "th",
+  "td",
+  "caption",
+  "colgroup",
+  "col",
+  // media
+  "img",
+  "picture",
+  "source",
+  "video",
+  "audio",
+  "track",
+  "canvas",
+  // svg
+  "svg",
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "line",
+  "polygon",
+  "polyline",
+  "g",
+  "defs",
+  "use",
+  "symbol",
+  "text",
+  "tspan",
+  "mask",
+  "clipPath",
+  "linearGradient",
+  "radialGradient",
+  "stop",
+]);
+
+/**
+ * HTML tags that must never appear — they let an LLM smuggle script
+ * execution or exfiltrate content. Reject at parse time.
+ */
+const FORBIDDEN_HTML_TAGS = new Set<string>([
+  "script",
+  "iframe",
+  "link",
+  "style",
+  "meta",
+  "object",
+  "embed",
+  "base",
+  "head",
+  "html",
+  "body",
+  "noscript",
+  "frame",
+  "frameset",
+  "applet",
+  "portal",
+]);
 
 /** Tags whose body is raw text (JSX children are the displayed string). */
-const TEXT_BODY_TAGS = new Set<string>(["Text"]);
+const TEXT_BODY_TAGS = new Set<string>([
+  "Text",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "span",
+  "a",
+  "button",
+  "label",
+  "li",
+  "strong",
+  "em",
+  "b",
+  "i",
+  "u",
+  "code",
+  "pre",
+  "blockquote",
+  "small",
+  "sub",
+  "sup",
+  "mark",
+  "caption",
+  "th",
+  "td",
+  "option",
+  "legend",
+  "figcaption",
+  "dt",
+  "dd",
+  "summary",
+]);
 
 /** Tags rendered as self-closing when they have no meaningful children. */
-const LEAF_TAGS = new Set<string>(["Image", "Rect", "Circle", "Line", "Icon"]);
+const LEAF_TAGS = new Set<string>([
+  "Image",
+  "Rect",
+  "Circle",
+  "Line",
+  "Icon",
+  "img",
+  "hr",
+  "br",
+  "input",
+  "source",
+  "track",
+  "col",
+]);
 
 // ---------------------------------------------------------------------------
 // Parse: JSX string -> AnumaNode
@@ -137,22 +320,48 @@ export function parseJsx(source: string): AnumaNode {
 
 function parseElement(el: JSXElement): AnumaNode {
   const tag = readTag(el);
-  if (!KNOWN_TAG_SET.has(tag)) {
-    throw new AnumaJsxError(
-      `Unknown tag <${NAMESPACE}.${tag}>. Expected one of ${KNOWN_TAGS.map((t) => `<${NAMESPACE}.${t}>`).join(", ")}.`,
-      locOf(el.openingElement)
-    );
-  }
-  const attrs = readAttributes(el);
+  const attrs = readAttributes(el, tag);
   const children = readChildren(el, tag);
   return { tag, attrs, children };
 }
 
+/**
+ * Read and validate the opening tag. Accepts `<Anuma.Name>` where `Name`
+ * is in the Anuma primitive vocabulary, or a bare lowercase HTML tag from
+ * the allowlist. Rejects unknown namespaces, unknown Anuma tags, forbidden
+ * HTML (script / iframe / etc.), and unrecognized bare tags.
+ */
 function readTag(el: JSXElement): string {
   const name = el.openingElement.name;
+  if (name.type === "JSXIdentifier") {
+    const localName = name.name;
+    // Heuristic: capitalized bare tag looks like a user-imported React
+    // component — we don't accept those. Only HTML allowlist.
+    if (/^[A-Z]/.test(localName)) {
+      throw new AnumaJsxError(
+        `Bare capitalized tag <${localName}> not supported. Use <${NAMESPACE}.*> or a plain HTML tag.`,
+        locOf(el.openingElement)
+      );
+    }
+    if (FORBIDDEN_HTML_TAGS.has(localName)) {
+      throw new AnumaJsxError(
+        `<${localName}> is not allowed for safety reasons.`,
+        locOf(el.openingElement)
+      );
+    }
+    if (!HTML_TAGS.has(localName)) {
+      throw new AnumaJsxError(
+        `Unknown HTML tag <${localName}>. See the HTML allowlist in the system prompt.`,
+        locOf(el.openingElement)
+      );
+    }
+    return localName;
+  }
   if (name.type !== "JSXMemberExpression") {
-    const got = name.type === "JSXIdentifier" ? name.name : "<unknown>";
-    throw new AnumaJsxError(`Expected <${NAMESPACE}.*>, got <${got}>`, locOf(el.openingElement));
+    throw new AnumaJsxError(
+      `Expected <${NAMESPACE}.*> or a plain HTML tag`,
+      locOf(el.openingElement)
+    );
   }
   if (name.object.type !== "JSXIdentifier") {
     throw new AnumaJsxError(
@@ -166,7 +375,24 @@ function readTag(el: JSXElement): string {
       locOf(el.openingElement)
     );
   }
-  return name.property.name;
+  const local = name.property.name;
+  if (!ANUMA_TAG_SET.has(local)) {
+    throw new AnumaJsxError(
+      `Unknown tag <${NAMESPACE}.${local}>. Expected one of ${ANUMA_TAGS.map((t) => `<${NAMESPACE}.${t}>`).join(", ")}.`,
+      locOf(el.openingElement)
+    );
+  }
+  return local;
+}
+
+/** True when a tag is an Anuma primitive (capitalized local name). */
+export function isAnumaTag(tag: string): boolean {
+  return ANUMA_TAG_SET.has(tag);
+}
+
+/** True when a tag is a plain HTML element from the allowlist. */
+export function isHtmlTag(tag: string): boolean {
+  return HTML_TAGS.has(tag);
 }
 
 function jsxMemberName(node: JSXMemberExpression): string {
@@ -180,7 +406,7 @@ function jsxMemberName(node: JSXMemberExpression): string {
   return parts.join(".");
 }
 
-function readAttributes(el: JSXElement): Record<string, AttrValue> {
+function readAttributes(el: JSXElement, tag: string): Record<string, AttrValue> {
   const out: Record<string, AttrValue> = {};
   for (const attr of el.openingElement.attributes) {
     if (attr.type === "JSXSpreadAttribute") {
@@ -190,6 +416,12 @@ function readAttributes(el: JSXElement): Record<string, AttrValue> {
       throw new AnumaJsxError("Namespaced attribute names are not supported", locOf(attr));
     }
     const name = attr.name.name;
+    if (/^on[A-Z]/.test(name)) {
+      throw new AnumaJsxError(
+        `Event-handler attribute "${name}" on <${tag}> is not allowed`,
+        locOf(attr)
+      );
+    }
     if (Object.prototype.hasOwnProperty.call(out, name)) {
       throw new AnumaJsxError(`Duplicate attribute "${name}"`, locOf(attr));
     }

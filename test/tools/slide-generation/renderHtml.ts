@@ -17,6 +17,7 @@ import { buildFontsUrl } from "../../../src/tools/slides/fonts.js";
 import type { AnumaNode, AttrValue } from "../../../src/tools/slides/index.js";
 import {
   FONT_PRESETS,
+  isAnumaTag,
   SLIDE_CANVAS_HEIGHT,
   SLIDE_CANVAS_WIDTH,
   THEME_ATTRS,
@@ -206,9 +207,128 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
       return `<div style="${base}${containerStyle}">${kids}</div>`;
     }
     default:
-      return "";
+      if (isAnumaTag(node.tag)) return "";
+      return renderHtmlNode(node, colors, parentIsFlex, base);
   }
 }
+
+/**
+ * Pass-through renderer for allowlisted HTML tags. Inline `style` is
+ * merged with the positioning base; `x`/`y`/`w`/`h` attrs are converted
+ * to absolute positioning (same behavior as Anuma primitives). Child
+ * elements recurse; string children render as escaped text.
+ */
+function renderHtmlNode(
+  node: AnumaNode,
+  colors: ThemeColors,
+  _parentIsFlex: boolean,
+  base: string
+): string {
+  const passthroughAttrs: string[] = [];
+  const userStyle = styleObject(node);
+  const styleCss = serializeStyleWithTheme(userStyle, colors);
+  const containerStyle = buildContainerStyle(node);
+  const myIsFlex = isFlexContainer(node);
+
+  // Collect simple string/number scalar attrs (src, href, type, placeholder, etc.)
+  const SKIP_ATTRS = new Set([
+    "id",
+    "x",
+    "y",
+    "w",
+    "h",
+    "rotation",
+    "grow",
+    "shrink",
+    "alignSelf",
+    "layout",
+    "gap",
+    "padding",
+    "justify",
+    "align",
+    "style",
+  ]);
+  if (typeof node.attrs.id === "string") {
+    passthroughAttrs.push(`id=${JSON.stringify(node.attrs.id)}`);
+  }
+  for (const [k, v] of Object.entries(node.attrs)) {
+    if (SKIP_ATTRS.has(k)) continue;
+    if (typeof v === "string") passthroughAttrs.push(`${k}=${JSON.stringify(v)}`);
+    else if (typeof v === "number") passthroughAttrs.push(`${k}="${v}"`);
+    else if (typeof v === "boolean" && v) passthroughAttrs.push(k);
+  }
+
+  const styleAttr = `style="${base}${containerStyle}${styleCss}"`;
+  const attrStr = passthroughAttrs.length > 0 ? " " + passthroughAttrs.join(" ") : "";
+
+  const kids = node.children
+    .map((c) => {
+      if (typeof c === "string") return esc(c);
+      return renderNode(c, colors, myIsFlex);
+    })
+    .join("");
+
+  // Self-closing for void elements
+  const VOID = new Set(["img", "hr", "br", "input", "source", "track", "col"]);
+  if (VOID.has(node.tag)) {
+    return `<${node.tag}${attrStr} ${styleAttr} />`;
+  }
+  return `<${node.tag}${attrStr} ${styleAttr}>${kids}</${node.tag}>`;
+}
+
+/** Serialize a user-provided style object to inline CSS, resolving theme tokens for color props. */
+function serializeStyleWithTheme(
+  style: Record<string, string | number | boolean>,
+  colors: ThemeColors
+): string {
+  const COLOR_KEYS = new Set([
+    "color",
+    "background",
+    "backgroundColor",
+    "borderColor",
+    "fill",
+    "stroke",
+  ]);
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(style)) {
+    const cssKey = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+    if (COLOR_KEYS.has(k) && typeof v === "string") {
+      parts.push(`${cssKey}:${resolveColor(v, colors)}`);
+    } else if (typeof v === "string" || typeof v === "number") {
+      parts.push(`${cssKey}:${v}${typeof v === "number" && NEEDS_PX.has(k) ? "px" : ""}`);
+    } else if (typeof v === "boolean") {
+      parts.push(`${cssKey}:${v ? "true" : "false"}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(";") + ";" : "";
+}
+
+/** CSS properties where bare numeric values should render as `Npx`. */
+const NEEDS_PX = new Set([
+  "fontSize",
+  "lineHeight",
+  "padding",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "margin",
+  "marginTop",
+  "marginRight",
+  "marginBottom",
+  "marginLeft",
+  "borderRadius",
+  "borderWidth",
+  "width",
+  "height",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "gap",
+  "rowGap",
+  "columnGap",
+]);
 
 /** Render an Anuma deck to a self-contained HTML page with arrow-key navigation. */
 export function renderDeckToHtml(deck: AnumaNode, title?: string): string {

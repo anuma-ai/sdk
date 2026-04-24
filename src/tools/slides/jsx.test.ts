@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  AnumaJsxError,
   type AnumaNode,
   findById,
   findParentOfId,
@@ -59,10 +58,36 @@ function textNode(id: string, text: string, extras: Record<string, unknown> = {}
 }
 
 describe("parseJsx", () => {
-  it("rejects non-Anuma root tags", () => {
-    expect(() => parseJsx(`<div />`)).toThrow(AnumaJsxError);
-    expect(() => parseJsx(`<Deck />`)).toThrow(AnumaJsxError);
+  it("accepts allowlisted plain HTML tags", () => {
+    const div = parseJsx(`<div />`);
+    expect(div.tag).toBe("div");
+    const h1 = parseJsx(`<h1>Hello</h1>`);
+    expect(h1.tag).toBe("h1");
+    expect(h1.children).toEqual(["Hello"]);
+  });
+
+  it("rejects bare capitalized tags (user-imported components)", () => {
+    expect(() => parseJsx(`<Deck />`)).toThrow(/Bare capitalized tag/);
+  });
+
+  it("rejects unknown namespaces", () => {
     expect(() => parseJsx(`<Foo.Deck />`)).toThrow(/Unknown namespace/);
+  });
+
+  it("rejects forbidden HTML tags (script / iframe / link / style / meta)", () => {
+    expect(() => parseJsx(`<script />`)).toThrow(/not allowed for safety/);
+    expect(() => parseJsx(`<iframe />`)).toThrow(/not allowed for safety/);
+    expect(() => parseJsx(`<link />`)).toThrow(/not allowed for safety/);
+  });
+
+  it("rejects unrecognized HTML tags not in the allowlist", () => {
+    expect(() => parseJsx(`<marquee>scroll</marquee>`)).toThrow(/Unknown HTML tag/);
+  });
+
+  it("rejects event-handler attributes (on*)", () => {
+    expect(() => parseJsx(`<button onClick={handler}>Click</button>`)).toThrow(
+      /Event-handler attribute/
+    );
   });
 
   it("rejects unknown Anuma tags", () => {

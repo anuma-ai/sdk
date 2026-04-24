@@ -199,6 +199,8 @@ export {
   getStringAttr,
   insertAfterId,
   insertChild,
+  isAnumaTag,
+  isHtmlTag,
   isKnownFont,
   LAYOUT_MODES,
   parseJsx,

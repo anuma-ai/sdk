@@ -75,6 +75,8 @@ export {
   getStringAttr,
   insertAfterId,
   insertChild,
+  isAnumaTag,
+  isHtmlTag,
   parseJsx,
   removeById,
   replaceById,
@@ -1141,16 +1143,35 @@ WORKFLOW (initialize then add slides one at a time):
 
 For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX) → patch_slides (replace_element / insert_element / remove_element / replace_slide / insert_slide / remove_slide / update_theme). No plan_deck needed for edits.
 
-JSX CONVENTIONS:
-- Namespaced tags only: <Anuma.Deck>, <Anuma.Slide>, <Anuma.Text>, <Anuma.Image>, <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, <Anuma.Icon>, <Anuma.Group>.
-- Numeric attrs use JSX expressions: x={96}. String attrs are quoted: fontRole="heading".
-- Structured attrs carry geometry, layout, and semantics (id, x/y/w/h, rotation, grow/shrink/alignSelf, layout/gap/padding/justify/align, fontRole, src, name, fill/stroke/strokeWidth for shapes).
-- Appearance lives in style={{}} — CSS property names in camelCase. Example:
-  <Anuma.Text id="title" x={58} y={162} w={844} h={54} fontRole="heading" style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</Anuma.Text>
-  Color strings inside style accept theme tokens (textPrimary, accent, slideBg, etc.) OR hex/rgb literals.
-- <Anuma.Text> body goes between the tags as children (NOT a text prop): <Anuma.Text …>The Title</Anuma.Text>.
-- Shape variants are distinct tags — use <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, not a shape="…" attribute. Shape colors stay as SVG-style attrs (fill, stroke, strokeWidth), not style.
-- <Anuma.Group id="…">…</Anuma.Group> groups elements structurally.
+JSX VOCABULARY — two families of tags, mix freely:
+
+<Anuma.*> primitives for design-tool concepts that aren't HTML:
+  - <Anuma.Deck> / <Anuma.Slide> / <Anuma.Screen> — containers with canvas semantics.
+  - <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> — SVG shape abstractions (fill / stroke / strokeWidth / cornerRadius as attrs, not style).
+
+Plain HTML tags (allowlisted) for everything else:
+  - Structure: div, span, section, article, header, footer, main, aside, nav, figure, figcaption.
+  - Text: h1–h6, p, a, strong, em, code, pre, blockquote, small, sub, sup, mark, hr, br.
+  - Lists: ul, ol, li, dl, dt, dd.
+  - Interactive / form: button, input, textarea, select, option, optgroup, label, fieldset, legend, form, progress, meter.
+  - Tabular: table, thead, tbody, tfoot, tr, th, td, caption, colgroup, col.
+  - Media: img, picture, source, video, audio, track, canvas.
+  - SVG: svg, path, rect, circle, ellipse, line, polygon, polyline, g, defs, use, symbol, text, tspan, mask, clipPath, linearGradient, radialGradient, stop.
+  Forbidden (safety): script, iframe, link, style, meta, object, embed, head, body, noscript. Event-handler attrs (onClick, onChange, etc.) are also rejected.
+
+WHEN TO REACH FOR EACH:
+  - Use <Anuma.Slide> / <Anuma.Screen> as the root for each slide / app screen.
+  - Use <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line> for decorative shapes.
+  - Use plain HTML for every piece of content: headings, paragraphs, buttons, inputs, images, lists, tables. The LLM and downstream code are most fluent with these.
+  - For flex layout, use <div style={{ display: "flex", flexDirection: "row", gap: 16, padding: 24 }}>…</div>. No custom layout attrs needed.
+
+ATTRIBUTES:
+  - Numeric attrs use JSX expressions: x={96}. String attrs are quoted.
+  - Geometry for absolute-positioned children of <Anuma.Slide>: x={…} y={…} w={…} h={…} rotation={…} (pixels; renderer converts to position:absolute). Works on any tag.
+  - Appearance lives in style={{}} — CSS property names in camelCase. Example:
+      <h1 x={58} y={162} w={844} h={54} style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</h1>
+    Color strings inside style accept theme tokens (textPrimary, accent, slideBg, textMuted, border, card, surfaceSecondary) OR hex/rgb literals.
+  - Shape fill/stroke (on <Anuma.Rect> / <Anuma.Circle> / <Anuma.Line>) ALSO accept theme tokens: fill="accent" or fill="#10b981".
 
 COORDINATE SYSTEM — every position is container-relative pixels on a 960×540 slide canvas.
 - Child (x, y) is the pixel offset from the parent's top-left. (w, h) are pixel dimensions.
