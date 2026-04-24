@@ -28,6 +28,93 @@ import {
 } from "../../react/useEncryption";
 import { getLogger } from "../logger";
 
+/**
+ * Typed error class for Notion integration failures.
+ *
+ * Preserves the HTTP status, endpoint, and underlying cause so callers can
+ * distinguish auth failures (401), rate limits (429), and network errors
+ * from generic tool errors. Previously many code paths silently returned
+ * `{}` on failure, turning real errors into cryptic "missing field" errors
+ * downstream.
+ */
+export class NotionError extends Error {
+  /** HTTP status code if the failure originated from an HTTP response. */
+  readonly status?: number;
+  /** Endpoint URL the request was made against, if applicable. */
+  readonly endpoint?: string;
+  /** Optional error code from the Notion response body (e.g. "invalid_grant"). */
+  readonly code?: string;
+
+  constructor(
+    message: string,
+    options: {
+      status?: number;
+      endpoint?: string;
+      code?: string;
+      cause?: unknown;
+    } = {}
+  ) {
+    super(message, options.cause !== undefined ? { cause: options.cause } : undefined);
+    this.name = "NotionError";
+    this.status = options.status;
+    this.endpoint = options.endpoint;
+    this.code = options.code;
+  }
+}
+
+/**
+ * Safely read an error response body as parsed JSON, falling back to text
+ * on parse failure. Never throws — logs a warning with context so the caller
+ * can still surface a meaningful NotionError for the original HTTP failure.
+ *
+ * Tries `.clone()` for robust text fallback when JSON parsing fails, but
+ * gracefully handles response objects (e.g. in tests) that lack clone support.
+ */
+async function readErrorResponseBody(
+  response: Response,
+  endpoint: string
+): Promise<{ json?: Record<string, unknown>; text?: string }> {
+  // Attempt to clone first so we have a text fallback if json() fails.
+  // Some test doubles / polyfills lack clone() — fall back to json() directly.
+  let cloned: Response | undefined;
+  try {
+    cloned = response.clone();
+  } catch {
+    cloned = undefined;
+  }
+
+  try {
+    const json = (await response.json()) as Record<string, unknown>;
+    return { json };
+  } catch (jsonErr) {
+    if (!cloned) {
+      getLogger().warn("Notion error response was not JSON (no clone fallback)", {
+        endpoint,
+        status: response.status,
+        jsonErr: jsonErr instanceof Error ? jsonErr.message : String(jsonErr),
+      });
+      return {};
+    }
+    try {
+      const text = await cloned.text();
+      getLogger().warn("Notion error response was not JSON", {
+        endpoint,
+        status: response.status,
+        textPreview: text.slice(0, 200),
+      });
+      return { text };
+    } catch (textErr) {
+      getLogger().warn("Failed to read Notion error response body", {
+        endpoint,
+        status: response.status,
+        jsonErr: jsonErr instanceof Error ? jsonErr.message : String(jsonErr),
+        textErr: textErr instanceof Error ? textErr.message : String(textErr),
+      });
+      return {};
+    }
+  }
+}
+
 // Storage keys
 const TOKEN_STORAGE_KEY = "oauth_token_notion";
 
@@ -225,16 +312,26 @@ async function registerClient(
   });
 
   if (!response.ok) {
-    const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error(
-      `Client registration failed: ${response.status} - ${JSON.stringify(errorData)}`
+    const body = await readErrorResponseBody(response, registrationEndpoint);
+    const payload = body.json ?? body.text ?? "";
+    const code = typeof body.json?.error === "string" ? body.json.error : undefined;
+    getLogger().error("Notion client registration failed", {
+      endpoint: registrationEndpoint,
+      status: response.status,
+      body: payload,
+    });
+    throw new NotionError(
+      `Client registration failed: ${response.status} - ${typeof payload === "string" ? payload : JSON.stringify(payload)}`,
+      { status: response.status, endpoint: registrationEndpoint, code }
     );
   }
 
   const data = (await response.json()) as ClientRegistrationResponse;
 
   if (!data.client_id) {
-    throw new Error("No client_id in registration response");
+    throw new NotionError("No client_id in registration response", {
+      endpoint: registrationEndpoint,
+    });
   }
 
   const registration: ClientRegistration = {
@@ -788,16 +885,26 @@ export async function handleNotionCallback(
   });
 
   if (!tokenResponse.ok) {
-    const errorData = (await tokenResponse.json().catch(() => ({}))) as Record<string, unknown>;
-    throw new Error(
-      `Token exchange failed: ${tokenResponse.status} - ${JSON.stringify(errorData)}`
+    const body = await readErrorResponseBody(tokenResponse, metadata.token_endpoint);
+    const payload = body.json ?? body.text ?? "";
+    const code = typeof body.json?.error === "string" ? body.json.error : undefined;
+    getLogger().error("Notion token exchange failed", {
+      endpoint: metadata.token_endpoint,
+      status: tokenResponse.status,
+      body: payload,
+    });
+    throw new NotionError(
+      `Token exchange failed: ${tokenResponse.status} - ${typeof payload === "string" ? payload : JSON.stringify(payload)}`,
+      { status: tokenResponse.status, endpoint: metadata.token_endpoint, code }
     );
   }
 
   const tokenData = (await tokenResponse.json()) as OAuthTokenResponse;
 
   if (!tokenData.access_token) {
-    throw new Error("No access token in response");
+    throw new NotionError("No access token in response", {
+      endpoint: metadata.token_endpoint,
+    });
   }
 
   // Build stored token data
@@ -865,21 +972,38 @@ export async function refreshNotionToken(
     });
 
     if (!response.ok) {
-      const errorData = (await response.json().catch(() => ({}))) as OAuthTokenResponse;
+      const body = await readErrorResponseBody(response, metadata.token_endpoint);
+      const errorData = (body.json ?? {}) as OAuthTokenResponse;
+      const code = typeof errorData.error === "string" ? errorData.error : undefined;
 
       // If invalid_grant, user needs to re-authenticate
-      if (errorData.error === "invalid_grant") {
+      if (code === "invalid_grant") {
+        getLogger().warn("Notion refresh token invalid, clearing credentials", {
+          endpoint: metadata.token_endpoint,
+          status: response.status,
+        });
         clearNotionToken(walletAddress);
         return null;
       }
 
-      throw new Error(`Token refresh failed: ${JSON.stringify(errorData)}`);
+      const payload = body.json ?? body.text ?? "";
+      getLogger().error("Notion token refresh failed", {
+        endpoint: metadata.token_endpoint,
+        status: response.status,
+        body: payload,
+      });
+      throw new NotionError(
+        `Token refresh failed: ${response.status} - ${typeof payload === "string" ? payload : JSON.stringify(payload)}`,
+        { status: response.status, endpoint: metadata.token_endpoint, code }
+      );
     }
 
     const tokenData = (await response.json()) as OAuthTokenResponse;
 
     if (!tokenData.access_token) {
-      throw new Error("No access token in refresh response");
+      throw new NotionError("No access token in refresh response", {
+        endpoint: metadata.token_endpoint,
+      });
     }
 
     // Update stored tokens

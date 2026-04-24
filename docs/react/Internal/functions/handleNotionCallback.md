@@ -2,7 +2,7 @@
 
 > **handleNotionCallback**(`callbackPath`: `string`, `walletAddress`: `string` | `undefined`): `Promise`<`string` | `null`>
 
-Defined in: [src/lib/auth/notion.ts:738](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#738)
+Defined in: [src/lib/auth/notion.ts:835](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#835)
 
 Handle the OAuth callback - exchange code for tokens
 This is done directly with Notion (no backend needed due to PKCE)
