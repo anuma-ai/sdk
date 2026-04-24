@@ -8,11 +8,40 @@ import type { FileProcessor, FileWithData, ProcessedFileResult } from "./types";
 // throws "process.umask is not implemented yet!".  fstream (a transitive dep
 // of exceljs via unzipper) calls process.umask() at module-init time, so the
 // polyfill must be in place before the first `import("exceljs")` resolves.
+//
+// Some runtimes freeze `process` or otherwise reject property assignment.  We
+// track whether the polyfill succeeded so `ExcelProcessor.process()` can throw
+// an explicit "unsupported runtime" error up front instead of letting the
+// failure surface as an opaque error deep inside exceljs / fstream.
+//
+// We defer logging until `process()` is first called so the logger has been
+// configured by the host; logging at module-init time risks running before
+// the host's logger is installed.
+let umaskPolyfilled = typeof process !== "undefined" && typeof process.umask === "function";
+let umaskPolyfillFailure: { message: string; error?: unknown } | null = null;
 if (typeof process !== "undefined" && typeof process.umask !== "function") {
-  // 0o22 is the default umask on POSIX systems.  The value is only used by
-  // fstream for file-permission calculations which are irrelevant in Workers.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-  (process as any).umask = (_mask?: number) => 0o22;
+  try {
+    // 0o22 is the default umask on POSIX systems.  The value is only used by
+    // fstream for file-permission calculations which are irrelevant in Workers.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+    (process as any).umask = (_mask?: number) => 0o22;
+    umaskPolyfilled = typeof process.umask === "function";
+    if (!umaskPolyfilled) {
+      umaskPolyfillFailure = {
+        message:
+          "[ExcelProcessor] process.umask polyfill assignment did not stick; " +
+          "ExcelProcessor.process() will throw on this runtime.",
+      };
+    }
+  } catch (error) {
+    umaskPolyfilled = false;
+    umaskPolyfillFailure = {
+      message:
+        "[ExcelProcessor] Failed to polyfill process.umask; " +
+        "ExcelProcessor.process() will throw on this runtime.",
+      error,
+    };
+  }
 }
 
 /**
@@ -34,6 +63,24 @@ export class ExcelProcessor implements FileProcessor {
   }
 
   async process(file: FileWithData): Promise<ProcessedFileResult | null> {
+    if (umaskPolyfillFailure) {
+      if (umaskPolyfillFailure.error !== undefined) {
+        getLogger().warn(umaskPolyfillFailure.message, umaskPolyfillFailure.error);
+      } else {
+        getLogger().warn(umaskPolyfillFailure.message);
+      }
+      umaskPolyfillFailure = null;
+    }
+    if (
+      !umaskPolyfilled &&
+      (typeof process === "undefined" || typeof process.umask !== "function")
+    ) {
+      throw new Error(
+        "ExcelProcessor: unsupported runtime. `process.umask` is missing and the " +
+          "polyfill could not be installed (the host `process` object is likely " +
+          "frozen or unavailable). Excel parsing cannot proceed on this runtime."
+      );
+    }
     try {
       const ExcelJSLib = await this.loadExcelJS();
       const arrayBuffer = await dataUrlToArrayBuffer(file.dataUrl);

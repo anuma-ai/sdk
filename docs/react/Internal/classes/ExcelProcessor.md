@@ -1,6 +1,6 @@
 # ExcelProcessor
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:24](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#24)
+Defined in: [src/lib/processors/ExcelProcessor.ts:53](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#53)
 
 Processor for Excel files (.xlsx) that converts to JSON structure.
 
@@ -27,7 +27,7 @@ loaded when actually processing an Excel file.
 
 > `readonly` **name**: `"excel"` = `"excel"`
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:25](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#25)
+Defined in: [src/lib/processors/ExcelProcessor.ts:54](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#54)
 
 Unique identifier for this processor
 
@@ -41,7 +41,7 @@ Unique identifier for this processor
 
 > `readonly` **supportedExtensions**: `string`\[]
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:29](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#29)
+Defined in: [src/lib/processors/ExcelProcessor.ts:58](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#58)
 
 File extensions this processor can handle (fallback if MIME type unavailable)
 
@@ -55,7 +55,7 @@ File extensions this processor can handle (fallback if MIME type unavailable)
 
 > `readonly` **supportedMimeTypes**: `string`\[]
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:26](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#26)
+Defined in: [src/lib/processors/ExcelProcessor.ts:55](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#55)
 
 MIME types this processor can handle
 
@@ -69,7 +69,7 @@ MIME types this processor can handle
 
 > **process**(`file`: [`FileWithData`](../interfaces/FileWithData.md)): `Promise`<[`ProcessedFileResult`](../interfaces/ProcessedFileResult.md) | `null`>
 
-Defined in: [src/lib/processors/ExcelProcessor.ts:36](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#36)
+Defined in: [src/lib/processors/ExcelProcessor.ts:65](https://github.com/anuma-ai/sdk/blob/main/src/lib/processors/ExcelProcessor.ts#65)
 
 Process a file and extract text content
 
