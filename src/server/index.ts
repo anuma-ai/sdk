@@ -381,6 +381,7 @@ export {
 
 // ── Tool Loop (framework-agnostic agent core) ──
 
+export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,
@@ -395,6 +396,15 @@ export type { ApiResponse, ApiType } from "../lib/chat/useChat/strategies/types"
 export type { StreamSmoothingConfig } from "../lib/chat/useChat/StreamSmoother";
 export type { ToolConfig, ToolExecutor } from "../lib/chat/useChat/types";
 export type { ServerToolCallEvent } from "../lib/chat/useChat/utils";
+export type {
+  WebSearchClassification,
+  WebSearchPreProcessorOptions,
+} from "../lib/chat/webSearchClassifier";
+export {
+  classifyWebSearch,
+  classifyWebSearchBatch,
+  createWebSearchPreProcessor,
+} from "../lib/chat/webSearchClassifier";
 
 // Persona (prompt building + style analysis)
 export type {

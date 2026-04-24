@@ -7,6 +7,8 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { generateEmbedding } from "../memoryEngine/embeddings";
+import type { PromptPreProcessor } from "./preProcessor";
 
 /**
  * Error thrown when the SSE connection receives a non-OK HTTP response.
@@ -60,6 +62,21 @@ import {
 
 const MAX_TOOL_ITERATIONS = 10;
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/** Extract the text of the most recent user message. Empty string if none. */
+function extractLastUserText(messages: LlmapiMessage[]): string {
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUserMsg) return "";
+  const content = lastUserMsg.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((c) => c?.type === "text")
+      .map((c) => c.text ?? "")
+      .join(" ");
+  }
+  return "";
+}
 
 /** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
 function isToolErrorResult(result: unknown): boolean {
@@ -177,20 +194,17 @@ export type RunToolLoopOptions = {
    */
   transport?: StreamingTransport;
   /**
-   * Called before the first LLM request with the classification result
-   * for the last user message. To inject context (e.g. web search results)
-   * into the conversation, return an array of messages — they are appended
-   * to the conversation for the initial LLM call and all tool-loop rounds
-   * that follow. Return nothing to leave the conversation unchanged.
+   * Pre-processors run after the last user message is received but before
+   * the first LLM request. Each pre-processor receives the prompt text
+   * and a shared embedding (computed once per request) and may return
+   * additional messages to enrich the conversation. Messages returned by
+   * each pre-processor are appended in array order to `messages` for the
+   * initial LLM call and all subsequent tool-loop rounds.
    *
-   * The tool loop does not perform the search itself — it runs the
-   * classifier and hands the result to this callback.
+   * Pre-processors run in parallel; a failure in one is logged and does
+   * not prevent the others or the LLM request.
    */
-  onWebSearchClassification?: (result: {
-    needsWebSearch: boolean;
-    searchScore: number;
-    noSearchScore: number;
-  }) => LlmapiMessage[] | void | Promise<LlmapiMessage[] | void>;
+  preProcessors?: PromptPreProcessor[];
   /**
    * Maximum number of connector tool calls (notion, google calendar, google drive)
    * before they are removed from subsequent rounds. Set to `Infinity` to disable.
@@ -315,11 +329,11 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
-    onWebSearchClassification,
+    preProcessors,
     maxConnectorCalls = 2,
   } = options;
-  // `messages` is mutable so the web-search classifier callback can inject
-  // context (e.g. search results) before the first LLM request.
+  // `messages` is mutable so pre-processors can inject context
+  // (e.g. web search results) before the first LLM request.
   let messages = options.messages;
 
   const resolved = resolveApiType(apiType, model);
@@ -348,38 +362,35 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     return { data: null, error: "Request aborted" };
   }
 
-  // Run web search classifier if callback provided
-  if (onWebSearchClassification) {
+  // Run pre-processors if any are provided. Each receives the shared
+  // embedding and may return messages to enrich the conversation.
+  if (preProcessors?.length) {
     try {
-      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-      if (lastUserMsg) {
-        const content = lastUserMsg.content;
-        const text =
-          typeof content === "string"
-            ? content
-            : Array.isArray(content)
-              ? content
-                  .filter((c) => c?.type === "text")
-                  .map((c) => c.text ?? "")
-                  .join(" ")
-              : "";
-
-        if (text.length > 0) {
-          const { classifyWebSearch } = await import("./webSearchClassifier");
-          const classification = await classifyWebSearch(text, {
-            apiKey: headers?.["X-API-Key"],
-            getToken: token ? () => Promise.resolve(token) : undefined,
-            baseUrl,
-          });
-          const extra = await onWebSearchClassification(classification);
-          if (Array.isArray(extra) && extra.length > 0) {
-            messages = [...messages, ...extra];
-          }
+      const text = extractLastUserText(messages);
+      if (text.length > 0) {
+        const embedding = await generateEmbedding(text, {
+          apiKey: headers?.["X-API-Key"],
+          getToken: token ? () => Promise.resolve(token) : undefined,
+          baseUrl,
+        });
+        const results = await Promise.all(
+          preProcessors.map(async (p) => {
+            try {
+              return await p({ prompt: text, embedding, signal });
+            } catch (err) {
+              console.warn("[runToolLoop] pre-processor failed:", err);
+              return undefined;
+            }
+          })
+        );
+        const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
+        if (extra.length > 0) {
+          messages = [...messages, ...extra];
         }
       }
     } catch (err) {
-      // Classifier failure is non-fatal — proceed without classification
-      console.warn("[runToolLoop] Web search classification failed:", err);
+      // Embedding / pre-processor stage failure is non-fatal
+      console.warn("[runToolLoop] pre-processor stage failed:", err);
     }
   }
 
