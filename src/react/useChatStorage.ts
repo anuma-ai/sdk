@@ -117,6 +117,7 @@ import {
   writeEncryptedFile,
 } from "../lib/storage";
 import {
+  applyToolSets,
   filterServerTools,
   findMatchingTools,
   getServerTools,
@@ -231,9 +232,15 @@ async function autoFilterClientTools(
   }
 
   const matchedNames = new Set(matches.map((m) => m.tool.name));
+  const scores = new Map(matches.map((m) => [m.tool.name, m.similarity]));
+  const availableNames = new Set(filterCandidates.map(getToolName));
+
+  // Apply tool sets: if an anchor tool was matched, pull in the full set
+  const finalNames = applyToolSets(matchedNames, availableNames, scores);
+
   const filtered = filterCandidates.filter((t) => {
     const name = getToolName(t);
-    return name && matchedNames.has(name);
+    return name && finalNames.has(name);
   });
   return [...alwaysInclude, ...filtered];
 }
