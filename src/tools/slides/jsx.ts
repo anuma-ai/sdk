@@ -37,7 +37,18 @@ import type {
 // AST types
 // ---------------------------------------------------------------------------
 
-export type AttrValue = string | number | boolean;
+/** Scalar value an attribute can hold. */
+type AttrScalar = string | number | boolean;
+
+/**
+ * An object-valued attribute — used primarily for `style={{}}`. Keys are
+ * CSS property names in camelCase (`fontSize`, `borderRadius`, …); values
+ * are scalars.
+ */
+type AttrObject = Record<string, AttrScalar>;
+
+export type AttrValue = AttrScalar | AttrObject;
+
 export type AnumaChild = AnumaNode | string;
 
 /**
@@ -203,6 +214,7 @@ function readAttrValue(attr: JSXAttribute): AttrValue {
     ) {
       return -expr.argument.value;
     }
+    if (expr.type === "ObjectExpression") return readObjectExpr(expr, name, locOf(attr));
     if (expr.type === "JSXEmptyExpression") {
       throw new AnumaJsxError(`Attribute "${name}" has an empty expression {}`, locOf(attr));
     }
@@ -212,6 +224,60 @@ function readAttrValue(attr: JSXAttribute): AttrValue {
     );
   }
   throw new AnumaJsxError(`Unsupported attribute value type: ${attr.value.type}`, locOf(attr));
+}
+
+/**
+ * Read an object-literal attribute value such as `style={{ fontSize: 43,
+ * color: "textPrimary" }}`. Keys must be plain identifiers or string
+ * literals; values must be scalar literals (string / number / boolean,
+ * with negative-number support).
+ */
+function readObjectExpr(
+  expr: import("@babel/types").ObjectExpression,
+  attrName: string,
+  loc: SrcLoc
+): AttrObject {
+  const out: AttrObject = {};
+  for (const prop of expr.properties) {
+    if (prop.type !== "ObjectProperty") {
+      throw new AnumaJsxError(`Attribute "${attrName}" object cannot contain ${prop.type}`, loc);
+    }
+    if (prop.computed) {
+      throw new AnumaJsxError(
+        `Attribute "${attrName}" object keys must be plain identifiers or strings`,
+        loc
+      );
+    }
+    let key: string;
+    if (prop.key.type === "Identifier") key = prop.key.name;
+    else if (prop.key.type === "StringLiteral") key = prop.key.value;
+    else {
+      throw new AnumaJsxError(
+        `Attribute "${attrName}" object key type ${prop.key.type} not supported`,
+        loc
+      );
+    }
+    const v = prop.value;
+    if (v.type === "StringLiteral") {
+      out[key] = v.value;
+    } else if (v.type === "NumericLiteral") {
+      out[key] = v.value;
+    } else if (v.type === "BooleanLiteral") {
+      out[key] = v.value;
+    } else if (
+      v.type === "UnaryExpression" &&
+      v.operator === "-" &&
+      v.argument.type === "NumericLiteral"
+    ) {
+      out[key] = -v.argument.value;
+    } else {
+      throw new AnumaJsxError(
+        `Attribute "${attrName}.${key}" uses a non-literal value (${v.type})`,
+        loc
+      );
+    }
+  }
+  return out;
 }
 
 function readChildren(el: JSXElement, tag: string): AnumaChild[] {
@@ -387,7 +453,18 @@ function openTag(
 function formatAttr(name: string, value: AttrValue): string {
   if (typeof value === "string") return `${name}=${JSON.stringify(value)}`;
   if (typeof value === "number") return `${name}={${String(value)}}`;
-  return `${name}={${value ? "true" : "false"}}`;
+  if (typeof value === "boolean") return `${name}={${value ? "true" : "false"}}`;
+  return `${name}={${formatObjectAttr(value)}}`;
+}
+
+function formatObjectAttr(obj: AttrObject): string {
+  const entries = Object.entries(obj).map(([k, v]) => {
+    const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : JSON.stringify(k);
+    if (typeof v === "string") return `${key}: ${JSON.stringify(v)}`;
+    if (typeof v === "number") return `${key}: ${String(v)}`;
+    return `${key}: ${v ? "true" : "false"}`;
+  });
+  return `{ ${entries.join(", ")} }`;
 }
 
 function isSafeJsxText(text: string): boolean {
@@ -529,6 +606,15 @@ export function updateAttrs(node: AnumaNode, patch: Record<string, unknown>): vo
     const value = patch[key];
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       node.attrs[key] = value;
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      const sanitized: AttrObject = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+          sanitized[k] = v;
+        }
+      }
+      node.attrs[key] = sanitized;
     }
   }
 }

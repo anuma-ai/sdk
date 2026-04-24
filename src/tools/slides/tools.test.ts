@@ -64,9 +64,11 @@ function slideJsxWithText(
   } = {}
 ): string {
   const { slideId = "s1", textId = "t1", fontFamily, text = "Hi" } = opts;
-  const ff = fontFamily ? ` fontFamily=${JSON.stringify(fontFamily)}` : "";
+  const styleParts = [`fontSize: 18`, `fontWeight: 400`, `color: "textPrimary"`];
+  if (fontFamily) styleParts.push(`fontFamily: ${JSON.stringify(fontFamily)}`);
+  const style = `style={{ ${styleParts.join(", ")} }}`;
   return `<Anuma.Slide id="${slideId}">
-    <Anuma.Text id="${textId}" x={0} y={0} w={10} h={5} fontSize={4} fontRole="body" fontWeight={400} color="textPrimary"${ff}>${text}</Anuma.Text>
+    <Anuma.Text id="${textId}" x={0} y={0} w={10} h={5} fontRole="body" ${style}>${text}</Anuma.Text>
   </Anuma.Slide>`;
 }
 
@@ -510,8 +512,10 @@ describe("patch_slides JSX ops", () => {
   }
 
   function textJsx(id: string, fontFamily?: string): string {
-    const ff = fontFamily ? ` fontFamily=${JSON.stringify(fontFamily)}` : "";
-    return `<Anuma.Text id="${id}" x={0} y={0} w={10} h={5} fontSize={4} fontRole="body" fontWeight={400} color="textPrimary"${ff}>X</Anuma.Text>`;
+    const parts = [`fontSize: 18`, `fontWeight: 400`, `color: "textPrimary"`];
+    if (fontFamily) parts.push(`fontFamily: ${JSON.stringify(fontFamily)}`);
+    const style = `style={{ ${parts.join(", ")} }}`;
+    return `<Anuma.Text id="${id}" x={0} y={0} w={10} h={5} fontRole="body" ${style}>X</Anuma.Text>`;
   }
 
   it("replace_element rejects an unknown fontFamily", async () => {

@@ -3368,16 +3368,19 @@ function emitText(el: TextLayoutEl): string {
     numAttr("h", pxH(el.h)),
   ];
   if (el.rotation !== undefined) attrs.push(numAttr("rotation", el.rotation));
-  attrs.push(numAttr("fontSize", pxFontSize(el.fontSize)));
   attrs.push(attr("fontRole", el.fontRole));
-  attrs.push(numAttr("fontWeight", el.fontWeight));
-  attrs.push(attr("color", el.color));
-  if (el.align !== undefined) attrs.push(attr("align", el.align));
-  if (el.lineHeight !== undefined) attrs.push(numAttr("lineHeight", el.lineHeight));
-  if (el.letterSpacing !== undefined) attrs.push(numAttr("letterSpacing", el.letterSpacing));
-  if (el.fontStyle !== undefined) attrs.push(attr("fontStyle", el.fontStyle));
-  if (el.textTransform !== undefined) attrs.push(attr("textTransform", el.textTransform));
-  if (el.fontFamily !== undefined) attrs.push(attr("fontFamily", el.fontFamily));
+  const style: Array<[string, string | number]> = [
+    ["fontSize", pxFontSize(el.fontSize)],
+    ["fontWeight", el.fontWeight],
+    ["color", el.color],
+  ];
+  if (el.align !== undefined) style.push(["textAlign", el.align]);
+  if (el.lineHeight !== undefined) style.push(["lineHeight", el.lineHeight]);
+  if (el.letterSpacing !== undefined) style.push(["letterSpacing", el.letterSpacing]);
+  if (el.fontStyle !== undefined) style.push(["fontStyle", el.fontStyle]);
+  if (el.textTransform !== undefined) style.push(["textTransform", el.textTransform]);
+  if (el.fontFamily !== undefined) style.push(["fontFamily", el.fontFamily]);
+  attrs.push(styleAttr(style));
   const body = renderTextBody(el.text);
   return `<Anuma.Text ${attrs.join(" ")}>${body}</Anuma.Text>`;
 }
@@ -3385,7 +3388,9 @@ function emitText(el: TextLayoutEl): string {
 function emitImage(el: ImageLayoutEl): string {
   const attrs = commonAttrs(el);
   attrs.push(attr("src", el.src));
-  if (el.cornerRadius !== undefined) attrs.push(numAttr("cornerRadius", el.cornerRadius));
+  if (el.cornerRadius !== undefined) {
+    attrs.push(styleAttr([["borderRadius", el.cornerRadius]]));
+  }
   return `<Anuma.Image ${attrs.join(" ")} />`;
 }
 
@@ -3402,9 +3407,21 @@ function emitShape(el: ShapeLayoutEl): string {
 function emitIcon(el: IconLayoutEl): string {
   const attrs = commonAttrs(el);
   attrs.push(attr("name", el.name));
-  attrs.push(attr("color", el.color));
-  attrs.push(numAttr("fontSize", pxFontSize(el.fontSize)));
+  attrs.push(
+    styleAttr([
+      ["color", el.color],
+      ["fontSize", pxFontSize(el.fontSize)],
+    ])
+  );
   return `<Anuma.Icon ${attrs.join(" ")} />`;
+}
+
+function styleAttr(entries: Array<[string, string | number]>): string {
+  const parts = entries.map(([k, v]) => {
+    if (typeof v === "string") return `${k}: ${JSON.stringify(v)}`;
+    return `${k}: ${v}`;
+  });
+  return `style={{ ${parts.join(", ")} }}`;
 }
 
 function commonAttrs(el: BaseEl): string[] {

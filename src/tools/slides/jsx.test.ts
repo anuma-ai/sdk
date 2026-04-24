@@ -120,9 +120,36 @@ describe("parseJsx", () => {
 
   it("accepts expression-string children in Text for multi-line content", () => {
     const node = parseJsx(
-      `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontSize={18} fontRole="body" fontWeight={400} color="textPrimary">{"line 1\\nline 2"}</Anuma.Text>`
+      `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body">{"line 1\\nline 2"}</Anuma.Text>`
     );
     expect(node.children).toEqual(["line 1\nline 2"]);
+  });
+
+  it("parses object-valued attrs like style={{}}", () => {
+    const node = parseJsx(
+      `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontSize: 43, color: "textPrimary", textAlign: "center" }}>Hi</Anuma.Text>`
+    );
+    expect(node.attrs.style).toEqual({
+      fontSize: 43,
+      color: "textPrimary",
+      textAlign: "center",
+    });
+  });
+
+  it("rejects non-literal values inside object attrs", () => {
+    expect(() =>
+      parseJsx(
+        `<Anuma.Text id="t" x={0} y={0} w={100} h={20} fontRole="body" style={{ fontSize: someVar }}>Hi</Anuma.Text>`
+      )
+    ).toThrow(/non-literal value/);
+  });
+
+  it("supports negative numbers in object attrs", () => {
+    const node = parseJsx(
+      `<Anuma.Rect id="r" x={0} y={0} w={10} h={10} style={{ letterSpacing: -0.04 }} />`
+    );
+    const style = node.attrs.style as Record<string, number>;
+    expect(style.letterSpacing).toBe(-0.04);
   });
 });
 
@@ -156,6 +183,24 @@ describe("serializeJsx", () => {
     const deck = deckNode();
     const s = serializeJsx(deck);
     expect(s.split("\n").length).toBeGreaterThan(1);
+  });
+
+  it("emits object-valued attrs as style={{ key: value, ... }}", () => {
+    const node: AnumaNode = {
+      tag: "Text",
+      attrs: {
+        id: "t",
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 20,
+        fontRole: "body",
+        style: { fontSize: 43, color: "textPrimary", textAlign: "center" },
+      },
+      children: ["Hi"],
+    };
+    const s = serializeJsx(node);
+    expect(s).toContain(`style={{ fontSize: 43, color: "textPrimary", textAlign: "center" }}`);
   });
 });
 

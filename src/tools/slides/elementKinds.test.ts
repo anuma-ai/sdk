@@ -42,15 +42,15 @@ describe("renderElementKinds", () => {
 
   it("marks optional attrs with `?`", () => {
     const prose = renderElementKinds();
-    expect(prose).toContain("align?");
-    expect(prose).toContain("fontFamily?");
+    expect(prose).toContain("style?");
+    expect(prose).toContain("rotation?");
     expect(prose).toContain("cornerRadius?");
   });
 
   it("inlines enum values for attrs that have them", () => {
     const prose = renderElementKinds();
     expect(prose).toContain(`fontRole={"heading"|"body"}`);
-    expect(prose).toContain(`align?={"left"|"center"|"right"}`);
+    expect(prose).toContain(`layout?={"absolute"|"row"|"column"}`);
   });
 
   it("renders self-closing syntax for leaf tags and body-text for Text", () => {
@@ -61,13 +61,19 @@ describe("renderElementKinds", () => {
     expect(prose).toContain("</Anuma.Text>");
   });
 
+  it("documents the style keys for tags that accept style", () => {
+    const prose = renderElementKinds();
+    expect(prose).toContain("style keys: fontSize, fontWeight, color");
+    expect(prose).toContain("style keys: color, fontSize"); // Icon
+  });
+
   it("emits notes under their owning kind", () => {
     const prose = renderElementKinds();
     const textIdx = prose.indexOf("<Anuma.Text ");
     const imageIdx = prose.indexOf("<Anuma.Image ");
-    const noteIdx = prose.indexOf("fontFamily is optional");
+    const typographyNoteIdx = prose.indexOf("All typography lives inside style");
     expect(textIdx).toBeGreaterThanOrEqual(0);
-    expect(noteIdx).toBeGreaterThan(textIdx);
-    expect(noteIdx).toBeLessThan(imageIdx);
+    expect(typographyNoteIdx).toBeGreaterThan(textIdx);
+    expect(typographyNoteIdx).toBeLessThan(imageIdx);
   });
 });

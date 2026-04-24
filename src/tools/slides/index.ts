@@ -410,21 +410,27 @@ function findSlideById(deck: AnumaNode, id: string): AnumaNode | null {
 }
 
 /**
- * Walk an Anuma subtree and reject any unknown `fontFamily` attr value.
+ * Walk an Anuma subtree and reject any unknown `fontFamily` value.
  * Returns an error string the executor can return, or null if every
  * fontFamily is valid (or absent).
  *
- * We only validate fontFamily because every other font-related attr is
- * either (a) a theme-level fontPreset (validated in plan_deck) or (b) a
- * free-form CSS value we don't inspect (color, letterSpacing, etc.).
+ * Checks both top-level `fontFamily` attrs (in case of legacy/misplaced
+ * values) and `style.fontFamily`, since typography now lives in style.
  */
 function validateFontFamilies(root: AnumaNode): string | null {
   const bad: string[] = [];
+  const seen = (v: unknown) => {
+    if (typeof v === "string") {
+      if (!isKnownFont(v)) bad.push(v);
+    } else if (v !== undefined) {
+      bad.push(JSON.stringify(v));
+    }
+  };
   walk(root, (node) => {
-    const family = node.attrs.fontFamily;
-    if (family === undefined) return;
-    if (typeof family !== "string" || !isKnownFont(family)) {
-      bad.push(typeof family === "string" ? family : JSON.stringify(family));
+    seen(node.attrs.fontFamily);
+    const style = node.attrs.style;
+    if (style && typeof style === "object" && !Array.isArray(style)) {
+      seen((style as Record<string, unknown>).fontFamily);
     }
   });
   if (bad.length === 0) return null;
@@ -1137,9 +1143,13 @@ For edits to an existing deck: read_slides (returns the deck as <Anuma.Deck> JSX
 
 JSX CONVENTIONS:
 - Namespaced tags only: <Anuma.Deck>, <Anuma.Slide>, <Anuma.Text>, <Anuma.Image>, <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, <Anuma.Icon>, <Anuma.Group>.
-- Numeric attrs use JSX expressions: x={96}, fontSize={43}. String attrs are quoted: fontRole="heading".
+- Numeric attrs use JSX expressions: x={96}. String attrs are quoted: fontRole="heading".
+- Structured attrs carry geometry, layout, and semantics (id, x/y/w/h, rotation, grow/shrink/alignSelf, layout/gap/padding/justify/align, fontRole, src, name, fill/stroke/strokeWidth for shapes).
+- Appearance lives in style={{}} — CSS property names in camelCase. Example:
+  <Anuma.Text id="title" x={58} y={162} w={844} h={54} fontRole="heading" style={{ fontSize: 43, fontWeight: 700, color: "textPrimary", textAlign: "center" }}>Welcome</Anuma.Text>
+  Color strings inside style accept theme tokens (textPrimary, accent, slideBg, etc.) OR hex/rgb literals.
 - <Anuma.Text> body goes between the tags as children (NOT a text prop): <Anuma.Text …>The Title</Anuma.Text>.
-- Shape kinds are distinct tags — use <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, not a shape="…" attribute.
+- Shape variants are distinct tags — use <Anuma.Rect>, <Anuma.Circle>, <Anuma.Line>, not a shape="…" attribute. Shape colors stay as SVG-style attrs (fill, stroke, strokeWidth), not style.
 - <Anuma.Group id="…">…</Anuma.Group> groups elements structurally.
 
 COORDINATE SYSTEM — every position is container-relative pixels on a 960×540 slide canvas.

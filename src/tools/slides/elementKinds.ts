@@ -3,9 +3,17 @@
  * prompt so the LLM knows which attributes are valid on each tag without a
  * full schema dump.
  *
- * All coordinates and sizes are container-relative pixels (slide canvas is
- * 960×540). The runtime tests in `./elementKinds.test.ts` assert coverage
- * of the common geometry attrs and the expected tag set.
+ * Attribute split:
+ * - Structured attrs for geometry, layout, and semantics (id, x/y/w/h, flex
+ *   child attrs, fontRole, src, name, shape fill/stroke, etc.).
+ * - `style={{}}` carries CSS-shaped appearance properties: typography,
+ *   color, borderRadius, shadows, etc. Values are scalars (strings /
+ *   numbers / booleans). Color strings may be theme tokens (`textPrimary`,
+ *   `accent`) or hex/rgb literals.
+ *
+ * All coordinates and sizes are container-relative pixels (slide canvas
+ * is 960×540). The runtime tests in `./elementKinds.test.ts` assert
+ * coverage of the common geometry attrs and the expected tag set.
  */
 
 type Attr =
@@ -19,6 +27,8 @@ interface ElementKindSpec {
   tag: string;
   /** Attributes rendered on the opening tag, in source order. */
   attrs: Attr[];
+  /** CSS style properties that commonly appear on this tag, documentation-only. */
+  styleKeys?: string[];
   /**
    * Element body description. `"text"` → body is the element's text content.
    * `"children"` → body contains nested elements. Omit for self-closing.
@@ -57,37 +67,39 @@ const CONTAINER_LAYOUT_ATTRS: Attr[] = [
   { name: "align", value: `"start"|"center"|"end"|"stretch"`, optional: true },
 ];
 
+/** Style attr rendered last on any tag that accepts it. */
+const STYLE_ATTR: Attr = { name: "style", optional: true };
+
 export const ELEMENT_KINDS: ElementKindSpec[] = [
   {
     tag: "Text",
     attrs: [
       ...COMMON_GEOMETRY,
       ...FLEX_CHILD_ATTRS,
-      { name: "fontSize" },
       { name: "fontRole", value: `"heading"|"body"` },
-      { name: "fontWeight" },
-      { name: "color" },
-      { name: "align", value: `"left"|"center"|"right"`, optional: true },
-      { name: "lineHeight", optional: true },
-      { name: "letterSpacing", optional: true },
-      { name: "fontStyle", value: `"italic"|"normal"`, optional: true },
-      { name: "textTransform", value: `"uppercase"|"none"`, optional: true },
-      { name: "fontFamily", optional: true },
+      STYLE_ATTR,
+    ],
+    styleKeys: [
+      "fontSize",
+      "fontWeight",
+      "color",
+      "textAlign",
+      "lineHeight",
+      "letterSpacing",
+      "fontStyle",
+      "textTransform",
+      "fontFamily",
     ],
     body: "text",
     notes: [
-      `Body text goes between the opening and closing tags (React children). fontSize is pixels (e.g. 43 for a hero heading, 18 for body).`,
-      `fontFamily is optional — overrides the theme preset for this element (e.g. "Playfair Display", "JetBrains Mono"). Omit to use the theme default.`,
+      `Body text goes between the opening and closing tags (React children). All typography lives inside style={{}}: fontSize (px), fontWeight (100–900), color (theme token or #hex), textAlign, lineHeight, letterSpacing, fontStyle, textTransform, fontFamily.`,
+      `fontRole is semantic, not CSS — pick "heading" or "body" so the theme's font preset picks the right face by default.`,
     ],
   },
   {
     tag: "Image",
-    attrs: [
-      ...COMMON_GEOMETRY,
-      ...FLEX_CHILD_ATTRS,
-      { name: "src" },
-      { name: "cornerRadius", optional: true },
-    ],
+    attrs: [...COMMON_GEOMETRY, ...FLEX_CHILD_ATTRS, { name: "src" }, STYLE_ATTR],
+    styleKeys: ["borderRadius", "opacity", "objectFit"],
   },
   {
     tag: "Rect",
@@ -99,6 +111,7 @@ export const ELEMENT_KINDS: ElementKindSpec[] = [
       { name: "strokeWidth", optional: true },
       { name: "cornerRadius", optional: true },
     ],
+    notes: [`Rendered as SVG: fill / stroke / strokeWidth are SVG attrs, not CSS.`],
   },
   {
     tag: "Circle",
@@ -109,6 +122,7 @@ export const ELEMENT_KINDS: ElementKindSpec[] = [
       { name: "stroke", optional: true },
       { name: "strokeWidth", optional: true },
     ],
+    notes: [`Rendered as SVG.`],
   },
   {
     tag: "Line",
@@ -117,17 +131,15 @@ export const ELEMENT_KINDS: ElementKindSpec[] = [
       { name: "stroke", optional: true },
       { name: "strokeWidth", optional: true },
     ],
+    notes: [`Rendered as SVG.`],
   },
   {
     tag: "Icon",
-    attrs: [
-      ...COMMON_GEOMETRY,
-      ...FLEX_CHILD_ATTRS,
-      { name: "name" },
-      { name: "color" },
-      { name: "fontSize" },
+    attrs: [...COMMON_GEOMETRY, ...FLEX_CHILD_ATTRS, { name: "name" }, STYLE_ATTR],
+    styleKeys: ["color", "fontSize"],
+    notes: [
+      `Material Symbols Rounded name (e.g. "bolt", "check_circle"). fontSize (px) and color live in style.`,
     ],
-    notes: [`Material Symbols Rounded name (e.g. "bolt", "check_circle"). fontSize is pixels.`],
   },
   {
     tag: "Group",
@@ -140,6 +152,7 @@ export const ELEMENT_KINDS: ElementKindSpec[] = [
       { name: "rotation", optional: true },
       ...FLEX_CHILD_ATTRS,
       ...CONTAINER_LAYOUT_ATTRS,
+      STYLE_ATTR,
     ],
     body: "children",
     notes: [
@@ -172,6 +185,9 @@ export function renderElementKinds(): string {
           ? `<Anuma.${spec.tag} ${attrs}>…children…</Anuma.${spec.tag}>`
           : `<Anuma.${spec.tag} ${attrs} />`;
     const lines = [signature];
+    if (spec.styleKeys && spec.styleKeys.length > 0) {
+      lines.push(`  style keys: ${spec.styleKeys.join(", ")}`);
+    }
     if (spec.notes) {
       for (const n of spec.notes) lines.push(`  ${n}`);
     }

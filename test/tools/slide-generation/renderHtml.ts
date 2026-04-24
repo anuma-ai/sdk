@@ -48,14 +48,25 @@ function resolveColor(token: AttrValue | undefined, colors: ThemeColors): string
   return colors[token] ?? colors.textPrimary ?? "#ffffff";
 }
 
+function styleObject(node: AnumaNode): Record<string, string | number | boolean> {
+  const style = node.attrs.style;
+  if (style && typeof style === "object" && !Array.isArray(style)) {
+    return style as Record<string, string | number | boolean>;
+  }
+  return {};
+}
+
 function collectExtraFonts(deck: AnumaNode): string[] {
   const fontPreset = typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
   const preset = FONT_PRESETS[fontPreset] ?? FONT_PRESETS.default!;
   const presetFonts = new Set([preset.heading, preset.body]);
   const extras = new Set<string>();
   walk(deck, (node) => {
-    const family = node.attrs.fontFamily;
-    if (typeof family === "string" && !presetFonts.has(family)) extras.add(family);
+    const inStyle = styleObject(node).fontFamily;
+    const top = node.attrs.fontFamily;
+    for (const family of [inStyle, top]) {
+      if (typeof family === "string" && !presetFonts.has(family)) extras.add(family);
+    }
   });
   return [...extras];
 }
@@ -118,20 +129,24 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
 
   switch (node.tag) {
     case "Text": {
-      const fs = typeof node.attrs.fontSize === "number" ? node.attrs.fontSize : 18;
-      const color = resolve(node.attrs.color);
-      const weight = typeof node.attrs.fontWeight === "number" ? node.attrs.fontWeight : 400;
-      const align = typeof node.attrs.align === "string" ? node.attrs.align : "left";
-      const lh = typeof node.attrs.lineHeight === "number" ? node.attrs.lineHeight : 1.3;
-      const italic = node.attrs.fontStyle === "italic" ? "font-style:italic;" : "";
-      const transform = node.attrs.textTransform === "uppercase" ? "text-transform:uppercase;" : "";
+      const style = styleObject(node);
+      const fs = typeof style.fontSize === "number" ? style.fontSize : 18;
+      const color = resolve(style.color);
+      const weight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
+      const align =
+        typeof style.textAlign === "string"
+          ? style.textAlign
+          : typeof node.attrs.align === "string"
+            ? node.attrs.align
+            : "left";
+      const lh = typeof style.lineHeight === "number" ? style.lineHeight : 1.3;
+      const italic = style.fontStyle === "italic" ? "font-style:italic;" : "";
+      const transform = style.textTransform === "uppercase" ? "text-transform:uppercase;" : "";
       const letterSpacing =
-        typeof node.attrs.letterSpacing === "number"
-          ? `letter-spacing:${node.attrs.letterSpacing}em;`
-          : "";
+        typeof style.letterSpacing === "number" ? `letter-spacing:${style.letterSpacing}em;` : "";
       const family =
-        typeof node.attrs.fontFamily === "string"
-          ? `font-family:'${node.attrs.fontFamily}',system-ui,sans-serif;`
+        typeof style.fontFamily === "string"
+          ? `font-family:'${style.fontFamily}',system-ui,sans-serif;`
           : "";
       const body = node.children.filter((c): c is string => typeof c === "string").join("");
       return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${esc(body)}</div>`;
@@ -161,18 +176,23 @@ function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean)
     }
     case "Image": {
       const src = typeof node.attrs.src === "string" ? node.attrs.src : "";
-      const radius =
-        typeof node.attrs.cornerRadius === "number"
-          ? `border-radius:${node.attrs.cornerRadius}px;`
-          : "";
+      const style = styleObject(node);
+      const rawRadius =
+        typeof style.borderRadius === "number"
+          ? style.borderRadius
+          : typeof node.attrs.cornerRadius === "number"
+            ? node.attrs.cornerRadius
+            : undefined;
+      const radius = rawRadius !== undefined ? `border-radius:${rawRadius}px;` : "";
       if (src.startsWith("http") || src.startsWith("data:")) {
         return `<img style="${base}object-fit:cover;${radius}" src="${esc(src)}" />`;
       }
       return `<div style="${base}background:${colors.card};display:flex;align-items:center;justify-content:center;${radius}color:${colors.textMuted};font-size:12px;">${esc(src.slice(0, 40))}</div>`;
     }
     case "Icon": {
-      const fs = typeof node.attrs.fontSize === "number" ? node.attrs.fontSize : 24;
-      const color = resolve(node.attrs.color);
+      const style = styleObject(node);
+      const fs = typeof style.fontSize === "number" ? style.fontSize : 24;
+      const color = resolve(style.color);
       const name = typeof node.attrs.name === "string" ? node.attrs.name : "";
       return `<div style="${base}font-family:'Material Symbols Rounded';font-size:${fs}px;color:${color};display:flex;align-items:center;justify-content:center;">${esc(name)}</div>`;
     }
