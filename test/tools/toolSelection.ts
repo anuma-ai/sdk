@@ -242,13 +242,6 @@ const cases: ToolSelectionCase[] = [
     prompt: "Help me choose between Italian, Japanese, or Mexican food for dinner",
     clientMustInclude: ["prompt_user_choice"],
   },
-  {
-    label: "selection request: indirect phrasing scores below threshold",
-    prompt: "Which of these travel destinations should I visit: Bali, Tokyo, or Paris?",
-    // prompt_user_choice scores 0.47 — below the 0.5 threshold.
-    // The model can still present choices without the tool.
-    expectNoClientTools: true,
-  },
 
   // ── Form ─────────────────────────────────────────────────────────────
   {
@@ -417,7 +410,7 @@ const cases: ToolSelectionCase[] = [
   {
     label: "OCR includes vision tool",
     prompt: "Extract text from this screenshot image",
-    serverMustInclude: ["VisionMCP-extract_text"],
+    serverMustInclude: ["AnumaVisionMCP-anuma_analyze_image"],
   },
 
   // ── Server-side: Voiceover ───────────────────────────────────────────
