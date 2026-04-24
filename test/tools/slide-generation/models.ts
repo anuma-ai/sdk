@@ -52,7 +52,7 @@ export const SCHEMA_NONCOMPLIANT = [
   "gemini/gemini-3-flash-preview",
 ] as const;
 
-/** Models that produce no deck at all (empty slides.json or tool-call errors). */
+/** Models that produce no deck at all (empty slides.jsx or tool-call errors). */
 export const FAILING = ["gemini/gemma-4-31b-it"] as const;
 
 /** Full fleet. */

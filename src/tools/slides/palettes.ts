@@ -13,7 +13,21 @@
  * models onto those specific three recipes.
  */
 
-import type { SlideTheme } from "./index";
+/**
+ * Theme color set — the nine tokens attached as attrs on `<Anuma.Deck>`.
+ * Matches the `THEME_ATTRS` exported from `./index.ts`.
+ */
+interface PaletteColors {
+  background: string;
+  slideBg: string;
+  surfaceSecondary: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  accent: string;
+  card: string;
+  border: string;
+}
 
 interface Palette {
   /** Short register name the LLM sees (e.g. "warm editorial"). */
@@ -21,9 +35,9 @@ interface Palette {
   /** One-line "use this when …" hint — comma-separated topic cues. */
   useFor: string;
   /** Font preset key from `FONT_PRESETS` in `./index.ts`. */
-  fontPreset: SlideTheme["fontPreset"];
-  /** Full theme color set. Keys match `SlideTheme.colors`. */
-  colors: SlideTheme["colors"];
+  fontPreset: string;
+  /** Full theme color set — the tokens that get written as Deck attrs. */
+  colors: PaletteColors;
 }
 
 export const PALETTES: Palette[] = [

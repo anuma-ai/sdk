@@ -120,6 +120,8 @@
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
     "@anuma/portal": "1.0.0-next.20260410171436",
+    "@babel/parser": "^7.29.2",
+    "@babel/types": "^7.29.0",
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
