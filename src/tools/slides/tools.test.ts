@@ -434,6 +434,53 @@ describe("add_slide executor", () => {
     // add_slide #2: should pass add_slide #1's returned id
     expect(calls[2]).toEqual({ title: "Test", replaces_interaction_id: "deck_2" });
   });
+
+  it("rewrites duplicate element ids on append and reports them in the result", async () => {
+    const { store, storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+
+    // First slide claims id "title".
+    await addSlide.executor!({
+      layout: "cover-centered",
+      slideJsx: slideJsxWithText({ slideId: "s1", textId: "title", text: "First" }),
+    });
+    // Second slide tries to claim id "title" again — should be renamed.
+    const second = (await addSlide.executor!({
+      layout: "text-bullets",
+      slideJsx: slideJsxWithText({ slideId: "s2", textId: "title", text: "Second" }),
+    })) as {
+      success?: boolean;
+      renamedIds?: Array<{ from: string; to: string }>;
+      message?: string;
+    };
+    expect(second.success).toBe(true);
+    expect(second.renamedIds).toEqual([{ from: "title", to: "title-2" }]);
+    expect(second.message).toContain("title→title-2");
+
+    // Verify the on-disk deck actually has unique ids.
+    const parsed = parseJsx(store.get("slides.jsx")!);
+    const slides = slidesOf(parsed);
+    expect(getId(elementsOf(slides[0]!)[0]!)).toBe("title");
+    expect(getId(elementsOf(slides[1]!)[0]!)).toBe("title-2");
+  });
+
+  it("does not rename ids when the new slide's ids don't collide", async () => {
+    const { storage } = makeStore();
+    const tools = await initDeck(storage, undefined, 3);
+    const addSlide = tools.find((t) => toolName(t) === "add_slide")!;
+
+    await addSlide.executor!({
+      layout: "cover-centered",
+      slideJsx: slideJsxWithText({ slideId: "s1", textId: "cover-title" }),
+    });
+    const second = (await addSlide.executor!({
+      layout: "text-bullets",
+      slideJsx: slideJsxWithText({ slideId: "s2", textId: "body-text" }),
+    })) as { renamedIds?: unknown; message?: string };
+    expect(second.renamedIds).toBeUndefined();
+    expect(second.message).not.toContain("Renamed");
+  });
 });
 
 describe("patch_slides interaction_id fallback", () => {

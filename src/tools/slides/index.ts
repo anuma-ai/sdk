@@ -412,6 +412,60 @@ function findSlideById(deck: AnumaNode, id: string): AnumaNode | null {
 }
 
 /**
+ * Collect every `attrs.id` defined under `root`. The returned set is
+ * mutable — callers append further ids to it as they merge new
+ * subtrees in (see `dedupeIds`). When `excludeRoot` is provided, that
+ * subtree (the node about to be replaced) is skipped, so its existing
+ * ids don't trigger spurious renames in the replacement.
+ */
+function collectIds(root: AnumaNode, excludeRoot?: AnumaNode): Set<string> {
+  const ids = new Set<string>();
+  walk(root, (node) => {
+    if (node === excludeRoot) return false;
+    const id = getId(node);
+    if (id !== undefined) ids.add(id);
+  });
+  return ids;
+}
+
+/**
+ * Rewrite ids on `incoming` so that nothing collides with `taken` (or
+ * with anything else seen earlier in `incoming` itself). Mutates
+ * `incoming` in place and adds every committed id back to `taken`.
+ *
+ * Strategy: keep the LLM's friendly id when it's free, otherwise
+ * suffix with `-2`, `-3`, ... until a free name is found. Returns the
+ * list of `{ from, to }` rewrites for callers that want to surface a
+ * note in the tool result.
+ *
+ * Why dedupe: LLMs reliably reuse ids like "title" or "subtitle"
+ * across slides. Anything outside the tool — the editor sidebar, the
+ * rendering pipeline, downstream consumers — that uses a tree-wide
+ * `findById` would otherwise mis-route to the wrong element.
+ */
+function dedupeIds(taken: Set<string>, incoming: AnumaNode): Array<{ from: string; to: string }> {
+  const renames: Array<{ from: string; to: string }> = [];
+  walk(incoming, (node) => {
+    const id = getId(node);
+    if (id === undefined) return;
+    if (!taken.has(id)) {
+      taken.add(id);
+      return;
+    }
+    let i = 2;
+    let candidate = `${id}-${i}`;
+    while (taken.has(candidate)) {
+      i++;
+      candidate = `${id}-${i}`;
+    }
+    node.attrs.id = candidate;
+    taken.add(candidate);
+    renames.push({ from: id, to: candidate });
+  });
+  return renames;
+}
+
+/**
  * Walk an Anuma subtree and reject any unknown `fontFamily` value.
  * Returns an error string the executor can return, or null if every
  * fontFamily is valid (or absent).
@@ -753,6 +807,9 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             return { error: "No slides.jsx found. Call plan_deck first." };
           }
           const deck = parseJsx(file.content);
+          // Rewrite duplicate ids before merging so tree-wide id lookups
+          // outside the tool (editor sidebar, renderer, etc.) stay safe.
+          const renames = dedupeIds(collectIds(deck), slide);
           deck.children.push(slide);
           await storage.putFile(conversationId, SLIDES_FILE_PATH, serializeJsx(deck));
 
@@ -791,18 +848,24 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
             .map(([name, count]) => `${name}×${count}`)
             .join(", ");
 
+          const baseMessage =
+            typeof remaining === "number" && remaining > 0
+              ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).`
+              : typeof remaining === "number" && remaining === 0
+                ? `Appended slide ${totalSlides} (${layout}). Deck is complete (layouts used: ${usageSummary}).`
+                : `Appended slide ${totalSlides} (${layout}).`;
+          const renameNote =
+            renames.length > 0
+              ? ` Renamed duplicate ids: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")}.`
+              : "";
           return {
             success: true,
             slideIndex: totalSlides - 1,
             totalSlides,
             remaining,
             layoutUsage: usage,
-            message:
-              typeof remaining === "number" && remaining > 0
-                ? `Appended slide ${totalSlides} (${layout}). ${remaining} more to go (layouts so far: ${usageSummary}).`
-                : typeof remaining === "number" && remaining === 0
-                  ? `Appended slide ${totalSlides} (${layout}). Deck is complete (layouts used: ${usageSummary}).`
-                  : `Appended slide ${totalSlides} (${layout}).`,
+            ...(renames.length > 0 ? { renamedIds: renames } : {}),
+            message: baseMessage + renameNote,
             ...(display && typeof display === "object" ? display : {}),
           };
         });
@@ -900,11 +963,29 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`replace_element: ${fontErr}`);
                   break;
                 }
+                // Rewrite duplicate ids in the replacement subtree, ignoring
+                // the element it's about to replace (so the simplest
+                // case — keeping the same id — doesn't trigger a rename).
+                const oldNode = (() => {
+                  let found: AnumaNode | null = null;
+                  walk(slideNode, (n) => {
+                    if (getId(n) === op.elementId) {
+                      found = n;
+                      return false;
+                    }
+                  });
+                  return found;
+                })();
+                const renames = dedupeIds(collectIds(deck, oldNode ?? undefined), next);
                 if (!replaceById(slideNode, op.elementId, next)) {
                   results.push(`replace_element: element ${op.elementId} not found`);
                   break;
                 }
-                results.push(`replaced ${op.slideId}/${op.elementId}`);
+                results.push(
+                  renames.length > 0
+                    ? `replaced ${op.slideId}/${op.elementId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                    : `replaced ${op.slideId}/${op.elementId}`
+                );
                 break;
               }
               case "insert_element": {
@@ -935,9 +1016,14 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`insert_element: ${fontErr}`);
                   break;
                 }
+                const renames = dedupeIds(collectIds(deck), next);
                 insertChild(slideNode, next, op.afterElementId);
                 const newId = getId(next) ?? "<no-id>";
-                results.push(`inserted ${newId} into ${op.slideId}`);
+                results.push(
+                  renames.length > 0
+                    ? `inserted ${newId} into ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                    : `inserted ${newId} into ${op.slideId}`
+                );
                 break;
               }
               case "remove_element": {
@@ -988,11 +1074,21 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push("replace_slide: slideId is required");
                   break;
                 }
+                const oldSlide = findSlideById(deck, op.slideId);
+                if (!oldSlide) {
+                  results.push(`replace_slide: slide ${op.slideId} not found`);
+                  break;
+                }
+                const renames = dedupeIds(collectIds(deck, oldSlide), next);
                 if (!replaceById(deck, op.slideId, next)) {
                   results.push(`replace_slide: slide ${op.slideId} not found`);
                   break;
                 }
-                results.push(`replaced slide ${op.slideId}`);
+                results.push(
+                  renames.length > 0
+                    ? `replaced slide ${op.slideId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                    : `replaced slide ${op.slideId}`
+                );
                 break;
               }
               case "insert_slide": {
@@ -1017,9 +1113,14 @@ NOW call add_slide ${slideCount} times, one slide per call, in order. Each add_s
                   results.push(`insert_slide: ${fontErr}`);
                   break;
                 }
+                const renames = dedupeIds(collectIds(deck), next);
                 insertChild(deck, next, op.afterSlideId);
                 const newId = getId(next) ?? "<no-id>";
-                results.push(`inserted slide ${newId}`);
+                results.push(
+                  renames.length > 0
+                    ? `inserted slide ${newId} (renamed: ${renames.map((r) => `${r.from}→${r.to}`).join(", ")})`
+                    : `inserted slide ${newId}`
+                );
                 break;
               }
               case "remove_slide": {
