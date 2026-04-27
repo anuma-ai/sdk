@@ -4,6 +4,40 @@ import { describe, expect, it } from "vitest";
 
 import { Anuma, AnumaThemeProvider, renderAnumaJsx, resolveThemeColor } from "./anumaRuntime";
 
+/**
+ * Querying inside a slide now needs to traverse the shadow boundary —
+ * `<Anuma.Slide>` mounts its children in a shadow root for style
+ * isolation. `Element.querySelector` does not pierce shadow DOM, so
+ * walk all open shadow roots manually.
+ */
+function deepQuery<T extends Element = Element>(
+  root: ParentNode,
+  selector: string
+): T | null {
+  const direct = root.querySelector<T>(selector);
+  if (direct) return direct;
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+    if (el.shadowRoot) {
+      const found = deepQuery<T>(el.shadowRoot, selector);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function deepQueryAll<T extends Element = Element>(
+  root: ParentNode,
+  selector: string
+): T[] {
+  const results: T[] = Array.from(root.querySelectorAll<T>(selector));
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+    if (el.shadowRoot) {
+      results.push(...deepQueryAll<T>(el.shadowRoot, selector));
+    }
+  }
+  return results;
+}
+
 describe("AnumaThemeProvider + resolveThemeColor", () => {
   it("resolves theme tokens", () => {
     const theme = {
@@ -48,7 +82,8 @@ describe("Anuma primitives render", () => {
         </Anuma.Slide>
       </AnumaThemeProvider>
     );
-    const rect = container.querySelector('[data-anuma-tag="Rect"]') as HTMLElement;
+    const rect = deepQuery<HTMLElement>(container, '[data-anuma-tag="Rect"]')!;
+    expect(rect).not.toBeNull();
     expect(rect.style.background).toBe("#10b981");
     expect(rect.style.left).toBe("0px");
     expect(rect.style.top).toBe("0px");
@@ -65,11 +100,31 @@ describe("Anuma primitives render", () => {
         </Anuma.Slide>
       </AnumaThemeProvider>
     );
-    const group = container.querySelector('[data-anuma-tag="Group"]') as HTMLElement;
+    const group = deepQuery<HTMLElement>(container, '[data-anuma-tag="Group"]')!;
+    expect(group).not.toBeNull();
     expect(group.style.display).toBe("flex");
     expect(group.style.flexDirection).toBe("row");
     expect(group.style.gap).toBe("16px");
     expect(group.style.padding).toBe("24px");
+  });
+
+  it("Slide attaches a shadow root and isolates content via inheritable defaults", () => {
+    const { container } = render(
+      <AnumaThemeProvider colors={{ textPrimary: "#abc123" }}>
+        <Anuma.Slide id="s">
+          <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
+        </Anuma.Slide>
+      </AnumaThemeProvider>
+    );
+    const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
+    // Host element exposes an open shadow root containing the children.
+    expect(slide.shadowRoot).not.toBeNull();
+    expect(slide.shadowRoot!.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
+    // Inheritable defaults are baked into the host inline-style so
+    // shadow-DOM children inherit our values, not the host page's.
+    expect(slide.style.color).toBe("#abc123");
+    expect(slide.style.boxSizing).toBe("border-box");
+    expect(slide.style.margin).toBe("0px");
   });
 });
 
@@ -84,12 +139,12 @@ describe("renderAnumaJsx", () => {
       </Anuma.Deck>
     `;
     const { container } = render(<>{renderAnumaJsx(jsx)}</>);
-    const h1 = container.querySelector("h1");
+    const h1 = deepQuery<HTMLHeadingElement>(container, "h1");
     expect(h1).not.toBeNull();
     expect(h1!.textContent).toBe("Hello");
     expect(h1!.style.fontSize).toBe("60px");
     expect(h1!.style.color).toBe("#fff");
-    const rect = container.querySelector('[data-anuma-tag="Rect"]') as HTMLElement;
+    const rect = deepQuery<HTMLElement>(container, '[data-anuma-tag="Rect"]')!;
     expect(rect.style.background).toBe("#10b981");
     expect(rect.style.left).toBe("58px");
   });
@@ -104,7 +159,7 @@ describe("renderAnumaJsx", () => {
       </Anuma.Slide>
     `;
     const { container } = render(<AnumaThemeProvider>{renderAnumaJsx(jsx)}</AnumaThemeProvider>);
-    const divs = container.querySelectorAll<HTMLDivElement>("div[data-anuma-tag='div']");
+    const divs = deepQueryAll<HTMLDivElement>(container, "div[data-anuma-tag='div']");
     expect(divs.length).toBe(2);
     expect(divs[0]!.style.flexGrow).toBe("1");
     expect(divs[1]!.style.width).toBe("50px");

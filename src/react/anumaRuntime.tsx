@@ -39,9 +39,11 @@
  */
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import type { AnumaNode, AttrValue } from "../tools/slides/index.js";
 import {
+  FONT_PRESETS,
   isAnumaTag,
   isHtmlTag,
   parseJsx,
@@ -307,19 +309,59 @@ function Slide({
   const isFlex = layout === "row" || layout === "column";
   const containerStyle = containerLayoutStyle({ layout, gap, padding, justify, align });
   const bg = resolveThemeColor(background, theme) ?? theme.colors.slideBg ?? "#1a1b1e";
+  const fontPreset = FONT_PRESETS[theme.fontPreset] ?? FONT_PRESETS.default;
+
+  // Shadow DOM isolation: the slide's host div is in light DOM (so the
+  // editor can find it via `[data-anuma-tag="Slide"]`), but its children
+  // render inside an attached shadow root via a portal. This prevents
+  // host-page CSS (Tailwind preflight, UA defaults on h2/p/button,
+  // global selectors, etc.) from leaking into slide content.
+  //
+  // Inheritable properties (font-family, color, line-height, ...) still
+  // cross the shadow boundary FROM the host's parent, so we set them
+  // explicitly on the host with theme-derived values. Inline styles win
+  // against host-page selectors (short of `!important`), so children
+  // inherit OUR values rather than whatever the page has set.
+  const hostRef = React.useRef<HTMLDivElement | null>(null);
+  const [shadowRoot, setShadowRoot] = React.useState<ShadowRoot | null>(null);
+  React.useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // attachShadow throws if one is already attached; reuse the existing
+    // root in that case (e.g. across HMR or strict-mode double mounts).
+    setShadowRoot(host.shadowRoot ?? host.attachShadow({ mode: "open" }));
+  }, []);
+
   const merged: React.CSSProperties = {
     position: "relative",
     width: 960,
     height: 540,
     overflow: "hidden",
     background: bg,
+    boxSizing: "border-box",
+    // Inheritable defaults — the shadow root's children inherit these
+    // from the host. Fixing them explicitly stops host-page styles from
+    // leaking through inheritance.
+    margin: 0,
+    padding: 0,
+    fontFamily: `'${fontPreset?.body ?? "Inter"}', system-ui, sans-serif`,
+    color: theme.colors.textPrimary ?? "#fff",
+    lineHeight: 1.3,
+    fontSize: 16,
+    fontWeight: 400,
+    fontStyle: "normal",
+    fontVariant: "normal",
+    textTransform: "none",
+    textAlign: "left",
+    letterSpacing: "normal",
+    wordSpacing: "normal",
     ...containerStyle,
     ...(resolveStyleTokens(style, theme) ?? {}),
   };
   return (
     <FlexParentContext.Provider value={isFlex}>
-      <div data-anuma-tag="Slide" data-id={id} style={merged}>
-        {children}
+      <div ref={hostRef} data-anuma-tag="Slide" data-id={id} style={merged}>
+        {shadowRoot && createPortal(children, shadowRoot)}
       </div>
     </FlexParentContext.Provider>
   );
