@@ -617,3 +617,28 @@ export {
 
 // GitHub Tools (repo access: search, read, issues, PRs, reviews, commits)
 export { createGitHubTools } from "../tools/github";
+
+// Anuma JSX runtime — React components that render <Anuma.*> primitives
+// and parsed AnumaNode trees. Pair with AnumaThemeProvider.
+export type {
+  AnumaTheme,
+  AnumaThemeProviderProps,
+  CircleProps,
+  DeckProps,
+  GroupProps,
+  IconProps,
+  ImageProps,
+  LineProps,
+  RectProps,
+  ScreenProps,
+  SlideProps,
+  TextProps,
+} from "./anumaRuntime";
+export {
+  Anuma,
+  AnumaThemeProvider,
+  renderAnumaJsx,
+  renderAnumaTree,
+  resolveThemeColor,
+  useAnumaTheme,
+} from "./anumaRuntime";
