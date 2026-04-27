@@ -1279,6 +1279,8 @@ COORDINATE SYSTEM — every position is container-relative pixels on a 960×540 
 - Content area: x=58–902, y=49–491 (standard padding ≈ 58px horizontal, 49px vertical).
 - fontSize is pixels: 43 ≈ large heading, 18 ≈ body, 13 ≈ mono eyebrow.
 
+TEXT BUDGETS — each layout recipe reports a "Text budgets" line listing the max-character estimate per text slot, derived from the slot's box width × height at the chosen font size. Treat the numbers as a soft target: write copy that fits well under the limit. Overflowing text gets line-clamped with an ellipsis at render time, so going over the budget loses information. When in doubt, write tighter. Slot ids in the budget line match the recipe's <Anuma.Text id="..."> attributes.
+
 LAYOUT MODES — containers (Deck, Slide, Group) default to absolute positioning. To flow children instead, opt in on the container:
 - <Anuma.Group layout="row" gap={16} padding={24} justify="start" align="center">…</Anuma.Group>
 - layout: "absolute" (default) | "row" | "column". gap: spacing between children in px. padding: inset in px. justify: "start" | "center" | "end" | "space-between". align: "start" | "center" | "end" | "stretch".

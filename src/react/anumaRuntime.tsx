@@ -598,6 +598,31 @@ function Text({
   const positioning = parentIsFlex
     ? flexChildStyle({ x, y, w, h, rotation, grow, shrink, alignSelf })
     : absoluteStyle({ x, y, w, h, rotation });
+  const styleResolved = resolveStyleTokens(style, theme) ?? {};
+  // Compute a max-line clamp so content that exceeds the slot's
+  // height truncates with an ellipsis instead of getting hard-clipped.
+  // The line count comes from the box height divided by the rendered
+  // line-height (font-size × line-height multiplier). We only apply
+  // the clamp when we actually have a finite height to clamp against —
+  // flex children without an explicit h shouldn't cap at one line.
+  const fontSizeStyle = (styleResolved as { fontSize?: number | string }).fontSize;
+  const lineHeightStyle = (styleResolved as { lineHeight?: number | string }).lineHeight;
+  const numFontSize =
+    typeof fontSizeStyle === "number"
+      ? fontSizeStyle
+      : typeof fontSizeStyle === "string"
+        ? parseFloat(fontSizeStyle)
+        : 16;
+  const numLineHeight =
+    typeof lineHeightStyle === "number"
+      ? lineHeightStyle
+      : typeof lineHeightStyle === "string"
+        ? parseFloat(lineHeightStyle)
+        : 1.3;
+  const maxLines =
+    typeof h === "number" && Number.isFinite(numFontSize) && Number.isFinite(numLineHeight)
+      ? Math.max(1, Math.floor(h / (numFontSize * numLineHeight)))
+      : undefined;
   const merged: React.CSSProperties = {
     ...positioning,
     // <h2>/<p> carry user-agent default margins (~0.83em / 1em). With
@@ -608,7 +633,18 @@ function Text({
     margin: 0,
     overflow: "hidden",
     whiteSpace: "pre-line",
-    ...(resolveStyleTokens(style, theme) ?? {}),
+    ...(maxLines
+      ? {
+          // -webkit-line-clamp truncates with an ellipsis. Standard
+          // line-clamp isn't broadly supported yet; the prefixed
+          // version works in every evergreen browser.
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical" as const,
+          WebkitLineClamp: maxLines,
+          textOverflow: "ellipsis",
+        }
+      : {}),
+    ...styleResolved,
   };
   const Tag = fontRole === "heading" ? "h2" : "p";
   return (

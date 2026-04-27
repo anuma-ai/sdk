@@ -36,6 +36,13 @@ interface TextLayoutEl extends BaseEl {
   fontStyle?: "italic" | "normal";
   textTransform?: "uppercase" | "none";
   fontFamily?: string;
+  /**
+   * Optional override for the auto-derived max-character budget
+   * shown to the LLM in the layout recipe. Use only when the
+   * geometry-based estimate is too generous (e.g. an editorial
+   * title where you want short copy regardless of box width).
+   */
+  maxChars?: number;
 }
 
 interface ImageLayoutEl extends BaseEl {
@@ -3324,12 +3331,40 @@ export function renderLayoutRecipes(names: string[]): string {
   return renderLayoutRecipesImpl(templates);
 }
 
+/**
+ * Estimate how many characters a text slot can hold before its content
+ * overflows the box at the chosen font size. Used to populate the
+ * "Text budgets" hint in each layout recipe so the LLM sizes its copy
+ * to fit the slot.
+ *
+ * Heuristic: avg sans-serif glyph width ≈ 0.55em → chars-per-line is
+ * width / (0.55 * fontSize); lines-per-box is height / (fontSize *
+ * lineHeight). Multiply to get the total. Slightly conservative (real
+ * text wraps at word boundaries, so the bound is a soft target).
+ */
+function estimateMaxChars(el: TextLayoutEl): number {
+  const lineHeight = el.lineHeight ?? 1.3;
+  const pxWidth = el.w * (CANVAS_W / 100);
+  const pxHeight = el.h * (CANVAS_H / 100);
+  const pxFontSize = el.fontSize * (CANVAS_W / 100);
+  const charsPerLine = Math.max(1, Math.floor(pxWidth / (0.55 * pxFontSize)));
+  const lines = Math.max(1, Math.floor(pxHeight / (pxFontSize * lineHeight)));
+  return charsPerLine * lines;
+}
+
 function renderLayoutRecipesImpl(templates: LayoutTemplate[]): string {
   return templates
     .map((template) => {
       const lines: string[] = [`${template.name} — ${template.description}:`];
       if (template.notes) {
         for (const note of template.notes) lines.push(`  ${note}`);
+      }
+      const budgets = template.elements
+        .filter((el): el is TextLayoutEl => el.kind === "text")
+        .map((el) => `${el.id}≤${el.maxChars ?? estimateMaxChars(el)}`)
+        .join(", ");
+      if (budgets) {
+        lines.push(`  Text budgets (max chars per slot, soft target): ${budgets}.`);
       }
       lines.push(elementsToJsx(template.elements));
       return lines.join("\n");
