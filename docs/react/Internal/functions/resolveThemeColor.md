@@ -2,7 +2,7 @@
 
 > **resolveThemeColor**(`value`: `unknown`, `theme`: [`AnumaTheme`](../interfaces/AnumaTheme.md)): `string` | `undefined`
 
-Defined in: src/react/anumaRuntime.tsx:117
+Defined in: [src/react/anumaRuntime.tsx:117](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#117)
 
 Resolve a color token against the theme. Pass-through for hex/rgb/named
 CSS colors; theme tokens (`textPrimary`, `accent`, …) become their

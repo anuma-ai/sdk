@@ -2,7 +2,7 @@
 
 > **renderAnumaJsx**(`jsx`: `string`): `ReactElement`<`unknown`, `string` | `JSXElementConstructor`<`any`>> | `null`
 
-Defined in: src/react/anumaRuntime.tsx:864
+Defined in: [src/react/anumaRuntime.tsx:870](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#870)
 
 Parse a JSX string and render it. Convenience over
 `parseJsx(jsx) → renderAnumaTree(node)`.

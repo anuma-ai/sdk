@@ -1,8 +1,8 @@
 # renderAnumaTree
 
-> **renderAnumaTree**(`node`: `AnumaNode`): `ReactElement`<`unknown`, `string` | `JSXElementConstructor`<`any`>> | `null`
+> **renderAnumaTree**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md)): `ReactElement`<`unknown`, `string` | `JSXElementConstructor`<`any`>> | `null`
 
-Defined in: src/react/anumaRuntime.tsx:856
+Defined in: [src/react/anumaRuntime.tsx:862](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#862)
 
 Render a parsed `AnumaNode` tree. Wrap with `<AnumaThemeProvider>` if
 you want to override the deck's own theme attrs.
@@ -25,7 +25,7 @@ you want to override the deck's own theme attrs.
 </td>
 <td>
 
-`AnumaNode`
+[`AnumaNode`](../interfaces/AnumaNode.md)
 
 </td>
 </tr>

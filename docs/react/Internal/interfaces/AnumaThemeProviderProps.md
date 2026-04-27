@@ -1,6 +1,6 @@
 # AnumaThemeProviderProps
 
-Defined in: src/react/anumaRuntime.tsx:80
+Defined in: [src/react/anumaRuntime.tsx:80](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#80)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: src/react/anumaRuntime.tsx:80
 
 > **children**: `ReactNode`
 
-Defined in: src/react/anumaRuntime.tsx:85
+Defined in: [src/react/anumaRuntime.tsx:85](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#85)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: src/react/anumaRuntime.tsx:85
 
 > `optional` **colors**: `Partial`<`Record`<`"accent"` | `"textMuted"` | `"border"` | `"textPrimary"` | `"textSecondary"` | `"background"` | `"slideBg"` | `"surfaceSecondary"` | `"card"`, `string`>>
 
-Defined in: src/react/anumaRuntime.tsx:84
+Defined in: [src/react/anumaRuntime.tsx:84](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#84)
 
 Color token overrides. Merged with the built-in defaults.
 
@@ -26,6 +26,6 @@ Color token overrides. Merged with the built-in defaults.
 
 > `optional` **fontPreset**: `string`
 
-Defined in: src/react/anumaRuntime.tsx:82
+Defined in: [src/react/anumaRuntime.tsx:82](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#82)
 
 Override the default font preset key.
