@@ -79,6 +79,39 @@ const DEFAULT_THEME: AnumaTheme = {
 
 const AnumaThemeContext = React.createContext<AnumaTheme>(DEFAULT_THEME);
 
+/**
+ * Opt-in shadow-DOM isolation for `<Anuma.Slide>` content. Default false:
+ * the slide's children render directly in light DOM. Set to true on
+ * read-only surfaces (thumbnails, presentation overlay, exports) to
+ * isolate slide CSS from host-page leaks. Editors leave it off so
+ * direct-DOM tools like react-moveable see the elements they're
+ * dragging in the same document — without the shadow boundary the
+ * handles' positioning math gets wrong vs the rendered content.
+ */
+const AnumaShadowIsolationContext = React.createContext<boolean>(false);
+
+export interface AnumaShadowIsolationProviderProps {
+  enabled?: boolean;
+  children: React.ReactNode;
+}
+
+/**
+ * Toggle shadow-DOM isolation for any `<Anuma.Slide>` rendered inside
+ * the children. Wrap thumbnail / presentation / export render trees
+ * with `<AnumaShadowIsolationProvider enabled>` to get full style
+ * isolation; leave it off (default) for editors so DOM tools work.
+ */
+export function AnumaShadowIsolationProvider({
+  enabled = true,
+  children,
+}: AnumaShadowIsolationProviderProps): React.ReactElement {
+  return (
+    <AnumaShadowIsolationContext.Provider value={enabled}>
+      {children}
+    </AnumaShadowIsolationContext.Provider>
+  );
+}
+
 export interface AnumaThemeProviderProps {
   /** Override the default font preset key. */
   fontPreset?: string;
@@ -311,26 +344,23 @@ function Slide({
   const bg = resolveThemeColor(background, theme) ?? theme.colors.slideBg ?? "#1a1b1e";
   const fontPreset = FONT_PRESETS[theme.fontPreset] ?? FONT_PRESETS.default;
 
-  // Shadow DOM isolation: the slide's host div is in light DOM (so the
-  // editor can find it via `[data-anuma-tag="Slide"]`), but its children
-  // render inside an attached shadow root via a portal. This prevents
-  // host-page CSS (Tailwind preflight, UA defaults on h2/p/button,
-  // global selectors, etc.) from leaking into slide content.
-  //
-  // Inheritable properties (font-family, color, line-height, ...) still
-  // cross the shadow boundary FROM the host's parent, so we set them
-  // explicitly on the host with theme-derived values. Inline styles win
-  // against host-page selectors (short of `!important`), so children
-  // inherit OUR values rather than whatever the page has set.
+  // Shadow-DOM isolation is opt-in via context. Read-only surfaces
+  // (thumbnails, presentation, exports) wrap their render in
+  // `<AnumaShadowIsolationProvider enabled>` to get full style
+  // isolation. Editors leave it off so direct-DOM tools like
+  // react-moveable see slide elements in the same document — its
+  // bounding-rect math drifts when targets are inside a shadow root.
+  const shadowIsolated = React.useContext(AnumaShadowIsolationContext);
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const [shadowRoot, setShadowRoot] = React.useState<ShadowRoot | null>(null);
   React.useLayoutEffect(() => {
+    if (!shadowIsolated) return;
     const host = hostRef.current;
     if (!host) return;
     // attachShadow throws if one is already attached; reuse the existing
     // root in that case (e.g. across HMR or strict-mode double mounts).
     setShadowRoot(host.shadowRoot ?? host.attachShadow({ mode: "open" }));
-  }, []);
+  }, [shadowIsolated]);
 
   const merged: React.CSSProperties = {
     position: "relative",
@@ -339,9 +369,12 @@ function Slide({
     overflow: "hidden",
     background: bg,
     boxSizing: "border-box",
-    // Inheritable defaults — the shadow root's children inherit these
-    // from the host. Fixing them explicitly stops host-page styles from
-    // leaking through inheritance.
+    // Inheritable defaults applied either way. With shadow isolation
+    // these stop host-page styles leaking into the shadow tree. Without
+    // isolation, the same baseline keeps the slide reliably themed even
+    // if the host has aggressive globals — at the cost of these
+    // inherited values then propagating into slide children unless
+    // they (or our `<Anuma.Text>` style) override them, which they do.
     margin: 0,
     padding: 0,
     fontFamily: `'${fontPreset?.body ?? "Inter"}', system-ui, sans-serif`,
@@ -361,7 +394,7 @@ function Slide({
   return (
     <FlexParentContext.Provider value={isFlex}>
       <div ref={hostRef} data-anuma-tag="Slide" data-id={id} style={merged}>
-        {shadowRoot && createPortal(children, shadowRoot)}
+        {shadowIsolated ? shadowRoot && createPortal(children, shadowRoot) : children}
       </div>
     </FlexParentContext.Provider>
   );

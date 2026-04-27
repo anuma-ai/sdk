@@ -2,7 +2,13 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { Anuma, AnumaThemeProvider, renderAnumaJsx, resolveThemeColor } from "./anumaRuntime";
+import {
+  Anuma,
+  AnumaShadowIsolationProvider,
+  AnumaThemeProvider,
+  renderAnumaJsx,
+  resolveThemeColor,
+} from "./anumaRuntime";
 
 /**
  * Querying inside a slide now needs to traverse the shadow boundary —
@@ -108,20 +114,37 @@ describe("Anuma primitives render", () => {
     expect(group.style.padding).toBe("24px");
   });
 
-  it("Slide attaches a shadow root and isolates content via inheritable defaults", () => {
+  it("Slide does NOT attach a shadow root by default (light DOM)", () => {
     const { container } = render(
-      <AnumaThemeProvider colors={{ textPrimary: "#abc123" }}>
+      <AnumaThemeProvider>
         <Anuma.Slide id="s">
           <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
         </Anuma.Slide>
       </AnumaThemeProvider>
     );
     const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
-    // Host element exposes an open shadow root containing the children.
+    expect(slide.shadowRoot).toBeNull();
+    // Children are direct light-DOM descendants (editor-friendly).
+    expect(slide.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
+  });
+
+  it("AnumaShadowIsolationProvider opts a Slide into shadow-DOM isolation", () => {
+    const { container } = render(
+      <AnumaThemeProvider colors={{ textPrimary: "#abc123" }}>
+        <AnumaShadowIsolationProvider>
+          <Anuma.Slide id="s">
+            <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
+          </Anuma.Slide>
+        </AnumaShadowIsolationProvider>
+      </AnumaThemeProvider>
+    );
+    const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
     expect(slide.shadowRoot).not.toBeNull();
+    // Children live inside the shadow root, not in light DOM.
     expect(slide.shadowRoot!.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
-    // Inheritable defaults are baked into the host inline-style so
-    // shadow-DOM children inherit our values, not the host page's.
+    expect(slide.querySelector('[data-anuma-tag="Rect"]')).toBeNull();
+    // Inheritable defaults are still baked into the host so the shadow
+    // tree inherits theme values rather than the host page's.
     expect(slide.style.color).toBe("#abc123");
     expect(slide.style.boxSizing).toBe("border-box");
     expect(slide.style.margin).toBe("0px");
