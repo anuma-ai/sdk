@@ -114,28 +114,12 @@ describe("Anuma primitives render", () => {
     expect(group.style.padding).toBe("24px");
   });
 
-  it("Slide does NOT attach a shadow root by default (light DOM)", () => {
+  it("Slide attaches a shadow root by default and isolates content", () => {
     const { container } = render(
-      <AnumaThemeProvider>
+      <AnumaThemeProvider colors={{ textPrimary: "#abc123" }}>
         <Anuma.Slide id="s">
           <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
         </Anuma.Slide>
-      </AnumaThemeProvider>
-    );
-    const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
-    expect(slide.shadowRoot).toBeNull();
-    // Children are direct light-DOM descendants (editor-friendly).
-    expect(slide.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
-  });
-
-  it("AnumaShadowIsolationProvider opts a Slide into shadow-DOM isolation", () => {
-    const { container } = render(
-      <AnumaThemeProvider colors={{ textPrimary: "#abc123" }}>
-        <AnumaShadowIsolationProvider>
-          <Anuma.Slide id="s">
-            <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
-          </Anuma.Slide>
-        </AnumaShadowIsolationProvider>
       </AnumaThemeProvider>
     );
     const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
@@ -143,11 +127,26 @@ describe("Anuma primitives render", () => {
     // Children live inside the shadow root, not in light DOM.
     expect(slide.shadowRoot!.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
     expect(slide.querySelector('[data-anuma-tag="Rect"]')).toBeNull();
-    // Inheritable defaults are still baked into the host so the shadow
-    // tree inherits theme values rather than the host page's.
+    // Inheritable defaults baked into the host so the shadow tree
+    // inherits theme values rather than the host page's.
     expect(slide.style.color).toBe("#abc123");
     expect(slide.style.boxSizing).toBe("border-box");
     expect(slide.style.margin).toBe("0px");
+  });
+
+  it("AnumaShadowIsolationProvider with enabled={false} opts out into light DOM", () => {
+    const { container } = render(
+      <AnumaThemeProvider>
+        <AnumaShadowIsolationProvider enabled={false}>
+          <Anuma.Slide id="s">
+            <Anuma.Rect id="r" x={0} y={0} w={1} h={1} fill="#fff" />
+          </Anuma.Slide>
+        </AnumaShadowIsolationProvider>
+      </AnumaThemeProvider>
+    );
+    const slide = container.querySelector('[data-anuma-tag="Slide"]') as HTMLElement;
+    expect(slide.shadowRoot).toBeNull();
+    expect(slide.querySelector('[data-anuma-tag="Rect"]')).not.toBeNull();
   });
 });
 

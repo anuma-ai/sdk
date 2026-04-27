@@ -80,15 +80,14 @@ const DEFAULT_THEME: AnumaTheme = {
 const AnumaThemeContext = React.createContext<AnumaTheme>(DEFAULT_THEME);
 
 /**
- * Opt-in shadow-DOM isolation for `<Anuma.Slide>` content. Default false:
- * the slide's children render directly in light DOM. Set to true on
- * read-only surfaces (thumbnails, presentation overlay, exports) to
- * isolate slide CSS from host-page leaks. Editors leave it off so
- * direct-DOM tools like react-moveable see the elements they're
- * dragging in the same document — without the shadow boundary the
- * handles' positioning math gets wrong vs the rendered content.
+ * Shadow-DOM isolation for `<Anuma.Slide>` content. Default true: the
+ * slide's children render inside an attached shadow root so host-page
+ * CSS (Tailwind preflight, UA defaults on h2/p/button, global selectors)
+ * cannot leak in. Wrap a tree in `<AnumaShadowIsolationProvider enabled={false}>`
+ * to opt OUT — useful only if a direct-DOM tool inside slides has
+ * trouble crossing the shadow boundary.
  */
-const AnumaShadowIsolationContext = React.createContext<boolean>(false);
+const AnumaShadowIsolationContext = React.createContext<boolean>(true);
 
 export interface AnumaShadowIsolationProviderProps {
   enabled?: boolean;
@@ -97,9 +96,8 @@ export interface AnumaShadowIsolationProviderProps {
 
 /**
  * Toggle shadow-DOM isolation for any `<Anuma.Slide>` rendered inside
- * the children. Wrap thumbnail / presentation / export render trees
- * with `<AnumaShadowIsolationProvider enabled>` to get full style
- * isolation; leave it off (default) for editors so DOM tools work.
+ * the children. The default for slides is isolation ON — pass
+ * `enabled={false}` to render slide children in light DOM instead.
  */
 export function AnumaShadowIsolationProvider({
   enabled = true,
