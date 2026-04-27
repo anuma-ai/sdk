@@ -20,7 +20,7 @@ function isElementShape(e: unknown): e is SlideElement {
   if (typeof el.id !== "string" || el.id.length === 0) return false;
   if (typeof el.x !== "number" || typeof el.y !== "number") return false;
   if (typeof el.w !== "number" || typeof el.h !== "number") return false;
-  return ["text", "shape", "image", "icon"].includes(el.kind as string);
+  return ["text", "shape", "image", "icon", "group"].includes(el.kind as string);
 }
 
 describe("LAYOUT_TEMPLATES", () => {
@@ -80,10 +80,10 @@ describe("SHARED_HEADER_ELEMENTS", () => {
 });
 
 describe("renderSharedHeader", () => {
-  it("emits each element id as a recipe-line prefix", () => {
+  it("emits each element as JSX referencing its id", () => {
     const prose = renderSharedHeader();
     for (const el of SHARED_HEADER_ELEMENTS) {
-      expect(prose).toContain(`${el.id}: {`);
+      expect(prose).toContain(`id="${el.id}"`);
     }
   });
 
@@ -180,11 +180,11 @@ describe("renderLayoutTemplates", () => {
     }
   });
 
-  it("emits one line per element with the id as the prefix", () => {
+  it("emits JSX per element referencing its id", () => {
     const prose = renderLayoutTemplates();
     for (const t of LAYOUT_TEMPLATES) {
       for (const el of t.elements) {
-        expect(prose).toContain(`${el.id}: {`);
+        expect(prose).toContain(`id="${el.id}"`);
       }
     }
   });
@@ -199,7 +199,7 @@ describe("renderLayoutTemplates", () => {
       const noteAt = prose.indexOf(note, sectionStart);
       expect(noteAt).toBeGreaterThan(sectionStart);
       if (t.elements.length > 0) {
-        const firstElementAt = prose.indexOf(`${t.elements[0]!.id}: {`, sectionStart);
+        const firstElementAt = prose.indexOf(`id="${t.elements[0]!.id}"`, sectionStart);
         expect(noteAt).toBeLessThan(firstElementAt);
       }
     }
