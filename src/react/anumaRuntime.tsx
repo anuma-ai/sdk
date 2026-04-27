@@ -558,6 +558,12 @@ function Text({
     : absoluteStyle({ x, y, w, h, rotation });
   const merged: React.CSSProperties = {
     ...positioning,
+    // <h2>/<p> carry user-agent default margins (~0.83em / 1em). With
+    // `position: absolute` the margin still offsets the visible content
+    // below the box's `top` line — so the rendered text drifts down from
+    // the slide-pixel y the LLM specified, and any overlay (e.g. the
+    // text-edit textarea) anchored to the same y misaligns.
+    margin: 0,
     overflow: "hidden",
     whiteSpace: "pre-line",
     ...(resolveStyleTokens(style, theme) ?? {}),
