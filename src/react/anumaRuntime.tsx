@@ -179,7 +179,13 @@ interface ContainerLayoutProps {
 
 /** Build inline style for a positioned element inside an absolute parent. */
 function absoluteStyle(g: GeometryProps): React.CSSProperties {
-  const out: React.CSSProperties = { position: "absolute" };
+  // box-sizing: border-box makes `width` and `height` total dimensions
+  // (content + padding + border), independent of any host-page CSS that
+  // might otherwise leave it as `content-box`. This matches the LLM's
+  // and editor's mental model — `attrs.w/h` are the box's outer size —
+  // and avoids "container drifts on resize" bugs caused by padding
+  // making the visual box bigger than the AST claims.
+  const out: React.CSSProperties = { position: "absolute", boxSizing: "border-box" };
   if (g.x !== undefined) out.left = g.x;
   if (g.y !== undefined) out.top = g.y;
   if (g.w !== undefined) out.width = g.w;
@@ -190,7 +196,8 @@ function absoluteStyle(g: GeometryProps): React.CSSProperties {
 
 /** Build inline style for a child of a flex container. */
 function flexChildStyle(g: GeometryProps): React.CSSProperties {
-  const out: React.CSSProperties = { position: "relative" };
+  // See absoluteStyle for the box-sizing rationale.
+  const out: React.CSSProperties = { position: "relative", boxSizing: "border-box" };
   if (g.w !== undefined) out.width = g.w;
   if (g.h !== undefined) out.height = g.h;
   if (g.grow !== undefined) out.flexGrow = g.grow;
@@ -447,7 +454,18 @@ function Screen({
  * Structural group. Defaults to absolute positioning of children;
  * opt into flex via `layout="row" | "column"`.
  */
-export interface GroupProps extends CommonProps, ContainerLayoutProps {}
+export interface GroupProps extends CommonProps, ContainerLayoutProps {
+  /**
+   * Background fill, applied as `background-color` on the Group's
+   * div. Resolves theme color tokens (e.g. "accent", "card") via
+   * `resolveThemeColor`. Mirrors the `fill` prop on Rect/Circle/Line —
+   * a Group is a layout container, but design-tool consumers
+   * frequently want it to also carry a fill (auto-layout frames, card
+   * surfaces, button bodies). `style.background` still works as an
+   * override / for gradients.
+   */
+  fill?: string;
+}
 
 function Group({
   id,
@@ -464,6 +482,7 @@ function Group({
   padding,
   justify,
   align,
+  fill,
   style,
   children,
 }: GroupProps): React.ReactElement {
@@ -477,6 +496,7 @@ function Group({
   const merged: React.CSSProperties = {
     ...positioning,
     ...containerStyle,
+    ...(fill !== undefined ? { background: resolveThemeColor(fill, theme) } : {}),
     ...(resolveStyleTokens(style, theme) ?? {}),
   };
   return (
@@ -685,7 +705,21 @@ function Image({
     ...(resolveStyleTokens(style, theme) ?? {}),
   };
   if (src && (src.startsWith("http") || src.startsWith("data:"))) {
-    return <img data-anuma-tag="Image" data-id={id} src={src} alt="" style={merged} />;
+    // draggable={false}: slide images should never participate in HTML5
+    // native drag-and-drop. Without this, click-dragging an image inside
+    // an editor (or any interactive consumer of the runtime) starts the
+    // browser's translucent-ghost drag before the editor's gesture
+    // handler can claim the pointer.
+    return (
+      <img
+        data-anuma-tag="Image"
+        data-id={id}
+        src={src}
+        alt=""
+        draggable={false}
+        style={merged}
+      />
+    );
   }
   // Placeholder for attached:N or unresolved sources.
   return (
@@ -775,7 +809,7 @@ export const Anuma = {
  * primitives (theme tokens resolved, x/y/w/h projected to absolute
  * positioning). Other attrs pass through.
  */
-function renderHtml(node: AnumaNode, key: number): React.ReactElement | null {
+function renderHtml(node: AnumaNode, key: string | number): React.ReactElement | null {
   // We use React.createElement to avoid TypeScript trying to type-check
   // a dynamic intrinsic-element name.
   const Tag = node.tag as keyof React.JSX.IntrinsicElements;
@@ -824,7 +858,9 @@ function renderHtml(node: AnumaNode, key: number): React.ReactElement | null {
       hasGeo={hasGeo}
       key={key}
     >
-      {node.children.map((c, i) => (typeof c === "string" ? c : renderTreeChild(c, i)))}
+      {node.children.map((c, i) =>
+        typeof c === "string" ? c : renderTreeChild(c, keyForChild(c, i))
+      )}
     </ReactNodeWithGeometry>
   );
 }
@@ -864,7 +900,7 @@ function pickStyle(value: AttrValue | undefined): React.CSSProperties | undefine
   return undefined;
 }
 
-function renderTreeChild(node: AnumaNode, key: number): React.ReactElement | null {
+function renderTreeChild(node: AnumaNode, key: string | number): React.ReactElement | null {
   if (isAnumaTag(node.tag)) {
     return renderAnumaPrimitive(node, key);
   }
@@ -874,10 +910,28 @@ function renderTreeChild(node: AnumaNode, key: number): React.ReactElement | nul
   return null;
 }
 
+/**
+ * React key for an AnumaNode child. Prefers `attrs.id` when available
+ * so DOM identity survives sibling reorders (e.g., flex children
+ * dragged to a new position). Falls back to the array index for nodes
+ * with no id.
+ *
+ * Without this — keying by index — React's reconciler would swap
+ * props in place between DOM siblings on reorder rather than moving
+ * DOM nodes, which breaks any consumer that has imperatively mutated
+ * style on a specific node (drag handlers, transitions, focus).
+ */
+function keyForChild(node: AnumaNode, fallbackIndex: number): string | number {
+  const id = node.attrs.id;
+  return typeof id === "string" && id.length > 0 ? id : fallbackIndex;
+}
+
 /** Dispatch to the correct Anuma component for a parsed node. */
-function renderAnumaPrimitive(node: AnumaNode, key: number): React.ReactElement | null {
+function renderAnumaPrimitive(node: AnumaNode, key: string | number): React.ReactElement | null {
   const props = anumaPropsFromAttrs(node.attrs);
-  const children = node.children.map((c, i) => (typeof c === "string" ? c : renderTreeChild(c, i)));
+  const children = node.children.map((c, i) =>
+    typeof c === "string" ? c : renderTreeChild(c, keyForChild(c, i))
+  );
   switch (node.tag) {
     case "Deck":
       return (
