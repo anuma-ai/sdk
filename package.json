@@ -20,6 +20,12 @@
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
     },
+    "./design": {
+      "types": "./dist/design/index.d.ts",
+      "import": "./dist/design/index.mjs",
+      "require": "./dist/design/index.cjs",
+      "default": "./dist/design/index.cjs"
+    },
     "./expo": {
       "types": "./dist/expo/index.d.ts",
       "react-native": "./dist/expo/index.mjs",
