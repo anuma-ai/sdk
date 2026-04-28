@@ -110,6 +110,69 @@ const { needsWebSearch, searchScore, noSearchScore } = await classifyWebSearch(
 
 `classifyWebSearchBatch` accepts an array of prompts and embeds them in a single batch call.
 
+## Built-in: `createCryptoPricePreProcessor`
+
+Same shape as the web-search pre-processor, but classifies whether the prompt is asking for a current price quote (crypto, stocks, or FX). The SDK does **not** run the price lookup itself — the caller wires up CoinGecko, DexScreener, an on-chain oracle, a stock-quote API, or whatever they like.
+
+### Basic usage
+
+```ts
+import { runToolLoop, createCryptoPricePreProcessor } from "@anuma/sdk/server";
+
+const cryptoPrice = createCryptoPricePreProcessor({
+  fetchPriceData: async (prompt, { signal }) => {
+    const tickers = extractTickers(prompt); // caller-supplied
+    const quotes = await myProvider.getQuotes(tickers, { signal });
+    return quotes.map((q) => `- ${q.symbol}: $${q.price} (${q.change24h}%)`).join("\n");
+  },
+});
+
+await runToolLoop({
+  messages,
+  model,
+  token,
+  preProcessors: [cryptoPrice],
+});
+```
+
+When `fetchPriceData` returns a string, the SDK wraps it in a user-role message with the prefix `Current prices:\n…`. Return an `LlmapiMessage[]` directly for full control over role or shape.
+
+### Observer mode
+
+Omit `fetchPriceData` to only observe the classification:
+
+```ts
+const observer = createCryptoPricePreProcessor({
+  onClassification: ({ needsCryptoPrice, priceScore, noPriceScore }) => {
+    metrics.record({ needsCryptoPrice, priceScore, noPriceScore });
+  },
+});
+```
+
+### Tuning
+
+- **`margin`** — how much `priceScore` must exceed `noPriceScore` to trigger. Defaults to `0.02`.
+- **`onClassification`** — fires on every classification regardless of whether `fetchPriceData` runs.
+
+### Argument extraction
+
+Classification only tells you *"this prompt is asking for prices"* — not *"about which tickers"*. The caller's `fetchPriceData` is responsible for extracting tickers from the prompt (regex, named-entity match, or a small LLM call). The SDK is intentionally unopinionated here.
+
+## Low-level: `classifyCryptoPrice`
+
+If you need classification outside of `runToolLoop`, use the standalone API:
+
+```ts
+import { classifyCryptoPrice } from "@anuma/sdk/server";
+
+const { needsCryptoPrice, priceScore, noPriceScore } = await classifyCryptoPrice(
+  prompt,
+  { apiKey, baseUrl },
+);
+```
+
+`classifyCryptoPriceBatch` accepts an array of prompts and embeds them in a single batch call.
+
 ## Writing a custom pre-processor
 
 Any function matching `PromptPreProcessor` works. Example: inject memory-vault search results for every prompt above a similarity threshold.

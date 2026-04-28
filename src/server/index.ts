@@ -381,6 +381,15 @@ export {
 
 // ── Tool Loop (framework-agnostic agent core) ──
 
+export type {
+  CryptoPriceClassification,
+  CryptoPricePreProcessorOptions,
+} from "../lib/chat/cryptoPriceClassifier";
+export {
+  classifyCryptoPrice,
+  classifyCryptoPriceBatch,
+  createCryptoPricePreProcessor,
+} from "../lib/chat/cryptoPriceClassifier";
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
 export type {
   AutoExecutedToolResult,
