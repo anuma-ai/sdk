@@ -177,6 +177,7 @@ export function createWebSearchPreProcessor(
     if (!classification.needsWebSearch || !options.fetchSearchResults) return;
     const results = await options.fetchSearchResults(prompt, { signal });
     if (typeof results === "string") {
+      if (!results) return;
       return [
         {
           role: "user",
@@ -184,6 +185,7 @@ export function createWebSearchPreProcessor(
         },
       ];
     }
+    if (results.length === 0) return;
     return results;
   };
 }

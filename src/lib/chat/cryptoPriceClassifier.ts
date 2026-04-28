@@ -169,6 +169,7 @@ export function createCryptoPricePreProcessor(
     if (!classification.needsCryptoPrice || !options.fetchPriceData) return;
     const results = await options.fetchPriceData(prompt, { signal });
     if (typeof results === "string") {
+      if (!results) return;
       return [
         {
           role: "user",
@@ -176,6 +177,7 @@ export function createCryptoPricePreProcessor(
         },
       ];
     }
+    if (results.length === 0) return;
     return results;
   };
 }
