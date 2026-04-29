@@ -91,7 +91,7 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
     expect(hoa.fields.find((f) => f.key === "state")?.required).toBe(true);
     expect(hoa.fields.find((f) => f.key === "hoa_name")?.required).toBe(true);
     expect(hoa.fields.find((f) => f.key === "issue_type")?.required).toBe(true);
-    expect(hoa.fields.find((f) => f.key === "hoa_notice")?.required).toBeUndefined();
+    expect(hoa.fields.find((f) => f.key === "hoa_notice")?.required).toBe(false);
   });
 
   it("state field has 51 options in every skill that has one", () => {

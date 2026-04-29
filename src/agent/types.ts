@@ -53,6 +53,11 @@ export interface SkillJourneyDefinition {
   fileLabel: string;
   fileHint: string;
   fields: SkillJourneyField[];
+  /**
+   * When true, the journey expects substantive input — at least one of `acceptsFiles`
+   * upload or a text/textarea field — to give the agent enough context to act.
+   * Clients should enforce "file or text provided" before submission.
+   */
   requiresContext: boolean;
   submitLabel: string;
   promptTitle: string;
