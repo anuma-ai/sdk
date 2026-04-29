@@ -42,6 +42,14 @@ function arrowKeyDelta(key: string, shiftKey: boolean): { dx: number; dy: number
   return null;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 /** Modifier-key handler (Cmd/Ctrl+Z, +Shift+Z, +Y). True if the key
  *  was handled (caller should stop). */
 function handleModifierShortcut(
@@ -102,6 +110,7 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
   useEffect(() => {
     if (disabled) return;
     const handler = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey) {
         handleModifierShortcut(e, undo, redo);
         return;
