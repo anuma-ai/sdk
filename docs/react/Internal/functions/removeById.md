@@ -2,7 +2,7 @@
 
 > **removeById**(`root`: [`AnumaNode`](../interfaces/AnumaNode.md), `id`: `string`): `boolean`
 
-Defined in: [src/tools/slides/jsx.ts:817](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#817)
+Defined in: [src/tools/slides/jsx.ts:822](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#822)
 
 Remove the node with matching id. Mutates `root`. Returns true on success.
 

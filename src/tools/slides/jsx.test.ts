@@ -291,6 +291,26 @@ describe("round-trip", () => {
     const node = textNode("t", "x < 5 && y > 0");
     expect(parseJsx(serializeJsx(node))).toEqual(node);
   });
+
+  it("preserves HTML tags without an Anuma. prefix", () => {
+    const deck = deckNode([
+      slideNode("s", [
+        {
+          tag: "div",
+          attrs: { id: "wrap" },
+          children: [
+            { tag: "h1", attrs: { id: "h" }, children: ["Heading"] },
+            { tag: "p", attrs: { id: "p" }, children: ["Body"] },
+            { tag: "img", attrs: { id: "logo", src: "attached:1" }, children: [] },
+          ],
+        },
+      ]),
+    ]);
+    const serialized = serializeJsx(deck);
+    expect(serialized).not.toMatch(/<Anuma\.(div|h1|p|img)/);
+    expect(serialized).not.toMatch(/<\/Anuma\.(div|h1|p)>/);
+    expect(parseJsx(serialized)).toEqual(deck);
+  });
 });
 
 describe("tree helpers", () => {

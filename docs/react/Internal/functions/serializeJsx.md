@@ -2,7 +2,7 @@
 
 > **serializeJsx**(`node`: [`AnumaNode`](../interfaces/AnumaNode.md), `options`: `SerializeOptions`): `string`
 
-Defined in: [src/tools/slides/jsx.ts:608](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#608)
+Defined in: [src/tools/slides/jsx.ts:613](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#613)
 
 ## Parameters
 

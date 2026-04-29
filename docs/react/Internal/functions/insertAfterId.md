@@ -2,7 +2,7 @@
 
 > **insertAfterId**(`root`: [`AnumaNode`](../interfaces/AnumaNode.md), `afterId`: `string`, `node`: [`AnumaNode`](../interfaces/AnumaNode.md)): `boolean`
 
-Defined in: [src/tools/slides/jsx.ts:809](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#809)
+Defined in: [src/tools/slides/jsx.ts:814](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#814)
 
 Insert `node` immediately after the node with matching id anywhere in
 the tree. Returns true on success.

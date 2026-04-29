@@ -390,6 +390,11 @@ export function isAnumaTag(tag: string): boolean {
   return ANUMA_TAG_SET.has(tag);
 }
 
+/** Render a tag for messages and serialized output: `Anuma.X` for primitives, `x` for HTML. */
+function tagName(tag: string): string {
+  return ANUMA_TAG_SET.has(tag) ? `${NAMESPACE}.${tag}` : tag;
+}
+
 /** True when a tag is a plain HTML element from the allowlist. */
 export function isHtmlTag(tag: string): boolean {
   return HTML_TAGS.has(tag);
@@ -631,14 +636,14 @@ function writeNode(
     }
     const head = openTag(node, indent, depth, false, maxLineWidth);
     const rendered = isSafeJsxText(body) ? body : `{${JSON.stringify(body)}}`;
-    const line = `${pad}${head}${rendered}</${NAMESPACE}.${node.tag}>`;
+    const line = `${pad}${head}${rendered}</${tagName(node.tag)}>`;
     // If the head was multi-line (contained a newline), we still splice the
     // body onto the final line — acceptable since text-body tags generally
     // fit on one visual block.
     if (head.includes("\n")) {
       // Replace the trailing ">" line with ">body</Tag>"
       const prefix = `${pad}${head}`;
-      const replaced = prefix.replace(/>$/, `>${rendered}</${NAMESPACE}.${node.tag}>`);
+      const replaced = prefix.replace(/>$/, `>${rendered}</${tagName(node.tag)}>`);
       lines.push(replaced);
     } else {
       lines.push(line);
@@ -658,7 +663,7 @@ function writeNode(
   for (const child of elementChildren) {
     writeNode(lines, child, indent, depth + 1, maxLineWidth);
   }
-  lines.push(`${pad}</${NAMESPACE}.${node.tag}>`);
+  lines.push(`${pad}</${tagName(node.tag)}>`);
 }
 
 function openTag(
@@ -668,7 +673,7 @@ function openTag(
   selfClose: boolean,
   maxLineWidth: number
 ): string {
-  const head = `<${NAMESPACE}.${node.tag}`;
+  const head = `<${tagName(node.tag)}`;
   const tail = selfClose ? " />" : ">";
   const entries = Object.entries(node.attrs);
   if (entries.length === 0) return `${head}${tail}`;

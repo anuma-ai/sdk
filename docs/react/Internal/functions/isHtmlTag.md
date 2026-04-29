@@ -2,7 +2,7 @@
 
 > **isHtmlTag**(`tag`: `string`): `boolean`
 
-Defined in: [src/tools/slides/jsx.ts:394](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#394)
+Defined in: [src/tools/slides/jsx.ts:399](https://github.com/anuma-ai/sdk/blob/main/src/tools/slides/jsx.ts#399)
 
 True when a tag is a plain HTML element from the allowlist.
 
