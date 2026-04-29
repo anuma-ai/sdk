@@ -1,9 +1,11 @@
 import type { AgentConfig } from "@anuma/sdk";
 
 import { HAVEN_PROMPT } from "./prompt";
+import { HAVEN_SKILL_JOURNEYS } from "./journeys";
 import { HAVEN_SKILLS } from "./skills";
 
 export { HAVEN_PROMPT } from "./prompt";
+export { HAVEN_SKILL_JOURNEYS } from "./journeys";
 export { demandLetter, HAVEN_SKILLS, hoaDispute, leaseReview, rentIncreaseChecker } from "./skills";
 
 /** Haven housing agent configuration. */
@@ -17,6 +19,7 @@ export const havenAgent: AgentConfig = {
     default: "anthropic/claude-sonnet-4-6",
     allowed: ["anthropic/claude-sonnet-4-6"],
   },
+  skillJourneys: HAVEN_SKILL_JOURNEYS,
   manifest: {
     id: "haven",
     name: "Haven",

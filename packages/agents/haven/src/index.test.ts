@@ -44,4 +44,33 @@ describe("havenAgent", () => {
   it("model.default is anthropic/claude-sonnet-4-6", () => {
     expect(havenAgent.model.default).toBe("anthropic/claude-sonnet-4-6");
   });
+
+  it("skillJourneys is defined", () => {
+    expect(havenAgent.skillJourneys).toBeDefined();
+  });
+
+  it("skillJourneys has 4 entries", () => {
+    expect(Object.keys(havenAgent.skillJourneys!)).toHaveLength(4);
+  });
+
+  it("each skill has a corresponding skillJourney entry", () => {
+    for (const skill of havenAgent.skills) {
+      expect(havenAgent.skillJourneys![skill.id]).toBeDefined();
+    }
+  });
+
+  it("each skill's requiredVariables is covered by required journey fields", () => {
+    for (const skill of havenAgent.skills) {
+      const journey = havenAgent.skillJourneys![skill.id];
+      const requiredFieldKeys = new Set(
+        journey.fields.filter((f) => f.required === true).map((f) => f.key)
+      );
+      for (const variable of skill.requiredVariables ?? []) {
+        expect(
+          requiredFieldKeys.has(variable),
+          `${skill.id}.requiredVariables[${variable}] must be a required journey field`
+        ).toBe(true);
+      }
+    }
+  });
 });
