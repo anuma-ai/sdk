@@ -70,13 +70,31 @@ export function containerLayoutMode(node: AnumaNode): LayoutMode {
  *   - absolute → flex: move + strip x/y, reindex
  */
 export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarget): AnumaNode {
+  const existingEl = findById(deck, elementId);
+  const existingParent = findParentOfId(deck, elementId);
+  if (!existingEl || !existingParent) return deck;
+  const existingParentId = getId(existingParent);
+  const sameParent = existingParentId === target.parentId;
+  if (sameParent && target.kind === "absolute") {
+    const { x, y, w, h } = existingEl.attrs;
+    if (x === target.x && y === target.y && w === target.w && h === target.h) return deck;
+  }
+  if (sameParent && target.kind === "flex") {
+    const oldIdx = existingParent.children.findIndex(
+      (c) => typeof c !== "string" && getId(c) === elementId
+    );
+    if (oldIdx === -1) return deck;
+    const clamped = Math.max(0, Math.min(target.dropIndex, existingParent.children.length - 1));
+    if (clamped === oldIdx) return deck;
+  }
+
   const next = clone(deck);
   const el = findById(next, elementId);
   const currentParent = findParentOfId(next, elementId);
   const newParent = findById(next, target.parentId);
   if (!el || !currentParent || !newParent) return deck;
   const currentParentId = getId(currentParent);
-  const sameParent = currentParentId === target.parentId;
+  const targetIsSameParent = currentParentId === target.parentId;
 
   if (target.kind === "absolute") {
     el.attrs.x = target.x;
@@ -87,7 +105,7 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
     // absolute, this is what prevents the collapse-to-zero-width bug.
     el.attrs.w = target.w;
     el.attrs.h = target.h;
-    if (sameParent) {
+    if (targetIsSameParent) {
       // Same-parent absolute: leave z-order alone, just update coords.
       return next;
     }
