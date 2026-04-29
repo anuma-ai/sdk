@@ -28,6 +28,6 @@ Use web search to verify current {{state}} landlord-tenant law statutes. Be spec
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["state", "lease_text"],
+  requiredVariables: ["state"],
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

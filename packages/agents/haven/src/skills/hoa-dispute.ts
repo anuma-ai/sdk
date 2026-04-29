@@ -38,6 +38,6 @@ Use web search to verify current {{state}} HOA statutes and case law.`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
-  requiredVariables: ["state", "hoa_name", "issue_type", "hoa_notice"],
+  requiredVariables: ["state", "hoa_name", "issue_type"],
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };

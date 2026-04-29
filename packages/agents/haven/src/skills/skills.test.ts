@@ -28,9 +28,9 @@ describe("Haven skills", () => {
     ]);
   });
 
-  it("lease-review requires state and lease_text", () => {
+  it("lease-review requires state (lease_text is optional — file upload is the alternative)", () => {
     const skill = HAVEN_SKILLS.find((s) => s.id === "housing.lease-review")!;
-    expect(skill.requiredVariables).toEqual(["state", "lease_text"]);
+    expect(skill.requiredVariables).toEqual(["state"]);
   });
 
   it("demand-letter requires tenant/landlord/property/state/issue", () => {
@@ -49,9 +49,9 @@ describe("Haven skills", () => {
     expect(skill.requiredVariables).toEqual(["city", "state", "current_rent", "proposed_rent"]);
   });
 
-  it("hoa-dispute requires state/hoa_name/issue_type/hoa_notice", () => {
+  it("hoa-dispute requires state/hoa_name/issue_type (hoa_notice is optional — file upload is the alternative)", () => {
     const skill = HAVEN_SKILLS.find((s) => s.id === "housing.hoa-dispute")!;
-    expect(skill.requiredVariables).toEqual(["state", "hoa_name", "issue_type", "hoa_notice"]);
+    expect(skill.requiredVariables).toEqual(["state", "hoa_name", "issue_type"]);
   });
 
   it("all skills use anthropic/claude-sonnet-4-6 as preferredModel", () => {
