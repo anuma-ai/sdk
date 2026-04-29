@@ -32,6 +32,15 @@ export type UseCanvasKeyboardOpts = {
  * canvas wrapper or an ancestor. `disabled` should be set true while
  * inline-editing text so the contenteditable owns those keys.
  */
+/** True if the event target is a text-editing field that should own its keys. */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  return target.isContentEditable;
+}
+
 /** Map an arrow key to a (dx, dy) step in slide-px (1px or 10px with shift). */
 function arrowKeyDelta(key: string, shiftKey: boolean): { dx: number; dy: number } | null {
   const step = shiftKey ? 10 : 1;
@@ -108,6 +117,10 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
       }
       // Don't intercept Alt-modified keys — preserves browser shortcuts.
       if (e.altKey) return;
+      // Don't steal Delete/Backspace/Arrow from text inputs the user is
+      // typing into. Without this, having a canvas selection while typing
+      // in a search bar or rename field would silently delete elements.
+      if (isEditableTarget(e.target)) return;
       if (selectedIds.size === 0) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
