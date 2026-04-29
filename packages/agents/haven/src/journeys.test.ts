@@ -109,4 +109,29 @@ describe("HAVEN_SKILL_JOURNEYS", () => {
       expect(journey.systemContext, `${key} should have systemContext`).toBeTruthy();
     }
   });
+
+  it("every select field has at least one option", () => {
+    for (const [key, journey] of Object.entries(HAVEN_SKILL_JOURNEYS)) {
+      for (const field of journey.fields) {
+        if (field.type === "select") {
+          expect(field.options.length, `${key}.${field.key} should have options`).toBeGreaterThan(
+            0
+          );
+        }
+      }
+    }
+  });
+
+  it("file metadata is present iff acceptsFiles is true", () => {
+    for (const [key, journey] of Object.entries(HAVEN_SKILL_JOURNEYS)) {
+      if (journey.acceptsFiles) {
+        expect(journey.fileLabel, `${key} should set fileLabel`).toBeTruthy();
+        expect(journey.fileHint, `${key} should set fileHint`).toBeTruthy();
+      } else {
+        expect(journey.fileLabel, `${key} should omit fileLabel`).toBeUndefined();
+        expect(journey.fileHint, `${key} should omit fileHint`).toBeUndefined();
+        expect(journey.filePrompt, `${key} should omit filePrompt`).toBeUndefined();
+      }
+    }
+  });
 });

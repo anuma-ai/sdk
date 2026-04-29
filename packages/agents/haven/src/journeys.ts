@@ -154,8 +154,6 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Refine the reply in chat.",
     ],
     acceptsFiles: false,
-    fileLabel: "",
-    fileHint: "",
     fields: [
       {
         key: "city",
@@ -219,8 +217,6 @@ export const HAVEN_SKILL_JOURNEYS: Record<string, SkillJourneyDefinition> = {
       "Revise tone or legal emphasis with follow-up messages.",
     ],
     acceptsFiles: false,
-    fileLabel: "",
-    fileHint: "",
     fields: [
       {
         key: "tenant_name",

@@ -58,4 +58,19 @@ describe("havenAgent", () => {
       expect(havenAgent.skillJourneys![skill.id]).toBeDefined();
     }
   });
+
+  it("each skill's requiredVariables is covered by required journey fields", () => {
+    for (const skill of havenAgent.skills) {
+      const journey = havenAgent.skillJourneys![skill.id];
+      const requiredFieldKeys = new Set(
+        journey.fields.filter((f) => f.required === true).map((f) => f.key)
+      );
+      for (const variable of skill.requiredVariables ?? []) {
+        expect(
+          requiredFieldKeys.has(variable),
+          `${skill.id}.requiredVariables[${variable}] must be a required journey field`
+        ).toBe(true);
+      }
+    }
+  });
 });

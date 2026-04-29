@@ -171,8 +171,6 @@ describe("Agent type definitions", () => {
           description: "A test journey",
           steps: ["Step 1"],
           acceptsFiles: false,
-          fileLabel: "",
-          fileHint: "",
           fields: [],
           requiresContext: false,
           submitLabel: "Go",

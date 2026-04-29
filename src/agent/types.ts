@@ -33,30 +33,42 @@ export interface AgentManifest {
 /** Allowed input types for skill journey form fields. */
 export type SkillJourneyFieldType = "text" | "textarea" | "select";
 
-/** A single field in a skill journey intake form. */
-export interface SkillJourneyField {
+/** Properties shared by every skill journey field, regardless of input type. */
+interface SkillJourneyFieldBase {
   key: string;
   label: string;
   placeholder: string;
   helper?: string;
-  type: SkillJourneyFieldType;
   required?: boolean;
-  options?: string[];
 }
+
+/**
+ * A single field in a skill journey intake form. Discriminated on `type`:
+ * `select` requires `options`; `text` / `textarea` cannot carry options.
+ */
+export type SkillJourneyField =
+  | (SkillJourneyFieldBase & { type: "text" | "textarea" })
+  | (SkillJourneyFieldBase & { type: "select"; options: string[] });
 
 /** Full definition for rendering a skill intake form and building the prompt. */
 export interface SkillJourneyDefinition {
   title: string;
   description: string;
   steps: string[];
+  /** When true, the journey renders a file upload step before the fields. */
   acceptsFiles: boolean;
-  fileLabel: string;
-  fileHint: string;
+  /** Label for the file upload step. Only meaningful when `acceptsFiles` is true. */
+  fileLabel?: string;
+  /** Helper text for the file upload step. Only meaningful when `acceptsFiles` is true. */
+  fileHint?: string;
+  /** Per-skill copy for the file upload step prompt. Only meaningful when `acceptsFiles` is true. */
+  filePrompt?: string;
   fields: SkillJourneyField[];
   /**
-   * When true, the journey expects substantive input — at least one of `acceptsFiles`
-   * upload or a text/textarea field — to give the agent enough context to act.
-   * Clients should enforce "file or text provided" before submission.
+   * When true, the journey expects substantive input — at least one of an
+   * `acceptsFiles` upload or a text/textarea field — for the agent to act on.
+   * Consumers (form renderers and direct API callers alike) should enforce
+   * "file or text provided" before invoking the skill.
    */
   requiresContext: boolean;
   submitLabel: string;
