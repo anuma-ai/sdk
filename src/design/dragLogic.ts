@@ -70,6 +70,42 @@ export function containerLayoutMode(node: AnumaNode): LayoutMode {
  *   - absolute → flex: move + strip x/y, reindex
  */
 export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarget): AnumaNode {
+  // Refuse to clone unless the drop actually changes the AST. Mirrors the
+  // same-ref shortcut in commitMultiDrag/commitResize so a click-drag that
+  // snaps back to its origin doesn't push a spurious undo snapshot.
+  const elOrig = findById(deck, elementId);
+  const parentOrig = findParentOfId(deck, elementId);
+  if (!elOrig || !parentOrig) return deck;
+  if (!findById(deck, target.parentId)) return deck;
+  const sameParentOrig = getId(parentOrig) === target.parentId;
+  if (sameParentOrig) {
+    if (target.kind === "absolute") {
+      if (
+        elOrig.attrs.x === target.x &&
+        elOrig.attrs.y === target.y &&
+        elOrig.attrs.w === target.w &&
+        elOrig.attrs.h === target.h
+      ) {
+        return deck;
+      }
+    } else {
+      const currentIdx = parentOrig.children.findIndex(
+        (c) => typeof c !== "string" && getId(c) === elementId
+      );
+      // dropIndex is in post-removal coords; same index = same final order.
+      // Also require x/y to already be absent so the strip-x/y branch below
+      // doesn't get skipped on a flex child that still carries stale absolute
+      // coords from a prior layout-mode flip.
+      if (
+        target.dropIndex === currentIdx &&
+        elOrig.attrs.x === undefined &&
+        elOrig.attrs.y === undefined
+      ) {
+        return deck;
+      }
+    }
+  }
+
   const next = clone(deck);
   const el = findById(next, elementId);
   const currentParent = findParentOfId(next, elementId);
