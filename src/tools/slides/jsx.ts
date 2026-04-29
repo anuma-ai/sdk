@@ -551,20 +551,20 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
       elements.push(parseElement(child));
       sawNonText = true;
     } else if (child.type === "JSXFragment") {
-      throw new AnumaJsxError(`<${NAMESPACE}.${tag}> cannot contain JSX fragments`, locOf(child));
+      throw new AnumaJsxError(`<${tagName(tag)}> cannot contain JSX fragments`, locOf(child));
     }
   }
 
   if (LEAF_TAGS.has(tag)) {
     if (sawNonText || sawText) {
-      throw new AnumaJsxError(`<${NAMESPACE}.${tag}> must be self-closing`, locOf(el));
+      throw new AnumaJsxError(`<${tagName(tag)}> must be self-closing`, locOf(el));
     }
     return [];
   }
 
   if (TEXT_BODY_TAGS.has(tag)) {
     if (sawNonText) {
-      throw new AnumaJsxError(`<${NAMESPACE}.${tag}> cannot contain nested elements`, locOf(el));
+      throw new AnumaJsxError(`<${tagName(tag)}> cannot contain nested elements`, locOf(el));
     }
     return textParts.length > 0 ? [textParts.join("")] : [];
   }
@@ -572,7 +572,7 @@ function readChildren(el: JSXElement, tag: string): AnumaChild[] {
   // Container tag — element children only.
   if (sawText) {
     throw new AnumaJsxError(
-      `<${NAMESPACE}.${tag}> cannot contain text; wrap text in <${NAMESPACE}.Text>`,
+      `<${tagName(tag)}> cannot contain text; wrap text in <${NAMESPACE}.Text>`,
       locOf(el)
     );
   }
