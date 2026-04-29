@@ -6,7 +6,6 @@ import { type AnumaNode, findById, removeById } from "../tools/slides/jsx";
 import { getLayoutModeOf } from "./dragLogic";
 
 export type UseCanvasKeyboardOpts = {
-  deck: AnumaNode;
   setDeck: (updater: AnumaNode | ((d: AnumaNode) => AnumaNode)) => void;
   selectedIds: ReadonlySet<string>;
   setSelectedIds: (ids: ReadonlySet<string>) => void;
@@ -106,7 +105,7 @@ function applyArrowNudge(ids: ReadonlySet<string>, dx: number, dy: number) {
 }
 
 export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
-  const { deck, setDeck, selectedIds, setSelectedIds, disabled = false, undo, redo } = opts;
+  const { setDeck, selectedIds, setSelectedIds, disabled = false, undo, redo } = opts;
 
   useEffect(() => {
     if (disabled) return;
@@ -137,5 +136,5 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [disabled, deck, setDeck, selectedIds, setSelectedIds, undo, redo]);
+  }, [disabled, setDeck, selectedIds, setSelectedIds, undo, redo]);
 }
