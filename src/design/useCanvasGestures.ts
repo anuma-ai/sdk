@@ -235,7 +235,9 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
         setGesture(transitionResizingOnMove(gesture, pointer, scale));
         return;
       }
-      setGesture(transitionRotatingOnMove(gesture, pointer));
+      if (gesture.phase === "rotating") {
+        setGesture(transitionRotatingOnMove(gesture, pointer));
+      }
     },
     [gesture, stageRef, deck, scale, setSelectedIds]
   );

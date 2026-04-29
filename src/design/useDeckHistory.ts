@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 
 import type { AnumaNode } from "../tools/slides/jsx";
 
+const MAX_DECK_HISTORY_SNAPSHOTS = 100;
+
 export type UseDeckHistoryReturn = {
   deck: AnumaNode;
   setDeck: (updater: AnumaNode | ((d: AnumaNode) => AnumaNode)) => void;
@@ -46,7 +48,8 @@ export function useDeckHistory(initial: AnumaNode): UseDeckHistoryReturn {
         if (next === current) return prev;
         const snapshots = prev.snapshots.slice(0, prev.index + 1);
         snapshots.push(next);
-        return { snapshots, index: prev.index + 1 };
+        if (snapshots.length > MAX_DECK_HISTORY_SNAPSHOTS) snapshots.shift();
+        return { snapshots, index: snapshots.length - 1 };
       });
     },
     [initial]
