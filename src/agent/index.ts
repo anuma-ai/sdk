@@ -1,1 +1,9 @@
-export type { AgentConfig, AgentManifest, AgentRuntime, SkillConfig } from "./types";
+export type {
+  AgentConfig,
+  AgentManifest,
+  AgentRuntime,
+  SkillConfig,
+  SkillJourneyDefinition,
+  SkillJourneyField,
+  SkillJourneyFieldType,
+} from "./types";

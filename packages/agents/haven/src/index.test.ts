@@ -44,4 +44,18 @@ describe("havenAgent", () => {
   it("model.default is anthropic/claude-sonnet-4-6", () => {
     expect(havenAgent.model.default).toBe("anthropic/claude-sonnet-4-6");
   });
+
+  it("skillJourneys is defined", () => {
+    expect(havenAgent.skillJourneys).toBeDefined();
+  });
+
+  it("skillJourneys has 4 entries", () => {
+    expect(Object.keys(havenAgent.skillJourneys!)).toHaveLength(4);
+  });
+
+  it("each skill has a corresponding skillJourney entry", () => {
+    for (const skill of havenAgent.skills) {
+      expect(havenAgent.skillJourneys![skill.id]).toBeDefined();
+    }
+  });
 });

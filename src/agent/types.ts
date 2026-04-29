@@ -30,6 +30,36 @@ export interface AgentManifest {
   skills: Array<{ id: string; name: string; requiredVariables?: string[] }>;
 }
 
+/** Allowed input types for skill journey form fields. */
+export type SkillJourneyFieldType = "text" | "textarea" | "select";
+
+/** A single field in a skill journey intake form. */
+export interface SkillJourneyField {
+  key: string;
+  label: string;
+  placeholder: string;
+  helper?: string;
+  type: SkillJourneyFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+/** Full definition for rendering a skill intake form and building the prompt. */
+export interface SkillJourneyDefinition {
+  title: string;
+  description: string;
+  steps: string[];
+  acceptsFiles: boolean;
+  fileLabel: string;
+  fileHint: string;
+  fields: SkillJourneyField[];
+  requiresContext: boolean;
+  submitLabel: string;
+  promptTitle: string;
+  /** Extra system prompt context injected per-skill for structured output guidance. */
+  systemContext?: string;
+}
+
 /** Full agent configuration including prompt, skills, tools, and model settings. */
 export interface AgentConfig {
   id: string;
@@ -40,4 +70,6 @@ export interface AgentConfig {
   tools: unknown[];
   model: { default: string; allowed?: string[] };
   manifest: AgentManifest;
+  /** Form schemas for rendering skill intake forms on the client. */
+  skillJourneys?: Record<string, SkillJourneyDefinition>;
 }

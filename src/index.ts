@@ -776,7 +776,15 @@ export {
 export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
 
 // Agent types
-export type { AgentConfig, AgentManifest, AgentRuntime, SkillConfig } from "./agent";
+export type {
+  AgentConfig,
+  AgentManifest,
+  AgentRuntime,
+  SkillConfig,
+  SkillJourneyDefinition,
+  SkillJourneyField,
+  SkillJourneyFieldType,
+} from "./agent";
 
 // Pluggable logger
 export type { Logger } from "./lib/logger";
