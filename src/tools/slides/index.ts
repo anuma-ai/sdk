@@ -9,8 +9,7 @@
  * a file named `slides.jsx` via the shared `AppFileStorage` interface. The
  * LLM initializes an empty deck with `plan_deck`, appends slides one at a
  * time via `add_slide`, and applies incremental edits with `patch_slides`.
- * All positions use a percentage-based coordinate system relative to a
- * 960×540 (16:9) reference canvas.
+ * All positions use container-relative pixels on a 960×540 slide canvas.
  *
  * When a `displaySlides` callback is supplied to `createSlideTools`, the
  * deck-display UI interaction is emitted automatically from inside
