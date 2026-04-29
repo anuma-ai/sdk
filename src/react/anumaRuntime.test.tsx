@@ -180,4 +180,23 @@ describe("renderAnumaJsx", () => {
     expect(divs[0]!.style.flexGrow).toBe("1");
     expect(divs[1]!.style.width).toBe("50px");
   });
+
+  it("strips javascript: URLs from href / action attrs on HTML tags", () => {
+    const jsx = `
+      <Anuma.Slide id="s">
+        <a href="javascript:alert(1)">click</a>
+        <a href="  JaVaScRiPt:alert(2)">click</a>
+        <a href="https://example.com">ok</a>
+        <form action="javascript:alert(3)" />
+      </Anuma.Slide>
+    `;
+    const { container } = render(<>{renderAnumaJsx(jsx)}</>);
+    const anchors = deepQueryAll<HTMLAnchorElement>(container, "a[data-anuma-tag='a']");
+    expect(anchors.length).toBe(3);
+    expect(anchors[0]!.getAttribute("href")).toBeNull();
+    expect(anchors[1]!.getAttribute("href")).toBeNull();
+    expect(anchors[2]!.getAttribute("href")).toBe("https://example.com");
+    const form = deepQuery<HTMLFormElement>(container, "form[data-anuma-tag='form']");
+    expect(form!.getAttribute("action")).toBeNull();
+  });
 });

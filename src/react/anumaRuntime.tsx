@@ -797,6 +797,22 @@ export const Anuma = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Attrs whose values are interpreted as URLs by the browser. We refuse to
+ * forward `javascript:` / `vbscript:` payloads on any of these to avoid
+ * turning LLM-generated trees into XSS vectors.
+ */
+const URL_ATTRS = new Set(["href", "src", "action", "formAction", "formaction", "ping"]);
+
+function isUnsafeUrl(value: string): boolean {
+  // Browsers strip leading C0 controls + SPACE when resolving a URL attr,
+  // so skip that prefix before checking the protocol. Done in code (rather
+  // than a regex char class) to avoid the no-control-regex eslint rule.
+  let i = 0;
+  while (i < value.length && value.charCodeAt(i) <= 0x20) i++;
+  return /^(javascript|vbscript)\s*:/i.test(value.slice(i));
+}
+
+/**
  * Generic HTML-tag renderer used for non-Anuma children of a parsed
  * tree. Geometry attrs and `style` get the same treatment as Anuma
  * primitives (theme tokens resolved, x/y/w/h projected to absolute
@@ -837,7 +853,10 @@ function renderHtml(node: AnumaNode, key: string | number): React.ReactElement |
   ]);
   for (const [k, v] of Object.entries(node.attrs)) {
     if (SKIP.has(k)) continue;
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+    if (typeof v === "string") {
+      if (URL_ATTRS.has(k) && isUnsafeUrl(v)) continue;
+      props[k] = v;
+    } else if (typeof v === "number" || typeof v === "boolean") {
       props[k] = v;
     }
   }
