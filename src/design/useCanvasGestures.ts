@@ -260,6 +260,19 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
     [gesture, setDeck, setSelectedIds]
   );
 
+  // pointercancel fires when the OS or browser steals the pointer mid-gesture
+  // (e.g. a second touch starts a scroll). Drop the in-flight gesture without
+  // committing — committing at the interrupted position would leave the AST
+  // in a state the user never intended.
+  const handlePointerCancel = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // capture may not have been set; harmless
+    }
+    setGesture(null);
+  }, []);
+
   useDragPreviewEffect(stageRef, gesture, deck);
   const renderedDeck = useRenderedDeck(deck, gesture);
 
@@ -272,7 +285,7 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
     onPointerDown: handlePointerDown,
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
-    onPointerCancel: handlePointerUp,
+    onPointerCancel: handlePointerCancel,
     onDoubleClick: handleDoubleClick,
   };
 }
