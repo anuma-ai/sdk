@@ -775,6 +775,9 @@ export {
 } from "./client";
 export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
 
+// Agent types
+export type { AgentConfig, AgentManifest, AgentRuntime, SkillConfig } from "./agent";
+
 // Pluggable logger
 export type { Logger } from "./lib/logger";
 export { consoleLogger, getLogger, noopLogger, setLogger } from "./lib/logger";

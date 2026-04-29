@@ -14,6 +14,7 @@ export default tseslint.config(
       "coverage/**",
       "scripts/**",
       "patches/**",
+      "packages/**",
       "test/**",
       "**/*.test.ts",
       "**/*.test.tsx",
