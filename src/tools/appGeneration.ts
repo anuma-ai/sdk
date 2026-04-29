@@ -1,11 +1,17 @@
 /**
  * App generation tools for multi-file app development.
  *
- * Provides create_file, patch_file, delete_file, read_file, list_files, and
- * display_app tool configurations, plus the system prompt that drives LLM
- * behavior. The tools operate on a pluggable storage backend so consumers
- * can wire them to IndexedDB, an in-memory Map, a database, or any other
+ * Provides create_file, patch_file, delete_file, read_file, and list_files
+ * tool configurations, plus the system prompt that drives LLM behavior.
+ * The tools operate on a pluggable storage backend so consumers can wire
+ * them to IndexedDB, an in-memory Map, a database, or any other
  * persistence layer.
+ *
+ * App preview rendering is automatic: every successful create_file /
+ * patch_file / delete_file invokes the host's optional `displayApp`
+ * callback so the chat UI refreshes the same preview card in place. There
+ * is no standalone `display_app` tool — mirrors the slide pipeline, where
+ * `add_slide` and `patch_slides` self-render via `displaySlides`.
  *
  * @example
  * ```typescript
@@ -291,7 +297,7 @@ Supports two modes:
 - Single file: pass "path" and "content".
 - Batch (preferred): pass "files" array with {path, content} objects to write all files in one call.
 
-WORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.), then call display_app.
+WORKFLOW: Call create_file once with all files (package.json, App.js, styles, etc.). The preview renders automatically — there is no separate display tool.
 
 App.js must be a default export React component. Do NOT create index.js or index.html — these are auto-generated. Use standard import statements for all libraries. NEVER use CDN script tags — instead list dependencies in package.json. Example package.json: {"dependencies": {"chart.js": "^4.4.0", "react-chartjs-2": "^5.2.0"}}
 
@@ -367,17 +373,6 @@ export const LIST_FILES_SCHEMA = {
   description:
     "Lists all files in the app project. Returns file paths and sizes. Use this to understand the current project structure.",
   arguments: { type: "object", properties: {}, required: [] },
-} as const;
-
-export const DISPLAY_APP_SCHEMA = {
-  name: "display_app",
-  description:
-    "Renders the app preview from the current saved files. This does NOT modify files — you must call patch_file or create_file first to make changes, then call display_app to show the updated result.",
-  arguments: {
-    type: "object",
-    properties: { title: { type: "string", description: "Short title for the app" } },
-    required: ["title"],
-  },
 } as const;
 
 // ---------------------------------------------------------------------------

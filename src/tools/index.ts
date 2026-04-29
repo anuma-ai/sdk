@@ -160,7 +160,6 @@ export {
   CREATE_FILE_SCHEMA,
   createAppGenerationTools,
   DELETE_FILE_SCHEMA,
-  DISPLAY_APP_SCHEMA,
   LIST_FILES_SCHEMA,
   MapFileStorage,
   normalizePath,
