@@ -300,7 +300,17 @@ export interface CreateAppGenerationToolsOptions {
   storage: AppFileStorage;
   /** Optional error logger. Falls back to console.error. */
   logError?: (message: string, error?: Error) => void;
-  /** Optional executor for display_app. When provided, a display_app tool is included in the returned array. */
+  /**
+   * Optional host callback that renders / refreshes the app preview in
+   * the chat UI. When provided, it's invoked automatically after every
+   * successful create_file / patch_file / delete_file — the model
+   * never needs to call a separate display tool. Mirrors the
+   * `displaySlides` pattern in `createSlideTools`.
+   *
+   * The callback receives `{ title?, replaces_interaction_id? }` and
+   * should return `{ interaction_id, title? }` so subsequent calls can
+   * thread `replaces_interaction_id` and fold updates onto the same card.
+   */
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- intentional: allows synchronous return values
   displayApp?: (args: Record<string, unknown>) => Promise<unknown> | unknown;
 }
@@ -338,6 +348,57 @@ export function createAppGenerationTools({
     return id;
   }
 
+  // Per-conversation display state. Mirrors `deckStateByConv` in the
+  // slide tools: tracks the most recent interaction id (so we can pass
+  // `replaces_interaction_id` on the next refresh) and the cached title
+  // (so explicit titles set by an earlier call survive subsequent
+  // file-only edits).
+  interface AppDisplayState {
+    interactionId: string;
+    title: string;
+  }
+  const appStateByConv = new Map<string, AppDisplayState>();
+
+  /**
+   * Invoke the host's `displayApp` callback with cached state, fold
+   * the reply back into per-conversation state, AND return it to the
+   * caller so executors can spread it into their tool result. Without
+   * the spread, the persisted tool-result message has no `displayType`
+   * field and the chat renderer skips it. Mirrors the slide pattern.
+   *
+   * Returns `{}` when no callback was provided or it threw — display
+   * is a UX concern, not a correctness one, and a failed render
+   * shouldn't make the underlying file operation look like it failed.
+   */
+  async function triggerAppDisplay(
+    conversationId: string,
+    hint?: { title?: string }
+  ): Promise<Record<string, unknown>> {
+    if (!displayApp) return {};
+    const cached = appStateByConv.get(conversationId);
+    const args: Record<string, unknown> = {};
+    if (hint?.title) args.title = hint.title;
+    else if (cached?.title) args.title = cached.title;
+    if (cached?.interactionId) args.replaces_interaction_id = cached.interactionId;
+    try {
+      const reply = await displayApp(args);
+      if (!reply || typeof reply !== "object") return {};
+      const r = reply as { interaction_id?: unknown; title?: unknown };
+      const newId = typeof r.interaction_id === "string" ? r.interaction_id : undefined;
+      const newTitle = typeof r.title === "string" ? r.title : undefined;
+      if (newId) {
+        appStateByConv.set(conversationId, {
+          interactionId: newId,
+          title: newTitle ?? cached?.title ?? hint?.title ?? "App",
+        });
+      }
+      return reply as Record<string, unknown>;
+    } catch (err) {
+      logError("displayApp callback failed", err instanceof Error ? err : undefined);
+      return {};
+    }
+  }
+
   const createFileTool: ToolConfig = {
     type: "function",
     function: CREATE_FILE_SCHEMA,
@@ -352,11 +413,13 @@ export function createAppGenerationTools({
           if (err) return { error: err };
           const paths = filesArg.map((f) => normalizePath(f.path));
           const allFiles = await storage.getFiles(conversationId);
+          const display = await triggerAppDisplay(conversationId);
           return {
             success: true,
             paths,
             message: `Created ${paths.join(", ")}`,
             projectFiles: allFiles.map((f) => f.path),
+            ...display,
           };
         }
 
@@ -368,11 +431,13 @@ export function createAppGenerationTools({
         const path = normalizePath(rawPath);
         await storage.putFile(conversationId, path, content);
         const allFiles = await storage.getFiles(conversationId);
+        const display = await triggerAppDisplay(conversationId);
         return {
           success: true,
           path,
           message: `Created ${path}`,
           projectFiles: allFiles.map((f) => f.path),
+          ...display,
         };
       } catch (err) {
         logError("create_file failed", err instanceof Error ? err : undefined);
@@ -417,7 +482,8 @@ export function createAppGenerationTools({
           };
         }
 
-        return { success: true, path: filePath, applied: applied.length };
+        const display = await triggerAppDisplay(conversationId);
+        return { success: true, path: filePath, applied: applied.length, ...display };
       } catch (err) {
         logError("patch_file failed", err instanceof Error ? err : undefined);
         return {
@@ -439,7 +505,8 @@ export function createAppGenerationTools({
         const path = normalizePath(rawPath);
 
         await storage.deleteFile(conversationId, path);
-        return { success: true, path, message: `Deleted ${path}` };
+        const display = await triggerAppDisplay(conversationId);
+        return { success: true, path, message: `Deleted ${path}`, ...display };
       } catch (err) {
         logError("delete_file failed", err instanceof Error ? err : undefined);
         return {
@@ -496,24 +563,12 @@ export function createAppGenerationTools({
     },
   };
 
-  const tools: ToolConfig[] = [
-    createFileTool,
-    patchFileTool,
-    deleteFileTool,
-    readFileTool,
-    listFilesTool,
-  ];
-
-  if (displayApp) {
-    tools.push({
-      type: "function",
-      function: DISPLAY_APP_SCHEMA,
-      executor: displayApp,
-      dependsOn: ["create_file", "patch_file", "delete_file"],
-    });
-  }
-
-  return tools;
+  // No standalone display_app tool — display happens automatically
+  // from inside create_file / patch_file / delete_file via the
+  // `displayApp` callback. Mirrors `createSlideTools`, which has no
+  // `display_slides` tool either; the deck viewer is opened from
+  // within `plan_deck` / `add_slide` / `patch_slides`.
+  return [createFileTool, patchFileTool, deleteFileTool, readFileTool, listFilesTool];
 }
 
 // ---------------------------------------------------------------------------
@@ -535,7 +590,7 @@ export function buildAppSystemPrompt(): string {
 
 WORKFLOW:
 1. NEVER output code as text or markdown. ALWAYS use tools.
-2. To create a new app: use create_file with the "files" array to write ALL files in a single call, then call display_app.
+2. To create a new app: use create_file with the "files" array to write ALL files in a single call. The preview renders automatically — there is no separate display tool to call.
 3. For ALL changes to existing files — including adding new features — use patch_file. This applies to style tweaks, text edits, AND adding new code.
    - To modify: find the old code, replace with new code.
    - To insert: find the code before the insertion point, replace with that code plus the new code appended.
@@ -543,8 +598,7 @@ WORKFLOW:
    - Include 2-3 lines of surrounding context in "find" to ensure a unique match.
    - Use multiple patches in one call to change several locations in the same file.
 4. Only use create_file to rewrite a file when the majority of lines are changing.
-5. After patching, call display_app.
-6. Keep text responses to one or two sentences.
+5. Keep text responses to one or two sentences.
 
 STRUCTURE:
 - App.js: default-export React component. Do NOT create index.js or index.html (auto-generated).
