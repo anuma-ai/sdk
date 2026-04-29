@@ -5,7 +5,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { normalizePath, truncateContent, applyPatches } from "./appGeneration.js";
+import {
+  applyPatches,
+  normalizePath,
+  truncateContent,
+  validateFileContent,
+} from "./appGeneration.js";
 
 // ---------------------------------------------------------------------------
 // normalizePath
@@ -122,5 +127,87 @@ describe("applyPatches", () => {
     ]);
     expect(applied).toHaveLength(2);
     expect(failed).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateFileContent
+// ---------------------------------------------------------------------------
+
+describe("validateFileContent", () => {
+  it("returns null for syntactically valid JSX", () => {
+    const src = `import React from 'react';\nexport default function App() { return <div>hi</div>; }\n`;
+    expect(validateFileContent("App.jsx", src)).toBeNull();
+  });
+
+  it("returns null for valid TypeScript with type annotations", () => {
+    const src = `export function add(a: number, b: number): number { return a + b; }\n`;
+    expect(validateFileContent("util.ts", src)).toBeNull();
+  });
+
+  it("returns null for valid TSX", () => {
+    const src = `type P = { name: string }\nexport const Hi = ({ name }: P) => <span>{name}</span>;\n`;
+    expect(validateFileContent("Hi.tsx", src)).toBeNull();
+  });
+
+  it("flags broken JSX with line and column", () => {
+    const src = `export default function App() {\n  return <div>;\n}\n`;
+    const result = validateFileContent("App.jsx", src);
+    expect(result).not.toBeNull();
+    expect(result?.line).toBeGreaterThanOrEqual(2);
+    expect(typeof result?.column).toBe("number");
+    expect(result?.message).toBeTruthy();
+  });
+
+  it("flags an unclosed brace", () => {
+    const src = `function f() {\n  if (true) {\n    return 1;\n  }\n`;
+    const result = validateFileContent("f.js", src);
+    expect(result).not.toBeNull();
+    expect(typeof result?.line).toBe("number");
+  });
+
+  it("strips Babel's trailing (line:col) suffix from the message", () => {
+    const src = `const x = ;\n`;
+    const result = validateFileContent("bad.js", src);
+    expect(result).not.toBeNull();
+    expect(result?.message).not.toMatch(/\(\d+:\d+\)\s*$/);
+  });
+
+  it("returns null for valid JSON", () => {
+    expect(validateFileContent("package.json", '{"name":"a","version":"1.0.0"}')).toBeNull();
+  });
+
+  it("flags broken JSON with line and column", () => {
+    const src = '{\n  "name": "a",\n  "version":\n}\n';
+    const result = validateFileContent("package.json", src);
+    expect(result).not.toBeNull();
+    expect(result?.line).toBeGreaterThanOrEqual(1);
+    expect(typeof result?.column).toBe("number");
+  });
+
+  it("treats empty content as valid (lets the LLM scaffold incrementally)", () => {
+    expect(validateFileContent("App.jsx", "")).toBeNull();
+    expect(validateFileContent("config.json", "")).toBeNull();
+  });
+
+  it("skips validation for unknown extensions", () => {
+    expect(validateFileContent("README.md", "this is not code")).toBeNull();
+    expect(validateFileContent("styles.css", "broken { color }")).toBeNull();
+    expect(validateFileContent("logo.svg", "<svg></p>")).toBeNull();
+  });
+
+  it("treats files without an extension as opaque", () => {
+    expect(validateFileContent("Dockerfile", "FROM node\nINVALID")).toBeNull();
+  });
+
+  it("validates .mjs and .cjs as JavaScript", () => {
+    expect(validateFileContent("a.mjs", "export const x = 1;\n")).toBeNull();
+    expect(validateFileContent("a.cjs", "module.exports = { x: 1 };\n")).toBeNull();
+    expect(validateFileContent("bad.mjs", "const x = ;\n")).not.toBeNull();
+  });
+
+  it("normalizes case in the extension lookup", () => {
+    expect(validateFileContent("App.JSX", "<div />\n")).toBeNull();
+    expect(validateFileContent("BAD.TS", "const x: = 1;\n")).not.toBeNull();
   });
 });

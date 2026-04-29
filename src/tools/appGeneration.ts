@@ -18,6 +18,8 @@
  * ```
  */
 
+import { parse as babelParse } from "@babel/parser";
+
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
 import { normalizePath } from "../utils/paths.js";
 
@@ -97,6 +99,95 @@ export function applyPatches(
     }
   }
   return { content: result, applied, failed };
+}
+
+// ---------------------------------------------------------------------------
+// Pre-persist content validation
+// ---------------------------------------------------------------------------
+
+/** File extensions we run through the JS/TS/JSX parser. The `jsx` plugin is
+ *  permissive — it accepts plain JS as well — so we use it for every flavour
+ *  here; the `typescript` plugin is added on top for `.ts` / `.tsx`. */
+const JS_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]);
+
+/** File extensions we validate as JSON. */
+const JSON_EXTENSIONS = new Set([".json"]);
+
+/** Structured syntax error pinpointing the failure for the LLM to retry. */
+export interface FileValidationError {
+  line: number;
+  column: number;
+  message: string;
+}
+
+/**
+ * Validate that file content is syntactically parseable for its
+ * extension. JS / JSX / TS / TSX go through Babel; JSON goes through
+ * `JSON.parse`; every other extension is treated as opaque (returns
+ * `null` — no validation).
+ *
+ * Returns `null` when valid, otherwise a structured error with
+ * 1-based line + 0-based column. The LLM uses these to retry a patch
+ * or correct a freshly-written file without bouncing through the
+ * Sandpack bundler.
+ */
+export function validateFileContent(
+  path: string,
+  content: string
+): FileValidationError | null {
+  const lower = path.toLowerCase();
+  const dotIdx = lower.lastIndexOf(".");
+  if (dotIdx === -1) return null;
+  const ext = lower.slice(dotIdx);
+  if (JS_EXTENSIONS.has(ext)) return validateJsLike(content, ext);
+  if (JSON_EXTENSIONS.has(ext)) return validateJson(content);
+  return null;
+}
+
+function validateJsLike(content: string, ext: string): FileValidationError | null {
+  // Empty file is valid (an empty module).
+  if (content.length === 0) return null;
+  const plugins: ("jsx" | "typescript")[] = ["jsx"];
+  if (ext === ".ts" || ext === ".tsx") plugins.push("typescript");
+  try {
+    babelParse(content, { sourceType: "module", plugins });
+    return null;
+  } catch (err) {
+    return babelErrorToValidation(err);
+  }
+}
+
+function babelErrorToValidation(err: unknown): FileValidationError {
+  const e = err as { message?: unknown; loc?: { line?: unknown; column?: unknown } };
+  const line = typeof e.loc?.line === "number" ? e.loc.line : 1;
+  const column = typeof e.loc?.column === "number" ? e.loc.column : 0;
+  // Babel includes the "(line:col)" suffix in its message — strip it so
+  // we don't render the position twice in tool error output.
+  const raw = typeof e.message === "string" ? e.message : "Parse error";
+  const message = raw.replace(/\s*\(\d+:\d+\)\s*$/, "");
+  return { line, column, message };
+}
+
+function validateJson(content: string): FileValidationError | null {
+  if (content.trim().length === 0) return null;
+  try {
+    JSON.parse(content);
+    return null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Invalid JSON";
+    // Modern Node embeds `position N` in the SyntaxError message. Map it
+    // back to (line, column) so the LLM gets the same shape as Babel
+    // errors. Older runtimes / fallbacks land at 1:0.
+    const posMatch = /position\s+(\d+)/i.exec(message);
+    if (posMatch?.[1]) {
+      const pos = Number(posMatch[1]);
+      const before = content.slice(0, pos);
+      const lines = before.split("\n");
+      const lastLine = lines[lines.length - 1] ?? "";
+      return { line: lines.length, column: lastLine.length, message };
+    }
+    return { line: 1, column: 0, message };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +424,31 @@ async function writeBatch(
 }
 
 /**
+ * Run `validateFileContent` against every file in a batch, returning a
+ * flat list of `{ path, line, column, message }` for the LLM to fix.
+ * Files with non-string `path` / `content` are skipped here — `writeBatch`
+ * will reject those with its own error message.
+ */
+function collectValidationErrors(
+  files: Array<{ path: string; content: string }>
+): Array<{ path: string; line: number; column: number; message: string }> {
+  const errors: Array<{ path: string; line: number; column: number; message: string }> = [];
+  for (const f of files) {
+    if (typeof f.path !== "string" || typeof f.content !== "string") continue;
+    const ve = validateFileContent(f.path, f.content);
+    if (ve) {
+      errors.push({
+        path: normalizePath(f.path),
+        line: ve.line,
+        column: ve.column,
+        message: ve.message,
+      });
+    }
+  }
+  return errors;
+}
+
+/**
  * Creates the suite of app generation tools (create_file, patch_file, delete_file,
  * read_file, list_files) backed by the provided storage adapter.
  */
@@ -409,6 +525,15 @@ export function createAppGenerationTools({
 
         // Batch mode: files array
         if (Array.isArray(filesArg) && filesArg.length > 0) {
+          // Validate every file's syntax before any write — atomic so a
+          // single broken file doesn't leave half the project committed.
+          const validationErrors = collectValidationErrors(filesArg);
+          if (validationErrors.length > 0) {
+            return {
+              error: `Validation failed: ${validationErrors.length} file(s) had syntax errors. Fix and retry — nothing was written.`,
+              validationErrors,
+            };
+          }
           const err = await writeBatch(storage, conversationId, filesArg);
           if (err) return { error: err };
           const paths = filesArg.map((f) => normalizePath(f.path));
@@ -429,6 +554,16 @@ export function createAppGenerationTools({
         if (!rawPath || typeof rawPath !== "string") return { error: "path is required" };
         if (typeof content !== "string") return { error: "content is required" };
         const path = normalizePath(rawPath);
+        const ve = validateFileContent(path, content);
+        if (ve) {
+          return {
+            error: `Syntax error in ${path} at ${ve.line}:${ve.column}: ${ve.message}. File NOT written — fix and retry.`,
+            path,
+            line: ve.line,
+            column: ve.column,
+            message: ve.message,
+          };
+        }
         await storage.putFile(conversationId, path, content);
         const allFiles = await storage.getFiles(conversationId);
         const display = await triggerAppDisplay(conversationId);
@@ -467,6 +602,31 @@ export function createAppGenerationTools({
         if (!existing) return { error: `File not found: ${filePath}. Use create_file instead.` };
 
         const { content, applied, failed } = applyPatches(existing.content, patches);
+
+        // Syntax-check the proposed content before persisting. A patch
+        // that produces broken JSX (e.g. removed a `}` but left the `{`)
+        // would otherwise land in storage, fail at bundle time, and force
+        // the model to debug a runtime error. Refusing to persist gives
+        // the model immediate `line:col` feedback instead.
+        const syntaxError = validateFileContent(filePath, content);
+        if (syntaxError) {
+          return {
+            success: false,
+            path: filePath,
+            applied: applied.length,
+            failed: failed.length,
+            failedPatches: failed,
+            syntaxError: {
+              line: syntaxError.line,
+              column: syntaxError.column,
+              message: syntaxError.message,
+            },
+            currentContent: truncateContent(existing.content),
+            proposedContent: truncateContent(content),
+            message: `Patches produced syntax error at ${syntaxError.line}:${syntaxError.column}: ${syntaxError.message}. File NOT modified — read currentContent and retry.`,
+          };
+        }
+
         // Save the partially-patched file even when some patches fail so the
         // LLM can see the current content and retry only the failed ones.
         await storage.putFile(conversationId, filePath, content);
