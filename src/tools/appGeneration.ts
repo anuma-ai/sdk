@@ -542,6 +542,8 @@ export function createAppGenerationTools({
           return {
             success: true,
             paths,
+            filesCreated: paths.length,
+            totalProjectFiles: allFiles.length,
             message: `Created ${paths.join(", ")}`,
             projectFiles: allFiles.map((f) => f.path),
             ...display,
@@ -570,6 +572,8 @@ export function createAppGenerationTools({
         return {
           success: true,
           path,
+          filesCreated: 1,
+          totalProjectFiles: allFiles.length,
           message: `Created ${path}`,
           projectFiles: allFiles.map((f) => f.path),
           ...display,
