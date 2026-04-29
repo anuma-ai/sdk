@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { type AnumaNode, findById } from "../tools/slides/jsx";
+import { type AnumaNode, findById, findParentOfId } from "../tools/slides/jsx";
 import { findElementIdFromEvent } from "./eventHelpers";
 import {
   buildSelectionAfterClick,
@@ -339,10 +339,18 @@ function useRenderedDeck(deck: AnumaNode, gesture: Gesture | null): AnumaNode {
     if (!el) return deck;
     if (gesture.phase === "resizing") {
       const cb = gesture.currentBounds;
-      el.attrs.x = cb.x;
-      el.attrs.y = cb.y;
-      el.attrs.w = cb.w;
-      el.attrs.h = cb.h;
+      const parent = findParentOfId(next, gesture.elementId);
+      const layout = parent?.attrs.layout;
+      if (layout === "column") {
+        el.attrs.h = cb.h;
+      } else if (layout === "row") {
+        el.attrs.w = cb.w;
+      } else {
+        el.attrs.x = cb.x;
+        el.attrs.y = cb.y;
+        el.attrs.w = cb.w;
+        el.attrs.h = cb.h;
+      }
     } else {
       el.attrs.rotation = gesture.currentRotation;
     }
