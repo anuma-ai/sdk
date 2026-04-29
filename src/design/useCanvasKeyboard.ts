@@ -110,16 +110,16 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
   useEffect(() => {
     if (disabled) return;
     const handler = (e: KeyboardEvent) => {
+      // Don't steal editing keys/shortcuts from text inputs the user is
+      // typing into. Without this, native text undo or deletion would be
+      // intercepted by the canvas.
+      if (isEditableTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey) {
         handleModifierShortcut(e, undo, redo);
         return;
       }
       // Don't intercept Alt-modified keys — preserves browser shortcuts.
       if (e.altKey) return;
-      // Don't steal Delete/Backspace/Arrow from text inputs the user is
-      // typing into. Without this, having a canvas selection while typing
-      // in a search bar or rename field would silently delete elements.
-      if (isEditableTarget(e.target)) return;
       if (selectedIds.size === 0) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
