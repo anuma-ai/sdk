@@ -803,6 +803,24 @@ export const Anuma = {
  */
 const URL_ATTRS = new Set(["href", "src", "action", "formAction", "formaction", "ping"]);
 
+/** Attrs handled separately as geometry/layout/style — don't forward as DOM props. */
+const RESERVED_ATTRS = new Set([
+  "x",
+  "y",
+  "w",
+  "h",
+  "rotation",
+  "grow",
+  "shrink",
+  "alignSelf",
+  "layout",
+  "gap",
+  "padding",
+  "justify",
+  "align",
+  "style",
+]);
+
 function isUnsafeUrl(value: string): boolean {
   // Browsers strip leading C0 controls + SPACE when resolving a URL attr,
   // so skip that prefix before checking the protocol. Done in code (rather
@@ -835,24 +853,8 @@ function renderHtml(node: AnumaNode, key: string | number): React.ReactElement |
   const hasGeo = Object.keys(geo).length > 0;
 
   // Pass-through scalar attrs (id, src, href, type, placeholder, etc.).
-  const SKIP = new Set([
-    "x",
-    "y",
-    "w",
-    "h",
-    "rotation",
-    "grow",
-    "shrink",
-    "alignSelf",
-    "layout",
-    "gap",
-    "padding",
-    "justify",
-    "align",
-    "style",
-  ]);
   for (const [k, v] of Object.entries(node.attrs)) {
-    if (SKIP.has(k)) continue;
+    if (RESERVED_ATTRS.has(k)) continue;
     if (typeof v === "string") {
       if (URL_ATTRS.has(k) && isUnsafeUrl(v)) continue;
       props[k] = v;
