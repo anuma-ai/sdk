@@ -711,14 +711,7 @@ function Image({
     // browser's translucent-ghost drag before the editor's gesture
     // handler can claim the pointer.
     return (
-      <img
-        data-anuma-tag="Image"
-        data-id={id}
-        src={src}
-        alt=""
-        draggable={false}
-        style={merged}
-      />
+      <img data-anuma-tag="Image" data-id={id} src={src} alt="" draggable={false} style={merged} />
     );
   }
   // Placeholder for attached:N or unresolved sources.

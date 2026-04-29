@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
-import { type AnumaNode, findById, removeById } from '../tools/slides/jsx';
-import { getLayoutModeOf } from './dragLogic';
+import { type AnumaNode, findById, removeById } from "../tools/slides/jsx";
+import { getLayoutModeOf } from "./dragLogic";
 
 export type UseCanvasKeyboardOpts = {
   deck: AnumaNode;
@@ -35,10 +35,10 @@ export type UseCanvasKeyboardOpts = {
 /** Map an arrow key to a (dx, dy) step in slide-px (1px or 10px with shift). */
 function arrowKeyDelta(key: string, shiftKey: boolean): { dx: number; dy: number } | null {
   const step = shiftKey ? 10 : 1;
-  if (key === 'ArrowLeft') return { dx: -step, dy: 0 };
-  if (key === 'ArrowRight') return { dx: step, dy: 0 };
-  if (key === 'ArrowUp') return { dx: 0, dy: -step };
-  if (key === 'ArrowDown') return { dx: 0, dy: step };
+  if (key === "ArrowLeft") return { dx: -step, dy: 0 };
+  if (key === "ArrowRight") return { dx: step, dy: 0 };
+  if (key === "ArrowUp") return { dx: 0, dy: -step };
+  if (key === "ArrowDown") return { dx: 0, dy: step };
   return null;
 }
 
@@ -50,13 +50,13 @@ function handleModifierShortcut(
   redo: (() => void) | undefined
 ): boolean {
   const k = e.key.toLowerCase();
-  if (k === 'z') {
+  if (k === "z") {
     e.preventDefault();
     if (e.shiftKey) redo?.();
     else undo?.();
     return true;
   }
-  if (k === 'y') {
+  if (k === "y") {
     e.preventDefault();
     redo?.();
     return true;
@@ -83,11 +83,11 @@ function applyArrowNudge(ids: ReadonlySet<string>, dx: number, dy: number) {
     const next = structuredClone(d);
     let any = false;
     for (const id of ids) {
-      if (getLayoutModeOf(d, id) !== 'absolute') continue;
+      if (getLayoutModeOf(d, id) !== "absolute") continue;
       const el = findById(next, id);
       if (!el) continue;
-      const x = typeof el.attrs.x === 'number' ? el.attrs.x : 0;
-      const y = typeof el.attrs.y === 'number' ? el.attrs.y : 0;
+      const x = typeof el.attrs.x === "number" ? el.attrs.x : 0;
+      const y = typeof el.attrs.y === "number" ? el.attrs.y : 0;
       el.attrs.x = x + dx;
       el.attrs.y = y + dy;
       any = true;
@@ -110,7 +110,7 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
       if (e.altKey) return;
       if (selectedIds.size === 0) return;
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         setDeck(applyDelete(selectedIds));
         setSelectedIds(new Set());
@@ -122,7 +122,7 @@ export function useCanvasKeyboard(opts: UseCanvasKeyboardOpts): void {
         setDeck(applyArrowNudge(selectedIds, arrow.dx, arrow.dy));
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [disabled, deck, setDeck, selectedIds, setSelectedIds, undo, redo]);
 }

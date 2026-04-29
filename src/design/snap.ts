@@ -1,4 +1,4 @@
-import type { SnapBounds, SnapGuide } from './types';
+import type { SnapBounds, SnapGuide } from "./types";
 
 /**
  * Read an element's gBCR-derived bounds in slide-px relative to the
@@ -66,11 +66,11 @@ export function unionBounds(arr: readonly SnapBounds[]): SnapBounds | null {
  *   - Snap targets include EVERY non-dragged element with a `data-id`.
  *   - Only ONE guide per axis (the closest alignment).
  */
-type AxisKey = 'left' | 'cx' | 'right' | 'top' | 'cy' | 'bottom';
+type AxisKey = "left" | "cx" | "right" | "top" | "cy" | "bottom";
 type SnapMatch = { adjust: number; pos: number; other: SnapBounds };
 
-const X_KEYS: readonly AxisKey[] = ['left', 'cx', 'right'];
-const Y_KEYS: readonly AxisKey[] = ['top', 'cy', 'bottom'];
+const X_KEYS: readonly AxisKey[] = ["left", "cx", "right"];
+const Y_KEYS: readonly AxisKey[] = ["top", "cy", "bottom"];
 
 /**
  * Find the closest edge/center alignment along one axis. Compares all
@@ -123,7 +123,7 @@ export function computeSnap(
     const top = start.top + delta.y;
     const bottom = start.bottom + delta.y;
     guides.push({
-      axis: 'x',
+      axis: "x",
       position: bestX.pos,
       start: Math.min(top, bestX.other.top),
       end: Math.max(bottom, bestX.other.bottom),
@@ -133,7 +133,7 @@ export function computeSnap(
     const left = start.left + delta.x;
     const right = start.right + delta.x;
     guides.push({
-      axis: 'y',
+      axis: "y",
       position: bestY.pos,
       start: Math.min(left, bestY.other.left),
       end: Math.max(right, bestY.other.right),

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from "react";
 
-import { type AnumaNode, findById } from '../tools/slides/jsx';
-import type { IdBounds, SelectionBounds } from './types';
+import { type AnumaNode, findById } from "../tools/slides/jsx";
+import type { IdBounds, SelectionBounds } from "./types";
 
 /**
  * Read the unrotated bounds + rotation of the selected element, in
@@ -44,9 +44,9 @@ export function useSelectionBounds(
     const er = el.getBoundingClientRect();
     const centerX = (er.left + er.width / 2 - sr.left) / scale;
     const centerY = (er.top + er.height / 2 - sr.top) / scale;
-    const w = typeof node.attrs.w === 'number' ? node.attrs.w : er.width / scale;
-    const h = typeof node.attrs.h === 'number' ? node.attrs.h : er.height / scale;
-    const rotation = typeof node.attrs.rotation === 'number' ? node.attrs.rotation : 0;
+    const w = typeof node.attrs.w === "number" ? node.attrs.w : er.width / scale;
+    const h = typeof node.attrs.h === "number" ? node.attrs.h : er.height / scale;
+    const rotation = typeof node.attrs.rotation === "number" ? node.attrs.rotation : 0;
     setBounds({
       x: centerX - w / 2,
       y: centerY - h / 2,
@@ -85,9 +85,9 @@ export function useMultiSelectionBounds(
       const er = el.getBoundingClientRect();
       const centerX = (er.left + er.width / 2 - sr.left) / scale;
       const centerY = (er.top + er.height / 2 - sr.top) / scale;
-      const w = typeof node.attrs.w === 'number' ? node.attrs.w : er.width / scale;
-      const h = typeof node.attrs.h === 'number' ? node.attrs.h : er.height / scale;
-      const rotation = typeof node.attrs.rotation === 'number' ? node.attrs.rotation : 0;
+      const w = typeof node.attrs.w === "number" ? node.attrs.w : er.width / scale;
+      const h = typeof node.attrs.h === "number" ? node.attrs.h : er.height / scale;
+      const rotation = typeof node.attrs.rotation === "number" ? node.attrs.rotation : 0;
       out.push({ id, x: centerX - w / 2, y: centerY - h / 2, w, h, rotation });
     }
     setBounds(out);

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState } from "react";
 
-import type { AnumaNode } from '../tools/slides/jsx';
+import type { AnumaNode } from "../tools/slides/jsx";
 
 export type UseDeckHistoryReturn = {
   deck: AnumaNode;
@@ -40,9 +40,9 @@ export function useDeckHistory(initial: AnumaNode): UseDeckHistoryReturn {
 
   const setDeck = useCallback(
     (updater: AnumaNode | ((d: AnumaNode) => AnumaNode)) => {
-      setHistory(prev => {
+      setHistory((prev) => {
         const current = prev.snapshots[prev.index] ?? initial;
-        const next = typeof updater === 'function' ? updater(current) : updater;
+        const next = typeof updater === "function" ? updater(current) : updater;
         if (next === current) return prev;
         const snapshots = prev.snapshots.slice(0, prev.index + 1);
         snapshots.push(next);
@@ -53,11 +53,11 @@ export function useDeckHistory(initial: AnumaNode): UseDeckHistoryReturn {
   );
 
   const undo = useCallback(() => {
-    setHistory(prev => (prev.index > 0 ? { ...prev, index: prev.index - 1 } : prev));
+    setHistory((prev) => (prev.index > 0 ? { ...prev, index: prev.index - 1 } : prev));
   }, []);
 
   const redo = useCallback(() => {
-    setHistory(prev =>
+    setHistory((prev) =>
       prev.index < prev.snapshots.length - 1 ? { ...prev, index: prev.index + 1 } : prev
     );
   }, []);

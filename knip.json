@@ -3,7 +3,6 @@
   "project": ["src/**/*.ts", "src/**/*.tsx"],
   "ignore": ["src/client/**"],
   "ignoreDependencies": [
-    "@anuma/portal",
     "@privy-io/react-auth",
     "@vitest/coverage-v8",
     "unist-util-visit",

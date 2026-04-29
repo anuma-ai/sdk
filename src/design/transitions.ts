@@ -10,7 +10,7 @@
  * dispatchers.
  */
 
-import { type AnumaNode, findById } from '../tools/slides/jsx';
+import { type AnumaNode, findById } from "../tools/slides/jsx";
 import {
   canMultiDrag,
   commitDrop,
@@ -21,15 +21,15 @@ import {
   RESIZE_HANDLE_DIRS,
   type ResizeBounds,
   type ResizeHandle,
-} from './dragLogic';
-import { resolveDropTarget } from './dropTarget';
+} from "./dragLogic";
+import { resolveDropTarget } from "./dropTarget";
 import {
   findElementsInRect,
   findResizeHandleFromEvent,
   findRotateHandleFromEvent,
-} from './eventHelpers';
-import { computeSnap, getStageRelativeBounds, unionBounds } from './snap';
-import type { Gesture, SnapBounds, SnapGuide } from './types';
+} from "./eventHelpers";
+import { computeSnap, getStageRelativeBounds, unionBounds } from "./snap";
+import type { Gesture, SnapBounds, SnapGuide } from "./types";
 
 /** Min dimension during resize, in slide-px. */
 const RESIZE_MIN = 8;
@@ -69,7 +69,7 @@ export function detectHandleGesture(
  * Build the initial 'rotating' gesture from a rotate-handle pointer-down.
  * Returns null if the selected element can't be measured.
  */
-export function startRotateGesture(
+function startRotateGesture(
   deck: AnumaNode,
   stage: HTMLElement,
   selectedId: string,
@@ -84,9 +84,9 @@ export function startRotateGesture(
   };
   const startAngle = Math.atan2(pointer.y - centerClient.y, pointer.x - centerClient.x);
   const node = findById(deck, selectedId);
-  const startRotation = typeof node?.attrs.rotation === 'number' ? node.attrs.rotation : 0;
+  const startRotation = typeof node?.attrs.rotation === "number" ? node.attrs.rotation : 0;
   return {
-    phase: 'rotating',
+    phase: "rotating",
     elementId: selectedId,
     centerClient,
     startAngle,
@@ -100,7 +100,7 @@ export function startRotateGesture(
  * Captures the element's UNROTATED bounds (recovered from the AABB
  * center + intrinsic w/h) as a fixed origin for subsequent moves.
  */
-export function startResizeGesture(
+function startResizeGesture(
   deck: AnumaNode,
   stage: HTMLElement,
   selectedId: string,
@@ -120,9 +120,9 @@ export function startResizeGesture(
     x: (er.left + er.width / 2 - sr.left) / scale,
     y: (er.top + er.height / 2 - sr.top) / scale,
   };
-  const w = typeof node.attrs.w === 'number' ? node.attrs.w : er.width / scale;
-  const h = typeof node.attrs.h === 'number' ? node.attrs.h : er.height / scale;
-  const rotation = typeof node.attrs.rotation === 'number' ? node.attrs.rotation : 0;
+  const w = typeof node.attrs.w === "number" ? node.attrs.w : er.width / scale;
+  const h = typeof node.attrs.h === "number" ? node.attrs.h : er.height / scale;
+  const rotation = typeof node.attrs.rotation === "number" ? node.attrs.rotation : 0;
   const startBounds: ResizeBounds = {
     x: startCenter.x - w / 2,
     y: startCenter.y - h / 2,
@@ -130,7 +130,7 @@ export function startResizeGesture(
     h,
   };
   return {
-    phase: 'resizing',
+    phase: "resizing",
     elementId: selectedId,
     handle,
     startClient: pointer,
@@ -148,13 +148,13 @@ export function startResizeGesture(
  * subsequent snap math compares against the start position.
  */
 export function promotePendingToDragging(
-  pending: Extract<Gesture, { phase: 'pending' }>,
+  pending: Extract<Gesture, { phase: "pending" }>,
   deck: AnumaNode,
   stage: HTMLElement,
   pointer: Pointer,
   scale: number,
   currentSelection: ReadonlySet<string>
-): Extract<Gesture, { phase: 'dragging' }> | null {
+): Extract<Gesture, { phase: "dragging" }> | null {
   if (pending.elementId === null) return null;
   const elementId = pending.elementId;
   const resolved = resolveDropTarget(deck, stage, elementId, pointer, scale);
@@ -168,7 +168,7 @@ export function promotePendingToDragging(
     if (el) startBoundsList.push(getStageRelativeBounds(el, stage, scale));
   }
   return {
-    phase: 'dragging',
+    phase: "dragging",
     elementId,
     elementIds,
     startClient: pending.startClient,
@@ -188,12 +188,12 @@ export function promotePendingToDragging(
  * has now moved past threshold — start sweeping a selection rectangle.
  */
 export function promotePendingToMarquee(
-  pending: Extract<Gesture, { phase: 'pending' }>,
+  pending: Extract<Gesture, { phase: "pending" }>,
   pointer: Pointer,
   currentSelection: ReadonlySet<string>
-): Extract<Gesture, { phase: 'marquee' }> {
+): Extract<Gesture, { phase: "marquee" }> {
   return {
-    phase: 'marquee',
+    phase: "marquee",
     startClient: pending.startClient,
     currentClient: pointer,
     additive: pending.shiftKey,
@@ -208,7 +208,7 @@ export function promotePendingToMarquee(
  * drags out and back works intuitively).
  */
 export function transitionMarqueeOnMove(
-  marquee: Extract<Gesture, { phase: 'marquee' }>,
+  marquee: Extract<Gesture, { phase: "marquee" }>,
   pointer: Pointer,
   stage: HTMLElement
 ): { gesture: Gesture; selection: Set<string> } {
@@ -231,12 +231,12 @@ export function transitionMarqueeOnMove(
  * out of one container into another transitions automatically.
  */
 export function transitionDraggingOnMove(
-  drag: Extract<Gesture, { phase: 'dragging' }>,
+  drag: Extract<Gesture, { phase: "dragging" }>,
   pointer: Pointer,
   deck: AnumaNode,
   stage: HTMLElement,
   scale: number
-): Extract<Gesture, { phase: 'dragging' }> {
+): Extract<Gesture, { phase: "dragging" }> {
   const rawDx = (pointer.x - drag.startClient.x) / scale;
   const rawDy = (pointer.y - drag.startClient.y) / scale;
   const resolved = resolveDropTarget(deck, stage, drag.elementId, pointer, scale);
@@ -245,7 +245,7 @@ export function transitionDraggingOnMove(
   if (drag.startGroupBounds) {
     const draggedSet = new Set(drag.elementIds);
     const others: SnapBounds[] = [];
-    for (const el of stage.querySelectorAll<HTMLElement>('[data-id]')) {
+    for (const el of stage.querySelectorAll<HTMLElement>("[data-id]")) {
       const id = el.dataset.id;
       if (!id || draggedSet.has(id)) continue;
       others.push(getStageRelativeBounds(el, stage, scale));
@@ -277,10 +277,10 @@ export function transitionDraggingOnMove(
  * (rotation-blind).
  */
 export function transitionResizingOnMove(
-  resize: Extract<Gesture, { phase: 'resizing' }>,
+  resize: Extract<Gesture, { phase: "resizing" }>,
   pointer: Pointer,
   scale: number
-): Extract<Gesture, { phase: 'resizing' }> {
+): Extract<Gesture, { phase: "resizing" }> {
   const cdxS = (pointer.x - resize.startClient.x) / scale;
   const cdyS = (pointer.y - resize.startClient.y) / scale;
   const Rrad = (resize.rotation * Math.PI) / 180;
@@ -296,7 +296,7 @@ export function transitionResizingOnMove(
   const dh = newH - sb.h;
   const lsx = (dir.dx * dw) / 2;
   const lsy = (dir.dy * dh) / 2;
-  const isAbs = resize.layoutMode === 'absolute';
+  const isAbs = resize.layoutMode === "absolute";
   const centerShiftX = isAbs ? lsx * cosR - lsy * sinR : lsx;
   const centerShiftY = isAbs ? lsx * sinR + lsy * cosR : lsy;
   const newCenterX = resize.startCenter.x + centerShiftX;
@@ -318,9 +318,9 @@ export function transitionResizingOnMove(
  * the atan2 discontinuity doesn't cause a 360° jump.
  */
 export function transitionRotatingOnMove(
-  rotate: Extract<Gesture, { phase: 'rotating' }>,
+  rotate: Extract<Gesture, { phase: "rotating" }>,
   pointer: Pointer
-): Extract<Gesture, { phase: 'rotating' }> {
+): Extract<Gesture, { phase: "rotating" }> {
   const angle = Math.atan2(pointer.y - rotate.centerClient.y, pointer.x - rotate.centerClient.x);
   let d = angle - rotate.startAngle;
   while (d > Math.PI) d -= 2 * Math.PI;
@@ -359,29 +359,29 @@ export function buildSelectionAfterClick(
  * cleanup separately.
  */
 export function gestureCommit(gesture: Gesture): ((d: AnumaNode) => AnumaNode) | null {
-  if (gesture.phase === 'resizing') {
+  if (gesture.phase === "resizing") {
     const { elementId, startBounds, currentBounds } = gesture;
     const moved =
       currentBounds.x !== startBounds.x ||
       currentBounds.y !== startBounds.y ||
       currentBounds.w !== startBounds.w ||
       currentBounds.h !== startBounds.h;
-    return moved ? d => commitResize(d, elementId, currentBounds) : null;
+    return moved ? (d) => commitResize(d, elementId, currentBounds) : null;
   }
-  if (gesture.phase === 'rotating') {
+  if (gesture.phase === "rotating") {
     const { elementId, startRotation, currentRotation } = gesture;
     return currentRotation !== startRotation
-      ? d => commitRotation(d, elementId, currentRotation)
+      ? (d) => commitRotation(d, elementId, currentRotation)
       : null;
   }
-  if (gesture.phase === 'dragging') {
+  if (gesture.phase === "dragging") {
     if (gesture.elementIds.length > 1) {
       const { elementIds, delta } = gesture;
-      return d => commitMultiDrag(d, elementIds, delta);
+      return (d) => commitMultiDrag(d, elementIds, delta);
     }
     if (gesture.drop) {
       const { drop, elementId } = gesture;
-      return d => commitDrop(d, elementId, drop);
+      return (d) => commitDrop(d, elementId, drop);
     }
   }
   return null;

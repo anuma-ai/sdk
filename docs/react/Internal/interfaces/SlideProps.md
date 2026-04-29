@@ -1,6 +1,6 @@
 # SlideProps
 
-Defined in: [src/react/anumaRuntime.tsx:291](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#291)
+Defined in: [src/react/anumaRuntime.tsx:331](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#331)
 
 A 960×540 slide canvas. Positioned children with `x`/`y`/`w`/`h` get
 absolute positioning automatically. Opt into flex layout via
@@ -16,7 +16,7 @@ absolute positioning automatically. Opt into flex layout via
 
 > `optional` **align**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:144](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#144)
+Defined in: [src/react/anumaRuntime.tsx:177](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#177)
 
 **Inherited from**
 
@@ -28,7 +28,7 @@ Defined in: [src/react/anumaRuntime.tsx:144](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **alignSelf**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:136](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#136)
+Defined in: [src/react/anumaRuntime.tsx:169](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#169)
 
 **Inherited from**
 
@@ -40,7 +40,7 @@ Defined in: [src/react/anumaRuntime.tsx:136](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **background**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:292](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#292)
+Defined in: [src/react/anumaRuntime.tsx:332](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#332)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [src/react/anumaRuntime.tsx:292](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **children**: `ReactNode`
 
-Defined in: [src/react/anumaRuntime.tsx:241](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#241)
+Defined in: [src/react/anumaRuntime.tsx:281](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#281)
 
 **Inherited from**
 
@@ -60,7 +60,7 @@ Defined in: [src/react/anumaRuntime.tsx:241](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **gap**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:141](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#141)
+Defined in: [src/react/anumaRuntime.tsx:174](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#174)
 
 **Inherited from**
 
@@ -72,7 +72,7 @@ Defined in: [src/react/anumaRuntime.tsx:141](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **grow**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:134](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#134)
+Defined in: [src/react/anumaRuntime.tsx:167](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#167)
 
 **Inherited from**
 
@@ -84,7 +84,7 @@ Defined in: [src/react/anumaRuntime.tsx:134](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **h**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:132](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#132)
+Defined in: [src/react/anumaRuntime.tsx:165](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#165)
 
 **Inherited from**
 
@@ -96,7 +96,7 @@ Defined in: [src/react/anumaRuntime.tsx:132](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **id**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:239](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#239)
+Defined in: [src/react/anumaRuntime.tsx:279](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#279)
 
 **Inherited from**
 
@@ -108,7 +108,7 @@ Defined in: [src/react/anumaRuntime.tsx:239](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **justify**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:143](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#143)
+Defined in: [src/react/anumaRuntime.tsx:176](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#176)
 
 **Inherited from**
 
@@ -120,7 +120,7 @@ Defined in: [src/react/anumaRuntime.tsx:143](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **layout**: `string`
 
-Defined in: [src/react/anumaRuntime.tsx:140](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#140)
+Defined in: [src/react/anumaRuntime.tsx:173](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#173)
 
 **Inherited from**
 
@@ -132,7 +132,7 @@ Defined in: [src/react/anumaRuntime.tsx:140](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **padding**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:142](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#142)
+Defined in: [src/react/anumaRuntime.tsx:175](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#175)
 
 **Inherited from**
 
@@ -144,7 +144,7 @@ Defined in: [src/react/anumaRuntime.tsx:142](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **rotation**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:133](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#133)
+Defined in: [src/react/anumaRuntime.tsx:166](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#166)
 
 **Inherited from**
 
@@ -156,7 +156,7 @@ Defined in: [src/react/anumaRuntime.tsx:133](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **shrink**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:135](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#135)
+Defined in: [src/react/anumaRuntime.tsx:168](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#168)
 
 **Inherited from**
 
@@ -168,7 +168,7 @@ Defined in: [src/react/anumaRuntime.tsx:135](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **style**: `CSSProperties`
 
-Defined in: [src/react/anumaRuntime.tsx:240](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#240)
+Defined in: [src/react/anumaRuntime.tsx:280](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#280)
 
 **Inherited from**
 
@@ -180,7 +180,7 @@ Defined in: [src/react/anumaRuntime.tsx:240](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **w**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:131](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#131)
+Defined in: [src/react/anumaRuntime.tsx:164](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#164)
 
 **Inherited from**
 
@@ -192,7 +192,7 @@ Defined in: [src/react/anumaRuntime.tsx:131](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **x**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:129](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#129)
+Defined in: [src/react/anumaRuntime.tsx:162](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#162)
 
 **Inherited from**
 
@@ -204,7 +204,7 @@ Defined in: [src/react/anumaRuntime.tsx:129](https://github.com/anuma-ai/sdk/blo
 
 > `optional` **y**: `number`
 
-Defined in: [src/react/anumaRuntime.tsx:130](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#130)
+Defined in: [src/react/anumaRuntime.tsx:163](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#163)
 
 **Inherited from**
 

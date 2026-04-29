@@ -1,4 +1,4 @@
-import type { DropTarget, ResizeBounds, ResizeHandle } from './dragLogic';
+import type { DropTarget, ResizeBounds, ResizeHandle } from "./dragLogic";
 
 /**
  * Axis-aligned bounds of an element relative to the stage origin, in
@@ -21,7 +21,7 @@ export type SnapBounds = {
  * dragged group + the matched sibling.
  */
 export type SnapGuide = {
-  axis: 'x' | 'y';
+  axis: "x" | "y";
   position: number;
   start: number;
   end: number;
@@ -53,20 +53,20 @@ export type IdBounds = SelectionBounds & { id: string };
  */
 export type Gesture =
   | {
-      phase: 'pending';
+      phase: "pending";
       elementId: string | null;
       startClient: { x: number; y: number };
       shiftKey: boolean;
     }
   | {
-      phase: 'marquee';
+      phase: "marquee";
       startClient: { x: number; y: number };
       currentClient: { x: number; y: number };
       additive: boolean;
       initialSelection: ReadonlySet<string>;
     }
   | {
-      phase: 'dragging';
+      phase: "dragging";
       elementId: string;
       elementIds: string[];
       startClient: { x: number; y: number };
@@ -77,18 +77,18 @@ export type Gesture =
       guides: SnapGuide[];
     }
   | {
-      phase: 'resizing';
+      phase: "resizing";
       elementId: string;
       handle: ResizeHandle;
       startClient: { x: number; y: number };
       startBounds: ResizeBounds;
       startCenter: { x: number; y: number };
       rotation: number;
-      layoutMode: 'absolute' | 'flex-row' | 'flex-column';
+      layoutMode: "absolute" | "flex-row" | "flex-column";
       currentBounds: ResizeBounds;
     }
   | {
-      phase: 'rotating';
+      phase: "rotating";
       elementId: string;
       centerClient: { x: number; y: number };
       startAngle: number;

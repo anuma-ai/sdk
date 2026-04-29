@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import type { AnumaNode } from '../tools/slides/jsx';
+import type { AnumaNode } from "../tools/slides/jsx";
 import {
   getLayoutModeOf,
   RESIZE_HANDLE_CURSORS,
   RESIZE_HANDLE_DIRS,
   type ResizeHandle,
-} from './dragLogic';
-import type { Gesture, IdBounds, SelectionBounds } from './types';
+} from "./dragLogic";
+import type { Gesture, IdBounds, SelectionBounds } from "./types";
 
 /** Visual size of resize/rotate handles in slide-px (scaled with stage). */
 const HANDLE_SIZE = 10;
@@ -15,8 +15,8 @@ const HANDLE_SIZE = 10;
 /** Distance from top of selection to the rotate handle, in slide-px. */
 const ROTATE_HANDLE_OFFSET = 28;
 
-const PRIMARY_COLOR = '#2563eb';
-const SNAP_COLOR = '#ec4899';
+const PRIMARY_COLOR = "#2563eb";
+const SNAP_COLOR = "#ec4899";
 
 export type CanvasOverlaysProps = {
   /** Current gesture (drives marquee/guides/drop-indicator visibility). */
@@ -79,7 +79,7 @@ export function CanvasOverlays({
 }
 
 function isDragOrRotate(gesture: Gesture | null): boolean {
-  return gesture?.phase === 'dragging' || gesture?.phase === 'rotating';
+  return gesture?.phase === "dragging" || gesture?.phase === "rotating";
 }
 
 /** Thin outlines around every selected element (no handles — handles
@@ -96,20 +96,20 @@ function MultiSelectionOutlines({
   if (!visible) return null;
   return (
     <>
-      {bounds.map(b => (
+      {bounds.map((b) => (
         <div
           key={b.id}
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: b.x * scale,
             top: b.y * scale,
             width: b.w * scale,
             height: b.h * scale,
             transform: b.rotation !== 0 ? `rotate(${b.rotation}deg)` : undefined,
-            transformOrigin: '50% 50%',
+            transformOrigin: "50% 50%",
             border: `1.5px solid ${PRIMARY_COLOR}`,
-            boxSizing: 'border-box',
-            pointerEvents: 'none',
+            boxSizing: "border-box",
+            pointerEvents: "none",
           }}
         />
       ))}
@@ -120,7 +120,7 @@ function MultiSelectionOutlines({
 /** Marquee selection rectangle. position: fixed because gesture coords
  *  are viewport-relative (clientX/Y). */
 function MarqueeRect({ gesture }: { gesture: Gesture | null }) {
-  if (gesture?.phase !== 'marquee') return null;
+  if (gesture?.phase !== "marquee") return null;
   const left = Math.min(gesture.startClient.x, gesture.currentClient.x);
   const top = Math.min(gesture.startClient.y, gesture.currentClient.y);
   const width = Math.abs(gesture.currentClient.x - gesture.startClient.x);
@@ -128,14 +128,14 @@ function MarqueeRect({ gesture }: { gesture: Gesture | null }) {
   return (
     <div
       style={{
-        position: 'fixed',
+        position: "fixed",
         left,
         top,
         width,
         height,
         border: `1px solid ${PRIMARY_COLOR}`,
-        background: 'rgba(37, 99, 235, 0.08)',
-        pointerEvents: 'none',
+        background: "rgba(37, 99, 235, 0.08)",
+        pointerEvents: "none",
       }}
     />
   );
@@ -143,29 +143,29 @@ function MarqueeRect({ gesture }: { gesture: Gesture | null }) {
 
 /** Pink alignment guide lines. One per axis (closest match wins). */
 function SnapGuideLines({ gesture, scale }: { gesture: Gesture | null; scale: number }) {
-  if (gesture?.phase !== 'dragging') return null;
+  if (gesture?.phase !== "dragging") return null;
   return (
     <>
       {gesture.guides.map((g, i) => {
-        const isVertical = g.axis === 'x';
+        const isVertical = g.axis === "x";
         const style: React.CSSProperties = isVertical
           ? {
-              position: 'absolute',
+              position: "absolute",
               left: g.position * scale - 0.5,
               top: g.start * scale,
               width: 1,
               height: (g.end - g.start) * scale,
               background: SNAP_COLOR,
-              pointerEvents: 'none',
+              pointerEvents: "none",
             }
           : {
-              position: 'absolute',
+              position: "absolute",
               left: g.start * scale,
               top: g.position * scale - 0.5,
               width: (g.end - g.start) * scale,
               height: 1,
               background: SNAP_COLOR,
-              pointerEvents: 'none',
+              pointerEvents: "none",
             };
         return <div key={i} style={style} />;
       })}
@@ -176,18 +176,18 @@ function SnapGuideLines({ gesture, scale }: { gesture: Gesture | null; scale: nu
 /** Blue line in the gap between flex siblings showing where the
  *  dragged element will land on release. */
 function FlexDropIndicator({ gesture, scale }: { gesture: Gesture | null; scale: number }) {
-  if (gesture?.phase !== 'dragging' || !gesture.indicatorBounds) return null;
+  if (gesture?.phase !== "dragging" || !gesture.indicatorBounds) return null;
   const { x, y, w, h } = gesture.indicatorBounds;
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: x * scale,
         top: y * scale,
         width: Math.max(w * scale, 2),
         height: Math.max(h * scale, 2),
         background: PRIMARY_COLOR,
-        pointerEvents: 'none',
+        pointerEvents: "none",
         borderRadius: 1,
       }}
     />
@@ -209,9 +209,9 @@ function FlexDropIndicator({ gesture, scale }: { gesture: Gesture | null; scale:
  */
 function visibleResizeHandles(deck: AnumaNode, selectedId: string): ResizeHandle[] {
   const mode = getLayoutModeOf(deck, selectedId);
-  if (mode === 'absolute') return ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
-  if (mode === 'flex-column') return ['s'];
-  return ['e'];
+  if (mode === "absolute") return ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+  if (mode === "flex-column") return ["s"];
+  return ["e"];
 }
 
 function SelectionWithHandles({
@@ -230,35 +230,35 @@ function SelectionWithHandles({
   editingId?: string | null;
 }) {
   if (!selectedId || editingId || isDragOrRotate(gesture)) return null;
-  const bounds = gesture?.phase === 'resizing' ? gesture.currentBounds : selectionBounds;
+  const bounds = gesture?.phase === "resizing" ? gesture.currentBounds : selectionBounds;
   if (!bounds) return null;
   const rotation =
-    gesture?.phase === 'resizing' ? gesture.rotation : (selectionBounds?.rotation ?? 0);
+    gesture?.phase === "resizing" ? gesture.rotation : (selectionBounds?.rotation ?? 0);
   const visibleHandles = visibleResizeHandles(deck, selectedId);
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: bounds.x * scale,
         top: bounds.y * scale,
         width: bounds.w * scale,
         height: bounds.h * scale,
         transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
-        transformOrigin: '50% 50%',
+        transformOrigin: "50% 50%",
         // Outline frame is non-interactive; only the handles below are.
         // Lets clicks fall through to the element body for drag selection.
-        pointerEvents: 'none',
+        pointerEvents: "none",
       }}
     >
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           inset: 0,
           border: `2px solid ${PRIMARY_COLOR}`,
-          boxSizing: 'border-box',
+          boxSizing: "border-box",
         }}
       />
-      {visibleHandles.map(handle => {
+      {visibleHandles.map((handle) => {
         const dir = RESIZE_HANDLE_DIRS[handle];
         // Handle center in LOCAL slide-px (relative to bounds top-left).
         const cxLocal = (bounds.w * (dir.dx + 1)) / 2;
@@ -268,17 +268,17 @@ function SelectionWithHandles({
             key={handle}
             data-resize-handle={handle}
             style={{
-              position: 'absolute',
+              position: "absolute",
               left: cxLocal * scale - HANDLE_SIZE / 2,
               top: cyLocal * scale - HANDLE_SIZE / 2,
               width: HANDLE_SIZE,
               height: HANDLE_SIZE,
-              background: '#fff',
+              background: "#fff",
               border: `1.5px solid ${PRIMARY_COLOR}`,
-              borderRadius: '50%',
+              borderRadius: "50%",
               cursor: RESIZE_HANDLE_CURSORS[handle],
-              boxSizing: 'border-box',
-              pointerEvents: 'auto',
+              boxSizing: "border-box",
+              pointerEvents: "auto",
             }}
           />
         );
@@ -287,17 +287,17 @@ function SelectionWithHandles({
       <div
         data-rotate-handle="true"
         style={{
-          position: 'absolute',
+          position: "absolute",
           left: (bounds.w / 2) * scale - HANDLE_SIZE / 2,
           top: -ROTATE_HANDLE_OFFSET * scale - HANDLE_SIZE / 2,
           width: HANDLE_SIZE,
           height: HANDLE_SIZE,
-          background: '#fff',
+          background: "#fff",
           border: `1.5px solid ${PRIMARY_COLOR}`,
-          borderRadius: '50%',
-          cursor: 'grab',
-          boxSizing: 'border-box',
-          pointerEvents: 'auto',
+          borderRadius: "50%",
+          cursor: "grab",
+          boxSizing: "border-box",
+          pointerEvents: "auto",
         }}
       />
     </div>

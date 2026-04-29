@@ -120,7 +120,7 @@ const JS_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]);
 const JSON_EXTENSIONS = new Set([".json"]);
 
 /** Structured syntax error pinpointing the failure for the LLM to retry. */
-export interface FileValidationError {
+interface FileValidationError {
   line: number;
   column: number;
   message: string;
@@ -137,10 +137,7 @@ export interface FileValidationError {
  * or correct a freshly-written file without bouncing through the
  * Sandpack bundler.
  */
-export function validateFileContent(
-  path: string,
-  content: string
-): FileValidationError | null {
+export function validateFileContent(path: string, content: string): FileValidationError | null {
   const lower = path.toLowerCase();
   const dotIdx = lower.lastIndexOf(".");
   if (dotIdx === -1) return null;

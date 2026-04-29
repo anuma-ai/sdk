@@ -16,10 +16,7 @@ import {
  * isolation. `Element.querySelector` does not pierce shadow DOM, so
  * walk all open shadow roots manually.
  */
-function deepQuery<T extends Element = Element>(
-  root: ParentNode,
-  selector: string
-): T | null {
+function deepQuery<T extends Element = Element>(root: ParentNode, selector: string): T | null {
   const direct = root.querySelector<T>(selector);
   if (direct) return direct;
   for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
@@ -31,10 +28,7 @@ function deepQuery<T extends Element = Element>(
   return null;
 }
 
-function deepQueryAll<T extends Element = Element>(
-  root: ParentNode,
-  selector: string
-): T[] {
+function deepQueryAll<T extends Element = Element>(root: ParentNode, selector: string): T[] {
   const results: T[] = Array.from(root.querySelectorAll<T>(selector));
   for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
     if (el.shadowRoot) {

@@ -1,4 +1,4 @@
-import { NON_SELECTABLE_TAGS, type ResizeHandle } from './dragLogic';
+import { NON_SELECTABLE_TAGS, type ResizeHandle } from "./dragLogic";
 
 /**
  * Walk the click path and return the first descendant of `stage` that
@@ -9,8 +9,8 @@ export function findElementIdFromEvent(
   e: { nativeEvent: Event } | Event,
   root: HTMLElement | null
 ): string | null {
-  const native = 'nativeEvent' in e ? e.nativeEvent : e;
-  const path = typeof native.composedPath === 'function' ? native.composedPath() : [];
+  const native = "nativeEvent" in e ? e.nativeEvent : e;
+  const path = typeof native.composedPath === "function" ? native.composedPath() : [];
   for (const node of path) {
     if (root && node === root) break;
     if (!(node instanceof HTMLElement)) continue;
@@ -21,7 +21,7 @@ export function findElementIdFromEvent(
   return null;
 }
 
-const RESIZE_HANDLE_NAMES = new Set(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']);
+const RESIZE_HANDLE_NAMES = new Set(["nw", "n", "ne", "e", "se", "s", "sw", "w"]);
 
 /**
  * Walk the click path and return the resize-handle direction (if any)
@@ -30,7 +30,7 @@ const RESIZE_HANDLE_NAMES = new Set(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
  * BEFORE the element-selection walk.
  */
 export function findResizeHandleFromEvent(e: PointerEvent): ResizeHandle | null {
-  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const path = typeof e.composedPath === "function" ? e.composedPath() : [];
   for (const node of path) {
     if (!(node instanceof HTMLElement)) continue;
     const dir = node.dataset.resizeHandle;
@@ -41,10 +41,10 @@ export function findResizeHandleFromEvent(e: PointerEvent): ResizeHandle | null 
 
 /** True if the pointer-down hit the rotate handle (`data-rotate-handle="true"`). */
 export function findRotateHandleFromEvent(e: PointerEvent): boolean {
-  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const path = typeof e.composedPath === "function" ? e.composedPath() : [];
   for (const node of path) {
     if (!(node instanceof HTMLElement)) continue;
-    if (node.dataset.rotateHandle === 'true') return true;
+    if (node.dataset.rotateHandle === "true") return true;
   }
   return false;
 }
@@ -62,7 +62,7 @@ export function findElementsInRect(
   rect: { left: number; right: number; top: number; bottom: number }
 ): string[] {
   const ids: string[] = [];
-  const els = stage.querySelectorAll<HTMLElement>('[data-id]');
+  const els = stage.querySelectorAll<HTMLElement>("[data-id]");
   for (const el of els) {
     const tag = el.dataset.anumaTag;
     if (tag && NON_SELECTABLE_TAGS.has(tag)) continue;

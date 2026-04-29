@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { type AnumaNode, findById } from '../tools/slides/jsx';
-import { findElementIdFromEvent } from './eventHelpers';
+import { type AnumaNode, findById } from "../tools/slides/jsx";
+import { findElementIdFromEvent } from "./eventHelpers";
 import {
   buildSelectionAfterClick,
   detectHandleGesture,
@@ -15,8 +15,8 @@ import {
   transitionMarqueeOnMove,
   transitionResizingOnMove,
   transitionRotatingOnMove,
-} from './transitions';
-import type { Gesture } from './types';
+} from "./transitions";
+import type { Gesture } from "./types";
 
 export type UseCanvasGesturesOpts = {
   stageRef: React.RefObject<HTMLElement | null>;
@@ -109,9 +109,9 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
   // and controlled hosts get the change via onSelectionChange.
   const setSelectedIds = useCallback(
     (next: ReadonlySet<string> | ((prev: ReadonlySet<string>) => ReadonlySet<string>)) => {
-      if (typeof next === 'function') {
+      if (typeof next === "function") {
         const fn = next;
-        setSelectedIdsInternal(prev => {
+        setSelectedIdsInternal((prev) => {
           const resolved = selectedIdsControlled ?? prev;
           const updated = fn(resolved);
           if (onSelectionChange) onSelectionChange(updated);
@@ -164,13 +164,13 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       // suppresses synthesized click/dblclick in some browsers, which
       // breaks double-click-to-edit. Capture is deferred until threshold.
       if (id !== null) {
-        setSelectedIds(prev => buildSelectionAfterClick(prev, id, e.shiftKey));
+        setSelectedIds((prev) => buildSelectionAfterClick(prev, id, e.shiftKey));
       }
       if (id !== null && e.shiftKey) {
         setGesture(null);
         return;
       }
-      setGesture({ phase: 'pending', elementId: id, startClient: pointer, shiftKey: e.shiftKey });
+      setGesture({ phase: "pending", elementId: id, startClient: pointer, shiftKey: e.shiftKey });
     },
     [disabled, shouldIgnorePointerDown, beforePointerDown, stageRef, deck, scale, setSelectedIds]
   );
@@ -181,7 +181,7 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       const id = findElementIdFromEvent(e.nativeEvent as unknown as PointerEvent, stageRef.current);
       if (!id) return;
       const node = findById(deck, id);
-      if (!node || node.tag !== 'Text') return;
+      if (!node || node.tag !== "Text") return;
       // Force single-selection — multi-element text editing isn't a thing.
       setSelectedIds(new Set([id]));
       setGesture(null);
@@ -197,7 +197,7 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       if (!stage) return;
       const pointer = { x: e.clientX, y: e.clientY };
 
-      if (gesture.phase === 'pending') {
+      if (gesture.phase === "pending") {
         const dx = pointer.x - gesture.startClient.x;
         const dy = pointer.y - gesture.startClient.y;
         if (dx * dx + dy * dy < DRAG_THRESHOLD_SQ) return;
@@ -221,17 +221,17 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
         }
         return;
       }
-      if (gesture.phase === 'marquee') {
+      if (gesture.phase === "marquee") {
         const result = transitionMarqueeOnMove(gesture, pointer, stage);
         setGesture(result.gesture);
         setSelectedIds(result.selection);
         return;
       }
-      if (gesture.phase === 'dragging') {
+      if (gesture.phase === "dragging") {
         setGesture(transitionDraggingOnMove(gesture, pointer, deck, stage, scale));
         return;
       }
-      if (gesture.phase === 'resizing') {
+      if (gesture.phase === "resizing") {
         setGesture(transitionResizingOnMove(gesture, pointer, scale));
         return;
       }
@@ -250,7 +250,7 @@ export function useCanvasGestures(opts: UseCanvasGesturesOpts): UseCanvasGesture
       if (!gesture) return;
       // Pending click on empty canvas → clear selection (unless shift).
       // Element-pending already updated selection on down.
-      if (gesture.phase === 'pending' && gesture.elementId === null && !gesture.shiftKey) {
+      if (gesture.phase === "pending" && gesture.elementId === null && !gesture.shiftKey) {
         setSelectedIds(new Set());
       }
       const updater = gestureCommit(gesture);
@@ -296,7 +296,7 @@ function useDragPreviewEffect(
   deck: AnumaNode
 ) {
   useLayoutEffect(() => {
-    if (!gesture || gesture.phase !== 'dragging') return;
+    if (!gesture || gesture.phase !== "dragging") return;
     const stage = stageRef.current;
     if (!stage) return;
     const { elementIds, delta } = gesture;
@@ -305,12 +305,12 @@ function useDragPreviewEffect(
       const el = stage.querySelector<HTMLElement>(`[data-id="${elementId}"]`);
       if (!el) continue;
       const node = findById(deck, elementId);
-      const rot = typeof node?.attrs.rotation === 'number' ? node.attrs.rotation : 0;
-      const rotateStr = rot !== 0 ? ` rotate(${rot}deg)` : '';
+      const rot = typeof node?.attrs.rotation === "number" ? node.attrs.rotation : 0;
+      const rotateStr = rot !== 0 ? ` rotate(${rot}deg)` : "";
       const prevTransform = el.style.transform;
       const prevOpacity = el.style.opacity;
       el.style.transform = `translate(${delta.x}px, ${delta.y}px)${rotateStr}`;
-      el.style.opacity = '0.7';
+      el.style.opacity = "0.7";
       restorers.push(() => {
         const currentEl = stageRef.current?.querySelector<HTMLElement>(`[data-id="${elementId}"]`);
         if (!currentEl) return;
@@ -333,11 +333,11 @@ function useDragPreviewEffect(
 function useRenderedDeck(deck: AnumaNode, gesture: Gesture | null): AnumaNode {
   return useMemo(() => {
     if (!gesture) return deck;
-    if (gesture.phase !== 'resizing' && gesture.phase !== 'rotating') return deck;
+    if (gesture.phase !== "resizing" && gesture.phase !== "rotating") return deck;
     const next = structuredClone(deck);
     const el = findById(next, gesture.elementId);
     if (!el) return deck;
-    if (gesture.phase === 'resizing') {
+    if (gesture.phase === "resizing") {
       const cb = gesture.currentBounds;
       el.attrs.x = cb.x;
       el.attrs.y = cb.y;

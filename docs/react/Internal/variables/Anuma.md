@@ -2,7 +2,7 @@
 
 > `const` **Anuma**: `object`
 
-Defined in: [src/react/anumaRuntime.tsx:674](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#674)
+Defined in: [src/react/anumaRuntime.tsx:782](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#782)
 
 Anuma primitive components, namespaced. Use as `<Anuma.Slide>`,
 `<Anuma.Rect>`, etc.

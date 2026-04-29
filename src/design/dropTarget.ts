@@ -1,5 +1,5 @@
-import { type AnumaNode, findById } from '../tools/slides/jsx';
-import type { DropTarget } from './dragLogic';
+import { type AnumaNode, findById } from "../tools/slides/jsx";
+import type { DropTarget } from "./dragLogic";
 
 /**
  * For a flex parent, compute which insertion slot the pointer is over.
@@ -12,7 +12,7 @@ export function computeFlexDropTarget(
   stage: HTMLElement,
   parentId: string,
   draggedId: string,
-  axis: 'row' | 'column',
+  axis: "row" | "column",
   pointerClient: { x: number; y: number },
   scale: number
 ): { index: number; bounds: { x: number; y: number; w: number; h: number } | null } {
@@ -21,7 +21,7 @@ export function computeFlexDropTarget(
   const stageRect = stage.getBoundingClientRect();
   const siblings = Array.from(parentEl.children).filter(
     (el): el is HTMLElement =>
-      el instanceof HTMLElement && typeof el.dataset.id === 'string' && el.dataset.id !== draggedId
+      el instanceof HTMLElement && typeof el.dataset.id === "string" && el.dataset.id !== draggedId
   );
   if (siblings.length === 0) {
     const pr = parentEl.getBoundingClientRect();
@@ -35,12 +35,12 @@ export function computeFlexDropTarget(
       },
     };
   }
-  const siblingRects = siblings.map(el => el.getBoundingClientRect());
+  const siblingRects = siblings.map((el) => el.getBoundingClientRect());
   let dropIndex = siblings.length;
   for (let i = 0; i < siblingRects.length; i++) {
     const r = siblingRects[i];
-    const center = axis === 'column' ? r.top + r.height / 2 : r.left + r.width / 2;
-    const p = axis === 'column' ? pointerClient.y : pointerClient.x;
+    const center = axis === "column" ? r.top + r.height / 2 : r.left + r.width / 2;
+    const p = axis === "column" ? pointerClient.y : pointerClient.x;
     if (p < center) {
       dropIndex = i;
       break;
@@ -50,7 +50,7 @@ export function computeFlexDropTarget(
   const first = siblingRects[0];
   const last = siblingRects[siblingRects.length - 1];
   let lineClient: { left: number; top: number; width: number; height: number };
-  if (axis === 'column') {
+  if (axis === "column") {
     let yClient: number;
     if (dropIndex === 0) yClient = first.top;
     else if (dropIndex === siblingRects.length) yClient = last.bottom;
@@ -103,7 +103,7 @@ export function findContainerAt(
   draggedId: string,
   pointerClient: { x: number; y: number }
 ): HTMLElement | null {
-  if (typeof document === 'undefined') return null;
+  if (typeof document === "undefined") return null;
   const draggedEl = stage.querySelector<HTMLElement>(`[data-id="${draggedId}"]`);
   const candidates = document.elementsFromPoint(pointerClient.x, pointerClient.y);
   for (const el of candidates) {
@@ -111,7 +111,7 @@ export function findContainerAt(
     if (!stage.contains(el)) continue;
     if (draggedEl && (el === draggedEl || draggedEl.contains(el))) continue;
     const tag = el.dataset.anumaTag;
-    if (tag === 'Slide' || tag === 'Screen' || tag === 'Group') return el;
+    if (tag === "Slide" || tag === "Screen" || tag === "Group") return el;
   }
   return null;
 }
@@ -143,10 +143,10 @@ export function resolveDropTarget(
   const parentNode = findById(deck, parentId);
   if (!parentNode) return null;
   const layout = parentNode.attrs.layout;
-  if (layout === 'row' || layout === 'column') {
+  if (layout === "row" || layout === "column") {
     const t = computeFlexDropTarget(stage, parentId, draggedId, layout, pointerClient, scale);
     return {
-      drop: { kind: 'flex', parentId, dropIndex: t.index },
+      drop: { kind: "flex", parentId, dropIndex: t.index },
       indicatorBounds: t.bounds,
     };
   }
@@ -155,8 +155,8 @@ export function resolveDropTarget(
   const dr = draggedEl.getBoundingClientRect();
   const cr = containerEl.getBoundingClientRect();
   const draggedNode = findById(deck, draggedId);
-  const w = typeof draggedNode?.attrs.w === 'number' ? draggedNode.attrs.w : dr.width / scale;
-  const h = typeof draggedNode?.attrs.h === 'number' ? draggedNode.attrs.h : dr.height / scale;
+  const w = typeof draggedNode?.attrs.w === "number" ? draggedNode.attrs.w : dr.width / scale;
+  const h = typeof draggedNode?.attrs.h === "number" ? draggedNode.attrs.h : dr.height / scale;
   // Element rotates around its center (transform-origin: 50% 50%), so
   // AABB.center == element.center. Recover the unrotated top-left from
   // the AABB center + intrinsic w/h.
@@ -166,7 +166,7 @@ export function resolveDropTarget(
   const topLeftClientY = centerClientY - (h * scale) / 2;
   return {
     drop: {
-      kind: 'absolute',
+      kind: "absolute",
       parentId,
       x: (topLeftClientX - cr.left) / scale,
       y: (topLeftClientY - cr.top) / scale,

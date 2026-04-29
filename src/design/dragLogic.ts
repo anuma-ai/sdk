@@ -5,12 +5,12 @@
  * AnumaNode tree. No DOM access here.
  */
 
-import { type AnumaNode, findById, findParentOfId } from '../tools/slides/jsx';
+import { type AnumaNode, findById, findParentOfId } from "../tools/slides/jsx";
 
-export type LayoutMode = 'flex-row' | 'flex-column' | 'absolute';
+export type LayoutMode = "flex-row" | "flex-column" | "absolute";
 
 /** Tags that act as containers (not selectable / draggable themselves). */
-export const NON_SELECTABLE_TAGS: ReadonlySet<string> = new Set(['Deck', 'Slide', 'Screen']);
+export const NON_SELECTABLE_TAGS: ReadonlySet<string> = new Set(["Deck", "Slide", "Screen"]);
 
 /**
  * Determine how a node is positioned within its parent. A node whose
@@ -19,17 +19,17 @@ export const NON_SELECTABLE_TAGS: ReadonlySet<string> = new Set(['Deck', 'Slide'
  */
 export function getLayoutModeOf(deck: AnumaNode, childId: string): LayoutMode {
   const parent = findParentOfId(deck, childId);
-  if (!parent) return 'absolute';
+  if (!parent) return "absolute";
   const layout = parent.attrs.layout;
-  if (layout === 'row') return 'flex-row';
-  if (layout === 'column') return 'flex-column';
-  return 'absolute';
+  if (layout === "row") return "flex-row";
+  if (layout === "column") return "flex-column";
+  return "absolute";
 }
 
 /** True if the node's parent uses a flex layout. */
 export function isFlexChild(deck: AnumaNode, childId: string): boolean {
   const mode = getLayoutModeOf(deck, childId);
-  return mode === 'flex-row' || mode === 'flex-column';
+  return mode === "flex-row" || mode === "flex-column";
 }
 
 function clone(deck: AnumaNode): AnumaNode {
@@ -49,14 +49,14 @@ function clone(deck: AnumaNode): AnumaNode {
  *     the element's current visual gBCR and passes those in.
  */
 export type DropTarget =
-  | { kind: 'flex'; parentId: string; dropIndex: number }
-  | { kind: 'absolute'; parentId: string; x: number; y: number; w: number; h: number };
+  | { kind: "flex"; parentId: string; dropIndex: number }
+  | { kind: "absolute"; parentId: string; x: number; y: number; w: number; h: number };
 
 /** Layout mode of a container node based on its `layout` attr. */
 export function containerLayoutMode(node: AnumaNode): LayoutMode {
-  if (node.attrs.layout === 'row') return 'flex-row';
-  if (node.attrs.layout === 'column') return 'flex-column';
-  return 'absolute';
+  if (node.attrs.layout === "row") return "flex-row";
+  if (node.attrs.layout === "column") return "flex-column";
+  return "absolute";
 }
 
 /**
@@ -78,7 +78,7 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
   const currentParentId = getId(currentParent);
   const sameParent = currentParentId === target.parentId;
 
-  if (target.kind === 'absolute') {
+  if (target.kind === "absolute") {
     el.attrs.x = target.x;
     el.attrs.y = target.y;
     // Always write w/h. For elements that were already absolute with
@@ -100,12 +100,12 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
 
   // Detach from the old parent and re-insert at the target slot.
   const oldIdx = currentParent.children.findIndex(
-    c => typeof c !== 'string' && getId(c) === elementId
+    (c) => typeof c !== "string" && getId(c) === elementId
   );
   if (oldIdx === -1) return deck;
   currentParent.children.splice(oldIdx, 1);
 
-  if (target.kind === 'flex') {
+  if (target.kind === "flex") {
     // dropIndex is in post-removal coords. If target is the same parent
     // we just removed from, that's already consistent.
     const np = findById(next, target.parentId);
@@ -121,14 +121,14 @@ export function commitDrop(deck: AnumaNode, elementId: string, target: DropTarge
 }
 
 function getId(node: AnumaNode): string | undefined {
-  return typeof node.attrs.id === 'string' ? node.attrs.id : undefined;
+  return typeof node.attrs.id === "string" ? node.attrs.id : undefined;
 }
 
 /** Bounds in slide-px, in the element's parent's local coordinate space. */
 export type ResizeBounds = { x: number; y: number; w: number; h: number };
 
 /** Eight cardinal/intercardinal handle positions around a selected element. */
-export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
 /**
  * Direction of each handle in slide-px space:
@@ -148,14 +148,14 @@ export const RESIZE_HANDLE_DIRS: Record<ResizeHandle, { dx: -1 | 0 | 1; dy: -1 |
 
 /** CSS cursor value for each handle, so the user gets the right grab affordance. */
 export const RESIZE_HANDLE_CURSORS: Record<ResizeHandle, string> = {
-  nw: 'nwse-resize',
-  se: 'nwse-resize',
-  ne: 'nesw-resize',
-  sw: 'nesw-resize',
-  n: 'ns-resize',
-  s: 'ns-resize',
-  e: 'ew-resize',
-  w: 'ew-resize',
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  n: "ns-resize",
+  s: "ns-resize",
+  e: "ew-resize",
+  w: "ew-resize",
 };
 
 /**
@@ -179,9 +179,9 @@ export function commitResize(deck: AnumaNode, elementId: string, bounds: ResizeB
   if (!el) return deck;
   const parent = findParentOfId(next, elementId);
   const layout = parent?.attrs.layout;
-  if (layout === 'column') {
+  if (layout === "column") {
     el.attrs.h = bounds.h;
-  } else if (layout === 'row') {
+  } else if (layout === "row") {
     el.attrs.w = bounds.w;
   } else {
     el.attrs.x = bounds.x;
@@ -219,7 +219,7 @@ export function canMultiDrag(deck: AnumaNode, ids: string[]): boolean {
   if (firstId === undefined) return false;
   const firstParent = findParentOfId(deck, firstId);
   if (!firstParent) return false;
-  if (firstParent.attrs.layout === 'row' || firstParent.attrs.layout === 'column') return false;
+  if (firstParent.attrs.layout === "row" || firstParent.attrs.layout === "column") return false;
   for (const id of ids) {
     if (findParentOfId(deck, id) !== firstParent) return false;
   }
@@ -245,7 +245,7 @@ export function commitMultiDrag(
   for (const id of elementIds) {
     const el = findById(next, id);
     if (!el) continue;
-    if (typeof el.attrs.x !== 'number' || typeof el.attrs.y !== 'number') continue;
+    if (typeof el.attrs.x !== "number" || typeof el.attrs.y !== "number") continue;
     el.attrs.x += delta.x;
     el.attrs.y += delta.y;
     any = true;
@@ -280,5 +280,5 @@ export function commitTextChange(deck: AnumaNode, elementId: string, newText: st
  * elements that's the entire content.
  */
 export function getTextContent(node: AnumaNode): string {
-  return node.children.filter((c): c is string => typeof c === 'string').join('');
+  return node.children.filter((c): c is string => typeof c === "string").join("");
 }

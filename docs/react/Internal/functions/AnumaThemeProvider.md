@@ -2,7 +2,7 @@
 
 > **AnumaThemeProvider**(`__namedParameters`: [`AnumaThemeProviderProps`](../interfaces/AnumaThemeProviderProps.md)): `ReactElement`
 
-Defined in: [src/react/anumaRuntime.tsx:92](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#92)
+Defined in: [src/react/anumaRuntime.tsx:125](https://github.com/anuma-ai/sdk/blob/main/src/react/anumaRuntime.tsx#125)
 
 Wrap any Anuma render with a theme. Tokens like `color: "textPrimary"` in
 `style` props (or `fill="accent"` on shapes) resolve against the theme.
