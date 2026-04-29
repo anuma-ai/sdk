@@ -341,7 +341,7 @@ IMPORTANT: Call add_slide ONE AT A TIME (sequentially, one call per assistant tu
 
 Example slideJsx:
   <Anuma.Slide id="cover">
-    <Anuma.Text id="title" x={10} y={40} w={80} h={20} fontSize={6} fontRole="heading" fontWeight={700} color="textPrimary" align="center">Welcome</Anuma.Text>
+    <Anuma.Text id="title" x={96} y={216} w={768} h={108} fontSize={58} fontRole="heading" fontWeight={700} color="textPrimary" align="center">Welcome</Anuma.Text>
   </Anuma.Slide>
 
 Include the shared header pattern on every content slide (skip on cover + section-dark chapter breaks).`,
