@@ -44,6 +44,8 @@ import { isKnownFont, renderFontLibrary } from "./fonts";
 
 export type { FontCategory, FontSpec } from "./fonts";
 export { buildFontsUrl, FONT_LIBRARY, getFontByName, isKnownFont } from "./fonts";
+export type { LegacyDeckJson } from "./legacy";
+export { convertLegacyDeckJson, isLegacyDeckJson } from "./legacy";
 import type { AnumaNode } from "./jsx";
 import {
   AnumaJsxError,

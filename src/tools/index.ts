@@ -179,6 +179,7 @@ export type {
   FontSpec,
   KnownTag,
   LayoutMode,
+  LegacyDeckJson,
   SlideToolSet,
   ThemeAttr,
 } from "./slides";
@@ -187,6 +188,7 @@ export {
   AnumaJsxError,
   buildFontsUrl,
   buildSlideSystemPrompt,
+  convertLegacyDeckJson,
   createSlideTools,
   findById,
   findParentOfId,
@@ -201,6 +203,7 @@ export {
   isAnumaTag,
   isHtmlTag,
   isKnownFont,
+  isLegacyDeckJson,
   LAYOUT_MODES,
   parseJsx,
   PATCH_SLIDES_SCHEMA,
