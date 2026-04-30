@@ -227,6 +227,21 @@ export type RunToolLoopOptions = {
    */
   transport?: StreamingTransport;
   /**
+   * Called before the first LLM request with the classification result
+   * for the last user message. To inject context (e.g. web search results)
+   * into the conversation, return an array of messages — they are appended
+   * to the conversation for the initial LLM call and all tool-loop rounds
+   * that follow. Return nothing to leave the conversation unchanged.
+   *
+   * The tool loop does not perform the search itself — it runs the
+   * classifier and hands the result to this callback.
+   */
+  onWebSearchClassification?: (result: {
+    needsWebSearch: boolean;
+    searchScore: number;
+    noSearchScore: number;
+  }) => LlmapiMessage[] | void | Promise<LlmapiMessage[] | void>;
+  /**
    * Maximum number of connector tool calls (notion, google calendar, google drive)
    * before they are removed from subsequent rounds. Set to `Infinity` to disable.
    * Only applies to fast models (cerebras) by default.
@@ -347,7 +362,6 @@ const defaultTransport: StreamingTransport = (options) => {
  */
 export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolLoopResult> {
   const {
-    messages,
     model,
     token,
     baseUrl = BASE_URL,
@@ -373,8 +387,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
+    onWebSearchClassification,
     maxConnectorCalls = 2,
   } = options;
+  // `messages` is mutable so the web-search classifier callback can inject
+  // context (e.g. search results) before the first LLM request.
+  let messages = options.messages;
 
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
@@ -400,6 +418,41 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   if (signal?.aborted) {
     return { data: null, error: "Request aborted" };
+  }
+
+  // Run web search classifier if callback provided
+  if (onWebSearchClassification) {
+    try {
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+      if (lastUserMsg) {
+        const content = lastUserMsg.content;
+        const text =
+          typeof content === "string"
+            ? content
+            : Array.isArray(content)
+              ? content
+                  .filter((c) => c?.type === "text")
+                  .map((c) => c.text ?? "")
+                  .join(" ")
+              : "";
+
+        if (text.length > 0) {
+          const { classifyWebSearch } = await import("./webSearchClassifier");
+          const classification = await classifyWebSearch(text, {
+            apiKey: headers?.["X-API-Key"],
+            getToken: token ? () => Promise.resolve(token) : undefined,
+            baseUrl,
+          });
+          const extra = await onWebSearchClassification(classification);
+          if (Array.isArray(extra) && extra.length > 0) {
+            messages = [...messages, ...extra];
+          }
+        }
+      }
+    } catch (err) {
+      // Classifier failure is non-fatal — proceed without classification
+      console.warn("[runToolLoop] Web search classification failed:", err);
+    }
   }
 
   try {
