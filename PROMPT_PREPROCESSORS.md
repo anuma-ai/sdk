@@ -110,16 +110,16 @@ const { needsWebSearch, searchScore, noSearchScore } = await classifyWebSearch(
 
 `classifyWebSearchBatch` accepts an array of prompts and embeds them in a single batch call.
 
-## Built-in: `createCryptoPricePreProcessor`
+## Built-in: `createPricePreProcessor`
 
-Same shape as the web-search pre-processor, but classifies whether the prompt is asking for a current price quote (crypto, stocks, or FX). The SDK does **not** run the price lookup itself — the caller wires up CoinGecko, DexScreener, an on-chain oracle, a stock-quote API, or whatever they like.
+Same shape as the web-search pre-processor, but classifies whether the prompt is asking for a current price quote. Covers crypto, stocks, and FX queries — anything where the user wants a current price/quote/rate. The SDK does **not** run the price lookup itself — the caller wires up CoinGecko, DexScreener, an on-chain oracle, a stock-quote API, an FX feed, or whatever they like.
 
 ### Basic usage
 
 ```ts
-import { runToolLoop, createCryptoPricePreProcessor } from "@anuma/sdk/server";
+import { runToolLoop, createPricePreProcessor } from "@anuma/sdk/server";
 
-const cryptoPrice = createCryptoPricePreProcessor({
+const price = createPricePreProcessor({
   fetchPriceData: async (prompt, { signal }) => {
     const tickers = extractTickers(prompt); // caller-supplied
     const quotes = await myProvider.getQuotes(tickers, { signal });
@@ -131,7 +131,7 @@ await runToolLoop({
   messages,
   model,
   token,
-  preProcessors: [cryptoPrice],
+  preProcessors: [price],
 });
 ```
 
@@ -142,9 +142,9 @@ When `fetchPriceData` returns a string, the SDK wraps it in a user-role message 
 Omit `fetchPriceData` to only observe the classification:
 
 ```ts
-const observer = createCryptoPricePreProcessor({
-  onClassification: ({ needsCryptoPrice, priceScore, noPriceScore }) => {
-    metrics.record({ needsCryptoPrice, priceScore, noPriceScore });
+const observer = createPricePreProcessor({
+  onClassification: ({ needsPrice, priceScore, noPriceScore }) => {
+    metrics.record({ needsPrice, priceScore, noPriceScore });
   },
 });
 ```
@@ -158,20 +158,20 @@ const observer = createCryptoPricePreProcessor({
 
 Classification only tells you *"this prompt is asking for prices"* — not *"about which tickers"*. The caller's `fetchPriceData` is responsible for extracting tickers from the prompt (regex, named-entity match, or a small LLM call). The SDK is intentionally unopinionated here.
 
-## Low-level: `classifyCryptoPrice`
+## Low-level: `classifyPrice`
 
 If you need classification outside of `runToolLoop`, use the standalone API:
 
 ```ts
-import { classifyCryptoPrice } from "@anuma/sdk/server";
+import { classifyPrice } from "@anuma/sdk/server";
 
-const { needsCryptoPrice, priceScore, noPriceScore } = await classifyCryptoPrice(
+const { needsPrice, priceScore, noPriceScore } = await classifyPrice(
   prompt,
   { apiKey, baseUrl },
 );
 ```
 
-`classifyCryptoPriceBatch` accepts an array of prompts and embeds them in a single batch call.
+`classifyPriceBatch` accepts an array of prompts and embeds them in a single batch call.
 
 ## Writing a custom pre-processor
 

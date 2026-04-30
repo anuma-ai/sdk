@@ -1,5 +1,5 @@
 /**
- * Crypto-Price Classifier
+ * Price Classifier
  *
  * Determines whether a user prompt is asking for current price data
  * (crypto, stocks, or FX) before being sent to the LLM. Compares the
@@ -9,14 +9,14 @@
  * No LLM calls — one embedding per prompt + two cosine similarities.
  *
  * To regenerate centroids after changing reference phrases:
- *   PORTAL_API_KEY=... npx tsx scripts/generateCryptoPriceCentroids.ts
+ *   PORTAL_API_KEY=... npx tsx scripts/generatePriceCentroids.ts
  */
 
 import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
-import { noPriceCentroid, priceCentroid } from "./cryptoPriceCentroids";
 import type { PromptPreProcessor } from "./preProcessor";
+import { noPriceCentroid, priceCentroid } from "./priceCentroids";
 
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) {
@@ -38,16 +38,16 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-export interface CryptoPriceClassification {
+export interface PriceClassification {
   /** Whether the prompt likely needs price data. */
-  needsCryptoPrice: boolean;
+  needsPrice: boolean;
   /** Cosine similarity to the "needs price" centroid. */
   priceScore: number;
   /** Cosine similarity to the "no price" centroid. */
   noPriceScore: number;
 }
 
-interface CryptoPriceClassifierOptions extends EmbeddingOptions {
+interface PriceClassifierOptions extends EmbeddingOptions {
   /**
    * Score margin: the price score must exceed the no-price score
    * by at least this amount to classify as "needs price data".
@@ -56,27 +56,27 @@ interface CryptoPriceClassifierOptions extends EmbeddingOptions {
   margin?: number;
 }
 
-function classify(embedding: number[], margin: number): CryptoPriceClassification {
+function classify(embedding: number[], margin: number): PriceClassification {
   const priceScore = cosineSimilarity(embedding, priceCentroid);
   const noPriceScore = cosineSimilarity(embedding, noPriceCentroid);
 
   return {
-    needsCryptoPrice: priceScore > noPriceScore + margin,
+    needsPrice: priceScore > noPriceScore + margin,
     priceScore,
     noPriceScore,
   };
 }
 
 /**
- * Classify whether a prompt needs crypto / stock / FX price data.
+ * Classify whether a prompt needs price data (crypto, stocks, or FX).
  *
  * Embeds the prompt and compares it against the pre-computed
  * price and no-price centroid vectors.
  */
-export async function classifyCryptoPrice(
+export async function classifyPrice(
   prompt: string,
-  options: CryptoPriceClassifierOptions
-): Promise<CryptoPriceClassification> {
+  options: PriceClassifierOptions
+): Promise<PriceClassification> {
   const { margin = 0.02, ...embeddingOptions } = options;
   const embedding = await generateEmbedding(prompt, embeddingOptions);
   return classify(embedding, margin);
@@ -86,16 +86,16 @@ export async function classifyCryptoPrice(
  * Batch-classify multiple prompts. Embeds all prompts in one batch
  * call for efficiency.
  */
-export async function classifyCryptoPriceBatch(
+export async function classifyPriceBatch(
   prompts: string[],
-  options: CryptoPriceClassifierOptions
-): Promise<CryptoPriceClassification[]> {
+  options: PriceClassifierOptions
+): Promise<PriceClassification[]> {
   const { margin = 0.02, ...embeddingOptions } = options;
   const embeddings = await generateEmbeddings(prompts, embeddingOptions);
   return embeddings.map((emb) => classify(emb, margin));
 }
 
-export interface CryptoPricePreProcessorOptions {
+export interface PricePreProcessorOptions {
   /**
    * Called with the caller's price provider when the classifier decides
    * the prompt is asking for price data. Return either a plain string
@@ -117,7 +117,7 @@ export interface CryptoPricePreProcessorOptions {
    */
   margin?: number;
   /** Observe the classification without injecting anything. */
-  onClassification?: (result: CryptoPriceClassification) => void;
+  onClassification?: (result: PriceClassification) => void;
 }
 
 /**
@@ -126,15 +126,18 @@ export interface CryptoPricePreProcessorOptions {
  * decides the prompt is asking for prices — invokes the caller-supplied
  * `fetchPriceData` and injects the result into the conversation.
  *
+ * Covers crypto, stocks, and FX queries — anything where the user is
+ * asking for a current price/quote/rate.
+ *
  * The SDK does not run the price lookup itself; the caller wires up
  * whichever provider they want (CoinGecko, DexScreener, an on-chain
- * oracle, a stock-quote API, etc.).
+ * oracle, a stock-quote API, an FX feed, etc.).
  *
  * @example Basic usage with a price provider
  * ```ts
- * import { runToolLoop, createCryptoPricePreProcessor } from "@anuma/sdk/server";
+ * import { runToolLoop, createPricePreProcessor } from "@anuma/sdk/server";
  *
- * const cryptoPrice = createCryptoPricePreProcessor({
+ * const price = createPricePreProcessor({
  *   fetchPriceData: async (prompt, { signal }) => {
  *     const tickers = extractTickers(prompt); // caller-supplied
  *     const quotes = await myProvider.getQuotes(tickers, { signal });
@@ -146,27 +149,27 @@ export interface CryptoPricePreProcessorOptions {
  *   messages,
  *   model,
  *   token,
- *   preProcessors: [cryptoPrice],
+ *   preProcessors: [price],
  * });
  * ```
  *
  * @example Observer mode — only log classification, inject nothing
  * ```ts
- * const observer = createCryptoPricePreProcessor({
- *   onClassification: ({ needsCryptoPrice, priceScore, noPriceScore }) => {
- *     metrics.record({ needsCryptoPrice, priceScore, noPriceScore });
+ * const observer = createPricePreProcessor({
+ *   onClassification: ({ needsPrice, priceScore, noPriceScore }) => {
+ *     metrics.record({ needsPrice, priceScore, noPriceScore });
  *   },
  * });
  * ```
  */
-export function createCryptoPricePreProcessor(
-  options: CryptoPricePreProcessorOptions = {}
+export function createPricePreProcessor(
+  options: PricePreProcessorOptions = {}
 ): PromptPreProcessor {
   const margin = options.margin ?? 0.02;
   return async ({ prompt, embedding, signal }) => {
     const classification = classify(embedding, margin);
     options.onClassification?.(classification);
-    if (!classification.needsCryptoPrice || !options.fetchPriceData) return;
+    if (!classification.needsPrice || !options.fetchPriceData) return;
     const results = await options.fetchPriceData(prompt, { signal });
     if (typeof results === "string") {
       if (!results) return;

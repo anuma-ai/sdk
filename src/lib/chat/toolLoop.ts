@@ -7,6 +7,7 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { generateEmbedding } from "../memoryEngine/embeddings";
 import type { PromptPreProcessor } from "./preProcessor";
 
 /**
@@ -439,10 +440,6 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     try {
       const text = extractLastUserText(messages);
       if (text.length > 0) {
-        // Lazy-load to keep memoryEngine (and its transitive WatermelonDB
-        // dependency via db/chat/operations) out of bundles that don't
-        // actually use pre-processors.
-        const { generateEmbedding } = await import("../memoryEngine/embeddings");
         const embedding = await generateEmbedding(text, {
           apiKey: headers?.["X-API-Key"],
           getToken: token ? () => Promise.resolve(token) : undefined,
