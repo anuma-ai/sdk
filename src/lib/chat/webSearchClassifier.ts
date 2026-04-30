@@ -11,8 +11,10 @@
  *   PORTAL_API_KEY=... npx tsx scripts/generateSearchCentroids.ts
  */
 
+import type { LlmapiMessage } from "../../client";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import type { PromptPreProcessor } from "./preProcessor";
 import { noSearchCentroid, searchCentroid } from "./webSearchCentroids";
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -34,7 +36,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-interface WebSearchClassification {
+export interface WebSearchClassification {
   /** Whether the prompt likely needs a web search. */
   needsWebSearch: boolean;
   /** Cosine similarity to the "needs search" centroid. */
@@ -89,4 +91,99 @@ export async function classifyWebSearchBatch(
   const { margin = 0.02, ...embeddingOptions } = options;
   const embeddings = await generateEmbeddings(prompts, embeddingOptions);
   return embeddings.map((emb) => classify(emb, margin));
+}
+
+export interface WebSearchPreProcessorOptions {
+  /**
+   * Called with the caller's search provider when the classifier decides
+   * a web search is needed. Return either a plain string (the SDK will
+   * wrap it in a default user message) or a fully-formed message array
+   * (full control over role/shape). Omit to run in observer mode —
+   * classification still fires but no messages are injected.
+   *
+   * The `signal` argument is forwarded from the tool loop so long-running
+   * search requests can be aborted when the caller aborts.
+   */
+  fetchSearchResults?: (
+    prompt: string,
+    options: { signal?: AbortSignal }
+  ) => Promise<string | LlmapiMessage[]>;
+  /**
+   * Score margin: `searchScore` must exceed `noSearchScore` by at least
+   * this amount to classify as "needs web search".
+   * @default 0.02
+   */
+  margin?: number;
+  /** Observe the classification without injecting anything. */
+  onClassification?: (result: WebSearchClassification) => void;
+}
+
+/**
+ * Build a pre-processor that runs web-search classification on the
+ * shared embedding provided by `runToolLoop`, and — if the classifier
+ * decides a search is warranted — invokes the caller-supplied
+ * `fetchSearchResults` and injects the result into the conversation.
+ *
+ * @example Basic usage with a search provider
+ * ```ts
+ * import { runToolLoop, createWebSearchPreProcessor } from "@anuma/sdk/server";
+ *
+ * const webSearch = createWebSearchPreProcessor({
+ *   fetchSearchResults: async (prompt, { signal }) => {
+ *     const res = await mySearchProvider.query(prompt, { signal });
+ *     return res.results.map((r) => `- ${r.title}: ${r.snippet}`).join("\n");
+ *   },
+ * });
+ *
+ * await runToolLoop({
+ *   messages,
+ *   model,
+ *   token,
+ *   preProcessors: [webSearch],
+ * });
+ * ```
+ *
+ * @example Observer mode — only log classification, inject nothing
+ * ```ts
+ * const observer = createWebSearchPreProcessor({
+ *   onClassification: ({ needsWebSearch, searchScore, noSearchScore }) => {
+ *     metrics.record({ needsWebSearch, searchScore, noSearchScore });
+ *   },
+ * });
+ * ```
+ *
+ * @example Full control — return a custom message shape
+ * ```ts
+ * const webSearch = createWebSearchPreProcessor({
+ *   fetchSearchResults: async (prompt, { signal }) => {
+ *     const results = await mySearchProvider.query(prompt, { signal });
+ *     return [
+ *       {
+ *         role: "system",
+ *         content: [{ type: "text", text: `Search results for "${prompt}":\n${formatResults(results)}` }],
+ *       },
+ *     ];
+ *   },
+ * });
+ * ```
+ */
+export function createWebSearchPreProcessor(
+  options: WebSearchPreProcessorOptions = {}
+): PromptPreProcessor {
+  const margin = options.margin ?? 0.02;
+  return async ({ prompt, embedding, signal }) => {
+    const classification = classify(embedding, margin);
+    options.onClassification?.(classification);
+    if (!classification.needsWebSearch || !options.fetchSearchResults) return;
+    const results = await options.fetchSearchResults(prompt, { signal });
+    if (typeof results === "string") {
+      return [
+        {
+          role: "user",
+          content: [{ type: "text", text: `Web search context:\n${results}` }],
+        },
+      ];
+    }
+    return results;
+  };
 }

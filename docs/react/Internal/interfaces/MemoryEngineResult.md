@@ -38,7 +38,7 @@ When the message was created
 
 ### role
 
-> **role**: `"assistant"` | `"user"`
+> **role**: `"user"` | `"assistant"`
 
 Defined in: [src/lib/memoryEngine/types.ts:43](https://github.com/anuma-ai/sdk/blob/main/src/lib/memoryEngine/types.ts#43)
 
