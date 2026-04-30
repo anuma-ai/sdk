@@ -31,6 +31,15 @@ const encryptionKeyStore = new Map<string, StoredKeys>();
 const pendingKeyRequests = new Map<string, Promise<void>>();
 
 /**
+ * Monotonic counter incremented whenever `clearAllEncryptionState()` runs.
+ * In-flight async key/key-pair derivations capture this value before signing
+ * and refuse to write back into the module-level stores if the epoch has
+ * advanced in the meantime — preventing a stale session's signature from
+ * silently repopulating the stores after logout.
+ */
+let sessionEpoch = 0;
+
+/**
  * Cache for imported CryptoKey objects.
  * Avoids re-importing the same key on every encrypt/decrypt operation.
  * Keys are cached per wallet address and cleared when the encryption key is cleared.
@@ -140,11 +149,52 @@ export function clearEncryptionKey(address: string): void {
 }
 
 /**
- * Clears all encryption keys from memory
+ * Clears all encryption-related state from memory and any derived persistence.
+ *
+ * This is the canonical session-teardown entry point. It wipes every module-level
+ * map that retains key material or listeners tied to a session: the raw
+ * encryption keys, cached imported CryptoKey objects, availability callbacks,
+ * pending sign-in flights, and derived ECDH key pairs. It also removes any
+ * persisted ECDH key pairs from localStorage so they can't be decrypted by a
+ * subsequent user on a shared browser.
+ *
+ * Call this on logout / session-end to prevent cross-user key leakage on shared
+ * browsers. If you manage auth outside the SDK, wire this into your logout flow.
+ *
+ * @example
+ * ```tsx
+ * import { clearAllEncryptionState } from "@anuma/sdk/react";
+ *
+ * async function handleLogout() {
+ *   clearAllEncryptionState();
+ *   await privy.logout();
+ * }
+ * ```
  */
-export function clearAllEncryptionKeys(): void {
+export function clearAllEncryptionState(): void {
+  // Bump the epoch first so any in-flight `requestEncryptionKey` /
+  // `requestKeyPair` promises that resolve after this point become no-ops
+  // instead of re-populating the stores with the previous session's material.
+  sessionEpoch += 1;
+
   encryptionKeyStore.clear();
   cryptoKeyCache.clear();
+  keyAvailableCallbacks.clear();
+  pendingKeyRequests.clear();
+
+  clearAllKeyPairs();
+}
+
+/**
+ * Clears all encryption keys from memory.
+ *
+ * @deprecated Use {@link clearAllEncryptionState} instead. This function is kept
+ * as an alias for backwards compatibility and now delegates to the canonical
+ * teardown, which additionally clears `keyAvailableCallbacks`, pending key
+ * requests, and derived ECDH key pairs (both in-memory and persisted).
+ */
+export function clearAllEncryptionKeys(): void {
+  clearAllEncryptionState();
 }
 
 /**
@@ -750,6 +800,7 @@ export async function requestEncryptionKey(
     return;
   }
 
+  const startEpoch = sessionEpoch;
   const promise = (async () => {
     // Prefer embedded wallet signer for silent signing, fall back to standard signMessage
     // Always disable wallet UIs for a seamless experience
@@ -780,6 +831,13 @@ export async function requestEncryptionKey(
       deriveKeyFromSignatureV3(signature),
     ]);
 
+    // If `clearAllEncryptionState()` ran while we were signing/deriving, drop
+    // the result on the floor — writing it back would silently restore the
+    // previous session's key material after logout.
+    if (sessionEpoch !== startEpoch) {
+      return;
+    }
+
     // Store both keys in memory for dual-key migration support
     setStoredKey(walletAddress, { legacy: legacyKey, current: currentKey });
 
@@ -791,7 +849,13 @@ export async function requestEncryptionKey(
   try {
     await promise;
   } finally {
-    pendingKeyRequests.delete(walletAddress);
+    // Gate on identity: if `clearAllEncryptionState()` ran mid-flight and a
+    // subsequent caller stored a fresh promise for this address, deleting
+    // unconditionally here would evict the new entry and break dedup,
+    // letting a third caller trigger a duplicate sign prompt.
+    if (pendingKeyRequests.get(walletAddress) === promise) {
+      pendingKeyRequests.delete(walletAddress);
+    }
   }
 }
 
@@ -804,10 +868,15 @@ const KEYPAIR_STORAGE_PREFIX = "ecdh_keypair_";
  * Persists an ECDH keypair to localStorage with AES-GCM encryption
  * The private key is encrypted using the encryption key derived from the wallet signature
  * @param address - The wallet address
+ * @param startEpoch - The `sessionEpoch` captured by the caller before the
+ *   signing/derivation flow began. Re-checked immediately before `setItem` so a
+ *   `clearAllEncryptionState()` that ran mid-flight (after sweeping
+ *   localStorage) can't be clobbered by a late write resurrecting stale
+ *   ciphertext for the previous session.
  * @returns Promise that resolves when keypair is persisted
  * @throws Error if encryption key is not available or persistence fails
  */
-async function persistKeyPair(address: string): Promise<void> {
+async function persistKeyPair(address: string, startEpoch: number): Promise<void> {
   if (typeof window === "undefined") {
     return; // SSR - skip persistence
   }
@@ -868,6 +937,13 @@ async function persistKeyPair(address: string): Promise<void> {
     // Store in localStorage
     const storageKey = `${KEYPAIR_STORAGE_PREFIX}${address}`;
     const encryptedHex = bytesToHex(combined);
+    // Last-chance epoch check: `clearAllEncryptionState()` may have swept
+    // localStorage after our caller's initial check but before this write
+    // lands. Skipping here keeps teardown final instead of resurrecting
+    // stale ciphertext for the previous session.
+    if (sessionEpoch !== startEpoch) {
+      return;
+    }
     localStorage.setItem(storageKey, encryptedHex);
   } catch (err) {
     // eslint-disable-next-line preserve-caught-error -- ES2020 target doesn't support ErrorOptions
@@ -1036,10 +1112,14 @@ export async function requestKeyPair(
     return; // Key pair already exists in memory, no need to sign again
   }
 
+  const startEpoch = sessionEpoch;
+
   // Try to load from localStorage if encryption key is available
   try {
     const persistedKeyPair = await loadPersistedKeyPair(walletAddress);
     if (persistedKeyPair) {
+      // Abort if logout raced with us.
+      if (sessionEpoch !== startEpoch) return;
       // Store in memory for faster access
       setStoredKeyPair(walletAddress, persistedKeyPair);
       return; // Successfully loaded from persistence, no need to sign
@@ -1077,6 +1157,13 @@ export async function requestKeyPair(
   // Derive key pair from signature
   const keyPair = await deriveKeyPairFromSignature(signature, walletAddress);
 
+  // If `clearAllEncryptionState()` ran while we were signing/deriving, drop
+  // the result on the floor — writing it back would silently restore the
+  // previous session's key pair after logout.
+  if (sessionEpoch !== startEpoch) {
+    return;
+  }
+
   // Store the derived key pair in memory
   setStoredKeyPair(walletAddress, keyPair);
 
@@ -1085,7 +1172,7 @@ export async function requestKeyPair(
     // Ensure encryption keys exist before persisting
     const keys = encryptionKeyStore.get(walletAddress);
     if (keys) {
-      await persistKeyPair(walletAddress);
+      await persistKeyPair(walletAddress, startEpoch);
     }
   } catch (error) {
     // Persistence is optional - log warning but don't fail
@@ -1136,10 +1223,35 @@ export function clearKeyPair(address: string): void {
 }
 
 /**
- * Clears all key pairs from memory
+ * Clears all key pairs from memory and any persisted entries in localStorage.
+ *
+ * Matches the persistence behavior of the per-address {@link clearKeyPair};
+ * without this, `clearAllKeyPairs()` would leave `ecdh_keypair_*` ciphertext
+ * behind in storage while `clearKeyPair(address)` removes it.
  */
 export function clearAllKeyPairs(): void {
   keyPairStore.clear();
+
+  if (typeof localStorage !== "undefined") {
+    try {
+      const staleKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(KEYPAIR_STORAGE_PREFIX)) {
+          staleKeys.push(key);
+        }
+      }
+      for (const key of staleKeys) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore per-entry storage errors */
+        }
+      }
+    } catch {
+      /* ignore storage errors (e.g. localStorage access denied) */
+    }
+  }
 }
 
 /**

@@ -1,6 +1,45 @@
+import { jsonrepair } from "jsonrepair";
+
 import type { LlmapiChatCompletionTool, LlmapiMessage } from "../../../client";
 import { getLogger } from "../../logger";
 import type { AccumulatedToolCall, StreamAccumulator, ToolConfig, ToolExecutor } from "./types";
+
+/**
+ * Parse tool arguments, attempting JSON repair on malformed output. Small or
+ * fast models (Gemini Flash, some Qwen variants) occasionally emit JSON with
+ * trailing commas, missing quotes, or truncated strings. `jsonrepair` fixes
+ * the common shapes; only when repair itself fails do we surface an error.
+ *
+ * Returns `{ args }` on success or `{ error }` with the original parse error
+ * if the string can't be recovered.
+ */
+function parseToolArguments(raw: string): { args: Record<string, unknown> } | { error: string } {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { args: parsed as Record<string, unknown> };
+    }
+    return {
+      error: `Tool arguments must be a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}`,
+    };
+  } catch (e) {
+    const originalError = e instanceof Error ? e.message : String(e);
+    try {
+      const repaired = jsonrepair(raw);
+      const parsed = JSON.parse(repaired) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return { args: parsed as Record<string, unknown> };
+      }
+      return {
+        error: `Tool arguments (after repair) must be a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}`,
+      };
+    } catch {
+      // Repair itself failed — surface the original parse error so callers see
+      // the real underlying issue, not a confusing repair-stage message.
+      return { error: `Failed to parse tool arguments: ${originalError}` };
+    }
+  }
+}
 
 /**
  * Validation error types
@@ -451,6 +490,41 @@ export function isAbortError(err: unknown): boolean {
 }
 
 /**
+ * Checks if an SSE chunk is an in-stream error event from Bifrost.
+ *
+ * Some providers (OpenRouter Qwen, MiniMax) keep the HTTP connection open on
+ * an upstream timeout and emit a structured error *inside* the stream instead
+ * of returning a 5xx. Shape:
+ *
+ *   { "error": { "message": "...", "type": "timeout_error", "code": "timeout",
+ *                "trace_id": "...", "request_id": "..." } }
+ *
+ * If we don't detect this, the stream just ends silently with no tool call
+ * and no usable response. Detecting it lets the strategy throw, which the
+ * tool loop surfaces as a normal error to the caller.
+ */
+export function getInStreamErrorMessage(chunk: unknown): string | null {
+  if (!chunk || typeof chunk !== "object") return null;
+  const obj = chunk as { error?: unknown };
+  const err = obj.error;
+  if (!err || typeof err !== "object") return null;
+  const e = err as { message?: unknown; type?: unknown; code?: unknown; trace_id?: unknown };
+  const message = typeof e.message === "string" ? e.message : "";
+  const type = typeof e.type === "string" ? e.type : "";
+  const code = typeof e.code === "string" ? e.code : "";
+  const traceId = typeof e.trace_id === "string" ? e.trace_id : "";
+  // Need at least one descriptor; otherwise this isn't a structured error.
+  if (!message && !type && !code) return null;
+  const parts: string[] = [];
+  if (type) parts.push(type);
+  if (code && code !== type) parts.push(code);
+  const label = parts.length > 0 ? `[${parts.join(" ")}] ` : "";
+  const fallback = message || type || code || "in-stream error";
+  const traced = traceId ? ` (trace_id: ${traceId})` : "";
+  return `${label}${fallback}${traced}`;
+}
+
+/**
  * Checks if an SSE chunk is a DONE marker
  */
 export function isDoneMarker(chunk: unknown): boolean {
@@ -560,17 +634,14 @@ export async function executeToolCall(
   executor: ToolExecutor,
   timeoutMs: number = TOOL_EXECUTOR_TIMEOUT_MS
 ): Promise<ToolExecutionResult> {
-  // Parse arguments
+  // Parse arguments (with JSON repair fallback for malformed LLM output).
   let args: Record<string, unknown> = {};
   if (toolCall.arguments) {
-    try {
-      args = JSON.parse(toolCall.arguments) as Record<string, unknown>;
-    } catch (e) {
-      return {
-        error: `Failed to parse tool arguments: ${e instanceof Error ? e.message : String(e)}`,
-        errorType: "parse",
-      };
+    const parsed = parseToolArguments(toolCall.arguments);
+    if ("error" in parsed) {
+      return { error: parsed.error, errorType: "parse" };
     }
+    args = parsed.args;
   }
 
   try {

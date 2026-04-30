@@ -277,12 +277,12 @@ describe("useChat multi-turn tool loop", () => {
     expect(messageOutput?.content?.[0]?.text).toBe("Final answer");
   });
 
-  // ── Safety: MAX_TOOL_ITERATIONS ────────────────────────────
+  // ── Safety: hard iteration cap ─────────────────────────────
 
-  it("stops after 10 tool iterations even if model keeps requesting tools", async () => {
+  it("stops at the hard cap (maxToolRounds + 5) even if model keeps requesting tools", async () => {
     const loopTool = makeAutoTool("loop_tool", async (args) => `iteration ${args.n}`);
 
-    // Every call returns another tool call — the loop must stop at 10
+    // Every call returns another tool call — the loop must stop at the hard cap.
     let callCount = 0;
     mockCreateSseClient.mockImplementation(() => {
       callCount++;
@@ -297,11 +297,12 @@ describe("useChat multi-turn tool loop", () => {
         messages: [{ role: "user", content: [{ type: "text", text: "Loop" }] }],
         model: "test-model",
         tools: [loopTool],
+        maxToolRounds: 3,
       });
     });
 
-    // 1 initial + 10 continuations = 11 total SSE calls
-    expect(mockCreateSseClient).toHaveBeenCalledTimes(11);
+    // 1 initial + (3 + 5) continuations = 9 total SSE calls
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(9);
     // Should still return a response (not hang or throw)
     expect(response).toBeDefined();
     expect(response?.error).toBeNull();
@@ -1424,5 +1425,120 @@ describe("useChat multi-turn tool loop", () => {
     const toolNames = continuationBody.tools?.map((t: any) => t.function?.name ?? t.name);
     expect(toolNames).not.toContain("memory_save");
     expect(toolNames).toContain("web_search");
+  });
+
+  // ── Provider-sent in-stream error event ─────────────────────
+
+  it("surfaces a provider-sent in-stream error (e.g. timeout) as a real error", async () => {
+    // Some upstream providers end a streaming response by emitting a normal
+    // SSE data chunk of the form {"error":{"code":"timeout","message":"..."}}
+    // instead of raising an HTTP/SSE error. Those chunks were previously
+    // silently consumed by the strategy, so the stream finished empty and
+    // the caller saw the generic "no response" fallback. The toolLoop now
+    // detects this shape and throws so the real message bubbles up.
+    mockCreateSseClient.mockReturnValueOnce({
+      stream: (async function* () {
+        yield {
+          type: "response.created",
+          response: { id: "resp-1", model: "test-model" },
+        };
+        // Provider emits a mid-stream error event.
+        yield {
+          error: {
+            code: "timeout",
+            message: "The request timed out while calling the model provider.",
+          },
+        };
+      })(),
+    } as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    let response: SendMessageResult | undefined;
+    await act(async () => {
+      response = await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+        model: "test-model",
+      });
+    });
+
+    expect(response?.error).toBeTruthy();
+    expect(response?.error).toContain("timed out");
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  // ── skipContinuation + tool error ───────────────────────────
+
+  it("continues the loop (despite skipContinuation) when a skipContinuation tool errors", async () => {
+    // skipContinuation normally means the tool's result is not sent back to
+    // the model — the loop ends after execution. But if the tool ERRORS,
+    // the error must still feed back so the model can respond; otherwise
+    // the assistant turn finishes silently with no user-visible output.
+    const flakyQuietTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "quiet_tool",
+        description: "A skipContinuation tool that fails",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => {
+        throw new Error("Upstream unavailable");
+      },
+      skipContinuation: true,
+    };
+
+    mockCreateSseClient
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("quiet_tool", {})) as any)
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Sorry, that failed.")) as any);
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "run it" }] }],
+        model: "test-model",
+        tools: [flakyQuietTool],
+      });
+    });
+
+    // A continuation must have been requested so the model can react to the failure.
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(2);
+
+    // The tool's error result must be included in the continuation input.
+    const continuationBody = getRequestBody(1);
+    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    expect(toolResultMsg).toBeDefined();
+    expect(toolResultMsg.content[0].text).toContain("Upstream unavailable");
+  });
+
+  it("ends the loop (as usual) when a skipContinuation tool succeeds", async () => {
+    // Sanity check for the above: on success, skipContinuation still short-circuits.
+    const quietTool: ToolConfig = {
+      type: "function",
+      function: {
+        name: "quiet_tool",
+        description: "A skipContinuation tool",
+        arguments: { type: "object", properties: {} },
+      },
+      executor: async () => "ok",
+      skipContinuation: true,
+    };
+
+    mockCreateSseClient.mockReturnValueOnce(
+      makeMockStream(makeToolCallStream("quiet_tool", {})) as any
+    );
+
+    const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
+
+    await act(async () => {
+      await result.current.sendMessage({
+        messages: [{ role: "user", content: [{ type: "text", text: "run it" }] }],
+        model: "test-model",
+        tools: [quietTool],
+      });
+    });
+
+    // No continuation — loop ended after the tool ran successfully.
+    expect(mockCreateSseClient).toHaveBeenCalledTimes(1);
   });
 });

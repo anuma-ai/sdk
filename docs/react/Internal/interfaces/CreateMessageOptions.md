@@ -140,6 +140,20 @@ Tool call events from the backend response (for reconstructing tool call history
 
 ***
 
+### uniqueId?
+
+> `optional` **uniqueId**: `string`
+
+Defined in: [src/lib/db/chat/types.ts:265](https://github.com/anuma-ai/sdk/blob/main/src/lib/db/chat/types.ts#265)
+
+Optional pre-generated unique ID for this message.
+When provided, used as the WatermelonDB record ID instead of auto-generating one.
+Consumers can pre-allocate this ID before streaming starts so the in-flight
+placeholder and the eventually-persisted message share the same React key,
+eliminating the unmount/remount flash when streaming completes.
+
+***
+
 ### usage?
 
 > `optional` **usage**: [`StoredChatCompletionUsage`](StoredChatCompletionUsage.md)
