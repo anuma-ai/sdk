@@ -154,7 +154,10 @@ export async function* withSseKeepalive<T>(
       }
     }
   } finally {
-    // Ensure the underlying reader is cancelled on timeout, break, or error.
-    await iterator.return?.();
+    // Fire-and-forget: when the idle timer fires, iterator.next() is still
+    // pending on the dead socket. Async generators queue return() behind
+    // in-flight next() calls, so awaiting here would hang indefinitely.
+    // The consumer already has SseIdleTimeoutError and can reconnect.
+    void iterator.return?.()?.catch(() => {});
   }
 }
