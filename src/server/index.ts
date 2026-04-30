@@ -383,6 +383,12 @@ export {
 // ── Tool Loop (framework-agnostic agent core) ──
 
 export type { PromptPreProcessor, PromptPreProcessorContext } from "../lib/chat/preProcessor";
+export type { PriceClassification, PricePreProcessorOptions } from "../lib/chat/priceClassifier";
+export {
+  classifyPrice,
+  classifyPriceBatch,
+  createPricePreProcessor,
+} from "../lib/chat/priceClassifier";
 export type {
   AutoExecutedToolResult,
   RunToolLoopOptions,

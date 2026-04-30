@@ -12,7 +12,7 @@
  * Adding a new pre-processor:
  *   1. Append an entry to `PRE_PROCESSORS`.
  *   2. Relabel existing prompts where the new pre-processor should also fire
- *      (e.g. "Bitcoin price" might trigger both `webSearch` and `cryptoPrice`).
+ *      (e.g. "Bitcoin price" might trigger both `webSearch` and `price`).
  *   3. Add new prompts specific to the new pre-processor.
  *
  * Environment:
@@ -23,6 +23,7 @@
 import "dotenv/config";
 import { describe, expect, it } from "vitest";
 
+import { createPricePreProcessor } from "../../src/lib/chat/priceClassifier.js";
 import type { PromptPreProcessor } from "../../src/lib/chat/preProcessor.js";
 import { createWebSearchPreProcessor } from "../../src/lib/chat/webSearchClassifier.js";
 import { generateEmbeddings } from "../../src/lib/memoryEngine/embeddings.js";
@@ -63,6 +64,21 @@ const PRE_PROCESSORS: PreProcessorUnderTest[] = [
       return { processor, didTrigger: () => triggered };
     },
   },
+  {
+    name: "price",
+    // ↑ note: this also covers stocks and FX, not just crypto.
+    minAccuracy: 0.7,
+    makeObserver: () => {
+      let triggered = false;
+      const processor = createPricePreProcessor({
+        fetchPriceData: async () => {
+          triggered = true;
+          return "";
+        },
+      });
+      return { processor, didTrigger: () => triggered };
+    },
+  },
 ];
 
 // ── Labeled prompt corpus ────────────────────────────────────────────────────
@@ -86,12 +102,16 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "What happened in the world today?", shouldTrigger: ["webSearch"] },
   { text: "Any breaking news right now?", shouldTrigger: ["webSearch"] },
 
-  // Financial
-  { text: "What is Bitcoin's price right now?", shouldTrigger: ["webSearch"] },
-  { text: "How is the S&P 500 performing today?", shouldTrigger: ["webSearch"] },
-  { text: "What's the current exchange rate for USD to EUR?", shouldTrigger: ["webSearch"] },
-  { text: "How much is Nvidia stock worth?", shouldTrigger: ["webSearch"] },
-  { text: "What's the market cap of Apple?", shouldTrigger: ["webSearch"] },
+  // Financial — both webSearch (timely) and price (price/quote)
+  { text: "What is Bitcoin's price right now?", shouldTrigger: ["webSearch", "price"] },
+  { text: "How is the S&P 500 performing today?", shouldTrigger: ["webSearch", "price"] },
+  {
+    text: "What's the current exchange rate for USD to EUR?",
+    shouldTrigger: ["webSearch", "price"],
+  },
+  { text: "How much is Nvidia stock worth?", shouldTrigger: ["webSearch", "price"] },
+  { text: "What's the market cap of Apple?", shouldTrigger: ["webSearch", "price"] },
+  // Gas-fee query is current-data (web search) but not strictly a price quote.
   { text: "What are Ethereum gas fees right now?", shouldTrigger: ["webSearch"] },
 
   // Sports
@@ -147,11 +167,18 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "When is the next presidential debate?", shouldTrigger: ["webSearch"] },
 
   // Edge cases — short / terse but still search-worthy
-  { text: "Ethereum price", shouldTrigger: ["webSearch"] },
+  { text: "Ethereum price", shouldTrigger: ["webSearch", "price"] },
   { text: "weather tomorrow", shouldTrigger: ["webSearch"] },
   { text: "election results 2026", shouldTrigger: ["webSearch"] },
   { text: "flights to Tokyo", shouldTrigger: ["webSearch"] },
   { text: "Lakers score", shouldTrigger: ["webSearch"] },
+
+  // ── Price-specific (also commonly trigger webSearch) ─────────
+  { text: "What is the ZETA token price?", shouldTrigger: ["webSearch", "price"] },
+  { text: "Show me the BTC chart", shouldTrigger: ["webSearch", "price"] },
+  { text: "How much is Solana worth in USD?", shouldTrigger: ["webSearch", "price"] },
+  { text: "Tesla stock price", shouldTrigger: ["webSearch", "price"] },
+  { text: "DOGE market cap", shouldTrigger: ["webSearch", "price"] },
 
   // Edge cases — questions that look general but need current data
   { text: "Is TikTok banned in the US?", shouldTrigger: ["webSearch"] },
@@ -238,6 +265,12 @@ const PROMPTS: LabeledPrompt[] = [
   { text: "add types", shouldTrigger: [] },
   { text: "explain this code", shouldTrigger: [] },
   { text: "why does this fail", shouldTrigger: [] },
+
+  // Crypto-adjacent but NOT price queries — must not false-positive price
+  { text: "Explain how Bitcoin mining works", shouldTrigger: [] },
+  { text: "How does ZetaChain enable cross-chain transfers?", shouldTrigger: [] },
+  { text: "Write a smart contract that mints an ERC-20 token", shouldTrigger: [] },
+  { text: "What is the difference between proof-of-stake and proof-of-work?", shouldTrigger: [] },
 ];
 
 // ── Per-pre-processor stats ──────────────────────────────────────────────────
