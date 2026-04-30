@@ -1,8 +1,9 @@
 import type { LlmapiChatCompletionResponse } from "../../../../client";
 import type { StreamAccumulator } from "../types";
 import type { ProcessChunkResult } from "../utils";
-import { parseReasoningTags } from "../utils";
+import { getInStreamErrorMessage, parseReasoningTags } from "../utils";
 import type { ApiStrategy, BuildRequestBodyArgs } from "./types";
+import { mergeXaiInlineParameterTags } from "./xaiToolFormat";
 
 /**
  * Tool call event from server-side MCP tool execution
@@ -122,6 +123,13 @@ export class CompletionsStrategy implements ApiStrategy {
   processStreamChunk(chunk: unknown, accumulator: StreamAccumulator): ProcessChunkResult {
     const result: ProcessChunkResult = { content: null, thinking: null };
 
+    // Detect in-stream error events from Bifrost (e.g. MiniMax upstream
+    // timeouts). If we don't throw here the stream just ends silently with no
+    // tool call and no usable response. The outer tool loop catches this and
+    // surfaces it as the final error to the caller.
+    const inStreamErr = getInStreamErrorMessage(chunk);
+    if (inStreamErr) throw new Error(inStreamErr);
+
     // Handle wrapped response format: { response: {...}, type: "response" }
     // Some endpoints return the completions response nested under a "response" key
     const rawChunk = chunk as { response?: CompletionsStreamingChunk; type?: string };
@@ -204,11 +212,15 @@ export class CompletionsStrategy implements ApiStrategy {
           }
 
           // Emit deltas
-          // Only emit non-empty content to avoid false error detection
+          // Only emit non-empty content to avoid false error detection.
+          // NOTE: use `.length > 0` (not `.trim().length > 0`) so whitespace-only
+          // deltas (`"\n\n"`, `"  \n"`, ` `) still reach onData. Stripping them
+          // breaks live-streaming markdown: headings glue to the following
+          // paragraph because the `\n\n` between them never reaches the client.
           const willEmitMessage =
-            parseResult.messageContent && parseResult.messageContent.trim().length > 0;
+            parseResult.messageContent && parseResult.messageContent.length > 0;
           const willEmitReasoning =
-            parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
+            parseResult.reasoningContent && parseResult.reasoningContent.length > 0;
 
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
@@ -314,12 +326,11 @@ export class CompletionsStrategy implements ApiStrategy {
           // This prevents duplicate content when the server sends both streaming deltas
           // and a final message with the complete content
           if (!alreadyHasContent) {
-            // For non-streaming, we always emit the final content (reasoning is already separated)
-            // Only emit non-empty content to avoid false error detection
-            if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+            // For non-streaming, we always emit the final content (reasoning is already separated).
+            if (parseResult.messageContent && parseResult.messageContent.length > 0) {
               result.content = parseResult.messageContent;
             }
-            if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
+            if (parseResult.reasoningContent && parseResult.reasoningContent.length > 0) {
               result.thinking = parseResult.reasoningContent;
             }
           }
@@ -342,6 +353,16 @@ export class CompletionsStrategy implements ApiStrategy {
 
       // Mark tool calls as completed when finish_reason is set
       if (choice.finish_reason === "tool_calls" || choice.finish_reason === "stop") {
+        // Recover xAI's hybrid tool-call format: Grok emits most args inside
+        // <parameter name="X">Y</parameter> text content while function_call
+        // arguments only carry a subset (e.g. just `path`). Merge the XML
+        // params into the tool call args here, before marking complete.
+        if (accumulator.toolCalls.size > 0) {
+          accumulator.content = mergeXaiInlineParameterTags(
+            accumulator.content,
+            accumulator.toolCalls
+          );
+        }
         for (const toolCall of accumulator.toolCalls.values()) {
           if (toolCall.status === "pending") {
             toolCall.status = "completed";

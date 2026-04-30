@@ -29,7 +29,6 @@ import {
   type CreateMessageOptions,
   deleteConversationOp,
   extractUserMessageFromMessages,
-  type FileMetadata,
   finalizeThoughtProcess,
   getAllFilesOp,
   getConversationOp,
@@ -51,11 +50,8 @@ import {
 } from "../lib/db/chat";
 import {
   createMediaBatchOp,
-  type CreateMediaOptions,
   deleteMediaByConversationOp,
-  generateMediaId,
   getMediaByIdsOp,
-  getMediaTypeFromMime,
   hardDeleteMediaOp,
   type StoredMedia,
   updateMediaMessageIdBatchOp,
@@ -114,7 +110,6 @@ import {
   isOPFSSupported,
   isR2UrlExpired,
   readEncryptedFile,
-  writeEncryptedFile,
 } from "../lib/storage";
 import {
   filterServerTools,
@@ -126,6 +121,7 @@ import {
 } from "../lib/tools";
 import { TimeoutError, withTimeout } from "../lib/utils";
 import { useChat } from "./useChat";
+import { useChatMedia } from "./useChatMedia";
 import type { EmbeddedWalletSignerFn, SignMessageFn } from "./useEncryption";
 import { getEncryptionKey, hasEncryptionKey, requestEncryptionKey } from "./useEncryption";
 import { onKeyAvailable } from "./useEncryption";
@@ -1201,7 +1197,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           result.uniqueId
-        ).catch(() => {});
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed new vault memory:", err);
+        });
       }
       return result;
     },
@@ -1225,7 +1223,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           vaultEmbeddingCacheRef.current,
           vaultCtx,
           id
-        ).catch(() => {});
+        ).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to eagerly embed updated vault memory:", err);
+        });
       }
       return result;
     },
@@ -1751,354 +1751,13 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
     []
   );
 
-  /**
-   * Extract dimensions from an image blob.
-   */
-  const getImageDimensions = useCallback(
-    async (blob: Blob): Promise<{ width: number; height: number } | undefined> => {
-      if (!blob.type.startsWith("image/")) {
-        return undefined;
-      }
-      return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(blob);
-
-        const timeoutId = setTimeout(() => {
-          URL.revokeObjectURL(url);
-          resolve(undefined);
-        }, 10_000);
-
-        img.onload = () => {
-          clearTimeout(timeoutId);
-          URL.revokeObjectURL(url);
-          resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        };
-        img.onerror = () => {
-          clearTimeout(timeoutId);
-          URL.revokeObjectURL(url);
-          resolve(undefined);
-        };
-        img.src = url;
-      });
-    },
-    []
-  );
-
-  /**
-   * Extract and store MCP images using encrypted OPFS storage.
-   * Creates media records and uses wallet-derived encryption keys.
-   *
-   * @param content - The message content containing MCP image URLs
-   * @param address - Wallet address for encryption and media record ownership
-   * @param conversationId - Conversation ID for media record association
-   * @param responseModel - AI model that generated the images
-   * @returns Object with fileIds (mediaIds) and cleaned content with placeholders
-   */
-  const extractAndStoreEncryptedMCPImages = useCallback(
-    async (
-      content: string,
-      address: string,
-      conversationId: string,
-      toolCallEvents?: LlmapiToolCallEvent[]
-    ): Promise<{
-      fileIds: string[];
-      cleanedContent: string;
-    }> => {
-      try {
-        // 1. Extract image URLs using pure function
-        const urls = extractMCPImageUrls(content, toolCallEvents, mcpR2Domain);
-
-        // No MCP images found — return content as-is (presigned URLs stay for inline rendering)
-        if (urls.length === 0) {
-          return { fileIds: [], cleanedContent: content };
-        }
-
-        // 2. Download images → get mediaIds
-        const encryptionKey = await getEncryptionKey(address);
-        const mediaOptions: CreateMediaOptions[] = [];
-        const urlToMediaIdMap = new Map<string, string>();
-
-        // Outer controller aborts every in-flight fetch if the overall batch
-        // timeout elapses. Individual requests still enforce their own 60s
-        // per-fetch budget so a single slow image cannot stall the batch.
-        const batchController = new AbortController();
-        const batchTimeoutMs = CRITICAL_PROMISE_ALL_TIMEOUT_MS;
-        const batchTimeoutId = setTimeout(() => batchController.abort(), batchTimeoutMs);
-
-        let results: PromiseSettledResult<{
-          mediaId: string;
-          fileName: string;
-          mimeType: string;
-          size: number;
-          url: string;
-          dimensions: { width: number; height: number } | undefined;
-        }>[] = [];
-        try {
-          results = await withTimeout(
-            Promise.allSettled(
-              urls.map(async ({ url }) => {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60_000);
-                const abortOuter = () => controller.abort();
-                batchController.signal.addEventListener("abort", abortOuter, { once: true });
-
-                try {
-                  const response = await fetch(url, {
-                    signal: controller.signal,
-                    cache: "no-store",
-                  });
-
-                  if (!response.ok) {
-                    throw new Error(`Failed to fetch image: ${response.status}`);
-                  }
-
-                  const blob = await response.blob();
-
-                  const mediaId = generateMediaId();
-                  const urlPath = url.split("?")[0] ?? url;
-                  const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-                  const mimeType = blob.type || `image/${extension}`;
-                  const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
-
-                  const dimensions = await getImageDimensions(blob);
-
-                  await writeEncryptedFile(mediaId, blob, encryptionKey, {
-                    name: fileName,
-                    sourceUrl: url,
-                  });
-
-                  return {
-                    mediaId,
-                    fileName,
-                    mimeType,
-                    size: blob.size,
-                    url,
-                    dimensions,
-                  };
-                } finally {
-                  clearTimeout(timeoutId);
-                  batchController.signal.removeEventListener("abort", abortOuter);
-                }
-              })
-            ),
-            batchTimeoutMs,
-            "useChatStorage.extractAndStoreEncryptedMCPImages:downloadBatch"
-          );
-        } finally {
-          clearTimeout(batchTimeoutId);
-          // If withTimeout rejected, the batchTimeoutId was cleared above but
-          // batchController was never aborted — every in-flight fetch would
-          // keep running in the background. Aborting here honours the
-          // documented "outer controller aborts every in-flight fetch" guarantee.
-          batchController.abort();
-        }
-
-        // 3. Build urlToMediaId map from successful downloads
-        results.forEach((result, i) => {
-          const { url, model } = urls[i];
-
-          if (result.status === "fulfilled") {
-            const { mediaId, fileName, mimeType, size, dimensions } = result.value;
-
-            urlToMediaIdMap.set(url, mediaId);
-
-            mediaOptions.push({
-              mediaId,
-              walletAddress: address,
-              conversationId,
-              name: fileName,
-              mimeType,
-              mediaType: "image",
-              size,
-              role: "assistant",
-              model,
-              sourceUrl: url,
-              dimensions,
-            });
-          } else {
-            getLogger().warn(
-              "[extractAndStoreEncryptedMCPImages] Failed to download image:",
-              url,
-              result.reason
-            );
-          }
-        });
-
-        // 4. Keep original presigned URLs in content for inline rendering.
-        // Images are stored in OPFS as a fallback — the client renders them
-        // via ResponseImagePreview only after the presigned URL expires
-        // (detected at render time by isR2UrlExpired in ChatContainer).
-        const cleanedContent = content;
-
-        // 5. Batch create media records
-        let createdMediaIds: string[] = [];
-        if (mediaOptions.length > 0) {
-          try {
-            const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
-            createdMediaIds = createdMedia.map((m) => m.mediaId);
-          } catch (err) {
-            getLogger().error(
-              "[extractAndStoreEncryptedMCPImages] Failed to create media records:",
-              err
-            );
-            // Clean up orphaned OPFS files since media records weren't created
-            for (const opt of mediaOptions) {
-              if (opt.mediaId) {
-                try {
-                  await deleteEncryptedFile(opt.mediaId);
-                } catch {
-                  // Ignore cleanup errors
-                }
-              }
-            }
-            // Return original content to avoid orphaned __SDKFILE__ placeholders
-            return { fileIds: [], cleanedContent: content };
-          }
-        }
-
-        return { fileIds: createdMediaIds, cleanedContent };
-      } catch (err) {
-        if (err instanceof TimeoutError) {
-          getLogger().warn("[extractAndStoreEncryptedMCPImages] Batch download timed out:", err);
-        }
-        // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
-        // so the LLM can still reference them for editing even if OPFS storage fails.
-        return { fileIds: [], cleanedContent: content };
-      }
-    },
-    [mediaCtx, getImageDimensions, mcpR2Domain]
-  );
-
-  /**
-   * Store user-attached files and create media records.
-   * - If OPFS is supported with encryption: Store encrypted in OPFS, create media record
-   * - If OPFS not available: Create media record with sourceUrl (external URL only, not data URIs)
-   *
-   * @param files - Array of file metadata with URLs (data URIs or external URLs)
-   * @param address - Wallet address for encryption key derivation and media record ownership
-   * @param conversationId - Conversation ID for media record association
-   * @returns Array of mediaIds for the created media records
-   */
-  const storeUserFilesInOPFS = useCallback(
-    async (files: FileMetadata[], address: string, conversationId: string): Promise<string[]> => {
-      const canUseOPFS = isOPFSSupported() && hasEncryptionKey(address);
-      let encryptionKey: CryptoKey | undefined;
-
-      if (canUseOPFS) {
-        try {
-          encryptionKey = await getEncryptionKey(address);
-        } catch {
-          // Failed to get encryption key - will skip OPFS storage
-        }
-      }
-
-      const mediaOptions: CreateMediaOptions[] = [];
-
-      for (const file of files) {
-        // Skip files without URLs (already stored or metadata-only)
-        if (!file.url) {
-          continue;
-        }
-
-        // Generate a media ID
-        const mediaId = generateMediaId();
-        const mimeType = file.type || "application/octet-stream";
-        let size = file.size || 0;
-        let storedInOPFS = false;
-        let sourceUrl: string | undefined;
-        let dimensions: { width: number; height: number } | undefined;
-
-        // Try to store in OPFS if available
-        if (encryptionKey) {
-          try {
-            let blob: Blob;
-
-            if (file.url.startsWith("data:")) {
-              // Convert data URI to Blob
-              const response = await fetch(file.url);
-              blob = await response.blob();
-            } else {
-              // Fetch external URL
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 60_000);
-              try {
-                const response = await fetch(file.url, {
-                  signal: controller.signal,
-                  cache: "no-store",
-                });
-                if (!response.ok) {
-                  throw new Error(`Failed to fetch: ${response.status}`);
-                }
-                blob = await response.blob();
-              } finally {
-                clearTimeout(timeoutId);
-              }
-            }
-
-            size = blob.size;
-
-            // Extract dimensions for images
-            dimensions = await getImageDimensions(blob);
-
-            // Encrypt and store in OPFS using mediaId
-            await writeEncryptedFile(mediaId, blob, encryptionKey, {
-              name: file.name,
-            });
-
-            storedInOPFS = true;
-          } catch {
-            // Will fall back to sourceUrl below
-          }
-        }
-
-        // If not stored in OPFS, use sourceUrl (only for external URLs, not data URIs)
-        if (!storedInOPFS) {
-          sourceUrl = file.url && !file.url.startsWith("data:") ? file.url : undefined;
-          // If it's a data URI and we can't store in OPFS, we can't persist the file content
-          if (!sourceUrl) {
-            continue; // Skip this file - no way to store it
-          }
-        }
-
-        // Prepare media record
-        mediaOptions.push({
-          mediaId,
-          walletAddress: address,
-          conversationId,
-          name: file.name,
-          mimeType,
-          mediaType: getMediaTypeFromMime(mimeType),
-          size,
-          role: "user",
-          sourceUrl,
-          dimensions,
-        });
-      }
-
-      // Batch create media records
-      if (mediaOptions.length === 0) {
-        return [];
-      }
-
-      try {
-        const createdMedia = await createMediaBatchOp(mediaCtx, mediaOptions);
-        return createdMedia.map((m) => m.mediaId);
-      } catch {
-        // Clean up orphaned OPFS files since media records weren't created
-        for (const opt of mediaOptions) {
-          if (opt.mediaId) {
-            try {
-              await deleteEncryptedFile(opt.mediaId);
-            } catch {
-              // Ignore cleanup errors
-            }
-          }
-        }
-        return [];
-      }
-    },
-    [mediaCtx, getImageDimensions]
-  );
+  // Media persistence (MCP image ingestion + user file uploads) is factored
+  // out into a dedicated hook. Composed here so the public API of
+  // useChatStorage is unchanged.
+  const { extractAndStoreEncryptedMCPImages, storeUserFilesInOPFS } = useChatMedia({
+    mediaCtx,
+    mcpR2Domain,
+  });
 
   /**
    * Send a message with automatic storage
@@ -2137,6 +1796,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
         apiType: requestApiType,
         conversationId: explicitConversationId,
         parentMessageId,
+        assistantUniqueId,
       } = args;
 
       // Helper to resolve thought process from callback or static value
@@ -2268,7 +1928,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
         // Auto-refresh server tools cache if checksum changed
         if (getToken && shouldRefreshTools(result.data.tools_checksum)) {
-          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+          getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+            getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+          });
         }
 
         return {
@@ -2681,8 +2343,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               messageChunks,
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err) => {
+              // Non-fatal — message is stored, but chunk embeddings failed to persist
+              getLogger().warn(
+                "[useChatStorage] Failed to persist chunked embeddings for user message:",
+                err
+              );
             });
           } else {
             // Single embedding
@@ -2691,8 +2357,12 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               storedUserMessage.uniqueId,
               userMessageEmbeddings as number[],
               embeddingModel
-            ).catch(() => {
-              // Non-fatal
+            ).catch((err) => {
+              // Non-fatal — message is stored, but embedding failed to persist
+              getLogger().warn(
+                "[useChatStorage] Failed to persist embedding for user message:",
+                err
+              );
             });
           }
         } else {
@@ -2778,6 +2448,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
               thoughtProcess: resolveThoughtProcess(),
               thinking: abortedThinkingContent,
               parentMessageId: storedUserMessage.uniqueId,
+              uniqueId: assistantUniqueId,
             });
 
             // Embed assistant message (non-blocking)
@@ -2831,6 +2502,7 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
             thoughtProcess: resolveThoughtProcess(),
             error: errorMessage,
             parentMessageId: storedUserMessage.uniqueId,
+            uniqueId: assistantUniqueId,
           });
         } catch {
           // Ignore storage failure for error message
@@ -2935,6 +2607,10 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
           currentTurnToolCallEvents && currentTurnToolCallEvents.length > 0
             ? currentTurnToolCallEvents
             : undefined,
+        // Pre-allocated ID from consumer — when provided, both the in-flight streaming
+        // placeholder and this persisted message share the same React key, preventing
+        // the unmount/remount flash when streaming completes.
+        uniqueId: assistantUniqueId,
       };
 
       let storedAssistantMessage: StoredMessage;
@@ -3033,7 +2709,9 @@ export function useChatStorage(options: UseChatStorageOptions): UseChatStorageRe
 
       // Auto-refresh server tools cache if checksum changed
       if (getToken && shouldRefreshTools(responseData.tools_checksum)) {
-        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch(() => {});
+        getServerTools({ baseUrl, getToken, forceRefresh: true }).catch((err) => {
+          getLogger().warn("[useChatStorage] Failed to refresh server tools cache:", err);
+        });
       }
 
       return {

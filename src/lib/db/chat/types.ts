@@ -255,6 +255,14 @@ export interface CreateMessageOptions {
   parentMessageId?: string;
   /** Tool call events from the backend response (for reconstructing tool call history) */
   toolCallEvents?: LlmapiToolCallEvent[];
+  /**
+   * Optional pre-generated unique ID for this message.
+   * When provided, used as the WatermelonDB record ID instead of auto-generating one.
+   * Consumers can pre-allocate this ID before streaming starts so the in-flight
+   * placeholder and the eventually-persisted message share the same React key,
+   * eliminating the unmount/remount flash when streaming completes.
+   */
+  uniqueId?: string;
 }
 
 export interface CreateConversationOptions {
@@ -682,6 +690,15 @@ export interface BaseSendMessageWithStorageArgs {
 
   /** Parent message ID for branching (edit/regenerate). Sets on the user message. */
   parentMessageId?: string;
+
+  /**
+   * Pre-generated unique ID for the assistant response message.
+   * When provided, the persisted assistant message will use this ID instead of
+   * an auto-generated one. This lets the consumer show an in-flight streaming
+   * placeholder under the same React key, avoiding an unmount/remount flash
+   * when streaming completes and the message is loaded from the database.
+   */
+  assistantUniqueId?: string;
 }
 
 export interface BaseSendMessageSuccessResult {

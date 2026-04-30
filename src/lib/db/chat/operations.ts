@@ -414,6 +414,9 @@ export async function createMessageOp(
 
   const created = await ctx.database.write(async () => {
     return await ctx.messagesCollection.create((msg) => {
+      // Use pre-allocated ID when provided so the persisted message shares the
+      // same React key as the consumer's in-flight streaming placeholder.
+      if (opts.uniqueId) msg._raw.id = opts.uniqueId;
       msg._setRaw("message_id", messageId);
       msg._setRaw("conversation_id", encryptedOpts.conversationId as string);
       msg._setRaw("role", encryptedOpts.role as string);
@@ -927,12 +930,14 @@ export async function getAllFilesOp(
 /**
  * Create a synthetic StoredMessage from CreateMessageOptions without a DB round-trip.
  * Used when writes are queued (encryption key not yet available).
- * The uniqueId is temporary and will be replaced when the operation is flushed.
+ * When opts.uniqueId is provided, it is used as-is so the synthetic message
+ * shares the same identity as the consumer's in-flight streaming placeholder.
+ * Otherwise a temporary "queued_*" ID is generated and will be replaced on flush.
  */
 export function makeSyntheticStoredMessage(opts: CreateMessageOptions): StoredMessage {
   const now = new Date();
   return {
-    uniqueId: `queued_${uuidv7()}`,
+    uniqueId: opts.uniqueId || `queued_${uuidv7()}`,
     messageId: Number.MAX_SAFE_INTEGER, // Placeholder — DB assigns real sequential ID on flush
     conversationId: opts.conversationId,
     role: opts.role,
