@@ -775,6 +775,13 @@ export {
 } from "./client";
 export { selectServerSideTools, type SelectServerSideToolsOptions } from "./lib/tools";
 
+// SSE idle-keepalive wrapper for the generated SSE client
+export {
+  SseIdleTimeoutError,
+  type SseKeepaliveOptions,
+  withSseKeepalive,
+} from "./lib/sse/keepalive";
+
 // Agent types
 export type {
   AgentConfig,
