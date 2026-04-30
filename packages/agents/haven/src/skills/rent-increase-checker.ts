@@ -1,6 +1,6 @@
 import type { SkillConfig } from "@anuma/sdk";
 
-import { HOUSING_MEMORY_SUFFIX, HOUSING_PREFERRED_MODEL } from "./shared";
+import { HOUSING_MEMORY_SUFFIX, HOUSING_PREFERRED_MODEL, HOUSING_REQUIRED_TOOLS } from "./shared";
 
 export const rentIncreaseChecker: SkillConfig = {
   id: "housing.rent-increase-checker",
@@ -29,7 +29,8 @@ Analyze a rent increase for legality and provide negotiation strategy.
 
 Cite specific statute references and deadlines for tenant response.`,
   preferredModel: HOUSING_PREFERRED_MODEL,
-  maxSteps: 1,
+  requiredTools: HOUSING_REQUIRED_TOOLS,
+  maxSteps: 15,
   requiredVariables: ["city", "state", "current_rent", "proposed_rent"],
   contextSuffix: HOUSING_MEMORY_SUFFIX,
 };
