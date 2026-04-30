@@ -12,5 +12,10 @@ export default defineConfig({
     ],
     testTimeout: 300_000,
     hookTimeout: 120_000,
+    // Allow concurrent e2e tests so we can fan out across models.
+    // Each test makes HTTP calls + waits on the LLM so the bottleneck is
+    // wall time, not CPU. Kept at 6 because the portal rate-limits /
+    // 500s / connection-fails when all models hammer it simultaneously.
+    maxConcurrency: 6,
   },
 });
