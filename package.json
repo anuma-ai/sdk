@@ -5,6 +5,9 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "./dist/polyfills/**"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -82,7 +85,7 @@
     "dist"
   ],
   "scripts": {
-    "spec": "openapi-ts",
+    "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
     "build": "tsup",
     "prepublishOnly": "pnpm build",
@@ -123,6 +126,7 @@
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
+    "jsonrepair": "^3.14.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.11.0",
@@ -138,8 +142,10 @@
     "@microsoft/api-extractor": "^7.57.1",
     "@nozbe/watermelondb": "^0.28.0",
     "@privy-io/react-auth": "^3.7.0",
+    "@testcontainers/postgresql": "^11.14.0",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^25.0.3",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.6",
     "@vitest/coverage-v8": "4.0.15",
     "dependency-cruiser": "^17.3.8",
@@ -150,6 +156,7 @@
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "happy-dom": "^20.0.11",
     "knip": "^5.85.0",
+    "pg": "^8.20.0",
     "playwright": "^1.57.0",
     "prettier": "^3.8.1",
     "publint": "^0.3.17",
@@ -203,7 +210,7 @@
       "react-dom": ">=19.0.1 <19.1.0 || >=19.1.2 <19.2.0 || >=19.2.1",
       "tar": ">=7.5.11",
       "picomatch": ">=2.3.2 <3.0.0 || >=4.0.4",
-      "@xmldom/xmldom": ">=0.8.12 <0.9.0",
+      "@xmldom/xmldom": ">=0.8.13 <0.9.0",
       "protobufjs": ">=7.5.5 <8.0.0"
     },
     "patchedDependencies": {

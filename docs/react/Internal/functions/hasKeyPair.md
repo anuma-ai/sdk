@@ -2,7 +2,7 @@
 
 > **hasKeyPair**(`address`: `string`): `boolean`
 
-Defined in: [src/react/useEncryption.ts:1125](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1125)
+Defined in: [src/react/useEncryption.ts:1212](https://github.com/anuma-ai/sdk/blob/main/src/react/useEncryption.ts#1212)
 
 Checks if a key pair exists in memory for the given wallet address
 
