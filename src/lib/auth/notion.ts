@@ -370,7 +370,7 @@ async function ensureClientRegistration(
   const metadata = await getOAuthMetadata();
 
   if (!metadata.registration_endpoint) {
-    throw new Error("OAuth server does not support dynamic client registration");
+    throw new NotionError("OAuth server does not support dynamic client registration");
   }
 
   return registerClient(metadata.registration_endpoint, redirectUri, walletAddress);
