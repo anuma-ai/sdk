@@ -66,6 +66,18 @@ Defined in: [src/lib/chat/toolLoop.ts:50](https://github.com/anuma-ai/sdk/blob/m
 
 ## Properties
 
+### cause?
+
+> `optional` **cause**: `unknown`
+
+Defined in: node\_modules/.pnpm/typescript@5.9.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:26
+
+**Inherited from**
+
+`Error.cause`
+
+***
+
 ### code
 
 > `readonly` **code**: `string` | `undefined`

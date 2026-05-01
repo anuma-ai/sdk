@@ -12,7 +12,27 @@
  * @see https://modelcontextprotocol.io
  */
 
+import { NotionError } from "../lib/auth/notion.js";
 import type { ToolConfig } from "../lib/chat/useChat/types.js";
+import { getLogger } from "../lib/logger.js";
+
+/**
+ * Safely read an HTTP error response as text. Logs failure with context and
+ * returns an empty string — the caller always throws a NotionError afterward
+ * so failures never silently become empty results.
+ */
+async function readErrorText(response: Response, endpoint: string): Promise<string> {
+  try {
+    return await response.text();
+  } catch (err) {
+    getLogger().warn("Failed to read Notion MCP error response body", {
+      endpoint,
+      status: response.status,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return "";
+  }
+}
 
 // MCP Server configuration
 const MCP_HTTP_ENDPOINT = "https://mcp.notion.com/mcp";
@@ -78,7 +98,9 @@ function parseSSEResponse(text: string): unknown {
   }
 
   if (!lastEventData) {
-    throw new Error("No data found in SSE response");
+    throw new NotionError("No data found in SSE response", {
+      endpoint: MCP_HTTP_ENDPOINT,
+    });
   }
 
   return JSON.parse(lastEventData);
@@ -135,16 +157,30 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(
-      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    const errorBody = await readErrorText(response, MCP_HTTP_ENDPOINT);
+    getLogger().error("Notion MCP initialization failed", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody,
+    });
+    throw new NotionError(
+      `MCP initialization failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+      { status: response.status, endpoint: MCP_HTTP_ENDPOINT }
     );
   }
 
   // Get session ID from response header
   const sessionId = response.headers.get("Mcp-Session-Id");
   if (!sessionId) {
-    throw new Error("No Mcp-Session-Id returned from initialization");
+    getLogger().error("Notion MCP initialization returned no session id", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      status: response.status,
+    });
+    throw new NotionError("No Mcp-Session-Id returned from initialization", {
+      status: response.status,
+      endpoint: MCP_HTTP_ENDPOINT,
+    });
   }
 
   // Parse and validate response before caching (handles both JSON and SSE)
@@ -152,7 +188,16 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    throw new Error(`MCP initialization error: ${errMsg}`);
+    const code =
+      typeof err.code === "string" || typeof err.code === "number" ? String(err.code) : undefined;
+    getLogger().error("Notion MCP initialization returned JSON-RPC error", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      error: err,
+    });
+    throw new NotionError(`MCP initialization error: ${errMsg}`, {
+      endpoint: MCP_HTTP_ENDPOINT,
+      code,
+    });
   }
 
   // Send required notifications/initialized to complete the MCP handshake
@@ -243,9 +288,17 @@ async function callMCPTool<T>(
       });
 
       if (!retryResponse.ok) {
-        const errorBody = await retryResponse.text().catch(() => "");
-        throw new Error(
-          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+        const errorBody = await readErrorText(retryResponse, MCP_HTTP_ENDPOINT);
+        getLogger().error("Notion MCP tool call failed after session retry", {
+          endpoint: MCP_HTTP_ENDPOINT,
+          tool: toolName,
+          status: retryResponse.status,
+          statusText: retryResponse.statusText,
+          body: errorBody,
+        });
+        throw new NotionError(
+          `MCP request failed: ${retryResponse.status} ${retryResponse.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+          { status: retryResponse.status, endpoint: MCP_HTTP_ENDPOINT }
         );
       }
 
@@ -256,16 +309,36 @@ async function callMCPTool<T>(
       if (retryJsonRpcResponse.error) {
         const err = retryJsonRpcResponse.error as Record<string, unknown>;
         const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-        throw new Error(`MCP tool error: ${errMsg}`);
+        const code =
+          typeof err.code === "string" || typeof err.code === "number"
+            ? String(err.code)
+            : undefined;
+        getLogger().error("Notion MCP tool call returned JSON-RPC error after retry", {
+          endpoint: MCP_HTTP_ENDPOINT,
+          tool: toolName,
+          error: err,
+        });
+        throw new NotionError(`MCP tool error: ${errMsg}`, {
+          endpoint: MCP_HTTP_ENDPOINT,
+          code,
+        });
       }
 
       return truncateToolResult(retryJsonRpcResponse.result) as T;
     }
 
     // Try to get error details from response
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(
-      `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`
+    const errorBody = await readErrorText(response, MCP_HTTP_ENDPOINT);
+    getLogger().error("Notion MCP tool call failed", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      tool: toolName,
+      status: response.status,
+      statusText: response.statusText,
+      body: errorBody,
+    });
+    throw new NotionError(
+      `MCP request failed: ${response.status} ${response.statusText}${errorBody ? ` - ${errorBody}` : ""}`,
+      { status: response.status, endpoint: MCP_HTTP_ENDPOINT }
     );
   }
 
@@ -275,7 +348,17 @@ async function callMCPTool<T>(
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    throw new Error(`MCP tool error: ${errMsg}`);
+    const code =
+      typeof err.code === "string" || typeof err.code === "number" ? String(err.code) : undefined;
+    getLogger().error("Notion MCP tool call returned JSON-RPC error", {
+      endpoint: MCP_HTTP_ENDPOINT,
+      tool: toolName,
+      error: err,
+    });
+    throw new NotionError(`MCP tool error: ${errMsg}`, {
+      endpoint: MCP_HTTP_ENDPOINT,
+      code,
+    });
   }
 
   return truncateToolResult(jsonRpcResponse.result) as T;

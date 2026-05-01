@@ -2,7 +2,7 @@
 
 > **migrateNotionClientRegistration**(`walletAddress`: `string`): `Promise`<`boolean`>
 
-Defined in: [src/lib/auth/notion.ts:525](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#525)
+Defined in: [src/lib/auth/notion.ts:622](https://github.com/anuma-ai/sdk/blob/main/src/lib/auth/notion.ts#622)
 
 Migrate unencrypted client registration to encrypted format.
 Call this when wallet/encryption key becomes available.
