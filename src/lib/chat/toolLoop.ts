@@ -7,6 +7,8 @@ import type {
 } from "../../client";
 import { createSseClient } from "../../client/core/serverSentEvents.gen";
 import { BASE_URL } from "../../clientConfig";
+import { generateEmbedding } from "../memoryEngine/embeddings";
+import type { PromptPreProcessor } from "./preProcessor";
 
 /**
  * Error thrown when the SSE connection receives a non-OK HTTP response.
@@ -36,6 +38,55 @@ function wrapSseError(error: unknown): Error {
   }
   return new Error(String(error));
 }
+
+/**
+ * Error thrown when an upstream provider emits an in-stream error event.
+ * Carries the provider's code (e.g. `"timeout"`) so callers can match
+ * programmatically via `err instanceof ProviderStreamError && err.code === "timeout"`
+ * instead of string-matching the message.
+ */
+export class ProviderStreamError extends Error {
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProviderStreamError";
+    this.code = code;
+  }
+}
+
+/**
+ * Extract a provider-supplied error object from an SSE data chunk, if present.
+ *
+ * Some upstream providers (e.g. Fireworks, via our portal) end a stream by
+ * emitting a normal `data: {"error": {...}}` event instead of raising an HTTP
+ * error or closing the connection abnormally. Those chunks pass right through
+ * the strategy's processStreamChunk (which only looks at content/tool deltas)
+ * and the stream finishes cleanly with empty content — so the client shows a
+ * generic "no response" error instead of the real cause (typically a provider
+ * timeout). Detecting the shape here lets us surface the real message.
+ *
+ * Accepts either `{error: "..."}` or `{error: {code?, message?}}`.
+ */
+function extractProviderStreamError(chunk: unknown): ProviderStreamError | null {
+  if (!chunk || typeof chunk !== "object") return null;
+  const errField = (chunk as { error?: unknown }).error;
+  if (!errField) return null;
+  if (typeof errField === "string") return new ProviderStreamError(errField);
+  if (typeof errField === "object") {
+    const err = errField as { code?: unknown; message?: unknown };
+    const code = typeof err.code === "string" ? err.code : undefined;
+    const message = typeof err.message === "string" ? err.message : undefined;
+    if (!code && !message) return null;
+    if (code === "timeout") {
+      return new ProviderStreamError(
+        message ?? "The model provider timed out before returning a response. Please try again.",
+        code
+      );
+    }
+    return new ProviderStreamError(message ?? `Provider error: ${code}`, code);
+  }
+  return null;
+}
 import { getStrategy, resolveApiType } from "./useChat/strategies";
 import type { ApiResponse, ApiType } from "./useChat/strategies/types";
 import type { StreamSmoothingConfig } from "./useChat/StreamSmoother";
@@ -59,6 +110,21 @@ import {
 } from "./useChat/utils";
 
 const CONNECTOR_PREFIXES = ["notion-", "google_calendar_", "google_drive_"];
+
+/** Extract the text of the most recent user message. Empty string if none. */
+function extractLastUserText(messages: LlmapiMessage[]): string {
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUserMsg) return "";
+  const content = lastUserMsg.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((c) => c?.type === "text")
+      .map((c) => c.text ?? "")
+      .join(" ");
+  }
+  return "";
+}
 
 /** Check if a tool result is an error object returned by the executor (e.g. `{ error: "..." }`). */
 function isToolErrorResult(result: unknown): boolean {
@@ -177,6 +243,18 @@ export type RunToolLoopOptions = {
    * `fetch` response body streaming isn't available in RN.
    */
   transport?: StreamingTransport;
+  /**
+   * Pre-processors run after the last user message is received but before
+   * the first LLM request. Each pre-processor receives the prompt text
+   * and a shared embedding (computed once per request) and may return
+   * additional messages to enrich the conversation. Messages returned by
+   * each pre-processor are appended in array order to `messages` for the
+   * initial LLM call and all subsequent tool-loop rounds.
+   *
+   * Pre-processors run in parallel; a failure in one is logged and does
+   * not prevent the others or the LLM request.
+   */
+  preProcessors?: PromptPreProcessor[];
   /**
    * Maximum number of connector tool calls (notion, google calendar, google drive)
    * before they are removed from subsequent rounds. Set to `Infinity` to disable.
@@ -298,7 +376,6 @@ const defaultTransport: StreamingTransport = (options) => {
  */
 export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolLoopResult> {
   const {
-    messages,
     model,
     token,
     baseUrl = BASE_URL,
@@ -324,8 +401,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     onToolCallArgumentsDelta,
     onStepFinish,
     transport: makeStreamingRequest = defaultTransport,
+    preProcessors,
     maxConnectorCalls = 2,
   } = options;
+  // `messages` is mutable so pre-processors can inject context
+  // (e.g. web search results) before the first LLM request.
+  let messages = options.messages;
 
   const resolved = resolveApiType(apiType, model);
   const strategy = getStrategy(resolved);
@@ -351,6 +432,38 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
 
   if (signal?.aborted) {
     return { data: null, error: "Request aborted" };
+  }
+
+  // Run pre-processors if any are provided. Each receives the shared
+  // embedding and may return messages to enrich the conversation.
+  if (preProcessors?.length) {
+    try {
+      const text = extractLastUserText(messages);
+      if (text.length > 0) {
+        const embedding = await generateEmbedding(text, {
+          apiKey: headers?.["X-API-Key"],
+          getToken: token ? () => Promise.resolve(token) : undefined,
+          baseUrl,
+        });
+        const results = await Promise.all(
+          preProcessors.map(async (p) => {
+            try {
+              return await p({ prompt: text, embedding, signal });
+            } catch (err) {
+              console.warn("[runToolLoop] pre-processor failed:", err);
+              return undefined;
+            }
+          })
+        );
+        const extra = results.flatMap((r) => (Array.isArray(r) ? r : []));
+        if (extra.length > 0) {
+          messages = [...messages, ...extra];
+        }
+      }
+    } catch (err) {
+      // Embedding / pre-processor stage failure is non-fatal
+      console.warn("[runToolLoop] pre-processor stage failed:", err);
+    }
   }
 
   try {
@@ -397,6 +510,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
     try {
       for await (const chunk of sseResult.stream) {
         if (isDoneMarker(chunk)) continue;
+
+        const providerError = extractProviderStreamError(chunk);
+        if (providerError) {
+          contentSmoother.destroy();
+          thinkingSmoother.destroy();
+          throw providerError;
+        }
 
         if (chunk && typeof chunk === "object") {
           const {
@@ -742,8 +862,12 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       }
 
       // Build tool result messages — exclude tools with skipContinuation
+      // EXCEPT when the tool errored. Errors always continue so the model
+      // can see what went wrong and retry; otherwise a skipContinuation
+      // tool that fails leaves the assistant turn silently broken.
       const continueResults = executionResults.filter((r) => {
         if (!r.name) return false;
+        if (r.error || isToolErrorResult(r.result)) return true;
         return executorMap.get(r.name)?.skipContinuation !== true;
       });
 
@@ -831,6 +955,13 @@ export async function runToolLoop(options: RunToolLoopOptions): Promise<RunToolL
       try {
         for await (const chunk of continuationResult.stream) {
           if (isDoneMarker(chunk)) continue;
+
+          const providerError = extractProviderStreamError(chunk);
+          if (providerError) {
+            contContentSmoother.destroy();
+            contThinkingSmoother.destroy();
+            throw providerError;
+          }
 
           if (chunk && typeof chunk === "object") {
             const {

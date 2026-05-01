@@ -110,7 +110,7 @@ Minimum content length to embed (default: 30). Shorter messages are skipped.
 </td>
 <td>
 
-(`"assistant"` | `"user"`)\[]
+(`"user"` | `"assistant"`)\[]
 
 </td>
 <td>

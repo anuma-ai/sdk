@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -88,6 +89,7 @@ export type {
 } from "./useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearAllKeyPairs,
   clearEncryptionKey,
   clearKeyPair,

@@ -14,6 +14,7 @@ export default tseslint.config(
       "coverage/**",
       "scripts/**",
       "patches/**",
+      "packages/**",
       "test/**",
       // Most test files are excluded from linting, but a few are fully migrated
       // to typed mock factories (see src/test-utils/mocks.ts) and are lint-gated
@@ -103,6 +104,15 @@ export default tseslint.config(
       // mock body is async even when it never awaits. Keep signatures honest
       // rather than pepper the file with disable comments.
       "@typescript-eslint/require-await": "off",
+    },
+  },
+  {
+    // Disallow non-null assertions in paths that historically used them
+    // to hide invariants. Prefer an explicit guard that names the invariant
+    // or an optional-chain fallback so failures surface with a clear message.
+    files: ["src/lib/db/manager.ts", "src/lib/chat/useChat/utils.ts"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
     },
   }
 );

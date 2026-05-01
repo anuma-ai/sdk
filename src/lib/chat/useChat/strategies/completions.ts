@@ -212,11 +212,15 @@ export class CompletionsStrategy implements ApiStrategy {
           }
 
           // Emit deltas
-          // Only emit non-empty content to avoid false error detection
+          // Only emit non-empty content to avoid false error detection.
+          // NOTE: use `.length > 0` (not `.trim().length > 0`) so whitespace-only
+          // deltas (`"\n\n"`, `"  \n"`, ` `) still reach onData. Stripping them
+          // breaks live-streaming markdown: headings glue to the following
+          // paragraph because the `\n\n` between them never reaches the client.
           const willEmitMessage =
-            parseResult.messageContent && parseResult.messageContent.trim().length > 0;
+            parseResult.messageContent && parseResult.messageContent.length > 0;
           const willEmitReasoning =
-            parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0;
+            parseResult.reasoningContent && parseResult.reasoningContent.length > 0;
 
           if (willEmitMessage) {
             result.content = parseResult.messageContent;
@@ -322,12 +326,11 @@ export class CompletionsStrategy implements ApiStrategy {
           // This prevents duplicate content when the server sends both streaming deltas
           // and a final message with the complete content
           if (!alreadyHasContent) {
-            // For non-streaming, we always emit the final content (reasoning is already separated)
-            // Only emit non-empty content to avoid false error detection
-            if (parseResult.messageContent && parseResult.messageContent.trim().length > 0) {
+            // For non-streaming, we always emit the final content (reasoning is already separated).
+            if (parseResult.messageContent && parseResult.messageContent.length > 0) {
               result.content = parseResult.messageContent;
             }
-            if (parseResult.reasoningContent && parseResult.reasoningContent.trim().length > 0) {
+            if (parseResult.reasoningContent && parseResult.reasoningContent.length > 0) {
               result.thinking = parseResult.reasoningContent;
             }
           }
