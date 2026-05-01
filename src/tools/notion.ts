@@ -188,7 +188,8 @@ async function initializeMCPSession(accessToken: string): Promise<string> {
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    const code = typeof err.code === "string" ? err.code : undefined;
+    const code =
+      typeof err.code === "string" || typeof err.code === "number" ? String(err.code) : undefined;
     getLogger().error("Notion MCP initialization returned JSON-RPC error", {
       endpoint: MCP_HTTP_ENDPOINT,
       error: err,
@@ -308,7 +309,10 @@ async function callMCPTool<T>(
       if (retryJsonRpcResponse.error) {
         const err = retryJsonRpcResponse.error as Record<string, unknown>;
         const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-        const code = typeof err.code === "string" ? err.code : undefined;
+        const code =
+          typeof err.code === "string" || typeof err.code === "number"
+            ? String(err.code)
+            : undefined;
         getLogger().error("Notion MCP tool call returned JSON-RPC error after retry", {
           endpoint: MCP_HTTP_ENDPOINT,
           tool: toolName,
@@ -344,7 +348,8 @@ async function callMCPTool<T>(
   if (jsonRpcResponse.error) {
     const err = jsonRpcResponse.error as Record<string, unknown>;
     const errMsg = typeof err.message === "string" ? err.message : JSON.stringify(err);
-    const code = typeof err.code === "string" ? err.code : undefined;
+    const code =
+      typeof err.code === "string" || typeof err.code === "number" ? String(err.code) : undefined;
     getLogger().error("Notion MCP tool call returned JSON-RPC error", {
       endpoint: MCP_HTTP_ENDPOINT,
       tool: toolName,
