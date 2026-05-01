@@ -65,4 +65,30 @@ describe("Haven skills", () => {
       expect(skill.promptTemplate.length).toBeGreaterThan(50);
     }
   });
+
+  it("each skill defines a userTemplate", () => {
+    for (const skill of HAVEN_SKILLS) {
+      expect(typeof skill.userTemplate).toBe("string");
+      expect((skill.userTemplate ?? "").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("userTemplate interpolates the same {{variable}} placeholders as promptTemplate", () => {
+    const interpolate = (template: string, vars: Record<string, string>) =>
+      template.replace(/\{\{(\w+)\}\}/g, (_, k: string) => vars[k] ?? `{{${k}}}`);
+
+    const skill = HAVEN_SKILLS.find((s) => s.id === "housing.rent-increase-checker")!;
+    const filled = interpolate(skill.userTemplate!, {
+      city: "Austin",
+      state: "TX",
+      current_rent: "$1,500",
+      proposed_rent: "$1,800",
+      lease_type: "month-to-month",
+      notice_date: "2026-04-01",
+    });
+    expect(filled).toContain("Austin, TX");
+    expect(filled).toContain("$1,500");
+    expect(filled).toContain("$1,800");
+    expect(filled).not.toMatch(/\{\{\w+\}\}/);
+  });
 });

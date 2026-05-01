@@ -10,14 +10,6 @@ export const hoaDispute: SkillConfig = {
 ## Task
 Analyze an HOA dispute and draft a formal response.
 
-## Details
-- State: {{state}}
-- HOA name: {{hoa_name}}
-- Issue type: {{issue_type}}
-- HOA notice/violation: {{hoa_notice}}
-- Homeowner's position: {{homeowner_position}}
-- CC&Rs relevant sections: {{ccr_text}}
-
 ## Instructions
 1. Analyze the HOA's notice/violation for procedural correctness
 2. Research {{state}} HOA law (e.g., Common Interest Development Act, HOA Bill of Rights)
@@ -35,6 +27,14 @@ Analyze an HOA dispute and draft a formal response.
 6. Include escalation path: internal appeal → mediation → small claims → civil court
 
 Use web search to verify current {{state}} HOA statutes and case law.`,
+  userTemplate: `Please help me respond to this HOA dispute:
+
+- State: {{state}}
+- HOA name: {{hoa_name}}
+- Issue type: {{issue_type}}
+- HOA notice/violation: {{hoa_notice}}
+- Homeowner's position: {{homeowner_position}}
+- CC&Rs relevant sections: {{ccr_text}}`,
   requiredTools: HOUSING_REQUIRED_TOOLS,
   preferredModel: HOUSING_PREFERRED_MODEL,
   maxSteps: 15,
