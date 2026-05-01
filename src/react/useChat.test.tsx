@@ -89,13 +89,14 @@ describe("useChat", () => {
     expect(response?.error).toBeNull();
     expect(response?.data).toBeDefined();
 
-    // Type guard: after the assertions above, we know this is the success case
-    // and that `data` is the Responses API variant (the test streams a
-    // Responses-shaped SSE payload), so `output` is present.
-    if (response && response.error === null && response.data && "output" in response.data) {
-      const content = response.data.output?.[0]?.content;
-      expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
+    // Throw rather than skip if the response is not the Responses-shaped
+    // variant — a silent `if` guard would let a regression to the Completions
+    // shape pass without ever checking the streamed content.
+    if (!response?.data || !("output" in response.data)) {
+      throw new Error("expected Responses-shaped success data with `output`");
     }
+    const content = response.data.output?.[0]?.content;
+    expect(content).toEqual([{ type: "output_text", text: "Hello world" }]);
     expect(result.current.isLoading).toBe(false);
   });
 
