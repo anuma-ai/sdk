@@ -2,7 +2,7 @@
 
 > **ToolCallArgumentsDeltaEvent** = `object`
 
-Defined in: [src/lib/chat/useChat/utils.ts:415](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#415)
+Defined in: [src/lib/chat/useChat/utils.ts:454](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#454)
 
 Event emitted when tool call arguments are being streamed.
 
@@ -12,7 +12,7 @@ Event emitted when tool call arguments are being streamed.
 
 > **accumulatedArguments**: `string`
 
-Defined in: [src/lib/chat/useChat/utils.ts:419](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#419)
+Defined in: [src/lib/chat/useChat/utils.ts:458](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#458)
 
 ***
 
@@ -20,7 +20,7 @@ Defined in: [src/lib/chat/useChat/utils.ts:419](https://github.com/anuma-ai/sdk/
 
 > **argumentsDelta**: `string`
 
-Defined in: [src/lib/chat/useChat/utils.ts:418](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#418)
+Defined in: [src/lib/chat/useChat/utils.ts:457](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#457)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [src/lib/chat/useChat/utils.ts:418](https://github.com/anuma-ai/sdk/
 
 > **toolCallId**: `string`
 
-Defined in: [src/lib/chat/useChat/utils.ts:416](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#416)
+Defined in: [src/lib/chat/useChat/utils.ts:455](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#455)
 
 ***
 
@@ -36,4 +36,4 @@ Defined in: [src/lib/chat/useChat/utils.ts:416](https://github.com/anuma-ai/sdk/
 
 > **toolName**: `string`
 
-Defined in: [src/lib/chat/useChat/utils.ts:417](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#417)
+Defined in: [src/lib/chat/useChat/utils.ts:456](https://github.com/anuma-ai/sdk/blob/main/src/lib/chat/useChat/utils.ts#456)

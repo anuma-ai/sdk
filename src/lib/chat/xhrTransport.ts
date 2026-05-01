@@ -122,7 +122,11 @@ export const xhrTransport: StreamingTransport = (options): StreamingTransportRes
       if (xhr.status >= 200 && xhr.status < 300) {
         push({ type: "done" });
       } else {
-        const error = new Error(`SSE failed: ${xhr.status} ${xhr.statusText}`);
+        // Include response body so portal errors surface their trace_id and
+        // error type instead of a bare HTTP status.
+        const body = (xhr.responseText || "").slice(0, 500);
+        const detail = body ? `: ${body}` : "";
+        const error = new Error(`SSE failed: ${xhr.status} ${xhr.statusText}${detail}`);
         if (options.onSseError) options.onSseError(error);
         push({ type: "done" });
       }

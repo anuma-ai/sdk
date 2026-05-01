@@ -56,6 +56,7 @@
  * @module react
  */
 export type { StepFinishEvent } from "../lib/chat/toolLoop";
+export { ProviderStreamError } from "../lib/chat/toolLoop";
 export type { ToolCallArgumentsDeltaEvent } from "../lib/chat/useChat/utils";
 export { useChat } from "./useChat";
 
@@ -88,6 +89,7 @@ export type {
 } from "./useEncryption";
 export {
   clearAllEncryptionKeys,
+  clearAllEncryptionState,
   clearAllKeyPairs,
   clearEncryptionKey,
   clearKeyPair,
@@ -393,6 +395,7 @@ export { useVoice } from "./useVoice";
 // File processors for preprocessing attachments
 export type {
   FileProcessor,
+  FileTypeQuery,
   FileWithData,
   PreprocessingOptions,
   PreprocessingResult,
@@ -401,9 +404,12 @@ export type {
 } from "../lib/processors";
 export {
   ExcelProcessor,
+  getSupportedFileTypes,
+  isSupportedFile,
   PdfProcessor,
   preprocessFiles,
   ProcessorRegistry,
+  TextProcessor,
   WordProcessor,
   ZipProcessor,
 } from "../lib/processors";

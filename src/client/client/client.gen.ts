@@ -74,9 +74,11 @@ export const createClient = (config: Config = {}): Client => {
     return { opts, url };
   };
 
-  // @ts-expect-error
-  const request: Client['request'] = async (options) => {
-    // @ts-expect-error
+  // `Client['request']` is a generic `RequestFn`; the runtime implementation
+  // cannot be written as a generic arrow, so we assign to a non-generic
+  // signature and cast at the single point of return (`as Client`) instead of
+  // papering over the mismatch with `@ts-expect-error` on every line.
+  const request = async (options: RequestOptions) => {
     const { opts, url } = await beforeRequest(options);
 
     for (const fn of interceptors.request.fns) {
