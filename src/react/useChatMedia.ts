@@ -18,7 +18,10 @@ import {
   isOPFSSupported,
   writeEncryptedFile,
 } from "../lib/storage";
+import { TimeoutError, withTimeout } from "../lib/utils";
 import { getEncryptionKey, hasEncryptionKey } from "./useEncryption";
+
+const BATCH_TIMEOUT_MS = 30_000;
 
 /**
  * Options for {@link useChatMedia}.
@@ -153,49 +156,78 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         const encryptionKey = await getEncryptionKey(address);
         const mediaOptions: CreateMediaOptions[] = [];
 
-        const results = await Promise.allSettled(
-          urls.map(async ({ url }) => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60_000);
+        // Outer controller aborts every in-flight fetch if the overall batch
+        // timeout elapses. Individual requests still enforce their own 60s
+        // per-fetch budget so a single slow image cannot stall the batch.
+        const batchController = new AbortController();
+        const batchTimeoutId = setTimeout(() => batchController.abort(), BATCH_TIMEOUT_MS);
 
-            try {
-              const response = await fetch(url, {
-                signal: controller.signal,
-                cache: "no-store",
-              });
+        let results: PromiseSettledResult<{
+          mediaId: string;
+          fileName: string;
+          mimeType: string;
+          size: number;
+          url: string;
+          dimensions: { width: number; height: number } | undefined;
+        }>[] = [];
+        try {
+          results = await withTimeout(
+            Promise.allSettled(
+              urls.map(async ({ url }) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60_000);
+                const abortOuter = () => controller.abort();
+                batchController.signal.addEventListener("abort", abortOuter, { once: true });
 
-              if (!response.ok) {
-                throw new Error(`Failed to fetch image: ${response.status}`);
-              }
+                try {
+                  const response = await fetch(url, {
+                    signal: controller.signal,
+                    cache: "no-store",
+                  });
 
-              const blob = await response.blob();
+                  if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status}`);
+                  }
 
-              const mediaId = generateMediaId();
-              const urlPath = url.split("?")[0] ?? url;
-              const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
-              const mimeType = blob.type || `image/${extension}`;
-              const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
+                  const blob = await response.blob();
 
-              const dimensions = await getImageDimensions(blob);
+                  const mediaId = generateMediaId();
+                  const urlPath = url.split("?")[0] ?? url;
+                  const extension = urlPath.match(/\.([a-zA-Z0-9]+)$/)?.[1] || "png";
+                  const mimeType = blob.type || `image/${extension}`;
+                  const fileName = `mcp-image-${Date.now()}-${mediaId.slice(6, 14)}.${extension}`;
 
-              await writeEncryptedFile(mediaId, blob, encryptionKey, {
-                name: fileName,
-                sourceUrl: url,
-              });
+                  const dimensions = await getImageDimensions(blob);
 
-              return {
-                mediaId,
-                fileName,
-                mimeType,
-                size: blob.size,
-                url,
-                dimensions,
-              };
-            } finally {
-              clearTimeout(timeoutId);
-            }
-          })
-        );
+                  await writeEncryptedFile(mediaId, blob, encryptionKey, {
+                    name: fileName,
+                    sourceUrl: url,
+                  });
+
+                  return {
+                    mediaId,
+                    fileName,
+                    mimeType,
+                    size: blob.size,
+                    url,
+                    dimensions,
+                  };
+                } finally {
+                  clearTimeout(timeoutId);
+                  batchController.signal.removeEventListener("abort", abortOuter);
+                }
+              })
+            ),
+            BATCH_TIMEOUT_MS,
+            "useChatMedia.extractAndStoreEncryptedMCPImages:downloadBatch"
+          );
+        } finally {
+          clearTimeout(batchTimeoutId);
+          // Abort any in-flight fetches regardless of whether withTimeout or
+          // the batch's own timer fired first — honours the "outer controller
+          // aborts every in-flight fetch" guarantee.
+          batchController.abort();
+        }
 
         // 3. Collect mediaOptions from successful downloads
         results.forEach((result, i) => {
@@ -259,7 +291,10 @@ export function useChatMedia(options: UseChatMediaOptions): UseChatMediaResult {
         }
 
         return { fileIds: createdMediaIds, cleanedContent };
-      } catch {
+      } catch (err) {
+        if (err instanceof TimeoutError) {
+          getLogger().warn("[extractAndStoreEncryptedMCPImages] Batch download timed out:", err);
+        }
         // Preserve URLs as fallback — presigned URLs remain valid for 3 days,
         // so the LLM can still reference them for editing even if OPFS storage fails.
         return { fileIds: [], cleanedContent: content };
