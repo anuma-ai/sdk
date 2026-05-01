@@ -1462,21 +1462,21 @@ describe("useChat multi-turn tool loop", () => {
     // silently consumed by the strategy, so the stream finished empty and
     // the caller saw the generic "no response" fallback. The toolLoop now
     // detects this shape and throws so the real message bubbles up.
-    mockCreateSseClient.mockReturnValueOnce({
-      stream: (async function* () {
-        yield {
+    mockCreateSseClient.mockReturnValueOnce(
+      makeMockStream([
+        {
           type: "response.created",
           response: { id: "resp-1", model: "test-model" },
-        };
+        },
         // Provider emits a mid-stream error event.
-        yield {
+        {
           error: {
             code: "timeout",
             message: "The request timed out while calling the model provider.",
           },
-        };
-      })(),
-    } as any);
+        },
+      ])
+    );
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1514,8 +1514,8 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient
-      .mockReturnValueOnce(makeMockStream(makeToolCallStream("quiet_tool", {})) as any)
-      .mockReturnValueOnce(makeMockStream(makeTextStream("Sorry, that failed.")) as any);
+      .mockReturnValueOnce(makeMockStream(makeToolCallStream("quiet_tool", {})))
+      .mockReturnValueOnce(makeMockStream(makeTextStream("Sorry, that failed.")));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
@@ -1532,7 +1532,7 @@ describe("useChat multi-turn tool loop", () => {
 
     // The tool's error result must be included in the continuation input.
     const continuationBody = getRequestBody(1);
-    const toolResultMsg = continuationBody.input.find((m: any) => m.role === "tool");
+    const toolResultMsg = continuationBody.input.find((m) => m.role === "tool");
     expect(toolResultMsg).toBeDefined();
     expect(toolResultMsg.content[0].text).toContain("Upstream unavailable");
   });
@@ -1551,7 +1551,7 @@ describe("useChat multi-turn tool loop", () => {
     };
 
     mockCreateSseClient.mockReturnValueOnce(
-      makeMockStream(makeToolCallStream("quiet_tool", {})) as any
+      makeMockStream(makeToolCallStream("quiet_tool", {}))
     );
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
