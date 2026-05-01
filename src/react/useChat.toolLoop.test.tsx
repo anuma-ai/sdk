@@ -1550,9 +1550,7 @@ describe("useChat multi-turn tool loop", () => {
       skipContinuation: true,
     };
 
-    mockCreateSseClient.mockReturnValueOnce(
-      makeMockStream(makeToolCallStream("quiet_tool", {}))
-    );
+    mockCreateSseClient.mockReturnValueOnce(makeMockStream(makeToolCallStream("quiet_tool", {})));
 
     const { result } = renderHook(() => useChat({ getToken: async () => "token" }));
 
