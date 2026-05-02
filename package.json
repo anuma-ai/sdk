@@ -23,6 +23,12 @@
       "require": "./dist/react/index.cjs",
       "default": "./dist/react/index.cjs"
     },
+    "./design": {
+      "types": "./dist/design/index.d.ts",
+      "import": "./dist/design/index.mjs",
+      "require": "./dist/design/index.cjs",
+      "default": "./dist/design/index.cjs"
+    },
     "./expo": {
       "types": "./dist/expo/index.d.ts",
       "react-native": "./dist/expo/index.mjs",
@@ -123,6 +129,8 @@
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
     "@anuma/portal": "1.0.0-next.20260410171436",
+    "@babel/parser": "^7.29.2",
+    "@babel/types": "^7.29.0",
     "ai": "5.0.93",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
@@ -147,6 +155,7 @@
     "@types/node": "^25.0.3",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "4.0.15",
     "dependency-cruiser": "^17.3.8",
     "dotenv": "^17.2.3",

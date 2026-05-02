@@ -1,14 +1,28 @@
 /**
- * Render a SlideDeck to a self-contained HTML file for visual inspection.
+ * Render a parsed Anuma Deck AST to a self-contained HTML file for visual
+ * inspection.
  *
- * Used by `dumpFiles` to drop an `index.html` next to every `slides.json` in
+ * Used by `dumpFiles` to drop an `index.html` next to every `slides.jsx` in
  * .output/. Open it in a browser to step through the deck with arrow keys.
- * Kept test-local (not part of the SDK surface) — the goal is eyeballing
- * generated decks, not shipping a renderer.
+ * Kept test-local — this is for eyeballing generated decks, not a canonical
+ * renderer.
+ *
+ * Coordinate system: container-relative pixels on a 960×540 slide canvas.
+ * Slides render at natural size and scale to the viewport; children use
+ * pixel `left/top/width/height` inside an absolutely-positioned parent, or
+ * CSS flex when the parent opts into `layout="row" | "column"`.
  */
 
-import { FONT_PRESETS, type SlideDeck, type SlideTheme } from "../../../src/tools/slides/index.js";
 import { buildFontsUrl } from "../../../src/tools/slides/fonts.js";
+import type { AnumaNode, AttrValue } from "../../../src/tools/slides/index.js";
+import {
+  FONT_PRESETS,
+  isAnumaTag,
+  SLIDE_CANVAS_HEIGHT,
+  SLIDE_CANVAS_WIDTH,
+  THEME_ATTRS,
+  walk,
+} from "../../../src/tools/slides/index.js";
 
 function esc(s: string): string {
   return s
@@ -18,103 +32,336 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function resolveColor(token: unknown, theme: SlideTheme): string {
-  if (typeof token !== "string") return "#ffffff";
-  if (token.startsWith("#") || token.startsWith("rgb")) return token;
-  if (!theme.colors) return "#ffffff";
-  return (theme.colors as Record<string, string>)[token] ?? theme.colors.textPrimary;
+type ThemeColors = Record<string, string>;
+
+function themeColors(deck: AnumaNode): ThemeColors {
+  const colors: ThemeColors = {};
+  for (const token of THEME_ATTRS) {
+    const v = deck.attrs[token];
+    if (typeof v === "string") colors[token] = v;
+  }
+  return colors;
 }
 
-function collectExtraFonts(deck: SlideDeck): string[] {
-  const preset = FONT_PRESETS[deck.theme.fontPreset] ?? FONT_PRESETS.default!;
+function resolveColor(token: AttrValue | undefined, colors: ThemeColors): string {
+  if (typeof token !== "string") return "#ffffff";
+  if (token.startsWith("#") || token.startsWith("rgb")) return token;
+  return colors[token] ?? colors.textPrimary ?? "#ffffff";
+}
+
+function styleObject(node: AnumaNode): Record<string, string | number | boolean> {
+  const style = node.attrs.style;
+  if (style && typeof style === "object" && !Array.isArray(style)) {
+    return style as Record<string, string | number | boolean>;
+  }
+  return {};
+}
+
+function collectExtraFonts(deck: AnumaNode): string[] {
+  const fontPreset = typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
+  const preset = FONT_PRESETS[fontPreset] ?? FONT_PRESETS.default!;
   const presetFonts = new Set([preset.heading, preset.body]);
   const extras = new Set<string>();
-  for (const slide of deck.slides) {
-    for (const el of slide.elements) {
-      const family = (el as { fontFamily?: string }).fontFamily;
-      if (family && !presetFonts.has(family)) extras.add(family);
+  walk(deck, (node) => {
+    const inStyle = styleObject(node).fontFamily;
+    const top = node.attrs.fontFamily;
+    for (const family of [inStyle, top]) {
+      if (typeof family === "string" && !presetFonts.has(family)) extras.add(family);
     }
-  }
+  });
   return [...extras];
 }
 
-// eslint-disable-next-line complexity -- renders 4 element kinds with varied CSS
-function renderElement(
-  el: Record<string, unknown>,
-  resolve: (token: string) => string,
-  cardColor: string,
-  mutedColor: string
-): string {
-  const x = el.x as number;
-  const y = el.y as number;
-  const w = el.w as number;
-  const h = el.h as number;
-  const base = `position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;`;
+function isFlexContainer(node: AnumaNode): boolean {
+  const layout = node.attrs.layout;
+  return layout === "row" || layout === "column";
+}
 
-  switch (el.kind) {
-    case "text": {
-      const fs = ((el.fontSize as number) / 100) * 960;
-      const color = resolve(el.color as string);
-      const weight = (el.fontWeight as number) ?? 400;
-      const align = (el.align as string) ?? "left";
-      const lh = (el.lineHeight as number) ?? 1.3;
-      const italic = el.fontStyle === "italic" ? "font-style:italic;" : "";
-      const transform = el.textTransform === "uppercase" ? "text-transform:uppercase;" : "";
-      const family = el.fontFamily
-        ? `font-family:'${el.fontFamily as string}',system-ui,sans-serif;`
+function buildContainerStyle(node: AnumaNode): string {
+  const layout = node.attrs.layout;
+  if (layout !== "row" && layout !== "column") return "";
+  const direction = layout === "row" ? "row" : "column";
+  const gap = typeof node.attrs.gap === "number" ? `gap:${node.attrs.gap}px;` : "";
+  const padding = typeof node.attrs.padding === "number" ? `padding:${node.attrs.padding}px;` : "";
+  const justify =
+    typeof node.attrs.justify === "string"
+      ? `justify-content:${mapJustify(node.attrs.justify)};`
+      : "";
+  const align =
+    typeof node.attrs.align === "string" ? `align-items:${mapAlign(node.attrs.align)};` : "";
+  return `display:flex;flex-direction:${direction};${gap}${padding}${justify}${align}`;
+}
+
+function mapJustify(v: string): string {
+  if (v === "start") return "flex-start";
+  if (v === "end") return "flex-end";
+  if (v === "space-between") return "space-between";
+  return v;
+}
+
+function mapAlign(v: string): string {
+  if (v === "start") return "flex-start";
+  if (v === "end") return "flex-end";
+  return v;
+}
+
+function positionStyle(node: AnumaNode, parentIsFlex: boolean): string {
+  if (parentIsFlex) {
+    const w = typeof node.attrs.w === "number" ? `width:${node.attrs.w}px;` : "";
+    const h = typeof node.attrs.h === "number" ? `height:${node.attrs.h}px;` : "";
+    const grow = typeof node.attrs.grow === "number" ? `flex-grow:${node.attrs.grow};` : "";
+    const shrink = typeof node.attrs.shrink === "number" ? `flex-shrink:${node.attrs.shrink};` : "";
+    const alignSelf =
+      typeof node.attrs.alignSelf === "string"
+        ? `align-self:${mapAlign(node.attrs.alignSelf)};`
         : "";
-      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${family}">${esc(el.text as string)}</div>`;
+    return `position:relative;${w}${h}${grow}${shrink}${alignSelf}`;
+  }
+  const x = typeof node.attrs.x === "number" ? node.attrs.x : 0;
+  const y = typeof node.attrs.y === "number" ? node.attrs.y : 0;
+  const w = typeof node.attrs.w === "number" ? `width:${node.attrs.w}px;` : "";
+  const h = typeof node.attrs.h === "number" ? `height:${node.attrs.h}px;` : "";
+  return `position:absolute;left:${x}px;top:${y}px;${w}${h}`;
+}
+
+function renderNode(node: AnumaNode, colors: ThemeColors, parentIsFlex: boolean): string {
+  const resolve = (t: AttrValue | undefined) => resolveColor(t, colors);
+  const base = positionStyle(node, parentIsFlex);
+
+  switch (node.tag) {
+    case "Text": {
+      const style = styleObject(node);
+      const fs = typeof style.fontSize === "number" ? style.fontSize : 18;
+      const color = resolve(style.color);
+      const weight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
+      const align =
+        typeof style.textAlign === "string"
+          ? style.textAlign
+          : typeof node.attrs.align === "string"
+            ? node.attrs.align
+            : "left";
+      const lh = typeof style.lineHeight === "number" ? style.lineHeight : 1.3;
+      const italic = style.fontStyle === "italic" ? "font-style:italic;" : "";
+      const transform = style.textTransform === "uppercase" ? "text-transform:uppercase;" : "";
+      const letterSpacing =
+        typeof style.letterSpacing === "number" ? `letter-spacing:${style.letterSpacing}em;` : "";
+      const family =
+        typeof style.fontFamily === "string"
+          ? `font-family:'${style.fontFamily}',system-ui,sans-serif;`
+          : "";
+      const body = node.children.filter((c): c is string => typeof c === "string").join("");
+      return `<div style="${base}color:${color};font-size:${fs}px;font-weight:${weight};text-align:${align};line-height:${lh};overflow:hidden;white-space:pre-line;${italic}${transform}${letterSpacing}${family}">${esc(body)}</div>`;
     }
-    case "shape": {
-      const fill = el.fill ? resolve(el.fill as string) : "transparent";
-      const stroke = el.stroke
-        ? `border:${el.strokeWidth ?? 1}px solid ${resolve(el.stroke as string)};`
+    case "Rect": {
+      const fill = node.attrs.fill ? resolve(node.attrs.fill) : "transparent";
+      const stroke = node.attrs.stroke
+        ? `border:${typeof node.attrs.strokeWidth === "number" ? node.attrs.strokeWidth : 1}px solid ${resolve(node.attrs.stroke)};`
         : "";
-      const radius = el.cornerRadius ? `border-radius:${el.cornerRadius}%;` : "";
-      if (el.shape === "circle")
-        return `<div style="${base}background:${fill};border-radius:50%;${stroke}"></div>`;
-      if (el.shape === "line")
-        return `<div style="${base}border-top:${el.strokeWidth ?? 1}px solid ${el.stroke ? resolve(el.stroke as string) : fill};"></div>`;
+      const radius =
+        typeof node.attrs.cornerRadius === "number"
+          ? `border-radius:${node.attrs.cornerRadius}px;`
+          : "";
       return `<div style="${base}background:${fill};${stroke}${radius}"></div>`;
     }
-    case "image": {
-      const src = el.src as string;
-      const radius = el.cornerRadius ? `border-radius:${el.cornerRadius}%;` : "";
-      if (src.startsWith("http") || src.startsWith("data:"))
-        return `<img style="${base}object-fit:cover;${radius}" src="${esc(src)}" />`;
-      return `<div style="${base}background:${cardColor};display:flex;align-items:center;justify-content:center;${radius}color:${mutedColor};font-size:12px;">${esc(src.slice(0, 40))}</div>`;
+    case "Circle": {
+      const fill = node.attrs.fill ? resolve(node.attrs.fill) : "transparent";
+      const stroke = node.attrs.stroke
+        ? `border:${typeof node.attrs.strokeWidth === "number" ? node.attrs.strokeWidth : 1}px solid ${resolve(node.attrs.stroke)};`
+        : "";
+      return `<div style="${base}background:${fill};border-radius:50%;${stroke}"></div>`;
     }
-    case "icon": {
-      const fs = ((el.fontSize as number) / 100) * 960;
-      const color = resolve(el.color as string);
-      return `<div style="${base}font-family:'Material Symbols Rounded';font-size:${fs}px;color:${color};display:flex;align-items:center;justify-content:center;">${esc(el.name as string)}</div>`;
+    case "Line": {
+      const stroke = node.attrs.stroke ? resolve(node.attrs.stroke) : colors.textMuted;
+      const sw = typeof node.attrs.strokeWidth === "number" ? node.attrs.strokeWidth : 1;
+      return `<div style="${base}border-top:${sw}px solid ${stroke};"></div>`;
+    }
+    case "Image": {
+      const src = typeof node.attrs.src === "string" ? node.attrs.src : "";
+      const style = styleObject(node);
+      const rawRadius =
+        typeof style.borderRadius === "number"
+          ? style.borderRadius
+          : typeof node.attrs.cornerRadius === "number"
+            ? node.attrs.cornerRadius
+            : undefined;
+      const radius = rawRadius !== undefined ? `border-radius:${rawRadius}px;` : "";
+      if (src.startsWith("http") || src.startsWith("data:")) {
+        return `<img style="${base}object-fit:cover;${radius}" src="${esc(src)}" />`;
+      }
+      return `<div style="${base}background:${colors.card};display:flex;align-items:center;justify-content:center;${radius}color:${colors.textMuted};font-size:12px;">${esc(src.slice(0, 40))}</div>`;
+    }
+    case "Icon": {
+      const style = styleObject(node);
+      const fs = typeof style.fontSize === "number" ? style.fontSize : 24;
+      const color = resolve(style.color);
+      const name = typeof node.attrs.name === "string" ? node.attrs.name : "";
+      return `<div style="${base}font-family:'Material Symbols Rounded';font-size:${fs}px;color:${color};display:flex;align-items:center;justify-content:center;">${esc(name)}</div>`;
+    }
+    case "Group": {
+      const containerStyle = buildContainerStyle(node);
+      const myIsFlex = isFlexContainer(node);
+      const kids = node.children
+        .filter((c): c is AnumaNode => typeof c !== "string")
+        .map((c) => renderNode(c, colors, myIsFlex))
+        .join("\n");
+      return `<div style="${base}${containerStyle}">${kids}</div>`;
     }
     default:
-      return "";
+      if (isAnumaTag(node.tag)) return "";
+      return renderHtmlNode(node, colors, parentIsFlex, base);
   }
 }
 
-/** Render a SlideDeck to a self-contained HTML page with arrow-key navigation. */
-export function renderDeckToHtml(deck: SlideDeck, title?: string): string {
-  const c = deck.theme.colors;
-  const resolve = (token: string) => resolveColor(token, deck.theme);
+/**
+ * Pass-through renderer for allowlisted HTML tags. Inline `style` is
+ * merged with the positioning base; `x`/`y`/`w`/`h` attrs are converted
+ * to absolute positioning (same behavior as Anuma primitives). Child
+ * elements recurse; string children render as escaped text.
+ */
+function renderHtmlNode(
+  node: AnumaNode,
+  colors: ThemeColors,
+  _parentIsFlex: boolean,
+  base: string
+): string {
+  const passthroughAttrs: string[] = [];
+  const userStyle = styleObject(node);
+  const styleCss = serializeStyleWithTheme(userStyle, colors);
+  const containerStyle = buildContainerStyle(node);
+  const myIsFlex = isFlexContainer(node);
 
-  const preset = FONT_PRESETS[deck.theme.fontPreset] ?? FONT_PRESETS.default!;
+  // Collect simple string/number scalar attrs (src, href, type, placeholder, etc.)
+  const SKIP_ATTRS = new Set([
+    "id",
+    "x",
+    "y",
+    "w",
+    "h",
+    "rotation",
+    "grow",
+    "shrink",
+    "alignSelf",
+    "layout",
+    "gap",
+    "padding",
+    "justify",
+    "align",
+    "style",
+  ]);
+  if (typeof node.attrs.id === "string") {
+    passthroughAttrs.push(`id=${JSON.stringify(node.attrs.id)}`);
+  }
+  for (const [k, v] of Object.entries(node.attrs)) {
+    if (SKIP_ATTRS.has(k)) continue;
+    if (typeof v === "string") passthroughAttrs.push(`${k}=${JSON.stringify(v)}`);
+    else if (typeof v === "number") passthroughAttrs.push(`${k}="${v}"`);
+    else if (typeof v === "boolean" && v) passthroughAttrs.push(k);
+  }
+
+  const styleAttr = `style="${base}${containerStyle}${styleCss}"`;
+  const attrStr = passthroughAttrs.length > 0 ? " " + passthroughAttrs.join(" ") : "";
+
+  const kids = node.children
+    .map((c) => {
+      if (typeof c === "string") return esc(c);
+      return renderNode(c, colors, myIsFlex);
+    })
+    .join("");
+
+  // Self-closing for void elements
+  const VOID = new Set(["img", "hr", "br", "input", "source", "track", "col"]);
+  if (VOID.has(node.tag)) {
+    return `<${node.tag}${attrStr} ${styleAttr} />`;
+  }
+  return `<${node.tag}${attrStr} ${styleAttr}>${kids}</${node.tag}>`;
+}
+
+/** Serialize a user-provided style object to inline CSS, resolving theme tokens for color props. */
+function serializeStyleWithTheme(
+  style: Record<string, string | number | boolean>,
+  colors: ThemeColors
+): string {
+  const COLOR_KEYS = new Set([
+    "color",
+    "background",
+    "backgroundColor",
+    "borderColor",
+    "fill",
+    "stroke",
+  ]);
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(style)) {
+    const cssKey = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+    if (COLOR_KEYS.has(k) && typeof v === "string") {
+      parts.push(`${cssKey}:${resolveColor(v, colors)}`);
+    } else if (typeof v === "string" || typeof v === "number") {
+      parts.push(`${cssKey}:${v}${typeof v === "number" && NEEDS_PX.has(k) ? "px" : ""}`);
+    } else if (typeof v === "boolean") {
+      parts.push(`${cssKey}:${v ? "true" : "false"}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(";") + ";" : "";
+}
+
+/** CSS properties where bare numeric values should render as `Npx`. */
+const NEEDS_PX = new Set([
+  "fontSize",
+  "lineHeight",
+  "padding",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "margin",
+  "marginTop",
+  "marginRight",
+  "marginBottom",
+  "marginLeft",
+  "borderRadius",
+  "borderWidth",
+  "width",
+  "height",
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "gap",
+  "rowGap",
+  "columnGap",
+]);
+
+/** Render an Anuma deck to a self-contained HTML page with arrow-key navigation. */
+export function renderDeckToHtml(deck: AnumaNode, title?: string): string {
+  const colors = themeColors(deck);
+  const bg = colors.background ?? "#000";
+  const slideBg = colors.slideBg ?? "#111";
+  const textPrimary = colors.textPrimary ?? "#fff";
+  const textMuted = colors.textMuted ?? "#999";
+
+  const fontPreset = typeof deck.attrs.fontPreset === "string" ? deck.attrs.fontPreset : "default";
+  const preset = FONT_PRESETS[fontPreset] ?? FONT_PRESETS.default!;
   const extras = collectExtraFonts(deck);
   const fontsUrl = buildFontsUrl(
     [preset.heading, preset.body, ...extras],
     ["Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"]
   );
 
-  const slidesHtml = deck.slides
-    .map((s, i) => {
-      const bg = s.background ? `background:${resolve(s.background)}` : "";
-      const els = s.elements
-        .map((el) =>
-          renderElement(el as unknown as Record<string, unknown>, resolve, c.card, c.textMuted)
-        )
+  const slides = deck.children.filter(
+    (c): c is AnumaNode => typeof c !== "string" && c.tag === "Slide"
+  );
+  const slidesHtml = slides
+    .map((slide, i) => {
+      const slideBgOverride =
+        typeof slide.attrs.background === "string"
+          ? `background:${resolveColor(slide.attrs.background, colors)};`
+          : "";
+      const containerStyle = buildContainerStyle(slide);
+      const myIsFlex = isFlexContainer(slide);
+      const kids = slide.children
+        .filter((c): c is AnumaNode => typeof c !== "string")
+        .map((c) => renderNode(c, colors, myIsFlex))
         .join("\n");
-      return `<div class="slide" data-index="${i}" style="${bg}">${els}</div>`;
+      return `<div class="slide" data-index="${i}" style="${slideBgOverride}${containerStyle}">${kids}</div>`;
     })
     .join("\n");
 
@@ -129,21 +376,21 @@ export function renderDeckToHtml(deck: SlideDeck, title?: string): string {
 <title>${esc(title ?? "Presentation")}</title>
 <style>
 *{box-sizing:border-box;margin:0}
-html,body{width:100%;height:100%;overflow:hidden;background:${c.background};color:${c.textPrimary}}
+html,body{width:100%;height:100%;overflow:hidden;background:${bg};color:${textPrimary}}
 body{font-family:'${preset.body}',system-ui,-apple-system,sans-serif}
 h1,h2,h3,h4{font-family:'${preset.heading}',system-ui,sans-serif}
 .viewport{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center}
-.slide{position:absolute;width:min(100vw,calc(100vh*16/9));height:min(100vh,calc(100vw*9/16));
-  background:${c.slideBg};opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;transform:translateX(40px);overflow:hidden}
-.slide.active{opacity:1;pointer-events:auto;transform:translateX(0)}
-.slide.exit{opacity:0;transform:translateX(-40px)}
+.slide{position:absolute;width:${SLIDE_CANVAS_WIDTH}px;height:${SLIDE_CANVAS_HEIGHT}px;
+  background:${slideBg};opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;transform:translateX(40px) scale(var(--scale,1));transform-origin:center center;overflow:hidden}
+.slide.active{opacity:1;pointer-events:auto;transform:translateX(0) scale(var(--scale,1))}
+.slide.exit{opacity:0;transform:translateX(-40px) scale(var(--scale,1))}
 .nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;
   background:rgba(0,0,0,.55);backdrop-filter:blur(12px);padding:8px 16px;border-radius:999px;z-index:10}
-.nav button{background:none;border:none;color:${c.textPrimary};font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
+.nav button{background:none;border:none;color:${textPrimary};font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
 .nav button:hover{background:rgba(255,255,255,.12)}
 .nav button:disabled{opacity:.3;cursor:default}
 .nav button:disabled:hover{background:none}
-.nav .counter{font-size:13px;color:${c.textMuted};min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
+.nav .counter{font-size:13px;color:${textMuted};min-width:48px;text-align:center;font-variant-numeric:tabular-nums}
 img{display:block}
 </style>
 </head>
@@ -152,15 +399,21 @@ img{display:block}
 ${slidesHtml}
 </div>
 <div class="nav">
-  <button id="prev" aria-label="Previous">\u2190</button>
-  <span class="counter" id="counter">1 / ${deck.slides.length}</span>
-  <button id="next" aria-label="Next">\u2192</button>
+  <button id="prev" aria-label="Previous">←</button>
+  <span class="counter" id="counter">1 / ${slides.length}</span>
+  <button id="next" aria-label="Next">→</button>
 </div>
 <script>
 (function(){
   var slides=document.querySelectorAll('.slide');
   var total=slides.length;
   var cur=0;
+  var W=${SLIDE_CANVAS_WIDTH},H=${SLIDE_CANVAS_HEIGHT};
+  function fitScale(){
+    var vw=window.innerWidth,vh=window.innerHeight;
+    var scale=Math.min(vw/W,vh/H);
+    document.documentElement.style.setProperty('--scale',scale);
+  }
   function show(idx){
     if(idx<0||idx>=total||idx===cur)return;
     slides[cur].className='slide exit';
@@ -179,6 +432,8 @@ ${slidesHtml}
   });
   document.getElementById('prev').addEventListener('click',function(){show(cur-1)});
   document.getElementById('next').addEventListener('click',function(){show(cur+1)});
+  fitScale();
+  window.addEventListener('resize',fitScale);
 })();
 </script>
 </body>
