@@ -28,7 +28,12 @@ import { parseArgs } from "node:util";
 import { readFile, writeFile } from "node:fs/promises";
 import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
 import type { EmbeddingOptions } from "../../../../src/lib/memoryEngine/types.js";
-import { rankVaultMemories } from "../../../../src/lib/memoryVault/searchTool.js";
+import {
+  rankVaultMemories,
+  rankFusedVaultMemories,
+  rankFusedVaultMemoriesAsync,
+} from "../../../../src/lib/memoryVault/searchTool.js";
+import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
 import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
 import {
   VAULT_MEMORIES,
@@ -54,8 +59,24 @@ const { values: args } = parseArgs({
     max: { type: "string", short: "m" },
     baseline: { type: "string", short: "b" },
     "save-baseline": { type: "boolean", default: false },
+    ranker: { type: "string", default: "cosine" },
+    "recency-alpha": { type: "string" },
+    rerank: { type: "boolean", default: false },
+    "ce-weight": { type: "string" },
   },
 });
+
+const RANKER_NAME = (args.ranker ?? "cosine").toLowerCase();
+if (RANKER_NAME !== "cosine" && RANKER_NAME !== "fused") {
+  console.error(`Invalid --ranker "${RANKER_NAME}". Expected "cosine" or "fused".`);
+  process.exit(1);
+}
+
+const RECENCY_ALPHA = args["recency-alpha"]
+  ? parseFloat(args["recency-alpha"])
+  : undefined;
+const RERANK = !!args.rerank;
+const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -361,15 +382,33 @@ async function main() {
     updatedAt: new Date(m.createdAt), // no explicit updatedAt in benchmark data; createdAt encodes recency for temporal tests
   }));
 
+  if (RERANK) {
+    console.log("Pre-loading reranker model...");
+    await preloadReranker();
+  }
+
   const results: QueryResult[] = [];
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
-    const ranked = rankVaultMemories(query.query, queryEmbedding, embeddedItems, {
-      limit: embeddedItems.length,
-      minSimilarity: 0,
-    });
+    let ranked;
+    if (RERANK && RANKER_NAME === "fused") {
+      ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
+        limit: embeddedItems.length,
+        minSimilarity: 0,
+        rerank: true,
+        ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+        ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
+      });
+    } else {
+      const ranker = RANKER_NAME === "fused" ? rankFusedVaultMemories : rankVaultMemories;
+      ranked = ranker(query.query, queryEmbedding, embeddedItems, {
+        limit: embeddedItems.length,
+        minSimilarity: 0,
+        ...(RANKER_NAME === "fused" && RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+      });
+    }
 
     const allScored = ranked.map((r) => ({ id: r.uniqueId, similarity: r.similarity }));
     const allSimilarityMap = new Map(allScored.map((s) => [s.id, s.similarity]));

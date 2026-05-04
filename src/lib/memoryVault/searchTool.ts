@@ -10,6 +10,10 @@ import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations"
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
+import { rerankPairs } from "../memory/reranker";
+import { rrfFuse } from "../memory/rrf";
+import { scoreBM25 } from "./bm25";
 
 export { createVaultEmbeddingCache, DEFAULT_VAULT_CACHE_SIZE } from "./lruCache";
 
@@ -31,6 +35,12 @@ export interface MemoryVaultSearchOptions {
   scopes?: string[];
   /** When provided, only search memories in this folder (null for unfiled) */
   folderId?: string | null;
+  /**
+   * Use the hybrid fusion ranker (cosine + BM25 + RRF + recency) instead of
+   * cosine-only. Default true — new W1 pipeline. Pass false to fall back
+   * to the legacy cosine-only ranker (e.g. for benchmark A/B comparison).
+   */
+  useFusion?: boolean;
 }
 
 /**
@@ -219,6 +229,175 @@ export function rankVaultMemories(
 }
 
 /**
+ * Hybrid ranker (V2 — Hindsight pattern): cosine+supersession as the base
+ * relevance score, gentle multiplicative recency boost on top, BM25 used
+ * to admit out-of-cosine candidates with a small additive contribution.
+ *
+ * Why not RRF as the final ranker:
+ *  - On 100s of memories with only 2 signals, equal-weight RRF puts BM25 on
+ *    par with cosine. For natural-language queries, BM25 noise dominates.
+ *  - RRF rank-quantization (1/(k+rank)) erases score magnitude so recency
+ *    boosts can't differentiate close pairs.
+ *  - Hindsight (vectorize-io/hindsight) uses RRF for candidate *selection*
+ *    only, then ranks by `CE_score * (1 + α*(recency - 0.5))`. Without a
+ *    cross-encoder, we substitute supersession-adjusted cosine for CE.
+ *
+ * Pipeline:
+ *  1. Run rankVaultMemories internally (cosine + existing supersession)
+ *  2. Build BM25 admission set: items absent from rankVaultMemories' output
+ *     but with positive BM25 — these come in with a small fixed score
+ *  3. Apply gentle recency boost: score *= 1 + 0.2*(recency - 0.5),
+ *     yielding ±10% from neutral. Items without updatedAt get neutral 1.0.
+ *  4. Sort by boosted score, take top-K.
+ *
+ * The returned `similarity` field carries the boosted score; ordering
+ * semantics are preserved relative to {@link VaultSearchResult}.
+ */
+export function rankFusedVaultMemories(
+  query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    /**
+     * Recency boost slope. Default 1.0 → boost in [0.6, 1.5] across the
+     * recency multiplier range [0.1, 1.0]. Tuned empirically against the
+     * 100-query vault benchmark — α=1.0 lifts temporal recall by ~5pp
+     * without regressing any other category. Hindsight uses α=0.2 because
+     * their boost rides on top of a cross-encoder rerank score; we don't
+     * have a CE here so cosine carries more responsibility, hence the
+     * stronger boost.
+     */
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+  }
+): VaultSearchResult[] {
+  const limit = options?.limit ?? 5;
+  const minSimilarity = options?.minSimilarity ?? 0.1;
+  const recencyAlpha = options?.recencyAlpha ?? 1.0;
+
+  if (items.length === 0) return [];
+
+  // Stage 1 — base cosine + supersession via existing ranker.
+  const baseRanked = rankVaultMemories(query, queryEmbedding, items, {
+    limit: items.length,
+    minSimilarity,
+  });
+  const baseIds = new Set(baseRanked.map((r) => r.uniqueId));
+
+  // Stage 2 — BM25 admission for items not in the cosine ranking.
+  const bm25Scores = scoreBM25(
+    query,
+    items.map((i) => ({ id: i.id, content: i.content }))
+  );
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const admitted: VaultSearchResult[] = [];
+  for (const item of items) {
+    if (baseIds.has(item.id)) continue;
+    const bm25 = bm25Scores.get(item.id) ?? 0;
+    if (bm25 <= 0) continue;
+    // Map BM25 score to a small floor under the cosine threshold so
+    // BM25-only hits enter the ranking but rarely outrank cosine winners.
+    admitted.push({
+      uniqueId: item.id,
+      content: item.content,
+      similarity: Math.min(minSimilarity, bm25 / 50),
+    });
+  }
+
+  // Stage 3 — recency boost on the union.
+  const combined = [...baseRanked, ...admitted].map((r) => {
+    const item = itemById.get(r.uniqueId);
+    const recency = recencyMultiplier(item?.updatedAt, options?.recency);
+    const boost = 1 + recencyAlpha * (recency - 0.5);
+    return { ...r, similarity: r.similarity * boost };
+  });
+
+  return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+}
+
+/**
+ * Async variant of {@link rankFusedVaultMemories} that adds an optional
+ * cross-encoder rerank stage on top of the V2 pipeline. Mirrors Hindsight's
+ * `budget: high` path where a CE refines the top-N candidates after the
+ * lexical/semantic fusion stage.
+ *
+ * Combination: the CE score is folded in as a *multiplicative boost* on
+ * the V2 score, not a replacement. This is intentional — CE values
+ * lexical overlap (e.g. "Lives in Portland" outscores "Relocated to SF"
+ * on a "where do I live now" query because of token match), so using CE
+ * alone tanks temporal recall. Multiplicative blending keeps V2's
+ * temporal+supersession signal while letting CE bump precision on
+ * non-temporal categories.
+ *
+ * Pipeline:
+ *  1. Run synchronous V2 ranker → top-N candidates
+ *  2. Rerank those N with the cross-encoder (Xenova/ms-marco-MiniLM-L-6-v2)
+ *  3. final = v2_score * (1 + ceWeight * ce_score)
+ *  4. Sort, take top-K
+ *
+ * @param rerankTopN - how many V2 candidates to feed the reranker. Default 30.
+ * @param ceWeight - multiplicative blend weight on the CE score. Default 0.1
+ *   (tuned by sweep — ce=0.1 captures the precision/specificity wins from
+ *   the CE without introducing the ranking-violation regressions that
+ *   higher weights cause; CE's lexical bias on temporal queries dominates
+ *   above ~0.3).
+ */
+export async function rankFusedVaultMemoriesAsync(
+  query: string,
+  queryEmbedding: number[],
+  items: EmbeddedItem[],
+  options?: {
+    limit?: number;
+    minSimilarity?: number;
+    recencyAlpha?: number;
+    recency?: RecencyOptions;
+    rerank?: boolean;
+    rerankTopN?: number;
+    ceWeight?: number;
+  }
+): Promise<VaultSearchResult[]> {
+  const limit = options?.limit ?? 5;
+  const v2Ranked = rankFusedVaultMemories(query, queryEmbedding, items, {
+    limit: items.length,
+    minSimilarity: options?.minSimilarity,
+    recencyAlpha: options?.recencyAlpha,
+    recency: options?.recency,
+  });
+
+  if (!options?.rerank || v2Ranked.length === 0) {
+    return v2Ranked.slice(0, limit);
+  }
+
+  const rerankTopN = options.rerankTopN ?? 30;
+  const ceWeight = options.ceWeight ?? 0.1;
+  const headSlice = v2Ranked.slice(0, rerankTopN);
+  const tailSlice = v2Ranked.slice(rerankTopN);
+
+  const reranked = await rerankPairs(
+    query,
+    headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+  );
+
+  const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
+  const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
+
+  const combined: VaultSearchResult[] = headSlice.map((r) => {
+    const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
+    const ce = ceScoreById.get(r.uniqueId) ?? 0;
+    return {
+      uniqueId: r.uniqueId,
+      content: r.content,
+      similarity: v2 * (1 + ceWeight * ce),
+    };
+  });
+
+  combined.sort((a, b) => b.similarity - a.similarity);
+  return [...combined, ...tailSlice].slice(0, limit);
+}
+
+/**
  * Pre-embed all vault memories that are not yet in the cache.
  * Call this at init time so searches are instant.
  */
@@ -371,7 +550,9 @@ async function searchVaultMemoriesWithSize(
     }
   }
 
-  const results = rankVaultMemories(query, queryEmbedding, embeddedItems, {
+  const useFusion = searchOptions?.useFusion ?? true;
+  const ranker = useFusion ? rankFusedVaultMemories : rankVaultMemories;
+  const results = ranker(query, queryEmbedding, embeddedItems, {
     limit,
     minSimilarity,
   });

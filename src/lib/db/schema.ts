@@ -48,8 +48,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
  * - v27: Added tool_call_events column to history for reconstructing tool call history
+ * - v28: Added source_chunk_ids, proof_count, source columns to memory_vault for auto-extraction provenance and supersession tracking
  */
-export const SDK_SCHEMA_VERSION = 27;
+export const SDK_SCHEMA_VERSION = 28;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -174,6 +175,9 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
+        { name: "source_chunk_ids", type: "string", isOptional: true },
+        { name: "proof_count", type: "number", isOptional: true },
+        { name: "source", type: "string", isOptional: true },
       ],
     }),
     // Vault folder organization
@@ -296,6 +300,7 @@ export const sdkSchema = appSchema({
  * - v24 → v25: Added `saved_tools` table for user-saved display apps exposed as LLM tools
  * - v25 → v26: Added `app_files` table for LLM-generated app source files (HTML/CSS/JS)
  * - v26 → v27: Added `tool_call_events` column to history for reconstructing tool call history
+ * - v27 → v28: Added `source_chunk_ids`, `proof_count`, `source` columns to memory_vault for auto-extraction provenance and supersession tracking
  */
 export const sdkMigrations = schemaMigrations({
   migrations: [
@@ -642,6 +647,22 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "tool_call_events", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v27 -> v28: Added source_chunk_ids, proof_count, source columns to memory_vault for
+    // auto-extraction provenance (which conversation message(s) produced the memory) and
+    // supersession tracking (how many times this fact has been re-observed).
+    {
+      toVersion: 28,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "source_chunk_ids", type: "string", isOptional: true },
+            { name: "proof_count", type: "number", isOptional: true },
+            { name: "source", type: "string", isOptional: true },
+          ],
         }),
       ],
     },
