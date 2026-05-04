@@ -59,8 +59,11 @@ describe("searchVaultMemories", () => {
     cache.set("dogs are fun", [0.5, 0.5, 0]); // cos ≈ 0.71
     cache.set("birds can fly", [0, 1, 0]); // cos = 0.0
 
+    // Test cosine-ranker semantics directly; the fusion ranker has its
+    // own coverage in rankFusedVaultMemories.test.ts.
     const results = await searchVaultMemories("cats", mockVaultCtx, mockEmbeddingOptions, cache, {
       minSimilarity: 0,
+      useFusion: false,
     });
 
     expect(results).toHaveLength(3);
