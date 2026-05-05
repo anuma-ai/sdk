@@ -114,7 +114,12 @@ const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
  * happens. A value around 0.5–0.8 boosts the newer memory while keeping
  * the older one in contention for recall.
  */
-const SUPERSESSION_BOOST_FACTOR = 0.8;
+// DEBUG: temporarily 0 to A/B-test whether supersession is part of the
+// upstream LongMemEval regression (main went 70.9% → 32.9% between
+// March 11 and May 5). Embedding-rename revert recovered 17pp; this
+// run isolates the contribution of supersession's score-swap math.
+// Restore to 0.8 when the experiment concludes.
+const SUPERSESSION_BOOST_FACTOR = 0;
 
 /**
  * Supersession adjustment for a single pair. Returns the score delta to
