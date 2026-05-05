@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-05-05T05:47:18.076Z",
+  "datasetName": "longmemeval_s_memory-vault",
+  "strategy": "memory-vault",
+  "totalQuestions": 289,
+  "correctAnswers": 167,
+  "accuracy": 0.5778546712802768,
+  "byQuestionType": {
+    "single-session-user": {
+      "total": 70,
+      "correct": 57,
+      "accuracy": 0.8142857142857143
+    },
+    "single-session-assistant": {
+      "total": 56,
+      "correct": 18,
+      "accuracy": 0.32142857142857145
+    },
+    "single-session-preference": {
+      "total": 30,
+      "correct": 26,
+      "accuracy": 0.8666666666666667
+    },
+    "multi-session": {
+      "total": 133,
+      "correct": 66,
+      "accuracy": 0.49624060150375937
+    }
+  },
+  "retrieval": {
+    "avgPrecision": 0.9480968858131488,
+    "avgRecall": 0.9352364475201844
+  },
+  "latency": {
+    "p50": 32304.437737999993,
+    "p95": 53229.73821579993,
+    "p99": 66865.23848288,
+    "mean": 33413.099116069214
+  },
+  "tokenUsage": {
+    "promptTokens": 1699315,
+    "completionTokens": 34470,
+    "totalTokens": 1733785,
+    "embeddingTokens": 0
+  },
+  "cost": {
+    "llmCost": 4.7653375,
+    "embeddingCost": 0,
+    "totalCost": 4.7653375,
+    "llmModel": "openai/gpt-5.4",
+    "embeddingModel": "fireworks/accounts/fireworks/models/qwen3-embedding-8b"
+  },
+  "meta": {
+    "commit": "c90ae13e8e77dd1f21c2a134b507c8d100fd03ac",
+    "commitShort": "c90ae13",
+    "branch": "feat/recall-api",
+    "model": "openai/gpt-5.4",
+    "variant": "oracle",
+    "concurrency": 100,
+    "runUrl": "https://github.com/anuma-ai/sdk/actions/runs/25359989102",
+    "runId": 25359989102
+  }
+}
