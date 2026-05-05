@@ -4,6 +4,12 @@ vi.mock("./retain", () => ({
   retain: vi.fn(),
 }));
 
+vi.mock("../db/entities/operations", () => ({
+  linkMemoryEntitiesOp: vi.fn().mockResolvedValue([]),
+}));
+
+import { linkMemoryEntitiesOp } from "../db/entities/operations";
+
 import { retain } from "./retain";
 
 import { extractAndRetain, extractFacts, type AutoExtractMessage } from "./autoExtract";
@@ -276,5 +282,105 @@ describe("extractAndRetain", () => {
 
     expect(result.candidates).toHaveLength(1);
     expect(result.candidates[0].content).toBe("high");
+  });
+
+  it("links entities when entityCtx is provided", async () => {
+    const candidates = {
+      candidates: [
+        {
+          content: "Has a partner named Sara",
+          type: "relationship",
+          confidence: 0.95,
+          sourceMessageIds: ["m1"],
+          entities: ["Sara"],
+        },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({
+      action: "create",
+      memoryId: "mem-1",
+      proofCount: 1,
+    });
+    const entityCtx = { stub: true } as never;
+
+    await extractAndRetain(
+      messages,
+      {
+        vaultCtx: {} as never,
+        embeddingOptions: { apiKey: "k" },
+        vaultCache: new Map(),
+      },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        entityCtx,
+      }
+    );
+
+    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledWith(entityCtx, "mem-1", ["Sara"]);
+  });
+
+  it("does not call linkMemoryEntitiesOp when entityCtx is omitted", async () => {
+    const candidates = {
+      candidates: [
+        { content: "x", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["foo"] },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-2", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      { extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) } }
+    );
+
+    expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
+  });
+
+  it("skips entity linking when candidate has no entities", async () => {
+    const candidates = {
+      candidates: [
+        { content: "x", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: [] },
+      ],
+    };
+    vi.mocked(retain).mockResolvedValue({ action: "create", memoryId: "mem-3", proofCount: 1 });
+
+    await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        entityCtx: {} as never,
+      }
+    );
+
+    expect(vi.mocked(linkMemoryEntitiesOp)).not.toHaveBeenCalled();
+  });
+
+  it("entity-link failure doesn't kill the rest of the batch", async () => {
+    const candidates = {
+      candidates: [
+        { content: "fact 1", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["A"] },
+        { content: "fact 2", type: "other", confidence: 0.9, sourceMessageIds: ["m1"], entities: ["B"] },
+      ],
+    };
+    vi.mocked(retain)
+      .mockResolvedValueOnce({ action: "create", memoryId: "id1", proofCount: 1 })
+      .mockResolvedValueOnce({ action: "create", memoryId: "id2", proofCount: 1 });
+    vi.mocked(linkMemoryEntitiesOp)
+      .mockRejectedValueOnce(new Error("link failed"))
+      .mockResolvedValueOnce([]);
+
+    const result = await extractAndRetain(
+      messages,
+      { vaultCtx: {} as never, embeddingOptions: { apiKey: "k" }, vaultCache: new Map() },
+      {
+        extract: { apiKey: "k", fetchFn: mockFetch(JSON.stringify(candidates)) },
+        entityCtx: {} as never,
+      }
+    );
+
+    // Both retains succeeded even though one entity link failed.
+    expect(result.results).toHaveLength(2);
+    expect(vi.mocked(linkMemoryEntitiesOp)).toHaveBeenCalledTimes(2);
   });
 });

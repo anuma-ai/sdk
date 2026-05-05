@@ -13,6 +13,11 @@
  * Spec: see `tasks/hackathon/auto-extraction-prompt.md`.
  */
 
+import {
+  linkMemoryEntitiesOp,
+  type EntityOperationsContext,
+} from "../db/entities/operations.js";
+
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 
@@ -171,6 +176,13 @@ export async function extractAndRetain(
     /** Override scope/folder for all retained facts. */
     scope?: string;
     folderId?: string | null;
+    /**
+     * When provided, persist each candidate's `entities[]` to the
+     * entity + memory_entity tables after a successful retain. This
+     * powers the W5 graph retrieval lane — recall() can query for
+     * memories sharing entities with the user's question.
+     */
+    entityCtx?: EntityOperationsContext;
   }
 ): Promise<{ candidates: ExtractedCandidate[]; results: RetainResult[] }> {
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
@@ -188,6 +200,20 @@ export async function extractAndRetain(
         ...(options.folderId !== undefined && { folderId: options.folderId }),
       });
       results.push(result);
+
+      // W5 — link entities to the freshly persisted memory. Best-effort:
+      // a failure here doesn't roll back the retain.
+      if (options.entityCtx && candidate.entities.length > 0) {
+        try {
+          await linkMemoryEntitiesOp(
+            options.entityCtx,
+            result.memoryId,
+            candidate.entities
+          );
+        } catch {
+          // Entity linking is auxiliary — don't kill the rest of the batch.
+        }
+      }
     } catch {
       // One bad write shouldn't kill the rest of the batch.
     }

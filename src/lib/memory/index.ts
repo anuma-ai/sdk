@@ -29,3 +29,20 @@ export type {
   RetainSource,
   ScoreBreakdown,
 } from "./types.js";
+
+// W5 — entity graph ops (used by extractAndRetain on the write path
+// and by recall() on the read path).
+export {
+  upsertEntityOp,
+  getEntityByNameOp,
+  linkMemoryEntitiesOp,
+  getMemoriesByEntityNamesOp,
+  getEntitiesForMemoryOp,
+  type EntityOperationsContext,
+} from "../db/entities/operations.js";
+export type {
+  CreateEntityOptions,
+  EntityKind,
+  StoredEntity,
+  StoredMemoryEntity,
+} from "../db/entities/types.js";
