@@ -70,66 +70,75 @@ LongMemEval public benchmark, 289 questions, oracle variant.
 
 Pre-load the demo wallet's vault with **~25 curated memories** that build a graph with visible hubs and a recall payoff. Persona: **Peter Lee**, SF-based product designer.
 
-### Memories to seed (group → content)
+### Memories to seed — v2 (18 memories, 6 hubs)
 
-**Identity & relationships (5)**
+Tighter than v1: dropped the tech-stack rows (MacBook / AirPods / Figma / Prometheus) because they generated capitalized-token noise crowding out the human story. Each memory is anchored to one of six recognizable hubs.
+
+**Identity (3)**
 1. User's name is Peter Lee, a product designer based in San Francisco.
-2. User's spouse is Sara Park, a software engineer at Stripe.
-3. User has a corgi named Mochi who is 3 years old and weighs 22 pounds.
-4. User is allergic to peanuts and shellfish — carries an EpiPen.
-5. User's parents are Helen and David Lee, based in Vancouver, BC.
+2. User's parents are Helen and David Lee, based in Vancouver, BC.
+3. User is allergic to peanuts and shellfish — carries an EpiPen.
 
-**Lifestyle & preferences (5)**
-6. User climbs at Mission Cliffs in San Francisco twice a week, usually Tuesday and Thursday evenings.
-7. User's favorite climbing partner is Jordan Park, Sara's younger brother.
-8. User prefers IPAs over lagers and rates Pliny the Elder from Russian River as their favorite beer.
-9. User runs 5 km on Sunday mornings along the Embarcadero, average pace 5:15/km.
-10. User's apartment is in the Mission District near 19th and Valencia.
+**Sara hub (4)**
+4. User's spouse is Sara Park, a software engineer.
+5. User went to dinner at Le Bernardin in midtown Manhattan on March 14, 2026 for Sara's 32nd birthday. The bill was $340; Sara had the seven-course tasting menu.
+6. User is planning a 12-day trip to Japan with Sara from May 4 – 15, 2026 covering Tokyo, Kyoto, and Osaka.
+7. Sara's brother Jordan Park is getting married on June 20, 2026; the wedding is in Vancouver.
 
-**Tech & purchases (4)**
-11. User uses a 16-inch MacBook Pro M3 (2025) for design work.
-12. User bought Apple AirPods Pro 2 in February 2026.
-13. User's primary design tool is Figma; they joined the FigJam beta in March 2026.
-14. User keeps a self-hosted Prometheus instance scraping their home network for personal monitoring.
+**Mochi hub (3)**
+8. User has a corgi named Mochi who is 3 years old and weighs 22 pounds.
+9. User takes Mochi for morning walks in Dolores Park before work.
+10. User's vet for Mochi is Dr. Fujita at Mission Pet Hospital.
 
-**Travel & events (5)**
-15. User went to dinner at Le Bernardin in midtown Manhattan on March 14, 2026 for Sara's 32nd birthday. The bill was $340; Sara had the seven-course tasting menu.
-16. User is planning a 12-day trip to Japan with Sara from May 4 – 15, 2026 covering Tokyo, Kyoto, and Osaka.
-17. User's parents visited San Francisco from April 12 – 15, 2026; they hiked Greenfield Park together.
-18. User had a dentist appointment with Dr. Patel on April 28, 2026 at 9:30 AM.
-19. User went to bed at 2:14 AM on the night of April 27, 2026 (the night before the dentist appointment).
+**Mission Cliffs hub (3)**
+11. User climbs at Mission Cliffs in San Francisco twice a week, usually Tuesday and Thursday evenings.
+12. User's favorite climbing partner at Mission Cliffs is Jordan Park, Sara's younger brother.
+13. User is projecting a V5 boulder problem at Mission Cliffs called "Tidal Wave."
 
-**Assistant-subject memories (the differentiator) (4)**
-20. Assistant told the user that Tokyo is 9 hours ahead of San Francisco.
-21. Assistant recommended Le Bernardin in midtown for Sara's anniversary dinner.
-22. Assistant recommended Greenfield Park hiking trails for the user's parents' visit in April.
-23. Assistant computed that the user has 47 days between the start of their Japan trip (May 4) and Sara's brother Jordan's wedding (June 20).
+**Greenfield Park hub (2)**
+14. User's parents visited San Francisco from April 12 – 15, 2026; they hiked Greenfield Park together.
+15. Assistant recommended Greenfield Park hiking trails for the user's parents' visit in April.
 
-**Plans & ongoing situations (2)**
-24. User is interviewing for a Staff Designer role at Linear, with the next round on May 21, 2026.
-25. User is reading "The Three-Body Problem" by Liu Cixin and is on chapter 14 as of May 4, 2026.
+**Le Bernardin hub (2 — #5 + #16)**
+16. Assistant recommended Le Bernardin in midtown for Sara's anniversary dinner.
+
+**Japan / Tokyo hub (3 — #6 + #17 + #18)**
+17. Assistant told the user that Tokyo is 9 hours ahead of San Francisco.
+18. Assistant computed that the user has 47 days between the start of their Japan trip on May 4 and Sara's brother Jordan Park's wedding on June 20.
+
+### Recall questions that reliably trigger `memory_vault_search`
+
+The auto-highlight only fires when the assistant calls the search tool, which happens for memory-only questions. Use these — generic-knowledge questions ("system design resources") will skip the tool and the graph won't pulse.
+
+- *"What's my dog's name?"* → #8 (Mochi hub)
+- *"What restaurant did Sara and I go to for her birthday?"* → #5, #16 (Sara + Le Bernardin)
+- *"Where am I traveling in May?"* → #6, #17, #18 (Japan/Tokyo hub)
+- *"Who is Jordan Park?"* → #7, #12 (Sara + Mission Cliffs)
+- *"What time difference did you tell me earlier between Tokyo and SF?"* → #17
+- *"What am I projecting at Mission Cliffs?"* → #13
+- *"What am I allergic to?"* → #3
+- *"How many days between my Japan trip and Jordan's wedding?"* → #18
 
 ### Why this set
 
-- **Graph clusters well**: Sara, Mochi, Le Bernardin, Greenfield Park, Jordan, Mission Cliffs all appear in 2+ memories → become hub entities.
-- **Spans every LongMemEval category**: identity (1), preferences (8), events (15), multi-session (16+19+22), assistant-subject (20–23), single-session-user (10).
-- **Sets up the live-extraction demo**: the "Le Bernardin dinner" message I send at 1:30 will *update* an existing entity, not create a new one — visually richer than a cold add.
-- **Sets up the recall demo at 2:30**: the answer is grounded in a seeded memory + the live-added one, so the audience sees both.
+- **6 prominent hubs**: Sara, Mochi, Le Bernardin, Mission Cliffs, Greenfield Park, Japan — all appear in 2+ memories → become legible graph hubs.
+- **No tech-stack noise**: dropped MacBook / AirPods / Figma / Prometheus; the noise entities they produced are gone.
+- **Demo questions land on hubs the audience already saw**: each recall triggers green pulses on memory + entity nodes that are visible in the canvas.
+- **Sets up the live-extraction beat**: "I had dinner at Le Bernardin with Sara last Friday — the bill was $340" *updates* an existing hub instead of cold-adding.
 
-## Seed loader
+## Seed controls (shipped — `apps/web/components/Home/components/MemoryVault/DemoSeedButton.tsx`)
 
-Add a dev-only button in MemoryVault page → "Load demo seed (Peter)". On click:
-- Iterates the 25 memories above
-- Calls `createMemoriesBatch` (already used by import flow) so they land in one transaction
-- Skips silently if any memory's content already exists (idempotent re-runs)
-- Toast confirms count after completion
+Three dev-only buttons in the bottom-left of the Memory Vault page, gated behind `useMemoryStudioEnabled` (`localStorage.setItem('__ENABLE_MEMORY_STUDIO__', 'true'); location.reload()`):
 
-Gate behind `useMemoryStudioEnabled` (same dev flag as the toast) so it doesn't ship to prod users.
+1. **Load demo seed (Peter)** — inserts the 18 v2 seed memories whose exact content isn't already in the vault. Idempotent.
+2. **Clear seed** — deletes only memories whose content matches the current seed list. Real-vault content from other conversations is untouched.
+3. **Clear ALL** — deletes every memory in the vault, with a confirm prompt. Use to start a totally clean dry run.
 
 ## Pre-demo checklist (Fri morning)
 
 - [ ] Fresh wallet, signed in
-- [ ] Click "Load demo seed (Peter)" → confirm 25 memories show up in Memory Vault
+- [ ] Click "Clear ALL" if vault has unrelated content → confirm vault empty
+- [ ] Click "Load demo seed (Peter)" → confirm 18 memories show up in Memory Vault
 - [ ] Open Memory Graph → confirm Sara / Le Bernardin / Mochi / Mission Cliffs / Jordan visible as hubs
 - [ ] Send the dinner message in chat → confirm 3 amber pulses on graph and the live pill appears
 - [ ] Ask the recall question → confirm correct answer with values
