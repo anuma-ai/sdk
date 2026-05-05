@@ -54,6 +54,22 @@ on:
         required: false
         type: string
         default: "100"
+      rerank:
+        description: "Vault: enable cross-encoder rerank"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+      decompose:
+        description: "Vault: query decomposition for composite questions"
+        required: false
+        type: choice
+        default: "llm"
+        options:
+          - "llm"
+          - "off"
 
 jobs:
   resolve-strategies:
@@ -110,6 +126,9 @@ jobs:
           args="--strategy ${{ matrix.strategy }} --variant $EVAL_VARIANT --llm $EVAL_MODEL --concurrency ${{ inputs.concurrency }} --output results.json"
           if [ -n "$EVAL_MAX" ]; then
             args="$args --max $EVAL_MAX"
+          fi
+          if [ "${{ matrix.strategy }}" = "vault" ]; then
+            args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }}"
           fi
           pnpm eval:longmemeval $args
 
