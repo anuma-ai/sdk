@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-05-05 | memory-vault | oracle | kimi-k2p5 | 20.4% | 59/289 | 65.7% | 54.9% | [`ebab649`](https://github.com/anuma-ai/sdk/commit/ebab6495cec793b00e690bd662c8978b782311d1) | [link](https://github.com/anuma-ai/sdk/actions/runs/25357314730) |
 | 2026-03-11 | memory-vault | oracle | kimi-k2p5 | 62.3% | 180/289 | 96.5% | 93.7% | [`40d2755`](https://github.com/anuma-ai/sdk/commit/40d27556a0b749a939a0cd93c49232369e99e6f4) | [link](https://github.com/anuma-ai/sdk/actions/runs/22946499515) |
 | 2026-03-11 | memory-vault | oracle | kimi-k2p5 | 70.9% | 205/289 | 94.1% | 93.1% | [`43b31a9`](https://github.com/anuma-ai/sdk/commit/43b31a949bc3e386f339f9498e813ee273134cc0) | [link](https://github.com/anuma-ai/sdk/actions/runs/22945180184) |
 | 2026-03-11 | memory-engine | oracle | grok-4-1-fast-non-reasoning | 78.5% | 227/289 | 99.7% | 99.5% | [`6976580`](https://github.com/anuma-ai/sdk/commit/6976580af6c4d1ef7430553681c9d8fdf281b2c4) | [link](https://github.com/anuma-ai/sdk/actions/runs/22942370424) |
