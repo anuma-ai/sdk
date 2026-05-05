@@ -2,6 +2,7 @@
 
 | Date | Strategy | Variant | Model | Accuracy | Correct | Precision | Recall | Commit | Run |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 2026-05-05 | memory-vault | oracle | claude-sonnet-4-6 | 81.7% | 236/289 | 98.6% | 98.4% | [`28b7ba5`](https://github.com/anuma-ai/sdk/commit/28b7ba59ab07d3367273b7a204aa5102a16ae804) | [link](https://github.com/anuma-ai/sdk/actions/runs/25361578034) |
 | 2026-05-05 | memory-vault | oracle | claude-sonnet-4-6 | 73% | 211/289 | 94.5% | 94.1% | [`61edeb5`](https://github.com/anuma-ai/sdk/commit/61edeb5bb1cd0c49bb6ec39761369e7b33376da7) | [link](https://github.com/anuma-ai/sdk/actions/runs/25360009236) |
 | 2026-05-05 | memory-vault | oracle | claude-sonnet-4-6 | 72.7% | 210/289 | 94.5% | 93.9% | [`c90ae13`](https://github.com/anuma-ai/sdk/commit/c90ae13e8e77dd1f21c2a134b507c8d100fd03ac) | [link](https://github.com/anuma-ai/sdk/actions/runs/25359987047) |
 | 2026-05-05 | memory-vault | oracle | gpt-5.4 | 57.8% | 167/289 | 93.8% | 92.4% | [`61edeb5`](https://github.com/anuma-ai/sdk/commit/61edeb5bb1cd0c49bb6ec39761369e7b33376da7) | [link](https://github.com/anuma-ai/sdk/actions/runs/25360011656) |
