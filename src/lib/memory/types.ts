@@ -81,6 +81,16 @@ export interface RecallOptions {
   excludeConversationId?: string;
   /** Drop results below this score. Default: 0.1 for facts, 0.5 for chunks (mirrors today's defaults). */
   minScore?: number;
+  /**
+   * Auth + endpoint for the LLM-based query decomposition pass. Without
+   * these, decompose is skipped even at `budget: 'high'`. Mirrors the
+   * shape used by `searchVaultMemories`.
+   */
+  decomposeOptions?: {
+    apiKey: string;
+    baseUrl?: string;
+    model?: string;
+  };
 }
 
 export interface RecallContext {
@@ -102,6 +112,8 @@ export interface RecallResult {
   reranked: boolean;
   /** Diagnostic: total candidates considered before truncation. */
   candidateCount: number;
+  /** Diagnostic: total memories in the vault when fact lane was queried. */
+  vaultSize?: number;
 }
 
 // ---------------------------------------------------------------------------
