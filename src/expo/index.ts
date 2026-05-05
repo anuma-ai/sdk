@@ -148,6 +148,8 @@ export {
 
 // Memory vault
 export {
+  // Truth Layer additions
+  computeVaultRootOp,
   createVaultMemoriesBatchOp,
   createVaultMemoryOp,
   type CreateVaultMemoryOptions,
@@ -155,15 +157,47 @@ export {
   deleteVaultMemoryOp,
   getAllVaultMemoriesOp,
   getAllVaultMemoryContentsOp,
+  getMemoryHistoryOp,
   getUnfiledVaultMemoriesOp,
   getVaultMemoryOp,
+  type MemoryHistoryEntry,
+  retireVaultMemoryOp,
+  type RetireVaultMemoryOptions,
   type StoredVaultMemory,
   VaultMemory as StoredVaultMemoryModel,
   updateVaultMemoryEmbeddingOp,
   updateVaultMemoryOp,
   type UpdateVaultMemoryOptions,
   type VaultMemoryOperationsContext,
+  type VaultRootResult,
 } from "../lib/db/memoryVault";
+// Truth Layer — cryptographic provenance + append-only history primitives.
+export {
+  type AnchorResult,
+  type AnchorStateInput,
+  type BlockchainAdapter,
+  canonicalSigningPayload,
+  computeMemoryHash,
+  computeMerkleProof,
+  computeMerkleRoot,
+  createLocalStorageStorage,
+  createMemoryStorage,
+  createMockBlockchainAdapter,
+  createMockSigner,
+  type Grant,
+  type GrantOperation,
+  type GrantScope,
+  type IssueGrantInput,
+  type MemorySignature,
+  type MerkleProof,
+  type MockBlockchainOptions,
+  type MockStorage,
+  type SourceMetadata,
+  type Tombstone,
+  verifyMemorySignature,
+  verifyMerkleProof,
+  type WriterContext,
+} from "../lib/truthLayer";
 // Vault folders
 export {
   createVaultFolderOp,
