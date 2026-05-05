@@ -117,6 +117,17 @@ const SUPERSESSION_MIN_AGE_GAP_MS = 30 * 24 * 60 * 60 * 1000;
 const SUPERSESSION_BOOST_FACTOR = 0.8;
 
 /**
+ * Hard cap on the supersession candidate window. Independent of the caller's
+ * `limit` — `rankFusedVaultMemoriesAsync` and the bench pass `limit=items.length`
+ * so they can probe the long tail, but supersession's O(n²) pairwise cosine
+ * scales catastrophically (1k memories → 500k pairwise comparisons → ~1.7s
+ * per query). The signal lives entirely in the top candidates anyway: an old
+ * memory that doesn't even rank in the top 50 isn't going to be wrongly
+ * surfaced over its newer replacement.
+ */
+const SUPERSESSION_MAX_WINDOW = 50;
+
+/**
  * Supersession adjustment for a single pair. Returns the score delta to
  * add to the newer item (and subtract from the older item).
  */
@@ -215,8 +226,10 @@ export function rankVaultMemories(
   filtered.sort((a, b) => b.similarity - a.similarity);
 
   // Check top candidates for supersession — boost newer items and penalize
-  // older ones when they are highly similar and the older one outranks
-  const window = filtered.slice(0, limit * 3);
+  // older ones when they are highly similar and the older one outranks.
+  // Capped at SUPERSESSION_MAX_WINDOW to keep O(n²) bounded; tail items are
+  // already too low-ranked for supersession to matter.
+  const window = filtered.slice(0, Math.min(limit * 3, SUPERSESSION_MAX_WINDOW));
   const pairs = findSupersessionPairs(
     window.map((r) => ({
       id: r.uniqueId,
