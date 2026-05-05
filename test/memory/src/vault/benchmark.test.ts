@@ -454,6 +454,11 @@ async function main() {
     await preloadReranker();
   }
 
+  // Memory-side entities are query-independent; extract once.
+  const memoryEntitiesById = USE_GRAPH
+    ? new Map(VAULT_MEMORIES.map((m) => [m.id, extractEntities(m.content)]))
+    : null;
+
   const results: QueryResult[] = [];
   for (const query of queries) {
     const queryEmbedding = queryEmbeddingMap.get(query.query)!;
@@ -461,19 +466,17 @@ async function main() {
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
     if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
-      // W5 graph overlap: shared-entity counts between query and each memory.
       let graphOverlap: Map<string, number> | undefined;
       let totalQueryEntities: number | undefined;
-      if (USE_GRAPH) {
+      if (USE_GRAPH && memoryEntitiesById) {
         const queryEnts = extractEntities(query.query);
         totalQueryEntities = queryEnts.size;
         if (queryEnts.size > 0) {
           graphOverlap = new Map();
-          for (const item of VAULT_MEMORIES) {
-            const memEnts = extractEntities(item.content);
+          for (const [id, memEnts] of memoryEntitiesById) {
             let shared = 0;
             for (const e of queryEnts) if (memEnts.has(e)) shared++;
-            if (shared > 0) graphOverlap.set(item.id, shared);
+            if (shared > 0) graphOverlap.set(id, shared);
           }
         }
       }
