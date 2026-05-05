@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-05-05T02:14:00.019Z",
+  "elapsedSeconds": 13.7,
+  "memories": 108,
+  "queries": 100,
+  "overall": {
+    "count": 100,
+    "recallAtK": 0.8449999999999998,
+    "precisionAtK": 0.28399999999999964,
+    "mrr": 0.8103333333333333,
+    "ndcg": 0.7913685164476211,
+    "rankingViolationRate": 0.02
+  },
+  "byCategory": [
+    {
+      "category": "direct",
+      "count": 18,
+      "recallAtK": 0.9444444444444444,
+      "precisionAtK": 0.3148148148148147,
+      "mrr": 0.9166666666666666,
+      "ndcg": 0.923940541865081,
+      "rankingViolationRate": 0,
+      "avgTargetSim": 1.0744183774885516,
+      "avgTop1Sim": 1.078291623175162
+    },
+    {
+      "category": "paraphrase",
+      "count": 18,
+      "recallAtK": 1,
+      "precisionAtK": 0.30370370370370364,
+      "mrr": 0.9074074074074076,
+      "ndcg": 0.9312144170634953,
+      "rankingViolationRate": 0,
+      "avgTargetSim": 0.9722610311161228,
+      "avgTop1Sim": 0.9790962001615886
+    },
+    {
+      "category": "specificity",
+      "count": 17,
+      "recallAtK": 1,
+      "precisionAtK": 0.33333333333333326,
+      "mrr": 0.9313725490196079,
+      "ndcg": 0.9488782207983211,
+      "rankingViolationRate": 0,
+      "avgTargetSim": 1.0695267893127038,
+      "avgTop1Sim": 1.0788089139180623,
+      "avgTemporalMargin": 0.26870273885502943
+    },
+    {
+      "category": "temporal",
+      "count": 18,
+      "recallAtK": 0.8333333333333334,
+      "precisionAtK": 0.27037037037037037,
+      "mrr": 0.6203703703703703,
+      "ndcg": 0.6752582648809605,
+      "rankingViolationRate": 0.1111111111111111,
+      "avgTargetSim": 0.9161023041291857,
+      "avgTop1Sim": 0.9630186098412938,
+      "avgTemporalMargin": 0.08112373600798316
+    },
+    {
+      "category": "composite",
+      "count": 16,
+      "recallAtK": 0.46874999999999994,
+      "precisionAtK": 0.22500000000000006,
+      "mrr": 0.6791666666666667,
+      "ndcg": 0.48326184231800534,
+      "rankingViolationRate": 0,
+      "avgTargetSim": 0.7583936734573077,
+      "avgTop1Sim": 0.888157449932979
+    },
+    {
+      "category": "hard_negatives",
+      "count": 13,
+      "recallAtK": 0.7692307692307693,
+      "precisionAtK": 0.24102564102564106,
+      "mrr": 0.7948717948717949,
+      "ndcg": 0.7481764911946859,
+      "rankingViolationRate": 0,
+      "avgTargetSim": 0.8690329910023755,
+      "avgTop1Sim": 0.9617295390125331,
+      "avgTemporalMargin": 0.06468055020474599
+    }
+  ]
+}
