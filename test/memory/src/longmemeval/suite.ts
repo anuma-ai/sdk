@@ -47,11 +47,25 @@ console.warn = (...args: any[]) => {
 export interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
-  type: "identity" | "preference" | "project" | "skill" | "constraint";
-  namespace: string;
-  key: string;
-  value: string;
-  rawEvidence: string;
+  /**
+   * Natural-language fact about the user, self-contained and rich enough
+   * to surface meaningfully via embedding search. 15–80 words, present
+   * tense, third person, with proper nouns / quantities / dates preserved
+   * verbatim. Replaces the legacy {namespace,key,value,rawEvidence}
+   * structure which forced awkward boolean-key shapes like
+   * `has_favorite_yoga_pants: true`.
+   */
+  content: string;
+  /**
+   * `state` — durable identity, preference, relationship, ongoing situation;
+   * the kind of fact that should still be true months later.
+   * `event` — dated occurrence (a meal, a meeting, a bedtime, a purchase);
+   * recallable but with an `occurredAt` so retrieval can decay it. Mirrors
+   * Hindsight's `fact_kind: event | conversation` split.
+   */
+  kind: "state" | "event";
+  /** ISO date for events; null for state-typed memories. */
+  occurredAt: string | null;
   confidence: number;
   embedding?: number[];
 }
@@ -342,35 +356,65 @@ export async function extractMemoriesFromSession(
   session: LongMemEvalSession,
   sessionIndex: number,
   sessionId: string,
-  api: ApiConfig
+  api: ApiConfig,
+  observationDate?: string
 ): Promise<ExtractedMemory[]> {
   const conversationText = session.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
+  const obsDate = observationDate ?? new Date().toISOString().split("T")[0];
 
-  const extractionPrompt = `You are a memory extraction system. Extract durable user memories from this chat conversation.
+  // Extraction prompt — adapted from Mem0 (contextual richness, absolute
+  // dates, preserve specifics) + Hindsight's `fact_kind: event | conversation`
+  // split. Designed to fix three failure modes we observed on LongMemEval:
+  // (1) over-aggregation duplicating the same logical fact 4× across sessions,
+  // (2) awkward boolean key-value shapes burying the actual fact in
+  // `rawEvidence`, (3) under-extraction of episodic events ("went to bed at
+  // 2 AM the night before doctor's appointment") because the prior prompt
+  // only asked for "durable" facts.
+  const extractionPrompt = `You extract memories from a chat conversation for a personal memory system. The user will return tomorrow, next week, or next year and ask questions that depend on these memories.
 
-CRITICAL: Respond with ONLY valid JSON. No explanations, no markdown, just pure JSON.
-
-Only extract clear, factual statements about the user that might be relevant for future conversations.
-Focus on: identity facts, preferences, projects, skills, constraints, and personal information.
-
+Observation date: ${obsDate}
 Conversation:
 ${conversationText}
 
-Response format:
+OUTPUT — strict JSON, no prose, no markdown:
 {
   "items": [
     {
-      "type": "identity|preference|project|skill|constraint",
-      "namespace": "category",
-      "key": "attribute_name",
-      "value": "the value",
-      "rawEvidence": "exact quote from conversation",
+      "content": "<self-contained natural-language sentence about the user, 15–80 words, present-tense, third-person>",
+      "kind": "state" | "event",
+      "occurredAt": "<ISO date YYYY-MM-DD if kind is event, otherwise null>",
       "confidence": 0.0-1.0
     }
   ]
 }
 
-If no memories to extract, return: {"items": []}`;
+If no memories worth keeping, return {"items": []}.
+
+WHAT TO EXTRACT:
+
+- "state" — durable facts, identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
+- "event" — dated occurrences mentioned in the conversation: meals eaten, trips taken, meetings attended, bedtimes, purchases, doctor visits, things "I did yesterday / last week". Capture quantities and times verbatim.
+
+Casual topics ARE extractable. Pet names, what someone ate for breakfast, a friend's birthday, what time they went to bed, a route they took to work — these are all valid memories. The user may ask about any of them later.
+
+WHAT NOT TO EXTRACT:
+
+- Greetings, filler ("got it", "ok"), confirmations of the assistant's reply
+- Hypotheticals ("if I were to move to Tokyo…")
+- Pure search/task requests ("draft an email", "what's the weather")
+- Facts about other people that don't connect to the user
+- Facts already implied by other extracted memories (consolidate, don't duplicate)
+
+CONTENT RULES:
+
+- Self-contained natural-language sentences, NEVER key-value or boolean shapes. NOT "has_favorite_yoga_pants: true". INSTEAD "User has a favorite pair of yoga pants worn to the gym last Thursday".
+- Preserve specifics verbatim — proper nouns, brand names, quantities, addresses, exact prices, exact times. Do NOT generalize "Mochi the corgi" into "user's dog".
+- ONE MEMORY PER DISTINCT FACT. If the conversation mentions the user's aunt's twins named Ava and Lily born in April, that is ONE memory ("User's aunt has newborn twin girls Ava and Lily, born April 2026"), not four overlapping facets.
+- Resolve relative dates against the Observation Date above. "Last Thursday" + Observation Date 2026-05-05 → "2026-04-30". Never write "yesterday" or "recently" — write the absolute date.
+- Coreference: if the user mentions "my partner" then later says "Sara", combine — write "User's partner is Sara". Use the most complete identifier.
+- 15–80 words. Long enough to be self-contained for retrieval; short enough to be one fact.
+
+Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.7 for inferred. Below 0.5: skip.`;
 
   // Same exponential-backoff retry pattern as callChatCompletion. Extraction
   // hits the LLM under high concurrency, so 429s here will silently empty the
@@ -414,26 +458,33 @@ If no memories to extract, return: {"items": []}`;
       const jsonStr = extractJsonFromResponse(content);
 
       const parsed = JSON.parse(jsonStr) as {
-        items: Array<{
-          type: string;
-          namespace: string;
-          key: string;
-          value: string;
-          rawEvidence: string;
-          confidence: number;
+        items?: Array<{
+          content?: string;
+          kind?: string;
+          occurredAt?: string | null;
+          confidence?: number;
         }>;
       };
 
-      return (parsed.items || []).map((item) => ({
-        sessionIndex,
-        sessionId,
-        type: item.type as ExtractedMemory["type"],
-        namespace: item.namespace || "general",
-        key: item.key || "unknown",
-        value: item.value || "",
-        rawEvidence: item.rawEvidence || "",
-        confidence: item.confidence || 0.5,
-      }));
+      return (parsed.items ?? [])
+        .map((item) => {
+          const content = (item.content ?? "").trim();
+          if (!content) return null;
+          const kind = item.kind === "event" ? "event" : "state";
+          const occurredAt = kind === "event" && typeof item.occurredAt === "string"
+            ? item.occurredAt
+            : null;
+          const confidence = typeof item.confidence === "number" ? item.confidence : 0.7;
+          return {
+            sessionIndex,
+            sessionId,
+            content,
+            kind,
+            occurredAt,
+            confidence,
+          } satisfies ExtractedMemory;
+        })
+        .filter((m): m is ExtractedMemory => m !== null);
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
