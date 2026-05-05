@@ -552,9 +552,10 @@ async function main() {
     } else if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
       ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
         // Benchmark needs the full list so temporal-margin analysis can
-        // locate any ID. The MMR path picks K=query.k internally, then
-        // appends the tail in relevance order.
-        limit: USE_MMR ? query.k : embeddedItems.length,
+        // locate any ID. The MMR path picks K internally and appends
+        // the tail in relevance order; passing items.length surfaces
+        // both picks and tail.
+        limit: embeddedItems.length,
         minSimilarity: 0,
         rerank: RERANK,
         mmr: USE_MMR,
