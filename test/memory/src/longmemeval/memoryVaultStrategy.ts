@@ -262,7 +262,7 @@ export async function processEntryMemoryVault(
     const rerankEnabled = searchPipeline?.rerank ?? true;
     const decomposeMode = searchPipeline?.decompose ?? "llm";
     const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
-      limit: 14,
+      limit: 18,
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
