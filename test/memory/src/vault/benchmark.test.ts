@@ -65,6 +65,8 @@ const { values: args } = parseArgs({
     "ce-weight": { type: "string" },
     mmr: { type: "boolean", default: false },
     "mmr-lambda": { type: "string" },
+    graph: { type: "boolean", default: false },
+    "graph-alpha": { type: "string" },
   },
 });
 
@@ -81,6 +83,37 @@ const RERANK = !!args.rerank;
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
+const USE_GRAPH = !!args.graph;
+const GRAPH_ALPHA = args["graph-alpha"] ? parseFloat(args["graph-alpha"]) : undefined;
+
+// ---------------------------------------------------------------------------
+// W5 — heuristic entity extraction (bench only).
+//
+// In production, the auto-extraction worker (W2) populates the entity table
+// at write time. Here we approximate by pulling capitalized phrases plus
+// numbers — close enough to validate that the graph lane gives a real lift
+// on composite/multi-fact queries without needing hand-annotated data.
+// ---------------------------------------------------------------------------
+const ENTITY_STOPWORDS = new Set([
+  "I", "He", "She", "They", "We", "It", "The", "This", "That", "There",
+  "How", "What", "When", "Where", "Why", "Who", "Which", "Tell", "Give",
+  "Describe", "Summarize", "Does", "Has", "Have", "Had", "User", "Users",
+]);
+
+function extractEntities(text: string): Set<string> {
+  const out = new Set<string>();
+  const phraseRe = /\b[A-Z][a-zA-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]+)*\b/g;
+  const matches = text.match(phraseRe) ?? [];
+  for (const m of matches) {
+    if (ENTITY_STOPWORDS.has(m)) continue;
+    out.add(m.toLowerCase());
+  }
+  // Tech/numeric tokens too — useful for things like "PostgreSQL", "Q3", "2025"
+  const techRe = /\b[a-z]+\d+\b|\b\d{4}\b/gi;
+  const tech = text.match(techRe) ?? [];
+  for (const t of tech) out.add(t.toLowerCase());
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Config
@@ -397,7 +430,23 @@ async function main() {
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
-    if ((RERANK || USE_MMR) && RANKER_NAME === "fused") {
+    if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
+      // W5 graph overlap: shared-entity counts between query and each memory.
+      let graphOverlap: Map<string, number> | undefined;
+      let totalQueryEntities: number | undefined;
+      if (USE_GRAPH) {
+        const queryEnts = extractEntities(query.query);
+        totalQueryEntities = queryEnts.size;
+        if (queryEnts.size > 0) {
+          graphOverlap = new Map();
+          for (const item of VAULT_MEMORIES) {
+            const memEnts = extractEntities(item.content);
+            let shared = 0;
+            for (const e of queryEnts) if (memEnts.has(e)) shared++;
+            if (shared > 0) graphOverlap.set(item.id, shared);
+          }
+        }
+      }
       ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
         // Benchmark needs the full list so temporal-margin analysis can
         // locate any ID. The MMR path picks K=query.k internally, then
@@ -409,6 +458,9 @@ async function main() {
         ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
         ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
         ...(MMR_LAMBDA !== undefined && { mmrLambda: MMR_LAMBDA }),
+        ...(graphOverlap && { graphOverlap }),
+        ...(totalQueryEntities !== undefined && { totalQueryEntities }),
+        ...(GRAPH_ALPHA !== undefined && { graphAlpha: GRAPH_ALPHA }),
       });
     } else {
       const ranker = RANKER_NAME === "fused" ? rankFusedVaultMemories : rankVaultMemories;

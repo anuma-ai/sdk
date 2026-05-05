@@ -70,6 +70,8 @@ interface EmbeddedItem {
   embedding: number[];
   /** Last update timestamp — used for supersession detection. */
   updatedAt?: Date;
+  /** Number of times this fact has been re-observed (W4 — auto-merge). */
+  proofCount?: number | null;
 }
 
 /**
@@ -307,12 +309,16 @@ export function rankFusedVaultMemories(
     });
   }
 
-  // Stage 3 — recency boost on the union.
+  // Stage 3 — recency + proof-count boosts on the union.
+  // proof_count: re-observed facts get a small log-curve lift (Hindsight α=0.1).
+  // Items with no proof_count (legacy / unset) treated as 1 → log(2)≈0.69 → boost ~7%.
   const combined = [...baseRanked, ...admitted].map((r) => {
     const item = itemById.get(r.uniqueId);
     const recency = recencyMultiplier(item?.updatedAt, options?.recency);
-    const boost = 1 + recencyAlpha * (recency - 0.5);
-    return { ...r, similarity: r.similarity * boost };
+    const recencyBoost = 1 + recencyAlpha * (recency - 0.5);
+    const proofCount = Math.max(1, item?.proofCount ?? 1);
+    const proofBoost = 1 + 0.1 * Math.log(1 + proofCount) - 0.1 * Math.log(2);
+    return { ...r, similarity: r.similarity * recencyBoost * proofBoost };
   });
 
   return combined.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
@@ -368,6 +374,16 @@ export async function rankFusedVaultMemoriesAsync(
     mmrLambda?: number;
     /** How many candidates to feed MMR. Default 20. */
     mmrTopN?: number;
+    /**
+     * W5 — knowledge-graph retrieval lane. Map of memoryId → count of
+     * entities shared with the query. Items with overlap > 0 receive a
+     * tanh-shaped boost; items absent from the map are unaffected.
+     */
+    graphOverlap?: Map<string, number>;
+    /** Total entity count in the query (denominator for tanh normalization). */
+    totalQueryEntities?: number;
+    /** Graph-boost weight (α). Default 0.2 — same magnitude as recency. */
+    graphAlpha?: number;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -409,6 +425,21 @@ export async function rankFusedVaultMemoriesAsync(
     combined.sort((a, b) => b.similarity - a.similarity);
   } else {
     combined = v2Ranked;
+  }
+
+  // W5 — apply graph-overlap boost. tanh(shared / total) saturates at 1
+  // for full overlap; missing items (no shared entities) get no change.
+  if (options?.graphOverlap && options.graphOverlap.size > 0) {
+    const total = Math.max(1, options.totalQueryEntities ?? 1);
+    const alpha = options.graphAlpha ?? 0.2;
+    const overlap = options.graphOverlap;
+    combined = combined.map((r) => {
+      const shared = overlap.get(r.uniqueId) ?? 0;
+      if (shared <= 0) return r;
+      const boost = 1 + alpha * Math.tanh(shared / total);
+      return { ...r, similarity: r.similarity * boost };
+    });
+    combined.sort((a, b) => b.similarity - a.similarity);
   }
 
   if (options?.mmr) {
