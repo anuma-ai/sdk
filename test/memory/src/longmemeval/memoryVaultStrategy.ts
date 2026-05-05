@@ -100,16 +100,13 @@ export async function processEntryMemoryVault(
       );
 
       for (const mem of extracted) {
-        // New extraction emits a self-contained `content` directly. Append
-        // event date in brackets so retrieval surfaces the temporal anchor
-        // when the embedding compares against questions like "what time
-        // did I go to bed before my doctor's appointment".
         const dateSuffix = mem.kind === "event" && mem.occurredAt
           ? ` [${mem.occurredAt}]`
           : "";
+        const subjectPrefix = mem.subject === "assistant" ? "[from assistant] " : "";
         allMemories.push({
           sessionId: mem.sessionId,
-          content: `${mem.content}${dateSuffix}`,
+          content: `${subjectPrefix}${mem.content}${dateSuffix}`,
         });
       }
 
@@ -237,7 +234,9 @@ export async function processEntryMemoryVault(
 
     // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
-You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
+
+Memory entries prefixed with "[from assistant]" are statements the assistant previously made TO the user (e.g. recommendations, calculations, advice the assistant gave). All other entries are facts about the user themselves. When the question asks what the user said, did, prefers, or experienced, prioritize unprefixed entries. When the question asks what the assistant said, recommended, or computed, prioritize "[from assistant]" entries.`;
 
     // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
     // Chat Completions API expects "parameters". Remap for the API call.
