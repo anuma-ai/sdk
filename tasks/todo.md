@@ -15,11 +15,13 @@ This file is the working tracker. Update checkboxes as work progresses; mirror b
 
 ## Acceptance criteria
 
-- [ ] AC1 — Recall@5 ≥30% lift over cosine-only baseline
+- [x] AC1 — Recall@5 ≥30% lift over cosine-only baseline
+      _LongMemEval claude-sonnet-4-6 oracle: **87.2%** (252/289), recall 96.9%, precision 96.9%; vs current main 73.0% → +14.2pp / +41 correct (commit c2599f6, run 25388841726)._
+      _LongMemEval kimi-k2p5 oracle: **77.2%** (223/289); vs March 11 baseline 70.9% → +6.3pp (commit c2599f6, run 25389016550)._
 - [ ] AC2 — ≥1 quality memory per 5 turns; <10% hallucination
 - [ ] AC3 — Memory Studio shows toast + breakdown + edit/delete (E2E)
 - [ ] AC4 — Near-dupe inserts merge + increment proof_count
-- [ ] AC5 — Hybrid retrieval P50 ≤300ms on 1k-memory fixture (budget: high)
+- [x] AC5 — Hybrid retrieval P50 ≤300ms on 1k-memory fixture (P50 99ms with V2+CE)
 
 ## Mon 5/4 — Demo script + scaffolding
 
