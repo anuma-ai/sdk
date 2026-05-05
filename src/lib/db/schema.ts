@@ -48,8 +48,9 @@ import { VaultFolder } from "./vaultFolders/models";
  * - v25: Added saved_tools table for user-saved display apps exposed as LLM tools
  * - v26: Added app_files table for LLM-generated app source files (HTML/CSS/JS)
  * - v27: Added tool_call_events column to history for reconstructing tool call history
+ * - v28: Truth Layer — added signature, grant_id, source_metadata, parent_state_hash, retired_at to memory_vault for cryptographic provenance + append-only history
  */
-export const SDK_SCHEMA_VERSION = 27;
+export const SDK_SCHEMA_VERSION = 28;
 
 /**
  * Combined WatermelonDB schema for all SDK storage modules.
@@ -174,6 +175,12 @@ export const sdkSchema = appSchema({
         { name: "is_deleted", type: "boolean", isIndexed: true },
         { name: "user_id", type: "string", isOptional: true, isIndexed: true },
         { name: "embedding", type: "string", isOptional: true },
+        // Truth Layer (v28) — cryptographic provenance + append-only history
+        { name: "signature", type: "string", isOptional: true },
+        { name: "grant_id", type: "string", isOptional: true, isIndexed: true },
+        { name: "source_metadata", type: "string", isOptional: true }, // JSON: { sessionId, promptId, model, ... }
+        { name: "parent_state_hash", type: "string", isOptional: true }, // hash of the memory this one supersedes (append-only history)
+        { name: "retired_at", type: "number", isOptional: true, isIndexed: true }, // tombstone timestamp; null = active
       ],
     }),
     // Vault folder organization
@@ -642,6 +649,22 @@ export const sdkMigrations = schemaMigrations({
         addColumns({
           table: "history",
           columns: [{ name: "tool_call_events", type: "string", isOptional: true }],
+        }),
+      ],
+    },
+    // v27 -> v28: Truth Layer — cryptographic provenance + append-only history for memory_vault
+    {
+      toVersion: 28,
+      steps: [
+        addColumns({
+          table: "memory_vault",
+          columns: [
+            { name: "signature", type: "string", isOptional: true },
+            { name: "grant_id", type: "string", isOptional: true, isIndexed: true },
+            { name: "source_metadata", type: "string", isOptional: true },
+            { name: "parent_state_hash", type: "string", isOptional: true },
+            { name: "retired_at", type: "number", isOptional: true, isIndexed: true },
+          ],
         }),
       ],
     },
