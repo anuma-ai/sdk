@@ -777,7 +777,7 @@ export interface VaultSearchResult {
 /**
  * Internal search that also returns the vault size, avoiding a second vault load.
  */
-async function searchVaultMemoriesWithSize(
+export async function searchVaultMemoriesWithSize(
   query: string,
   vaultCtx: VaultMemoryOperationsContext,
   embeddingOptions: EmbeddingOptions,
@@ -999,23 +999,47 @@ export function createMemoryVaultSearchTool(
       }
 
       try {
-        const { results, vaultSize } = await searchVaultMemoriesWithSize(
+        // Route through the unified recall() API so the chat tool, the
+        // SDK's programmatic surface, and any future consumer all share
+        // one ranking pipeline. searchOptions.rerank/decompose/decomposeOptions
+        // map onto recall's `budget` for the legacy MemoryVaultSearchOptions
+        // shape.
+        const budget: "low" | "mid" | "high" =
+          searchOptions?.decompose === "llm" && searchOptions.decomposeOptions
+            ? "high"
+            : searchOptions?.rerank
+              ? "mid"
+              : "low";
+        const folderId =
+          searchOptions?.folderId !== undefined
+            ? searchOptions.folderId
+            : argFolderId !== undefined
+              ? argFolderId
+              : undefined;
+
+        const { recall } = await import("../memory/recall.js");
+        const result = await recall(
           query,
-          vaultCtx,
-          embeddingOptions,
-          cache,
           {
-            ...searchOptions,
+            vaultCtx,
+            embeddingOptions,
+            vaultCache: cache,
+          },
+          {
+            types: ["fact"],
             limit: requestLimit,
-            minSimilarity,
-            // Only use LLM's folder_id when the host app hasn't set one
-            ...(searchOptions?.folderId === undefined &&
-              argFolderId !== undefined && { folderId: argFolderId }),
+            minScore: minSimilarity,
+            budget,
+            ...(folderId !== undefined && { folderId }),
+            ...(searchOptions?.scopes && { scopes: searchOptions.scopes }),
+            ...(searchOptions?.decompose === "llm" &&
+              searchOptions.decomposeOptions && {
+                decomposeOptions: searchOptions.decomposeOptions,
+              }),
           }
         );
 
-        if (vaultSize === 0) {
-          // Distinguish between a truly empty vault and an empty folder-scoped query
+        if (result.vaultSize === 0) {
           const hasFolderFilter =
             searchOptions?.folderId !== undefined || argFolderId !== undefined;
           if (hasFolderFilter) {
@@ -1024,18 +1048,18 @@ export function createMemoryVaultSearchTool(
           return "The memory vault is empty. No memories have been saved yet.";
         }
 
-        if (results.length === 0) {
+        if (result.memories.length === 0) {
           return "No relevant memories found in the vault.";
         }
 
-        const formatted = results
+        const formatted = result.memories
           .map(
-            (r, i) =>
-              `[${i + 1}] (id: ${r.uniqueId}, similarity: ${r.similarity.toFixed(2)})\n${r.content}`
+            (m, i) =>
+              `[${i + 1}] (id: ${m.id}, similarity: ${(m.scoreBreakdown?.cosine ?? m.score).toFixed(2)})\n${m.content}`
           )
           .join("\n\n");
 
-        return `Found ${results.length} vault memories:\n\n${formatted}`;
+        return `Found ${result.memories.length} vault memories:\n\n${formatted}`;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         return `Error searching vault: ${message}`;
