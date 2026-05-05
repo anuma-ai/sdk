@@ -15,6 +15,7 @@ export {
   type TurnSkippedEvent,
 } from "./autoExtractWorker.js";
 export { recall } from "./recall.js";
+export { reflect, type ReflectOptions, type ReflectResult } from "./reflect.js";
 export { retain, type RetainContext } from "./retain.js";
 export type {
   Budget,
