@@ -16,6 +16,21 @@ import {
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
 import { retain } from "../../../../src/lib/memory/retain.js";
+import { generateEmbeddings } from "../../../../src/lib/memoryEngine/embeddings.js";
+
+function cosineSim(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const d = Math.sqrt(na) * Math.sqrt(nb);
+  return d === 0 ? 0 : dot / d;
+}
 import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
 import {
   setupDatabase,
@@ -103,10 +118,9 @@ export async function processEntryMemoryVault(
         const dateSuffix = mem.kind === "event" && mem.occurredAt
           ? ` [${mem.occurredAt}]`
           : "";
-        const subjectPrefix = mem.subject === "assistant" ? "[from assistant] " : "";
         allMemories.push({
           sessionId: mem.sessionId,
-          content: `${subjectPrefix}${mem.content}${dateSuffix}`,
+          content: `${mem.content}${dateSuffix}`,
         });
       }
 
@@ -214,6 +228,34 @@ export async function processEntryMemoryVault(
       console.log(`  Embedded ${embeddingCache.size} vault entries`);
     }
 
+    // Step 3.5: Build a parallel session-chunk index for hybrid retrieval.
+    // The vault stores compressed extracted facts (high-precision); chunks
+    // preserve raw conversation phrasing so multi-session questions can hit
+    // the actual user/assistant words when paraphrase distance trips the fact
+    // index. Both rankings are surfaced to the answer LLM in one tool result.
+    logProgress("Indexing session chunks...");
+    const chunkSessionIds: string[] = [];
+    const chunkTexts: string[] = [];
+    for (let i = 0; i < sessionIndices.length; i++) {
+      const sIdx = sessionIndices[i];
+      const text = entry.haystack_sessions[sIdx]
+        .map((m) => `${m.role}: ${m.content}`)
+        .join("\n")
+        .slice(0, 6000);
+      chunkSessionIds.push(entry.haystack_session_ids[sIdx]);
+      chunkTexts.push(text);
+    }
+    const chunkEmbeddings = chunkTexts.length
+      ? await generateEmbeddings(chunkTexts, {
+          ...embeddingOptions,
+          cache: embeddingCache,
+        })
+      : [];
+    clearProgress();
+    if (verbose) {
+      console.log(`  Indexed ${chunkEmbeddings.length} session chunks`);
+    }
+
     // Step 4: Create search tool via SDK. The pipeline knobs default to the
     // V2+CE+decompose stack (validated at 86.2% on the synthetic vault bench);
     // callers can disable rerank/decompose to A/B against the V2-only baseline.
@@ -232,11 +274,40 @@ export async function processEntryMemoryVault(
       }),
     });
 
+    // Wrap the vault executor to fuse top-K raw conversation chunks alongside
+    // the extracted facts in a single tool response. We add chunk hits to the
+    // retrieved-session set so retrieval metrics reward chunk-only catches.
+    const retrievedChunkSessionIds = new Set<string>();
+    const vaultExecutor = searchTool.executor!;
+    searchTool.executor = async (args: Record<string, unknown>) => {
+      const vaultStr = await vaultExecutor(args);
+      const query = typeof args.query === "string" ? args.query : "";
+      if (!query || chunkEmbeddings.length === 0) return vaultStr;
+      const [queryEmbedding] = await generateEmbeddings([query], {
+        ...embeddingOptions,
+        cache: embeddingCache,
+      });
+      const ranked = chunkEmbeddings
+        .map((emb, i) => ({
+          sessionId: chunkSessionIds[i],
+          text: chunkTexts[i],
+          sim: cosineSim(queryEmbedding, emb),
+        }))
+        .sort((a, b) => b.sim - a.sim)
+        .slice(0, 3);
+      for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
+      const chunkBlock = ranked
+        .map(
+          (r, i) =>
+            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, 1500)}`
+        )
+        .join("\n\n");
+      return `${vaultStr}\n\n--- Raw conversation excerpts (${ranked.length}) ---\n\n${chunkBlock}`;
+    };
+
     // Step 5: Two-step LLM flow
     const systemPrompt = `Today is ${entry.question_date}.
-You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.
-
-Memory entries prefixed with "[from assistant]" are statements the assistant previously made TO the user (e.g. recommendations, calculations, advice the assistant gave). All other entries are facts about the user themselves. When the question asks what the user said, did, prefers, or experienced, prioritize unprefixed entries. When the question asks what the assistant said, recommended, or computed, prioritize "[from assistant]" entries.`;
+You are a personal assistant with access to the user's past conversation history. Answer their question using information from their past conversations. Be concise and direct.`;
 
     // The SDK's ToolConfig uses "arguments" for the schema, but the OpenAI
     // Chat Completions API expects "parameters". Remap for the API call.
@@ -377,6 +448,9 @@ Memory entries prefixed with "[from assistant]" are statements the assistant pre
     for (const vaultId of retrievedVaultIds) {
       const sessionId = vaultToSession.get(vaultId);
       if (sessionId) retrievedSessionIds.add(sessionId);
+    }
+    for (const sid of retrievedChunkSessionIds) {
+      retrievedSessionIds.add(sid);
     }
 
     const expectedSessionIds = new Set(entry.answer_session_ids);

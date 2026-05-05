@@ -47,32 +47,8 @@ console.warn = (...args: any[]) => {
 export interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
-  /**
-   * Natural-language fact about the user (or about the assistant's reply
-   * to the user, when subject="assistant"), self-contained and rich
-   * enough to surface meaningfully via embedding search. 15–80 words,
-   * present tense, third person, with proper nouns / quantities / dates
-   * preserved verbatim. Replaces the legacy {namespace,key,value,rawEvidence}
-   * structure which forced awkward boolean-key shapes like
-   * `has_favorite_yoga_pants: true`.
-   */
   content: string;
-  /**
-   * `user` — fact about the user themselves (default).
-   * `assistant` — something the assistant stated that the user may ask
-   * back about ("what did you tell me about X earlier?"). LongMemEval's
-   * single-session-assistant category specifically tests recall of these.
-   */
-  subject: "user" | "assistant";
-  /**
-   * `state` — durable identity, preference, relationship, ongoing situation;
-   * the kind of fact that should still be true months later.
-   * `event` — dated occurrence (a meal, a meeting, a bedtime, a purchase);
-   * recallable but with an `occurredAt` so retrieval can decay it. Mirrors
-   * Hindsight's `fact_kind: event | conversation` split.
-   */
   kind: "state" | "event";
-  /** ISO date for events; null for state-typed memories. */
   occurredAt: string | null;
   confidence: number;
   embedding?: number[];
@@ -389,7 +365,6 @@ OUTPUT — strict JSON, no prose, no markdown:
   "items": [
     {
       "content": "<self-contained natural-language sentence, 15–80 words, present-tense, third-person>",
-      "subject": "user" | "assistant",
       "kind": "state" | "event",
       "occurredAt": "<ISO date YYYY-MM-DD if kind is event, otherwise null>",
       "confidence": 0.0-1.0
@@ -399,31 +374,12 @@ OUTPUT — strict JSON, no prose, no markdown:
 
 If no memories worth keeping, return {"items": []}.
 
-WHAT TO EXTRACT — TWO SUBJECTS:
+WHAT TO EXTRACT — facts about the user themselves.
 
-(A) subject="user" — facts about the user themselves.
+- "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
+- "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
 
-  - "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
-  - "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
-
-  Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
-
-(B) subject="assistant" — facts the ASSISTANT stated that contain a SPECIFIC, RETRIEVABLE VALUE.
-
-  ONLY extract assistant statements when the statement contains AT LEAST ONE of:
-  - a number, quantity, price, distance, or duration ("9 hours", "$340", "47 days", "twice a week")
-  - a specific named entity the assistant introduced (a place, business, product, person — "Le Bernardin", "Greenfield Park")
-  - a specific date or time the assistant gave the user
-  - a calculated/computed value (time differences, conversions, totals, "the difference is X")
-
-  These are the questions LongMemEval grades on: "how much was that going to be?", "what time difference did you tell me?", "what restaurant did you recommend?". Without a concrete value, the assistant statement is not gradeable and only adds retrieval noise.
-
-  DO NOT extract:
-  - generic advice or recommendations without a named target ("you should drink more water", "consider a different approach")
-  - the assistant restating or summarizing what the user just said
-  - filler, encouragement, or hedged opinions ("that sounds great", "it depends")
-  - meta-commentary about the conversation ("happy to help", "let me know")
-  - educational facts the user did not ask about and did not anchor to a value
+Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
 
 WHAT NOT TO EXTRACT:
 
@@ -438,7 +394,6 @@ CONTENT RULES:
 - Self-contained natural-language sentences, NEVER key-value or boolean shapes. NOT "has_favorite_yoga_pants: true". INSTEAD "User has a favorite pair of yoga pants worn to the gym last Thursday".
 - Preserve specifics verbatim — proper nouns, brand names, quantities, addresses, exact prices, exact times. Do NOT generalize "Mochi the corgi" into "user's dog".
 - ONE MEMORY PER DISTINCT FACT. If the conversation mentions the user's aunt's twins named Ava and Lily born in April, that is ONE memory ("User's aunt has newborn twin girls Ava and Lily, born April 2026"), not four overlapping facets.
-- Assistant-subject memories START with "Assistant told the user…" / "Assistant recommended…" / "Assistant computed…" so retrieval surfaces them on questions like "what did you tell me earlier about…".
 - Resolve relative dates against the Observation Date above. "Last Thursday" + Observation Date ${obsDate} → an absolute date. Never write "yesterday" or "recently".
 - Coreference: if the user mentions "my partner" then later says "Sara", combine — write "User's partner is Sara". Use the most complete identifier.
 - 15–80 words. Long enough to be self-contained for retrieval; short enough to be one fact.
@@ -489,7 +444,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       const parsed = JSON.parse(jsonStr) as {
         items?: Array<{
           content?: string;
-          subject?: string;
           kind?: string;
           occurredAt?: string | null;
           confidence?: number;
@@ -500,7 +454,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
         .map((item) => {
           const content = (item.content ?? "").trim();
           if (!content) return null;
-          const subject = item.subject === "assistant" ? "assistant" : "user";
           const kind = item.kind === "event" ? "event" : "state";
           const occurredAt = kind === "event" && typeof item.occurredAt === "string"
             ? item.occurredAt
@@ -510,7 +463,6 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
             sessionIndex,
             sessionId,
             content,
-            subject,
             kind,
             occurredAt,
             confidence,
