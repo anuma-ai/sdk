@@ -45,6 +45,17 @@ async function mapInBatches<T, R>(items: T[], fn: (item: T) => Promise<R>): Prom
 }
 
 function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
+  let sourceChunkIds: string[] | null = null;
+  if (memory.sourceChunkIds) {
+    try {
+      const parsed = JSON.parse(memory.sourceChunkIds) as unknown;
+      if (Array.isArray(parsed)) {
+        sourceChunkIds = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      sourceChunkIds = null;
+    }
+  }
   return {
     uniqueId: memory.id,
     content: memory.content,
@@ -52,6 +63,9 @@ function vaultMemoryToStoredRaw(memory: VaultMemory): StoredVaultMemory {
     folderId: memory.folderId ?? null,
     userId: memory.userId ?? null,
     embedding: memory.embedding ?? null,
+    sourceChunkIds,
+    proofCount: memory.proofCount ?? null,
+    source: memory.source ?? null,
     createdAt: memory.createdAt,
     updatedAt: memory.updatedAt,
     isDeleted: memory.isDeleted,
@@ -96,6 +110,11 @@ export async function createVaultMemoryOp(
       if (opts.embedding !== undefined) {
         record._setRaw("embedding", opts.embedding);
       }
+      if (opts.sourceChunkIds !== undefined) {
+        record._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+      }
+      record._setRaw("proof_count", opts.proofCount ?? 1);
+      record._setRaw("source", opts.source ?? "manual");
     });
   });
 
@@ -233,6 +252,15 @@ export async function updateVaultMemoryOp(
         }
         if (opts.embedding !== undefined) {
           r._setRaw("embedding", opts.embedding);
+        }
+        if (opts.sourceChunkIds !== undefined) {
+          r._setRaw("source_chunk_ids", JSON.stringify(opts.sourceChunkIds));
+        }
+        if (opts.proofCount !== undefined) {
+          r._setRaw("proof_count", opts.proofCount);
+        }
+        if (opts.source !== undefined) {
+          r._setRaw("source", opts.source);
         }
       });
     });

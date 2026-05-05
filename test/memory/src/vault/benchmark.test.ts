@@ -63,6 +63,8 @@ const { values: args } = parseArgs({
     "recency-alpha": { type: "string" },
     rerank: { type: "boolean", default: false },
     "ce-weight": { type: "string" },
+    mmr: { type: "boolean", default: false },
+    "mmr-lambda": { type: "string" },
   },
 });
 
@@ -77,6 +79,8 @@ const RECENCY_ALPHA = args["recency-alpha"]
   : undefined;
 const RERANK = !!args.rerank;
 const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
+const USE_MMR = !!args.mmr;
+const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -393,13 +397,18 @@ async function main() {
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
-    if (RERANK && RANKER_NAME === "fused") {
+    if ((RERANK || USE_MMR) && RANKER_NAME === "fused") {
       ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
-        limit: embeddedItems.length,
+        // Benchmark needs the full list so temporal-margin analysis can
+        // locate any ID. The MMR path picks K=query.k internally, then
+        // appends the tail in relevance order.
+        limit: USE_MMR ? query.k : embeddedItems.length,
         minSimilarity: 0,
-        rerank: true,
+        rerank: RERANK,
+        mmr: USE_MMR,
         ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
         ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
+        ...(MMR_LAMBDA !== undefined && { mmrLambda: MMR_LAMBDA }),
       });
     } else {
       const ranker = RANKER_NAME === "fused" ? rankFusedVaultMemories : rankVaultMemories;

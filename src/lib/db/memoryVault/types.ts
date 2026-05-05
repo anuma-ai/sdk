@@ -11,6 +11,12 @@ export interface StoredVaultMemory {
   userId: string | null;
   /** JSON-stringified embedding vector, null if not yet computed */
   embedding: string | null;
+  /** JSON-stringified array of source message IDs this fact was extracted from. */
+  sourceChunkIds: string[] | null;
+  /** Times this fact has been re-observed (for ranking + UX badges). */
+  proofCount: number | null;
+  /** How the memory was created: manual | auto-extracted | capsule. */
+  source: string | null;
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
@@ -24,6 +30,12 @@ export interface CreateVaultMemoryOptions {
   folderId?: string | null;
   /** JSON-stringified embedding vector to persist */
   embedding?: string;
+  /** Source message IDs that produced this fact (auto-extraction provenance). */
+  sourceChunkIds?: string[];
+  /** Initial proof count. Defaults to 1 if omitted. */
+  proofCount?: number;
+  /** How the memory was created. Defaults to "manual" if omitted. */
+  source?: string;
 }
 
 export interface UpdateVaultMemoryOptions {
@@ -34,4 +46,10 @@ export interface UpdateVaultMemoryOptions {
   folderId?: string | null;
   /** JSON-stringified embedding vector to persist, or null to clear stale embedding */
   embedding?: string | null;
+  /** Replace source-chunk-ids list (used during merge to accumulate provenance). */
+  sourceChunkIds?: string[];
+  /** Set absolute proof count. Used during merge to increment. */
+  proofCount?: number;
+  /** Set source ("manual" | "auto-extracted" | "capsule"). */
+  source?: string;
 }
