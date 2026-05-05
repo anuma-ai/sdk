@@ -93,12 +93,25 @@ export async function processEntryMemoryVault(
 
       logProgress(`Extracting memories: ${i + 1}/${totalSessions} sessions`);
 
-      const extracted = await extractMemoriesFromSession(session, sessionIdx, sessionId, api);
+      const extracted = await extractMemoriesFromSession(
+        session,
+        sessionIdx,
+        sessionId,
+        api,
+        entry.question_date
+      );
 
       for (const mem of extracted) {
+        // New extraction emits a self-contained `content` directly. Append
+        // event date in brackets so retrieval surfaces the temporal anchor
+        // when the embedding compares against questions like "what time
+        // did I go to bed before my doctor's appointment".
+        const dateSuffix = mem.kind === "event" && mem.occurredAt
+          ? ` [${mem.occurredAt}]`
+          : "";
         allMemories.push({
           sessionId: mem.sessionId,
-          content: `${mem.key}: ${mem.value}. ${mem.rawEvidence}`,
+          content: `${mem.content}${dateSuffix}`,
         });
       }
 
