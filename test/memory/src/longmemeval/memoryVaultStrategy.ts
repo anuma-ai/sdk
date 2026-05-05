@@ -262,7 +262,7 @@ export async function processEntryMemoryVault(
     const rerankEnabled = searchPipeline?.rerank ?? true;
     const decomposeMode = searchPipeline?.decompose ?? "llm";
     const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
-      limit: 10,
+      limit: 14,
       minSimilarity: 0.1,
       rerank: rerankEnabled,
       decompose: decomposeMode,
@@ -294,12 +294,12 @@ export async function processEntryMemoryVault(
           sim: cosineSim(queryEmbedding, emb),
         }))
         .sort((a, b) => b.sim - a.sim)
-        .slice(0, 5);
+        .slice(0, 7);
       for (const r of ranked) retrievedChunkSessionIds.add(r.sessionId);
       const chunkBlock = ranked
         .map(
           (r, i) =>
-            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, 2500)}`
+            `[excerpt ${i + 1}] (similarity: ${r.sim.toFixed(2)})\n${r.text.slice(0, 3500)}`
         )
         .join("\n\n");
       return `${vaultStr}\n\n--- Raw conversation excerpts (${ranked.length}) ---\n\n${chunkBlock}`;

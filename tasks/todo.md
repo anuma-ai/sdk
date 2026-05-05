@@ -16,8 +16,9 @@ This file is the working tracker. Update checkboxes as work progresses; mirror b
 ## Acceptance criteria
 
 - [x] AC1 — Recall@5 ≥30% lift over cosine-only baseline
-      _LongMemEval claude-sonnet-4-6 oracle: **87.2%** (252/289), recall 96.9%, precision 96.9%; vs current main 73.0% → +14.2pp / +41 correct (commit c2599f6, run 25388841726)._
-      _LongMemEval kimi-k2p5 oracle: **77.2%** (223/289); vs March 11 baseline 70.9% → +6.3pp (commit c2599f6, run 25389016550)._
+      _Unified recall() API path (commit `0126d43`): **claude-sonnet-4-6 oracle 87.5%** (253/289), single-session-user perfect (70/70); vs current main 73.0% → **+14.5pp / +42 correct** (run 25403709389). The chat search tool, SDK programmatic surface, and public benchmark all share one recall() pipeline._
+      _kimi-k2p5 oracle: 75.4% (218/289); vs March 11 baseline 70.9% → +4.5pp (run 25403718559)._
+      _Pre-unification numbers (commit c2599f6): Claude 87.2%, kimi 77.2% — kept here as the parity reference for the recall() refactor._
 - [ ] AC2 — ≥1 quality memory per 5 turns; <10% hallucination
 - [ ] AC3 — Memory Studio shows toast + breakdown + edit/delete (E2E)
 - [ ] AC4 — Near-dupe inserts merge + increment proof_count
