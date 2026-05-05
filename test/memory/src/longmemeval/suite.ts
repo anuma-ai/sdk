@@ -48,14 +48,22 @@ export interface ExtractedMemory {
   sessionIndex: number;
   sessionId: string;
   /**
-   * Natural-language fact about the user, self-contained and rich enough
-   * to surface meaningfully via embedding search. 15–80 words, present
-   * tense, third person, with proper nouns / quantities / dates preserved
-   * verbatim. Replaces the legacy {namespace,key,value,rawEvidence}
+   * Natural-language fact about the user (or about the assistant's reply
+   * to the user, when subject="assistant"), self-contained and rich
+   * enough to surface meaningfully via embedding search. 15–80 words,
+   * present tense, third person, with proper nouns / quantities / dates
+   * preserved verbatim. Replaces the legacy {namespace,key,value,rawEvidence}
    * structure which forced awkward boolean-key shapes like
    * `has_favorite_yoga_pants: true`.
    */
   content: string;
+  /**
+   * `user` — fact about the user themselves (default).
+   * `assistant` — something the assistant stated that the user may ask
+   * back about ("what did you tell me about X earlier?"). LongMemEval's
+   * single-session-assistant category specifically tests recall of these.
+   */
+  subject: "user" | "assistant";
   /**
    * `state` — durable identity, preference, relationship, ongoing situation;
    * the kind of fact that should still be true months later.
@@ -380,7 +388,8 @@ OUTPUT — strict JSON, no prose, no markdown:
 {
   "items": [
     {
-      "content": "<self-contained natural-language sentence about the user, 15–80 words, present-tense, third-person>",
+      "content": "<self-contained natural-language sentence, 15–80 words, present-tense, third-person>",
+      "subject": "user" | "assistant",
       "kind": "state" | "event",
       "occurredAt": "<ISO date YYYY-MM-DD if kind is event, otherwise null>",
       "confidence": 0.0-1.0
@@ -390,19 +399,33 @@ OUTPUT — strict JSON, no prose, no markdown:
 
 If no memories worth keeping, return {"items": []}.
 
-WHAT TO EXTRACT:
+WHAT TO EXTRACT — TWO SUBJECTS:
 
-- "state" — durable facts, identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
-- "event" — dated occurrences mentioned in the conversation: meals eaten, trips taken, meetings attended, bedtimes, purchases, doctor visits, things "I did yesterday / last week". Capture quantities and times verbatim.
+(A) subject="user" — facts about the user themselves.
 
-Casual topics ARE extractable. Pet names, what someone ate for breakfast, a friend's birthday, what time they went to bed, a route they took to work — these are all valid memories. The user may ask about any of them later.
+  - "state" — durable: identity, preferences, relationships, ongoing situations, allergies, names, addresses. Should still be true 6 months from now.
+  - "event" — dated occurrences: meals eaten, trips taken, meetings, bedtimes, purchases, doctor visits, things "I did yesterday".
+
+  Casual topics ARE extractable. Pet names, what they ate for breakfast, a friend's birthday, what time they went to bed, the route they took to work.
+
+(B) subject="assistant" — facts the ASSISTANT stated that the user is likely to ask back about.
+
+  Capture facts the assistant computed, recommended, taught, or reported on the user's behalf. The user may return next week and ask "what did you tell me earlier about X?" or "how much was that going to be?" or "what's the time difference between A and B?"
+
+  Examples:
+  - The assistant told the user a calculated value ("Tokyo is 9 hours ahead of San Francisco") — extract: "Assistant told the user that Tokyo is 9 hours ahead of San Francisco."
+  - The assistant gave a recommendation ("try Le Bernardin in midtown") — extract: "Assistant recommended Le Bernardin in midtown for the user's anniversary dinner."
+  - The assistant provided a quote/price/quantity for the user's project — extract that quote with the context.
+  - The assistant scheduled or planned something with the user — extract.
+
+  Skip the assistant's filler ("happy to help", "let me know if you have questions"), generic encyclopedic facts the user didn't ask about, and content that just restates what the user said.
 
 WHAT NOT TO EXTRACT:
 
 - Greetings, filler ("got it", "ok"), confirmations of the assistant's reply
 - Hypotheticals ("if I were to move to Tokyo…")
-- Pure search/task requests ("draft an email", "what's the weather")
-- Facts about other people that don't connect to the user
+- Pure search/task requests with no durable answer ("draft an email", "what's the weather")
+- Facts about other people that don't connect to the user or the conversation
 - Facts already implied by other extracted memories (consolidate, don't duplicate)
 
 CONTENT RULES:
@@ -410,7 +433,8 @@ CONTENT RULES:
 - Self-contained natural-language sentences, NEVER key-value or boolean shapes. NOT "has_favorite_yoga_pants: true". INSTEAD "User has a favorite pair of yoga pants worn to the gym last Thursday".
 - Preserve specifics verbatim — proper nouns, brand names, quantities, addresses, exact prices, exact times. Do NOT generalize "Mochi the corgi" into "user's dog".
 - ONE MEMORY PER DISTINCT FACT. If the conversation mentions the user's aunt's twins named Ava and Lily born in April, that is ONE memory ("User's aunt has newborn twin girls Ava and Lily, born April 2026"), not four overlapping facets.
-- Resolve relative dates against the Observation Date above. "Last Thursday" + Observation Date 2026-05-05 → "2026-04-30". Never write "yesterday" or "recently" — write the absolute date.
+- Assistant-subject memories START with "Assistant told the user…" / "Assistant recommended…" / "Assistant computed…" so retrieval surfaces them on questions like "what did you tell me earlier about…".
+- Resolve relative dates against the Observation Date above. "Last Thursday" + Observation Date ${obsDate} → an absolute date. Never write "yesterday" or "recently".
 - Coreference: if the user mentions "my partner" then later says "Sara", combine — write "User's partner is Sara". Use the most complete identifier.
 - 15–80 words. Long enough to be self-contained for retrieval; short enough to be one fact.
 
@@ -460,6 +484,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
       const parsed = JSON.parse(jsonStr) as {
         items?: Array<{
           content?: string;
+          subject?: string;
           kind?: string;
           occurredAt?: string | null;
           confidence?: number;
@@ -470,6 +495,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
         .map((item) => {
           const content = (item.content ?? "").trim();
           if (!content) return null;
+          const subject = item.subject === "assistant" ? "assistant" : "user";
           const kind = item.kind === "event" ? "event" : "state";
           const occurredAt = kind === "event" && typeof item.occurredAt === "string"
             ? item.occurredAt
@@ -479,6 +505,7 @@ Confidence: 0.9+ for unambiguous statements, 0.7–0.9 for likely-true, 0.5–0.
             sessionIndex,
             sessionId,
             content,
+            subject,
             kind,
             occurredAt,
             confidence,
