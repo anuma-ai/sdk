@@ -88,6 +88,7 @@
     "spec": "openapi-ts && node scripts/patch-generated-client.mjs",
     "test": "vitest run",
     "build": "tsup",
+    "prepare": "pnpm build",
     "prepublishOnly": "pnpm build",
     "docs": "typedoc",
     "generate": "pnpm run spec && pnpm run docs && tsx scripts/generate-schema-docs.ts",
