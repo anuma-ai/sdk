@@ -67,6 +67,7 @@ const { values: args } = parseArgs({
     "mmr-lambda": { type: "string" },
     graph: { type: "boolean", default: false },
     "graph-alpha": { type: "string" },
+    entities: { type: "string", default: "heuristic" },
   },
 });
 
@@ -85,6 +86,11 @@ const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
 const USE_GRAPH = !!args.graph;
 const GRAPH_ALPHA = args["graph-alpha"] ? parseFloat(args["graph-alpha"]) : undefined;
+const ENTITY_MODE = args.entities ?? "heuristic";
+if (ENTITY_MODE !== "heuristic" && ENTITY_MODE !== "llm") {
+  console.error(`Invalid --entities "${ENTITY_MODE}". Expected "heuristic" or "llm".`);
+  process.exit(1);
+}
 
 // ---------------------------------------------------------------------------
 // W5 — heuristic entity extraction (bench only).
@@ -100,7 +106,7 @@ const ENTITY_STOPWORDS = new Set([
   "Describe", "Summarize", "Does", "Has", "Have", "Had", "User", "Users",
 ]);
 
-function extractEntities(text: string): Set<string> {
+function heuristicEntities(text: string): Set<string> {
   const out = new Set<string>();
   const phraseRe = /\b[A-Z][a-zA-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]+)*\b/g;
   const matches = text.match(phraseRe) ?? [];
@@ -108,11 +114,35 @@ function extractEntities(text: string): Set<string> {
     if (ENTITY_STOPWORDS.has(m)) continue;
     out.add(m.toLowerCase());
   }
-  // Tech/numeric tokens too — useful for things like "PostgreSQL", "Q3", "2025"
   const techRe = /\b[a-z]+\d+\b|\b\d{4}\b/gi;
   const tech = text.match(techRe) ?? [];
   for (const t of tech) out.add(t.toLowerCase());
   return out;
+}
+
+let llmCache: Record<string, string[]> | null = null;
+function loadLlmCache(): Record<string, string[]> {
+  if (llmCache !== null) return llmCache;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    llmCache = require("./llm-entities.json") as Record<string, string[]>;
+  } catch {
+    console.error(
+      "Missing test/memory/src/vault/llm-entities.json — " +
+        "run: PORTAL_API_KEY=... npx tsx scripts/precompute-bench-entities.ts"
+    );
+    process.exit(1);
+  }
+  return llmCache!;
+}
+
+function extractEntities(text: string): Set<string> {
+  if (ENTITY_MODE === "llm") {
+    const cache = loadLlmCache();
+    const entities = cache[text] ?? [];
+    return new Set(entities.map((e) => e.toLowerCase().trim()).filter((e) => e.length > 0));
+  }
+  return heuristicEntities(text);
 }
 
 // ---------------------------------------------------------------------------
