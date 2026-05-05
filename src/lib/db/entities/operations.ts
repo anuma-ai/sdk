@@ -169,4 +169,39 @@ export async function getEntitiesForMemoryOp(
   return entityRows.map(entityToStored);
 }
 
+/**
+ * Snapshot the full entity graph: every entity with the list of memory
+ * ids that mention it. Powers the Memory Graph UI canvas.
+ */
+export interface EntityGraphNode {
+  uniqueId: string;
+  canonicalName: string;
+  kind: string | null;
+  memoryIds: string[];
+}
+
+export async function listEntityGraphOp(
+  ctx: EntityOperationsContext
+): Promise<EntityGraphNode[]> {
+  const [entityRows, linkRows] = await Promise.all([
+    ctx.entityCollection.query().fetch(),
+    ctx.memoryEntityCollection.query().fetch(),
+  ]);
+
+  const linksByEntity = new Map<string, string[]>();
+  for (const link of linkRows) {
+    const eid = String(link.entityId);
+    const arr = linksByEntity.get(eid);
+    if (arr) arr.push(String(link.memoryId));
+    else linksByEntity.set(eid, [String(link.memoryId)]);
+  }
+
+  return entityRows.map((e) => ({
+    uniqueId: e.id,
+    canonicalName: e.canonicalName,
+    kind: e.kind ?? null,
+    memoryIds: linksByEntity.get(e.id) ?? [],
+  }));
+}
+
 export { memoryEntityToStored };

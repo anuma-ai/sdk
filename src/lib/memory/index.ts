@@ -33,11 +33,13 @@ export type {
 // W5 — entity graph ops (used by extractAndRetain on the write path
 // and by recall() on the read path).
 export {
+  type EntityGraphNode,
   type EntityOperationsContext,
   getEntitiesForMemoryOp,
   getEntityByNameOp,
   getMemoriesByEntityNamesOp,
   linkMemoryEntitiesOp,
+  listEntityGraphOp,
   upsertEntityOp,
 } from "../db/entities/operations.js";
 export type {
