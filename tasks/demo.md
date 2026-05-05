@@ -66,18 +66,18 @@ LongMemEval public benchmark, 289 questions, oracle variant.
 - One sentence on the stack: *"Hindsight-style retrieval lanes — vault facts, raw conversation chunks, entity graph traversal — fused with a cross-encoder rerank. All on-device, encrypted, never leaves your wallet."*
 - Close: *"From two memory systems to one. Anuma.ai."*
 
-## Seed-data plan (Alex persona)
+## Seed-data plan (Peter Lee persona)
 
-Pre-load the demo wallet's vault with **~25 curated memories** that build a graph with visible hubs and a recall payoff. Persona: **Alex Chen**, SF-based product designer.
+Pre-load the demo wallet's vault with **~25 curated memories** that build a graph with visible hubs and a recall payoff. Persona: **Peter Lee**, SF-based product designer.
 
 ### Memories to seed (group → content)
 
 **Identity & relationships (5)**
-1. User's name is Alex Chen, a product designer based in San Francisco.
+1. User's name is Peter Lee, a product designer based in San Francisco.
 2. User's spouse is Sara Park, a software engineer at Stripe.
 3. User has a corgi named Mochi who is 3 years old and weighs 22 pounds.
 4. User is allergic to peanuts and shellfish — carries an EpiPen.
-5. User's parents are Helen and David Chen, based in Vancouver, BC.
+5. User's parents are Helen and David Lee, based in Vancouver, BC.
 
 **Lifestyle & preferences (5)**
 6. User climbs at Mission Cliffs in San Francisco twice a week, usually Tuesday and Thursday evenings.
@@ -118,7 +118,7 @@ Pre-load the demo wallet's vault with **~25 curated memories** that build a grap
 
 ## Seed loader
 
-Add a dev-only button in MemoryVault page → "Load demo seed (Alex)". On click:
+Add a dev-only button in MemoryVault page → "Load demo seed (Peter)". On click:
 - Iterates the 25 memories above
 - Calls `createMemoriesBatch` (already used by import flow) so they land in one transaction
 - Skips silently if any memory's content already exists (idempotent re-runs)
@@ -129,7 +129,7 @@ Gate behind `useMemoryStudioEnabled` (same dev flag as the toast) so it doesn't 
 ## Pre-demo checklist (Fri morning)
 
 - [ ] Fresh wallet, signed in
-- [ ] Click "Load demo seed (Alex)" → confirm 25 memories show up in Memory Vault
+- [ ] Click "Load demo seed (Peter)" → confirm 25 memories show up in Memory Vault
 - [ ] Open Memory Graph → confirm Sara / Le Bernardin / Mochi / Mission Cliffs / Jordan visible as hubs
 - [ ] Send the dinner message in chat → confirm 3 amber pulses on graph and the live pill appears
 - [ ] Ask the recall question → confirm correct answer with values
