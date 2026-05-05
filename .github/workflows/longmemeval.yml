@@ -71,6 +71,14 @@ on:
         options:
           - "llm"
           - "off"
+      consolidate:
+        description: "Vault: LLM-based consolidation at retain time (cross-session dedup)"
+        required: false
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
 
 jobs:
   resolve-strategies:
@@ -129,7 +137,7 @@ jobs:
             args="$args --max $EVAL_MAX"
           fi
           if [ "${{ matrix.strategy }}" = "vault" ]; then
-            args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }}"
+            args="$args --rerank=${{ inputs.rerank }} --decompose=${{ inputs.decompose }} --consolidate=${{ inputs.consolidate }}"
           fi
           pnpm eval:longmemeval $args
 
