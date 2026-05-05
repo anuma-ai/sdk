@@ -1,4 +1,5 @@
 export { recall } from "./recall.js";
+export { retain, type RetainContext } from "./retain.js";
 export type {
   Budget,
   MemoryKind,

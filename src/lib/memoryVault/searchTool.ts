@@ -10,6 +10,7 @@ import type { VaultMemoryOperationsContext } from "../db/memoryVault/operations"
 import { getAllVaultMemoriesOp, updateVaultMemoryEmbeddingOp } from "../db/memoryVault/operations";
 import { generateEmbedding, generateEmbeddings } from "../memoryEngine/embeddings";
 import type { EmbeddingOptions } from "../memoryEngine/types";
+import { applyMMR } from "../memory/mmr";
 import { recencyMultiplier, type RecencyOptions } from "../memory/recency";
 import { rerankPairs } from "../memory/reranker";
 import { rrfFuse } from "../memory/rrf";
@@ -356,6 +357,17 @@ export async function rankFusedVaultMemoriesAsync(
     rerank?: boolean;
     rerankTopN?: number;
     ceWeight?: number;
+    /**
+     * Apply Maximal Marginal Relevance after the relevance pass to spread
+     * the top-K across distinct memory clusters. Off by default; on
+     * lifts composite (multi-fact) recall significantly without
+     * regressing single-answer categories.
+     */
+    mmr?: boolean;
+    /** MMR diversity tradeoff. 1=pure relevance, 0=pure diversity. Default 0.7. */
+    mmrLambda?: number;
+    /** How many candidates to feed MMR. Default 20. */
+    mmrTopN?: number;
   }
 ): Promise<VaultSearchResult[]> {
   const limit = options?.limit ?? 5;
@@ -366,34 +378,62 @@ export async function rankFusedVaultMemoriesAsync(
     recency: options?.recency,
   });
 
-  if (!options?.rerank || v2Ranked.length === 0) {
-    return v2Ranked.slice(0, limit);
+  if (v2Ranked.length === 0) return [];
+
+  let combined: VaultSearchResult[];
+  let tailSlice: VaultSearchResult[] = [];
+
+  if (options?.rerank) {
+    const rerankTopN = options.rerankTopN ?? 30;
+    const ceWeight = options.ceWeight ?? 0.1;
+    const headSlice = v2Ranked.slice(0, rerankTopN);
+    tailSlice = v2Ranked.slice(rerankTopN);
+
+    const reranked = await rerankPairs(
+      query,
+      headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
+    );
+
+    const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
+    const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
+
+    combined = headSlice.map((r) => {
+      const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
+      const ce = ceScoreById.get(r.uniqueId) ?? 0;
+      return {
+        uniqueId: r.uniqueId,
+        content: r.content,
+        similarity: v2 * (1 + ceWeight * ce),
+      };
+    });
+    combined.sort((a, b) => b.similarity - a.similarity);
+  } else {
+    combined = v2Ranked;
   }
 
-  const rerankTopN = options.rerankTopN ?? 30;
-  const ceWeight = options.ceWeight ?? 0.1;
-  const headSlice = v2Ranked.slice(0, rerankTopN);
-  const tailSlice = v2Ranked.slice(rerankTopN);
-
-  const reranked = await rerankPairs(
-    query,
-    headSlice.map((r) => ({ id: r.uniqueId, content: r.content }))
-  );
-
-  const v2ScoreById = new Map(headSlice.map((r) => [r.uniqueId, r.similarity]));
-  const ceScoreById = new Map(reranked.map((r) => [r.id, r.score]));
-
-  const combined: VaultSearchResult[] = headSlice.map((r) => {
-    const v2 = v2ScoreById.get(r.uniqueId) ?? 0;
-    const ce = ceScoreById.get(r.uniqueId) ?? 0;
-    return {
-      uniqueId: r.uniqueId,
+  if (options?.mmr) {
+    const lambda = options.mmrLambda ?? 0.7;
+    const mmrTopN = options.mmrTopN ?? 20;
+    const itemById = new Map(items.map((i) => [i.id, i]));
+    const mmrCandidates = combined.slice(0, mmrTopN).map((r) => ({
+      id: r.uniqueId,
+      score: r.similarity,
+      embedding: itemById.get(r.uniqueId)?.embedding ?? [],
       content: r.content,
-      similarity: v2 * (1 + ceWeight * ce),
-    };
-  });
+    }));
+    const picked = applyMMR(mmrCandidates, limit, lambda);
+    const pickedIds = new Set(picked.map((p) => p.id));
+    const pickedResults: VaultSearchResult[] = picked.map((p) => ({
+      uniqueId: p.id,
+      content: p.content,
+      similarity: p.score,
+    }));
+    // For benchmark + temporal-margin analysis, we still need the long
+    // tail so callers can probe IDs beyond the K we picked.
+    const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
+    return [...pickedResults, ...remainingTail, ...tailSlice].slice(0, Math.max(limit, items.length));
+  }
 
-  combined.sort((a, b) => b.similarity - a.similarity);
   return [...combined, ...tailSlice].slice(0, limit);
 }
 
