@@ -191,10 +191,22 @@ export async function callChatCompletion(
   toolCalls?: Array<{ id: string; function: { name: string; arguments: string } }>;
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }> {
-  const maxAttempts = 3;
+  const maxAttempts = 6;
   let lastStatus: number | null = null;
   let lastError: unknown;
   let emptyRetryUsed = false;
+
+  // Exponential backoff with jitter for transient errors. 429s hit hard
+  // at concurrency=100 — Fireworks rate limits have tightened since the
+  // March 11 baseline run (which had zero 429s in its logs). Linear
+  // 250ms*N backoff was too short: bursts had every worker retry into
+  // the same rate window and fail.
+  const backoffMs = (attempt: number, status: number | null): number => {
+    const base = status === 429 ? 1000 : 250;
+    const exp = base * 2 ** (attempt - 1);
+    const jitter = Math.random() * 0.4 * exp; // ±20% to avoid thundering herd
+    return Math.min(15_000, exp + jitter);
+  };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -230,7 +242,7 @@ export async function callChatCompletion(
       if (!response.ok) {
         lastStatus = response.status;
         if (attempt < maxAttempts) {
-          await sleep(250 * attempt);
+          await sleep(backoffMs(attempt, response.status));
           continue;
         }
         throw new Error(`Chat completion failed: ${response.status}`);
@@ -256,7 +268,7 @@ export async function callChatCompletion(
 
       if (!content && !toolCalls && !emptyRetryUsed && attempt < maxAttempts) {
         emptyRetryUsed = true;
-        await sleep(250 * attempt);
+        await sleep(backoffMs(attempt, null));
         continue;
       }
 
@@ -264,7 +276,7 @@ export async function callChatCompletion(
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
-        await sleep(250 * attempt);
+        await sleep(backoffMs(attempt, lastStatus));
         continue;
       }
     }
@@ -360,53 +372,79 @@ Response format:
 
 If no memories to extract, return: {"items": []}`;
 
-  try {
-    const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": api.apiKey,
-      },
-      body: JSON.stringify({
-        model: api.llmModel,
-        messages: [{ role: "user", content: extractionPrompt }],
-        temperature: 0,
-        max_tokens: 2000,
-      }),
-    });
+  // Same exponential-backoff retry pattern as callChatCompletion. Extraction
+  // hits the LLM under high concurrency, so 429s here will silently empty the
+  // vault for that session — much costlier than a missing answer because the
+  // memory is gone for *every* downstream search. Retry hard before giving up.
+  const maxAttempts = 6;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`${api.baseUrl}/api/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": api.apiKey,
+        },
+        body: JSON.stringify({
+          model: api.llmModel,
+          messages: [{ role: "user", content: extractionPrompt }],
+          temperature: 0,
+          max_tokens: 2000,
+        }),
+      });
 
-    if (!response.ok) return [];
+      if (!response.ok) {
+        if (attempt < maxAttempts && (response.status === 429 || response.status >= 500)) {
+          const base = response.status === 429 ? 1000 : 250;
+          const exp = base * 2 ** (attempt - 1);
+          await sleep(Math.min(15_000, exp + Math.random() * 0.4 * exp));
+          continue;
+        }
+        console.warn(
+          `Extraction failed (session ${sessionId}): HTTP ${response.status} after ${attempt} attempts`
+        );
+        return [];
+      }
 
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const content = data.choices[0]?.message?.content || "{}";
-    const jsonStr = extractJsonFromResponse(content);
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      const content = data.choices[0]?.message?.content || "{}";
+      const jsonStr = extractJsonFromResponse(content);
 
-    const parsed = JSON.parse(jsonStr) as {
-      items: Array<{
-        type: string;
-        namespace: string;
-        key: string;
-        value: string;
-        rawEvidence: string;
-        confidence: number;
-      }>;
-    };
+      const parsed = JSON.parse(jsonStr) as {
+        items: Array<{
+          type: string;
+          namespace: string;
+          key: string;
+          value: string;
+          rawEvidence: string;
+          confidence: number;
+        }>;
+      };
 
-    return (parsed.items || []).map((item) => ({
-      sessionIndex,
-      sessionId,
-      type: item.type as ExtractedMemory["type"],
-      namespace: item.namespace || "general",
-      key: item.key || "unknown",
-      value: item.value || "",
-      rawEvidence: item.rawEvidence || "",
-      confidence: item.confidence || 0.5,
-    }));
-  } catch {
-    return [];
+      return (parsed.items || []).map((item) => ({
+        sessionIndex,
+        sessionId,
+        type: item.type as ExtractedMemory["type"],
+        namespace: item.namespace || "general",
+        key: item.key || "unknown",
+        value: item.value || "",
+        rawEvidence: item.rawEvidence || "",
+        confidence: item.confidence || 0.5,
+      }));
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        const exp = 250 * 2 ** (attempt - 1);
+        await sleep(Math.min(15_000, exp + Math.random() * 0.4 * exp));
+        continue;
+      }
+    }
   }
+  console.warn(`Extraction failed (session ${sessionId}) after ${maxAttempts} attempts:`, lastError);
+  return [];
 }
 
 // ── Progress logging ──
