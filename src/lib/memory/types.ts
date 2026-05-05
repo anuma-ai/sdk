@@ -120,6 +120,21 @@ export interface RetainOptions {
   enableAutoMerge?: boolean;
   /** Cosine similarity threshold for auto-merge. Default: 0.85. */
   autoMergeThreshold?: number;
+  /**
+   * When provided, runs an LLM-based consolidation pass against the top-K
+   * existing memories above `consolidateThreshold` (looser than auto-merge).
+   * The LLM emits create/update/noop per Hindsight's facet-dedup rules.
+   * Auth/endpoint required; without these we keep the cosine-only path.
+   */
+  consolidateOptions?: {
+    apiKey: string;
+    baseUrl?: string;
+    model?: string;
+  };
+  /** Cosine similarity floor for the consolidator candidate set. Default: 0.65. */
+  consolidateThreshold?: number;
+  /** Top-K consolidation candidates to feed the LLM. Default: 5. */
+  consolidateTopK?: number;
 }
 
 export interface RetainResult {

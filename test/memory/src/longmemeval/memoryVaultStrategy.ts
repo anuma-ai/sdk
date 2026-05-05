@@ -8,16 +8,14 @@
  */
 
 import type { Database } from "@nozbe/watermelondb";
-import {
-  createVaultMemoryOp,
-  type VaultMemoryOperationsContext,
-} from "../../../../src/lib/db/memoryVault/operations.js";
+import { type VaultMemoryOperationsContext } from "../../../../src/lib/db/memoryVault/operations.js";
 import { VaultMemory } from "../../../../src/lib/db/memoryVault/models.js";
 import {
   createMemoryVaultSearchTool,
   preEmbedVaultMemories,
   type VaultEmbeddingCache,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import { retain } from "../../../../src/lib/memory/retain.js";
 import type { LongMemEvalEntry, LongMemEvalResult, ApiConfig, TokenUsage } from "./types.js";
 import {
   setupDatabase,
@@ -55,7 +53,7 @@ export async function processEntryMemoryVault(
   api: ApiConfig,
   verbose: boolean,
   maxSessions?: number,
-  searchPipeline?: { rerank?: boolean; decompose?: "off" | "llm" }
+  searchPipeline?: { rerank?: boolean; decompose?: "off" | "llm"; consolidate?: boolean }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -179,31 +177,39 @@ export async function processEntryMemoryVault(
       };
     }
 
-    // Step 2: Store each fact as a vault entry
+    // Step 2: Store each fact via retain() so we get cosine auto-merge +
+    // optional LLM consolidation against the growing vault. The previous
+    // path called createVaultMemoryOp directly, bypassing dedup entirely —
+    // which is why we saw 3 paraphrased "Zara boots pickup" memories
+    // coexist in the smoke test even with the new extraction prompt.
     logProgress(`Storing ${allMemories.length} vault entries...`);
     const answerSessionIdSet = new Set(entry.answer_session_ids);
+    const embeddingCache: VaultEmbeddingCache = new Map();
+    const embeddingOptions = { apiKey: api.apiKey, baseUrl: api.baseUrl };
+    const retainCtx = { vaultCtx, embeddingOptions, vaultCache: embeddingCache };
+    const consolidateEnabled = searchPipeline?.consolidate ?? true;
 
     for (const mem of allMemories) {
-      const created = await createVaultMemoryOp(vaultCtx, {
-        content: mem.content,
+      const result = await retain(mem.content, retainCtx, {
+        source: "auto-extracted",
+        sourceChunkIds: [mem.sessionId],
+        ...(consolidateEnabled && {
+          consolidateOptions: { apiKey: api.apiKey, baseUrl: api.baseUrl },
+        }),
       });
 
-      // Track vault entry -> session mapping
-      // Prefer answer session attribution when duplicate content exists
-      const existingSession = vaultToSession.get(created.uniqueId);
+      const targetId = result.memoryId;
+      const existingSession = vaultToSession.get(targetId);
       if (!existingSession || answerSessionIdSet.has(mem.sessionId)) {
-        vaultToSession.set(created.uniqueId, mem.sessionId);
+        vaultToSession.set(targetId, mem.sessionId);
       }
     }
     clearProgress();
 
-    // Step 3: Pre-embed vault entries using SDK function
+    // Step 3: Pre-embed any vault entries that retain() didn't already cache
+    // (e.g. ones merged via cosine where embedding was reused). The cache
+    // is shared with retain() above so most lookups are free.
     logProgress("Embedding vault entries...");
-    const embeddingCache: VaultEmbeddingCache = new Map();
-    const embeddingOptions = {
-      apiKey: api.apiKey,
-      baseUrl: api.baseUrl,
-    };
     await preEmbedVaultMemories(vaultCtx, embeddingOptions, embeddingCache);
     clearProgress();
 

@@ -124,6 +124,8 @@ export interface LongMemEvalOptions {
   rerank?: boolean;
   /** "off" | "llm" — LLM-based query decomposition for composite queries. Default "llm". */
   decompose?: "off" | "llm";
+  /** Enable LLM-based consolidation pass at retain time. Default true. */
+  consolidate?: boolean;
 }
 
 /** API configuration for LLM and embedding calls */

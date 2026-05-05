@@ -56,6 +56,7 @@ const { values: args } = parseArgs({
     help: { type: "boolean", default: false, short: "h" },
     rerank: { type: "string" },
     decompose: { type: "string" },
+    consolidate: { type: "string" },
   },
 });
 
@@ -197,6 +198,7 @@ async function main(): Promise<void> {
     ...(args.decompose !== undefined && {
       decompose: args.decompose === "off" ? "off" : "llm",
     }),
+    ...(args.consolidate !== undefined && { consolidate: args.consolidate !== "false" }),
   };
 
   try {
