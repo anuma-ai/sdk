@@ -537,10 +537,12 @@ export async function rankFusedVaultMemoriesAsync(
       content: p.content,
       similarity: p.score,
     }));
-    // For benchmark + temporal-margin analysis, we still need the long
-    // tail so callers can probe IDs beyond the K we picked.
+    // For benchmark + temporal-margin analysis, callers that want the
+    // long tail must pass `limit: items.length`. The function respects
+    // limit strictly so production callers (tool executor) get exactly
+    // what they asked for.
     const remainingTail = combined.filter((r) => !pickedIds.has(r.uniqueId));
-    return [...pickedResults, ...remainingTail, ...tailSlice].slice(0, Math.max(limit, items.length));
+    return [...pickedResults, ...remainingTail, ...tailSlice].slice(0, limit);
   }
 
   return [...combined, ...tailSlice].slice(0, limit);
@@ -682,7 +684,7 @@ export async function rankComposite(
     combined = [...head, ...tailSlice];
   }
 
-  return combined.slice(0, Math.max(limit, items.length));
+  return combined.slice(0, limit);
 }
 
 /**
