@@ -54,7 +54,8 @@ export async function processEntryMemoryVault(
   entry: LongMemEvalEntry,
   api: ApiConfig,
   verbose: boolean,
-  maxSessions?: number
+  maxSessions?: number,
+  searchPipeline?: { rerank?: boolean; decompose?: "off" | "llm" }
 ): Promise<LongMemEvalResult> {
   const startTime = performance.now();
 
@@ -197,10 +198,22 @@ export async function processEntryMemoryVault(
       console.log(`  Embedded ${embeddingCache.size} vault entries`);
     }
 
-    // Step 4: Create search tool via SDK
+    // Step 4: Create search tool via SDK. The pipeline knobs default to the
+    // V2+CE+decompose stack (validated at 86.2% on the synthetic vault bench);
+    // callers can disable rerank/decompose to A/B against the V2-only baseline.
+    const rerankEnabled = searchPipeline?.rerank ?? true;
+    const decomposeMode = searchPipeline?.decompose ?? "llm";
     const searchTool = createMemoryVaultSearchTool(vaultCtx, embeddingOptions, embeddingCache, {
       limit: 10,
       minSimilarity: 0.1,
+      rerank: rerankEnabled,
+      decompose: decomposeMode,
+      ...(decomposeMode === "llm" && {
+        decomposeOptions: {
+          apiKey: api.apiKey,
+          baseUrl: api.baseUrl,
+        },
+      }),
     });
 
     // Step 5: Two-step LLM flow

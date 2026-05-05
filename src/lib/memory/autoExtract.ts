@@ -14,10 +14,9 @@
  */
 
 import {
-  linkMemoryEntitiesOp,
   type EntityOperationsContext,
+  linkMemoryEntitiesOp,
 } from "../db/entities/operations.js";
-
 import { retain, type RetainContext } from "./retain.js";
 import type { RetainResult } from "./types.js";
 

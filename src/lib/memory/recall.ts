@@ -10,12 +10,11 @@
  * for backwards compatibility; new code should prefer `recall()`.
  */
 
-import { generateEmbedding } from "../memoryEngine/embeddings.js";
-import { searchVaultMemories } from "../memoryVault/searchTool.js";
 import { searchChunksOp } from "../db/chat/operations.js";
 import type { ChunkSearchResult } from "../db/chat/types.js";
+import { generateEmbedding } from "../memoryEngine/embeddings.js";
 import type { VaultSearchResult } from "../memoryVault/searchTool.js";
-
+import { searchVaultMemories } from "../memoryVault/searchTool.js";
 import type {
   Budget,
   MemoryKind,

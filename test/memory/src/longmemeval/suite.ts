@@ -617,7 +617,8 @@ export async function runLongMemEval(
             entry,
             { ...api, llmModel },
             options.verbose || false,
-            options.maxSessions
+            options.maxSessions,
+            { rerank: options.rerank, decompose: options.decompose }
           );
         }
 

@@ -54,6 +54,8 @@ const { values: args } = parseArgs({
     "cache-dir": { type: "boolean", default: false },
     stats: { type: "boolean", default: false },
     help: { type: "boolean", default: false, short: "h" },
+    rerank: { type: "string" },
+    decompose: { type: "string" },
   },
 });
 
@@ -191,6 +193,10 @@ async function main(): Promise<void> {
     output: args.output,
     skipUnsupported: args["include-unsupported"] ? false : args["skip-unsupported"],
     concurrency: args.concurrency ? parseInt(args.concurrency, 10) : undefined,
+    ...(args.rerank !== undefined && { rerank: args.rerank !== "false" }),
+    ...(args.decompose !== undefined && {
+      decompose: args.decompose === "off" ? "off" : "llm",
+    }),
   };
 
   try {

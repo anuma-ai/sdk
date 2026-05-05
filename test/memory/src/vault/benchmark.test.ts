@@ -32,7 +32,10 @@ import {
   rankVaultMemories,
   rankFusedVaultMemories,
   rankFusedVaultMemoriesAsync,
+  rankComposite,
+  rankByEntityOverlap,
 } from "../../../../src/lib/memoryVault/searchTool.js";
+import type { DecomposedQuery } from "../../../../src/lib/memoryVault/decomposeQuery.js";
 import { preloadReranker } from "../../../../src/lib/memory/reranker.js";
 import { precisionAtK, recallAtK, reciprocalRank, ndcgAtK } from "../metrics.js";
 import {
@@ -66,8 +69,8 @@ const { values: args } = parseArgs({
     mmr: { type: "boolean", default: false },
     "mmr-lambda": { type: "string" },
     graph: { type: "boolean", default: false },
-    "graph-alpha": { type: "string" },
     entities: { type: "string", default: "heuristic" },
+    decompose: { type: "string", default: "off" },
   },
 });
 
@@ -85,10 +88,14 @@ const CE_WEIGHT = args["ce-weight"] ? parseFloat(args["ce-weight"]) : undefined;
 const USE_MMR = !!args.mmr;
 const MMR_LAMBDA = args["mmr-lambda"] ? parseFloat(args["mmr-lambda"]) : undefined;
 const USE_GRAPH = !!args.graph;
-const GRAPH_ALPHA = args["graph-alpha"] ? parseFloat(args["graph-alpha"]) : undefined;
 const ENTITY_MODE = args.entities ?? "heuristic";
 if (ENTITY_MODE !== "heuristic" && ENTITY_MODE !== "llm") {
   console.error(`Invalid --entities "${ENTITY_MODE}". Expected "heuristic" or "llm".`);
+  process.exit(1);
+}
+const DECOMPOSE_MODE = (args.decompose ?? "off").toLowerCase();
+if (DECOMPOSE_MODE !== "off" && DECOMPOSE_MODE !== "llm") {
+  console.error(`Invalid --decompose "${DECOMPOSE_MODE}". Expected "off" or "llm".`);
   process.exit(1);
 }
 
@@ -430,14 +437,51 @@ async function main() {
     embeddingMap.set(VAULT_MEMORIES[i].id, memoryEmbeddings[i]);
   }
 
-  console.log(`Embedding ${queries.length} queries...`);
-  const queryEmbeddingsList = await generateEmbeddings(
-    queries.map((q) => q.query),
-    embeddingOptions
+  // Load decomposition cache when --decompose=llm. Sub-queries are embedded
+  // alongside the originals so the per-query loop never blocks on network.
+  let decompositions: Record<string, DecomposedQuery> = {};
+  if (DECOMPOSE_MODE === "llm") {
+    try {
+      decompositions = JSON.parse(
+        await readFile("test/memory/src/vault/decompositions.json", "utf-8")
+      ) as Record<string, DecomposedQuery>;
+      const composite = Object.values(decompositions).filter(
+        (d) => d.mode === "composite"
+      ).length;
+      console.log(
+        `Loaded ${Object.keys(decompositions).length} decompositions (${composite} composite)`
+      );
+    } catch (err) {
+      console.error(
+        `Failed to load decompositions.json: ${err}\n` +
+          "Run: PORTAL_API_KEY=... npx tsx scripts/precompute-bench-decompositions.ts"
+      );
+      process.exit(1);
+    }
+  }
+
+  const allQueryTexts: string[] = queries.map((q) => q.query);
+  const subQueriesSeen = new Set<string>();
+  for (const q of queries) {
+    const decomp = decompositions[q.query];
+    if (!decomp || decomp.mode !== "composite") continue;
+    for (const sq of decomp.subQueries) {
+      if (sq === q.query) continue;
+      if (subQueriesSeen.has(sq)) continue;
+      subQueriesSeen.add(sq);
+      allQueryTexts.push(sq);
+    }
+  }
+
+  console.log(
+    `Embedding ${queries.length} queries${
+      subQueriesSeen.size > 0 ? ` + ${subQueriesSeen.size} sub-queries` : ""
+    }...`
   );
+  const allEmbeddings = await generateEmbeddings(allQueryTexts, embeddingOptions);
   const queryEmbeddingMap = new Map<string, number[]>();
-  for (let i = 0; i < queries.length; i++) {
-    queryEmbeddingMap.set(queries[i].query, queryEmbeddingsList[i]);
+  for (let i = 0; i < allQueryTexts.length; i++) {
+    queryEmbeddingMap.set(allQueryTexts[i], allEmbeddings[i]);
   }
 
   console.log(`Running ${queries.length} queries...\n`);
@@ -465,21 +509,47 @@ async function main() {
 
     // Retrieve all memories (no limit) so temporal margin analysis can find any ID
     let ranked;
-    if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
-      let graphOverlap: Map<string, number> | undefined;
-      let totalQueryEntities: number | undefined;
-      if (USE_GRAPH && memoryEntitiesById) {
-        const queryEnts = extractEntities(query.query);
-        totalQueryEntities = queryEnts.size;
-        if (queryEnts.size > 0) {
-          graphOverlap = new Map();
-          for (const [id, memEnts] of memoryEntitiesById) {
-            let shared = 0;
-            for (const e of queryEnts) if (memEnts.has(e)) shared++;
-            if (shared > 0) graphOverlap.set(id, shared);
-          }
-        }
+    const decomp =
+      DECOMPOSE_MODE === "llm" ? decompositions[query.query] : undefined;
+
+    // W5 — graph lane: pre-build the entity ranking once per query and
+    // pass it into whichever ranker is in play (composite or V2+CE).
+    let entityRanking: string[] | undefined;
+    if (USE_GRAPH && memoryEntitiesById && RANKER_NAME === "fused") {
+      const queryEnts = extractEntities(query.query);
+      if (queryEnts.size > 0) {
+        const overlapItems = embeddedItems.map((it) => ({
+          id: it.id,
+          content: it.content,
+          entities: memoryEntitiesById.get(it.id) ?? new Set<string>(),
+        }));
+        entityRanking = rankByEntityOverlap(queryEnts, overlapItems).map((r) => r.uniqueId);
       }
+    }
+
+    if (decomp && decomp.mode === "composite" && RANKER_NAME === "fused") {
+      const subQueriesWithEmbeddings = decomp.subQueries.map((sq) => ({
+        query: sq,
+        embedding: queryEmbeddingMap.get(sq) ?? queryEmbedding,
+      }));
+      if (args.verbose) {
+        console.log(`[composite] "${query.query}" → ${decomp.subQueries.length} sub-queries`);
+      }
+      ranked = await rankComposite(
+        query.query,
+        queryEmbedding,
+        subQueriesWithEmbeddings,
+        embeddedItems,
+        {
+          limit: embeddedItems.length,
+          minSimilarity: 0,
+          rerank: RERANK,
+          ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
+          ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
+          ...(entityRanking && { entityRanking }),
+        }
+      );
+    } else if ((RERANK || USE_MMR || USE_GRAPH) && RANKER_NAME === "fused") {
       ranked = await rankFusedVaultMemoriesAsync(query.query, queryEmbedding, embeddedItems, {
         // Benchmark needs the full list so temporal-margin analysis can
         // locate any ID. The MMR path picks K=query.k internally, then
@@ -491,9 +561,7 @@ async function main() {
         ...(RECENCY_ALPHA !== undefined && { recencyAlpha: RECENCY_ALPHA }),
         ...(CE_WEIGHT !== undefined && { ceWeight: CE_WEIGHT }),
         ...(MMR_LAMBDA !== undefined && { mmrLambda: MMR_LAMBDA }),
-        ...(graphOverlap && { graphOverlap }),
-        ...(totalQueryEntities !== undefined && { totalQueryEntities }),
-        ...(GRAPH_ALPHA !== undefined && { graphAlpha: GRAPH_ALPHA }),
+        ...(entityRanking && { entityRanking }),
       });
     } else {
       const ranker = RANKER_NAME === "fused" ? rankFusedVaultMemories : rankVaultMemories;

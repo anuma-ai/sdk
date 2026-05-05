@@ -120,6 +120,10 @@ export interface LongMemEvalOptions {
   output?: string;
   skipUnsupported?: boolean;
   concurrency?: number;
+  /** Enable cross-encoder rerank in the vault search tool. Default true. */
+  rerank?: boolean;
+  /** "off" | "llm" — LLM-based query decomposition for composite queries. Default "llm". */
+  decompose?: "off" | "llm";
 }
 
 /** API configuration for LLM and embedding calls */

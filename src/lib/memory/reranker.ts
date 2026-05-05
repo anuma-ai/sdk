@@ -80,14 +80,14 @@ export async function rerankPairs(
   // arm to come in via the `text_pair` option, not as a positional arg.
   const queries = items.map(() => query);
   const docs = items.map((i) => i.content);
-  const tokenize = tokenizer as unknown as (
+  const tokenize = tokenizer as (
     text: string[],
     options: { text_pair: string[]; padding: boolean; truncation: boolean }
   ) => Record<string, unknown>;
   const inputs = tokenize(queries, { text_pair: docs, padding: true, truncation: true });
 
   // Forward pass. The classification head emits a single logit per pair.
-  const forward = model as unknown as (
+  const forward = model as (
     i: Record<string, unknown>
   ) => Promise<{ logits: { data: Float32Array | number[]; dims: number[] } }>;
   const output = await forward(inputs);
