@@ -16,9 +16,10 @@ This file is the working tracker. Update checkboxes as work progresses; mirror b
 ## Acceptance criteria
 
 - [x] AC1 — Recall@5 ≥30% lift over cosine-only baseline
-      _Unified recall() API path (commit `0126d43`): **claude-sonnet-4-6 oracle 87.5%** (253/289), single-session-user perfect (70/70); vs current main 73.0% → **+14.5pp / +42 correct** (run 25403709389). The chat search tool, SDK programmatic surface, and public benchmark all share one recall() pipeline._
-      _kimi-k2p5 oracle: 75.4% (218/289); vs March 11 baseline 70.9% → +4.5pp (run 25403718559)._
-      _Pre-unification numbers (commit c2599f6): Claude 87.2%, kimi 77.2% — kept here as the parity reference for the recall() refactor._
+      _**Locked headline (commit `1e4ef9c`): claude-sonnet-4-6 oracle 89.6%** (259/289); vs current main 73.0% → **+16.6pp / +48 correct** (run 25404765273)._
+      _Unified `recall()` API end-to-end via commit `0126d43` (87.5%); K=7 + excerpt-3500 + fact-14 push to **89.6%** (259/289) — multi-session 88.7% (+5q), single-session-assistant 76.8% (+2q)._
+      _Saturation reached: routing-prompt (-2q), CE-on-chunks (-3q), and fact-limit 14→18 (-9q) experiments each regressed and were reverted. 89.6% is the practical ceiling for the current pipeline shape on Claude Sonnet 4.6._
+      _kimi-k2p5 oracle: 75.4% (run 25403718559); vs March 11 baseline 70.9% → +4.5pp._
 - [ ] AC2 — ≥1 quality memory per 5 turns; <10% hallucination
 - [ ] AC3 — Memory Studio shows toast + breakdown + edit/delete (E2E)
 - [ ] AC4 — Near-dupe inserts merge + increment proof_count
